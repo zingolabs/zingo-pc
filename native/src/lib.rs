@@ -7,21 +7,21 @@ use neon::prelude::JsBoolean;
 use neon::prelude::JsNumber;
 use neon::prelude::JsResult;
 use neon::prelude::JsString;
+
 use neon::register_module;
-use zecwalletlitelib::lightclient::lightclient_config::LightClientConfig;
-use zecwalletlitelib::MainNetwork;
+
+use zingoconfig::{ChainType, ZingoConfig};
+use zingolib::{commands, create_zingoconf_from_datadir, lightclient::LightClient};
 
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 use std::thread;
 
-use zecwalletlitelib::{commands, lightclient::LightClient};
-
 // We'll use a MUTEX to store a global lightclient instance,
 // so we don't have to keep creating it. We need to store it here, in rust
 // because we can't return such a complex structure back to JS
 lazy_static! {
-    static ref LIGHTCLIENT: Mutex<RefCell<Option<Arc<LightClient<MainNetwork>>>>> =
+    static ref LIGHTCLIENT: Mutex<RefCell<Option<Arc<LightClient>>>> =
         Mutex::new(RefCell::new(None));
 }
 
@@ -36,13 +36,14 @@ register_module!(mut m, {
     )?;
     m.export_function("litelib_deinitialize", litelib_deinitialize)?;
     m.export_function("litelib_execute", litelib_execute)?;
+
     Ok(())
 });
 
 // Check if there is an existing wallet
 fn litelib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
     let _chain_name = cx.argument::<JsString>(0)?.value(&mut cx);
-    let config = LightClientConfig::create_unconnected(MainNetwork, None);
+    let config = ZingoConfig::create_unconnected(ChainType::Mainnet, None);
 
     Ok(cx.boolean(config.wallet_exists()))
 }
@@ -52,14 +53,14 @@ fn litelib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
     let resp = || {
-        let server = LightClientConfig::<MainNetwork>::get_server_or_default(Some(server_uri));
-        let (config, latest_block_height) =
-            match LightClientConfig::create(MainNetwork, server, None) {
-                Ok((c, h)) => (c, h),
-                Err(e) => {
-                    return format!("Error: {}", e);
-                }
-            };
+        let server = zingoconfig::construct_server_uri(Some(server_uri));
+
+        let (config, latest_block_height) = match zingolib::create_zingoconf_from_datadir(server, None) {
+            Ok((c, h)) => (c, h),
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
 
         let lightclient = match LightClient::new(&config, latest_block_height.saturating_sub(100)) {
             Ok(l) => l,
@@ -69,7 +70,7 @@ fn litelib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
         };
 
         // Initialize logging
-        let _ = lightclient.init_logging();
+        let _ = LightClient::init_logging();
 
         let seed = match lightclient.do_seed_phrase_sync() {
             Ok(s) => s.dump(),
@@ -86,7 +87,6 @@ fn litelib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
         // Return the wallet's seed
         seed
     };
-
     Ok(cx.string(resp()))
 }
 
@@ -95,28 +95,28 @@ fn litelib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsStr
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
     let seed = cx.argument::<JsString>(1)?.value(&mut cx);
     let birthday = cx.argument::<JsNumber>(2)?.value(&mut cx);
-    let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);
+    let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);   
 
     let resp = || {
-        let server = LightClientConfig::<MainNetwork>::get_server_or_default(Some(server_uri));
-        let (config, _latest_block_height) =
-            match LightClientConfig::create(MainNetwork, server, None) {
-                Ok((c, h)) => (c, h),
-                Err(e) => {
-                    return format!("Error: {}", e);
-                }
-            };
+        let server = zingoconfig::construct_server_uri(Some(server_uri));
+
+        let (config, _latest_block_height) = match zingolib::create_zingoconf_from_datadir(server, None) {
+            Ok((c, h)) => (c, h),
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
 
         let lightclient =
-            match LightClient::new_from_phrase(seed, &config, birthday as u64, overwrite) {
-                Ok(l) => l,
-                Err(e) => {
-                    return format!("Error: {}", e);
-                }
-            };
+        match LightClient::create_with_seedorkey_wallet(seed, &config, birthday as u64, overwrite) {
+            Ok(l) => l,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
 
         // Initialize logging
-        let _ = lightclient.init_logging();
+        let _ = LightClient::init_logging();
 
         let lc = Arc::new(lightclient);
         LightClient::start_mempool_monitor(lc.clone());
@@ -125,7 +125,6 @@ fn litelib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsStr
 
         format!("OK")
     };
-
     Ok(cx.string(resp()))
 }
 
@@ -134,16 +133,16 @@ fn litelib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
     let resp = || {
-        let server = LightClientConfig::<MainNetwork>::get_server_or_default(Some(server_uri));
-        let (config, _latest_block_height) =
-            match LightClientConfig::create(MainNetwork, server, None) {
-                Ok((c, h)) => (c, h),
-                Err(e) => {
-                    return format!("Error: {}", e);
-                }
-            };
+        let server = zingoconfig::construct_server_uri(Some(server_uri));
 
-        let lightclient = match LightClient::read_from_disk(&config) {
+        let (config, _latest_block_height) = match zingolib::create_zingoconf_from_datadir(server, None) {
+            Ok((c, h)) => (c, h),
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
+
+        let lightclient = match LightClient::read_wallet_from_disk(&config) {
             Ok(l) => l,
             Err(e) => {
                 return format!("Error: {}", e);
@@ -151,7 +150,7 @@ fn litelib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
         };
 
         // Initialize logging
-        let _ = lightclient.init_logging();
+        let _ = LightClient::init_logging();
 
         let lc = Arc::new(lightclient);
         LightClient::start_mempool_monitor(lc.clone());
@@ -160,7 +159,6 @@ fn litelib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
 
         format!("OK")
     };
-
     Ok(cx.string(resp()))
 }
 
@@ -175,7 +173,7 @@ fn litelib_execute(mut cx: FunctionContext) -> JsResult<JsString> {
     let args_list = cx.argument::<JsString>(1)?.value(&mut cx);
 
     let resp = || {
-        let lightclient: Arc<LightClient<MainNetwork>>;
+        let lightclient: Arc<LightClient>;
         {
             let lc = LIGHTCLIENT.lock().unwrap();
 
@@ -208,4 +206,6 @@ fn litelib_execute(mut cx: FunctionContext) -> JsResult<JsString> {
     };
 
     Ok(cx.string(resp()))
+
 }
+
