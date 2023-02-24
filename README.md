@@ -13,7 +13,7 @@ You need to have the following software installed before you can build Zecwallet
 * [Rust v1.40+](https://www.rust-lang.org/tools/install)
 
 For some reason, the Neon native module will not compile from inside this repo.
-First compile it from []this repo](https://github.com/james-katz/zingo-wrapper)
+First compile it from [this repo](https://github.com/james-katz/zingo-wrapper)
 
 After compilation, copy it to `./zecwallet-lite-zingolib/src/`
 ```
