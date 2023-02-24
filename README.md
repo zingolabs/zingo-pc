@@ -1,26 +1,6 @@
-## ZecWallet Lite
-Zecwallet-Lite is z-Addr first, Sapling compatible lightwallet client for Zcash. It has full support for all Zcash features:
-- Send + Receive fully shielded transactions
-- Supports transparent addresses and transactions
-- Full support for incoming and outgoing memos
-- Fully encrypt your private keys, using viewkeys to sync the blockchain
-
-## Download
-Download compiled binaries from our [release page](https://github.com/adityapk00/zecwallet-lite/releases)
-
-## Privacy
-* While all the keys and transaction detection happens on the client, the server can learn what blocks contain your shielded transactions.
-* The server also learns other metadata about you like your ip address etc...
-* Also remember that t-addresses don't provide any privacy protection.
-
-
-### Note Management
-Zecwallet-Lite does automatic note and utxo management, which means it doesn't allow you to manually select which address to send outgoing transactions from. It follows these principles:
-* Defaults to sending shielded transactions, even if you're sending to a transparent address
-* Sapling funds need at least 5 confirmations before they can be spent
-* Can select funds from multiple shielded addresses in the same transaction
-* Will automatically shield your transparent funds at the first opportunity
-    * When sending an outgoing transaction to a shielded address, Zecwallet-Lite can decide to use the transaction to additionally shield your transparent funds (i.e., send your transparent funds to your own shielded address in the same transaction)
+## ZecWallet Lite with Zingolib
+Zecwallet-lite but instead of using zecwallet-cli, it's using Zingolib
+This is higly experimental software.
 
 ## Compiling from source
 Zecwallet Lite is written in Electron/Javascript and can be build from source. It will also automatically compile the Rust SDK needed to run Zecwallet Lite.
@@ -32,17 +12,35 @@ You need to have the following software installed before you can build Zecwallet
 * [Yarn](https://yarnpkg.com)
 * [Rust v1.40+](https://www.rust-lang.org/tools/install)
 
+For some reason, the Neon native module will not compile from inside this repo.
+First compile it from []this repo](https://github.com/james-katz/zingo-wrapper)
+
+After compilation, copy it to `./zecwallet-lite-zingolib/src/`
 ```
-git clone https://github.com/adityapk00/zecwallet-lite.git
+$ cp /path/to/zingo-wrapper/native.node /path/to/zecwallet-lite-zingolib/src/native.node
+
+```
+
+```
+git clone https://github.com/james-katz/zecwallet-lite-zingolib.git
 cd zecwallet-lite
 
 yarn install
 yarn build
 ```
 
+if for some reason (like it happened to me) you get an `ERR_OSSL_EVP_UNSUPPORTED` error, just run the command with `NODE_OPTIONS=--openssl-legacy-provider` env variable.
+
 To start in locally, run
 ```
 yarn start
 ```
 
-_PS: Zecwallet-Lite is NOT an official wallet, and is not affiliated with the Electric Coin Company in any way._
+For some reason, I couldn't run zecwallet-lite using the above command, so I compiled the binary instead:
+```
+yarn dist:linux
+```
+
+The binary should be in the *dist* directory.
+
+_PS: Zecwallet-Lite-Zingolib is NOT an official wallet, and is not affiliated with the Electric Coin Company in any way._
