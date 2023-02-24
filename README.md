@@ -21,6 +21,8 @@ $ cp /path/to/zingo-wrapper/native.node /path/to/zecwallet-lite-zingolib/src/nat
 
 ```
 
+Then clone and compile this repo:
+
 ```
 git clone https://github.com/james-katz/zecwallet-lite-zingolib.git
 cd zecwallet-lite
