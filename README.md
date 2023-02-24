@@ -15,23 +15,22 @@ You need to have the following software installed before you can build Zecwallet
 For some reason, the Neon native module will not compile from inside this repo.
 First compile it from [this repo](https://github.com/james-katz/zingo-wrapper)
 
-After compilation, copy it to `./zecwallet-lite-zingolib/src/`
+After compilation, copy `native.node` to `./zecwallet-lite-zingolib/src/`
 ```
 $ cp /path/to/zingo-wrapper/native.node /path/to/zecwallet-lite-zingolib/src/native.node
-
 ```
 
 Then clone and compile this repo:
 
 ```
 git clone https://github.com/james-katz/zecwallet-lite-zingolib.git
-cd zecwallet-lite
+cd zecwallet-lite-zingolib
 
 yarn install
 yarn build
 ```
 
-if for some reason (like it happened to me) you get an `ERR_OSSL_EVP_UNSUPPORTED` error, just run the command with `NODE_OPTIONS=--openssl-legacy-provider` env variable.
+if for some reason (like it happened to me) you get an `ERR_OSSL_EVP_UNSUPPORTED` error when runnong `yarn build`, just run the command with `NODE_OPTIONS=--openssl-legacy-provider` env variable.
 
 To start in locally, run
 ```
