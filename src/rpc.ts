@@ -192,6 +192,7 @@ export default class RPC {
   // Special method to get the Info object. This is used both internally and by the Loading screen
   static getInfoObject(): Info {
     const infostr = native.litelib_execute("info", "");
+    console.log(`INFO INFO INFO: ${infostr}`);
     try {
       const infoJSON = JSON.parse(infostr);
 
@@ -200,15 +201,25 @@ export default class RPC {
       info.latestBlock = infoJSON.latest_block_height;
       info.connections = 1;
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit.substring(0, 6)}/${infoJSON.version}`;
-      info.zcashdVersion = infoJSON.zcashd_version;
+      //info.zcashdVersion = infoJSON.zcashd_version;
+      info.zcashdVersion = "Not Avaiable";
       info.verificationProgress = 1;
       info.currencyName = info.testnet ? "TAZ" : "ZEC";
       info.solps = 0;
 
-      const encStatus = native.litelib_execute("encryptionstatus", "");
-      const encJSON = JSON.parse(encStatus);
-      info.encrypted = encJSON.encrypted;
-      info.locked = encJSON.locked;
+      // Zingolib doesn't support any of these commands, so ignore them
+      // const encStatus = native.litelib_execute("encryptionstatus", "");
+      // const encJSON = JSON.parse(encStatus);
+      // info.encrypted = encJSON.encrypted;
+      // info.locked = encJSON.locked;
+
+      info.encrypted = false;
+      info.locked = false;
+
+      // Also set `zecPrice` manually
+      const resultStr = native.litelib_execute("updatecurrentprice", "");
+      const resultJSON = JSON.parse(resultStr);
+      if(resultJSON) info.zecPrice = resultJSON;
 
       const walletHeight = RPC.fetchWalletHeight();
       info.walletHeight = walletHeight;
@@ -239,7 +250,8 @@ export default class RPC {
 
     let spam_filter_threshold = "0";
     try {
-      const spam_filter_str = native.litelib_execute("getoption", "spam_filter_threshold");
+      // const spam_filter_str = native.litelib_execute("getoption", "spam_filter_threshold");
+      const spam_filter_str = native.litelib_execute("getoption", "transaction_filter_threshold");
       spam_filter_threshold = JSON.parse(spam_filter_str).spam_filter_threshold;
       // console.log(`Spam filter threshold: ${spam_filter_threshold}`);
 
@@ -273,10 +285,223 @@ export default class RPC {
     return info.latestBlock;
   }
 
-  // This method will get the total balances
-  fetchTotalBalance() {
+  // Workaround for converting the `balance` command from zingolib to a format Zecwallet understand
+  zingolibToZecwalletBalance(): any {
     const balanceStr = native.litelib_execute("balance", "");
     const balanceJSON = JSON.parse(balanceStr);
+
+    let formattedJSON = {
+      "uabalance": balanceJSON.orchard_balance,
+      "zbalance": balanceJSON.sapling_balance,
+      "verified_zbalance": balanceJSON.verified_sapling_balance,
+      "spendable_zbalance": balanceJSON.spendable_sapling_balance,
+      "unverified_zbalance": balanceJSON.unverified_sapling_balance,
+      "tbalance": balanceJSON.transparent_balance,
+      "ua_addresses": [],
+      "z_addresses": [],
+      "t_addresses": []
+    };
+
+    // fetch all addresses
+    const addressesStr = native.litelib_execute('addresses','');
+    const addressesJSON = JSON.parse(addressesStr);
+
+    // fetch all notes
+    const notesStr = native.litelib_execute('notes','');
+    const notesJSON = JSON.parse(notesStr);
+
+    // construct ua_addresses with their respective balance
+    const ua_addr = addressesJSON
+      .filter((a: any) => a.receivers.orchard_exists)
+      .map((a: any) => {
+    
+      // To get the balance, sum all notes related to this address
+      const ua_bal = notesJSON.unspent_orchard_notes
+      .filter((o: any) => o.address === a.address)
+      .reduce((acc: any, ua_unsp_note: any) => acc + ua_unsp_note.value, 0);
+      
+      // Also add pending notes
+      const ua_pend_bal = notesJSON.pending_orchard_notes
+        .filter((o: any) => o.address === a.address)
+        .reduce((acc: any, ua_pend_note: any) => acc + ua_pend_note.value, 0);
+
+      return {
+        "address": a.address,
+        "balance": ua_bal + ua_pend_bal
+      }
+    });
+
+    // construct z_addresses with their respective balance
+    const z_addr = addressesJSON
+    .filter((a: any) => a.receivers.sapling)
+    .map((a: any) => {
+    // To get the balance, sum all notes related to this address
+      const z_bal = notesJSON.unspent_sapling_notes
+        .filter((o: any) => o.address === a.address)
+        .reduce((acc: any, z_unsp_note: any) => acc + z_unsp_note.value, 0)
+
+      // Also add pending notes
+      const z_pend_bal = notesJSON.pending_sapling_notes
+        .filter((o: any) => o.address === a.address)
+        .reduce((acc: any, z_pend_note: any) => acc + z_pend_note, 0)
+
+      // To get spendable balance, filter the unspent_sapling_notes where spendable = true
+      const z_spendable_bal = notesJSON.unspent_sapling_notes
+        .filter((o: any) => o.address === a.address && o.spendable)
+        .reduce((acc: any, z_spendable_note: any) => acc + z_spendable_note.value, 0)
+      
+      return {
+        "address": a.receivers.sapling,
+        "zbalance": z_bal + z_pend_bal,
+        "verified_zbalance": z_bal,
+        "spendable_zbalance": z_spendable_bal,
+        "unverified_zbalance": z_pend_bal
+      }      
+    });
+
+    // construct t_addresses with their respective balance
+    const t_addr = addressesJSON
+      .filter((a: any) => a.receivers.transparent)
+      .map((a: any) => {
+        // To get the balance, sum all UTXOs related to this address
+        const t_bal = notesJSON.utxos
+        .filter((o: any) => o.address === a.address)
+        .reduce((acc: any, t_utxo: any) => acc + t_utxo.value, 0)
+
+        // Also add pending UTXOs
+        const t_pend_bal = notesJSON.pending_utxos
+        .filter((o: any) => o.address === a.address)
+        .reduce((acc: any, t_pend_utxo: any) => acc + t_pend_utxo, 0)
+
+        return {
+          address: a.receivers.transparent,
+          balance: t_bal + t_pend_bal
+        }
+      })
+
+    // set corresponding addresses in the formatted Json
+    formattedJSON.ua_addresses = ua_addr;
+    formattedJSON.z_addresses = z_addr;
+    formattedJSON.t_addresses = t_addr;
+    
+    return formattedJSON;
+}
+
+  // Workaround for converting the `notes` command from zingolib to a format Zecwallet understand
+  zingolibToZecwalletNotes(): any {
+    // fetch all notes
+    const notesStr = native.litelib_execute('notes', '');
+    const notesJSON = JSON.parse(notesStr);
+
+    // fetch all addresses
+    const addressesStr = native.litelib_execute('addresses','');
+    const addressesJSON = JSON.parse(addressesStr);
+
+    let formattedJSON = {
+      "unspent_notes": [],
+      "pending_notes": [],
+      "utxos": [],
+      "pending_utxos": []
+    };
+
+    // Construct unspent_notes concatenating unspent_orchard_notes and unspent_sapling_notes
+    const ua_unsp_notes = notesJSON.unspent_orchard_notes;
+    const z_unsp_notes = notesJSON.unspent_sapling_notes.map((z_unsp_note: any) =>{
+      // need to get the sapling address, instead of ua address
+      const z_addr = addressesJSON.find((a: any) => a.address === z_unsp_note.address);
+      z_unsp_note.address = z_addr.receivers.sapling;
+      
+      return z_unsp_note;
+    });
+    
+    const unsp_notes = ua_unsp_notes.concat(z_unsp_notes);
+
+    // Construct pending_notes concatenating pending_orchard_notes and pending_sapling_notes
+    const ua_pend_notes = notesJSON.pending_orchard_notes;
+    const z_pend_notes = notesJSON.pending_sapling_notes.map((z_pend_note: any) =>{
+      // need to get the sapling address, instead of ua address
+      const z_addr = addressesJSON.find((a: any) => a.address === z_pend_note.address);
+      z_pend_note.address = z_addr.receivers.sapling;
+      
+      return z_pend_note;
+    });
+    
+    const pend_notes = ua_pend_notes.concat(z_pend_notes);
+    
+    // construct utxos, replacing the addresses accordingly
+    const utxos = notesJSON.utxos.map((utxo: any) => {
+      // need to get the transparent address, instead of ua address
+      const t_addr = addressesJSON.find((a: any) => a.address === utxo.address);
+      utxo.address = t_addr.receivers.transparent;
+
+      return utxo;
+    });
+
+    // construct pending_utxos, replacing the addresses accordingly
+    const pending_utxos = notesJSON.pending_utxos.map((pend_utxo: any) => {
+      // need to get the transparent address, instead of ua address
+      const t_addr = addressesJSON.find((a: any) => a.address === pend_utxo.address);
+      pend_utxo.address = t_addr.receivers.transparent;
+
+      return pend_utxo;
+    });
+
+    // Set corresponding fields
+    formattedJSON.unspent_notes = unsp_notes;
+    formattedJSON.pending_notes = pend_notes;
+    formattedJSON.utxos = utxos;
+    formattedJSON.pending_utxos = pending_utxos;
+    
+    return formattedJSON;
+  }
+
+  // Workaround for getting the `lasttxid` which is lacking in zingolib for some reason
+  zingolibToZecwalletLastTxId(): any {
+    const txListStr = native.litelib_execute("list", "");
+    const txListJSON = JSON.parse(txListStr);
+    
+    // the last transaction id in the list should the lasttxid
+    return {"last_txid": txListJSON[txListJSON.length - 1].txid};
+  }
+
+  zingolibToZecwalletTxList(): any {
+    // fetch transaction list
+    const txListStr = native.litelib_execute("list", "");
+    const txListJSON = JSON.parse(txListStr);
+  
+    // fetch all notes
+    const notesStr = native.litelib_execute('notes', '');
+    const notesJSON = JSON.parse(notesStr);
+  
+    // fetch all addresses
+    const addressesStr = native.litelib_execute('addresses','');
+    const addressesJSON = JSON.parse(addressesStr);
+  
+    // construct the list, changing ua addresses to sappling addresses, when suitable
+    const newTxList = txListJSON.map((tx: any) => {
+      const note = notesJSON.unspent_sapling_notes.find((n: any) => n.created_in_txid === tx.txid);    
+      
+      if(note) {
+        const z_addr = addressesJSON.find((a: any) => a.address === tx.address);
+        tx.address = z_addr.receivers.sapling;
+      }
+  
+      return tx;
+    })
+  
+    return newTxList;
+  }
+
+  // This method will get the total balances
+  fetchTotalBalance() {
+    //const balanceStr = native.litelib_execute("balance", "");
+    //const balanceJSON = JSON.parse(balanceStr);
+    
+    // Zingolib and zecwallet-cli gives different outputs for 'balance' command
+    // As a simple hack, just construct the output from zingolib as zecwallet-cli does.
+    const balanceJSON = this.zingolibToZecwalletBalance();
+
+    console.log(balanceJSON);
 
     // Total Balance
     const balance = new TotalBalance();
@@ -289,13 +514,17 @@ export default class RPC {
     balance.total = balance.uabalance + balance.zbalance + balance.transparent;
     this.fnSetTotalBalance(balance);
 
-    // Fetch pending notes and UTXOs
-    const pendingNotes = native.litelib_execute("notes", "");
-    const pendingJSON = JSON.parse(pendingNotes);
+    // Fetch pending notes and UTXOs    
+    // const pendingNotes = native.litelib_execute("notes", "");
+    // const pendingJSON = JSON.parse(pendingNotes);
+
+    // Zingolib and zecwallet-cli gives different outputs for `notes` command
+    // As a simple hack, just construct the output from zingolib as zecwallet-cli does.
+    const pendingJSON = this.zingolibToZecwalletNotes();
 
     const pendingAddressBalances = new Map();
 
-    // Process sapling notes
+    // Process orchard + sapling notes
     pendingJSON.pending_notes.forEach((s: any) => {
       pendingAddressBalances.set(s.address, s.value);
     });
@@ -328,6 +557,8 @@ export default class RPC {
       })
       .filter((ab: AddressBalance) => ab.balance > 0);
 
+      console.log(zaddresses);
+
     const taddresses = balanceJSON.t_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
@@ -339,7 +570,7 @@ export default class RPC {
       })
       .filter((ab: AddressBalance) => ab.balance > 0);
 
-    const addresses = oaddresses.concat(zaddresses.concat(taddresses));
+    const addresses = oaddresses.concat(zaddresses.concat(taddresses));    
 
     this.fnSetAddressesWithBalance(addresses);
 
@@ -349,14 +580,21 @@ export default class RPC {
     const allTAddresses = balanceJSON.t_addresses.map(
       (o: any) => new AddressDetail(o.address, AddressType.transparent)
     );
-    const allAddresses = allOAddresses.concat(allZAddresses.concat(allTAddresses));
+    const allAddresses = allOAddresses.concat(allZAddresses.concat(allTAddresses));    
 
     this.fnSetAllAddresses(allAddresses);
   }
 
   static getLastTxid(): string {
-    const lastTxid = native.litelib_execute("lasttxid", "");
-    const lastTxidJSON = JSON.parse(lastTxid);
+    // const lastTxid = native.litelib_execute("lasttxid", "");
+    // const lastTxidJSON = JSON.parse(lastTxid);
+
+    // for some reason, zingolib lacks this command, so let's use a hack
+    // fetch transaction list, and then return de txid of the latest transaction in the list
+    const txListStr = native.litelib_execute("list", "");
+    const txListJSON = JSON.parse(txListStr);
+
+    const lastTxidJSON = {"last_txid": txListJSON[txListJSON.length - 1].txid};
 
     return lastTxidJSON.last_txid;
   }
@@ -376,9 +614,22 @@ export default class RPC {
   }
 
   static createNewAddress(type: AddressType) {
+    // const addrStr = native.litelib_execute(
+    //   "new",
+    //   type === AddressType.unified ? "u" : type === AddressType.sapling ? "z" : "t"
+    // );
+
+    // Zingolib creates addresses in a different way
+    // ozt = orchard + sapling + transparent (orchard unified)
+    // o = orchard only
+    // oz = orchard + sapling
+    // ot = orchard + transparent    
+    // zt = spling + transparent
+    // z = sapling only    
+    // it's not possible to create a transparent only address    
     const addrStr = native.litelib_execute(
       "new",
-      type === AddressType.unified ? "u" : type === AddressType.sapling ? "z" : "t"
+      type === AddressType.unified ? "ozt" : type === AddressType.sapling ? "oz" : "ot"
     );
     const addrJSON = JSON.parse(addrStr);
 
@@ -401,9 +652,15 @@ export default class RPC {
 
   // Fetch all T and Z transactions
   fetchTandZTransactions(latestBlockHeight: number) {
-    const listStr = native.litelib_execute("list", "");
-    const listJSON = JSON.parse(listStr);
+    // const listStr = native.litelib_execute("list", "");
+    // const listJSON = JSON.parse(listStr);
     //console.log(listJSON);
+
+    // Zingolib return transaction list with ua addresses for sapling transactions
+    // we need to reconstruct it
+    const listJSON = this.zingolibToZecwalletTxList();
+    
+    console.log(listJSON);
 
     let txlist: Transaction[] = listJSON.map((tx: any) => {
       const transaction = new Transaction();
@@ -649,16 +906,23 @@ export default class RPC {
     return resultJSON.result === "success";
   }
 
-  async getZecPrice() {
-    const resultStr: string = native.litelib_execute("zecprice", "");
+  async getZecPrice() {    
+    //const resultStr: string = native.litelib_execute("zecprice", "");
+    // zingo uses a different command for getting zec price
+    const resultStr: string = native.litelib_execute("updatecurrentprice", "");
+
     if (resultStr.toLowerCase().startsWith("error")) {
       console.log(`Error fetching price ${resultStr}`);
       return;
     }
-
+    
     const resultJSON = JSON.parse(resultStr);
-    if (resultJSON.zec_price) {
-      this.fnSetZecPrice(resultJSON.zec_price);
+    // if (resultJSON.zec_price) {
+    //   this.fnSetZecPrice(resultJSON.zec_price);
+    // }
+    
+    if (resultJSON) {      
+      this.fnSetZecPrice(resultJSON);
     }
   }
 }

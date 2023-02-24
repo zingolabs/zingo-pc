@@ -134,7 +134,9 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
     const newstate = new LoadingScreenState();
     Object.assign(newstate, this.state);
 
-    newstate.url = server;
+    // newstate.url = server;
+    // For now, defaults to lightwalletd.com
+    newstate.url = "https://mainnet.lightwalletd.com:9067";
     this.setState(newstate);
   };
 
@@ -251,6 +253,7 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
           }
 
           // Set the info object, so the sidebar will show
+          console.log("Object info\n");
           console.log(info);
           setInfo(info);
 

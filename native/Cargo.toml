@@ -1,10 +1,10 @@
 [package]
-name = "zingo-wrapper"
+name = "zingolib-native"
 version = "0.1.0"
 authors = ["James Katz"]
 license = "ISC"
 edition = "2018"
-exclude = ["index.node"]
+exclude = ["native.node"]
 
 [lib]
 crate-type = ["cdylib"]
@@ -12,12 +12,8 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# zingolib = { path = "../../zingolib/zingolib" }
-# zingoconfig = { path = "../../zingolib/zingoconfig" }
-
-zingolib = { git = "https://github.com/zingolabs/zingolib", branch = "dev" }
-zingoconfig = { git = "https://github.com/zingolabs/zingolib", branch = "dev" }
-
+zingolib = { path = "../../zingolib/zingolib" }
+zingoconfig = { path = "../../zingolib/zingoconfig" }
 lazy_static = "1.4.0"
 
 [patch.crates-io]

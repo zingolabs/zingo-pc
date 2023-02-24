@@ -3624,16 +3624,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "zingo-wrapper"
-version = "0.1.0"
-dependencies = [
- "lazy_static",
- "neon",
- "zingoconfig",
- "zingolib",
-]
-
-[[package]]
 name = "zingoconfig"
 version = "0.1.0"
 dependencies = [
@@ -3703,4 +3693,14 @@ dependencies = [
  "zcash_proofs",
  "zingo-memo",
  "zingoconfig",
+]
+
+[[package]]
+name = "zingolib-native"
+version = "0.1.0"
+dependencies = [
+ "lazy_static",
+ "neon",
+ "zingoconfig",
+ "zingolib",
 ]
