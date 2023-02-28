@@ -610,7 +610,7 @@ export default class Send extends PureComponent<Props, SendState> {
 
     const totalAmountAvailable = totalBalance.transparent + totalBalance.spendableZ + totalBalance.uabalance;
     //const fromaddr = addresses.find((a) => Utils.isSapling(a.address))?.address || "";
-    // It whould be safe to change this to isUnified, since every unified addresses have orchard_exists = true
+    // It should be safe to change this to isUnified, since every unified addresses have orchard_exists = true
     const fromaddr = addresses.find((a) => Utils.isUnified(a.address))?.address || "";
 
     // If there are unverified funds, then show a tooltip
