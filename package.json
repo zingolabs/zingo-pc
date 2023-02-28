@@ -189,7 +189,7 @@
       "category": "Development",
       "icon": "./resources/icon.icns",
       "target": [
-        "deb",
+        
         "AppImage"
       ],
       "desktop": {

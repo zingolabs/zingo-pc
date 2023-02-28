@@ -245,6 +245,7 @@ export class AddressDetail {
   type: AddressType;
   account?: number;
   diversifier?: number;
+  receivers?: string;
 
   constructor(address: string, type: AddressType, account?: number, diversifier?: number) {
     this.address = address;

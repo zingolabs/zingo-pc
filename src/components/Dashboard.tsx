@@ -34,6 +34,12 @@ const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItem
           <div className={[cstyles.flexspacebetween].join(" ")}>
             <div>
               <div>{Utils.splitStringIntoChunks(item.address, 6).join(" ")}</div>
+              {/* Add label displaying receiver types */}
+              {item.receivers && (
+                <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
+                  Address type: {Utils.getReeivers(item.receivers).join(" + ")}
+                  </div>
+              )}              
               {item.containsPending && (
                 <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
                   Some transactions are pending. Balances may change.

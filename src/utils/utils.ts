@@ -106,6 +106,16 @@ export default class Utils {
     return { bigPart, smallPart };
   }
 
+  static getReeivers(r: string) {
+    const receiversJSON = JSON.parse(r);
+   
+    let receivers = ["Orchard"];
+    if(receiversJSON.transparent) receivers.push("Transparent");
+    if(receiversJSON.sapling) receivers.push("Sapling");
+    
+    return receivers;
+  }
+
   static splitStringIntoChunks(s: string, numChunks: number) {
     if (numChunks > s.length) return [s];
     if (s.length < 16) return [s];

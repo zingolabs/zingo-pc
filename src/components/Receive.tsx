@@ -24,12 +24,14 @@ type AddressBlockProps = {
   privateKey?: string;
   viewKey?: string;
   label?: string;
+  receivers?: string;
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
 };
 const AddressBlock = ({
   addressBalance,
   label,
+  receivers,
   currencyName,
   zecPrice,
   privateKey,
@@ -56,7 +58,8 @@ const AddressBlock = ({
     if (currencyName === "TAZ") {
       shell.openExternal(`https://chain.so/address/ZECTEST/${address}`);
     } else {
-      shell.openExternal(`https://zcha.in/accounts/${address}`);
+      //shell.openExternal(`https://zcha.in/accounts/${address}`);
+      shell.openExternal(`https://zecblockexplorer.com/address/${address}`);
     }
   };
 
@@ -72,6 +75,12 @@ const AddressBlock = ({
               <div className={cstyles.margintoplarge}>
                 <div className={[cstyles.sublight].join(" ")}>Label</div>
                 <div className={[cstyles.padtopsmall, cstyles.fixedfont].join(" ")}>{label}</div>
+              </div>
+            )}
+
+            {receivers && (
+              <div className={cstyles.margintopsmall}>
+                <div className={[cstyles.sublight].join(" ")}>Address type: {Utils.getReeivers(receivers).join(" + ")}</div>
               </div>
             )}
 
@@ -205,7 +214,11 @@ export default class Receive extends Component<Props> {
     const uaddrs = addresses
       .filter((a) => a.type === AddressType.unified)
       .slice(0, 100)
-      .map((a) => new AddressBalance(a.address, addressMap.get(a.address) || 0));
+      .map((a) => {
+        let uaddr = new AddressBalance(a.address, addressMap.get(a.address) || 0)
+        uaddr.receivers = a.receivers;
+        return uaddr;
+      });
     let defaultUaddr = uaddrs.length ? uaddrs[0].address : "";
     if (receivePageState && Utils.isUnified(receivePageState.newAddress)) {
       defaultUaddr = receivePageState.newAddress;
@@ -273,6 +286,7 @@ export default class Receive extends Component<Props> {
                       addressBalance={a}
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.address)}
+                      receivers={a.receivers}
                       zecPrice={info.zecPrice}
                       privateKey={addressPrivateKeys.get(a.address)}
                       viewKey={addressViewKeys.get(a.address)}

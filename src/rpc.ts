@@ -579,7 +579,12 @@ export default class RPC {
     this.fnSetAddressesWithBalance(addresses);
 
     // Also set all addresses
-    const allOAddresses = balanceJSON.ua_addresses.map((o: any) => new AddressDetail(o.address, AddressType.unified));
+    const allOAddresses = balanceJSON.ua_addresses.map((o: any) => {
+      let uaddr = new AddressDetail(o.address, AddressType.unified)
+      uaddr.receivers = o.receivers;
+
+      return uaddr;
+    });
     const allZAddresses = balanceJSON.z_addresses.map((o: any) => new AddressDetail(o.address, AddressType.sapling));
     const allTAddresses = balanceJSON.t_addresses.map(
       (o: any) => new AddressDetail(o.address, AddressType.transparent)
