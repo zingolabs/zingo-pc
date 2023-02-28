@@ -127,7 +127,7 @@ const AddressBlock = ({
               >
                 {copied ? <span>Copied!</span> : <span>Copy Address</span>}
               </button>
-              {Utils.isZaddr(address) && !privateKey && (
+              {/* {Utils.isZaddr(address) && !privateKey && (
                 <button
                   className={[cstyles.primarybutton].join(" ")}
                   type="button"
@@ -145,7 +145,7 @@ const AddressBlock = ({
                 >
                   Export Viewing Key
                 </button>
-              )}
+              )} */}
 
               {Utils.isTransparent(address) && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => openAddress()}>

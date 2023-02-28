@@ -257,7 +257,8 @@ export default class RPC {
 
       // If it is -1, i.e., it was not set, then set it to 50
       if (spam_filter_threshold === "-1") {
-        await RPC.setWalletSettingOption("spam_filter_threshold", "50");
+        //await RPC.setWalletSettingOption("spam_filter_threshold", "50");
+        await RPC.setWalletSettingOption("transaction_filter_threshold", "50");
       }
     } catch (e) {
       console.log(`Error getting spam filter threshold: ${e}`);
@@ -327,7 +328,8 @@ export default class RPC {
 
       return {
         "address": a.address,
-        "balance": ua_bal + ua_pend_bal
+        "balance": ua_bal + ua_pend_bal,
+        "receivers": JSON.stringify(a.receivers)
       }
     });
 
@@ -542,6 +544,8 @@ export default class RPC {
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
+        // Add receivers to unified addresses
+        ab.receivers = o.receivers
         return ab;
       })
       .filter((ab: AddressBalance) => ab.balance > 0);

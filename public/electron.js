@@ -268,7 +268,8 @@ class MenuBuilder {
         {
           label: "Check github.com for updates",
           click() {
-            shell.openExternal("https://github.com/adityapk00/zecwallet-lite/releases");
+            //shell.openExternal("https://github.com/adityapk00/zecwallet-lite/releases");
+            shell.openExternal("https://github.com/james-katz/zecwallet-lite-zingolib");
           },
         },
         {
@@ -317,18 +318,20 @@ class MenuBuilder {
               mainWindow.webContents.send("seed");
             },
           },
-          {
-            label: "&Import Private Keys",
-            click: () => {
-              mainWindow.webContents.send("import");
-            },
-          },
-          {
-            label: "&Export All Private Keys",
-            click: () => {
-              mainWindow.webContents.send("exportall");
-            },
-          },
+          // {
+          //   label: "&Import Private Keys",
+          //   click: () => {
+          //     // Uninplemented by Zingolib
+          //     mainWindow.webContents.send("import");
+          //   },
+          // },
+          // {
+          //   label: "&Export All Private Keys",
+          //   click: () => {
+          //     // Uninplemented by Zingolib
+          //     mainWindow.webContents.send("exportall");
+          //   },
+          // },
           { type: "separator" },
           {
             label: "Export All &Transactions",
