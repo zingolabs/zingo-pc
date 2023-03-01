@@ -193,7 +193,7 @@
         "AppImage"
       ],
       "desktop": {
-        "Name": "ZecWallet Lite",
+        "Name": "Zingo PC",
         "Comment": "Shielded Lightclient for Zcash",
         "GenericName": "Wallet",
         "Type": "Application",

@@ -1,9 +1,7 @@
-## ZecWallet Lite with Zingolib
-Zecwallet-lite but instead of using zecwallet-cli, it's using Zingolib
-This is higly experimental software.
+## Zingo PC
 
 ## Compiling from source
-Zecwallet Lite is written in Electron/Javascript and can be build from source. It will also automatically compile the Rust SDK needed to run Zecwallet Lite.
+Zingo PC is written in Electron/Javascript and can be build from source. It will also automatically compile the Rust SDK needed to run zingo-pc.
 
 #### Pre-Requisites
 You need to have the following software installed before you can build Zecwallet Fullnode
@@ -15,16 +13,16 @@ You need to have the following software installed before you can build Zecwallet
 For some reason, the Neon native module will not compile from inside this repo.
 First compile it from [this repo](https://github.com/james-katz/zingo-wrapper)
 
-After compilation, copy `native.node` to `./zecwallet-lite-zingolib/src/`
+After compilation, copy `native.node` to `./zingo-pc/src/`
 ```
-$ cp /path/to/zingo-wrapper/native.node /path/to/zecwallet-lite-zingolib/src/native.node
+$ cp /path/to/zingo-wrapper/native.node /path/to/zingo-pc/src/native.node
 ```
 
 Then clone and compile this repo:
 
 ```
-git clone https://github.com/james-katz/zecwallet-lite-zingolib.git
-cd zecwallet-lite-zingolib
+git clone https://github.com/zingolabs/zingo-pc.git
+cd zingo-pc
 
 yarn install
 yarn build
@@ -37,11 +35,9 @@ To start in locally, run
 yarn start
 ```
 
-For some reason, I couldn't run zecwallet-lite using the above command, so I compiled the binary instead:
+For some reason, I couldn't run zingo-pc using the above command, so I compiled the binary instead:
 ```
 yarn dist:linux
 ```
 
 The binary should be in the *dist* directory.
-
-_PS: Zecwallet-Lite-Zingolib is NOT an official wallet, and is not affiliated with the Electric Coin Company in any way._
