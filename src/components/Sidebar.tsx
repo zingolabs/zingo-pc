@@ -279,12 +279,12 @@ class Sidebar extends PureComponent<Props & RouteComponentProps, State> {
     // About
     ipcRenderer.on("about", () => {
       openErrorModal(
-        "Zecwallet Lite",
+        "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zecwallet Lite v1.8.8</div>
-          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2018-2022, Aditya Kulkarni.</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v0.0.1</div>
+          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2023, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
-            The MIT License (MIT) Copyright (c) 2018-2022 Zecwallet
+            The MIT License (MIT) Copyright (c) 2023 ZingoLabs
             <br />
             <br />
             Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -365,7 +365,7 @@ class Sidebar extends PureComponent<Props & RouteComponentProps, State> {
     ipcRenderer.on("exportalltx", async () => {
       const save = await remote.dialog.showSaveDialog({
         title: "Save Transactions As CSV",
-        defaultPath: "zecwallet_transactions.csv",
+        defaultPath: "zingo_pc_transactions.csv",
         filters: [{ name: "CSV File", extensions: ["csv"] }],
         properties: ["showOverwriteConfirmation"],
       });

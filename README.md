@@ -4,7 +4,7 @@
 Zingo PC is written in Electron/Javascript and can be build from source. It will also automatically compile the Rust SDK needed to run zingo-pc.
 
 #### Pre-Requisites
-You need to have the following software installed before you can build Zecwallet Fullnode
+You need to have the following software installed before you can build Zingo PC Fullnode
 
 * [Nodejs v12.16.1 or higher](https://nodejs.org)
 * [Yarn](https://yarnpkg.com)

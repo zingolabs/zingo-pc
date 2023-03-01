@@ -14,7 +14,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <p>Built using CRA electron-builder-typescript Template.</p>
-        <p>{addon.litelib_say_hello("Me")}</p>
+        <p>{addon.zingolib_say_hello("Me")}</p>
         <img src={logo} className="App-logo" alt="logo" />
         <p>
           Edit <code>public/electron.js</code> or <code>src/App.js</code> and save to reload.

@@ -126,9 +126,8 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
     const settings = await ipcRenderer.invoke("loadSettings");
     let server = settings?.lwd?.serveruri || Utils.V3_LIGHTWALLETD;
 
-    // Automatically upgrade to v2 server if you had the previous v1 server.
-    if (server === Utils.V1_LIGHTWALLETD || server === Utils.V2_LIGHTWALLETD) {
-      server = Utils.V3_LIGHTWALLETD;
+    if (server !== Utils.ZCASH_COMMUNITY && server !== Utils.ZEBRA && server !== Utils.V3_LIGHTWALLETD) {
+      server = Utils.ZCASH_COMMUNITY
     }
 
     const newstate = new LoadingScreenState();
@@ -136,7 +135,7 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
 
     // newstate.url = server;
     // For now, defaults to lightwalletd.com
-    newstate.url = "https://mainnet.lightwalletd.com:9067";
+    // newstate.url = Utils.ZCASH_COMMUNITY;
     this.setState(newstate);
   };
 
@@ -150,12 +149,12 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
     this.setupExitHandler();
 
     // Test to see if the wallet exists
-    if (!native.litelib_wallet_exists("main")) {
+    if (!native.zingolib_wallet_exists("main")) {
       // Show the wallet creation screen
       this.setState({ walletScreen: 1 });
     } else {
       try {
-        const result = native.litelib_initialize_existing(url);
+        const result = native.zingolib_initialize_existing(url);
         console.log(`Intialization: ${result}`);
         if (result !== "OK") {
           this.setState({
@@ -308,7 +307,7 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
 
   createNewWallet = () => {
     const { url } = this.state;
-    const result = native.litelib_initialize_new(url);
+    const result = native.zingolib_initialize_new(url);
 
     if (result.startsWith("Error")) {
       this.setState({ newWalletError: result });
@@ -352,7 +351,7 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
 
     const allowOverwrite = true;
 
-    const result = native.litelib_initialize_new_from_phrase(url, seed, birthday, allowOverwrite);
+    const result = native.zingolib_initialize_new_from_phrase(url, seed, birthday, allowOverwrite);
     if (result.startsWith("Error")) {
       this.setState({ newWalletError: result });
     } else {

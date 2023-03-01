@@ -56,10 +56,10 @@ class MenuBuilder {
     const { mainWindow } = this;
 
     const subMenuAbout = {
-      label: "Zecwallet Lite",
+      label: "Zingo PC",
       submenu: [
         {
-          label: "About Zecwallet Lite",
+          label: "About Zingo PC",
           selector: "orderFrontStandardAboutPanel:",
           click: () => {
             mainWindow.webContents.send("about");
@@ -69,7 +69,7 @@ class MenuBuilder {
         { label: "Services", submenu: [] },
         { type: "separator" },
         {
-          label: "Hide Zecwallet Lite",
+          label: "Hide Zingo PC",
           accelerator: "Command+H",
           selector: "hide:",
         },
@@ -268,14 +268,14 @@ class MenuBuilder {
         {
           label: "Check github.com for updates",
           click() {
-            //shell.openExternal("https://github.com/adityapk00/zecwallet-lite/releases");
-            shell.openExternal("https://github.com/james-katz/zecwallet-lite-zingolib");
+            //shell.openExternal("https://github.com/zingolabs/zingo-pc/releases");
+            shell.openExternal("https://github.com/zingolabs/zingo-pc");
           },
         },
         {
           label: "File a bug...",
           click() {
-            shell.openExternal("https://github.com/adityapk00/zecwallet-lite/issues");
+            shell.openExternal("https://github.com/zingolabs/zingo-pc/issues");
           },
         },
       ],
@@ -382,7 +382,7 @@ class MenuBuilder {
         label: "Help",
         submenu: [
           {
-            label: "About Zecwallet Lite",
+            label: "About Zingo PC",
             click: () => {
               mainWindow.webContents.send("about");
             },
@@ -396,13 +396,13 @@ class MenuBuilder {
           {
             label: "Check github.com for updates",
             click() {
-              shell.openExternal("https://github.com/adityapk00/zecwallet-lite/releases");
+              shell.openExternal("https://github.com/zingolabs/zingo-pc/releases");
             },
           },
           {
             label: "File a bug...",
             click() {
-              shell.openExternal("https://github.com/adityapk00/zecwallet-lite/issues");
+              shell.openExternal("https://github.com/zingolabs/zingo-pc/issues");
             },
           },
         ],

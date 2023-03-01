@@ -33,14 +33,14 @@ export default function ServerSelectModal({ modalIsOpen, closeModal, openErrorMo
     closeModal();
 
     setTimeout(() => {
-      openErrorModal("Restart Zecwallet Lite", "Please restart Zecwallet Lite to connect to the new server");
+      openErrorModal("Restart Zingo PC", "Please restart Zingo PC to connect to the new server");
     }, 10);
   };
 
   const servers = [
-    { name: "Zecwallet (Default)", uri: Utils.V3_LIGHTWALLETD },
-    { name: "Zecwallet Zebra (Experimental)", uri: "https://zebra-lwd.zecwallet.co:9067" },
-    { name: "Zcash Community", uri: "https://mainnet.lightwalletd.com:9067" },
+    { name: "Zcash Community (Default)", uri: Utils.ZCASH_COMMUNITY},
+    { name: "Zebra (Experimental)", uri: Utils.ZEBRA},
+    { name: "Zecwallet v3", uri: Utils.V3_LIGHTWALLETD },
   ];
 
   return (
