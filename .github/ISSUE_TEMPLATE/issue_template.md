@@ -7,7 +7,7 @@ assignees: ''
 
 ---
 
-Please make sure you have the latest ZecWallet. 
+Please make sure you have the latest Zingo PC. 
 
 **Describe the bug**
 A clear and concise description of what the bug is.

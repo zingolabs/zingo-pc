@@ -10,7 +10,7 @@ module.exports = async function (params) {
   // console.log('afterSign hook triggered', params);
 
   // Same appId in electron-builder.
-  const appId = "co.zecwallet.lite";
+  const appId = "co.zingo.pc";
 
   const appPath = params.artifactPaths.find((p) => p.endsWith(".dmg"));
 

@@ -1,14 +1,14 @@
 {
-  "name": "zecwallet-lite",
-  "productName": "Zecwallet Lite",
-  "version": "1.8.8",
+  "name": "zingo-pc",
+  "productName": "Zingo PC",
+  "version": "0.0.1",
   "private": true,
-  "description": "Zecwallet Lite",
+  "description": "Zingo PC",
   "license": "MIT",
   "author": {
-    "name": "Aditya Kulkarni",
-    "email": "aditya@zecwallet.co",
-    "url": "https://github.com/adityapk00/zecwallet-lite"
+    "name": "ZingoLabs",
+    "email": "zingo@zingolabs.com",
+    "url": "https://github.com/zingolabs/zingo-pc"
   },
   "dependencies": {
     "@babel/core": "7.12.3",
@@ -158,8 +158,8 @@
   "homepage": "./",
   "main": "./public/electron.js",
   "build": {
-    "productName": "Zecwallet Lite",
-    "appId": "co.zecwallet.lite",
+    "productName": "Zingo PC",
+    "appId": "co.zingo.pc",
     "afterAllArtifactBuild": "./afterSignHook.js",
     "files": [
       "build/**/*",
@@ -198,10 +198,10 @@
         "GenericName": "Wallet",
         "Type": "Application",
         "StartupNotify": true,
-        "StartupWMClass": "zecwalletlite",
+        "StartupWMClass": "zingopc",
         "Categories": "Utility;",
         "MimeType": "x-scheme-handler/zcash;",
-        "Keywords": "zecwallet;"
+        "Keywords": "zingo;"
       }
     }
   },
@@ -224,7 +224,7 @@
       "<rootDir>/src/**/*.{spec,test}.{js,jsx,ts,tsx}"
     ],
     "testEnvironment": "jsdom",
-    "testRunner": "/Users/adityapk/gittea/experiments/zecwallet-lite/node_modules/jest-circus/runner.js",
+    "testRunner": "/node_modules/jest-circus/runner.js",
     "transform": {
       "^.+\\.(js|jsx|mjs|cjs|ts|tsx)$": "<rootDir>/config/jest/babelTransform.js",
       "^.+\\.css$": "<rootDir>/config/jest/cssTransform.js",

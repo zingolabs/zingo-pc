@@ -3676,9 +3676,9 @@ capture-exit@^2.0.0:
   dependencies:
     rsvp "^4.8.4"
 
-cargo-cp-artifact@^0.1:
+cargo-cp-artifact@^0.1.7:
   version "0.1.7"
-  resolved "https://registry.npmjs.org/cargo-cp-artifact/-/cargo-cp-artifact-0.1.7.tgz"
+  resolved "https://registry.yarnpkg.com/cargo-cp-artifact/-/cargo-cp-artifact-0.1.7.tgz#1181b9d6e71f00f17c068c05e3cd1b0864783341"
   integrity sha512-pxEV9p1on8vu3BOKstVisF9TwMyGKCBRvzaVpQHuU2sLULCKrn3MJWx/4XlNzmG6xNCTPf78DJ7WCGgr2mOzjg==
 
 case-sensitive-paths-webpack-plugin@2.3.0:

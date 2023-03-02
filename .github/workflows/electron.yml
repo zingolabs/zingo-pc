@@ -81,37 +81,37 @@ jobs:
       - name: Name Packages@Linux
         if: contains(matrix.os, 'ubuntu')
         run: |
-          mv dist/zecwallet-lite_${{ env.VERSION }}_amd64.deb dist/Zecwallet_Lite_${{ env.VERSION }}_amd64.deb
+          mv dist/zingo_pc_${{ env.VERSION }}_amd64.deb dist/Zingo_pc_${{ env.VERSION }}_amd64.deb
       - name: Upload artifacts-deb
         uses: actions/upload-artifact@v1
         if: contains(matrix.os, 'ubuntu')
         with:
           name: ${{ matrix.os }}
-          path: dist/Zecwallet_Lite_${{ env.VERSION }}_amd64.deb
+          path: dist/Zingo_pc_${{ env.VERSION }}_amd64.deb
       - name: Upload artifacts-AppImage
         uses: actions/upload-artifact@v1
         if: contains(matrix.os, 'ubuntu')
         with:
           name: ${{ matrix.os }}
-          path: dist/Zecwallet Lite-${{ env.VERSION }}.AppImage
+          path: dist/Zingo-pc-${{ env.VERSION }}.AppImage
       - name: Upload artifacts-dmg
         uses: actions/upload-artifact@v1
         if: contains(matrix.os, 'macos')
         with:
           name: ${{ matrix.os }}
-          path: dist/Zecwallet Lite-${{ env.VERSION }}.dmg
+          path: dist/Zingo-pc-${{ env.VERSION }}.dmg
       - name: Upload artifacts-zip
         uses: actions/upload-artifact@v1
         if: contains(matrix.os, 'windows')
         with:
           name: ${{ matrix.os }}
-          path: dist/Zecwallet Lite-${{ env.VERSION }}-win.zip
+          path: dist/Zingo-pc-${{ env.VERSION }}-win.zip
       - name: Upload artifacts-msi
         uses: actions/upload-artifact@v1
         if: contains(matrix.os, 'windows')
         with:
           name: ${{ matrix.os }}
-          path: dist/Zecwallet Lite ${{ env.VERSION }}.msi
+          path: dist/Zingo-pc-${{ env.VERSION }}.msi
 
   job_signbinaries:
     name: Consolidate and sign binaries
@@ -157,7 +157,7 @@ jobs:
           APP_VERSION: ${{ env.VERSION }}
         run: |
           bin/signbinaries.sh
-          tar -cf artifacts-$APP_VERSION.tar.gz release/signatures*.zip release/Zecwallet*
+          tar -cf artifacts-$APP_VERSION.tar.gz release/signatures*.zip release/Zingo-pc*
       - name: Upload final artifacts
         uses: actions/upload-artifact@v1
         with:

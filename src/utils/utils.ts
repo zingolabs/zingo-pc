@@ -4,14 +4,9 @@
 export const NO_CONNECTION: string = "Could not connect to zcashd";
 
 export default class Utils {
-  // v1 LightwalletD
-  static V1_LIGHTWALLETD: string = "https://lightwalletd.zecwallet.co:1443";
-
-  // v2 LightwalletD
-  static V2_LIGHTWALLETD: string = "https://lwdv2.zecwallet.co:1443";
-
-  // v3 LightwalletD
-  static V3_LIGHTWALLETD: string = "https://lwdv3.zecwallet.co";
+  static ZCASH_COMMUNITY: string = "https://mainnet.lightwalletd.com:9067";
+  static ZEBRA: string = "https://zebra-lwd.zecwallet.co:9067";
+  static V3_LIGHTWALLETD: string = "https://lwdv3.zecwallet.co:443";
 
   static isUnified(addr: string): boolean {
     if (!addr) return false;
@@ -140,9 +135,9 @@ export default class Utils {
 
   static getDonationAddress(testnet: boolean): string {
     if (testnet) {
-      return "ztestsapling1wn6889vznyu42wzmkakl2effhllhpe4azhu696edg2x6me4kfsnmqwpglaxzs7tmqsq7kudemp5";
+      return "";
     } else {
-      return "zs1gv64eu0v2wx7raxqxlmj354y9ycznwaau9kduljzczxztvs4qcl00kn2sjxtejvrxnkucw5xx9u";
+      return "";
     }
   }
 
@@ -151,7 +146,7 @@ export default class Utils {
   }
 
   static getDefaultDonationMemo(testnet: boolean): string {
-    return "Thanks for supporting Zecwallet!";
+    return "Thanks for supporting Zingo!";
   }
 
   static getZecToUsdString(price: number | null, zecValue: number | null): string {

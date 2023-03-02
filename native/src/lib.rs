@@ -11,7 +11,7 @@ use neon::prelude::JsString;
 use neon::register_module;
 
 use zingoconfig::{ChainType, ZingoConfig};
-use zingolib::{commands, create_zingoconf_from_datadir, lightclient::LightClient};
+use zingolib::{commands, lightclient::LightClient};
 
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
@@ -26,22 +26,22 @@ lazy_static! {
 }
 
 register_module!(mut m, {
-    //m.export_function("litelib_say_hello", litelib_say_hello)?;
-    m.export_function("litelib_wallet_exists", litelib_wallet_exists)?;
-    m.export_function("litelib_initialize_new", litelib_initialize_new)?;
-    m.export_function("litelib_initialize_existing", litelib_initialize_existing)?;
+    //m.export_function("zingolib_say_hello", zingolib_say_hello)?;
+    m.export_function("zingolib_wallet_exists", zingolib_wallet_exists)?;
+    m.export_function("zingolib_initialize_new", zingolib_initialize_new)?;
+    m.export_function("zingolib_initialize_existing", zingolib_initialize_existing)?;
     m.export_function(
-        "litelib_initialize_new_from_phrase",
-        litelib_initialize_new_from_phrase,
+        "zingolib_initialize_new_from_phrase",
+        zingolib_initialize_new_from_phrase,
     )?;
-    m.export_function("litelib_deinitialize", litelib_deinitialize)?;
-    m.export_function("litelib_execute", litelib_execute)?;
+    m.export_function("zingolib_deinitialize", zingolib_deinitialize)?;
+    m.export_function("zingolib_execute", zingolib_execute)?;
 
     Ok(())
 });
 
 // Check if there is an existing wallet
-fn litelib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
+fn zingolib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
     let _chain_name = cx.argument::<JsString>(0)?.value(&mut cx);
     let config = ZingoConfig::create_unconnected(ChainType::Mainnet, None);
 
@@ -49,7 +49,7 @@ fn litelib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
 }
 
 /// Create a new wallet and return the seed for the newly created wallet.
-fn litelib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
+fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
     let resp = || {
@@ -91,7 +91,7 @@ fn litelib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
 }
 
 /// Restore a wallet from the seed phrase
-fn litelib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsString> {
+fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
     let seed = cx.argument::<JsString>(1)?.value(&mut cx);
     let birthday = cx.argument::<JsNumber>(2)?.value(&mut cx);
@@ -129,7 +129,7 @@ fn litelib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsStr
 }
 
 // Initialize a new lightclient and store its value
-fn litelib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
+fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
     let resp = || {
@@ -162,13 +162,13 @@ fn litelib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
     Ok(cx.string(resp()))
 }
 
-fn litelib_deinitialize(mut cx: FunctionContext) -> JsResult<JsString> {
+fn zingolib_deinitialize(mut cx: FunctionContext) -> JsResult<JsString> {
     LIGHTCLIENT.lock().unwrap().replace(None);
 
     Ok(cx.string(format!("OK")))
 }
 
-fn litelib_execute(mut cx: FunctionContext) -> JsResult<JsString> {
+fn zingolib_execute(mut cx: FunctionContext) -> JsResult<JsString> {
     let cmd = cx.argument::<JsString>(0)?.value(&mut cx);
     let args_list = cx.argument::<JsString>(1)?.value(&mut cx);
 

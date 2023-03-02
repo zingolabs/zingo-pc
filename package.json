@@ -1,14 +1,14 @@
 {
-  "name": "zecwallet-lite",
-  "productName": "Zecwallet Lite",
-  "version": "1.8.8",
+  "name": "zingo-pc",
+  "productName": "Zingo PC",
+  "version": "0.0.1",
   "private": true,
-  "description": "Zecwallet Lite",
+  "description": "Zingo PC",
   "license": "MIT",
   "author": {
-    "name": "Aditya Kulkarni",
-    "email": "aditya@zecwallet.co",
-    "url": "https://github.com/adityapk00/zecwallet-lite"
+    "name": "zingolabs",
+    "email": "zingo@zingolabs.com",
+    "url": "https://github.com/zingolabs/zingo-pc"
   },
   "dependencies": {
     "@babel/core": "7.12.3",
@@ -103,13 +103,13 @@
   },
   "scripts": {
     "start": "concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
-    "build": "node scripts/build.js",
-    "test": "node scripts/test.js",
+    "build": "yarn neon && node scripts/build.js",
+    "test": "yarn neon && node scripts/test.js",
     "dist:win": "yarn build && electron-builder -w -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac": "yarn build && electron-builder -m -c.extraMetadata.main=build/electron.js --publish never",
     "dist:linux": "electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
     "react-start": "node scripts/start.js",
-    "neon": "cargo-cp-artifact -nc src/native.node -- cargo build --manifest-path native/Cargo.toml --message-format=json-render-diagnostics"
+    "neon": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --manifest-path native/Cargo.toml --message-format=json-render-diagnostics"
   },
   "electronmon": {
     "patterns": [
@@ -146,7 +146,7 @@
     "@types/react-textarea-autosize": "^4.3.6",
     "@types/request": "^2.48.8",
     "@types/url-parse": "^1.4.8",
-    "cargo-cp-artifact": "^0.1",
+    "cargo-cp-artifact": "^0.1.7",
     "concurrently": "^5.3.0",
     "electron": "^13.6.8",
     "electron-builder": "^22.14.13",
@@ -158,8 +158,8 @@
   "homepage": "./",
   "main": "./public/electron.js",
   "build": {
-    "productName": "Zecwallet Lite",
-    "appId": "co.zecwallet.lite",
+    "productName": "Zingo PC",
+    "appId": "co.zingo.pc",
     "afterAllArtifactBuild": "./afterSignHook.js",
     "files": [
       "build/**/*",
@@ -189,7 +189,6 @@
       "category": "Development",
       "icon": "./resources/icon.icns",
       "target": [
-        
         "AppImage"
       ],
       "desktop": {
@@ -198,10 +197,10 @@
         "GenericName": "Wallet",
         "Type": "Application",
         "StartupNotify": true,
-        "StartupWMClass": "zecwalletlite",
+        "StartupWMClass": "zingopc",
         "Categories": "Utility;",
         "MimeType": "x-scheme-handler/zcash;",
-        "Keywords": "zecwallet;"
+        "Keywords": "zingo;"
       }
     }
   },
@@ -224,7 +223,7 @@
       "<rootDir>/src/**/*.{spec,test}.{js,jsx,ts,tsx}"
     ],
     "testEnvironment": "jsdom",
-    "testRunner": "/Users/adityapk/gittea/experiments/zecwallet-lite/node_modules/jest-circus/runner.js",
+    "testRunner": "/node_modules/jest-circus/runner.js",
     "transform": {
       "^.+\\.(js|jsx|mjs|cjs|ts|tsx)$": "<rootDir>/config/jest/babelTransform.js",
       "^.+\\.css$": "<rootDir>/config/jest/cssTransform.js",

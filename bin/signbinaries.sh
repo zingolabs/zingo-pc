@@ -31,12 +31,12 @@ rm -f sha256sum-$APP_VERSION.txt
 rm -f signatures-$APP_VERSION.zip
 
 # sha256sum the binaries
-sha256sum Zecwallet*$APP_VERSION* > sha256sum-$APP_VERSION.txt
+sha256sum Zingo-pc*$APP_VERSION* > sha256sum-$APP_VERSION.txt
 
 OIFS="$IFS"
 IFS=$'\n'
 
-for i in `find ./ -iname "Zecwallet*$APP_VERSION*" -o -iname "sha256sum-$APP_VERSION.txt"`; do
+for i in `find ./ -iname "Zingo-pc*$APP_VERSION*" -o -iname "sha256sum-$APP_VERSION.txt"`; do
   echo "Signing" "$i"
   gpg --batch --output "signatures/$i.sig" --detach-sig "$i"
 done
