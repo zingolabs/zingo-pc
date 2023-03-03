@@ -52,7 +52,7 @@ export default function ServerSelectModal({ modalIsOpen, closeModal, openErrorMo
     >
       <div className={[cstyles.verticalflex].join(" ")}>
         <div className={cstyles.marginbottomlarge} style={{ textAlign: "left", marginLeft: 10 }}>
-          Switch LightwalletD server
+          Switch to Another Server
         </div>
 
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>

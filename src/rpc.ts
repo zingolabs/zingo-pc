@@ -455,15 +455,6 @@ export default class RPC {
     return formattedJSON;
   }
 
-  // Workaround for getting the `lasttxid` which is lacking in zingolib for some reason
-  zingolibLastTxId(): any {
-    const txListStr = native.zingolib_execute("list", "");
-    const txListJSON = JSON.parse(txListStr);
-    
-    // the last transaction id in the list should the lasttxid
-    return {"last_txid": txListJSON[txListJSON.length - 1].txid};
-  }
-
   zingolibTxList(): any {
     // fetch transaction list
     const txListStr = native.zingolib_execute("list", "");
@@ -589,17 +580,14 @@ export default class RPC {
   }
 
   static getLastTxid(): string {
-    // const lastTxid = native.zingolib_execute("lasttxid", "");
-    // const lastTxidJSON = JSON.parse(lastTxid);
-
-    // for some reason, zingolib lacks this command, so let's use a hack
-    // fetch transaction list, and then return de txid of the latest transaction in the list
     const txListStr = native.zingolib_execute("list", "");
     const txListJSON = JSON.parse(txListStr);
 
-    const lastTxidJSON = {"last_txid": txListJSON[txListJSON.length - 1].txid};
-
-    return lastTxidJSON.last_txid;
+    if (txListJSON && txListJSON.length) {
+      return txListJSON[txListJSON.length - 1].txid;
+    } else {
+      return '0';
+    }
   }
 
   static getPrivKeyAsString(address: string): string {
