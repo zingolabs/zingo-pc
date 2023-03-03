@@ -11,12 +11,13 @@
 }
 
 .sidebarmenuitemactive {
-  color: #c3921f;
+  color: #18bd18;
 }
 
 .sidebarlogobg {
-  background: #ffb100;
-  margin-bottom: 8px;
+  background: #011401; 
+  margin-bottom: 8px; 
+  padding: 8px; 
 }
 
 .exportedPrivKeys {

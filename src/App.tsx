@@ -1,6 +1,6 @@
 /* eslint-disable import/no-webpack-loader-syntax */
 import React from "react";
-import logo from "./logo.svg";
+import logo from "./assets/img/logobig.png";
 import "./App.css";
 
 //const addon = require('./native.node');

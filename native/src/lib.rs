@@ -11,6 +11,7 @@ use neon::prelude::JsString;
 use neon::register_module;
 
 use zingoconfig::{ChainType, ZingoConfig};
+use zingolib::wallet::WalletBase;
 use zingolib::{commands, lightclient::LightClient};
 
 use std::cell::RefCell;
@@ -107,8 +108,12 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
             }
         };
 
-        let lightclient =
-        match LightClient::create_with_seedorkey_wallet(seed, &config, birthday as u64, overwrite) {
+        let lightclient = match LightClient::new_from_wallet_base(
+            WalletBase::MnemonicPhrase(seed),
+            &config,
+            birthday as u64,
+            overwrite,
+        ) {
             Ok(l) => l,
             Err(e) => {
                 return format!("Error: {}", e);

@@ -71,7 +71,7 @@ export default class Zcashd extends Component<Props> {
 
               <div className={cstyles.buttoncontainer}>
                 <button className={cstyles.primarybutton} type="button" onClick={openServerSelectModal}>
-                  Switch LightwalletD Server
+                  Switch to Another Server
                 </button>
                 <button className={cstyles.primarybutton} type="button" onClick={refresh}>
                   Refresh All Data

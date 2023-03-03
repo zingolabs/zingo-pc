@@ -135,7 +135,9 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
 
     // newstate.url = server;
     // For now, defaults to lightwalletd.com
-    // newstate.url = Utils.ZCASH_COMMUNITY;
+    if (!newstate.url) {
+      newstate.url = Utils.ZCASH_COMMUNITY; 
+    }
     this.setState(newstate);
   };
 
@@ -155,6 +157,7 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
     } else {
       try {
         const result = native.zingolib_initialize_existing(url);
+        console.log(`Url: ${url}`);
         console.log(`Intialization: ${result}`);
         if (result !== "OK") {
           this.setState({
@@ -173,6 +176,7 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
 
         this.getInfo();
       } catch (e) {
+        console.log(`Url: ${url}`);
         console.log("Error initializing", e);
         this.setState({
           currentStatus: (
@@ -310,6 +314,7 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
     const result = native.zingolib_initialize_new(url);
 
     if (result.startsWith("Error")) {
+      console.log(result);
       this.setState({ newWalletError: result });
     } else {
       const r = JSON.parse(result);
@@ -379,7 +384,21 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
               {currentStatusIsError && (
                 <div className={cstyles.buttoncontainer}>
                   <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
-                    Switch LightwalletD Server
+                    Switch to Another Server
+                  </button>
+                  <button
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => {
+                      this.setState({ walletScreen: 1 });
+                      this.setState({
+                        currentStatus: "",
+                        currentStatusIsError: false,
+                      });
+                      this.createNewWallet();
+                    }}
+                  >
+                    Create New Wallet
                   </button>
                   <button
                     type="button"
