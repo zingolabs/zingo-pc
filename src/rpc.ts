@@ -779,7 +779,8 @@ export default class RPC {
 
     try {
       console.log(`Sending ${JSON.stringify(sendJson)}`);
-      native.zingolib_execute("send", JSON.stringify(sendJson));
+      const resp = native.zingolib_execute("send", JSON.stringify(sendJson));
+      console.log(resp);
     } catch (err) {
       // TODO Show a modal with the error
       console.log(`Error sending Tx: ${err}`);
