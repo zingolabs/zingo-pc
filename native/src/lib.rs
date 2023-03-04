@@ -11,12 +11,9 @@ use neon::prelude::JsString;
 use neon::register_module;
 
 use zingoconfig::{ChainType, ZingoConfig};
-use zingolib::wallet::WalletBase;
-use zingolib::{commands, lightclient::LightClient};
+use zingolib::{commands, lightclient::LightClient, wallet::WalletBase};
 
-use std::cell::RefCell;
-use std::sync::{Arc, Mutex};
-use std::thread;
+use std::{cell::RefCell, sync::Arc, sync::Mutex, thread};
 
 // We'll use a MUTEX to store a global lightclient instance,
 // so we don't have to keep creating it. We need to store it here, in rust
@@ -189,7 +186,7 @@ fn zingolib_execute(mut cx: FunctionContext) -> JsResult<JsString> {
             lightclient = lc.borrow().as_ref().unwrap().clone();
         };
 
-        if cmd == "sync" || cmd == "rescan" || cmd == "import" || cmd == "send" {
+        if cmd == "sync" || cmd == "rescan" || cmd == "import" {
             thread::spawn(move || {
                 let args = if args_list.is_empty() {
                     vec![]
