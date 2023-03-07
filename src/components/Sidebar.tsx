@@ -725,6 +725,7 @@ class Sidebar extends PureComponent<Props & RouteComponentProps, State> {
         />
 
         <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
+          <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v0.0.1</div>
           <img src={Logo} width="70" alt="logo" />
         </div>
 

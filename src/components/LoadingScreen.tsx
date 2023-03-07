@@ -165,7 +165,7 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
               <span>
                 Error Initializing Lightclient
                 <br />
-                {result}
+                {`${result}`}
               </span>
             ),
             currentStatusIsError: true,
@@ -175,15 +175,15 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
         }
 
         this.getInfo();
-      } catch (e) {
+      } catch (err) {
         console.log(`Url: ${url}`);
-        console.log("Error initializing", e);
+        console.log("Error initializing", err);
         this.setState({
           currentStatus: (
             <span>
               Error Initializing Lightclient
               <br />
-              {`${e}`}
+              {`${err}`}
             </span>
           ),
           currentStatusIsError: true,
@@ -296,7 +296,9 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
               <div>
                 Syncing batch {ss.batch_num} of {ss.batch_total}
                 <br />
+                <br />
                 Batch Progress: {batch_progress.toFixed(2)}%. Total progress: {progress.toFixed(2)}%.
+                <br />
                 <br />
                 <br />
                 Please wait... This could take several minutes or hours
@@ -377,7 +379,8 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
         <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
           {walletScreen === 0 && (
             <div>
-              <div style={{ marginTop: "100px" }}>
+              <div style={{ marginTop: "100px", marginBottom: "20px" }}>
+                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v0.0.1</div>
                 <img src={Logo} width="200px;" alt="Logo" />
               </div>
               <div>{currentStatus}</div>
@@ -421,7 +424,8 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
 
           {walletScreen === 1 && (
             <div>
-              <div>
+              <div style={{ marginTop: "20px", marginBottom: "20px" }}>
+                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v0.0.1</div>
                 <img src={Logo} width="200px;" alt="Logo" />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
@@ -455,7 +459,8 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
 
           {walletScreen === 2 && (
             <div>
-              <div>
+              <div style={{ marginTop: "20px", marginBottom: "20px" }}>
+                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v0.0.1</div>
                 <img src={Logo} width="200px;" alt="Logo" />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
@@ -494,7 +499,8 @@ class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreen
 
           {walletScreen === 3 && (
             <div>
-              <div>
+              <div style={{ marginTop: "20px", marginBottom: "20px" }}>
+                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v0.0.1</div>
                 <img src={Logo} width="200px;" alt="Logo" />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
