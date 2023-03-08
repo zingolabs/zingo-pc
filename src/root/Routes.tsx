@@ -5,13 +5,13 @@
 import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route } from "react-router";
-import { ErrorModal, ErrorModalData } from "./components/ErrorModal";
+import { ErrorModal, ErrorModalData } from "../components/ErrorModal";
 import cstyles from "./components/Common.module.css";
-import routes from "./constants/routes.json";
-import Dashboard from "./components/Dashboard";
-import Send, { SendManyJson } from "./components/Send";
-import Receive from "./components/Receive";
-import LoadingScreen from "./components/LoadingScreen";
+import routes from "../constants/routes.json";
+import Dashboard from "../components/Dashboard";
+import Send, { SendManyJson } from "../components/Send";
+import Receive from "../components/Receive";
+import LoadingScreen from "../components/LoadingScreen";
 import AppState, {
   AddressBalance,
   TotalBalance,
@@ -28,17 +28,17 @@ import AppState, {
   AddressType,
   AddressDetail,
   WalletSettings,
-} from "./components/AppState";
-import RPC from "./rpc";
-import Utils from "./utils/utils";
-import { ZcashURITarget } from "./utils/uris";
-import Zcashd from "./components/Zcashd";
-import AddressBook from "./components/Addressbook";
-import AddressbookImpl from "./utils/AddressbookImpl";
-import Sidebar from "./components/Sidebar";
-import Transactions from "./components/Transactions";
-import PasswordModal from "./components/PasswordModal";
-import ServerSelectModal from "./components/ServerSelectModal";
+} from "../components/appstate/AppState";
+import RPC from "../rpc/rpc";
+import Utils from "../utils/utils";
+import { ZcashURITarget } from "../utils/uris";
+import Zcashd from "../components/Zcashd";
+import AddressBook from "../components/addressbook/Addressbook";
+import AddressbookImpl from "../components/addressbook/AddressbookImpl";
+import Sidebar from "../components/Sidebar";
+import Transactions from "../components/Transactions";
+import PasswordModal from "../components/PasswordModal";
+import ServerSelectModal from "../components/ServerSelectModal";
 
 type Props = {};
 

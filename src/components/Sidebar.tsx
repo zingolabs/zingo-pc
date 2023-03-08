@@ -12,9 +12,9 @@ import styles from "./Sidebar.module.css";
 import cstyles from "./Common.module.css";
 import routes from "../constants/routes.json";
 import Logo from "../assets/img/logobig.png";
-import { AddressDetail, Info, Transaction, WalletSettings } from "./AppState";
+import { AddressDetail, Info, Transaction, WalletSettings } from "./appstate/AppState";
 import Utils from "../utils/utils";
-import RPC from "../rpc";
+import RPC from "../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../utils/uris";
 import WalletSettingsModal from "./WalletSettingsModal";
 

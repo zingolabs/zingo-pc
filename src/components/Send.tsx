@@ -22,12 +22,12 @@ import {
   TotalBalance,
   SendProgress,
   AddressDetail,
-} from "./AppState";
+} from "./appstate/AppState";
 import Utils from "../utils/utils";
 import ScrollPane from "./ScrollPane";
 import ArrowUpLight from "../assets/img/arrow_up_dark.png";
 import { BalanceBlockHighlight } from "./BalanceBlocks";
-import RPC from "../rpc";
+import RPC from "../rpc/rpc";
 import routes from "../constants/routes.json";
 import { parseZcashURI, ZcashURITarget } from "../utils/uris";
 

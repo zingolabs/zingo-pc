@@ -1,7 +1,7 @@
 import Modal from "react-modal";
 import React, { useEffect, useState } from "react";
 import cstyles from "./Common.module.css";
-import { WalletSettings } from "./AppState";
+import { WalletSettings } from "./appstate/AppState";
 
 type ModalProps = {
   walletSettings: WalletSettings;

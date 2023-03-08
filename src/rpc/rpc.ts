@@ -10,10 +10,10 @@ import {
   AddressType,
   AddressDetail,
   WalletSettings,
-} from "./components/AppState";
-import { SendManyJson } from "./components/Send";
+} from "../components/appstate/AppState";
+import { SendManyJson } from "../components/Send";
 
-import native from "./native.node";
+import native from "../native.node";
 
 export default class RPC {
   rpcConfig?: RPCConfig;
