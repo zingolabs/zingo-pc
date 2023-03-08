@@ -7,7 +7,7 @@ import request from "request";
 import progress from "progress-stream";
 import native from "../../native.node";
 import routes from "../../constants/routes.json";
-import { RPCConfig, Info } from "../appstate/AppState";
+import { RPCConfig, Info } from "../appstate";
 import RPC from "../../rpc/rpc";
 import cstyles from "./Common.module.css";
 import styles from "./LoadingScreen.module.css";

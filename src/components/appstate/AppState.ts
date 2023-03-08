@@ -1,5 +1,5 @@
 /* eslint-disable max-classes-per-file */
-import ErrorModalData from "../errormodal/ErrorModal";
+import { ErrorModalData } from "../errormodal";
 import TotalBalance from "./TotalBalance";
 import AddressBalance from "./AddressBalance";
 import AddressBookEntry from "./AddressbookEntry";

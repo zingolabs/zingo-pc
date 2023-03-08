@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 import React, { Component } from "react";
-import { Info, RPCConfig } from "../appstate/AppState";
+import { Info, RPCConfig } from "../appstate";
 import cstyles from "./Common.module.css";
 import styles from "./Zcashd.module.css";
 import ScrollPane from "../scrollPane/ScrollPane";

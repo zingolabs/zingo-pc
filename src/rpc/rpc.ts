@@ -10,7 +10,7 @@ import {
   AddressType,
   AddressDetail,
   WalletSettings,
-} from "../components/appstate/AppState";
+} from "../components/appstate";
 import { SendManyJson } from "../components/send/Send";
 
 import native from "../native.node";

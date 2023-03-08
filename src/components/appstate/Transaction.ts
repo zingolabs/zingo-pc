@@ -1,4 +1,4 @@
-import { TxDetail } from "./TxDetail";
+import TxDetail from "./TxDetail";
 
 // List of transactions. TODO: Handle memos, multiple addresses etc...
 export default class Transaction {

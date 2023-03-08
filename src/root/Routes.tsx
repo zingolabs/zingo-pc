@@ -5,7 +5,7 @@
 import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route } from "react-router";
-import { ErrorModal, ErrorModalProps } from "../components/errormodal";
+import { ErrorModal, ErrorModalData } from "../components/errormodal";
 import cstyles from "./components/Common.module.css";
 import routes from "../constants/routes.json";
 import Dashboard from "../components/dashboard/Dashboard";
@@ -86,7 +86,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
   };
 
   openErrorModal = (title: string, body: string | JSX.Element) => {
-    const errorModalData = new ErrorModalProps();
+    const errorModalData = new ErrorModalData();
     errorModalData.modalIsOpen = true;
     errorModalData.title = title;
     errorModalData.body = body;
@@ -95,7 +95,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
   };
 
   closeErrorModal = () => {
-    const errorModalData = new ErrorModalProps();
+    const errorModalData = new ErrorModalData();
     errorModalData.modalIsOpen = false;
 
     this.setState({ errorModalData });

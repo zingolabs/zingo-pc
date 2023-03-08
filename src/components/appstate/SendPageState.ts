@@ -1,4 +1,4 @@
-import { ToAddr } from "./ToAddr";
+import ToAddr from "./ToAddr";
 
 export default class SendPageState {
     fromaddr: string;
