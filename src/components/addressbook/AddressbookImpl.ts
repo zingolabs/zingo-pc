@@ -1,5 +1,5 @@
 import path from "path";
-import { AddressBookEntry } from "../appstate/AppState";
+import { AddressBookEntry } from "../appstate";
 
 const { remote } = window.require("electron");
 const fs = window.require("fs");

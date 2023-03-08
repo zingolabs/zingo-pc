@@ -1,7 +1,7 @@
 import { TxDetail } from "./TxDetail";
 
 // List of transactions. TODO: Handle memos, multiple addresses etc...
-export class Transaction {
+export default class Transaction {
     type: string;
     address: string;
     amount: number;

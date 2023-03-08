@@ -1,4 +1,4 @@
-export class WalletSettings {
+export default class WalletSettings {
     download_memos: string;
     spam_filter_threshold: number;
   

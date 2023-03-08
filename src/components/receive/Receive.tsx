@@ -11,9 +11,9 @@ import {
 import QRCode from "qrcode.react";
 import styles from "./Receive.module.css";
 import cstyles from "./Common.module.css";
-import Utils from "../utils/utils";
-import { AddressBalance, Info, ReceivePageState, AddressBookEntry, AddressDetail, AddressType } from "./appstate/AppState";
-import ScrollPane from "./ScrollPane";
+import Utils from "../../utils/utils";
+import { AddressBalance, Info, ReceivePageState, AddressBookEntry, AddressDetail, AddressType } from "../appstate/AppState";
+import ScrollPane from "../scrollPane/ScrollPane";
 
 const { shell, clipboard } = window.require("electron");
 

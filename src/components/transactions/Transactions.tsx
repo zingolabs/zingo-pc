@@ -5,15 +5,15 @@ import React, { Component } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { RouteComponentProps, withRouter } from "react-router";
-import { BalanceBlockHighlight } from "./BalanceBlocks";
+import { BalanceBlockHighlight } from "../balanceblock/BalanceBlock";
 import styles from "./Transactions.module.css";
 import cstyles from "./Common.module.css";
-import { Transaction, Info, AddressBookEntry, TxDetail } from "./appstate/AppState";
-import ScrollPane from "./ScrollPane";
-import Utils from "../utils/utils";
-import { ZcashURITarget } from "../utils/uris";
-import routes from "../constants/routes.json";
-import RPC from "../rpc/rpc";
+import { Transaction, Info, AddressBookEntry, TxDetail } from "../appstate/AppState";
+import ScrollPane from "../scrollPane/ScrollPane";
+import Utils from "../../utils/utils";
+import { ZcashURITarget } from "../../utils/uris";
+import routes from "../../constants/routes.json";
+import RPC from "../../rpc/rpc";
 
 const { shell } = window.require("electron");
 

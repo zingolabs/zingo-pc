@@ -5,14 +5,15 @@
 import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route } from "react-router";
-import { ErrorModal, ErrorModalData } from "../components/ErrorModal";
+import { ErrorModal, ErrorModalProps } from "../components/errormodal";
 import cstyles from "./components/Common.module.css";
 import routes from "../constants/routes.json";
-import Dashboard from "../components/Dashboard";
-import Send, { SendManyJson } from "../components/Send";
-import Receive from "../components/Receive";
-import LoadingScreen from "../components/LoadingScreen";
-import AppState, {
+import Dashboard from "../components/dashboard/Dashboard";
+import Send, { SendManyJson } from "../components/send/Send";
+import Receive from "../components/receive/Receive";
+import LoadingScreen from "../components/loadingscreen/LoadingScreen";
+import {
+  AppState,
   AddressBalance,
   TotalBalance,
   Transaction,
@@ -28,17 +29,17 @@ import AppState, {
   AddressType,
   AddressDetail,
   WalletSettings,
-} from "../components/appstate/AppState";
+} from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
 import { ZcashURITarget } from "../utils/uris";
-import Zcashd from "../components/Zcashd";
+import Zcashd from "../components/zcashd/Zcashd";
 import AddressBook from "../components/addressbook/Addressbook";
 import AddressbookImpl from "../components/addressbook/AddressbookImpl";
-import Sidebar from "../components/Sidebar";
-import Transactions from "../components/Transactions";
-import PasswordModal from "../components/PasswordModal";
-import ServerSelectModal from "../components/ServerSelectModal";
+import Sidebar from "../components/sidebar/Sidebar";
+import Transactions from "../components/transactions/Transactions";
+import PasswordModal from "../components/passwordmodal/PasswordModal";
+import ServerSelectModal from "../components/serverselectmodal/ServerSelectModal";
 
 type Props = {};
 
@@ -85,7 +86,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
   };
 
   openErrorModal = (title: string, body: string | JSX.Element) => {
-    const errorModalData = new ErrorModalData();
+    const errorModalData = new ErrorModalProps();
     errorModalData.modalIsOpen = true;
     errorModalData.title = title;
     errorModalData.body = body;
@@ -94,7 +95,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
   };
 
   closeErrorModal = () => {
-    const errorModalData = new ErrorModalData();
+    const errorModalData = new ErrorModalProps();
     errorModalData.modalIsOpen = false;
 
     this.setState({ errorModalData });

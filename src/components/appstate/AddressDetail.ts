@@ -1,6 +1,6 @@
 import { AddressType } from "./AddressType";
 
-export class AddressDetail {
+export default class AddressDetail {
     address: string;
     type: AddressType;
     account?: number;

@@ -1,9 +1,9 @@
 /* eslint-disable react/prop-types */
 import React, { Component } from "react";
-import { Info, RPCConfig } from "./appstate/AppState";
+import { Info, RPCConfig } from "../appstate/AppState";
 import cstyles from "./Common.module.css";
 import styles from "./Zcashd.module.css";
-import ScrollPane from "./ScrollPane";
+import ScrollPane from "../scrollPane/ScrollPane";
 import Heart from "../assets/img/zcashdlogo.gif";
 
 type DetailLineProps = {

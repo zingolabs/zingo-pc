@@ -1,9 +1,8 @@
 /* eslint-disable react/prop-types */
 import Modal from "react-modal";
-import React from "react";
 import cstyles from "./Common.module.css";
 
-export class ErrorModalData {
+export class ErrorModalProps {
   title: string;
   body: string | JSX.Element;
   modalIsOpen: boolean;
@@ -16,7 +15,7 @@ export class ErrorModalData {
   }
 }
 
-export const ErrorModal = ({ title, body, modalIsOpen, closeModal }: ErrorModalData) => {
+export const ErrorModal = ({ title, body, modalIsOpen, closeModal }: ErrorModalProps) => {
   return (
     <Modal
       isOpen={modalIsOpen}

@@ -9,7 +9,7 @@ import {
 } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
 import cstyles from "./Common.module.css";
-import { AddressBookEntry } from "../appstate/AppState";
+import { AddressBookEntry } from "../appstate";
 import { ZcashURITarget } from "../../utils/uris";
 import routes from "../../constants/routes.json";
 

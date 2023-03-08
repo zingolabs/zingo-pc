@@ -11,7 +11,7 @@ import {
   AddressDetail,
   WalletSettings,
 } from "../components/appstate/AppState";
-import { SendManyJson } from "../components/Send";
+import { SendManyJson } from "../components/send/Send";
 
 import native from "../native.node";
 

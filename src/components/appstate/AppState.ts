@@ -1,17 +1,17 @@
 /* eslint-disable max-classes-per-file */
-import { ErrorModalData } from "../ErrorModal";
-import { TotalBalance } from "./TotalBalance";
-import { AddressBalance } from "./AddressBalance";
-import { AddressBookEntry } from "./AddressbookEntry";
-import { Transaction } from "./Transaction";
-import { SendPageState } from "./SendPageState";
-import { ReceivePageState } from "./ReceivePageState";
-import { RPCConfig } from "./RPCConfig";
-import { Info } from "./Info";
-import { ServerSelectState } from "./ServerSelectState";
-import { PasswordState } from "./PasswordState";
-import { WalletSettings } from "./WalletSettings";
-import { AddressDetail } from "./AddressDetail";
+import ErrorModalData from "../errormodal/ErrorModal";
+import TotalBalance from "./TotalBalance";
+import AddressBalance from "./AddressBalance";
+import AddressBookEntry from "./AddressbookEntry";
+import Transaction from "./Transaction";
+import SendPageState from "./SendPageState";
+import ReceivePageState from "./ReceivePageState";
+import RPCConfig from "./RPCConfig";
+import Info from "./Info";
+import ServerSelectState from "./ServerSelectState";
+import PasswordState from "./PasswordState";
+import WalletSettings from "./WalletSettings";
+import AddressDetail from "./AddressDetail";
 
 // eslint-disable-next-line max-classes-per-file
 export default class AppState {

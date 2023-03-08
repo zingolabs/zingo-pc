@@ -1,4 +1,4 @@
-export class RPCConfig {
+export default class RPCConfig {
     url: string;
   
     constructor() {

@@ -1,4 +1,4 @@
-export class AddressBalance {
+export default class AddressBalance {
     address: string;
   
     balance: number;

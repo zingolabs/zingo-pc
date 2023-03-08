@@ -1,4 +1,4 @@
-export class Info {
+export default class Info {
     testnet: boolean;
     latestBlock: number;
     connections: number;
