@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import React, { useState, useEffect } from "react";
 import {
   AccordionItem,
@@ -9,8 +8,8 @@ import {
 import QRCode from "qrcode.react";
 import styles from "./Receive.module.css";
 import cstyles from "./Common.module.css";
-import Utils from "../../utils/utils";
-import { AddressBalance } from "../appstate";
+import Utils from "../../../utils/utils";
+import { AddressBalance } from "../../appstate";
 
 const { shell, clipboard } = window.require("electron");
 

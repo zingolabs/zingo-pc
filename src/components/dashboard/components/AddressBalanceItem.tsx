@@ -1,8 +1,3 @@
-/* eslint-disable jsx-a11y/no-static-element-interactions */
-/* eslint-disable jsx-a11y/click-events-have-key-events */
-/* eslint-disable no-plusplus */
-/* eslint-disable react/prop-types */
-
 import {
   AccordionItemButton,
   AccordionItem,
@@ -11,8 +6,8 @@ import {
 } from "react-accessible-accordion";
 import styles from "./Dashboard.module.css";
 import cstyles from "./Common.module.css";
-import { AddressBalance } from "../appstate";
-import Utils from "../../utils/utils";
+import { AddressBalance } from "../../appstate";
+import Utils from "../../../utils/utils";
 
 type AddressBalanceItemProps = {
   currencyName: string;

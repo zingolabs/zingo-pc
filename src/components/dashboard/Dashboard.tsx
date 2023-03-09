@@ -1,8 +1,3 @@
-/* eslint-disable jsx-a11y/no-static-element-interactions */
-/* eslint-disable jsx-a11y/click-events-have-key-events */
-/* eslint-disable no-plusplus */
-/* eslint-disable react/prop-types */
-
 import React, { Component } from "react";
 import {
   Accordion,
@@ -13,7 +8,7 @@ import { TotalBalance, Info, AddressBalance } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
-import AddressBalanceItem from "./AddressBalanceItem";
+import AddressBalanceItem from "./components/AddressBalanceItem";
 
 type DashboardProps = {
   totalBalance: TotalBalance;

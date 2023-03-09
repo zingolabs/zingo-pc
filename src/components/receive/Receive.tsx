@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import React, { Component } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import {
@@ -9,9 +8,9 @@ import cstyles from "./Common.module.css";
 import Utils from "../../utils/utils";
 import { AddressBalance, Info, ReceivePageState, AddressBookEntry, AddressDetail, AddressType } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
-import AddressBlock from "./AddressBlock";
+import AddressBlock from "./components/AddressBlock";
 
-type Props = {
+type ReceiveProps = {
   addresses: AddressDetail[];
   addressesWithBalance: AddressBalance[];
   addressBook: AddressBookEntry[];
@@ -25,7 +24,7 @@ type Props = {
   rerenderKey: number;
 };
 
-export default class Receive extends Component<Props> {
+export default class Receive extends Component<ReceiveProps> {
   render() {
     const {
       addresses,
@@ -43,7 +42,6 @@ export default class Receive extends Component<Props> {
 
     // Convert the addressBalances into a map.
     const addressMap: Map<string, number> = addressesWithBalance.reduce((m, a) => {
-      // eslint-disable-next-line no-param-reassign
       m.set(a.address, a.balance);
       return m;
     }, new Map());
@@ -77,7 +75,6 @@ export default class Receive extends Component<Props> {
 
       // move this address to the front, since the scrollbar will reset when we re-render
       zaddrs.sort((x, y) => {
-        // eslint-disable-next-line, no-nested-ternary
         return x.address === defaultZaddr ? -1 : y.address === defaultZaddr ? 1 : 0;
       });
     }
@@ -93,13 +90,11 @@ export default class Receive extends Component<Props> {
 
       // move this address to the front, since the scrollbar will reset when we re-render
       taddrs.sort((x, y) => {
-        // eslint-disable-next-line  no-nested-ternary
         return x.address === defaultTaddr ? -1 : y.address === defaultTaddr ? 1 : 0;
       });
     }
 
     const addressBookMap = addressBook.reduce((m, obj) => {
-      // eslint-disable-next-line no-param-reassign
       m.set(obj.address, obj.label);
       return m;
     }, new Map());

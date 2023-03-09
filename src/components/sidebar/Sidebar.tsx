@@ -1,13 +1,6 @@
-/* eslint-disable no-else-return */
-
-/* eslint-disable react/destructuring-assignment */
-/* eslint-disable react/prop-types */
-import React, { PureComponent, ReactElement, useState } from "react";
+import React, { PureComponent, ReactElement } from "react";
 import dateformat from "dateformat";
-import Modal from "react-modal";
 import { RouteComponentProps, withRouter } from "react-router";
-import { Link } from "react-router-dom";
-import TextareaAutosize from "react-textarea-autosize";
 import styles from "./Sidebar.module.css";
 import cstyles from "./Common.module.css";
 import routes from "../../constants/routes.json";
@@ -17,210 +10,15 @@ import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import WalletSettingsModal from "../walletsettingsmodal/WalletSettingsModal";
+import PayURIModal from "./components/PayURIModal";
+import ImportPrivKeyModal from "./components/ImportPrivKeyModal";
+import ExportPrivKeyModal from "./components/ExportPrivKeyModal";
+import SidebarMenuItem from "./components/SidebarMenuItem";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
 
-type ExportPrivKeyModalProps = {
-  modalIsOpen: boolean;
-  exportedPrivKeys: string[];
-  closeModal: () => void;
-};
-const ExportPrivKeyModal = ({ modalIsOpen, exportedPrivKeys, closeModal }: ExportPrivKeyModalProps) => {
-  return (
-    <Modal
-      isOpen={modalIsOpen}
-      onRequestClose={closeModal}
-      className={cstyles.modal}
-      overlayClassName={cstyles.modalOverlay}
-    >
-      <div className={[cstyles.verticalflex].join(" ")}>
-        <div className={cstyles.marginbottomlarge} style={{ textAlign: "center" }}>
-          Your Wallet Private Keys
-        </div>
-
-        <div className={[cstyles.marginbottomlarge, cstyles.center].join(" ")}>
-          These are all the private keys in your wallet. Please store them carefully!
-        </div>
-
-        {exportedPrivKeys && (
-          <TextareaAutosize value={exportedPrivKeys.join("\n")} className={styles.exportedPrivKeys} disabled />
-        )}
-      </div>
-
-      <div className={cstyles.buttoncontainer}>
-        <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-          Close
-        </button>
-      </div>
-    </Modal>
-  );
-};
-
-type ImportPrivKeyModalProps = {
-  modalIsOpen: boolean;
-  closeModal: () => void;
-  doImportPrivKeys: (pk: string, birthday: string) => void;
-};
-const ImportPrivKeyModal = ({ modalIsOpen, closeModal, doImportPrivKeys }: ImportPrivKeyModalProps) => {
-  const [pkey, setPKey] = useState("");
-  const [birthday, setBirthday] = useState("0");
-
-  return (
-    <Modal
-      isOpen={modalIsOpen}
-      onRequestClose={closeModal}
-      className={cstyles.modal}
-      overlayClassName={cstyles.modalOverlay}
-    >
-      <div className={[cstyles.verticalflex].join(" ")}>
-        <div className={cstyles.marginbottomlarge} style={{ textAlign: "center" }}>
-          Import Spending or Viewing Key
-        </div>
-
-        <div className={cstyles.marginbottomlarge}>
-          Please paste your private key here (spending key or viewing key).
-        </div>
-
-        <div className={[cstyles.well].join(" ")} style={{ textAlign: "center" }}>
-          <TextareaAutosize
-            className={cstyles.inputbox}
-            placeholder="Spending or Viewing Key"
-            value={pkey}
-            onChange={(e) => setPKey(e.target.value)}
-          />
-        </div>
-
-        <div className={cstyles.marginbottomlarge} />
-        <div className={cstyles.marginbottomlarge}>
-          Birthday (The earliest block height where this key was used. Ok to enter &lsquo;0&rsquo;)
-        </div>
-        <div className={cstyles.well}>
-          <input
-            type="number"
-            className={cstyles.inputbox}
-            value={birthday}
-            onChange={(e) => setBirthday(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className={cstyles.buttoncontainer}>
-        <button
-          type="button"
-          className={cstyles.primarybutton}
-          onClick={() => {
-            doImportPrivKeys(pkey, birthday);
-            closeModal();
-          }}
-        >
-          Import
-        </button>
-        <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-          Cancel
-        </button>
-      </div>
-    </Modal>
-  );
-};
-
-type PayURIModalProps = {
-  modalIsOpen: boolean;
-  modalInput?: string;
-  setModalInput: (i: string) => void;
-  closeModal: () => void;
-  modalTitle: string;
-  actionButtonName: string;
-  actionCallback: (uri: string) => void;
-};
-const PayURIModal = ({
-  modalIsOpen,
-  modalInput,
-  setModalInput,
-  closeModal,
-  modalTitle,
-  actionButtonName,
-  actionCallback,
-}: PayURIModalProps) => {
-  return (
-    <Modal
-      isOpen={modalIsOpen}
-      onRequestClose={closeModal}
-      className={cstyles.modal}
-      overlayClassName={cstyles.modalOverlay}
-    >
-      <div className={[cstyles.verticalflex].join(" ")}>
-        <div className={cstyles.marginbottomlarge} style={{ textAlign: "center" }}>
-          {modalTitle}
-        </div>
-
-        <div className={cstyles.well} style={{ textAlign: "center" }}>
-          <input
-            type="text"
-            className={cstyles.inputbox}
-            placeholder="URI"
-            value={modalInput}
-            onChange={(e) => setModalInput(e.target.value)}
-          />
-        </div>
-      </div>
-
-      <div className={cstyles.buttoncontainer}>
-        {actionButtonName && (
-          <button
-            type="button"
-            className={cstyles.primarybutton}
-            onClick={() => {
-              if (modalInput) {
-                actionCallback(modalInput);
-              }
-              closeModal();
-            }}
-          >
-            {actionButtonName}
-          </button>
-        )}
-
-        <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-          Close
-        </button>
-      </div>
-    </Modal>
-  );
-};
-
-type SidebarMenuItemProps = {
-  name: string;
-  routeName: string;
-  currentRoute: string;
-  iconname: string;
-};
-const SidebarMenuItem = ({ name, routeName, currentRoute, iconname }: SidebarMenuItemProps) => {
-  let isActive = false;
-
-  if ((currentRoute.endsWith("app.html") && routeName === routes.HOME) || currentRoute === routeName) {
-    isActive = true;
-  }
-
-  let activeColorClass = "";
-  if (isActive) {
-    activeColorClass = styles.sidebarmenuitemactive;
-  }
-
-  return (
-    <div className={[styles.sidebarmenuitem, activeColorClass].join(" ")}>
-      <Link to={routeName}>
-        <span className={activeColorClass}>
-          <i className={["fas", iconname].join(" ")} />
-          &nbsp; &nbsp;
-          {name}
-        </span>
-      </Link>
-    </div>
-  );
-};
-
-type Props = {
+type SidebarProps = {
   info: Info;
   setRescanning: (rescan: boolean, prevSyncId: number) => void;
   addresses: AddressDetail[];
@@ -245,7 +43,7 @@ type Props = {
   updateWalletSettings: () => Promise<void>;
 };
 
-type State = {
+type SidebarState = {
   uriModalIsOpen: boolean;
   uriModalInputValue?: string;
   privKeyModalIsOpen: boolean;
@@ -255,8 +53,8 @@ type State = {
   walletSettingsModalIsOpen: boolean;
 };
 
-class Sidebar extends PureComponent<Props & RouteComponentProps, State> {
-  constructor(props: Props & RouteComponentProps) {
+class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarState> {
+  constructor(props: SidebarProps & RouteComponentProps) {
     super(props);
     this.state = {
       uriModalIsOpen: false,
@@ -545,10 +343,8 @@ class Sidebar extends PureComponent<Props & RouteComponentProps, State> {
   doImportPrivKeys = async (key: string, birthday: string) => {
     const { importPrivKeys, openErrorModal, setInfo, clearTimers, setRescanning, history, info } = this.props;
 
-    // eslint-disable-next-line no-control-regex
     if (key) {
-      // eslint-disable-next-line no-control-regex
-      let keys = key.split(new RegExp("[\n\r]+"));
+      let keys = key.split(new RegExp("[\\n\\r]+"));
       if (!keys || keys.length === 0) {
         openErrorModal("No Keys Imported", "No keys were specified, so none were imported");
         return;

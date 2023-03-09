@@ -1,4 +1,3 @@
-/* eslint-disable max-classes-per-file */
 import {
   TotalBalance,
   AddressBalance,
@@ -11,7 +10,7 @@ import {
   AddressDetail,
   WalletSettings,
 } from "../components/appstate";
-import { SendManyJson } from "../components/send/Send";
+import { SendManyJsonType } from "../components/send";
 
 import native from "../native.node";
 
@@ -234,7 +233,6 @@ export default class RPC {
   static doImportPrivKey(key: string, birthday: string): string {
     const args = { key, birthday: parseInt(birthday, 10) };
 
-    // eslint-disable-next-line no-restricted-globals
     if (isNaN(parseInt(birthday, 10))) {
       return `Error: Couldn't parse ${birthday} as a number`;
     }
@@ -659,7 +657,6 @@ export default class RPC {
       const type = tx.outgoing_metadata ? "sent" : "receive";
 
       transaction.address =
-        // eslint-disable-next-line no-nested-ternary
         type === "sent" ? (tx.outgoing_metadata.length > 0 ? tx.outgoing_metadata[0].address : "") : tx.address;
       transaction.type = type;
       transaction.amount = tx.amount / 10 ** 8;
@@ -712,7 +709,6 @@ export default class RPC {
       // Get all the txdetails and merge them
 
       // Clone the first tx into a new one
-      // eslint-disable-next-line prefer-object-spread
       const combinedTx = Object.assign({}, txns[0]);
       combinedTx.detailedTxns = RPC.combineTxDetails(txns.flatMap((tx) => tx.detailedTxns));
 
@@ -772,7 +768,7 @@ export default class RPC {
   }
 
   // Send a transaction using the already constructed sendJson structure
-  async sendTransaction(sendJson: SendManyJson[], setSendProgress: (p?: SendProgress) => void): Promise<string> {
+  async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> {
     // First, get the previous send progress id, so we know which ID to track
     const prevProgress = JSON.parse(native.zingolib_execute("sendprogress", ""));
     const prevSendId = prevProgress.id;

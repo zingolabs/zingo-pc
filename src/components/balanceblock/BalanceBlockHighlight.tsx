@@ -1,6 +1,6 @@
 import cstyles from "./Common.module.css";
 import Utils from "../../utils/utils";
-import BalanceBlockType from "./BalanceBlockType";
+import BalanceBlockType from "./components/BalanceBlockType";
 
 const BalanceBlockHighlight = ({ zecValue, usdValue, topLabel, currencyName, tooltip }: BalanceBlockType) => {
   const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(zecValue);

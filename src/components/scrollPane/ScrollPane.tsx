@@ -30,7 +30,6 @@ export default class ScrollPane extends Component<Props, PaneState> {
    * Calculate & Update state of height, needed for the scrolling
    */
   updateDimensions = () => {
-    // eslint-disable-next-line react/destructuring-assignment
     const updateHeight = window.innerHeight - this.props.offsetHeight;
     this.setState({ height: updateHeight });
   };

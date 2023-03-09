@@ -1,7 +1,3 @@
-/* eslint-disable react/jsx-props-no-spreading */
-/* eslint-disable max-classes-per-file */
-/* eslint-disable react/prop-types */
-/* eslint-disable react/no-unused-state */
 import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route } from "react-router";
@@ -9,7 +5,7 @@ import { ErrorModal, ErrorModalData } from "../components/errormodal";
 import cstyles from "./components/Common.module.css";
 import routes from "../constants/routes.json";
 import Dashboard from "../components/dashboard/Dashboard";
-import Send, { SendManyJson } from "../components/send/Send";
+import { Send, SendManyJsonType } from "../components/send";
 import Receive from "../components/receive/Receive";
 import LoadingScreen from "../components/loadingscreen/LoadingScreen";
 import {
@@ -52,7 +48,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
     this.state = new AppState();
 
     // Create the initial ToAddr box
-    // eslint-disable-next-line react/destructuring-assignment
     this.state.sendPageState.toaddrs = [new ToAddr(Utils.getNextToAddrID())];
 
     // Set the Modal's app element
@@ -258,13 +253,10 @@ export default class RouteApp extends React.Component<Props, AppState> {
   importPrivKeys = async (keys: string[], birthday: string): Promise<boolean> => {
     console.log(keys);
 
-    // eslint-disable-next-line no-plusplus
     for (let i = 0; i < keys.length; i++) {
-      // eslint-disable-next-line no-await-in-loop
       const result = await RPC.doImportPrivKey(keys[i], birthday);
       if (result === "OK") {
         return true;
-        // eslint-disable-next-line no-else-return
       } else {
         this.openErrorModal(
           "Failed to import key",
@@ -345,7 +337,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
     // If the price is not set in this object, copy it over from the current object
     const { info } = this.state;
     if (!newInfo.zecPrice) {
-      // eslint-disable-next-line no-param-reassign
       newInfo.zecPrice = info.zecPrice;
     }
 
@@ -354,7 +345,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
     this.setState({ info: newInfo });
   };
 
-  sendTransaction = async (sendJson: SendManyJson[], setSendProgress: (p?: SendProgress) => void): Promise<string> => {
+  sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> => {
     try {
       const txid = await this.rpc.sendTransaction(sendJson, setSendProgress);
 
@@ -572,7 +563,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
               />
               <Route
                 path={routes.DASHBOARD}
-                // eslint-disable-next-line react/jsx-props-no-spreading
                 render={() => (
                   <Dashboard totalBalance={totalBalance} info={info} addressesWithBalance={addressesWithBalance} />
                 )}

@@ -1,21 +1,21 @@
-import TotalBalance from "./TotalBalance";
-import AddressBalance from "./AddressBalance";
-import AddressBookEntry from "./AddressbookEntry";
-import Transaction from "./Transaction";
-import SendPageState from "./SendPageState";
-import ReceivePageState from "./ReceivePageState";
-import RPCConfig from "./RPCConfig";
-import Info from "./Info";
-import ServerSelectState from "./ServerSelectState";
-import PasswordState from "./PasswordState";
-import WalletSettings from "./WalletSettings";
-import AddressDetail from "./AddressDetail";
-import AddressType from "./AddressType";
-import AppState from "./AppState";
-import SendProgress from "./SendProgress";
-import ToAddr from "./ToAddr";
-import TxDetail from "./TxDetail";
+import TotalBalance from "./components/TotalBalance";
+import AddressBalance from "./components/AddressBalance";
+import AddressBookEntry from "./components/AddressbookEntry";
+import Transaction from "./components/Transaction";
+import SendPageState from "./components/SendPageState";
+import ReceivePageState from "./components/ReceivePageState";
+import RPCConfig from "./components/RPCConfig";
+import Info from "./components/Info";
+import ServerSelectState from "./components/ServerSelectState";
+import PasswordState from "./components/PasswordState";
+import WalletSettings from "./components/WalletSettings";
+import AddressDetail from "./components/AddressDetail";
+import AddressType from "./components/AddressType";
+import SendProgress from "./components/SendProgress";
+import ToAddr from "./components/ToAddr";
+import TxDetail from "./components/TxDetail";
 
+import AppState from "./AppState";
 
 export {
   TotalBalance, 

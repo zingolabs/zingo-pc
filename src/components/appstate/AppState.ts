@@ -1,19 +1,17 @@
-/* eslint-disable max-classes-per-file */
 import { ErrorModalData } from "../errormodal";
-import TotalBalance from "./TotalBalance";
-import AddressBalance from "./AddressBalance";
-import AddressBookEntry from "./AddressbookEntry";
-import Transaction from "./Transaction";
-import SendPageState from "./SendPageState";
-import ReceivePageState from "./ReceivePageState";
-import RPCConfig from "./RPCConfig";
-import Info from "./Info";
-import ServerSelectState from "./ServerSelectState";
-import PasswordState from "./PasswordState";
-import WalletSettings from "./WalletSettings";
-import AddressDetail from "./AddressDetail";
+import TotalBalance from "./components/TotalBalance";
+import AddressBalance from "./components/AddressBalance";
+import AddressBookEntry from "./components/AddressbookEntry";
+import Transaction from "./components/Transaction";
+import SendPageState from "./components/SendPageState";
+import ReceivePageState from "./components/ReceivePageState";
+import RPCConfig from "./components/RPCConfig";
+import Info from "./components/Info";
+import ServerSelectState from "./components/ServerSelectState";
+import PasswordState from "./components/PasswordState";
+import WalletSettings from "./components/WalletSettings";
+import AddressDetail from "./components/AddressDetail";
 
-// eslint-disable-next-line max-classes-per-file
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
   totalBalance: TotalBalance;

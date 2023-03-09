@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import cstyles from "./Common.module.css";
 import { WalletSettings } from "../appstate";
 
-type ModalProps = {
+type WalletSettingsModalProps = {
   walletSettings: WalletSettings;
   modalIsOpen: boolean;
   closeModal: () => void;
@@ -15,7 +15,7 @@ export default function WalletSettingsModal({
   modalIsOpen,
   closeModal,
   setWalletSpamFilterThreshold,
-}: ModalProps) {
+}: WalletSettingsModalProps) {
   const [selected, setSelected] = useState("");
 
   useEffect(() => {

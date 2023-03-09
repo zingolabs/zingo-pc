@@ -1,5 +1,3 @@
-/* eslint-disable radix */
-/* eslint-disable max-classes-per-file */
 import React, { Component } from "react";
 import { Redirect, RouteComponentProps, withRouter } from "react-router";
 import TextareaAutosize from "react-textarea-autosize";

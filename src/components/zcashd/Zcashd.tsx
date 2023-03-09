@@ -1,32 +1,19 @@
-/* eslint-disable react/prop-types */
 import React, { Component } from "react";
 import { Info, RPCConfig } from "../appstate";
 import cstyles from "./Common.module.css";
 import styles from "./Zcashd.module.css";
 import ScrollPane from "../scrollPane/ScrollPane";
 import Heart from "../assets/img/zcashdlogo.gif";
+import DetailLine from "./components/DetailLine";
 
-type DetailLineProps = {
-  label: string;
-  value: string;
-};
-const DetailLine = ({ label, value }: DetailLineProps) => {
-  return (
-    <div className={styles.detailline}>
-      <div className={[cstyles.sublight].join(" ")}>{label} :</div>
-      <div className={cstyles.breakword}>{value}</div>
-    </div>
-  );
-};
-
-type Props = {
+type ZcashdProps = {
   info: Info;
   refresh: () => void;
   rpcConfig: RPCConfig;
   openServerSelectModal: () => void;
 };
 
-export default class Zcashd extends Component<Props> {
+export default class Zcashd extends Component<ZcashdProps> {
   render() {
     const { info, rpcConfig, refresh, openServerSelectModal } = this.props;
     const { url } = rpcConfig;
@@ -42,7 +29,6 @@ export default class Zcashd extends Component<Props> {
           </div>
         </div>
       );
-      // eslint-disable-next-line no-else-return
     } else {
       let height = `${info.latestBlock}`;
       if (info.verificationProgress < 0.9999) {

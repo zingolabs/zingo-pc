@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import React, { Component } from "react";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
@@ -7,7 +6,7 @@ import { AddressBookEntry } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ZcashURITarget } from "../../utils/uris";
-import AddressBookItem from './AddressbookItem';
+import AddressBookItem from './components/AddressbookItem';
 
 type AddressBookProps = {
   addressBook: AddressBookEntry[];

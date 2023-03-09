@@ -1,6 +1,3 @@
-/* eslint-disable no-unused-vars */
-/* eslint-disable no-else-return */
-/* eslint-disable no-plusplus */
 export const NO_CONNECTION: string = "Could not connect to zcashd";
 
 export default class Utils {
@@ -49,7 +46,6 @@ export default class Utils {
     if (!v) return `${v}`;
 
     // if (typeof v === 'string' || v instanceof String) {
-    //   // eslint-disable-next-line no-param-reassign
     //   v = parseFloat(v);
     // }
 
@@ -129,7 +125,6 @@ export default class Utils {
   static nextToAddrID: number = 0;
 
   static getNextToAddrID(): number {
-    // eslint-disable-next-line no-plusplus
     return Utils.nextToAddrID++;
   }
 

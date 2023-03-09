@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import React from "react";
 import { withRouter, RouteComponentProps } from "react-router-dom";
 import {
@@ -9,9 +8,9 @@ import {
 } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
 import cstyles from "./Common.module.css";
-import { AddressBookEntry } from "../appstate";
-import { ZcashURITarget } from "../../utils/uris";
-import routes from "../../constants/routes.json";
+import { AddressBookEntry } from "../../appstate";
+import { ZcashURITarget } from "../../../utils/uris";
+import routes from "../../../constants/routes.json";
 
 type AddressBookItemProps = {
   item: AddressBookEntry;

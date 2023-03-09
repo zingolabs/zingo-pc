@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import Modal from "react-modal";
 import cstyles from "./Common.module.css";
 import ErrorModalData from "./ErrorModalData";
