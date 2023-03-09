@@ -1,4 +1,4 @@
-import { AddressType } from "./AddressType";
+import AddressType from "./AddressType";
 
 export default class AddressDetail {
     address: string;

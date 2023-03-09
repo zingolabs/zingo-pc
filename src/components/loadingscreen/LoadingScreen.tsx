@@ -52,7 +52,7 @@ class LoadingScreenState {
   }
 }
 
-type Props = {
+type LoadingScreenProps = {
   setRPCConfig: (rpcConfig: RPCConfig) => void;
   rescanning: boolean;
   prevSyncId: number;
@@ -60,8 +60,9 @@ type Props = {
   setInfo: (info: Info) => void;
   openServerSelectModal: () => void;
 };
-class LoadingScreen extends Component<Props & RouteComponentProps, LoadingScreenState> {
-  constructor(props: Props & RouteComponentProps) {
+
+class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
+  constructor(props: LoadingScreenProps & RouteComponentProps) {
     super(props);
 
     const state = new LoadingScreenState();

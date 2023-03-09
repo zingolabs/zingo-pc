@@ -1,4 +1,4 @@
-import { BalanceBlock } from "./BalanceBlock";
-import { BalanceBlockHighlight } from "./BalanceBlockHighlight";
+import BalanceBlock from "./BalanceBlock";
+import BalanceBlockHighlight from "./BalanceBlockHighlight";
 
 export { BalanceBlock, BalanceBlockHighlight };

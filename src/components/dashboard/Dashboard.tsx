@@ -15,13 +15,13 @@ import ScrollPane from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
 import AddressBalanceItem from "./AddressBalanceItem";
 
-type HomeProps = {
+type DashboardProps = {
   totalBalance: TotalBalance;
   info: Info;
   addressesWithBalance: AddressBalance[];
 };
 
-export default class Home extends Component<HomeProps> {
+export default class Dashboard extends Component<DashboardProps> {
   render() {
     const { totalBalance, info, addressesWithBalance } = this.props;
 

@@ -1,4 +1,3 @@
-import ErrorModalData from "../errormodal/ErrorModal";
 import TotalBalance from "./TotalBalance";
 import AddressBalance from "./AddressBalance";
 import AddressBookEntry from "./AddressbookEntry";
@@ -11,15 +10,14 @@ import ServerSelectState from "./ServerSelectState";
 import PasswordState from "./PasswordState";
 import WalletSettings from "./WalletSettings";
 import AddressDetail from "./AddressDetail";
-import { AddressType } from "./AddressType";
+import AddressType from "./AddressType";
 import AppState from "./AppState";
 import SendProgress from "./SendProgress";
 import ToAddr from "./ToAddr";
 import TxDetail from "./TxDetail";
 
 
-export { 
-  ErrorModalData, 
+export {
   TotalBalance, 
   AddressBalance, 
   AddressBookEntry, 

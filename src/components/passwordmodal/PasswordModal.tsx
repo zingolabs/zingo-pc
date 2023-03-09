@@ -2,7 +2,7 @@ import React, { PureComponent } from "react";
 import Modal from "react-modal";
 import cstyles from "./Common.module.css";
 
-type Props = {
+type PasswordModalProps = {
   modalIsOpen: boolean;
   confirmNeeded: boolean;
   passwordCallback: (password: string) => void;
@@ -10,13 +10,13 @@ type Props = {
   helpText?: string | JSX.Element;
 };
 
-type State = {
+type PasswordModalState = {
   password: string;
   confirmPassword: string;
 };
 
-export default class PasswordModal extends PureComponent<Props, State> {
-  constructor(props: Props) {
+export default class PasswordModal extends PureComponent<PasswordModalProps, PasswordModalState> {
+  constructor(props: PasswordModalProps) {
     super(props);
 
     this.state = { password: "", confirmPassword: "" };
