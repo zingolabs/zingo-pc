@@ -1,8 +1,8 @@
 import React from "react";
 import Modal from "react-modal";
 import { RouteComponentProps, withRouter } from "react-router-dom";
-import styles from "./Send.module.css";
-import cstyles from "./Common.module.css";
+import styles from "../Send.module.css";
+import cstyles from "../../common/Common.module.css";
 import {
   SendPageState,
   Info,

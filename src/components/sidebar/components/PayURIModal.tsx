@@ -1,6 +1,6 @@
 import React from "react";
 import Modal from "react-modal";
-import cstyles from "./Common.module.css";
+import cstyles from "../../common/Common.module.css";
 
 type PayURIModalProps = {
   modalIsOpen: boolean;

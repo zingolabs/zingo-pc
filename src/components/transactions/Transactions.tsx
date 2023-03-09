@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import cstyles from "./Common.module.css";
+import cstyles from "../common/Common.module.css";
 import { Transaction, Info, AddressBookEntry } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";

@@ -1,9 +1,9 @@
 import React, { Component } from "react";
 import { Info, RPCConfig } from "../appstate";
-import cstyles from "./Common.module.css";
+import cstyles from "../common/Common.module.css";
 import styles from "./Zcashd.module.css";
 import ScrollPane from "../scrollPane/ScrollPane";
-import Heart from "../assets/img/zcashdlogo.gif";
+import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine";
 
 type ZcashdProps = {

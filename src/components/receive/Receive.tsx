@@ -4,7 +4,7 @@ import {
   Accordion,
 } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
-import cstyles from "./Common.module.css";
+import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import { AddressBalance, Info, ReceivePageState, AddressBookEntry, AddressDetail, AddressType } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";

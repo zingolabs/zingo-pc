@@ -4,8 +4,8 @@ import {
   AccordionItemHeading,
   AccordionItemPanel,
 } from "react-accessible-accordion";
-import styles from "./Dashboard.module.css";
-import cstyles from "./Common.module.css";
+import styles from "../Dashboard.module.css";
+import cstyles from "../../common/Common.module.css";
 import { AddressBalance } from "../../appstate";
 import Utils from "../../../utils/utils";
 

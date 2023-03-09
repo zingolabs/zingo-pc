@@ -7,9 +7,9 @@ import native from "../../native.node";
 import routes from "../../constants/routes.json";
 import { RPCConfig, Info } from "../appstate";
 import RPC from "../../rpc/rpc";
-import cstyles from "./Common.module.css";
+import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
-import Logo from "../assets/img/logobig.png";
+import Logo from "../../assets/img/logobig.png";
 import Utils from "../../utils/utils";
 
 const { ipcRenderer } = window.require("electron");

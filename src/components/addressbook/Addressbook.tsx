@@ -1,7 +1,7 @@
 import React, { Component } from "react";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
-import cstyles from "./Common.module.css";
+import cstyles from "../common/Common.module.css";
 import { AddressBookEntry } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";

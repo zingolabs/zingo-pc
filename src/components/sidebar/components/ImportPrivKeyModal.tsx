@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Modal from "react-modal";
 import TextareaAutosize from "react-textarea-autosize";
-import cstyles from "./Common.module.css";
+import cstyles from "../../common/Common.module.css";
 
 type ImportPrivKeyModalProps = {
   modalIsOpen: boolean;

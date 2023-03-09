@@ -1,7 +1,7 @@
 import Utils from "../../../utils/utils";
 import { Info, ToAddr } from "../../appstate";
-import styles from "./Send.module.css";
-import cstyles from "./Common.module.css";
+import styles from "../Send.module.css";
+import cstyles from "../../common/Common.module.css";
 
 type ConfirmModalToAddrProps = {
   toaddr: ToAddr;

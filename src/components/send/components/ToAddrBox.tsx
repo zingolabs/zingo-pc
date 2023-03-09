@@ -1,12 +1,12 @@
 import React from "react";
 import TextareaAutosize from "react-textarea-autosize";
-import styles from "./Send.module.css";
-import cstyles from "./Common.module.css";
+import styles from "../Send.module.css";
+import cstyles from "../../common/Common.module.css";
 import {
   ToAddr,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
-import ArrowUpLight from "../assets/img/arrow_up_dark.png";
+import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
 
 const Spacer = () => {
   return <div style={{ marginTop: "24px" }} />;

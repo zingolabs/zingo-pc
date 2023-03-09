@@ -1,5 +1,5 @@
 import Modal from "react-modal";
-import cstyles from "./Common.module.css";
+import cstyles from "../common/Common.module.css";
 import ErrorModalData from "./ErrorModalData";
 
 const ErrorModal = ({ title, body, modalIsOpen, closeModal }: ErrorModalData) => {

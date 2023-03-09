@@ -1,6 +1,6 @@
 import React, { PureComponent } from "react";
 import styles from "./Send.module.css";
-import cstyles from "./Common.module.css";
+import cstyles from "../common/Common.module.css";
 import {
   ToAddr,
   AddressBalance,

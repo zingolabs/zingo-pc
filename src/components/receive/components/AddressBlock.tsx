@@ -6,8 +6,8 @@ import {
   AccordionItemPanel,
 } from "react-accessible-accordion";
 import QRCode from "qrcode.react";
-import styles from "./Receive.module.css";
-import cstyles from "./Common.module.css";
+import styles from "../Receive.module.css";
+import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { AddressBalance } from "../../appstate";
 

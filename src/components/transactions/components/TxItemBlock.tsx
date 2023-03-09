@@ -1,7 +1,7 @@
 import React from "react";
 import dateformat from "dateformat";
-import styles from "./Transactions.module.css";
-import cstyles from "./Common.module.css";
+import styles from "../Transactions.module.css";
+import cstyles from "../../common/Common.module.css";
 import { Transaction } from "../../appstate";
 import Utils from "../../../utils/utils";
 

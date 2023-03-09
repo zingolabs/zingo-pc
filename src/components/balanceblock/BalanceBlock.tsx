@@ -1,4 +1,4 @@
-import cstyles from "./Common.module.css";
+import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import BalanceBlockType from "./components/BalanceBlockType";
 
