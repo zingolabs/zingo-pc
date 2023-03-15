@@ -10,6 +10,9 @@
     "email": "zingo@zingolabs.com",
     "url": "https://github.com/zingolabs/zingo-pc"
   },
+  "engines": {
+    "node": "^16.x"
+  },
   "dependencies": {
     "@babel/core": "7.12.3",
     "@fortawesome/fontawesome-free": "^5.15.4",
