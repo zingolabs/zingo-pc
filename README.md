@@ -10,6 +10,17 @@ You need to have the following software installed before you can build Zingo PC 
 * [Yarn](https://yarnpkg.com)
 * [Rust v1.40 or higher](https://www.rust-lang.org/tools/install)
 
+NOTE:  To ensure node 16.16 on Arch:
+paru -S nvm
+And follow "Alternate Installations" for 16.16 https://wiki.archlinux.org/title/node.js_ I.E.:
+
+```
+nvm install 16.16
+nvm use 16.16
+```
+  
+
+
 ```
 git clone https://github.com/zingolabs/zingo-pc.git
 cd zingo-pc
