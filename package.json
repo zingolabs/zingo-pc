@@ -10,6 +10,9 @@
     "email": "zingo@zingolabs.com",
     "url": "https://github.com/zingolabs/zingo-pc"
   },
+  "engines": {
+    "node": "^16.x"
+  },
   "dependencies": {
     "@babel/core": "7.12.3",
     "@fortawesome/fontawesome-free": "^5.15.4",
@@ -71,7 +74,7 @@
     "postcss-safe-parser": "5.0.2",
     "progress-stream": "^2.0.0",
     "prompts": "2.4.0",
-    "qrcode.react": "^1.0.1",
+    "qrcode.react": "^3.1.0",
     "react": "^17.0.2",
     "react-accessible-accordion": "^3.3.5",
     "react-app-polyfill": "^2.0.0",
@@ -92,7 +95,7 @@
     "terser-webpack-plugin": "4.2.3",
     "ts-pnp": "1.2.0",
     "typeface-roboto": "^1.1.13",
-    "typescript": "^4.7.3",
+    "typescript": "^4.4.4",
     "url-loader": "4.1.1",
     "url-parse": "^1.5.10",
     "web-vitals": "^1.0.1",

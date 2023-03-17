@@ -1,8 +1,3 @@
-/* eslint-disable no-lonely-if */
-/* eslint-disable no-restricted-globals */
-/* eslint-disable no-case-declarations */
-/* eslint-disable vars-on-top */
-/* eslint-disable no-restricted-syntax */
 import Url from "url-parse";
 import { Base64 } from "js-base64";
 
