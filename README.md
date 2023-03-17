@@ -6,9 +6,9 @@ Zingo PC is written in Electron/Javascript and can be build from source. It will
 #### Pre-Requisites
 You need to have the following software installed before you can build Zingo PC Fullnode
 
-* [Nodejs v12.16.1 or higher](https://nodejs.org)
+* [Nodejs recommended version: v16.16.0 (LTS) ](https://nodejs.org/en/blog/release/v16.16.0)
 * [Yarn](https://yarnpkg.com)
-* [Rust v1.40 or higher](https://www.rust-lang.org/tools/install)
+* [Rust stable/nightly version](https://www.rust-lang.org/tools/install)
 
 ```
 git clone https://github.com/zingolabs/zingo-pc.git
@@ -18,7 +18,7 @@ yarn install
 yarn build
 ```
 
-If for some reason you get an `ERR_OSSL_EVP_UNSUPPORTED` error when running `yarn build`, just run the command with `NODE_OPTIONS=--openssl-legacy-provider` env variable, or downgrade the `node` version.
+If for some reason you get an `ERR_OSSL_EVP_UNSUPPORTED` error when running `yarn build` in node v17 or v18, just run the command with `NODE_OPTIONS=--openssl-legacy-provider` env variable, or downgrade the `node` version to v16.16.0.
 
 To start in locally, run
 ```

@@ -1,9 +1,6 @@
-/* eslint-disable import/no-webpack-loader-syntax */
-import React from "react";
 import logo from "./assets/img/logobig.png";
 import "./App.css";
 
-//const addon = require('./native.node');
 import addon from "./native.node";
 
 function App() {
@@ -16,6 +13,7 @@ function App() {
         <p>Built using CRA electron-builder-typescript Template.</p>
         <p>{addon.zingolib_say_hello("Me")}</p>
         <img src={logo} className="App-logo" alt="logo" />
+        <p>Zingo PC v0.0.1</p>
         <p>
           Edit <code>public/electron.js</code> or <code>src/App.js</code> and save to reload.
         </p>
