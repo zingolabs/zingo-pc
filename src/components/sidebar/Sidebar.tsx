@@ -41,6 +41,7 @@ type SidebarProps = {
   decryptWallet: (p: string) => Promise<boolean>;
   walletSettings: WalletSettings;
   updateWalletSettings: () => Promise<void>;
+  verificationProgress: number;
 };
 
 type SidebarState = {
@@ -51,6 +52,7 @@ type SidebarState = {
   exportPrivKeysModalIsOpen: boolean;
   exportedPrivKeys: string[];
   walletSettingsModalIsOpen: boolean;
+  serverLatestBlock: number;
 };
 
 class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarState> {
@@ -64,12 +66,13 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       exportedPrivKeys: [],
       privKeyInputValue: null,
       walletSettingsModalIsOpen: false,
+      serverLatestBlock: props.info.latestBlock,
     };
 
     this.setupMenuHandlers();
   }
 
-  // Handle menu items
+  // Handle menu items 
   setupMenuHandlers = async () => {
     const { clearTimers, setSendTo, setInfo, setRescanning, history, openErrorModal, openPasswordAndUnlockIfNeeded } =
       this.props;
@@ -462,7 +465,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
   };
 
   render() {
-    const { location, info, walletSettings } = this.props;
+    const { location, info, walletSettings, verificationProgress } = this.props;
     const {
       uriModalIsOpen,
       uriModalInputValue,
@@ -471,18 +474,21 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       exportPrivKeysModalIsOpen,
       exportedPrivKeys,
       walletSettingsModalIsOpen,
+      serverLatestBlock,
     } = this.state;
 
-    let state = "DISCONNECTED";
+    let stateSync = "DISCONNECTED";
     let progress = "100";
-    if (info && info.latestBlock) {
-      if (info.verificationProgress < 0.9999) {
-        state = "SYNCING";
-        progress = (info.verificationProgress * 100).toFixed(1);
+    if (serverLatestBlock) {
+      if (verificationProgress < 99.9999) {
+        stateSync = "SYNCING";
+        progress = (verificationProgress).toFixed(2);
       } else {
-        state = "CONNECTED";
+        stateSync = "CONNECTED";
       }
     }
+
+    console.log('sidebar', this.props.info);
 
     return (
       <div>
@@ -559,13 +565,13 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         </div>
 
         <div className={cstyles.center}>
-          {state === "CONNECTED" && (
+          {stateSync === "CONNECTED" && (
             <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
               <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
               &nbsp; {info.walletHeight}
             </div>
           )}
-          {state === "SYNCING" && (
+          {stateSync === "SYNCING" && (
             <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
               <div>
                 <i className={[cstyles.yellow, "fas", "fa-sync"].join(" ")} />
@@ -574,7 +580,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
               <div>{`${progress}%`}</div>
             </div>
           )}
-          {state === "DISCONNECTED" && (
+          {stateSync === "DISCONNECTED" && (
             <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
               <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
               &nbsp; Connected

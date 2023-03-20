@@ -48,6 +48,8 @@ export default class AppState {
   // getinfo and getblockchaininfo result
   info: Info;
 
+  verificationProgress: number;
+
   walletSettings: WalletSettings;
 
   // Error modal data
@@ -79,6 +81,7 @@ export default class AppState {
     this.receivePageState = new ReceivePageState();
     this.rpcConfig = new RPCConfig();
     this.info = new Info();
+    this.verificationProgress = 100;
     this.rescanning = false;
     this.prevSyncId = -1;
     this.passwordState = new PasswordState();

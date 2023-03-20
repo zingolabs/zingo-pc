@@ -3,7 +3,6 @@ export default class Info {
     latestBlock: number;
     connections: number;
     version: string;
-    verificationProgress: number;
     currencyName: string;
     solps: number;
     zecPrice: number;
@@ -18,7 +17,6 @@ export default class Info {
       this.connections = 0;
       this.version = "";
       this.zcashdVersion = "";
-      this.verificationProgress = 0;
       this.currencyName = "";
       this.solps = 0;
       this.zecPrice = 0;
