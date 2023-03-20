@@ -18,6 +18,7 @@ export default class RPC {
   rpcConfig?: RPCConfig;
 
   fnSetInfo: (info: Info) => void;
+  fnSetVerificationProgress: (verificationProgress: number) => void;
   fnSetTotalBalance: (tb: TotalBalance) => void;
   fnSetAddressesWithBalance: (abs: AddressBalance[]) => void;
   fnSetTransactionsList: (t: Transaction[]) => void;
@@ -25,7 +26,8 @@ export default class RPC {
   fnSetZecPrice: (p?: number) => void;
   fnSetWalletSettings: (settings: WalletSettings) => void;
   refreshTimerID?: NodeJS.Timeout;
-  updateTimerId?: NodeJS.Timeout;
+  updateTimerID?: NodeJS.Timeout;
+  syncTimerID?: NodeJS.Timeout;
 
   updateDataLock: boolean;
 
@@ -39,7 +41,8 @@ export default class RPC {
     fnSetAllAddresses: (a: AddressDetail[]) => void,
     fnSetInfo: (info: Info) => void,
     fnSetZecPrice: (p?: number) => void,
-    fnSetWalletSettings: (settings: WalletSettings) => void
+    fnSetWalletSettings: (settings: WalletSettings) => void,
+    fnSetVerificationProgress: (verificationProgress: number) => void,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
     this.fnSetAddressesWithBalance = fnSetAddressesWithBalance;
@@ -48,10 +51,12 @@ export default class RPC {
     this.fnSetInfo = fnSetInfo;
     this.fnSetZecPrice = fnSetZecPrice;
     this.fnSetWalletSettings = fnSetWalletSettings;
+    this.fnSetVerificationProgress = fnSetVerificationProgress;
     this.lastBlockHeight = 0;
 
     this.refreshTimerID = undefined;
-    this.updateTimerId = undefined;
+    this.updateTimerID = undefined;
+    this.syncTimerID = undefined;
     this.updateDataLock = false;
   }
 
@@ -59,11 +64,22 @@ export default class RPC {
     this.rpcConfig = rpcConfig;
 
     if (!this.refreshTimerID) {
-      this.refreshTimerID = setInterval(() => this.refresh(false), 3 * 60 * 1000); // 3 mins
+      this.refreshTimerID = setInterval(() => {
+        // trying to sync
+        this.refresh(false);
+        // I need to save the wallet every minute Just in case. 
+        RPC.doSave();
+        // and I need to update the wallet info if the sync is running 
+        if (this.updateDataLock) {
+          this.updateDataLock = false;
+          this.updateData();
+          this.updateDataLock = true;
+        }
+      }, 60 * 1000); // 1 min
     }
 
-    if (!this.updateTimerId) {
-      this.updateTimerId = setInterval(() => this.updateData(), 3 * 1000); // 3 secs
+    if (!this.updateTimerID) {
+      this.updateTimerID = setInterval(() => this.updateData(), 3 * 1000); // 3 secs
     }
 
     // Immediately call the refresh after configure to update the UI
@@ -76,9 +92,14 @@ export default class RPC {
       this.refreshTimerID = undefined;
     }
 
-    if (this.updateTimerId) {
-      clearInterval(this.updateTimerId);
-      this.updateTimerId = undefined;
+    if (this.updateTimerID) {
+      clearInterval(this.updateTimerID);
+      this.updateTimerID = undefined;
+    }
+
+    if (this.syncTimerID) {
+      clearInterval(this.syncTimerID);
+      this.syncTimerID = undefined;
     }
   }
 
@@ -101,7 +122,7 @@ export default class RPC {
 
   static doSyncStatus(): string {
     const syncstr = native.zingolib_execute("syncstatus", "");
-    console.log(`syncstatus: ${syncstr}`);
+    console.log(`sync status: ${syncstr}`);
     return syncstr;
   }
 
@@ -140,12 +161,16 @@ export default class RPC {
       this.getZecPrice();
       this.fetchWalletSettings();
 
-      //console.log(`Finished update data at ${latestBlockHeight}`);
+      console.log(`Finished update data at ${latestBlockHeight}`);
     }
     this.updateDataLock = false;
   }
 
   async refresh(fullRefresh: boolean) {
+    if (this.syncTimerID) {
+      console.log("Already have a sync process launched");
+      return;
+    }
     const latestBlockHeight = await this.fetchInfo();
 
     if (fullRefresh || !this.lastBlockHeight || this.lastBlockHeight < latestBlockHeight) {
@@ -156,16 +181,18 @@ export default class RPC {
 
       // We need to wait for the sync to finish. The way we know the sync is done is
       // if the height matches the latestBlockHeight
-      let retryCount = 0;
-      const pollerID = setInterval(async () => {
+      this.syncTimerID = setInterval(async () => {
         const walletHeight = RPC.fetchWalletHeight();
-        retryCount += 1;
+        const walletBirthday: number = RPC.fetchBirthday();
 
-        // Wait a max of 30 retries (30 secs)
-        if (walletHeight >= latestBlockHeight || retryCount > 30) {
+        let verificationProgress = 100;
+
+        if (walletHeight >= latestBlockHeight) {
           // We are synced. Cancel the poll timer
-          clearInterval(pollerID);
-
+          clearInterval(this.syncTimerID);
+          this.syncTimerID = undefined;
+          // the sync is finished
+          verificationProgress = 100;
           // And fetch the rest of the data.
           this.fetchTotalBalance();
           this.fetchTandZTransactions(latestBlockHeight);
@@ -178,10 +205,50 @@ export default class RPC {
 
           this.updateDataLock = false;
 
-          // All done
-          console.log(`Finished full refresh at ${latestBlockHeight}`);
+          // All done 
+          console.log(`Finished (blocks) full refresh at ${latestBlockHeight}`);
+        } else {
+          // if the progress is still running we need to update the UI
+          // we want to update the progress of the current syncing
+          const ss = JSON.parse(RPC.doSyncStatus());
+          if (!ss.in_progress) {
+            // We are synced. Cancel the poll timer
+            clearInterval(this.syncTimerID);
+            this.syncTimerID = undefined;
+            // the sync is finished
+            verificationProgress = 100;
+            // And fetch the rest of the data.
+            this.fetchTotalBalance();
+            this.fetchTandZTransactions(latestBlockHeight);
+            this.getZecPrice();
+
+            this.lastBlockHeight = latestBlockHeight;
+
+            // Save the wallet
+            RPC.doSave();
+
+            this.updateDataLock = false;
+
+            // All done
+            console.log(`Finished (in_progress) full refresh at ${latestBlockHeight}`);
+          } else {
+            // the sync is running
+            const progress_blocks = (ss.synced_blocks + ss.trial_decryptions_blocks + ss.witnesses_updated) / 3;
+
+            // this calculation is for the total of block, nothing to do with batches
+            // because batches are calculated only for the current sync process
+            // which in most of the times is partial, not total. 
+            const sync_blocks = ss.end_block + progress_blocks - walletBirthday;
+            const total_blocks = latestBlockHeight - walletBirthday;
+
+            verificationProgress = (sync_blocks * 100) / total_blocks;
+          }
+
         }
-      }, 1000);
+
+        this.fnSetVerificationProgress(verificationProgress);
+
+      }, 2000); // two seconds is ok for the UI.
     } else {
       // Already at the latest block
       console.log("Already have latest block, waiting for next refresh");
@@ -202,7 +269,6 @@ export default class RPC {
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit.substring(0, 6)}/${infoJSON.version}`;
       //info.zcashdVersion = infoJSON.zcashd_version;
       info.zcashdVersion = "Not Avaiable";
-      info.verificationProgress = 1;
       info.currencyName = info.testnet ? "TAZ" : "ZEC";
       info.solps = 0;
 
@@ -220,6 +286,7 @@ export default class RPC {
       const resultJSON = JSON.parse(resultStr);
       if(resultJSON) info.zecPrice = resultJSON;
 
+      // we want to update the wallet last block
       const walletHeight = RPC.fetchWalletHeight();
       info.walletHeight = walletHeight;
 
@@ -630,6 +697,13 @@ export default class RPC {
     const seedJSON = JSON.parse(seedStr);
 
     return seedJSON.seed;
+  }
+
+  static fetchBirthday(): number {
+    const seedStr = native.zingolib_execute("seed", "");
+    const seedJSON = JSON.parse(seedStr);
+
+    return seedJSON.birthday; 
   }
 
   static fetchWalletHeight(): number {

@@ -31,10 +31,6 @@ export default class Zcashd extends Component<ZcashdProps> {
       );
     } else {
       let height = `${info.latestBlock}`;
-      if (info.verificationProgress < 0.9999) {
-        const progress = (info.verificationProgress * 100).toFixed(1);
-        height = `${height} (${progress}%)`;
-      }
 
       return (
         <div>

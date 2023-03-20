@@ -60,7 +60,8 @@ export default class RouteApp extends React.Component<Props, AppState> {
       this.setAllAddresses,
       this.setInfo,
       this.setZecPrice,
-      this.setWalletSettings
+      this.setWalletSettings,
+      this.setVerificationProgress
     );
   }
 
@@ -345,6 +346,10 @@ export default class RouteApp extends React.Component<Props, AppState> {
     this.setState({ info: newInfo });
   };
 
+  setVerificationProgress = (verificationProgress: number) => {
+    this.setState({ verificationProgress });
+  };
+
   sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> => {
     try {
       const txid = await this.rpc.sendTransaction(sendJson, setSendProgress);
@@ -370,7 +375,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
   // Getter methods, which are called by the components to update the state
   fetchAndSetSinglePrivKey = async (address: string) => {
     this.openPasswordAndUnlockIfNeeded(async () => {
-      let key = await RPC.getPrivKeyAsString(address);
+      let key = RPC.getPrivKeyAsString(address);
       if (key === "") {
         key = "<No Key Available>";
       }
@@ -383,7 +388,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
 
   fetchAndSetSingleViewKey = async (address: string) => {
     this.openPasswordAndUnlockIfNeeded(async () => {
-      const key = await RPC.getViewKeyAsString(address);
+      const key = RPC.getViewKeyAsString(address);
       const addressViewKeys = new Map();
       addressViewKeys.set(address, key);
 
@@ -459,6 +464,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
       serverSelectState,
       passwordState,
       walletSettings,
+      verificationProgress
     } = this.state;
 
     const standardProps = {
@@ -511,6 +517,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
                 clearTimers={this.clearTimers}
                 walletSettings={walletSettings}
                 updateWalletSettings={this.updateWalletSettings}
+                verificationProgress={verificationProgress}
                 {...standardProps}
               />
             </div>

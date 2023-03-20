@@ -26,7 +26,11 @@ class LoadingScreenState {
 
   url: string;
 
-  walletScreen: number; // 0 -> no wallet, load existing wallet 1 -> show option 2-> create new 3 -> restore existing
+  walletScreen: number; 
+  // 0 -> no wallet, load existing wallet 
+  // 1 -> show option 
+  // 2-> create new 
+  // 3 -> restore existing
 
   newWalletError: null | string; // Any errors when creating/restoring wallet
 
@@ -123,7 +127,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   loadServerURI = async () => {
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
-    let server = settings?.lwd?.serveruri || Utils.V3_LIGHTWALLETD;
+    let server = settings?.lwd?.serveruri || Utils.ZCASH_COMMUNITY;
 
     if (server !== Utils.ZCASH_COMMUNITY && server !== Utils.ZEBRA && server !== Utils.V3_LIGHTWALLETD) {
       server = Utils.ZCASH_COMMUNITY
@@ -133,7 +137,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     Object.assign(newstate, this.state);
 
     // newstate.url = server;
-    // For now, defaults to lightwalletd.com
+    // For now, defaults to zcash community server
     if (!newstate.url) {
       newstate.url = Utils.ZCASH_COMMUNITY; 
     }
