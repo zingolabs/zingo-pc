@@ -168,7 +168,9 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
           return (
             <div key={address} className={cstyles.verticalflex}>
               <div className={[cstyles.sublight].join(" ")}>Address</div>
-              <div>{Utils.splitStringIntoChunks(address, 6).join(" ")}</div>
+              <div className={[cstyles.verticalflex].join(" ")}>
+                {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 2).map(item => <div key={item}>{item}</div>)}
+              </div>
 
               <div className={cstyles.margintoplarge} />
 

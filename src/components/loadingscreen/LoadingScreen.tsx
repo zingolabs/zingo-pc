@@ -304,7 +304,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                 <br />
                 <br />
                 <br />
-                Please wait... This could take several minutes or hours
+                Please wait... 
+                <br />
+                This could take several minutes or hours
               </div>
             );
             me.setState({ currentStatus });

@@ -48,7 +48,9 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
               <div key={address} className={cstyles.padtopsmall}>
                 <div className={styles.txaddress}>
                   <div className={cstyles.highlight}>{label}</div>
-                  <div>{Utils.splitStringIntoChunks(address, 6).join(" ")}</div>
+                  <div className={[cstyles.verticalflex].join(" ")}>
+                    {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+                  </div>
                   <div
                     className={[
                       cstyles.small,
