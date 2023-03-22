@@ -11,7 +11,7 @@ import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
 import RPC from "../../../rpc/rpc";
 
-const { shell } = window.require("electron");
+const { shell } = window.require("electron"); 
 
 type TxModalInternalProps = {
   modalIsOpen: boolean;
@@ -169,7 +169,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
             <div key={address} className={cstyles.verticalflex}>
               <div className={[cstyles.sublight].join(" ")}>Address</div>
               <div className={[cstyles.verticalflex].join(" ")}>
-                {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 2).map(item => <div key={item}>{item}</div>)}
+                {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
               </div>
 
               <div className={cstyles.margintoplarge} />

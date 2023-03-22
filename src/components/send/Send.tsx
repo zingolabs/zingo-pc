@@ -56,6 +56,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     this.state = new SendState();
   }
 
+  /*
   addToAddr = () => {
     const { sendPageState, setSendPageState } = this.props;
     const newToAddrs = sendPageState.toaddrs.concat(new ToAddr(Utils.getNextToAddrID()));
@@ -67,6 +68,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
 
     setSendPageState(newState);
   };
+  */
 
   clearToAddrs = () => {
     const { sendPageState, setSendPageState } = this.props;
@@ -215,7 +217,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     const totalAmountAvailable = totalBalance.transparent + totalBalance.spendableZ + totalBalance.uabalance;
     //const fromaddr = addresses.find((a) => Utils.isSapling(a.address))?.address || "";
     // It should be safe to change this to isUnified, since every unified addresses have orchard_exists = true
-    const fromaddr = addresses.find((a) => Utils.isUnified(a.address))?.address || "";
+    const fromaddr = addresses.find((a) => Utils.isUnified(a.address))?.address || ""; 
 
     // If there are unverified funds, then show a tooltip
     let tooltip: string = "";
@@ -225,10 +227,8 @@ export default class Send extends PureComponent<SendProps, SendState> {
 
     return (
       <div>
-        <div className={[cstyles.xlarge, cstyles.padall, cstyles.center].join(" ")}>Send</div>
-
-        <div className={styles.sendcontainer}>
-          <div className={[cstyles.well, cstyles.balancebox, cstyles.containermargin].join(" ")}>
+        <div>
+          <div className={[cstyles.well, cstyles.balancebox, styles.containermargin].join(" ")}>
             <BalanceBlockHighlight
               topLabel="Spendable Funds"
               zecValue={totalAmountAvailable}
@@ -243,6 +243,8 @@ export default class Send extends PureComponent<SendProps, SendState> {
               currencyName={info.currencyName}
             />
           </div>
+
+          <div className={[cstyles.xlarge, cstyles.padsmallall, cstyles.center].join(" ")}>Send</div>
 
           <ScrollPane className={cstyles.containermargin} offsetHeight={320}>
             {sendPageState.toaddrs.map((toaddr) => {
@@ -260,11 +262,11 @@ export default class Send extends PureComponent<SendProps, SendState> {
                 />
               );
             })}
-            <div style={{ textAlign: "right" }}>
+            {/*<div style={{ textAlign: "right" }}>
               <button type="button" onClick={this.addToAddr}>
                 <i className={["fas", "fa-plus"].join(" ")} />
               </button>
-            </div>
+            </div>*/}
           </ScrollPane>
 
           <div className={cstyles.center}>

@@ -12,19 +12,19 @@
 }
 
 .txtype {
-  width: 15%;
+  width: 10%;
   float: left;
 }
 
 .txaddressamount {
-  width: 85%;
+  width: 90%;
   float: left;
   display: flex;
   flex-direction: column;
 }
 
 .txaddress {
-  width: 75%;
+  width: 80%;
   float: left;
 }
 

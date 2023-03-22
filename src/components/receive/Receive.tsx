@@ -128,13 +128,13 @@ export default class Receive extends Component<ReceiveProps> {
                   ))}
                 </Accordion>
 
-                <button
+                {/*<button
                   className={[cstyles.primarybutton, cstyles.margintoplarge, cstyles.marginbottomlarge].join(" ")}
                   onClick={() => createNewAddress(AddressType.unified)}
                   type="button"
                 >
                   New Unified Address
-                </button>
+                </button>*/}
               </ScrollPane>
             </TabPanel>
 

@@ -11,6 +11,8 @@
 .well {
   background-color: #000;
   padding: 16px;
+  padding-top: 11px;
+  padding-bottom: 11px;
 }
 
 .verticalflex {

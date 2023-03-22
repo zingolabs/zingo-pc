@@ -65,7 +65,7 @@ const AddressBlock = ({
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={[cstyles.verticalflex].join(" ")}>
-            {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 2).map(item => <div key={item}>{item}</div>)}
+            {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
           </div>
         </AccordionItemButton>
       </AccordionItemHeading>
