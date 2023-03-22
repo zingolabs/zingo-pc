@@ -24,7 +24,7 @@ export default class Dashboard extends Component<DashboardProps> {
 
     return (
       <div>
-        <div className={[cstyles.well, cstyles.containermargin].join(" ")}>
+        <div className={[cstyles.well, styles.containermargin].join(" ")}>
           <div className={cstyles.balancebox}>
             <BalanceBlockHighlight
               zecValue={totalBalance.total}
