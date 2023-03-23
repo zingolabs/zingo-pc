@@ -969,8 +969,6 @@ export default class RPC {
   }
 
   async getZecPrice() {    
-    //const resultStr: string = native.zingolib_execute("zecprice", "");
-    // zingo uses a different command for getting zec price
     const resultStr: string = native.zingolib_execute("updatecurrentprice", "");
 
     if (resultStr.toLowerCase().startsWith("error")) {
