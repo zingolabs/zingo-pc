@@ -157,13 +157,13 @@ export default class Receive extends Component<ReceiveProps> {
                   ))}
                 </Accordion>
 
-                <button
+                {/*<button
                   className={[cstyles.primarybutton, cstyles.margintoplarge, cstyles.marginbottomlarge].join(" ")}
                   onClick={() => createNewAddress(AddressType.sapling)}
                   type="button"
                 >
                   New Sapling Address
-                </button>
+                </button>*/}
               </ScrollPane>
             </TabPanel>
 
@@ -185,13 +185,13 @@ export default class Receive extends Component<ReceiveProps> {
                   ))}
                 </Accordion>
 
-                <button
+                {/*<button
                   className={[cstyles.primarybutton, cstyles.margintoplarge, cstyles.marginbottomlarge].join(" ")}
                   type="button"
                   onClick={() => createNewAddress(AddressType.transparent)}
                 >
                   New Transparent Address
-                </button>
+                </button>*/}
               </ScrollPane>
             </TabPanel>
           </Tabs>
