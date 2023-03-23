@@ -4,7 +4,7 @@ import cstyles from "../common/Common.module.css";
 import styles from "./Zcashd.module.css";
 import ScrollPane from "../scrollPane/ScrollPane";
 import Heart from "../../assets/img/zcashdlogo.gif";
-import DetailLine from "./components/DetailLine";
+import DetailLine from "./components/DetailLine"; 
 
 type ZcashdProps = {
   info: Info;
@@ -30,8 +30,6 @@ export default class Zcashd extends Component<ZcashdProps> {
         </div>
       );
     } else {
-      let height = `${info.latestBlock}`;
-
       return (
         <div>
           <div className={styles.container}>
@@ -46,7 +44,7 @@ export default class Zcashd extends Component<ZcashdProps> {
                   <DetailLine label="Node" value={info.zcashdVersion} />
                   <DetailLine label="Lightwallet Server" value={url} />
                   <DetailLine label="Network" value={info.testnet ? "Testnet" : "Mainnet"} />
-                  <DetailLine label="Block Height" value={height} />
+                  <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                   <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
                 </div>
               </div>

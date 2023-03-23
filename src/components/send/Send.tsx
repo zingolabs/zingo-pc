@@ -225,8 +225,6 @@ export default class Send extends PureComponent<SendProps, SendState> {
       tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ} with 5 blocks (approx 6 minutes)`;
     }
 
-    console.log('+++++++++++++TOTAL', totalAmountAvailable);
-
     return (
       <div>
         <div>
@@ -246,7 +244,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
             />
           </div>
 
-          <div className={[cstyles.xlarge, cstyles.padsmallall, cstyles.center].join(" ")}>Send</div>
+          <div className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Send</div>
 
           <ScrollPane className={cstyles.containermargin} offsetHeight={320}>
             {sendPageState.toaddrs.map((toaddr) => {
