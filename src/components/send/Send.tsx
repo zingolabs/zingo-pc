@@ -158,7 +158,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     const toAddr = newToAddrs.find((a) => a.id === id) as ToAddr;
     toAddr.amount = total - totalOtherAmount;
     if (toAddr.amount < 0) toAddr.amount = 0;
-    //toAddr.amount = Utils.maxPrecisionTrimmed(toAddr.amount);
+    toAddr.amount = Number(Utils.maxPrecisionTrimmed(toAddr.amount)); 
 
     // Create the new state object
     const newState = new SendPageState();
@@ -224,6 +224,8 @@ export default class Send extends PureComponent<SendProps, SendState> {
     if (totalBalance.unverifiedZ) {
       tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ} with 5 blocks (approx 6 minutes)`;
     }
+
+    console.log('+++++++++++++TOTAL', totalAmountAvailable);
 
     return (
       <div>
