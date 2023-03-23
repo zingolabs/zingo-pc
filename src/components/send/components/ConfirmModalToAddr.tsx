@@ -17,7 +17,9 @@ const ConfirmModalToAddr = ({ toaddr, info }: ConfirmModalToAddrProps) => {
     <div className={cstyles.well}>
       <div className={[cstyles.flexspacebetween, cstyles.margintopsmall].join(" ")}>
         <div className={[styles.confirmModalAddress].join(" ")}>
-          {Utils.splitStringIntoChunks(toaddr.to, 6).join(" ")}
+          <div className={[cstyles.verticalflex].join(" ")}>
+            {toaddr.to.length < 80 ? toaddr.to : Utils.splitStringIntoChunks(toaddr.to, 3).map(item => <div key={item}>{item}</div>)}
+          </div>
         </div>
         <div className={[cstyles.verticalflex, cstyles.right].join(" ")}>
           <div className={cstyles.large}>

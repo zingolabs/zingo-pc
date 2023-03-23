@@ -79,9 +79,19 @@ input[disabled] {
 }
 
 .react-tabs__tab--selected {
-  background: #011401;
-  color: #c3c3c3;
-  border-radius: 5px 5px 0 0;
+  box-shadow: 0 0 5px #fff;
+  border-color: #fff;
+  outline: none;
+}
+
+.react-tabs__tab--selected::after {
+  content: "";
+  position: absolute;
+  height: 5px;
+  left: -4px;
+  right: -4px;
+  bottom: -5px;
+  background: #18bd18;
 }
 
 .react-tabs__tab--disabled {
@@ -90,19 +100,9 @@ input[disabled] {
 }
 
 .react-tabs__tab:focus {
-  box-shadow: 0 0 5px hsl(208, 99%, 50%);
-  border-color: hsl(208, 99%, 50%);
+  box-shadow: 0 0 5px #18bd18;
+  border-color: #18bd18;
   outline: none;
-}
-
-.react-tabs__tab:focus::after {
-  content: "";
-  position: absolute;
-  height: 5px;
-  left: -4px;
-  right: -4px;
-  bottom: -5px;
-  background: #fff;
 }
 
 .react-tabs__tab-panel {
@@ -116,6 +116,7 @@ input[disabled] {
 img,
 img::after,
 img::before {
+  user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
   -webkit-app-region: no-drag;
@@ -125,6 +126,7 @@ img::before {
 a,
 a::after,
 a::before {
+  user-select: none;
   -webkit-user-select: none;
   -webkit-user-drag: none;
   -webkit-app-region: no-drag;

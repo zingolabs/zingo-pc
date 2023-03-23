@@ -101,7 +101,7 @@ const ToAddrBox = ({
         </div>
         <input
           type="text"
-          placeholder="U | Z | T address"
+          placeholder="Unified | Sapling | Transparent address"
           className={cstyles.inputbox}
           value={toaddr.to}
           onChange={(e) => updateToField(toaddr.id as number, e, null, null)}
@@ -131,7 +131,7 @@ const ToAddrBox = ({
 
         <Spacer />
 
-        {isMemoDisabled && <div className={cstyles.sublight}>Memos only for sapling or UA addresses</div>}
+        {isMemoDisabled && <div className={cstyles.sublight}>Memos only for Unified or Sapling addresses</div>}
 
         {!isMemoDisabled && (
           <div>

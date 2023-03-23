@@ -24,9 +24,10 @@ export default class Dashboard extends Component<DashboardProps> {
 
     return (
       <div>
-        <div className={[cstyles.well, cstyles.containermargin].join(" ")}>
+        <div className={[cstyles.well, styles.containermargin].join(" ")}>
           <div className={cstyles.balancebox}>
             <BalanceBlockHighlight
+              topLabel="All Funds"
               zecValue={totalBalance.total}
               usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
               currencyName={info.currencyName}

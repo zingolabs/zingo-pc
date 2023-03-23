@@ -488,8 +488,6 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       }
     }
 
-    console.log('sidebar', this.props.info);
-
     return (
       <div>
         {/* Payment URI Modal */}

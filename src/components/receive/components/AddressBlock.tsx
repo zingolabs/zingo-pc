@@ -63,7 +63,11 @@ const AddressBlock = ({
   return (
     <AccordionItem key={copied ? 1 : 0} className={[cstyles.well, styles.receiveblock].join(" ")} uuid={address}>
       <AccordionItemHeading>
-        <AccordionItemButton className={cstyles.accordionHeader}>{address}</AccordionItemButton>
+        <AccordionItemButton className={cstyles.accordionHeader}>
+          <div className={[cstyles.verticalflex].join(" ")}>
+            {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+          </div>
+        </AccordionItemButton>
       </AccordionItemHeading>
       <AccordionItemPanel className={[styles.receiveDetail].join(" ")}>
         <div className={[cstyles.flexspacebetween].join(" ")}>
@@ -77,7 +81,7 @@ const AddressBlock = ({
 
             {receivers && (
               <div className={cstyles.margintopsmall}>
-                <div className={[cstyles.sublight].join(" ")}>Address type: {Utils.getReeivers(receivers).join(" + ")}</div>
+                <div className={[cstyles.sublight].join(" ")}>Address type: {Utils.getReceivers(receivers).join(" + ")}</div>
               </div>
             )}
 

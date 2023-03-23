@@ -97,14 +97,15 @@ export default class Utils {
     return { bigPart, smallPart };
   }
 
-  static getReeivers(r: string) {
+  static getReceivers(r: string) {
     const receiversJSON = JSON.parse(r);
    
-    let receivers = ["Orchard"];
+    let receivers = [];
+    if(receiversJSON.orchard_exists) receivers.push("Orchard");
     if(receiversJSON.transparent) receivers.push("Transparent");
     if(receiversJSON.sapling) receivers.push("Sapling");
     
-    return receivers;
+    return receivers; 
   }
 
   static splitStringIntoChunks(s: string, numChunks: number) {

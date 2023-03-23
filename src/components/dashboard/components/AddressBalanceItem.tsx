@@ -7,7 +7,7 @@ import {
 import styles from "../Dashboard.module.css";
 import cstyles from "../../common/Common.module.css";
 import { AddressBalance } from "../../appstate";
-import Utils from "../../../utils/utils";
+import Utils from "../../../utils/utils"; 
 
 type AddressBalanceItemProps = {
   currencyName: string;
@@ -24,12 +24,14 @@ const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItem
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={[cstyles.flexspacebetween].join(" ")}>
             <div>
-              <div>{Utils.splitStringIntoChunks(item.address, 6).join(" ")}</div>
+              <div className={[cstyles.verticalflex].join(" ")}>
+                {item.address.length < 80 ? item.address : Utils.splitStringIntoChunks(item.address, 3).map(item => <div key={item}>{item}</div>)}
+              </div>
               {/* Add label displaying receiver types */}
               {item.receivers && (
                 <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
-                  Address type: {Utils.getReeivers(item.receivers).join(" + ")}
-                  </div>
+                  Address type: {Utils.getReceivers(item.receivers).join(" + ")}
+                </div>
               )}              
               {item.containsPending && (
                 <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>

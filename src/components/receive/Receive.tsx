@@ -4,7 +4,7 @@ import {
   Accordion,
 } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
-import cstyles from "../common/Common.module.css";
+//import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import { AddressBalance, Info, ReceivePageState, AddressBookEntry, AddressDetail, AddressType } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
@@ -36,7 +36,7 @@ export default class Receive extends Component<ReceiveProps> {
       receivePageState,
       fetchAndSetSinglePrivKey,
       fetchAndSetSingleViewKey,
-      createNewAddress,
+      //createNewAddress,
       rerenderKey,
     } = this.props;
 
@@ -128,13 +128,13 @@ export default class Receive extends Component<ReceiveProps> {
                   ))}
                 </Accordion>
 
-                <button
+                {/*<button
                   className={[cstyles.primarybutton, cstyles.margintoplarge, cstyles.marginbottomlarge].join(" ")}
                   onClick={() => createNewAddress(AddressType.unified)}
                   type="button"
                 >
                   New Unified Address
-                </button>
+                </button>*/}
               </ScrollPane>
             </TabPanel>
 
@@ -157,13 +157,13 @@ export default class Receive extends Component<ReceiveProps> {
                   ))}
                 </Accordion>
 
-                <button
+                {/*<button
                   className={[cstyles.primarybutton, cstyles.margintoplarge, cstyles.marginbottomlarge].join(" ")}
                   onClick={() => createNewAddress(AddressType.sapling)}
                   type="button"
                 >
                   New Sapling Address
-                </button>
+                </button>*/}
               </ScrollPane>
             </TabPanel>
 
@@ -185,13 +185,13 @@ export default class Receive extends Component<ReceiveProps> {
                   ))}
                 </Accordion>
 
-                <button
+                {/*<button
                   className={[cstyles.primarybutton, cstyles.margintoplarge, cstyles.marginbottomlarge].join(" ")}
                   type="button"
                   onClick={() => createNewAddress(AddressType.transparent)}
                 >
                   New Transparent Address
-                </button>
+                </button>*/}
               </ScrollPane>
             </TabPanel>
           </Tabs>
