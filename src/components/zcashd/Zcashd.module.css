@@ -7,18 +7,18 @@
 .imgcontainer {
   width: 100%;
   text-align: center;
-  margin-top: 10%;
+  margin-top: 3%;
 }
 
 .imgcontainer img {
-  max-width: 500px;
+  max-width: 300px;
 }
 
 .detailcontainer {
-  width: 50%;
+  width: 60%;
   flex-direction: column;
-  margin-left: 25%;
-  margin-top: 5%;
+  margin-left: 20%;
+  margin-top: 3%;
 }
 
 .detaillines {
