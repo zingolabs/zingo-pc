@@ -60,3 +60,10 @@
   bottom: 0;
   background-color: rgba(100, 100, 100, 0.5);
 }
+
+.containermargin {
+  margin: 16px;
+  margin-top: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+}

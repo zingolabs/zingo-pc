@@ -227,7 +227,19 @@ export default class Send extends PureComponent<SendProps, SendState> {
 
     return (
       <div>
-        <div>
+        <ConfirmModal
+            sendPageState={sendPageState}
+            totalBalance={totalBalance}
+            info={info}
+            sendTransaction={sendTransaction}
+            openErrorModal={openErrorModal}
+            closeModal={this.closeModal}
+            modalIsOpen={modalIsOpen}
+            clearToAddrs={this.clearToAddrs}
+            openPasswordAndUnlockIfNeeded={openPasswordAndUnlockIfNeeded}
+          />
+
+        <div className={[styles.container].join(" ")}>
           <div className={[cstyles.well, cstyles.balancebox, styles.containermargin].join(" ")}>
             <BalanceBlockHighlight
               topLabel="Spendable Funds"
@@ -246,7 +258,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
 
           <div className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Send</div>
 
-          <ScrollPane className={cstyles.containermargin} offsetHeight={320}>
+          <ScrollPane className={cstyles.containermargin} offsetHeight={190}>
             {sendPageState.toaddrs.map((toaddr) => {
               return (
                 <ToAddrBox
@@ -268,32 +280,20 @@ export default class Send extends PureComponent<SendProps, SendState> {
               </button>
             </div>*/}
           </ScrollPane>
+        </div>
 
-          <div className={cstyles.center}>
-            <button
-              type="button"
-              disabled={!sendButtonEnabled}
-              className={cstyles.primarybutton}
-              onClick={this.openModal}
-            >
-              Send
-            </button>
-            <button type="button" className={cstyles.primarybutton} onClick={this.clearToAddrs}>
-              Cancel
-            </button>
-          </div>
-
-          <ConfirmModal
-            sendPageState={sendPageState}
-            totalBalance={totalBalance}
-            info={info}
-            sendTransaction={sendTransaction}
-            openErrorModal={openErrorModal}
-            closeModal={this.closeModal}
-            modalIsOpen={modalIsOpen}
-            clearToAddrs={this.clearToAddrs}
-            openPasswordAndUnlockIfNeeded={openPasswordAndUnlockIfNeeded}
-          />
+        <div className={cstyles.center}>
+          <button
+            type="button"
+            disabled={!sendButtonEnabled}
+            className={cstyles.primarybutton}
+            onClick={this.openModal}
+          >
+            Send
+          </button>
+          <button type="button" className={cstyles.primarybutton} onClick={this.clearToAddrs}>
+            Clear
+          </button>
         </div>
       </div>
     );

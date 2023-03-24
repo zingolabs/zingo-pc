@@ -61,26 +61,20 @@ input[disabled] {
 }
 
 .react-tabs__tab-list {
-  border-bottom: 1px solid #aaa;
-  margin: 0 0 10px;
+  margin: 0;
   padding: 0;
 }
 
 .react-tabs__tab {
   display: inline-block;
-  border: 1px solid transparent;
-  border-bottom: none;
-  bottom: -1px;
   position: relative;
   list-style: none;
   padding: 6px 12px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 32px;
 }
 
 .react-tabs__tab--selected {
-  box-shadow: 0 0 5px #fff;
-  border-color: #fff;
   outline: none;
 }
 
@@ -90,7 +84,7 @@ input[disabled] {
   height: 5px;
   left: -4px;
   right: -4px;
-  bottom: -5px;
+  bottom: 5px;
   background: #18bd18;
 }
 
@@ -100,8 +94,6 @@ input[disabled] {
 }
 
 .react-tabs__tab:focus {
-  box-shadow: 0 0 5px #18bd18;
-  border-color: #18bd18;
   outline: none;
 }
 

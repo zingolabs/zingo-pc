@@ -582,6 +582,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
                     info={info}
                     addressBook={addressBook}
                     setSendTo={this.setSendTo}
+                    totalBalance={totalBalance}
                   />
                 )}
               />
