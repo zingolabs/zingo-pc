@@ -424,9 +424,9 @@ if (isDev) {
 
 function createWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1300,
-    height: 728,
-    minWidth: 1100,
+    width: 1350,
+    height: 700,
+    minWidth: 1150,
     minHeight: 600,
     maxWidth: 1500,
     maxHeight: 800,

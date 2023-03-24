@@ -72,15 +72,19 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     return { labelError, addressIsValid };
   };
 
+  clearFields = () => {
+    this.setState({ currentLabel: "", currentAddress: "", addButtonEnabled: false });
+  };
+
   render() {
     const { addressBook, removeAddressBookEntry, setSendTo } = this.props;
-    const { currentLabel, currentAddress, addButtonEnabled } = this.state;
+    const { currentLabel, currentAddress, addButtonEnabled } = this.state; 
 
     const { labelError, addressIsValid } = this.validate(currentLabel, currentAddress);
 
     return (
       <div>
-        <div className={[cstyles.xlarge, cstyles.padall, cstyles.center].join(" ")}>Address Book</div>
+        <div className={[cstyles.xlarge, cstyles.margintoplarge, cstyles.center].join(" ")}>Address Book</div>
 
         <div className={styles.addressbookcontainer}>
           <div className={[cstyles.well].join(" ")}>
@@ -129,6 +133,9 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
               onClick={this.addButtonClicked}
             >
               Add
+            </button>
+            <button type="button" className={cstyles.primarybutton} onClick={this.clearFields}>
+              Clear
             </button>
           </div>
 

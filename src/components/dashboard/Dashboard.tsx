@@ -60,16 +60,17 @@ export default class Dashboard extends Component<DashboardProps> {
           </div>
         </div>
 
+        <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
+          <div style={{ marginLeft: 100 }}>Address</div>
+          <div style={{ marginRight: 30 }}>Balance</div>
+        </div>
+
         <div className={styles.addressbalancecontainer}>
-          <ScrollPane offsetHeight={200}>
+          <ScrollPane offsetHeight={190}>
             <div className={styles.addressbooklist}>
-              <div className={[cstyles.flexspacebetween, cstyles.tableheader, cstyles.sublight].join(" ")}>
-                <div>Address</div>
-                <div>Balance</div>
-              </div>
               {addressesWithBalance &&
                 (addressesWithBalance.length === 0 ? (
-                  <div className={[cstyles.center, cstyles.sublight].join(" ")}>No Addresses with a balance</div>
+                  <div className={[cstyles.center, cstyles.sublight, cstyles.margintoplarge].join(" ")}>No Addresses with a balance</div>
                 ) : (
                   <Accordion>
                     {addressesWithBalance
