@@ -53,7 +53,7 @@ fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let resp = || {
         let server = zingoconfig::construct_server_uri(Some(server_uri));
 
-        let (config, latest_block_height) = match zingolib::create_zingoconf_from_datadir(server, None) {
+        let (config, latest_block_height) = match zingolib::load_clientconfig(server, None) {
             Ok((c, h)) => (c, h),
             Err(e) => {
                 return format!("Error: {}", e);
@@ -98,7 +98,7 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
     let resp = || {
         let server = zingoconfig::construct_server_uri(Some(server_uri));
 
-        let (config, _latest_block_height) = match zingolib::create_zingoconf_from_datadir(server, None) {
+        let (config, _latest_block_height) = match zingolib::load_clientconfig(server, None) {
             Ok((c, h)) => (c, h),
             Err(e) => {
                 return format!("Error: {}", e);
@@ -137,7 +137,7 @@ fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
     let resp = || {
         let server = zingoconfig::construct_server_uri(Some(server_uri));
 
-        let (config, _latest_block_height) = match zingolib::create_zingoconf_from_datadir(server, None) {
+        let (config, _latest_block_height) = match zingolib::load_clientconfig(server, None) {
             Ok((c, h)) => (c, h),
             Err(e) => {
                 return format!("Error: {}", e);
