@@ -140,18 +140,18 @@ const ToAddrBox = ({
               <div className={cstyles.validationerror}>{toaddr.memo.length}</div>
             </div>
             <TextareaAutosize
-              className={cstyles.inputbox}
+              className={[cstyles.inputbox].join(" ")}
               value={toaddr.memo}
               disabled={isMemoDisabled}
               onChange={(e) => updateToField(toaddr.id as number, null, null, e)}
+              minRows={2}
+              maxRows={5}
             />
             <input type="checkbox" onChange={(e) => e.target.checked && addReplyTo()} />
             Include Reply-To address
           </div>
         )}
-        <Spacer />
       </div>
-      <Spacer />
     </div>
   );
 };

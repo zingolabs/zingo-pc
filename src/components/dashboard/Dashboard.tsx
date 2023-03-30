@@ -8,7 +8,7 @@ import { TotalBalance, Info, AddressBalance } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
-import AddressBalanceItem from "./components/AddressBalanceItem";
+import AddressBalanceItem from "./components/AddressBalanceItem"; 
 
 type DashboardProps = {
   totalBalance: TotalBalance;
@@ -62,7 +62,7 @@ export default class Dashboard extends Component<DashboardProps> {
 
         <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
           <div style={{ marginLeft: 100 }}>Address</div>
-          <div style={{ marginRight: 30 }}>Balance</div>
+          <div style={{ marginRight: 40 }}>Balance</div>
         </div>
 
         <div className={styles.addressbalancecontainer}>
