@@ -6,7 +6,7 @@ import {
 } from "react-accessible-accordion";
 import styles from "../Dashboard.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressBalance } from "../../appstate";
+import { AddressBalance, AddressType } from "../../appstate";
 import Utils from "../../../utils/utils"; 
 
 type AddressBalanceItemProps = {
@@ -28,9 +28,19 @@ const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItem
                 {item.address.length < 80 ? item.address : Utils.splitStringIntoChunks(item.address, 3).map(item => <div key={item}>{item}</div>)}
               </div>
               {/* Add label displaying receiver types */}
-              {item.receivers && (
+              {item.type === AddressType.unified && !!item.receivers && (
                 <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
-                  Address type: {Utils.getReceivers(item.receivers).join(" + ")}
+                  Address types: {Utils.getReceivers(item.receivers).join(" + ")}
+                </div>
+              )}
+              {item.type === AddressType.sapling && (
+                <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
+                  Address type: Sapling
+                </div>
+              )}
+              {item.type === AddressType.transparent && (
+                <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
+                  Address type: Transparent
                 </div>
               )}              
               {item.containsPending && (

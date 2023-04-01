@@ -87,7 +87,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
         <div className={[cstyles.xlarge, cstyles.margintoplarge, cstyles.center].join(" ")}>Address Book</div>
 
         <div className={styles.addressbookcontainer}>
-          <div className={[cstyles.well].join(" ")}>
+          <div className={[cstyles.well, cstyles.center].join(" ")}>
             <div className={[cstyles.flexspacebetween].join(" ")}>
               <div className={cstyles.sublight}>Label</div>
               <div className={cstyles.validationerror}>
@@ -123,9 +123,11 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
               className={[cstyles.inputbox, cstyles.margintopsmall].join(" ")}
               onChange={(e) => this.updateAddress(e.target.value)}
             />
+          </div>
 
-            <div className={cstyles.margintoplarge} />
+          <div className={cstyles.margintoplarge} />
 
+          <div className={[cstyles.center].join(" ")}>
             <button
               type="button"
               className={cstyles.primarybutton}
@@ -139,12 +141,13 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
             </button>
           </div>
 
+          <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
+            <div style={{ marginLeft: 100 }}>Label</div>
+            <div style={{ marginRight: 40 }}>Address</div>
+          </div>
+
           <ScrollPane offsetHeight={300}>
             <div className={styles.addressbooklist}>
-              <div className={[cstyles.flexspacebetween, cstyles.tableheader, cstyles.sublight].join(" ")}>
-                <div>Label</div>
-                <div>Address</div>
-              </div>
               {addressBook && (
                 <Accordion>
                   {addressBook.map((item) => (
