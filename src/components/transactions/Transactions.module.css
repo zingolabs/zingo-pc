@@ -40,15 +40,14 @@
 .txmodal {
   top: 12.5%;
   left: 12.5%;
-  right: 12.5%;
-  bottom: auto;
+  right: auto;
   opacity: 1;
-  transform: translate(-0%, -12.5%);
-  background: #212124;
+  transform: translate(0%, -5%);
+  background: #011401;
   position: absolute;
   padding: 16px;
-  min-width: 700px;
-  max-height: calc(100vh - 100px);
+  min-width: 800px;
+  max-height: calc(100vh - 130px);
   overflow-y: auto;
 }
 
