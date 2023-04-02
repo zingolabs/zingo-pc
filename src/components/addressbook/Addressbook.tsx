@@ -143,8 +143,8 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
 
           {addressBook && addressBook.length > 0 && ( 
             <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
-              <div style={{ marginLeft: 100 }}>Label</div>
-              <div style={{ marginRight: 40 }}>Address</div>
+              <div style={{ marginLeft: 40 }}>Label</div>
+              <div style={{ marginRight: 100 }}>Address</div>
             </div>
           )}
 
