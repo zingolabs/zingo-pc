@@ -141,14 +141,16 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
             </button>
           </div>
 
-          <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
-            <div style={{ marginLeft: 100 }}>Label</div>
-            <div style={{ marginRight: 40 }}>Address</div>
-          </div>
+          {addressBook && addressBook.length > 0 && ( 
+            <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
+              <div style={{ marginLeft: 100 }}>Label</div>
+              <div style={{ marginRight: 40 }}>Address</div>
+            </div>
+          )}
 
           <ScrollPane offsetHeight={300}>
             <div className={styles.addressbooklist}>
-              {addressBook && (
+              {addressBook && addressBook.length > 0 && (
                 <Accordion>
                   {addressBook.map((item) => (
                     <AddressBookItem
