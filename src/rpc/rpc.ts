@@ -283,8 +283,17 @@ export default class RPC {
 
       // Also set `zecPrice` manually
       const resultStr = native.zingolib_execute("updatecurrentprice", "");
-      const resultJSON = JSON.parse(resultStr);
-      if(resultJSON) info.zecPrice = resultJSON;
+      if (resultStr) {
+        if (resultStr.toLowerCase().startsWith('error') || isNaN(parseFloat(resultStr))) {
+          console.log(`Error fetching price Info ${resultStr}`);
+          info.zecPrice = 0;
+        } else {
+          info.zecPrice = parseFloat(resultStr);
+        }
+      } else {
+        console.log(`Error fetching price Info ${resultStr}`);
+        info.zecPrice = 0;
+      }
 
       // we want to update the wallet last block
       const walletHeight = RPC.fetchWalletHeight();
@@ -393,7 +402,8 @@ export default class RPC {
       return {
         "address": a.address,
         "balance": ua_bal + ua_pend_bal,
-        "receivers": JSON.stringify(a.receivers)
+        "receivers": JSON.stringify(a.receivers),
+        "address_type": AddressType.unified
       }
     });
 
@@ -421,7 +431,8 @@ export default class RPC {
         "zbalance": z_bal + z_pend_bal,
         "verified_zbalance": z_bal,
         "spendable_zbalance": z_spendable_bal,
-        "unverified_zbalance": z_pend_bal
+        "unverified_zbalance": z_pend_bal,
+        "address_type": AddressType.sapling
       }      
     });
 
@@ -440,8 +451,9 @@ export default class RPC {
         .reduce((acc: any, t_pend_utxo: any) => acc + t_pend_utxo, 0)
 
         return {
-          address: a.receivers.transparent,
-          balance: t_bal + t_pend_bal
+          "address": a.receivers.transparent,
+          "balance": t_bal + t_pend_bal,
+          "address_type": AddressType.transparent
         }
       })
 
@@ -590,12 +602,13 @@ export default class RPC {
     const oaddresses = balanceJSON.ua_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
-        const ab = new AddressBalance(o.address, o.balance / 10 ** 8);
+        const ab = new AddressBalance(o.address, o.balance / 10 ** 8, o.address_type);
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
         // Add receivers to unified addresses
-        ab.receivers = o.receivers
+        ab.receivers = o.receivers;
+        ab.type = o.address_type;
         return ab;
       })
       .filter((ab: AddressBalance) => ab.balance > 0);
@@ -603,10 +616,11 @@ export default class RPC {
     const zaddresses = balanceJSON.z_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
-        const ab = new AddressBalance(o.address, o.zbalance / 10 ** 8);
+        const ab = new AddressBalance(o.address, o.zbalance / 10 ** 8, o.address_type);
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
+        ab.type = o.address_type;
         return ab;
       })
       .filter((ab: AddressBalance) => ab.balance > 0);
@@ -616,10 +630,11 @@ export default class RPC {
     const taddresses = balanceJSON.t_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
-        const ab = new AddressBalance(o.address, o.balance / 10 ** 8);
+        const ab = new AddressBalance(o.address, o.balance / 10 ** 8, o.address_type);
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
+        ab.type = o.address_type;
         return ab;
       })
       .filter((ab: AddressBalance) => ab.balance > 0);
@@ -969,22 +984,18 @@ export default class RPC {
   }
 
   async getZecPrice() {    
-    //const resultStr: string = native.zingolib_execute("zecprice", "");
-    // zingo uses a different command for getting zec price
-    const resultStr: string = native.zingolib_execute("updatecurrentprice", "");
-
-    if (resultStr.toLowerCase().startsWith("error")) {
+    const resultStr: string = native.zingolib_execute("updatecurrentprice", ""); 
+    
+    if (resultStr) {
+      if (resultStr.toLowerCase().startsWith('error') || isNaN(parseFloat(resultStr))) {
+        console.log(`Error fetching price ${resultStr}`);
+        this.fnSetZecPrice(0);
+      } else {
+        this.fnSetZecPrice(parseFloat(resultStr));
+      }
+    } else {
       console.log(`Error fetching price ${resultStr}`);
-      return;
-    }
-    
-    const resultJSON = JSON.parse(resultStr);
-    // if (resultJSON.zec_price) {
-    //   this.fnSetZecPrice(resultJSON.zec_price);
-    // }
-    
-    if (resultJSON) {      
-      this.fnSetZecPrice(resultJSON);
+      this.fnSetZecPrice(0); 
     }
   }
 }

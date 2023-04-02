@@ -120,27 +120,19 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       // Handle errors
       fs.unlink(dest, () => {
         cb(err.message);
-      }); // Delete the file async. (But we don't check the result)
+      }); // Delete the file async. (But we don't check the result) 
     });
   };
 
   loadServerURI = async () => {
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
-    let server = settings?.lwd?.serveruri || Utils.ZCASH_COMMUNITY;
-
-    if (server !== Utils.ZCASH_COMMUNITY && server !== Utils.ZEBRA && server !== Utils.V3_LIGHTWALLETD) {
-      server = Utils.ZCASH_COMMUNITY
-    }
+    let server = settings?.serveruri || Utils.ZCASH_COMMUNITY;
 
     const newstate = new LoadingScreenState();
     Object.assign(newstate, this.state);
 
-    // newstate.url = server;
-    // For now, defaults to zcash community server
-    if (!newstate.url) {
-      newstate.url = Utils.ZCASH_COMMUNITY; 
-    }
+    newstate.url = server;
     this.setState(newstate);
   };
 

@@ -9,7 +9,7 @@ import QRCode from "qrcode.react";
 import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
-import { AddressBalance } from "../../appstate";
+import { AddressBalance, AddressType } from "../../appstate";
 
 const { shell, clipboard } = window.require("electron");
 
@@ -20,7 +20,6 @@ type AddressBlockProps = {
   privateKey?: string;
   viewKey?: string;
   label?: string;
-  receivers?: string;
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
 };
@@ -28,7 +27,6 @@ type AddressBlockProps = {
 const AddressBlock = ({
   addressBalance,
   label,
-  receivers,
   currencyName,
   zecPrice,
   privateKey,
@@ -36,7 +34,7 @@ const AddressBlock = ({
   viewKey,
   fetchAndSetSingleViewKey,
 }: AddressBlockProps) => {
-  const { address } = addressBalance;
+  const { address, receivers, type } = addressBalance;
 
   const [copied, setCopied] = useState(false);
   const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
@@ -51,7 +49,7 @@ const AddressBlock = ({
 
   const balance = addressBalance.balance || 0;
 
-  const openAddress = () => {
+  const openAddress = () => { 
     if (currencyName === "TAZ") {
       shell.openExternal(`https://chain.so/address/ZECTEST/${address}`);
     } else {
@@ -79,9 +77,21 @@ const AddressBlock = ({
               </div>
             )}
 
-            {receivers && (
+            {type === AddressType.unified && !!receivers && (
               <div className={cstyles.margintopsmall}>
-                <div className={[cstyles.sublight].join(" ")}>Address type: {Utils.getReceivers(receivers).join(" + ")}</div>
+                <div className={[cstyles.sublight].join(" ")}>Address types: {Utils.getReceivers(receivers).join(" + ")}</div>
+              </div>
+            )}
+
+            {type === AddressType.sapling && (
+              <div className={cstyles.margintopsmall}>
+                <div className={[cstyles.sublight].join(" ")}>Address type: Sapling</div>
+              </div>
+            )}
+
+            {type === AddressType.transparent && (
+              <div className={cstyles.margintopsmall}>
+                <div className={[cstyles.sublight].join(" ")}>Address type: Transparent</div>
               </div>
             )}
 
@@ -157,7 +167,7 @@ const AddressBlock = ({
                 </button>
               )} */}
 
-              {Utils.isTransparent(address) && (
+              {type === AddressType.transparent && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => openAddress()}>
                   View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                 </button>

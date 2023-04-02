@@ -50,7 +50,7 @@ export default class Receive extends Component<ReceiveProps> {
       .filter((a) => a.type === AddressType.unified)
       .slice(0, 100)
       .map((a) => {
-        let uaddr = new AddressBalance(a.address, addressMap.get(a.address) || 0)
+        let uaddr = new AddressBalance(a.address, addressMap.get(a.address) || 0, AddressType.unified)
         uaddr.receivers = a.receivers;
         return uaddr;
       });
@@ -67,7 +67,7 @@ export default class Receive extends Component<ReceiveProps> {
     const zaddrs = addresses
       .filter((a) => Utils.isSapling(a.address))
       .slice(0, 100)
-      .map((a) => new AddressBalance(a.address, addressMap.get(a.address) || 0));
+      .map((a) => new AddressBalance(a.address, addressMap.get(a.address) || 0, AddressType.sapling));
 
     let defaultZaddr = zaddrs.length ? zaddrs[0].address : "";
     if (receivePageState && Utils.isSapling(receivePageState.newAddress)) {
@@ -82,7 +82,7 @@ export default class Receive extends Component<ReceiveProps> {
     const taddrs = addresses
       .filter((a) => Utils.isTransparent(a.address))
       .slice(0, 100)
-      .map((a) => new AddressBalance(a.address, addressMap.get(a.address) || 0));
+      .map((a) => new AddressBalance(a.address, addressMap.get(a.address) || 0, AddressType.transparent));
 
     let defaultTaddr = taddrs.length ? taddrs[0].address : "";
     if (receivePageState && Utils.isTransparent(receivePageState.newAddress)) {
@@ -118,7 +118,6 @@ export default class Receive extends Component<ReceiveProps> {
                       addressBalance={a}
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.address)}
-                      receivers={a.receivers}
                       zecPrice={info.zecPrice}
                       privateKey={addressPrivateKeys.get(a.address)}
                       viewKey={addressViewKeys.get(a.address)}

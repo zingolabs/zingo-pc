@@ -14,11 +14,21 @@ export default function ServerSelectModal({ modalIsOpen, closeModal, openErrorMo
   const [selected, setSelected] = useState("");
   const [custom, setCustom] = useState("");
 
+  const servers = [
+    { name: "Zcash Community (Default)", uri: Utils.ZCASH_COMMUNITY},
+  ];
+
   useEffect(() => {
     (async () => {
       const settings = await ipcRenderer.invoke("loadSettings");
-      const server = settings?.lwd?.serveruri || "";
-      setCustom(server);
+      const server = settings?.serveruri || "";
+      // not custom
+      if (server === Utils.ZCASH_COMMUNITY) {
+        setSelected(server);
+      } else {
+        setSelected("custom");
+        setCustom(server);
+      }
     })();
   }, []);
 
@@ -28,7 +38,7 @@ export default function ServerSelectModal({ modalIsOpen, closeModal, openErrorMo
       serveruri = custom;
     }
 
-    ipcRenderer.invoke("saveSettings", { key: "lwd.serveruri", value: serveruri });
+    ipcRenderer.invoke("saveSettings", { key: "serveruri", value: serveruri });
 
     closeModal();
 
@@ -36,12 +46,6 @@ export default function ServerSelectModal({ modalIsOpen, closeModal, openErrorMo
       openErrorModal("Restart Zingo PC", "Please restart Zingo PC to connect to the new server");
     }, 10);
   };
-
-  const servers = [
-    { name: "Zcash Community (Default)", uri: Utils.ZCASH_COMMUNITY},
-    { name: "Zebra (Experimental)", uri: Utils.ZEBRA},
-    { name: "Zecwallet v3", uri: Utils.V3_LIGHTWALLETD },
-  ];
 
   return (
     <Modal
@@ -58,13 +62,13 @@ export default function ServerSelectModal({ modalIsOpen, closeModal, openErrorMo
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
           {servers.map((s) => (
             <div style={{ margin: "10px" }} key={s.uri}>
-              <input type="radio" name="server" value={s.uri} onClick={(e) => setSelected(e.currentTarget.value)} />
+              <input checked={selected === s.uri} type="radio" name="server" value={s.uri} onClick={(e) => setSelected(e.currentTarget.value)} onChange={(e) => setSelected(e.currentTarget.value)} />
               {`${s.name} - ${s.uri}`}
             </div>
           ))}
 
           <div style={{ margin: "10px" }}>
-            <input type="radio" name="server" value="custom" onClick={(e) => setSelected(e.currentTarget.value)} />
+            <input checked={selected === "custom"} type="radio" name="server" value="custom" onClick={(e) => setSelected(e.currentTarget.value)} onChange={(e) => setSelected(e.currentTarget.value)} />
             Custom
             <input
               type="text"
@@ -77,7 +81,7 @@ export default function ServerSelectModal({ modalIsOpen, closeModal, openErrorMo
         </div>
 
         <div className={cstyles.buttoncontainer}>
-          <button type="button" className={cstyles.primarybutton} onClick={switchServer} disabled={selected === ""}>
+          <button type="button" className={cstyles.primarybutton} onClick={switchServer} disabled={selected === "custom" && custom === ""}>
             Switch Server
           </button>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>

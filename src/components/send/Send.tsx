@@ -222,70 +222,12 @@ export default class Send extends PureComponent<SendProps, SendState> {
     // If there are unverified funds, then show a tooltip
     let tooltip: string = "";
     if (totalBalance.unverifiedZ) {
-      tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ} with 5 blocks (approx 6 minutes)`;
+      tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ} with 5 blocks (approx 6 minutes)`; 
     }
-
-    console.log('+++++++++++++TOTAL', totalAmountAvailable);
 
     return (
       <div>
-        <div>
-          <div className={[cstyles.well, cstyles.balancebox, styles.containermargin].join(" ")}>
-            <BalanceBlockHighlight
-              topLabel="Spendable Funds"
-              zecValue={totalAmountAvailable}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalAmountAvailable)}
-              currencyName={info.currencyName}
-              tooltip={tooltip}
-            />
-            <BalanceBlockHighlight
-              topLabel="All Funds"
-              zecValue={totalBalance.total}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
-              currencyName={info.currencyName}
-            />
-          </div>
-
-          <div className={[cstyles.xlarge, cstyles.padsmallall, cstyles.center].join(" ")}>Send</div>
-
-          <ScrollPane className={cstyles.containermargin} offsetHeight={320}>
-            {sendPageState.toaddrs.map((toaddr) => {
-              return (
-                <ToAddrBox
-                  key={toaddr.id}
-                  toaddr={toaddr}
-                  zecPrice={info.zecPrice}
-                  updateToField={this.updateToField}
-                  fromAddress={fromaddr}
-                  fromAmount={totalAmountAvailable}
-                  setMaxAmount={this.setMaxAmount}
-                  setSendButtonEnable={this.setSendButtonEnable}
-                  totalAmountAvailable={totalAmountAvailable}
-                />
-              );
-            })}
-            {/*<div style={{ textAlign: "right" }}>
-              <button type="button" onClick={this.addToAddr}>
-                <i className={["fas", "fa-plus"].join(" ")} />
-              </button>
-            </div>*/}
-          </ScrollPane>
-
-          <div className={cstyles.center}>
-            <button
-              type="button"
-              disabled={!sendButtonEnabled}
-              className={cstyles.primarybutton}
-              onClick={this.openModal}
-            >
-              Send
-            </button>
-            <button type="button" className={cstyles.primarybutton} onClick={this.clearToAddrs}>
-              Cancel
-            </button>
-          </div>
-
-          <ConfirmModal
+        <ConfirmModal
             sendPageState={sendPageState}
             totalBalance={totalBalance}
             info={info}
@@ -295,7 +237,65 @@ export default class Send extends PureComponent<SendProps, SendState> {
             modalIsOpen={modalIsOpen}
             clearToAddrs={this.clearToAddrs}
             openPasswordAndUnlockIfNeeded={openPasswordAndUnlockIfNeeded}
+        />
+
+        <div className={[cstyles.well, cstyles.balancebox, styles.containermargin].join(" ")}>
+          <BalanceBlockHighlight
+            topLabel="Spendable Funds"
+            zecValue={totalAmountAvailable}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalAmountAvailable)}
+            currencyName={info.currencyName}
+            tooltip={tooltip}
           />
+          <BalanceBlockHighlight
+            topLabel="All Funds"
+            zecValue={totalBalance.total}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
+            currencyName={info.currencyName}
+          />
+        </div>
+
+        <div className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Send</div> 
+
+        <div className={[styles.horizontalcontainer].join(" ")}>
+          <div className={cstyles.containermarginleft}>
+            <ScrollPane offsetHeight={220}>
+              {sendPageState.toaddrs.map((toaddr) => {
+                return (
+                  <ToAddrBox
+                    key={toaddr.id}
+                    toaddr={toaddr}
+                    zecPrice={info.zecPrice}
+                    updateToField={this.updateToField}
+                    fromAddress={fromaddr}
+                    fromAmount={totalAmountAvailable}
+                    setMaxAmount={this.setMaxAmount}
+                    setSendButtonEnable={this.setSendButtonEnable}
+                    totalAmountAvailable={totalAmountAvailable}
+                  />
+                );
+              })}
+              {/*<div style={{ textAlign: "right" }}>
+                <button type="button" onClick={this.addToAddr}>
+                  <i className={["fas", "fa-plus"].join(" ")} />
+                </button> 
+              </div>*/}
+            </ScrollPane>
+          </div>
+
+          <div className={cstyles.verticalbuttons}>
+            <button
+              type="button"
+              disabled={!sendButtonEnabled}
+              className={cstyles.primarybutton}
+              onClick={this.openModal}
+            >
+              Send
+            </button>
+            <button type="button" className={cstyles.primarybutton} onClick={this.clearToAddrs}>
+              Clear
+            </button>
+          </div>
         </div>
       </div>
     );

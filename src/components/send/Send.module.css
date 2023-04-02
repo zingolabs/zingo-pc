@@ -1,3 +1,7 @@
+.container {
+  height: calc(100vh - 150px); 
+}
+
 .toaddrcontainer {
   overflow-y: auto;
 }
@@ -43,4 +47,21 @@
   margin-top: 5px;
   margin-left: 5px;
   margin-right: 5px;
+}
+
+.containermarginleft {
+  display: flex;
+  flex-direction: column;
+  margin: 16px;
+  margin-top: 5px;
+  margin-left: 5px;
+  margin-right: 5px;
+}
+
+.horizontalcontainer {
+  display: flex;
+  flex-direction: column;
+  margin-left: 16px;
+  margin-right: 16px;
+  margin-top: 16px; 
 }
