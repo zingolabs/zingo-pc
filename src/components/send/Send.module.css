@@ -25,6 +25,7 @@
   position: absolute;
   padding: 16px;
   min-width: 800px;
+  border: #18bd18 4px solid;
 }
 
 .confirmModalAddress {

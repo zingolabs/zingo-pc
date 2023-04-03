@@ -146,11 +146,16 @@ export default class RPC {
     this.updateDataLock = true;
     const latest_txid = RPC.getLastTxid();
 
+    // the sync process finish fakely, I need to try to sync here every 3 seconds, Just in Case
+    const walletHeight = RPC.fetchWalletHeight();
+    const latestBlockHeight = await this.fetchInfo();
+    if (!this.lastBlockHeight || this.lastBlockHeight < latestBlockHeight || walletHeight < latestBlockHeight) {
+      this.refresh(false);
+    }
+
     if (this.lastTxId !== latest_txid) {
       console.log(`Latest: ${latest_txid}, prev = ${this.lastTxId}`);
 
-      const latestBlockHeight = await this.fetchInfo();
-      this.lastBlockHeight = latestBlockHeight;
       this.lastTxId = latest_txid;
 
       //console.log("Update data fetching new txns");
@@ -172,8 +177,9 @@ export default class RPC {
       return;
     }
     const latestBlockHeight = await this.fetchInfo();
+    const walletHeight = RPC.fetchWalletHeight();
 
-    if (fullRefresh || !this.lastBlockHeight || this.lastBlockHeight < latestBlockHeight) {
+    if (fullRefresh || !this.lastBlockHeight || this.lastBlockHeight < latestBlockHeight || walletHeight < latestBlockHeight) {
       this.updateDataLock = true;
 
       // If the latest block height has changed, make sure to sync. This will happen in a new thread
@@ -206,7 +212,7 @@ export default class RPC {
           this.updateDataLock = false;
 
           // All done 
-          console.log(`Finished (blocks) full refresh at ${latestBlockHeight}`);
+          console.log(`Finished (blocks) full refresh at server: ${latestBlockHeight} & wallet: ${walletHeight}`);
         } else {
           // if the progress is still running we need to update the UI
           // we want to update the progress of the current syncing
@@ -216,7 +222,9 @@ export default class RPC {
             clearInterval(this.syncTimerID);
             this.syncTimerID = undefined;
             // the sync is finished
-            verificationProgress = 100;
+            // the sync process in zingolib finish fakely & if you try again 
+            // the sync continue with a NEW ID
+            // verificationProgress = 100;
             // And fetch the rest of the data.
             this.fetchTotalBalance();
             this.fetchTandZTransactions(latestBlockHeight);
@@ -230,12 +238,12 @@ export default class RPC {
             this.updateDataLock = false;
 
             // All done
-            console.log(`Finished (in_progress) full refresh at ${latestBlockHeight}`);
+            console.log(`Finished (in_progress) full refresh at ${latestBlockHeight} & wallet: ${walletHeight}`);
           } else {
             // the sync is running
             const progress_blocks = (ss.synced_blocks + ss.trial_decryptions_blocks + ss.witnesses_updated) / 3;
 
-            // this calculation is for the total of block, nothing to do with batches
+            // this calculation is for the total of blocks, nothing to do with batches
             // because batches are calculated only for the current sync process
             // which in most of the times is partial, not total. 
             const sync_blocks = ss.end_block + progress_blocks - walletBirthday;

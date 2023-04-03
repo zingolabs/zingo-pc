@@ -49,6 +49,7 @@
   min-width: 800px;
   max-height: calc(100vh - 130px);
   overflow-y: auto;
+  border: #18bd18 4px solid;
 }
 
 .txmodalOverlay {
