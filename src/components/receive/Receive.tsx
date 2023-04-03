@@ -105,7 +105,7 @@ export default class Receive extends Component<ReceiveProps> {
           <Tabs>
             <TabList>
               <Tab>Unified</Tab>
-              <Tab>Shielded</Tab>
+              <Tab>Sapling</Tab>
               <Tab>Transparent</Tab>
             </TabList>
 

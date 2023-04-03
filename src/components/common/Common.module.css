@@ -200,11 +200,11 @@
   right: 12.5%;
   bottom: auto;
   opacity: 1;
-  transform: translate(-0%, -12.5%);
-  background: #212124;
+  transform: translate(0%, -12.5%);
+  background: #011401;
   position: absolute;
   padding: 16px;
-  min-width: 700px;
+  min-width: 800px;
   border: #18bd18 4px solid;
 }
 

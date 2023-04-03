@@ -148,7 +148,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
               <br />
               PLEASE KEEP IT SAFE!
             </div>
-            <hr />
+            <hr style={{ width: "100%" }} />
             <div
               style={{
                 wordBreak: "break-word",
@@ -157,7 +157,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
             >
               {seed}
             </div>
-            <hr />
+            <hr style={{ width: "100%" }} />
             <div
               style={{
                 fontFamily: "monospace, Roboto",

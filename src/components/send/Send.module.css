@@ -16,16 +16,16 @@
 }
 
 .confirmModal {
-  top: 25%;
-  left: 25%;
+  top: 10%;
+  left: 25%; 
   right: auto;
-  bottom: auto;
   opacity: 1;
-  transform: translate(-12.5%, -12.5%);
-  background: #212124;
+  transform: translate(-12.5%, -5%);
+  background: #011401;
   position: absolute;
   padding: 16px;
-  min-width: 700px;
+  min-width: 800px;
+  border: #18bd18 4px solid;
 }
 
 .confirmModalAddress {

@@ -466,9 +466,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     <div>
                       <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Creating New Wallet</div>
                       <div className={cstyles.padtopsmall}>There was an error creating a new wallet</div>
-                      <hr />
+                      <hr style={{ width: "100%" }} />
                       <div className={cstyles.padtopsmall}>{newWalletError}</div>
-                      <hr />
+                      <hr style={{ width: "100%" }} />
                     </div>
                   )}
 
@@ -479,9 +479,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                         This is your new wallet. Below is your seed phrase. PLEASE STORE IT CAREFULLY! The seed phrase
                         is the only way to recover your funds and transactions.
                       </div>
-                      <hr />
+                      <hr style={{ width: "100%" }} />
                       <div className={cstyles.padtopsmall}>{seed}</div>
-                      <hr />
+                      <hr style={{ width: "100%" }} />
                       <div className={cstyles.margintoplarge}>
                         <button type="button" className={cstyles.primarybutton} onClick={this.startNewWallet}>
                           Start Wallet
@@ -506,9 +506,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     <div>
                       <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Restoring Wallet</div>
                       <div className={cstyles.padtopsmall}>There was an error restoring your seed phrase</div>
-                      <hr />
+                      <hr style={{ width: "100%" }} />
                       <div className={cstyles.padtopsmall}>{newWalletError}</div>
-                      <hr />
+                      <hr style={{ width: "100%" }} />
                       <div className={cstyles.margintoplarge}>
                         <button type="button" className={cstyles.primarybutton} onClick={this.restoreWalletBack}>
                           Back

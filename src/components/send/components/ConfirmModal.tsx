@@ -147,27 +147,29 @@ type ConfirmModalProps = {
             </div>
           </div>
   
-          <ScrollPane offsetHeight={400}>
-            <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
-              {sendPageState.toaddrs.map((t) => (
-                <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
-              ))}
-            </div>
-            <ConfirmModalToAddr toaddr={{ to: "Fee", amount: defaultFee, memo: "" }} info={info} />
-  
-            <div className={cstyles.well}>
-              <div className={[cstyles.flexspacebetween, cstyles.margintoplarge].join(" ")}>
-                <div className={[styles.confirmModalAddress].join(" ")}>Privacy Level</div>
-                <div className={[cstyles.verticalflex, cstyles.right].join(" ")}>
-                  <div className={cstyles.large}>
-                    <div>
-                      <span>{privacyLevel}</span>
+          <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
+            <ScrollPane offsetHeight={350}>
+              <div className={[cstyles.verticalflex].join(" ")}>
+                {sendPageState.toaddrs.map((t) => (
+                  <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
+                ))}
+              </div>
+              <ConfirmModalToAddr toaddr={{ to: "Fee", amount: defaultFee, memo: "" }} info={info} />
+    
+              <div className={cstyles.well}>
+                <div className={[cstyles.flexspacebetween, cstyles.margintoplarge].join(" ")}>
+                  <div className={[styles.confirmModalAddress].join(" ")}>Privacy Level</div>
+                  <div className={[cstyles.verticalflex, cstyles.right].join(" ")}>
+                    <div className={cstyles.large}>
+                      <div>
+                        <span>{privacyLevel}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          </ScrollPane>
+            </ScrollPane>
+          </div>
   
           <div className={cstyles.buttoncontainer}>
             <button type="button" className={cstyles.primarybutton} onClick={() => sendButton()}>

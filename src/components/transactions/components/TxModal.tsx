@@ -94,19 +94,22 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
       overlayClassName={styles.txmodalOverlay}
     >
       <div className={[cstyles.verticalflex].join(" ")}>
-        <div className={[cstyles.marginbottomlarge, cstyles.center].join(" ")}>Transaction Status</div>
+        <div className={[cstyles.center].join(" ")}>Transaction Status</div>
 
-        <div className={[cstyles.center].join(" ")}>
-          <i className={["fas", typeIcon].join(" ")} style={{ fontSize: "96px", color: typeColor }} />
-        </div>
+        <div className={[cstyles.center, cstyles.horizontalflex].join(" ")} 
+             style={{ width: "100%", alignItems: "center", justifyContent: "center" }}>
+          <div className={[cstyles.center, cstyles.verticalflex].join(" ")}>
+            <i className={["fas", typeIcon].join(" ")} style={{ fontSize: "35px", color: typeColor }} />
+            {type}
+          </div>
 
-        <div className={[cstyles.center].join(" ")}>
-          {type}
-          <BalanceBlockHighlight
-            zecValue={amount}
-            usdValue={Utils.getZecToUsdString(price, Math.abs(amount))}
-            currencyName={currencyName}
-          />
+          <div className={[cstyles.center].join(" ")} style={{ marginLeft: 20 }}>
+            <BalanceBlockHighlight
+              zecValue={amount}
+              usdValue={Utils.getZecToUsdString(price, Math.abs(amount))}
+              currencyName={currencyName}
+            />
+          </div>
         </div>
 
         <div className={[cstyles.flexspacebetween].join(" ")}>
@@ -144,8 +147,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
           </div>
         </div>
 
-        <div className={cstyles.margintoplarge} />
-        <hr />
+        <hr style={{ width: "100%" }} />
 
         {detailedTxns.map((txdetail) => {
           const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
@@ -206,7 +208,8 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                 </div>
               )}
 
-              <hr />
+              <hr style={{ width: "100%" }} />
+
             </div>
           );
         })}
