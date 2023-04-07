@@ -341,7 +341,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
       newInfo.zecPrice = info.zecPrice;
     }
 
-    console.log(newInfo);
+    //console.log(newInfo);
 
     this.setState({ info: newInfo });
   };

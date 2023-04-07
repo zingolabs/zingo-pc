@@ -251,8 +251,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           }
 
           // Set the info object, so the sidebar will show
-          console.log("Object info\n");
-          console.log(info);
+          //console.log("Object info\n");
+          //console.log(info);
           setInfo(info);
 
           setRescanning(false, prevSyncId);

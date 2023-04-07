@@ -267,7 +267,7 @@ export default class RPC {
   // Special method to get the Info object. This is used both internally and by the Loading screen
   static getInfoObject(): Info {
     const infostr = native.zingolib_execute("info", "");
-    console.log(`INFO INFO INFO: ${infostr}`);
+    //console.log(`INFO INFO INFO: ${infostr}`);
     try {
       const infoJSON = JSON.parse(infostr);
 
@@ -393,7 +393,7 @@ export default class RPC {
     const notesStr = native.zingolib_execute('notes','');
     const notesJSON = JSON.parse(notesStr);
 
-    console.log(notesJSON);
+    //console.log(notesJSON);
 
     // construct ua_addresses with their respective balance
     const ua_addr = addressesJSON
@@ -577,7 +577,7 @@ export default class RPC {
     
     const balanceJSON = this.zingolibBalance();
 
-    console.log(balanceJSON);
+    //console.log(balanceJSON);
 
     // Total Balance
     const balance = new TotalBalance();
@@ -639,7 +639,7 @@ export default class RPC {
       })
       .filter((ab: AddressBalance) => ab.balance > 0);
 
-      console.log(zaddresses);
+    //console.log(zaddresses);
 
     const taddresses = balanceJSON.t_addresses
       .map((o: any) => {
@@ -751,7 +751,7 @@ export default class RPC {
     // we need to reconstruct it
     const listJSON = this.zingolibTxList();
     
-    console.log(listJSON);
+    //console.log(listJSON);
 
     let txlist: Transaction[] = listJSON.map((tx: any) => {
       const transaction = new Transaction();
