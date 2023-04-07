@@ -66,8 +66,9 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     let labelError = addressBook.find((i) => i.label === currentLabel) ? "Duplicate Label" : null;
     labelError = currentLabel.length > 12 ? "Label is too long" : labelError;
 
+    const addressType = Utils.getAddressType(currentAddress);
     const addressIsValid =
-      currentAddress === "" || Utils.isZaddr(currentAddress) || Utils.isTransparent(currentAddress);
+      currentAddress === "" || addressType !== undefined; 
 
     return { labelError, addressIsValid };
   };

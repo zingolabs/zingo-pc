@@ -147,7 +147,7 @@ const AddressBlock = ({
               >
                 {copied ? <span>Copied!</span> : <span>Copy Address</span>}
               </button>
-              {/* {Utils.isZaddr(address) && !privateKey && (
+              {/* {type === addressType.sapling && !privateKey && (
                 <button
                   className={[cstyles.primarybutton].join(" ")}
                   type="button"
@@ -157,7 +157,7 @@ const AddressBlock = ({
                 </button>
               )}
 
-              {Utils.isZaddr(address) && !viewKey && (
+              {type === addressType.sapling && !viewKey && (
                 <button
                   className={[cstyles.primarybutton].join(" ")}
                   type="button"

@@ -14,6 +14,7 @@ import AddressType from "./components/AddressType";
 import SendProgress from "./components/SendProgress";
 import ToAddr from "./components/ToAddr";
 import TxDetail from "./components/TxDetail";
+import ReceiverType from "./components/ReceiverType";
 
 import AppState from "./AppState";
 
@@ -35,4 +36,5 @@ export {
   AppState,
   ToAddr,
   TxDetail,
+  ReceiverType,
 };

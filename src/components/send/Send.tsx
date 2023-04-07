@@ -10,6 +10,7 @@ import {
   TotalBalance,
   SendProgress,
   AddressDetail,
+  AddressType,
 } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPane from "../scrollPane/ScrollPane";
@@ -215,9 +216,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     } = this.props;
 
     const totalAmountAvailable = totalBalance.transparent + totalBalance.spendableZ + totalBalance.uabalance;
-    //const fromaddr = addresses.find((a) => Utils.isSapling(a.address))?.address || "";
-    // It should be safe to change this to isUnified, since every unified addresses have orchard_exists = true
-    const fromaddr = addresses.find((a) => Utils.isUnified(a.address))?.address || ""; 
+    const fromaddr = addresses.find((a) => a.type === AddressType.unified)?.address || ""; 
 
     // If there are unverified funds, then show a tooltip
     let tooltip: string = "";

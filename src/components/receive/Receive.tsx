@@ -4,8 +4,6 @@ import {
   Accordion,
 } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
-//import cstyles from "../common/Common.module.css";
-import Utils from "../../utils/utils";
 import { AddressBalance, Info, ReceivePageState, AddressBookEntry, AddressDetail, AddressType } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
@@ -55,7 +53,7 @@ export default class Receive extends Component<ReceiveProps> {
         return uaddr;
       });
     let defaultUaddr = uaddrs.length ? uaddrs[0].address : "";
-    if (receivePageState && Utils.isUnified(receivePageState.newAddress)) {
+    if (receivePageState && receivePageState.newType === AddressType.unified) {
       defaultUaddr = receivePageState.newAddress;
 
       // move this address to the front, since the scrollbar will reset when we re-render
@@ -65,12 +63,12 @@ export default class Receive extends Component<ReceiveProps> {
     }
 
     const zaddrs = addresses
-      .filter((a) => Utils.isSapling(a.address))
+      .filter((a) => a.type === AddressType.sapling)
       .slice(0, 100)
       .map((a) => new AddressBalance(a.address, addressMap.get(a.address) || 0, AddressType.sapling));
 
     let defaultZaddr = zaddrs.length ? zaddrs[0].address : "";
-    if (receivePageState && Utils.isSapling(receivePageState.newAddress)) {
+    if (receivePageState && receivePageState.newType === AddressType.sapling) {
       defaultZaddr = receivePageState.newAddress;
 
       // move this address to the front, since the scrollbar will reset when we re-render
@@ -80,12 +78,12 @@ export default class Receive extends Component<ReceiveProps> {
     }
 
     const taddrs = addresses
-      .filter((a) => Utils.isTransparent(a.address))
+      .filter((a) => a.type === AddressType.transparent)
       .slice(0, 100)
       .map((a) => new AddressBalance(a.address, addressMap.get(a.address) || 0, AddressType.transparent));
 
     let defaultTaddr = taddrs.length ? taddrs[0].address : "";
-    if (receivePageState && Utils.isTransparent(receivePageState.newAddress)) {
+    if (receivePageState && receivePageState.newType === AddressType.transparent) {
       defaultTaddr = receivePageState.newAddress;
 
       // move this address to the front, since the scrollbar will reset when we re-render

@@ -1,11 +1,12 @@
 import AddressType from "./AddressType";
+import ReceiverType from "./ReceiverType";
 
 export default class AddressDetail {
     address: string;
     type: AddressType;
     account?: number;
     diversifier?: number;
-    receivers?: string;
+    receivers?: ReceiverType[];
   
     constructor(address: string, type: AddressType, account?: number, diversifier?: number) {
       this.address = address;

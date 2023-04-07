@@ -1,4 +1,5 @@
 import AddressType from "./AddressType";
+import ReceiverType from "./ReceiverType";
 
 export default class AddressBalance {
     address: string;
@@ -8,7 +9,7 @@ export default class AddressBalance {
     containsPending: boolean;
     label?: string;
   
-    receivers?: string;
+    receivers?: ReceiverType[];
 
     type: AddressType;
   

@@ -9,6 +9,7 @@ import {
   AddressType,
   AddressDetail,
   WalletSettings,
+  ReceiverType,
 } from "../components/appstate";
 import { SendManyJsonType } from "../components/send";
 
@@ -392,9 +393,10 @@ export default class RPC {
     const notesStr = native.zingolib_execute('notes','');
     const notesJSON = JSON.parse(notesStr);
 
+    console.log(notesJSON);
+
     // construct ua_addresses with their respective balance
     const ua_addr = addressesJSON
-      .filter((a: any) => a.receivers.orchard_exists)
       .map((a: any) => {
     
       // To get the balance, sum all notes related to this address
@@ -615,7 +617,11 @@ export default class RPC {
           ab.containsPending = true;
         }
         // Add receivers to unified addresses
-        ab.receivers = o.receivers;
+        let receivers: ReceiverType[] = [];
+        if (o.receivers.orchard_exists) receivers.push(ReceiverType.orchard);
+        if (o.receivers.transparent) receivers.push(ReceiverType.transparent);
+        if (o.receivers.sapling) receivers.push(ReceiverType.sapling);
+        ab.receivers = receivers;
         ab.type = o.address_type;
         return ab;
       })
@@ -654,7 +660,11 @@ export default class RPC {
     // Also set all addresses
     const allOAddresses = balanceJSON.ua_addresses.map((o: any) => {
       let uaddr = new AddressDetail(o.address, AddressType.unified)
-      uaddr.receivers = o.receivers;
+      let receivers: ReceiverType[] = [];
+      if (o.receivers.orchard_exists) receivers.push(ReceiverType.orchard);
+      if (o.receivers.transparent) receivers.push(ReceiverType.transparent);
+      if (o.receivers.sapling) receivers.push(ReceiverType.sapling);
+      uaddr.receivers = receivers;
 
       return uaddr;
     });

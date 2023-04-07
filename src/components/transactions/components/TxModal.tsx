@@ -162,7 +162,8 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
           let replyTo: string = "";
           if (tx && tx.type === "receive" && memo) {
             const split = memo.split(/[ :\n\r\t]+/);
-            if (split && split.length > 0 && Utils.isSapling(split[split.length - 1])) {
+            // TODO: parse this address to know what kind is it.
+            if (split && split.length > 0) {
               replyTo = split[split.length - 1];
             }
           }

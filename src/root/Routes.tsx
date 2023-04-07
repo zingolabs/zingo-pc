@@ -214,15 +214,15 @@ export default class RouteApp extends React.Component<Props, AppState> {
 
     // If there is no 'from' address, we'll set a default one
     if (!sendPageState.fromaddr) {
-      // Find a z-address with the highest balance
+      // Find a u-address with the highest balance
       const defaultAB = addressesWithBalance
-        .filter((ab) => Utils.isSapling(ab.address))
+        .filter((ab) => ab.type === AddressType.unified)
         .reduce((prev: AddressBalance | null, ab) => {
-          // We'll start with a sapling address
+          // We'll start with a unified address
           if (!prev) {
             return ab;
           } else if (prev.balance < ab.balance) {
-            // Find the sapling address with the highest balance
+            // Find the unified address with the highest balance
             return ab;
           } else {
             return prev;
@@ -417,11 +417,11 @@ export default class RouteApp extends React.Component<Props, AppState> {
     this.setState({ addressBook: newAddressBook });
   };
 
-  createNewAddress = async (type: AddressType) => {
+  createNewAddress = async (newType: AddressType) => {
     this.openPasswordAndUnlockIfNeeded(async () => {
       // Create a new address
-      const newaddress = RPC.createNewAddress(type);
-      console.log(`Created new Address ${newaddress}`);
+      const newAddress = RPC.createNewAddress(newType);
+      console.log(`Created new Address ${newAddress}`);
 
       // And then fetch the list of addresses again to refresh (totalBalance gets all addresses)
       this.rpc.fetchTotalBalance();
@@ -429,8 +429,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
       const { receivePageState } = this.state;
       const newRerenderKey = receivePageState.rerenderKey + 1;
 
-      const newReceivePageState = new ReceivePageState();
-      newReceivePageState.newAddress = newaddress;
+      const newReceivePageState = new ReceivePageState(newAddress, newType);
       newReceivePageState.rerenderKey = newRerenderKey;
 
       this.setState({ receivePageState: newReceivePageState });

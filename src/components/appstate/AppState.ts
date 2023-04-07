@@ -78,7 +78,7 @@ export default class AppState {
     this.errorModalData = new ErrorModalData();
     this.serverSelectState = new ServerSelectState();
     this.sendPageState = new SendPageState();
-    this.receivePageState = new ReceivePageState();
+    this.receivePageState = {} as ReceivePageState;
     this.rpcConfig = new RPCConfig();
     this.info = new Info();
     this.verificationProgress = 100;
