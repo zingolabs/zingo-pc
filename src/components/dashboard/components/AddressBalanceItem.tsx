@@ -19,7 +19,7 @@ const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItem
   const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(item.balance));
   
   return (
-    <AccordionItem key={item.label} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.address}>
+    <AccordionItem key={item.address} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.address}>
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={[cstyles.flexspacebetween].join(" ")}>
