@@ -7,7 +7,7 @@ module.exports = async function (params) {
   if (process.platform !== "darwin") {
     return;
   }
-  // console.log('afterSign hook triggered', params);
+  //console.log('afterSign hook triggered', params);
 
   // Same appId in electron-builder.
   const appId = "co.zingo.pc";

@@ -95,8 +95,6 @@ export default class Utils {
   static getReceivers(array: ReceiverType[]): string[] {
     let receivers: string[] = [];
 
-    console.log('ARRAY', array); 
-
     array.forEach((r: ReceiverType) => {
       if(r === ReceiverType.orchard) receivers.push("Orchard");
       if(r === ReceiverType.transparent) receivers.push("Transparent");

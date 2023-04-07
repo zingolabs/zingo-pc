@@ -174,7 +174,7 @@ export default class RPC {
 
   async refresh(fullRefresh: boolean) {
     if (this.syncTimerID) {
-      console.log("Already have a sync process launched");
+      console.log("Already have a sync process launched", this.syncTimerID);
       return;
     }
     const latestBlockHeight = await this.fetchInfo();
@@ -336,7 +336,7 @@ export default class RPC {
       // const spam_filter_str = native.zingolib_execute("getoption", "spam_filter_threshold");
       const spam_filter_str = native.zingolib_execute("getoption", "transaction_filter_threshold");
       spam_filter_threshold = JSON.parse(spam_filter_str).spam_filter_threshold;
-      // console.log(`Spam filter threshold: ${spam_filter_threshold}`);
+      //console.log(`Spam filter threshold: ${spam_filter_threshold}`);
 
       // If it is -1, i.e., it was not set, then set it to 50
       if (spam_filter_threshold === "-1") {
@@ -703,12 +703,7 @@ export default class RPC {
   }
 
   static createNewAddress(type: AddressType) {
-    // const addrStr = native.zingolib_execute(
-    //   "new",
-    //   type === AddressType.unified ? "u" : type === AddressType.sapling ? "z" : "t"
-    // );
-
-    // Zingolib creates addresses in a different way
+    // Zingolib creates addresses like this:
     // ozt = orchard + sapling + transparent (orchard unified)
     // o = orchard only
     // oz = orchard + sapling
@@ -911,7 +906,7 @@ export default class RPC {
           const currentTimeSeconds = new Date().getTime() / 1000;
           secondsPerComputation = (currentTimeSeconds - startTimeSeconds) / progress.progress;
         }
-        // console.log(`Seconds Per compute = ${secondsPerComputation}`);
+        //console.log(`Seconds Per compute = ${secondsPerComputation}`);
 
         let eta = Math.round((progress.total - progress.progress) * secondsPerComputation);
         if (eta <= 0) {
