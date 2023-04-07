@@ -93,7 +93,12 @@ const ToAddrBox = ({
       <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
         <div className={[cstyles.flexspacebetween].join(" ")}>
           <div className={cstyles.sublight}>To</div>
-          <div className={cstyles.validationerror}>
+            <div className={[cstyles.sublight, cstyles.green].join(" ")}>
+                {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
+                {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
+                {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
+              </div>
+            <div className={cstyles.validationerror}>
             {addressIsValid ? (
               <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
             ) : (

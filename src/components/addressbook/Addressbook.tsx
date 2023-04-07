@@ -36,7 +36,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     this.setState({ currentLabel });
 
     const { labelError, addressIsValid } = this.validate(currentLabel, currentAddress);
-    this.setAddButtonEnabled(!labelError && addressIsValid && currentLabel !== "" && currentAddress !== "");
+    this.setAddButtonEnabled(!labelError && addressIsValid && currentLabel !== "" && currentAddress !== ""); 
   };
 
   updateAddress = (currentAddress: string) => {
@@ -111,7 +111,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
 
             <div className={[cstyles.flexspacebetween].join(" ")}>
               <div className={cstyles.sublight}>Address</div>
-              <div className={cstyles.sublight}>
+              <div className={[cstyles.sublight, cstyles.green].join(" ")}>
                 {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
                 {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
                 {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
@@ -126,6 +126,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
             </div>
             <input
               type="text"
+              placeholder="Unified | Sapling | Transparent address"
               value={currentAddress}
               className={[cstyles.inputbox, cstyles.margintopsmall].join(" ")}
               onChange={(e) => this.updateAddress(e.target.value)}
