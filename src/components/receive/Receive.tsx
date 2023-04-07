@@ -4,13 +4,12 @@ import {
   Accordion,
 } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
-import { AddressBalance, Info, ReceivePageState, AddressBookEntry, AddressDetail, AddressType } from "../appstate";
+import { Info, ReceivePageState, AddressBookEntry, Address, AddressType } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 
 type ReceiveProps = {
-  addresses: AddressDetail[];
-  addressesWithBalance: AddressBalance[];
+  addresses: Address[];
   addressBook: AddressBookEntry[];
   info: Info;
   addressPrivateKeys: Map<string, string>;
@@ -26,7 +25,6 @@ export default class Receive extends Component<ReceiveProps> {
   render() {
     const {
       addresses,
-      addressesWithBalance,
       addressPrivateKeys,
       addressViewKeys,
       addressBook,
@@ -38,21 +36,9 @@ export default class Receive extends Component<ReceiveProps> {
       rerenderKey,
     } = this.props;
 
-    // Convert the addressBalances into a map.
-    const addressMap: Map<string, number> = addressesWithBalance.reduce((m, a) => {
-      m.set(a.address, a.balance);
-      return m;
-    }, new Map());
-
     const uaddrs = addresses
-      .filter((a) => a.type === AddressType.unified)
-      .slice(0, 100)
-      .map((a) => {
-        let uaddr = new AddressBalance(a.address, addressMap.get(a.address) || 0, AddressType.unified)
-        uaddr.receivers = a.receivers;
-        return uaddr;
-      });
-    let defaultUaddr = uaddrs.length ? uaddrs[0].address : "";
+      .filter((a) => a.type === AddressType.unified);
+    let defaultUaddr = uaddrs.length > 0 ? uaddrs[0].address : "";
     if (receivePageState && receivePageState.newType === AddressType.unified) {
       defaultUaddr = receivePageState.newAddress;
 
@@ -63,11 +49,8 @@ export default class Receive extends Component<ReceiveProps> {
     }
 
     const zaddrs = addresses
-      .filter((a) => a.type === AddressType.sapling)
-      .slice(0, 100)
-      .map((a) => new AddressBalance(a.address, addressMap.get(a.address) || 0, AddressType.sapling));
-
-    let defaultZaddr = zaddrs.length ? zaddrs[0].address : "";
+      .filter((a) => a.type === AddressType.sapling);
+    let defaultZaddr = zaddrs.length > 0 ? zaddrs[0].address : "";
     if (receivePageState && receivePageState.newType === AddressType.sapling) {
       defaultZaddr = receivePageState.newAddress;
 
@@ -78,11 +61,8 @@ export default class Receive extends Component<ReceiveProps> {
     }
 
     const taddrs = addresses
-      .filter((a) => a.type === AddressType.transparent)
-      .slice(0, 100)
-      .map((a) => new AddressBalance(a.address, addressMap.get(a.address) || 0, AddressType.transparent));
-
-    let defaultTaddr = taddrs.length ? taddrs[0].address : "";
+      .filter((a) => a.type === AddressType.transparent);
+    let defaultTaddr = taddrs.length > 0 ? taddrs[0].address : "";
     if (receivePageState && receivePageState.newType === AddressType.transparent) {
       defaultTaddr = receivePageState.newAddress;
 
@@ -113,7 +93,7 @@ export default class Receive extends Component<ReceiveProps> {
                   {uaddrs.map((a) => (
                     <AddressBlock
                       key={a.address}
-                      addressBalance={a}
+                      address={a}
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.address)}
                       zecPrice={info.zecPrice}
@@ -142,7 +122,7 @@ export default class Receive extends Component<ReceiveProps> {
                   {zaddrs.map((a) => (
                     <AddressBlock
                       key={a.address}
-                      addressBalance={a}
+                      address={a}
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.address)}
                       zecPrice={info.zecPrice}
@@ -171,7 +151,7 @@ export default class Receive extends Component<ReceiveProps> {
                   {taddrs.map((a) => (
                     <AddressBlock
                       key={a.address}
-                      addressBalance={a}
+                      address={a}
                       currencyName={info.currencyName}
                       zecPrice={info.zecPrice}
                       privateKey={addressPrivateKeys.get(a.address)}

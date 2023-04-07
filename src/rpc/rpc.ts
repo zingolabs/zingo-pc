@@ -1,13 +1,12 @@
 import {
   TotalBalance,
-  AddressBalance,
   Transaction,
   RPCConfig,
   TxDetail,
   Info,
   SendProgress,
   AddressType,
-  AddressDetail,
+  Address,
   WalletSettings,
   ReceiverType,
 } from "../components/appstate";
@@ -21,9 +20,8 @@ export default class RPC {
   fnSetInfo: (info: Info) => void;
   fnSetVerificationProgress: (verificationProgress: number) => void;
   fnSetTotalBalance: (tb: TotalBalance) => void;
-  fnSetAddressesWithBalance: (abs: AddressBalance[]) => void;
+  fnSetAddresses: (abs: Address[]) => void;
   fnSetTransactionsList: (t: Transaction[]) => void;
-  fnSetAllAddresses: (a: AddressDetail[]) => void;
   fnSetZecPrice: (p?: number) => void;
   fnSetWalletSettings: (settings: WalletSettings) => void;
   refreshTimerID?: NodeJS.Timeout;
@@ -37,18 +35,16 @@ export default class RPC {
 
   constructor(
     fnSetTotalBalance: (tb: TotalBalance) => void,
-    fnSetAddressesWithBalance: (abs: AddressBalance[]) => void,
+    fnSetAddresses: (abs: Address[]) => void,
     fnSetTransactionsList: (t: Transaction[]) => void,
-    fnSetAllAddresses: (a: AddressDetail[]) => void,
     fnSetInfo: (info: Info) => void,
     fnSetZecPrice: (p?: number) => void,
     fnSetWalletSettings: (settings: WalletSettings) => void,
     fnSetVerificationProgress: (verificationProgress: number) => void,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
-    this.fnSetAddressesWithBalance = fnSetAddressesWithBalance;
+    this.fnSetAddresses = fnSetAddresses;
     this.fnSetTransactionsList = fnSetTransactionsList;
-    this.fnSetAllAddresses = fnSetAllAddresses;
     this.fnSetInfo = fnSetInfo;
     this.fnSetZecPrice = fnSetZecPrice;
     this.fnSetWalletSettings = fnSetWalletSettings;
@@ -609,10 +605,10 @@ export default class RPC {
     });
 
     // Addresses with Balance. The client reports balances in zatoshi, so divide by 10^8;
-    const oaddresses = balanceJSON.ua_addresses
+    const uaddresses = balanceJSON.ua_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
-        const ab = new AddressBalance(o.address, o.balance / 10 ** 8, o.address_type);
+        const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
@@ -625,56 +621,37 @@ export default class RPC {
         ab.type = o.address_type;
         return ab;
       })
-      .filter((ab: AddressBalance) => ab.balance > 0);
+      .filter((ab: Address) => ab.balance > 0);
 
     const zaddresses = balanceJSON.z_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
-        const ab = new AddressBalance(o.address, o.zbalance / 10 ** 8, o.address_type);
+        const ab = new Address(o.address, o.zbalance / 10 ** 8, o.address_type);
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
         ab.type = o.address_type;
         return ab;
       })
-      .filter((ab: AddressBalance) => ab.balance > 0);
+      .filter((ab: Address) => ab.balance > 0);
 
     //console.log(zaddresses);
 
     const taddresses = balanceJSON.t_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
-        const ab = new AddressBalance(o.address, o.balance / 10 ** 8, o.address_type);
+        const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
         ab.type = o.address_type;
         return ab;
       })
-      .filter((ab: AddressBalance) => ab.balance > 0);
+      .filter((ab: Address) => ab.balance > 0);
 
-    const addresses = oaddresses.concat(zaddresses.concat(taddresses));    
+    const addresses = uaddresses.concat(zaddresses.concat(taddresses));    
 
-    this.fnSetAddressesWithBalance(addresses);
-
-    // Also set all addresses
-    const allOAddresses = balanceJSON.ua_addresses.map((o: any) => {
-      let uaddr = new AddressDetail(o.address, AddressType.unified)
-      let receivers: ReceiverType[] = [];
-      if (o.receivers.orchard_exists) receivers.push(ReceiverType.orchard);
-      if (o.receivers.transparent) receivers.push(ReceiverType.transparent);
-      if (o.receivers.sapling) receivers.push(ReceiverType.sapling);
-      uaddr.receivers = receivers;
-
-      return uaddr;
-    });
-    const allZAddresses = balanceJSON.z_addresses.map((o: any) => new AddressDetail(o.address, AddressType.sapling));
-    const allTAddresses = balanceJSON.t_addresses.map(
-      (o: any) => new AddressDetail(o.address, AddressType.transparent)
-    );
-    const allAddresses = allOAddresses.concat(allZAddresses.concat(allTAddresses));    
-
-    this.fnSetAllAddresses(allAddresses);
+    this.fnSetAddresses(addresses);
   }
 
   static getLastTxid(): string {

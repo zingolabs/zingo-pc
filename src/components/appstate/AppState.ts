@@ -1,6 +1,5 @@
 import { ErrorModalData } from "../errormodal";
 import TotalBalance from "./components/TotalBalance";
-import AddressBalance from "./components/AddressBalance";
 import AddressBookEntry from "./components/AddressbookEntry";
 import Transaction from "./components/Transaction";
 import SendPageState from "./components/SendPageState";
@@ -10,15 +9,11 @@ import Info from "./components/Info";
 import ServerSelectState from "./components/ServerSelectState";
 import PasswordState from "./components/PasswordState";
 import WalletSettings from "./components/WalletSettings";
-import AddressDetail from "./components/AddressDetail";
+import Address from "./components/Address";
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
   totalBalance: TotalBalance;
-
-  // The list of all t and z addresses that have a current balance. That is, the list of
-  // addresses that have a (confirmed or unconfirmed) UTXO or note pending.
-  addressesWithBalance: AddressBalance[];
 
   // A map type that contains address -> privatekey/viewkey mapping, for display on the receive page
   // This mapping is ephemeral, and will disappear when the user navigates away.
@@ -28,7 +23,7 @@ export default class AppState {
 
   // List of all addresses in the wallet, including change addresses and addresses
   // that don't have any balance or are unused
-  addresses: AddressDetail[];
+  addresses: Address[];
 
   // List of Address / Label pairs
   addressBook: AddressBookEntry[];
@@ -69,10 +64,9 @@ export default class AppState {
 
   constructor() {
     this.totalBalance = new TotalBalance();
-    this.addressesWithBalance = [] as AddressBalance[];
     this.addressPrivateKeys = new Map();
     this.addressViewKeys = new Map();
-    this.addresses = [] as AddressDetail[];
+    this.addresses = [] as Address[];
     this.addressBook = [] as AddressBookEntry[];
     this.transactions = [] as Transaction[];
     this.errorModalData = new ErrorModalData();

@@ -4,7 +4,7 @@ import {
 } from "react-accessible-accordion";
 import styles from "./Dashboard.module.css";
 import cstyles from "../common/Common.module.css";
-import { TotalBalance, Info, AddressBalance } from "../appstate";
+import { TotalBalance, Info, Address } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
@@ -13,14 +13,14 @@ import AddressBalanceItem from "./components/AddressBalanceItem";
 type DashboardProps = {
   totalBalance: TotalBalance;
   info: Info;
-  addressesWithBalance: AddressBalance[];
+  addresses: Address[];
 };
 
 export default class Dashboard extends Component<DashboardProps> {
   render() {
-    const { totalBalance, info, addressesWithBalance } = this.props;
+    const { totalBalance, info, addresses } = this.props;
 
-    const anyPending = addressesWithBalance && addressesWithBalance.find((i) => i.containsPending);
+    const anyPending = addresses && addresses.find((i) => i.containsPending);
 
     return (
       <div>
@@ -68,12 +68,12 @@ export default class Dashboard extends Component<DashboardProps> {
         <div className={styles.addressbalancecontainer}>
           <ScrollPane offsetHeight={190}>
             <div className={styles.addressbooklist}>
-              {addressesWithBalance &&
-                (addressesWithBalance.length === 0 ? (
+              {addresses &&
+                (addresses.length === 0 ? (
                   <div className={[cstyles.center, cstyles.sublight, cstyles.margintoplarge].join(" ")}>No Addresses with a balance</div>
                 ) : (
                   <Accordion>
-                    {addressesWithBalance
+                    {addresses
                       .filter((ab) => ab.balance > 0)
                       .map((ab) => (
                         <AddressBalanceItem

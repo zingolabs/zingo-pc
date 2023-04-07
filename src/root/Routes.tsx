@@ -10,7 +10,6 @@ import Receive from "../components/receive/Receive";
 import LoadingScreen from "../components/loadingscreen/LoadingScreen";
 import {
   AppState,
-  AddressBalance,
   TotalBalance,
   Transaction,
   SendPageState,
@@ -23,7 +22,7 @@ import {
   ServerSelectState,
   SendProgress,
   AddressType,
-  AddressDetail,
+  Address,
   WalletSettings,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
@@ -55,9 +54,8 @@ export default class RouteApp extends React.Component<Props, AppState> {
 
     this.rpc = new RPC(
       this.setTotalBalance,
-      this.setAddressesWithBalances,
+      this.setAddresses,
       this.setTransactionList,
-      this.setAllAddresses,
       this.setInfo,
       this.setZecPrice,
       this.setWalletSettings,
@@ -207,17 +205,17 @@ export default class RouteApp extends React.Component<Props, AppState> {
     await this.rpc.fetchWalletSettings();
   };
 
-  setAddressesWithBalances = (addressesWithBalance: AddressBalance[]) => {
-    this.setState({ addressesWithBalance });
+  setAddresses = (addresses: Address[]) => {
+    this.setState({ addresses });
 
     const { sendPageState } = this.state;
 
     // If there is no 'from' address, we'll set a default one
     if (!sendPageState.fromaddr) {
       // Find a u-address with the highest balance
-      const defaultAB = addressesWithBalance
+      const defaultAB = addresses
         .filter((ab) => ab.type === AddressType.unified)
-        .reduce((prev: AddressBalance | null, ab) => {
+        .reduce((prev: Address | null, ab) => {
           // We'll start with a unified address
           if (!prev) {
             return ab;
@@ -241,10 +239,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
 
   setTransactionList = (transactions: Transaction[]) => {
     this.setState({ transactions });
-  };
-
-  setAllAddresses = (addresses: AddressDetail[]) => {
-    this.setState({ addresses });
   };
 
   setSendPageState = (sendPageState: SendPageState) => {
@@ -448,7 +442,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
     const {
       totalBalance,
       transactions,
-      addressesWithBalance,
       addressPrivateKeys,
       addressViewKeys,
       addresses,
@@ -544,7 +537,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
                   <Receive
                     rerenderKey={receivePageState.rerenderKey}
                     addresses={addresses}
-                    addressesWithBalance={addressesWithBalance}
                     addressPrivateKeys={addressPrivateKeys}
                     addressViewKeys={addressViewKeys}
                     receivePageState={receivePageState}
@@ -570,7 +562,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
               <Route
                 path={routes.DASHBOARD}
                 render={() => (
-                  <Dashboard totalBalance={totalBalance} info={info} addressesWithBalance={addressesWithBalance} />
+                  <Dashboard totalBalance={totalBalance} info={info} addresses={addresses} />
                 )}
               />
               <Route

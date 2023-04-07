@@ -6,13 +6,13 @@ import {
 } from "react-accessible-accordion";
 import styles from "../Dashboard.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressBalance, AddressType } from "../../appstate";
+import { Address, AddressType } from "../../appstate";
 import Utils from "../../../utils/utils"; 
 
 type AddressBalanceItemProps = {
   currencyName: string;
   zecPrice: number;
-  item: AddressBalance;
+  item: Address;
 };
 
 const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItemProps) => {

@@ -3,13 +3,12 @@ import styles from "./Send.module.css";
 import cstyles from "../common/Common.module.css";
 import {
   ToAddr,
-  AddressBalance,
   SendPageState,
   Info,
   AddressBookEntry,
   TotalBalance,
   SendProgress,
-  AddressDetail,
+  Address,
   AddressType,
 } from "../appstate";
 import Utils from "../../utils/utils";
@@ -27,7 +26,7 @@ type OptionType = {
 };
 
 type SendProps = {
-  addresses: AddressDetail[];
+  addresses: Address[];
   totalBalance: TotalBalance;
   addressBook: AddressBookEntry[];
   sendPageState: SendPageState;
@@ -181,24 +180,24 @@ export default class Send extends PureComponent<SendProps, SendState> {
     this.setState({ modalIsOpen: false });
   };
 
-  getBalanceForAddress = (addr: string, addressesWithBalance: AddressBalance[]): number => {
-    // Find the addr in addressesWithBalance
-    const addressBalance = addressesWithBalance.find((ab) => ab.address === addr) as AddressBalance;
+  getBalanceForAddress = (addr: string, addresses: Address[]): number => {
+    // Find the addr in addresses
+    const address = addresses.find((ab) => ab.address === addr) as Address;
 
-    if (!addressBalance) {
+    if (!address) {
       return 0;
     }
 
-    return addressBalance.balance;
+    return address.balance;
   };
 
-  getLabelForFromAddress = (addr: string, addressesWithBalance: AddressBalance[], currencyName: string) => {
-    // Find the addr in addressesWithBalance
+  getLabelForFromAddress = (addr: string, addresses: Address[], currencyName: string) => {
+    // Find the addr in addresses
     const { addressBook } = this.props;
     const label = addressBook.find((ab) => ab.address === addr);
     const labelStr = label ? ` [ ${label.label} ]` : "";
 
-    const balance = this.getBalanceForAddress(addr, addressesWithBalance);
+    const balance = this.getBalanceForAddress(addr, addresses);
 
     return `[ ${currencyName} ${balance.toString()} ]${labelStr} ${addr}`;
   };
