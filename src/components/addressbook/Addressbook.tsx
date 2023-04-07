@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
 import cstyles from "../common/Common.module.css";
-import { AddressBookEntry } from "../appstate";
+import { AddressBookEntry, AddressType } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ZcashURITarget } from "../../utils/uris";
@@ -41,7 +41,8 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
 
   updateAddress = (currentAddress: string) => {
     const { currentLabel } = this.state;
-    this.setState({ currentAddress });
+    const newCurrentAddress = currentAddress.replace(/ /g, ""); // Remove spaces
+    this.setState({ currentAddress: newCurrentAddress });
 
     const { labelError, addressIsValid } = this.validate(currentLabel, currentAddress);
 
@@ -70,7 +71,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     const addressIsValid =
       currentAddress === "" || addressType !== undefined; 
 
-    return { labelError, addressIsValid };
+    return { labelError, addressIsValid, addressType };
   };
 
   clearFields = () => {
@@ -81,7 +82,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     const { addressBook, removeAddressBookEntry, setSendTo } = this.props;
     const { currentLabel, currentAddress, addButtonEnabled } = this.state; 
 
-    const { labelError, addressIsValid } = this.validate(currentLabel, currentAddress);
+    const { labelError, addressIsValid, addressType } = this.validate(currentLabel, currentAddress);
 
     return (
       <div>
@@ -110,6 +111,11 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
 
             <div className={[cstyles.flexspacebetween].join(" ")}>
               <div className={cstyles.sublight}>Address</div>
+              <div className={cstyles.sublight}>
+                {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
+                {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
+                {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
+              </div>
               <div className={cstyles.validationerror}>
                 {addressIsValid ? (
                   <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />

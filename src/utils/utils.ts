@@ -17,9 +17,9 @@ export default class Utils {
 
     if (resultParseJSON.status === "success") {
       if (resultParseJSON.address_kind === "unified") return AddressType.unified;
-      if (resultParseJSON.address_kind === "sapling") return AddressType.sapling;
-      if (resultParseJSON.address_kind === "transparent") return AddressType.transparent;
-      return;
+      else if (resultParseJSON.address_kind === "sapling") return AddressType.sapling;
+      else if (resultParseJSON.address_kind === "transparent") return AddressType.transparent;
+      else return; 
     } else {
       return;
     }

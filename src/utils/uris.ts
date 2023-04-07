@@ -40,7 +40,7 @@ export const parseZcashURI = (uri: string): ZcashURITarget[] | string => {
   // The first address is special, it can be the "host" part of the URI
   //console.log(parsedUri);
   const address = parsedUri.pathname;
-  if (address && !(addressType !== undefined)) {
+  if (address && addressType === undefined) {
     return `"${address || ""}" was not a valid zcash address`;
   }
 
@@ -81,7 +81,7 @@ export const parseZcashURI = (uri: string): ZcashURITarget[] | string => {
         }
 
         const addressType = Utils.getAddressType(value);
-        if (!(addressType !== undefined)) {
+        if (addressType === undefined) {
           return `${value} was not a recognized zcash address`;
         }
         target.address = value;
