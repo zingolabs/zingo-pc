@@ -10,7 +10,9 @@ export default class Utils {
   //static V3_LIGHTWALLETD: string = "https://lwdv3.zecwallet.co:443"; 
 
   static getAddressType(addr: string): AddressType | undefined {
+    if (!addr) return;
     const resultParse = native.zingolib_execute('parse', addr);
+    //console.log(addr, resultParse); 
     const resultParseJSON = JSON.parse(resultParse);
 
     if (resultParseJSON.status === "success") {

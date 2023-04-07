@@ -412,7 +412,7 @@ export default class RPC {
       return {
         "address": a.address,
         "balance": ua_bal + ua_pend_bal,
-        "receivers": JSON.stringify(a.receivers),
+        "receivers": a.receivers,
         "address_type": AddressType.unified
       }
     });
