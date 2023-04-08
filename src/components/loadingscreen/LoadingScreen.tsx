@@ -153,7 +153,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       try {
         const result = native.zingolib_initialize_existing(url);
         console.log(`Url: ${url}`);
-        console.log(`Intialization: ${result}`);
+        console.log(`Initialization: ${result}`);
         if (result !== "OK") {
           this.setState({
             currentStatus: (
@@ -230,7 +230,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const poller = setInterval(() => {
       const syncstatus = RPC.doSyncStatus();
 
-      if (syncstatus.startsWith("Error")) {
+      if (syncstatus.toLowerCase().startsWith("error")) {
         // Something went wrong
         this.setState({
           currentStatus: syncstatus,
@@ -242,7 +242,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       } else {
         const ss = JSON.parse(syncstatus);
         console.log(ss);
-        // console.log(`Prev SyncID: ${prevSyncId}`);
+        //console.log(`Prev SyncID: ${prevSyncId}`);
 
         if (ss.sync_id > prevSyncId && !ss.in_progress) {
           // First, save the wallet so we don't lose the just-synced data
@@ -251,8 +251,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           }
 
           // Set the info object, so the sidebar will show
-          console.log("Object info\n");
-          console.log(info);
+          //console.log("Object info\n");
+          //console.log(info);
           setInfo(info);
 
           setRescanning(false, prevSyncId);
@@ -312,7 +312,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { url } = this.state;
     const result = native.zingolib_initialize_new(url);
 
-    if (result.startsWith("Error")) {
+    if (result.toLowerCase().startsWith("error")) {
       console.log(result);
       this.setState({ newWalletError: result });
     } else {
@@ -356,7 +356,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const allowOverwrite = true;
 
     const result = native.zingolib_initialize_new_from_phrase(url, seed, birthday, allowOverwrite);
-    if (result.startsWith("Error")) {
+    if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
       this.setState({ walletScreen: 0 });

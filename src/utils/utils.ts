@@ -1,3 +1,7 @@
+import { AddressType, ReceiverType } from "../components/appstate";
+
+import native from "../native.node";
+
 export const NO_CONNECTION: string = "Could not connect to zcashd";
 
 export default class Utils {
@@ -5,29 +9,20 @@ export default class Utils {
   //static ZEBRA: string = "https://zebra-lwd.zecwallet.co:9067";
   //static V3_LIGHTWALLETD: string = "https://lwdv3.zecwallet.co:443"; 
 
-  static isUnified(addr: string): boolean {
-    if (!addr) return false;
-    return addr.startsWith("u");
-  }
+  static getAddressType(addr: string): AddressType | undefined {
+    if (!addr) return;
+    const resultParse = native.zingolib_execute('parse', addr);
+    //console.log(addr, resultParse); 
+    const resultParseJSON = JSON.parse(resultParse);
 
-  static isSapling(addr: string): boolean {
-    if (!addr) return false;
-    return new RegExp("^z[a-z0-9]{77}$").test(addr) || new RegExp("^ztestsapling[a-z0-9]{76}$").test(addr);
-  }
-
-  static isSprout(addr: string): boolean {
-    if (!addr) return false;
-    return new RegExp("^z[a-zA-Z0-9]{94}$").test(addr);
-  }
-
-  static isZaddr(addr: string): boolean {
-    if (!addr) return false;
-    return Utils.isSapling(addr) || Utils.isSprout(addr);
-  }
-
-  static isTransparent(addr: string): boolean {
-    if (!addr) return false;
-    return new RegExp("^t[a-zA-Z0-9]{34}$").test(addr);
+    if (resultParseJSON.status === "success") {
+      if (resultParseJSON.address_kind === "unified") return AddressType.unified;
+      else if (resultParseJSON.address_kind === "sapling") return AddressType.sapling;
+      else if (resultParseJSON.address_kind === "transparent") return AddressType.transparent;
+      else return; 
+    } else {
+      return;
+    }
   }
 
   static isValidSaplingPrivateKey(key: string): boolean {
@@ -97,13 +92,14 @@ export default class Utils {
     return { bigPart, smallPart };
   }
 
-  static getReceivers(r: string) {
-    const receiversJSON = JSON.parse(r);
-   
-    let receivers = [];
-    if(receiversJSON.orchard_exists) receivers.push("Orchard");
-    if(receiversJSON.transparent) receivers.push("Transparent");
-    if(receiversJSON.sapling) receivers.push("Sapling");
+  static getReceivers(array: ReceiverType[]): string[] {
+    let receivers: string[] = [];
+
+    array.forEach((r: ReceiverType) => {
+      if(r === ReceiverType.orchard) receivers.push("Orchard");
+      if(r === ReceiverType.transparent) receivers.push("Transparent");
+      if(r === ReceiverType.sapling) receivers.push("Sapling");
+    });
     
     return receivers; 
   }

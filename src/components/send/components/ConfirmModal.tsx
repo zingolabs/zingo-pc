@@ -8,6 +8,7 @@ import {
   Info,
   TotalBalance,
   SendProgress,
+  AddressType,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ScrollPane from "../../scrollPane/ScrollPane";
@@ -49,16 +50,16 @@ type ConfirmModalProps = {
     // Determine the tx privacy level
     let privacyLevel = "";
     // 1. If we're sending to a t-address, it is "transparent"
-    const isToTransparent = sendPageState.toaddrs.map((to) => Utils.isTransparent(to.to)).reduce((p, c) => p || c, false);
+    const isToTransparent = sendPageState.toaddrs.map((to) => Utils.getAddressType(to.to) === AddressType.transparent).reduce((p, c) => p || c, false);
     if (isToTransparent) {
       privacyLevel = "Transparent";
     } else {
       // 2. If we're sending to sapling or orchard, and don't have enough funds in the pool, it is "AmountsRevealed"
       const toSapling = sendPageState.toaddrs
-        .map((to) => (Utils.isSapling(to.to) ? to.amount : 0))
+        .map((to) => (Utils.getAddressType(to.to) === AddressType.sapling ? to.amount : 0))
         .reduce((s, c) => s + c, 0);
       const toOrchard = sendPageState.toaddrs
-        .map((to) => (Utils.isUnified(to.to) ? to.amount : 0))
+        .map((to) => (Utils.getAddressType(to.to) === AddressType.unified ? to.amount : 0))
         .reduce((s, c) => s + c, 0);
       if (toSapling > totalBalance.spendableZ || toOrchard > totalBalance.uabalance) {
         privacyLevel = "AmountsRevealed";

@@ -4,8 +4,8 @@ import "./App.css";
 import addon from "./native.node";
 
 function App() {
-  console.log("Addon is:");
-  console.log(addon);
+  //console.log("Addon is:");
+  //console.log(addon);
 
   return (
     <div className="App">

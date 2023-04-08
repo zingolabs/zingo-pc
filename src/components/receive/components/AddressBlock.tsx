@@ -9,12 +9,12 @@ import QRCode from "qrcode.react";
 import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
-import { AddressBalance, AddressType } from "../../appstate";
+import { Address, AddressType } from "../../appstate";
 
 const { shell, clipboard } = window.require("electron");
 
 type AddressBlockProps = {
-  addressBalance: AddressBalance;
+  address: Address;
   currencyName: string;
   zecPrice: number;
   privateKey?: string;
@@ -25,7 +25,7 @@ type AddressBlockProps = {
 };
 
 const AddressBlock = ({
-  addressBalance,
+  address,
   label,
   currencyName,
   zecPrice,
@@ -34,7 +34,9 @@ const AddressBlock = ({
   viewKey,
   fetchAndSetSingleViewKey,
 }: AddressBlockProps) => {
-  const { address, receivers, type } = addressBalance;
+  const { receivers, type } = address;
+  const address_address = address.address;
+  const balance = address.balance || 0;
 
   const [copied, setCopied] = useState(false);
   const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
@@ -47,23 +49,20 @@ const AddressBlock = ({
     };
   });
 
-  const balance = addressBalance.balance || 0;
-
   const openAddress = () => { 
     if (currencyName === "TAZ") {
-      shell.openExternal(`https://chain.so/address/ZECTEST/${address}`);
+      shell.openExternal(`https://chain.so/address/ZECTEST/${address_address}`);
     } else {
-      //shell.openExternal(`https://zcha.in/accounts/${address}`);
-      shell.openExternal(`https://zecblockexplorer.com/address/${address}`);
+      shell.openExternal(`https://zecblockexplorer.com/address/${address_address}`);
     }
   };
 
   return (
-    <AccordionItem key={copied ? 1 : 0} className={[cstyles.well, styles.receiveblock].join(" ")} uuid={address}>
+    <AccordionItem key={copied ? 1 : 0} className={[cstyles.well, styles.receiveblock].join(" ")} uuid={address_address}>
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={[cstyles.verticalflex].join(" ")}>
-            {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+            {address_address.length < 80 ? address_address : Utils.splitStringIntoChunks(address_address, 3).map(item => <div key={item}>{item}</div>)}
           </div>
         </AccordionItemButton>
       </AccordionItemHeading>
@@ -140,14 +139,14 @@ const AddressBlock = ({
                 className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
                 type="button"
                 onClick={() => {
-                  clipboard.writeText(address);
+                  clipboard.writeText(address_address);
                   setCopied(true);
                   setTimerID(setTimeout(() => setCopied(false), 5000));
                 }}
               >
                 {copied ? <span>Copied!</span> : <span>Copy Address</span>}
               </button>
-              {/* {Utils.isZaddr(address) && !privateKey && (
+              {/* {type === addressType.sapling && !privateKey && (
                 <button
                   className={[cstyles.primarybutton].join(" ")}
                   type="button"
@@ -157,7 +156,7 @@ const AddressBlock = ({
                 </button>
               )}
 
-              {Utils.isZaddr(address) && !viewKey && (
+              {type === addressType.sapling && !viewKey && (
                 <button
                   className={[cstyles.primarybutton].join(" ")}
                   type="button"
@@ -177,7 +176,7 @@ const AddressBlock = ({
           <div>
             {/*
                     // @ts-ignore */}
-            <QRCode value={address} className={[styles.receiveQrcode].join(" ")} />
+            <QRCode value={address_address} className={[styles.receiveQrcode].join(" ")} />
           </div>
         </div>
       </AccordionItemPanel>

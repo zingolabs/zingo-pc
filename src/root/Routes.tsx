@@ -10,7 +10,6 @@ import Receive from "../components/receive/Receive";
 import LoadingScreen from "../components/loadingscreen/LoadingScreen";
 import {
   AppState,
-  AddressBalance,
   TotalBalance,
   Transaction,
   SendPageState,
@@ -23,7 +22,7 @@ import {
   ServerSelectState,
   SendProgress,
   AddressType,
-  AddressDetail,
+  Address,
   WalletSettings,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
@@ -55,9 +54,8 @@ export default class RouteApp extends React.Component<Props, AppState> {
 
     this.rpc = new RPC(
       this.setTotalBalance,
-      this.setAddressesWithBalances,
+      this.setAddresses,
       this.setTransactionList,
-      this.setAllAddresses,
       this.setInfo,
       this.setZecPrice,
       this.setWalletSettings,
@@ -207,22 +205,22 @@ export default class RouteApp extends React.Component<Props, AppState> {
     await this.rpc.fetchWalletSettings();
   };
 
-  setAddressesWithBalances = (addressesWithBalance: AddressBalance[]) => {
-    this.setState({ addressesWithBalance });
+  setAddresses = (addresses: Address[]) => {
+    this.setState({ addresses });
 
     const { sendPageState } = this.state;
 
     // If there is no 'from' address, we'll set a default one
     if (!sendPageState.fromaddr) {
-      // Find a z-address with the highest balance
-      const defaultAB = addressesWithBalance
-        .filter((ab) => Utils.isSapling(ab.address))
-        .reduce((prev: AddressBalance | null, ab) => {
-          // We'll start with a sapling address
+      // Find a u-address with the highest balance
+      const defaultAB = addresses
+        .filter((ab) => ab.type === AddressType.unified)
+        .reduce((prev: Address | null, ab) => {
+          // We'll start with a unified address
           if (!prev) {
             return ab;
           } else if (prev.balance < ab.balance) {
-            // Find the sapling address with the highest balance
+            // Find the unified address with the highest balance
             return ab;
           } else {
             return prev;
@@ -241,10 +239,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
 
   setTransactionList = (transactions: Transaction[]) => {
     this.setState({ transactions });
-  };
-
-  setAllAddresses = (addresses: AddressDetail[]) => {
-    this.setState({ addresses });
   };
 
   setSendPageState = (sendPageState: SendPageState) => {
@@ -341,7 +335,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
       newInfo.zecPrice = info.zecPrice;
     }
 
-    console.log(newInfo);
+    //console.log(newInfo);
 
     this.setState({ info: newInfo });
   };
@@ -417,11 +411,11 @@ export default class RouteApp extends React.Component<Props, AppState> {
     this.setState({ addressBook: newAddressBook });
   };
 
-  createNewAddress = async (type: AddressType) => {
+  createNewAddress = async (newType: AddressType) => {
     this.openPasswordAndUnlockIfNeeded(async () => {
       // Create a new address
-      const newaddress = RPC.createNewAddress(type);
-      console.log(`Created new Address ${newaddress}`);
+      const newAddress = RPC.createNewAddress(newType);
+      console.log(`Created new Address ${newAddress}`);
 
       // And then fetch the list of addresses again to refresh (totalBalance gets all addresses)
       this.rpc.fetchTotalBalance();
@@ -429,8 +423,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
       const { receivePageState } = this.state;
       const newRerenderKey = receivePageState.rerenderKey + 1;
 
-      const newReceivePageState = new ReceivePageState();
-      newReceivePageState.newAddress = newaddress;
+      const newReceivePageState = new ReceivePageState(newAddress, newType);
       newReceivePageState.rerenderKey = newRerenderKey;
 
       this.setState({ receivePageState: newReceivePageState });
@@ -449,7 +442,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
     const {
       totalBalance,
       transactions,
-      addressesWithBalance,
       addressPrivateKeys,
       addressViewKeys,
       addresses,
@@ -545,7 +537,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
                   <Receive
                     rerenderKey={receivePageState.rerenderKey}
                     addresses={addresses}
-                    addressesWithBalance={addressesWithBalance}
                     addressPrivateKeys={addressPrivateKeys}
                     addressViewKeys={addressViewKeys}
                     receivePageState={receivePageState}
@@ -571,7 +562,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
               <Route
                 path={routes.DASHBOARD}
                 render={() => (
-                  <Dashboard totalBalance={totalBalance} info={info} addressesWithBalance={addressesWithBalance} />
+                  <Dashboard totalBalance={totalBalance} info={info} addresses={addresses} />
                 )}
               />
               <Route

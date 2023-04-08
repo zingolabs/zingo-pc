@@ -25,7 +25,8 @@ export const parseZcashURI = (uri: string): ZcashURITarget[] | string => {
   }
 
   // See if it is a straight address.
-  if (Utils.isTransparent(uri) || Utils.isZaddr(uri)) {
+  const addressType = Utils.getAddressType(uri);
+  if (addressType !== undefined) {
     return [new ZcashURITarget(uri)];
   }
 
@@ -39,7 +40,7 @@ export const parseZcashURI = (uri: string): ZcashURITarget[] | string => {
   // The first address is special, it can be the "host" part of the URI
   //console.log(parsedUri);
   const address = parsedUri.pathname;
-  if (address && !(Utils.isTransparent(address) || Utils.isZaddr(address))) {
+  if (address && addressType === undefined) {
     return `"${address || ""}" was not a valid zcash address`;
   }
 
@@ -79,7 +80,8 @@ export const parseZcashURI = (uri: string): ZcashURITarget[] | string => {
           return `Duplicate param ${qName}`;
         }
 
-        if (!(Utils.isTransparent(value) || Utils.isZaddr(value))) {
+        const addressType = Utils.getAddressType(value);
+        if (addressType === undefined) {
           return `${value} was not a recognized zcash address`;
         }
         target.address = value;

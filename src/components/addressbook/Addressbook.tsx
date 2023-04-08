@@ -2,7 +2,7 @@ import React, { Component } from "react";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
 import cstyles from "../common/Common.module.css";
-import { AddressBookEntry } from "../appstate";
+import { AddressBookEntry, AddressType } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ZcashURITarget } from "../../utils/uris";
@@ -36,12 +36,13 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     this.setState({ currentLabel });
 
     const { labelError, addressIsValid } = this.validate(currentLabel, currentAddress);
-    this.setAddButtonEnabled(!labelError && addressIsValid && currentLabel !== "" && currentAddress !== "");
+    this.setAddButtonEnabled(!labelError && addressIsValid && currentLabel !== "" && currentAddress !== ""); 
   };
 
   updateAddress = (currentAddress: string) => {
     const { currentLabel } = this.state;
-    this.setState({ currentAddress });
+    const newCurrentAddress = currentAddress.replace(/ /g, ""); // Remove spaces
+    this.setState({ currentAddress: newCurrentAddress });
 
     const { labelError, addressIsValid } = this.validate(currentLabel, currentAddress);
 
@@ -66,10 +67,11 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     let labelError = addressBook.find((i) => i.label === currentLabel) ? "Duplicate Label" : null;
     labelError = currentLabel.length > 12 ? "Label is too long" : labelError;
 
+    const addressType = Utils.getAddressType(currentAddress);
     const addressIsValid =
-      currentAddress === "" || Utils.isZaddr(currentAddress) || Utils.isTransparent(currentAddress);
+      currentAddress === "" || addressType !== undefined; 
 
-    return { labelError, addressIsValid };
+    return { labelError, addressIsValid, addressType };
   };
 
   clearFields = () => {
@@ -80,7 +82,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     const { addressBook, removeAddressBookEntry, setSendTo } = this.props;
     const { currentLabel, currentAddress, addButtonEnabled } = this.state; 
 
-    const { labelError, addressIsValid } = this.validate(currentLabel, currentAddress);
+    const { labelError, addressIsValid, addressType } = this.validate(currentLabel, currentAddress);
 
     return (
       <div>
@@ -109,6 +111,11 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
 
             <div className={[cstyles.flexspacebetween].join(" ")}>
               <div className={cstyles.sublight}>Address</div>
+              <div className={[cstyles.sublight, cstyles.green].join(" ")}>
+                {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
+                {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
+                {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
+              </div>
               <div className={cstyles.validationerror}>
                 {addressIsValid ? (
                   <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
@@ -119,6 +126,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
             </div>
             <input
               type="text"
+              placeholder="Unified | Sapling | Transparent address"
               value={currentAddress}
               className={[cstyles.inputbox, cstyles.margintopsmall].join(" ")}
               onChange={(e) => this.updateAddress(e.target.value)}

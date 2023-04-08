@@ -5,7 +5,7 @@ import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
 import Logo from "../../assets/img/logobig.png";
-import { AddressDetail, Info, Transaction, WalletSettings } from "../appstate";
+import { Address, Info, Transaction, WalletSettings } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
@@ -21,7 +21,7 @@ const fs = window.require("fs");
 type SidebarProps = {
   info: Info;
   setRescanning: (rescan: boolean, prevSyncId: number) => void;
-  addresses: AddressDetail[];
+  addresses: Address[];
   transactions: Transaction[];
   setInfo: (info: Info) => void;
   clearTimers: () => void;

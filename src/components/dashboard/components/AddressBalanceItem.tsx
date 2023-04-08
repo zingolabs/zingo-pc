@@ -6,20 +6,20 @@ import {
 } from "react-accessible-accordion";
 import styles from "../Dashboard.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressBalance, AddressType } from "../../appstate";
+import { Address, AddressType } from "../../appstate";
 import Utils from "../../../utils/utils"; 
 
 type AddressBalanceItemProps = {
   currencyName: string;
   zecPrice: number;
-  item: AddressBalance;
+  item: Address;
 };
 
 const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItemProps) => {
   const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(item.balance));
   
   return (
-    <AccordionItem key={item.label} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.address}>
+    <AccordionItem key={item.address} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.address}>
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={[cstyles.flexspacebetween].join(" ")}>

@@ -3,6 +3,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
 import {
+  AddressType,
   ToAddr,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
@@ -38,10 +39,11 @@ const ToAddrBox = ({
   setSendButtonEnable,
   totalAmountAvailable,
 }: ToAddrBoxProps) => {
-  const isMemoDisabled = !(Utils.isZaddr(toaddr.to) || Utils.isUnified(toaddr.to));
+  const addressType = Utils.getAddressType(toaddr.to);
+  const isMemoDisabled = !(addressType === AddressType.sapling || addressType === AddressType.unified);
 
   const addressIsValid =
-    toaddr.to === "" || Utils.isUnified(toaddr.to) || Utils.isZaddr(toaddr.to) || Utils.isTransparent(toaddr.to);
+    toaddr.to === "" || addressType !== undefined;
 
   let amountError = null;
   if (toaddr.amount) {
@@ -91,7 +93,12 @@ const ToAddrBox = ({
       <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
         <div className={[cstyles.flexspacebetween].join(" ")}>
           <div className={cstyles.sublight}>To</div>
-          <div className={cstyles.validationerror}>
+            <div className={[cstyles.sublight, cstyles.green].join(" ")}>
+                {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
+                {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
+                {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
+              </div>
+            <div className={cstyles.validationerror}>
             {addressIsValid ? (
               <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
             ) : (

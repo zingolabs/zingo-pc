@@ -1,14 +1,14 @@
 import {
   TotalBalance,
-  AddressBalance,
   Transaction,
   RPCConfig,
   TxDetail,
   Info,
   SendProgress,
   AddressType,
-  AddressDetail,
+  Address,
   WalletSettings,
+  ReceiverType,
 } from "../components/appstate";
 import { SendManyJsonType } from "../components/send";
 
@@ -20,9 +20,8 @@ export default class RPC {
   fnSetInfo: (info: Info) => void;
   fnSetVerificationProgress: (verificationProgress: number) => void;
   fnSetTotalBalance: (tb: TotalBalance) => void;
-  fnSetAddressesWithBalance: (abs: AddressBalance[]) => void;
+  fnSetAddresses: (abs: Address[]) => void;
   fnSetTransactionsList: (t: Transaction[]) => void;
-  fnSetAllAddresses: (a: AddressDetail[]) => void;
   fnSetZecPrice: (p?: number) => void;
   fnSetWalletSettings: (settings: WalletSettings) => void;
   refreshTimerID?: NodeJS.Timeout;
@@ -36,18 +35,16 @@ export default class RPC {
 
   constructor(
     fnSetTotalBalance: (tb: TotalBalance) => void,
-    fnSetAddressesWithBalance: (abs: AddressBalance[]) => void,
+    fnSetAddresses: (abs: Address[]) => void,
     fnSetTransactionsList: (t: Transaction[]) => void,
-    fnSetAllAddresses: (a: AddressDetail[]) => void,
     fnSetInfo: (info: Info) => void,
     fnSetZecPrice: (p?: number) => void,
     fnSetWalletSettings: (settings: WalletSettings) => void,
     fnSetVerificationProgress: (verificationProgress: number) => void,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
-    this.fnSetAddressesWithBalance = fnSetAddressesWithBalance;
+    this.fnSetAddresses = fnSetAddresses;
     this.fnSetTransactionsList = fnSetTransactionsList;
-    this.fnSetAllAddresses = fnSetAllAddresses;
     this.fnSetInfo = fnSetInfo;
     this.fnSetZecPrice = fnSetZecPrice;
     this.fnSetWalletSettings = fnSetWalletSettings;
@@ -173,7 +170,7 @@ export default class RPC {
 
   async refresh(fullRefresh: boolean) {
     if (this.syncTimerID) {
-      console.log("Already have a sync process launched");
+      console.log("Already have a sync process launched", this.syncTimerID);
       return;
     }
     const latestBlockHeight = await this.fetchInfo();
@@ -266,7 +263,7 @@ export default class RPC {
   // Special method to get the Info object. This is used both internally and by the Loading screen
   static getInfoObject(): Info {
     const infostr = native.zingolib_execute("info", "");
-    console.log(`INFO INFO INFO: ${infostr}`);
+    //console.log(`INFO INFO INFO: ${infostr}`);
     try {
       const infoJSON = JSON.parse(infostr);
 
@@ -389,9 +386,10 @@ export default class RPC {
     const notesStr = native.zingolib_execute('notes','');
     const notesJSON = JSON.parse(notesStr);
 
+    //console.log(notesJSON);
+
     // construct ua_addresses with their respective balance
     const ua_addr = addressesJSON
-      .filter((a: any) => a.receivers.orchard_exists)
       .map((a: any) => {
     
       // To get the balance, sum all notes related to this address
@@ -407,7 +405,7 @@ export default class RPC {
       return {
         "address": a.address,
         "balance": ua_bal + ua_pend_bal,
-        "receivers": JSON.stringify(a.receivers),
+        "receivers": a.receivers,
         "address_type": AddressType.unified
       }
     });
@@ -572,7 +570,7 @@ export default class RPC {
     
     const balanceJSON = this.zingolibBalance();
 
-    console.log(balanceJSON);
+    //console.log(balanceJSON);
 
     // Total Balance
     const balance = new TotalBalance();
@@ -604,64 +602,53 @@ export default class RPC {
     });
 
     // Addresses with Balance. The client reports balances in zatoshi, so divide by 10^8;
-    const oaddresses = balanceJSON.ua_addresses
+    const uaddresses = balanceJSON.ua_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
-        const ab = new AddressBalance(o.address, o.balance / 10 ** 8, o.address_type);
+        const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
         // Add receivers to unified addresses
-        ab.receivers = o.receivers;
+        let receivers: ReceiverType[] = [];
+        if (o.receivers.orchard_exists) receivers.push(ReceiverType.orchard);
+        if (o.receivers.transparent) receivers.push(ReceiverType.transparent);
+        if (o.receivers.sapling) receivers.push(ReceiverType.sapling);
+        ab.receivers = receivers;
         ab.type = o.address_type;
         return ab;
       })
-      .filter((ab: AddressBalance) => ab.balance > 0);
+      .filter((ab: Address) => ab.balance > 0);
 
     const zaddresses = balanceJSON.z_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
-        const ab = new AddressBalance(o.address, o.zbalance / 10 ** 8, o.address_type);
+        const ab = new Address(o.address, o.zbalance / 10 ** 8, o.address_type);
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
         ab.type = o.address_type;
         return ab;
       })
-      .filter((ab: AddressBalance) => ab.balance > 0);
+      .filter((ab: Address) => ab.balance > 0);
 
-      console.log(zaddresses);
+    //console.log(zaddresses);
 
     const taddresses = balanceJSON.t_addresses
       .map((o: any) => {
         // If this has any unconfirmed txns, show that in the UI
-        const ab = new AddressBalance(o.address, o.balance / 10 ** 8, o.address_type);
+        const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
         if (pendingAddressBalances.has(ab.address)) {
           ab.containsPending = true;
         }
         ab.type = o.address_type;
         return ab;
       })
-      .filter((ab: AddressBalance) => ab.balance > 0);
+      .filter((ab: Address) => ab.balance > 0);
 
-    const addresses = oaddresses.concat(zaddresses.concat(taddresses));    
+    const addresses = uaddresses.concat(zaddresses.concat(taddresses));    
 
-    this.fnSetAddressesWithBalance(addresses);
-
-    // Also set all addresses
-    const allOAddresses = balanceJSON.ua_addresses.map((o: any) => {
-      let uaddr = new AddressDetail(o.address, AddressType.unified)
-      uaddr.receivers = o.receivers;
-
-      return uaddr;
-    });
-    const allZAddresses = balanceJSON.z_addresses.map((o: any) => new AddressDetail(o.address, AddressType.sapling));
-    const allTAddresses = balanceJSON.t_addresses.map(
-      (o: any) => new AddressDetail(o.address, AddressType.transparent)
-    );
-    const allAddresses = allOAddresses.concat(allZAddresses.concat(allTAddresses));    
-
-    this.fnSetAllAddresses(allAddresses);
+    this.fnSetAddresses(addresses);
   }
 
   static getLastTxid(): string {
@@ -690,12 +677,7 @@ export default class RPC {
   }
 
   static createNewAddress(type: AddressType) {
-    // const addrStr = native.zingolib_execute(
-    //   "new",
-    //   type === AddressType.unified ? "u" : type === AddressType.sapling ? "z" : "t"
-    // );
-
-    // Zingolib creates addresses in a different way
+    // Zingolib creates addresses like this:
     // ozt = orchard + sapling + transparent (orchard unified)
     // o = orchard only
     // oz = orchard + sapling
@@ -743,7 +725,7 @@ export default class RPC {
     // we need to reconstruct it
     const listJSON = this.zingolibTxList();
     
-    console.log(listJSON);
+    //console.log(listJSON);
 
     let txlist: Transaction[] = listJSON.map((tx: any) => {
       const transaction = new Transaction();
@@ -898,7 +880,7 @@ export default class RPC {
           const currentTimeSeconds = new Date().getTime() / 1000;
           secondsPerComputation = (currentTimeSeconds - startTimeSeconds) / progress.progress;
         }
-        // console.log(`Seconds Per compute = ${secondsPerComputation}`);
+        //console.log(`Seconds Per compute = ${secondsPerComputation}`);
 
         let eta = Math.round((progress.total - progress.progress) * secondsPerComputation);
         if (eta <= 0) {
