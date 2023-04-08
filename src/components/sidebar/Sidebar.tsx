@@ -437,7 +437,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
   setWalletSpamFilterThreshold = async (threshold: number) => {
     // Call the RPC to set the threshold as an option
-    await RPC.setWalletSettingOption("spam_filter_threshold", threshold.toString());
+    await RPC.setWalletSettingOption("transaction_filter_threshold", threshold.toString());
 
     // Refresh the wallet settings
     await this.props.updateWalletSettings();

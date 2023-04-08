@@ -10,7 +10,7 @@ export default class Transaction {
     txid: string;
     time: number;
     detailedTxns: TxDetail[];
-    zecPrice: any;
+    zecPrice?: any;
   
     constructor() {
       this.type = "";

@@ -5,7 +5,7 @@ export default class ToAddr {
     amount: number;
     memo: string;
   
-    constructor(id: number) {
+    constructor(id?: number) {
       this.id = id;
   
       this.to = "";
