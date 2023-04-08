@@ -330,17 +330,14 @@ export default class RPC {
     const download_memos_str = native.zingolib_execute("getoption", "download_memos");
     const download_memos = JSON.parse(download_memos_str).download_memos;
 
-    let spam_filter_threshold = "0";
+    let transaction_filter_threshold = 0;
     try {
-      // const spam_filter_str = native.zingolib_execute("getoption", "spam_filter_threshold");
       const spam_filter_str = native.zingolib_execute("getoption", "transaction_filter_threshold");
-      spam_filter_threshold = JSON.parse(spam_filter_str).spam_filter_threshold;
-      // console.log(`Spam filter threshold: ${spam_filter_threshold}`);
+      transaction_filter_threshold = JSON.parse(spam_filter_str).transaction_filter_threshold;
 
       // If it is -1, i.e., it was not set, then set it to 50
-      if (spam_filter_threshold === "-1") {
-        //await RPC.setWalletSettingOption("spam_filter_threshold", "50");
-        await RPC.setWalletSettingOption("transaction_filter_threshold", "50");
+      if (transaction_filter_threshold < 0) {
+        await RPC.setWalletSettingOption("transaction_filter_threshold", "500");
       }
     } catch (e) {
       console.log(`Error getting spam filter threshold: ${e}`);
@@ -348,7 +345,7 @@ export default class RPC {
 
     const wallet_settings = new WalletSettings();
     wallet_settings.download_memos = download_memos;
-    wallet_settings.spam_filter_threshold = parseInt(spam_filter_threshold);
+    wallet_settings.transaction_filter_threshold = transaction_filter_threshold;
 
     this.fnSetWalletSettings(wallet_settings);
   }

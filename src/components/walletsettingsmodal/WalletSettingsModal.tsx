@@ -19,7 +19,7 @@ export default function WalletSettingsModal({
   const [selected, setSelected] = useState("");
 
   useEffect(() => {
-    if (walletSettings.spam_filter_threshold <= 0) {
+    if (walletSettings.transaction_filter_threshold <= 0) {
       setSelected("no_filter");
     } else {
       setSelected("filter");
@@ -45,7 +45,7 @@ export default function WalletSettingsModal({
               name="filter"
               defaultChecked={selected === "filter"}
               value="filter"
-              onClick={(e) => setWalletSpamFilterThreshold(50)}
+              onClick={(e) => setWalletSpamFilterThreshold(500)}
             />
             Don't scan spammy transactions
           </div>
