@@ -1,21 +1,21 @@
 import React, { Component } from "react";
-import { Info, RPCConfig } from "../appstate";
 import cstyles from "../common/Common.module.css";
 import styles from "./Zcashd.module.css";
 import ScrollPane from "../scrollPane/ScrollPane";
 import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine"; 
+import { ContextApp } from "../../context/ContextAppState";
 
 type ZcashdProps = {
-  info: Info;
   refresh: () => void;
-  rpcConfig: RPCConfig;
   openServerSelectModal: () => void;
 };
 
 export default class Zcashd extends Component<ZcashdProps> {
+  static contextType = ContextApp;
   render() {
-    const { info, rpcConfig, refresh, openServerSelectModal } = this.props;
+    const { refresh, openServerSelectModal } = this.props;
+    const { info, rpcConfig } = this.context;
     const { url } = rpcConfig;
 
     if (!info || !info.latestBlock) {

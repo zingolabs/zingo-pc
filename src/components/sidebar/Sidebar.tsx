@@ -304,7 +304,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       const { getPrivKeyAsString } = this.props;
       const { addresses } = this.context;
       openPasswordAndUnlockIfNeeded(async () => {
-        const privKeysPromise = addresses.map(async (a: Address) => {
+        const privKeysPromise: Promise<string>[] = addresses.map(async (a: Address) => {
           const privKey = getPrivKeyAsString(a.address);
           return `${privKey} #${a}`;
         });

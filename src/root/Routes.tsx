@@ -440,16 +440,7 @@ export default class Routes extends React.Component<Props, AppState> {
   };
 
   render() {
-    const {
-      totalBalance,
-      transactions,
-      addresses,
-      addressBook,
-      rpcConfig,
-      rescanning,
-      prevSyncId,
-      info,
-    } = this.state;
+    const { info } = this.state;
 
     const standardProps = {
       openErrorModal: this.openErrorModal,
@@ -516,7 +507,6 @@ export default class Routes extends React.Component<Props, AppState> {
                 path={routes.ADDRESSBOOK}
                 render={() => (
                   <AddressBook
-                    addressBook={addressBook}
                     addAddressBookEntry={this.addAddressBookEntry}
                     removeAddressBookEntry={this.removeAddressBookEntry}
                     {...standardProps}
@@ -526,18 +516,14 @@ export default class Routes extends React.Component<Props, AppState> {
               <Route
                 path={routes.DASHBOARD}
                 render={() => (
-                  <Dashboard totalBalance={totalBalance} info={info} addresses={addresses} />
+                  <Dashboard />
                 )}
               />
               <Route
                 path={routes.TRANSACTIONS}
                 render={() => (
                   <Transactions
-                    transactions={transactions}
-                    info={info}
-                    addressBook={addressBook}
                     setSendTo={this.setSendTo}
-                    totalBalance={totalBalance}
                   />
                 )}
               />
@@ -546,8 +532,6 @@ export default class Routes extends React.Component<Props, AppState> {
                 path={routes.ZCASHD}
                 render={() => (
                   <Zcashd
-                    info={info}
-                    rpcConfig={rpcConfig}
                     refresh={this.doRefresh}
                     openServerSelectModal={this.openServerSelectModal}
                   />
@@ -559,8 +543,6 @@ export default class Routes extends React.Component<Props, AppState> {
                 render={() => (
                   <LoadingScreen
                     setRPCConfig={this.setRPCConfig}
-                    rescanning={rescanning}
-                    prevSyncId={prevSyncId}
                     setRescanning={this.setRescanning}
                     setInfo={this.setInfo}
                     openServerSelectModal={this.openServerSelectModal}
