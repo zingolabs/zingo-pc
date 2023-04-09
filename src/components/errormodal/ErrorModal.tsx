@@ -1,8 +1,16 @@
 import Modal from "react-modal";
 import cstyles from "../common/Common.module.css";
-import ErrorModalData from "./ErrorModalData";
+import { useContext } from "react";
+import { ContextApp } from "../../context/ContextAppState";
 
-const ErrorModal = ({ title, body, modalIsOpen, closeModal }: ErrorModalData) => {
+type ErrorModalProps = {
+  closeModal: () => void
+};
+
+const ErrorModal = ({ closeModal }: ErrorModalProps) => {
+  const context = useContext(ContextApp);
+  const { errorModalData } = context;
+  const { title, body, modalIsOpen } = errorModalData;
   return (
     <Modal
       isOpen={modalIsOpen}

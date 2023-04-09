@@ -4,25 +4,25 @@ import {
   Accordion,
 } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
-import { Info, ReceivePageState, AddressBookEntry, Address, AddressType } from "../appstate";
+import { AddressBookEntry, Address, AddressType } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
+import { ContextApp } from "../../context/ContextAppState";
 
 type ReceiveProps = {
-  addresses: Address[];
-  addressBook: AddressBookEntry[];
-  info: Info;
-  addressPrivateKeys: Map<string, string>;
-  addressViewKeys: Map<string, string>;
-  receivePageState: ReceivePageState;
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
-  createNewAddress: (t: AddressType) => void;
-  rerenderKey: number;
+  //createNewAddress: (t: AddressType) => void;
 };
 
 export default class Receive extends Component<ReceiveProps> {
+  static contextType = ContextApp;
   render() {
+    const {
+      fetchAndSetSinglePrivKey,
+      fetchAndSetSingleViewKey,
+      //createNewAddress,
+    } = this.props;
     const {
       addresses,
       addressPrivateKeys,
@@ -30,49 +30,46 @@ export default class Receive extends Component<ReceiveProps> {
       addressBook,
       info,
       receivePageState,
-      fetchAndSetSinglePrivKey,
-      fetchAndSetSingleViewKey,
-      //createNewAddress,
       rerenderKey,
-    } = this.props;
+    } = this.context;
 
     const uaddrs = addresses
-      .filter((a) => a.type === AddressType.unified);
+      .filter((a: Address) => a.type === AddressType.unified);
     let defaultUaddr = uaddrs.length > 0 ? uaddrs[0].address : "";
     if (receivePageState && receivePageState.newType === AddressType.unified) {
       defaultUaddr = receivePageState.newAddress;
 
       // move this address to the front, since the scrollbar will reset when we re-render
-      uaddrs.sort((x, y) => {
+      uaddrs.sort((x: Address, y: Address) => {
         return x.address === defaultUaddr ? -1 : y.address === defaultUaddr ? 1 : 0;
       });
     }
 
     const zaddrs = addresses
-      .filter((a) => a.type === AddressType.sapling);
+      .filter((a: Address) => a.type === AddressType.sapling);
     let defaultZaddr = zaddrs.length > 0 ? zaddrs[0].address : "";
     if (receivePageState && receivePageState.newType === AddressType.sapling) {
       defaultZaddr = receivePageState.newAddress;
 
       // move this address to the front, since the scrollbar will reset when we re-render
-      zaddrs.sort((x, y) => {
+      zaddrs.sort((x: Address, y: Address) => {
         return x.address === defaultZaddr ? -1 : y.address === defaultZaddr ? 1 : 0;
       });
     }
 
     const taddrs = addresses
-      .filter((a) => a.type === AddressType.transparent);
+      .filter((a: Address) => a.type === AddressType.transparent);
     let defaultTaddr = taddrs.length > 0 ? taddrs[0].address : "";
     if (receivePageState && receivePageState.newType === AddressType.transparent) {
       defaultTaddr = receivePageState.newAddress;
 
       // move this address to the front, since the scrollbar will reset when we re-render
-      taddrs.sort((x, y) => {
+      taddrs.sort((x: Address, y: Address) => {
         return x.address === defaultTaddr ? -1 : y.address === defaultTaddr ? 1 : 0;
       });
     }
 
-    const addressBookMap = addressBook.reduce((m, obj) => {
+    const addressBookMap = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
       m.set(obj.address, obj.label);
       return m;
     }, new Map());
@@ -90,7 +87,7 @@ export default class Receive extends Component<ReceiveProps> {
             <TabPanel key={`ua${rerenderKey}`}>
               <ScrollPane offsetHeight={100}>
                 <Accordion preExpanded={[defaultUaddr]}>
-                  {uaddrs.map((a) => (
+                  {uaddrs.map((a: Address) => (
                     <AddressBlock
                       key={a.address}
                       address={a}
@@ -119,7 +116,7 @@ export default class Receive extends Component<ReceiveProps> {
               {/* Change the hardcoded height */}
               <ScrollPane offsetHeight={100}>
                 <Accordion preExpanded={[defaultZaddr]}>
-                  {zaddrs.map((a) => (
+                  {zaddrs.map((a: Address) => (
                     <AddressBlock
                       key={a.address}
                       address={a}
@@ -148,7 +145,7 @@ export default class Receive extends Component<ReceiveProps> {
               {/* Change the hardcoded height */}
               <ScrollPane offsetHeight={100}>
                 <Accordion preExpanded={[defaultTaddr]}>
-                  {taddrs.map((a) => (
+                  {taddrs.map((a: Address) => (
                     <AddressBlock
                       key={a.address}
                       address={a}
