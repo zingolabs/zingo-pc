@@ -48,14 +48,12 @@ type SidebarState = {
   exportPrivKeysModalIsOpen: boolean;
   exportedPrivKeys: string[];
   walletSettingsModalIsOpen: boolean;
-  serverLatestBlock: number;
 };
 
 class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarState> {
   static contextType = ContextApp;
   constructor(props: SidebarProps & RouteComponentProps) {
     super(props);
-    const { info } = this.context;
     this.state = {
       uriModalIsOpen: false,
       uriModalInputValue: undefined,
@@ -64,7 +62,6 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       exportedPrivKeys: [],
       privKeyInputValue: null,
       walletSettingsModalIsOpen: false,
-      serverLatestBlock: info.latestBlock,
     };
 
     this.setupMenuHandlers();
@@ -485,12 +482,11 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       exportPrivKeysModalIsOpen,
       exportedPrivKeys,
       walletSettingsModalIsOpen,
-      serverLatestBlock,
     } = this.state;
 
     let stateSync = "DISCONNECTED";
     let progress = "100";
-    if (serverLatestBlock) {
+    if (info.latestBlock) {
       if (verificationProgress < 99.9999) {
         stateSync = "SYNCING";
         progress = (verificationProgress).toFixed(2);
