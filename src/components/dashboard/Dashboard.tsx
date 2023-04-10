@@ -4,23 +4,21 @@ import {
 } from "react-accessible-accordion";
 import styles from "./Dashboard.module.css";
 import cstyles from "../common/Common.module.css";
-import { TotalBalance, Info, Address } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
 import AddressBalanceItem from "./components/AddressBalanceItem"; 
+import { ContextApp } from "../../context/ContextAppState";
+import { Address } from "../appstate";
 
-type DashboardProps = {
-  totalBalance: TotalBalance;
-  info: Info;
-  addresses: Address[];
-};
+type DashboardProps = {};
 
 export default class Dashboard extends Component<DashboardProps> {
+  static contextType = ContextApp;
   render() {
-    const { totalBalance, info, addresses } = this.props;
+    const { totalBalance, info, addresses } = this.context;
 
-    const anyPending = addresses && addresses.find((i) => i.containsPending);
+    const anyPending = addresses && addresses.find((i: Address) => i.containsPending);
 
     return (
       <div>
@@ -74,8 +72,8 @@ export default class Dashboard extends Component<DashboardProps> {
                 ) : (
                   <Accordion>
                     {addresses
-                      .filter((ab) => ab.balance > 0)
-                      .map((ab) => (
+                      .filter((ab: Address) => ab.balance > 0)
+                      .map((ab: Address) => (
                         <AddressBalanceItem
                           key={ab.address}
                           item={ab}

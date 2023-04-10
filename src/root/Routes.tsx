@@ -35,16 +35,17 @@ import Sidebar from "../components/sidebar/Sidebar";
 import Transactions from "../components/transactions/Transactions";
 import PasswordModal from "../components/passwordmodal/PasswordModal";
 import ServerSelectModal from "../components/serverselectmodal/ServerSelectModal";
+import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
 type Props = {};
 
-export default class RouteApp extends React.Component<Props, AppState> {
+export default class Routes extends React.Component<Props, AppState> {
   rpc: RPC;
 
   constructor(props: Props) {
     super(props);
 
-    this.state = new AppState();
+    this.state = defaultAppState;
 
     // Create the initial ToAddr box
     this.state.sendPageState.toaddrs = [new ToAddr(Utils.getNextToAddrID())];
@@ -439,55 +440,24 @@ export default class RouteApp extends React.Component<Props, AppState> {
   };
 
   render() {
-    const {
-      totalBalance,
-      transactions,
-      addressPrivateKeys,
-      addressViewKeys,
-      addresses,
-      addressBook,
-      sendPageState,
-      receivePageState,
-      rpcConfig,
-      info,
-      rescanning,
-      prevSyncId,
-      errorModalData,
-      serverSelectState,
-      passwordState,
-      walletSettings,
-      verificationProgress
-    } = this.state;
+    const { info } = this.state;
 
     const standardProps = {
       openErrorModal: this.openErrorModal,
       closeErrorModal: this.closeErrorModal,
       setSendTo: this.setSendTo,
-      info,
       openPasswordAndUnlockIfNeeded: this.openPasswordAndUnlockIfNeeded,
     };
 
     const hasLatestBlock = info && info.latestBlock > 0 ? true : false;
 
     return (
-      <>
-        <ErrorModal
-          title={errorModalData.title}
-          body={errorModalData.body}
-          modalIsOpen={errorModalData.modalIsOpen}
-          closeModal={this.closeErrorModal}
-        />
+      <ContextAppProvider value={this.state}>
+        <ErrorModal closeModal={this.closeErrorModal} />
 
-        <PasswordModal
-          modalIsOpen={passwordState.showPassword}
-          confirmNeeded={passwordState.confirmNeeded}
-          passwordCallback={passwordState.passwordCallback}
-          closeCallback={passwordState.closeCallback}
-          helpText={passwordState.helpText}
-        />
+        <PasswordModal />
 
         <ServerSelectModal
-          modalIsOpen={serverSelectState.modalIsOpen}
           closeModal={this.closeServerSelectModal}
           openErrorModal={this.openErrorModal}
         />
@@ -499,17 +469,13 @@ export default class RouteApp extends React.Component<Props, AppState> {
                 setInfo={this.setInfo}
                 setRescanning={this.setRescanning}
                 getPrivKeyAsString={this.getPrivKeyAsString}
-                addresses={addresses}
                 importPrivKeys={this.importPrivKeys}
-                transactions={transactions}
                 lockWallet={this.lockWallet}
                 encryptWallet={this.encryptWallet}
                 decryptWallet={this.decryptWallet}
                 openPassword={this.openPassword}
                 clearTimers={this.clearTimers}
-                walletSettings={walletSettings}
                 updateWalletSettings={this.updateWalletSettings}
-                verificationProgress={verificationProgress}
                 {...standardProps}
               />
             </div>
@@ -521,12 +487,8 @@ export default class RouteApp extends React.Component<Props, AppState> {
                 path={routes.SEND}
                 render={() => (
                   <Send
-                    addresses={addresses}
                     sendTransaction={this.sendTransaction}
-                    sendPageState={sendPageState}
                     setSendPageState={this.setSendPageState}
-                    totalBalance={totalBalance}
-                    addressBook={addressBook}
                     {...standardProps}
                   />
                 )}
@@ -535,16 +497,9 @@ export default class RouteApp extends React.Component<Props, AppState> {
                 path={routes.RECEIVE}
                 render={() => (
                   <Receive
-                    rerenderKey={receivePageState.rerenderKey}
-                    addresses={addresses}
-                    addressPrivateKeys={addressPrivateKeys}
-                    addressViewKeys={addressViewKeys}
-                    receivePageState={receivePageState}
-                    addressBook={addressBook}
                     {...standardProps}
                     fetchAndSetSinglePrivKey={this.fetchAndSetSinglePrivKey}
                     fetchAndSetSingleViewKey={this.fetchAndSetSingleViewKey}
-                    createNewAddress={this.createNewAddress}
                   />
                 )}
               />
@@ -552,7 +507,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
                 path={routes.ADDRESSBOOK}
                 render={() => (
                   <AddressBook
-                    addressBook={addressBook}
                     addAddressBookEntry={this.addAddressBookEntry}
                     removeAddressBookEntry={this.removeAddressBookEntry}
                     {...standardProps}
@@ -562,18 +516,14 @@ export default class RouteApp extends React.Component<Props, AppState> {
               <Route
                 path={routes.DASHBOARD}
                 render={() => (
-                  <Dashboard totalBalance={totalBalance} info={info} addresses={addresses} />
+                  <Dashboard />
                 )}
               />
               <Route
                 path={routes.TRANSACTIONS}
                 render={() => (
                   <Transactions
-                    transactions={transactions}
-                    info={info}
-                    addressBook={addressBook}
                     setSendTo={this.setSendTo}
-                    totalBalance={totalBalance}
                   />
                 )}
               />
@@ -582,8 +532,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
                 path={routes.ZCASHD}
                 render={() => (
                   <Zcashd
-                    info={info}
-                    rpcConfig={rpcConfig}
                     refresh={this.doRefresh}
                     openServerSelectModal={this.openServerSelectModal}
                   />
@@ -595,8 +543,6 @@ export default class RouteApp extends React.Component<Props, AppState> {
                 render={() => (
                   <LoadingScreen
                     setRPCConfig={this.setRPCConfig}
-                    rescanning={rescanning}
-                    prevSyncId={prevSyncId}
                     setRescanning={this.setRescanning}
                     setInfo={this.setInfo}
                     openServerSelectModal={this.openServerSelectModal}
@@ -606,7 +552,7 @@ export default class RouteApp extends React.Component<Props, AppState> {
             </Switch>
           </div>
         </div>
-      </>
+      </ContextAppProvider>
     );
   }
 }

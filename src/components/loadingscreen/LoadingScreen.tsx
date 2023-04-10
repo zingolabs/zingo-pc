@@ -11,6 +11,7 @@ import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
 import Logo from "../../assets/img/logobig.png";
 import Utils from "../../utils/utils";
+import { ContextApp } from "../../context/ContextAppState";
 
 const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
@@ -56,14 +57,13 @@ class LoadingScreenState {
 
 type LoadingScreenProps = {
   setRPCConfig: (rpcConfig: RPCConfig) => void;
-  rescanning: boolean;
-  prevSyncId: number;
   setRescanning: (rescan: boolean, prevSyncId: number) => void;
   setInfo: (info: Info) => void;
   openServerSelectModal: () => void;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
+  static contextType = ContextApp;
   constructor(props: LoadingScreenProps & RouteComponentProps) {
     super(props);
 
@@ -72,7 +72,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   }
 
   componentDidMount() {
-    const { rescanning, prevSyncId } = this.props;
+    const { rescanning, prevSyncId } = this.context;
 
     if (rescanning) {
       this.runSyncStatusPoller(prevSyncId);

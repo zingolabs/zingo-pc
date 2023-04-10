@@ -5,7 +5,7 @@ import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
 import Logo from "../../assets/img/logobig.png";
-import { Address, Info, Transaction, WalletSettings } from "../appstate";
+import { Address, Info, Transaction } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
@@ -14,15 +14,13 @@ import PayURIModal from "./components/PayURIModal";
 import ImportPrivKeyModal from "./components/ImportPrivKeyModal";
 import ExportPrivKeyModal from "./components/ExportPrivKeyModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
+import { ContextApp } from "../../context/ContextAppState";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
 
 type SidebarProps = {
-  info: Info;
   setRescanning: (rescan: boolean, prevSyncId: number) => void;
-  addresses: Address[];
-  transactions: Transaction[];
   setInfo: (info: Info) => void;
   clearTimers: () => void;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
@@ -39,9 +37,7 @@ type SidebarProps = {
   lockWallet: () => void;
   encryptWallet: (p: string) => void;
   decryptWallet: (p: string) => Promise<boolean>;
-  walletSettings: WalletSettings;
   updateWalletSettings: () => Promise<void>;
-  verificationProgress: number;
 };
 
 type SidebarState = {
@@ -52,10 +48,10 @@ type SidebarState = {
   exportPrivKeysModalIsOpen: boolean;
   exportedPrivKeys: string[];
   walletSettingsModalIsOpen: boolean;
-  serverLatestBlock: number;
 };
 
 class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarState> {
+  static contextType = ContextApp;
   constructor(props: SidebarProps & RouteComponentProps) {
     super(props);
     this.state = {
@@ -66,7 +62,6 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       exportedPrivKeys: [],
       privKeyInputValue: null,
       walletSettingsModalIsOpen: false,
-      serverLatestBlock: props.info.latestBlock,
     };
 
     this.setupMenuHandlers();
@@ -111,7 +106,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Donate button
     ipcRenderer.on("donate", () => {
-      const { info } = this.props;
+      const { info } = this.context;
 
       setSendTo(
         new ZcashURITarget(
@@ -181,8 +176,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
       if (save.filePath) {
         // Construct a CSV
-        const { transactions } = this.props;
-        const rows = transactions.flatMap((t) => {
+        const { transactions } = this.context;
+        const rows = transactions.flatMap((t: Transaction) => {
           if (t.detailedTxns) {
             return t.detailedTxns.map((dt) => {
               const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
@@ -211,19 +206,20 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Encrypt wallet
     ipcRenderer.on("encrypt", async () => {
-      const { info, lockWallet, encryptWallet, openPassword } = this.props;
+      const { lockWallet, encryptWallet, openPassword } = this.props;
+      const { info } = this.context;
 
       if (info.encrypted && info.locked) {
         openErrorModal("Already Encrypted", "Your wallet is already encrypted and locked.");
       } else if (info.encrypted && !info.locked) {
-        await lockWallet();
+        lockWallet();
         openErrorModal("Locked", "Your wallet has been locked. A password will be needed to spend funds.");
       } else {
         // Encrypt the wallet
         openPassword(
           true,
           async (password) => {
-            await encryptWallet(password);
+            encryptWallet(password);
             openErrorModal("Encrypted", "Your wallet has been encrypted. The password will be needed to spend funds.");
           },
           () => {
@@ -239,7 +235,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Remove wallet encryption
     ipcRenderer.on("decrypt", async () => {
-      const { info, decryptWallet, openPassword } = this.props;
+      const { decryptWallet, openPassword } = this.props;
+      const { info } = this.context;
 
       if (!info.encrypted) {
         openErrorModal("Not Encrypted", "Your wallet is not encrypted and ready for spending.");
@@ -268,7 +265,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Unlock wallet
     ipcRenderer.on("unlock", () => {
-      const { info } = this.props;
+      const { info } = this.context;
       if (!info.encrypted || !info.locked) {
         openErrorModal("Already Unlocked", "Your wallet is already unlocked for spending");
       } else {
@@ -301,9 +298,10 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     // Export all private keys
     ipcRenderer.on("exportall", async () => {
       // Get all the addresses and run export key on each of them.
-      const { addresses, getPrivKeyAsString } = this.props;
+      const { getPrivKeyAsString } = this.props;
+      const { addresses } = this.context;
       openPasswordAndUnlockIfNeeded(async () => {
-        const privKeysPromise = addresses.map(async (a) => {
+        const privKeysPromise: Promise<string>[] = addresses.map(async (a: Address) => {
           const privKey = getPrivKeyAsString(a.address);
           return `${privKey} #${a}`;
         });
@@ -352,7 +350,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
   };
 
   doImportPrivKeys = async (key: string, birthday: string) => {
-    const { importPrivKeys, openErrorModal, setInfo, clearTimers, setRescanning, history, info } = this.props;
+    const { importPrivKeys, openErrorModal, setInfo, clearTimers, setRescanning, history } = this.props;
+    const { info } = this.context;
 
     if (key) {
       let keys = key.split(new RegExp("[\\n\\r]+"));
@@ -473,7 +472,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
   };
 
   render() {
-    const { location, info, walletSettings, verificationProgress } = this.props;
+    const { location } = this.props;
+    const { info, walletSettings, verificationProgress } = this.context;
     const {
       uriModalIsOpen,
       uriModalInputValue,
@@ -482,12 +482,11 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       exportPrivKeysModalIsOpen,
       exportedPrivKeys,
       walletSettingsModalIsOpen,
-      serverLatestBlock,
     } = this.state;
 
     let stateSync = "DISCONNECTED";
     let progress = "100";
-    if (serverLatestBlock) {
+    if (info.latestBlock) {
       if (verificationProgress < 99.9999) {
         stateSync = "SYNCING";
         progress = (verificationProgress).toFixed(2);

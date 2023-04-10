@@ -7,9 +7,9 @@ import ScrollPane from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ZcashURITarget } from "../../utils/uris";
 import AddressBookItem from './components/AddressbookItem';
+import { ContextApp } from "../../context/ContextAppState";
 
 type AddressBookProps = {
-  addressBook: AddressBookEntry[];
   addAddressBookEntry: (label: string, address: string) => void;
   removeAddressBookEntry: (label: string) => void;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
@@ -22,6 +22,7 @@ type AddressBookState = {
 };
 
 export default class AddressBook extends Component<AddressBookProps, AddressBookState> {
+  static contextType = ContextApp;
   constructor(props: AddressBookProps) {
     super(props);
 
@@ -62,9 +63,9 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
   };
 
   validate = (currentLabel: string, currentAddress: string) => {
-    const { addressBook } = this.props;
+    const { addressBook } = this.context;
 
-    let labelError = addressBook.find((i) => i.label === currentLabel) ? "Duplicate Label" : null;
+    let labelError = addressBook.find((i: AddressBookEntry) => i.label === currentLabel) ? "Duplicate Label" : null;
     labelError = currentLabel.length > 12 ? "Label is too long" : labelError;
 
     const addressType = Utils.getAddressType(currentAddress);
@@ -79,7 +80,8 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
   };
 
   render() {
-    const { addressBook, removeAddressBookEntry, setSendTo } = this.props;
+    const { removeAddressBookEntry, setSendTo } = this.props;
+    const { addressBook } = this.context;
     const { currentLabel, currentAddress, addButtonEnabled } = this.state; 
 
     const { labelError, addressIsValid, addressType } = this.validate(currentLabel, currentAddress);
@@ -160,7 +162,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
             <div className={styles.addressbooklist}>
               {addressBook && addressBook.length > 0 && (
                 <Accordion>
-                  {addressBook.map((item) => (
+                  {addressBook.map((item: AddressBookEntry) => (
                     <AddressBookItem
                       key={item.label}
                       item={item}

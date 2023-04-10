@@ -1,14 +1,9 @@
 import React, { PureComponent } from "react";
 import Modal from "react-modal";
 import cstyles from "../common/Common.module.css";
+import { ContextApp } from "../../context/ContextAppState";
 
-type PasswordModalProps = {
-  modalIsOpen: boolean;
-  confirmNeeded: boolean;
-  passwordCallback: (password: string) => void;
-  closeCallback: () => void;
-  helpText?: string | JSX.Element;
-};
+type PasswordModalProps = {};
 
 type PasswordModalState = {
   password: string;
@@ -16,6 +11,7 @@ type PasswordModalState = {
 };
 
 export default class PasswordModal extends PureComponent<PasswordModalProps, PasswordModalState> {
+  static contextType = ContextApp;
   constructor(props: PasswordModalProps) {
     super(props);
 
@@ -23,7 +19,8 @@ export default class PasswordModal extends PureComponent<PasswordModalProps, Pas
   }
 
   enterButton = () => {
-    const { passwordCallback } = this.props;
+    const { passwordState } = this.context;
+    const { passwordCallback } = passwordState;
     const { password } = this.state;
 
     passwordCallback(password);
@@ -33,7 +30,8 @@ export default class PasswordModal extends PureComponent<PasswordModalProps, Pas
   };
 
   closeButton = () => {
-    const { closeCallback } = this.props;
+    const { passwordState } = this.context;
+    const { closeCallback } = passwordState;
 
     closeCallback();
 
@@ -42,7 +40,8 @@ export default class PasswordModal extends PureComponent<PasswordModalProps, Pas
   };
 
   render() {
-    const { modalIsOpen, confirmNeeded, helpText } = this.props;
+    const { passwordState } = this.context;
+    const { modalIsOpen, confirmNeeded, helpText } = passwordState;
     const { password, confirmPassword } = this.state;
 
     const enabled = !confirmNeeded || password === confirmPassword;

@@ -4,9 +4,7 @@ import cstyles from "../common/Common.module.css";
 import {
   ToAddr,
   SendPageState,
-  Info,
   AddressBookEntry,
-  TotalBalance,
   SendProgress,
   Address,
   AddressType,
@@ -19,6 +17,7 @@ import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
 import ToAddrBox from "./components/ToAddrBox";
 import ConfirmModal from "./components/ConfirmModal";
+import { ContextApp } from "../../context/ContextAppState";
 
 type OptionType = {
   value: string;
@@ -26,15 +25,10 @@ type OptionType = {
 };
 
 type SendProps = {
-  addresses: Address[];
-  totalBalance: TotalBalance;
-  addressBook: AddressBookEntry[];
-  sendPageState: SendPageState;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string>;
   setSendPageState: (sendPageState: SendPageState) => void;
   openErrorModal: (title: string, body: string) => void;
-  info: Info;
   openPasswordAndUnlockIfNeeded: (successCallback: () => void) => void;
 };
 
@@ -50,6 +44,7 @@ class SendState {
 }
 
 export default class Send extends PureComponent<SendProps, SendState> {
+  static contextType = ContextApp;
   constructor(props: SendProps) {
     super(props);
 
@@ -71,7 +66,8 @@ export default class Send extends PureComponent<SendProps, SendState> {
   */
 
   clearToAddrs = () => {
-    const { sendPageState, setSendPageState } = this.props;
+    const { setSendPageState } = this.props;
+    const { sendPageState } = this.context;
     const newToAddrs = [new ToAddr(Utils.getNextToAddrID())];
 
     // Create the new state object
@@ -83,7 +79,8 @@ export default class Send extends PureComponent<SendProps, SendState> {
   };
 
   changeFrom = (selectedOption: OptionType) => {
-    const { sendPageState, setSendPageState } = this.props;
+    const { setSendPageState } = this.props;
+    const { sendPageState } = this.context;
 
     // Create the new state object
     const newState = new SendPageState();
@@ -99,11 +96,12 @@ export default class Send extends PureComponent<SendProps, SendState> {
     amount: React.ChangeEvent<HTMLInputElement> | null,
     memo: React.ChangeEvent<HTMLTextAreaElement> | string | null
   ) => {
-    const { sendPageState, setSendPageState, setSendTo } = this.props;
+    const { setSendPageState, setSendTo } = this.props;
+    const { sendPageState } = this.context;
 
     const newToAddrs = sendPageState.toaddrs.slice(0);
     // Find the correct toAddr
-    const toAddr = newToAddrs.find((a) => a.id === id) as ToAddr;
+    const toAddr = newToAddrs.find((a: ToAddr) => a.id === id) as ToAddr;
     if (address) {
       // First, check if this is a URI
       // $FlowFixMe
@@ -145,17 +143,18 @@ export default class Send extends PureComponent<SendProps, SendState> {
   };
 
   setMaxAmount = (id: number, total: number) => {
-    const { sendPageState, setSendPageState } = this.props;
+    const { setSendPageState } = this.props;
+    const { sendPageState } = this.context;
 
     const newToAddrs = sendPageState.toaddrs.slice(0);
 
-    let totalOtherAmount: number = newToAddrs.filter((a) => a.id !== id).reduce((s, a) => s + a.amount, 0);
+    let totalOtherAmount: number = newToAddrs.filter((a: ToAddr) => a.id !== id).reduce((s: number, a: ToAddr) => s + a.amount, 0);
 
     // Add Fee
     totalOtherAmount += RPC.getDefaultFee();
 
     // Find the correct toAddr
-    const toAddr = newToAddrs.find((a) => a.id === id) as ToAddr;
+    const toAddr = newToAddrs.find((a: ToAddr) => a.id === id) as ToAddr;
     toAddr.amount = total - totalOtherAmount;
     if (toAddr.amount < 0) toAddr.amount = 0;
     toAddr.amount = Number(Utils.maxPrecisionTrimmed(toAddr.amount)); 
@@ -193,8 +192,8 @@ export default class Send extends PureComponent<SendProps, SendState> {
 
   getLabelForFromAddress = (addr: string, addresses: Address[], currencyName: string) => {
     // Find the addr in addresses
-    const { addressBook } = this.props;
-    const label = addressBook.find((ab) => ab.address === addr);
+    const { addressBook } = this.context;
+    const label = addressBook.find((ab: AddressBookEntry) => ab.address === addr);
     const labelStr = label ? ` [ ${label.label} ]` : "";
 
     const balance = this.getBalanceForAddress(addr, addresses);
@@ -205,17 +204,19 @@ export default class Send extends PureComponent<SendProps, SendState> {
   render() {
     const { modalIsOpen, sendButtonEnabled } = this.state;
     const {
-      addresses,
       sendTransaction,
-      sendPageState,
-      info,
-      totalBalance,
       openErrorModal,
       openPasswordAndUnlockIfNeeded,
     } = this.props;
+    const {
+      addresses,
+      sendPageState,
+      info,
+      totalBalance,
+    } = this.context;
 
     const totalAmountAvailable = totalBalance.transparent + totalBalance.spendableZ + totalBalance.uabalance;
-    const fromaddr = addresses.find((a) => a.type === AddressType.unified)?.address || ""; 
+    const fromaddr = addresses.find((a: Address) => a.type === AddressType.unified)?.address || ""; 
 
     // If there are unverified funds, then show a tooltip
     let tooltip: string = "";
@@ -258,7 +259,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
         <div className={[styles.horizontalcontainer].join(" ")}>
           <div className={cstyles.containermarginleft}>
             <ScrollPane offsetHeight={220}>
-              {sendPageState.toaddrs.map((toaddr) => {
+              {sendPageState.toaddrs.map((toaddr: ToAddr) => {
                 return (
                   <ToAddrBox
                     key={toaddr.id}

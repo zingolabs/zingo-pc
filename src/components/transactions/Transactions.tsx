@@ -1,20 +1,17 @@
 import React, { Component } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Transactions.module.css";
-import { Transaction, Info, AddressBookEntry, TotalBalance } from "../appstate";
+import { Transaction, AddressBookEntry } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
 import TxItemBlock from "./components/TxItemBlock";
 import TxModal from "./components/TxModal";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
 import Utils from "../../utils/utils";
+import { ContextApp } from "../../context/ContextAppState";
 
 type TransactionsProps = {
-  transactions: Transaction[];
-  addressBook: AddressBookEntry[];
-  info: Info;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
-  totalBalance: TotalBalance;
 };
 
 type TransactionsState = {
@@ -24,6 +21,7 @@ type TransactionsState = {
 };
 
 export default class Transactions extends Component<TransactionsProps, TransactionsState> {
+  static contextType = ContextApp;
   constructor(props: TransactionsProps) {
     super(props);
 
@@ -47,12 +45,13 @@ export default class Transactions extends Component<TransactionsProps, Transacti
   };
 
   render() {
-    const { transactions, info, addressBook, setSendTo, totalBalance } = this.props;
+    const { setSendTo } = this.props;
+    const { transactions, info, addressBook, totalBalance } = this.context;
     const { clickedTx, modalIsOpen, numTxnsToShow } = this.state;
 
     const isLoadMoreEnabled = transactions && numTxnsToShow < transactions.length;
 
-    const addressBookMap: Map<string, string> = addressBook.reduce((m, obj) => {
+    const addressBookMap: Map<string, string> = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
       m.set(obj.address, obj.label);
       return m; 
     }, new Map());
@@ -101,7 +100,7 @@ export default class Transactions extends Component<TransactionsProps, Transacti
             <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
           )}
           {transactions &&
-            transactions.slice(0, numTxnsToShow).map((t) => {
+            transactions.slice(0, numTxnsToShow).map((t: Transaction) => {
               const key = t.type + t.txid + (t.position || "");
               return (
                 <TxItemBlock

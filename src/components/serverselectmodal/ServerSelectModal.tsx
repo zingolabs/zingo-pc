@@ -1,16 +1,19 @@
 import Modal from "react-modal";
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
+import { ContextApp } from "../../context/ContextAppState";
 const { ipcRenderer } = window.require("electron");
 
 type ModalProps = {
-  modalIsOpen: boolean;
   closeModal: () => void;
   openErrorModal: (title: string, body: string) => void;
 };
 
-export default function ServerSelectModal({ modalIsOpen, closeModal, openErrorModal }: ModalProps) {
+export default function ServerSelectModal({ closeModal, openErrorModal }: ModalProps) {
+  const context = useContext(ContextApp);
+  const { serverSelectState } = context;
+  const { modalIsOpen } = serverSelectState;
   const [selected, setSelected] = useState("");
   const [custom, setCustom] = useState("");
 
