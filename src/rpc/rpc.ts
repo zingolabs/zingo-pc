@@ -618,7 +618,8 @@ export default class RPC {
         ab.type = o.address_type;
         return ab;
       })
-      .filter((ab: Address) => ab.balance > 0);
+      // I need all the addresses here
+      //.filter((ab: Address) => ab.balance > 0);
 
     const zaddresses = balanceJSON.z_addresses
       .map((o: any) => {
@@ -630,7 +631,8 @@ export default class RPC {
         ab.type = o.address_type;
         return ab;
       })
-      .filter((ab: Address) => ab.balance > 0);
+      // I need all the addresses here
+      //.filter((ab: Address) => ab.balance > 0);
 
     //console.log(zaddresses);
 
@@ -644,7 +646,8 @@ export default class RPC {
         ab.type = o.address_type;
         return ab;
       })
-      .filter((ab: Address) => ab.balance > 0);
+      // I need all the addresses here
+      //.filter((ab: Address) => ab.balance > 0);
 
     const addresses = uaddresses.concat(zaddresses.concat(taddresses));    
 
