@@ -30,7 +30,7 @@ class LoadingScreenState {
   walletScreen: number; 
   // 0 -> no wallet, load existing wallet 
   // 1 -> show option 
-  // 2-> create new 
+  // 2 -> create new 
   // 3 -> restore existing
 
   newWalletError: null | string; // Any errors when creating/restoring wallet
@@ -142,17 +142,18 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // Try to load the light client
     const { url } = this.state;
 
+    console.log(`Url: -${url}-`);
+
     // First, set up the exit handler
     this.setupExitHandler();
 
     // Test to see if the wallet exists
-    if (!native.zingolib_wallet_exists("main")) {
+    if (!native.zingolib_wallet_exists(url)) {
       // Show the wallet creation screen
       this.setState({ walletScreen: 1 });
     } else {
       try {
         const result = native.zingolib_initialize_existing(url);
-        console.log(`Url: ${url}`);
         console.log(`Initialization: ${result}`);
         if (result !== "OK") {
           this.setState({
@@ -171,7 +172,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
         this.getInfo();
       } catch (err) {
-        console.log(`Url: ${url}`);
         console.log("Error initializing", err);
         this.setState({
           currentStatus: (

@@ -487,9 +487,13 @@ export default class RPC {
     // Construct unspent_notes concatenating unspent_orchard_notes and unspent_sapling_notes
     const ua_unsp_notes = notesJSON.unspent_orchard_notes;
     const z_unsp_notes = notesJSON.unspent_sapling_notes.map((z_unsp_note: any) =>{
-      // need to get the sapling address, instead of ua address
+      // need to get the sapling address, instead of ua address 
       const z_addr = addressesJSON.find((a: any) => a.address === z_unsp_note.address);
-      z_unsp_note.address = z_addr.receivers.sapling;
+      if (z_addr) {
+        z_unsp_note.address = z_addr.receivers.sapling;
+      } else {
+        console.log('address unspend note error', z_unsp_note);
+      }
       
       return z_unsp_note;
     });
@@ -501,7 +505,11 @@ export default class RPC {
     const z_pend_notes = notesJSON.pending_sapling_notes.map((z_pend_note: any) =>{
       // need to get the sapling address, instead of ua address
       const z_addr = addressesJSON.find((a: any) => a.address === z_pend_note.address);
-      z_pend_note.address = z_addr.receivers.sapling;
+      if (z_addr) {
+        z_pend_note.address = z_addr.receivers.sapling;
+      } else {
+        console.log('address pend note error', z_pend_note);
+      }
       
       return z_pend_note;
     });
@@ -512,7 +520,11 @@ export default class RPC {
     const utxos = notesJSON.utxos.map((utxo: any) => {
       // need to get the transparent address, instead of ua address
       const t_addr = addressesJSON.find((a: any) => a.address === utxo.address);
-      utxo.address = t_addr.receivers.transparent;
+      if (t_addr) {
+        utxo.address = t_addr.receivers.transparent;
+      } else {
+        console.log('address utxo error', utxo);
+      }
 
       return utxo;
     });
@@ -521,7 +533,11 @@ export default class RPC {
     const pending_utxos = notesJSON.pending_utxos.map((pend_utxo: any) => {
       // need to get the transparent address, instead of ua address
       const t_addr = addressesJSON.find((a: any) => a.address === pend_utxo.address);
-      pend_utxo.address = t_addr.receivers.transparent;
+      if (t_addr) {
+        pend_utxo.address = t_addr.receivers.transparent;
+      } else {
+        console.log('address utxo error', pend_utxo);
+      }
 
       return pend_utxo;
     });
@@ -554,7 +570,11 @@ export default class RPC {
       
       if(note) {
         const z_addr = addressesJSON.find((a: any) => a.address === tx.address);
-        tx.address = z_addr.receivers.sapling;
+        if (z_addr) {
+          tx.address = z_addr.receivers.sapling;
+        } else {
+          console.log('address not found', tx);
+        }
       }
   
       return tx;

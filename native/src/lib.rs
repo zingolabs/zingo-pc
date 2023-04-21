@@ -10,7 +10,7 @@ use neon::prelude::JsString;
 
 use neon::register_module;
 
-use zingoconfig::{ChainType, ZingoConfig};
+use zingoconfig::{self, ZingoConfig, construct_lightwalletd_uri, ChainType};
 use zingolib::{commands, lightclient::LightClient, wallet::WalletBase};
 
 use std::{cell::RefCell, sync::Arc, sync::Mutex, thread};
@@ -38,10 +38,26 @@ register_module!(mut m, {
     Ok(())
 });
 
+fn get_chainnym(server: &str) -> ChainType {
+    // Attempt to guess type from known URIs
+    match server {
+        "https://mainnet.lightwalletd.com:9067/"
+        | "https://lwdv2.zecwallet.co:1443"
+        | "https://lwdv3.zecwallet.co:443" => ChainType::Mainnet,
+        "https://testnet.lightwalletd.com:9067" => ChainType::Testnet,
+        x if x.contains("127.0.0.1") | x.contains("localhost") => ChainType::Regtest,
+        x if x.contains("fakemain") => ChainType::FakeMainnet,
+        _ => panic!("Unrecognized server URI, is it a new server?  What chain does it serve?"),
+    }
+}
+
 // Check if there is an existing wallet
 fn zingolib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
-    let _chain_name = cx.argument::<JsString>(0)?.value(&mut cx);
-    let config = ZingoConfig::create_unconnected(ChainType::Mainnet, None);
+    let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
+
+    let server = construct_lightwalletd_uri(Some(server_uri));
+    let chaintype = get_chainnym(&server.to_string());
+    let config = ZingoConfig::create_unconnected(chaintype, None);
 
     Ok(cx.boolean(config.wallet_exists()))
 }
@@ -51,16 +67,18 @@ fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
     let resp = || {
-        let server = zingoconfig::construct_server_uri(Some(server_uri));
+        let server = construct_lightwalletd_uri(Some(server_uri));
+        let chaintype = get_chainnym(&server.to_string());
+        let block_height = zingolib::get_latest_block_height(server.clone());
 
-        let (config, latest_block_height) = match zingolib::load_clientconfig(server, None) {
-            Ok((c, h)) => (c, h),
+        let config = match zingolib::load_clientconfig(server, None, chaintype) {
+            Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
             }
         };
 
-        let lightclient = match LightClient::new(&config, latest_block_height.saturating_sub(100)) {
+        let lightclient = match LightClient::new(&config, block_height.saturating_sub(100)) {
             Ok(l) => l,
             Err(e) => {
                 return format!("Error: {}", e);
@@ -96,10 +114,11 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
     let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);   
 
     let resp = || {
-        let server = zingoconfig::construct_server_uri(Some(server_uri));
+        let server = construct_lightwalletd_uri(Some(server_uri));
+        let chaintype = get_chainnym(&server.to_string());
 
-        let (config, _latest_block_height) = match zingolib::load_clientconfig(server, None) {
-            Ok((c, h)) => (c, h),
+        let config = match zingolib::load_clientconfig(server, None, chaintype) {
+            Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
             }
@@ -135,10 +154,11 @@ fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
     let resp = || {
-        let server = zingoconfig::construct_server_uri(Some(server_uri));
+        let server = construct_lightwalletd_uri(Some(server_uri));
+        let chaintype = get_chainnym(&server.to_string());
 
-        let (config, _latest_block_height) = match zingolib::load_clientconfig(server, None) {
-            Ok((c, h)) => (c, h),
+        let config = match zingolib::load_clientconfig(server, None, chaintype) {
+            Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
             }
