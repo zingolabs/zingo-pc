@@ -1,9 +1,9 @@
 [package]
 name = "zingolib-native"
 version = "0.1.0"
-authors = ["James Katz"]
+authors = ["James Katz", "ZL Viridian <zingo@zingolabs.com>"]
 license = "ISC"
-edition = "2018"
+edition = "2021"
 exclude = ["native.node"]
 
 [lib]
@@ -12,7 +12,7 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zingolib = { git="https://github.com/ZingoLabs/zingolib", default-features=true, branch = "dev" }
+zingolib = { git="https://github.com/zingolabs/zingolib", default-features=true, branch = "dev" }
 zingoconfig = { git="https://github.com/zingolabs/zingolib", default-features=true, branch = "dev" }
 lazy_static = "1.4.0"
 
