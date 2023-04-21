@@ -10,7 +10,7 @@ use neon::prelude::JsString;
 
 use neon::register_module;
 
-use zingoconfig::{ChainType, ZingoConfig};
+use zingoconfig::{self, ZingoConfig, construct_lightwalletd_uri, ChainType};
 use zingolib::{commands, lightclient::LightClient, wallet::WalletBase};
 
 use std::{cell::RefCell, sync::Arc, sync::Mutex, thread};
@@ -38,18 +38,10 @@ register_module!(mut m, {
     Ok(())
 });
 
-// Check if there is an existing wallet
-fn zingolib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
-    let _chain_name = cx.argument::<JsString>(0)?.value(&mut cx);
-    let config = ZingoConfig::create_unconnected(ChainType::Mainnet, None);
-
-    Ok(cx.boolean(config.wallet_exists()))
-}
-
-fn get_chainnym(server_uri: &str) -> zingoconfig::ChainType {
+fn get_chainnym(server: &str) -> ChainType {
     // Attempt to guess type from known URIs
-    match server_uri {
-        "https://mainnet.lightwalletd.com:9067"
+    match server {
+        "https://mainnet.lightwalletd.com:9067/"
         | "https://lwdv2.zecwallet.co:1443"
         | "https://lwdv3.zecwallet.co:443" => ChainType::Mainnet,
         "https://testnet.lightwalletd.com:9067" => ChainType::Testnet,
@@ -59,13 +51,24 @@ fn get_chainnym(server_uri: &str) -> zingoconfig::ChainType {
     }
 }
 
+// Check if there is an existing wallet
+fn zingolib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
+    let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
+
+    let server = construct_lightwalletd_uri(Some(server_uri));
+    let chaintype = get_chainnym(&server.to_string());
+    let config = ZingoConfig::create_unconnected(chaintype, None);
+
+    Ok(cx.boolean(config.wallet_exists()))
+}
+
 /// Create a new wallet and return the seed for the newly created wallet.
 fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
     let resp = || {
-        let server = zingoconfig::construct_lightwalletd_uri(Some(server_uri));
-        let chaintype = get_chainnym(&server.host().expect("It's a URI, it has a host."));
+        let server = construct_lightwalletd_uri(Some(server_uri));
+        let chaintype = get_chainnym(&server.to_string());
         let block_height = zingolib::get_latest_block_height(server.clone());
 
         let config = match zingolib::load_clientconfig(server, None, chaintype) {
@@ -111,8 +114,8 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
     let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);   
 
     let resp = || {
-        let server = zingoconfig::construct_lightwalletd_uri(Some(server_uri));
-        let chaintype = get_chainnym(&server.host().expect("It's a URI, it has a host."));
+        let server = construct_lightwalletd_uri(Some(server_uri));
+        let chaintype = get_chainnym(&server.to_string());
 
         let config = match zingolib::load_clientconfig(server, None, chaintype) {
             Ok(c) => c,
@@ -151,8 +154,8 @@ fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
     let resp = || {
-        let server = zingoconfig::construct_lightwalletd_uri(Some(server_uri));
-        let chaintype = get_chainnym(&server.host().expect("It's a URI, it has a host."));
+        let server = construct_lightwalletd_uri(Some(server_uri));
+        let chaintype = get_chainnym(&server.to_string());
 
         let config = match zingolib::load_clientconfig(server, None, chaintype) {
             Ok(c) => c,
