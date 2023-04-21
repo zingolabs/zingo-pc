@@ -19,6 +19,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
 
   const servers = [
     { name: "Zcash Community (Default)", uri: Utils.ZCASH_COMMUNITY},
+    { name: "Zec Wallet", uri: Utils.V3_LIGHTWALLETD},
   ];
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
       const settings = await ipcRenderer.invoke("loadSettings");
       const server = settings?.serveruri || "";
       // not custom
-      if (server === Utils.ZCASH_COMMUNITY) {
+      if (server === Utils.ZCASH_COMMUNITY || server === Utils.V3_LIGHTWALLETD) {
         setSelected(server);
       } else {
         setSelected("custom");

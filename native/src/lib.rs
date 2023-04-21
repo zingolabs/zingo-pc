@@ -42,9 +42,9 @@ fn get_chainnym(server: &str) -> ChainType {
     // Attempt to guess type from known URIs
     match server {
         "https://mainnet.lightwalletd.com:9067/"
-        | "https://lwdv2.zecwallet.co:1443"
-        | "https://lwdv3.zecwallet.co:443" => ChainType::Mainnet,
-        "https://testnet.lightwalletd.com:9067" => ChainType::Testnet,
+        | "https://lwdv2.zecwallet.co:1443/"
+        | "https://lwdv3.zecwallet.co:443/" => ChainType::Mainnet,
+        "https://testnet.lightwalletd.com:9067/" => ChainType::Testnet,
         x if x.contains("127.0.0.1") | x.contains("localhost") => ChainType::Regtest,
         x if x.contains("fakemain") => ChainType::FakeMainnet,
         _ => panic!("Unrecognized server URI, is it a new server?  What chain does it serve?"),
