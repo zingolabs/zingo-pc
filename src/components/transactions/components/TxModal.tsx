@@ -82,9 +82,22 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     history.push(routes.SEND);
   };
 
+  let fees = 0;
+
   const totalAmounts =
-    tx && tx.detailedTxns ? tx.detailedTxns.reduce((s, t) => Math.abs(parseFloat(t.amount)) + s, 0) : 0;
-  const fees = tx ? Math.abs(tx.amount) - totalAmounts : 0;
+    tx && tx.detailedTxns ? tx.detailedTxns.reduce((s, t) => s + (parseFloat(t.amount) ? parseFloat(t.amount) : 0), 0) : 0;
+  // normal case: spend 1600 fee 1000 sent 600
+  if (tx && tx.type === 'sent' && tx.amount && Math.abs(tx.amount) > Math.abs(totalAmounts)) {
+    fees = Math.abs(tx.amount) - Math.abs(totalAmounts);
+  }
+  // self-send case: spend 1000 fee 1000 sent 0
+  // this is temporary until we have a new field in 'list' object, called: fee.
+  if (tx && tx.type === 'sent' && tx.amount && Math.abs(tx.amount) <= Math.abs(totalAmounts)) {
+    fees = Math.abs(tx.amount);
+  }
+
+  //console.log(tx);
+  //console.log(tx?.detailedTxns);
 
   return (
     <Modal
@@ -106,7 +119,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
           <div className={[cstyles.center].join(" ")} style={{ marginLeft: 20 }}>
             <BalanceBlockHighlight
               zecValue={amount}
-              usdValue={Utils.getZecToUsdString(price, Math.abs(amount))}
+              usdValue={Utils.getZecToUsdString(price, amount)}
               currencyName={currencyName}
             />
           </div>
