@@ -491,8 +491,6 @@ export default class RPC {
       const z_addr = addressesJSON.find((a: any) => a.address === z_unsp_note.address);
       if (z_addr) {
         z_unsp_note.address = z_addr.receivers.sapling;
-      } else {
-        console.log('address unspend note error', z_unsp_note);
       }
       
       return z_unsp_note;
@@ -507,8 +505,6 @@ export default class RPC {
       const z_addr = addressesJSON.find((a: any) => a.address === z_pend_note.address);
       if (z_addr) {
         z_pend_note.address = z_addr.receivers.sapling;
-      } else {
-        console.log('address pend note error', z_pend_note);
       }
       
       return z_pend_note;
@@ -522,8 +518,6 @@ export default class RPC {
       const t_addr = addressesJSON.find((a: any) => a.address === utxo.address);
       if (t_addr) {
         utxo.address = t_addr.receivers.transparent;
-      } else {
-        console.log('address utxo error', utxo);
       }
 
       return utxo;
@@ -535,8 +529,6 @@ export default class RPC {
       const t_addr = addressesJSON.find((a: any) => a.address === pend_utxo.address);
       if (t_addr) {
         pend_utxo.address = t_addr.receivers.transparent;
-      } else {
-        console.log('address utxo error', pend_utxo);
       }
 
       return pend_utxo;
@@ -572,8 +564,6 @@ export default class RPC {
         const z_addr = addressesJSON.find((a: any) => a.address === tx.address);
         if (z_addr) {
           tx.address = z_addr.receivers.sapling;
-        } else {
-          console.log('address not found', tx);
         }
       }
   
