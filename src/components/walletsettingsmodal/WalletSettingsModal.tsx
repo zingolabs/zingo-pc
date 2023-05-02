@@ -16,15 +16,15 @@ export default function WalletSettingsModal({
   closeModal,
   setWalletSpamFilterThreshold,
 }: WalletSettingsModalProps) {
-  const [selected, setSelected] = useState("");
+  const [selected, setSelected] = useState(""); 
 
   useEffect(() => {
     if (walletSettings.transaction_filter_threshold <= 0) {
       setSelected("no_filter");
     } else {
-      setSelected("filter");
+      setSelected("filter"); 
     }
-  }, [walletSettings]);
+  }, [walletSettings.transaction_filter_threshold]);
 
   return (
     <Modal
@@ -35,7 +35,7 @@ export default function WalletSettingsModal({
     >
       <div className={[cstyles.verticalflex].join(" ")}>
         <div className={cstyles.marginbottomlarge} style={{ textAlign: "left", marginLeft: 10 }}>
-          Filter out Spam Transactions
+          Transaction Filter Threshold
         </div>
 
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
@@ -47,7 +47,7 @@ export default function WalletSettingsModal({
               value="filter"
               onClick={(e) => setWalletSpamFilterThreshold(500)}
             />
-            Don't scan spammy transactions
+            Don't scan spammy transactions (value: 500)
           </div>
 
           <div style={{ margin: "10px" }}>
@@ -58,7 +58,7 @@ export default function WalletSettingsModal({
               defaultChecked={selected === "no_filter"}
               onClick={(e) => setWalletSpamFilterThreshold(0)}
             />
-            Scan all transactions
+            Scan all transactions (value: 0)
           </div>
         </div>
 
