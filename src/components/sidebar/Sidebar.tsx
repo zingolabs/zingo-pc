@@ -565,15 +565,22 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
             name="Address Book"
             routeName={routes.ADDRESSBOOK}
             currentRoute={location.pathname}
-            iconname="fa-address-book"
+            iconname="fa-address-book" 
           />
         </div>
 
         <div className={cstyles.center}>
           {stateSync === "CONNECTED" && (
             <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
-              <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
-              &nbsp; {info.walletHeight}
+              <div>
+                {info.latestBlock === info.walletHeight ? (
+                  <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
+                ) : (
+                  <i className={[cstyles.yellow, "fas", "fa-check"].join(" ")} />
+                )}
+                &nbsp; {info.walletHeight} &nbsp;
+              </div>
+              {info.latestBlock > info.walletHeight && `(${info.latestBlock - info.walletHeight} blocks behind)`}
             </div>
           )}
           {stateSync === "SYNCING" && (
