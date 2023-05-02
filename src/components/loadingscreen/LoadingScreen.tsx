@@ -29,7 +29,7 @@ class LoadingScreenState {
 
   walletScreen: number; 
   // 0 -> no wallet, load existing wallet 
-  // 1 -> show option 
+  // 1 -> show options
   // 2 -> create new 
   // 3 -> restore existing
 
@@ -399,6 +399,20 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     }}
                   >
                     Create New Wallet
+                  </button>
+                  <button
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => {
+                      this.setState({ walletScreen: 0 });
+                      this.setState({
+                        currentStatus: "", 
+                        currentStatusIsError: false,
+                      });
+                      this.doFirstTimeSetup();
+                    }}
+                  >
+                    Open Current Wallet
                   </button>
                   <button
                     type="button"
