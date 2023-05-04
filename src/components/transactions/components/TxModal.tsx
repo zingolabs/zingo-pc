@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { RouteComponentProps, withRouter } from "react-router";
@@ -10,6 +10,7 @@ import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
 import RPC from "../../../rpc/rpc";
+const { clipboard } = window.require("electron");
 
 const { shell } = window.require("electron"); 
 
@@ -29,6 +30,9 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   setSendTo,
   history,
 }) => {
+  const [expandAddress, setExpandAddress] = useState(false); 
+  const [expandTxid, setExpandTxid] = useState(false); 
+  
   let txid = "";
   let type = "";
   let typeIcon = "";
@@ -77,6 +81,8 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   const doReply = (address: string) => {
     const defaultFee = RPC.getDefaultFee();
     setSendTo(new ZcashURITarget(address, defaultFee));
+    setExpandAddress(false);
+    setExpandTxid(false);
     closeModal();
 
     history.push(routes.SEND);
@@ -102,7 +108,11 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   return (
     <Modal
       isOpen={modalIsOpen}
-      onRequestClose={closeModal}
+      onRequestClose={() => {
+        setExpandAddress(false);
+        setExpandTxid(false);
+        closeModal();
+      }}
       className={styles.txmodal}
       overlayClassName={styles.txmodalOverlay}
     >
@@ -151,7 +161,24 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
         <div className={[cstyles.flexspacebetween].join(" ")}>
           <div>
             <div className={[cstyles.sublight].join(" ")}>TXID</div>
-            <div>{txid}</div>
+            <div
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                if (txid) {
+                  clipboard.writeText(txid);
+                  setExpandTxid(true);
+                }
+              }}>
+              <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                {!txid && 'Unknown'}
+                {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
+                {expandTxid && !!txid && (
+                  <>
+                    {txid.length < 80 ? txid : Utils.splitStringIntoChunks(txid, 3).map(item => <div key={item}>{item}</div>)}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           <div className={cstyles.primarybutton} onClick={openTxid}>
@@ -185,7 +212,24 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
             <div key={address} className={cstyles.verticalflex}>
               <div className={[cstyles.sublight].join(" ")}>Address</div>
               <div className={[cstyles.verticalflex].join(" ")}>
-                {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+              <div
+                style={{ cursor: "pointer" }}
+                onClick={() => {
+                  if (address) {
+                    clipboard.writeText(address);
+                    setExpandAddress(true);
+                  }
+                }}>
+                <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                  {!address && 'Unknown'}
+                  {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
+                  {expandAddress && !!address && (
+                    <>
+                      {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+                    </>
+                  )}
+                </div>
+              </div>
               </div>
 
               <div className={cstyles.margintoplarge} />
@@ -229,7 +273,11 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
         })}
 
         <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>
-          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          <button type="button" className={cstyles.primarybutton} onClick={() => {
+            setExpandAddress(false);
+            setExpandTxid(false);
+            closeModal();
+          }}>
             Close
           </button>
         </div>
