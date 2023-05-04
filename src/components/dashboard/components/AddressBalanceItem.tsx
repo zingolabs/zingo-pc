@@ -8,14 +8,18 @@ import styles from "../Dashboard.module.css";
 import cstyles from "../../common/Common.module.css";
 import { Address, AddressType } from "../../appstate";
 import Utils from "../../../utils/utils"; 
+import { useState } from "react";
+const { clipboard } = window.require("electron");
 
 type AddressBalanceItemProps = {
   currencyName: string;
   zecPrice: number;
-  item: Address;
+  item: Address; 
 };
 
 const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItemProps) => {
+  const [expandAddress, setExpandAddress] = useState(false); 
+
   const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(item.balance));
   
   return (
@@ -25,7 +29,24 @@ const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItem
           <div className={[cstyles.flexspacebetween].join(" ")}>
             <div>
               <div className={[cstyles.verticalflex].join(" ")}>
-                {item.address.length < 80 ? item.address : Utils.splitStringIntoChunks(item.address, 3).map(item => <div key={item}>{item}</div>)}
+                <div
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    if (item.address) {
+                      clipboard.writeText(item.address);
+                      setExpandAddress(true);
+                    }
+                  }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                    {!item.address && 'Unknown'}
+                    {!expandAddress && !!item.address && Utils.trimToSmall(item.address, 10)}
+                    {expandAddress && !!item.address && (
+                      <>
+                        {item.address.length < 80 ? item.address : Utils.splitStringIntoChunks(item.address, 3).map(item => <div key={item}>{item}</div>)}
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
               {/* Add label displaying receiver types */}
               {item.type === AddressType.unified && !!item.receivers && (

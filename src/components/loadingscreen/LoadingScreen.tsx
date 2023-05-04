@@ -336,7 +336,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   updateBirthday = (e: React.ChangeEvent<HTMLInputElement>) => {
-    this.setState({ birthday: parseInt(e.target.value) });
+    this.setState({ birthday: isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value) }); 
   };
 
   restoreWalletBack = () => {

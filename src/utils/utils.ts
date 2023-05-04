@@ -7,7 +7,15 @@ export const NO_CONNECTION: string = "Could not connect to zcashd";
 export default class Utils {
   static ZCASH_COMMUNITY: string = "https://mainnet.lightwalletd.com:9067";
   //static ZEBRA: string = "https://zebra-lwd.zecwallet.co:9067";
-  static V3_LIGHTWALLETD: string = "https://lwdv3.zecwallet.co:443"; 
+  static V3_LIGHTWALLETD: string = "https://lwdv3.zecwallet.co:443";
+
+  static trimToSmall(addr?: string, numChars?: number): string {
+    if (!addr) {
+      return '';
+    }
+    const trimSize = numChars || 5;
+    return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
+  }
 
   static getAddressType(addr: string): AddressType | undefined {
     if (!addr) return;
