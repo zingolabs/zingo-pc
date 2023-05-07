@@ -265,6 +265,10 @@ export default class RPC {
     const infostr = native.zingolib_execute("info", "");
     //console.log(`INFO INFO INFO: ${infostr}`);
     try {
+      if (infostr.toLowerCase().startsWith('error')) {
+        console.log("server info Failed", infostr);
+        return new Info(infostr);
+      }
       const infoJSON = JSON.parse(infostr);
 
       const info = new Info();
@@ -306,8 +310,8 @@ export default class RPC {
 
       return info;
     } catch (err) {
-      console.log("Failed to parse info", err);
-      return new Info();
+      console.log("Error: to parse info", err);
+      return new Info("Error: to parse info" + err);
     }
   }
 

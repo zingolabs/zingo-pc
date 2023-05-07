@@ -10,8 +10,9 @@ export default class Info {
     encrypted: boolean;
     locked: boolean;
     walletHeight: number;
+    error?: string;
   
-    constructor() {
+    constructor(error?: string) {
       this.testnet = false;
       this.latestBlock = 0;
       this.connections = 0;
@@ -23,6 +24,7 @@ export default class Info {
       this.encrypted = false;
       this.locked = false;
       this.walletHeight = 0;
+      this.error = error;
     }
   }
   

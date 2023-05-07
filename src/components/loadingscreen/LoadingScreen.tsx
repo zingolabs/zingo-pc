@@ -147,12 +147,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // First, set up the exit handler
     this.setupExitHandler();
 
-    // Test to see if the wallet exists
-    if (!native.zingolib_wallet_exists(url)) {
-      // Show the wallet creation screen
-      this.setState({ walletScreen: 1 });
-    } else {
-      try {
+    try {
+      // Test to see if the wallet exists
+      if (!native.zingolib_wallet_exists(url)) {
+        // Show the wallet creation screen
+        this.setState({ walletScreen: 1 });
+      } else {
         const result = native.zingolib_initialize_existing(url);
         console.log(`Initialization: ${result}`);
         if (result !== "OK") {
@@ -171,19 +171,19 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }
 
         this.getInfo();
-      } catch (err) {
-        console.log("Error initializing", err);
-        this.setState({
-          currentStatus: (
-            <span>
-              Error Initializing Lightclient
-              <br />
-              {`${err}`}
-            </span>
-          ),
-          currentStatusIsError: true,
-        });
       }
+    } catch (err) {
+      console.log("Error initializing", err);
+      this.setState({
+        currentStatus: (
+          <span>
+            Error Initializing Lightclient
+            <br />
+            {`${err}`}
+          </span>
+        ),
+        currentStatusIsError: true,
+      });
     }
   };
 
@@ -213,8 +213,17 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
       this.runSyncStatusPoller(prevSyncId);
     } catch (err) {
-      // Not yet finished loading. So update the state, and setup the next refresh
-      this.setState({ currentStatus: err as string });
+      console.log("Error initializing", err);
+      this.setState({
+        currentStatus: (
+          <span>
+            Error Initializing Lightclient
+            <br />
+            {`${err}`}
+          </span>
+        ),
+        currentStatusIsError: true,
+      });
     }
   }
 
@@ -225,6 +234,20 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { url } = this.state;
 
     const info = RPC.getInfoObject();
+
+    if (info.error) {
+      this.setState({
+        currentStatus: (
+          <span>
+            Error Initializing Lightclient
+            <br />
+            {`${info.error}`}
+          </span>
+        ),
+        currentStatusIsError: true,
+      });
+      return;
+    }
 
     // And after a while, check the sync status.
     const poller = setInterval(() => {
