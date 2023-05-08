@@ -7,8 +7,6 @@ export default class Info {
     solps: number;
     zecPrice: number;
     zcashdVersion: string;
-    encrypted: boolean;
-    locked: boolean;
     walletHeight: number;
     error?: string;
   
@@ -21,8 +19,6 @@ export default class Info {
       this.currencyName = "";
       this.solps = 0;
       this.zecPrice = 0;
-      this.encrypted = false;
-      this.locked = false;
       this.walletHeight = 0;
       this.error = error;
     }
