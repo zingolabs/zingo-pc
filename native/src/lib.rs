@@ -70,7 +70,13 @@ fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
         let chaintype = get_chainnym(&server.to_string());
-        let block_height = zingolib::get_latest_block_height(server.clone());
+        let block_height =
+        match zingolib::get_latest_block_height(server.clone())
+            .map_err(|e| format! {"Error: {e}"})
+        {
+            Ok(height) => height,
+            Err(e) => return e,
+        };
 
         let config = match zingolib::load_clientconfig(server, None, chaintype) {
             Ok(c) => c,
