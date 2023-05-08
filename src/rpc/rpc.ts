@@ -281,15 +281,6 @@ export default class RPC {
       info.currencyName = info.testnet ? "TAZ" : "ZEC";
       info.solps = 0;
 
-      // Zingolib doesn't support any of these commands, so ignore them
-      // const encStatus = native.zingolib_execute("encryptionstatus", "");
-      // const encJSON = JSON.parse(encStatus);
-      // info.encrypted = encJSON.encrypted;
-      // info.locked = encJSON.locked;
-
-      info.encrypted = false;
-      info.locked = false;
-
       // Also set `zecPrice` manually
       const resultStr = native.zingolib_execute("updatecurrentprice", "");
       if (resultStr) {

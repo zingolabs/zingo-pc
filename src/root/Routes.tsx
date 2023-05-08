@@ -147,7 +147,12 @@ export default class Routes extends React.Component<Props, AppState> {
   //    b. If the unlock fails, show an error
   //  4. If wallet is not encrypted or already unlocked, just call the successcallback.
   openPasswordAndUnlockIfNeeded = (successCallback: () => void) => {
+    // always is a success
+    // TODO: I need to change this or removed.
+    successCallback();
+
     // Check if it is locked
+    /*
     const { info } = this.state;
 
     if (info.encrypted && info.locked) {
@@ -171,6 +176,7 @@ export default class Routes extends React.Component<Props, AppState> {
     } else {
       successCallback();
     }
+    */
   };
 
   unlockWallet = async (password: string): Promise<boolean> => {
