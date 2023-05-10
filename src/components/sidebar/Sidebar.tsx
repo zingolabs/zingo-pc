@@ -5,7 +5,7 @@ import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
 import Logo from "../../assets/img/logobig.png";
-import { Address, Info, Transaction } from "../appstate";
+import { Address, Info, Transaction, TxDetail } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
@@ -179,7 +179,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         const { transactions } = this.context;
         const rows = transactions.flatMap((t: Transaction) => {
           if (t.detailedTxns) {
-            return t.detailedTxns.map((dt) => {
+            return t.detailedTxns.map((dt: TxDetail) => {
               const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
 
               // Add a single quote "'" into the memo field to force interpretation as a string, rather than as a

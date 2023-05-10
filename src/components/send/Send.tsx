@@ -94,7 +94,8 @@ export default class Send extends PureComponent<SendProps, SendState> {
     id: number,
     address: React.ChangeEvent<HTMLInputElement> | null,
     amount: React.ChangeEvent<HTMLInputElement> | null,
-    memo: React.ChangeEvent<HTMLTextAreaElement> | string | null
+    memo: React.ChangeEvent<HTMLTextAreaElement> | string | null,
+    memoReplyTo: string | null
   ) => {
     const { setSendPageState, setSendTo } = this.props;
     const { sendPageState } = this.context;
@@ -102,7 +103,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     const newToAddrs = sendPageState.toaddrs.slice(0);
     // Find the correct toAddr
     const toAddr = newToAddrs.find((a: ToAddr) => a.id === id) as ToAddr;
-    if (address) {
+    if (address !== null) {
       // First, check if this is a URI
       // $FlowFixMe
       const parsedUri = parseZcashURI(address.target.value);
@@ -114,7 +115,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
       toAddr.to = address.target.value.replace(/ /g, ""); // Remove spaces
     }
 
-    if (amount) {
+    if (amount !== null) {
       // Check to see the new amount if valid
       // $FlowFixMe
       const newAmount = parseFloat(amount.target.value);
@@ -125,13 +126,17 @@ export default class Send extends PureComponent<SendProps, SendState> {
       toAddr.amount = newAmount;
     }
 
-    if (memo) {
+    if (memo !== null) {
       if (typeof memo === "string") {
         toAddr.memo = memo;
       } else {
         // $FlowFixMe
         toAddr.memo = memo.target.value;
       }
+    }
+
+    if (memoReplyTo != null) {
+      toAddr.memoReplyTo = memoReplyTo;
     }
 
     // Create the new state object

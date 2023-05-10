@@ -4,7 +4,7 @@ import SendManyJsonType from "./SendManyJSONType";
   
 function getSendManyJSON(sendPageState: SendPageState): SendManyJsonType[] {
 const json = sendPageState.toaddrs.flatMap((to) => {
-    const memo = to.memo || "";
+    const memo = (to.memo || "") + (to.memoReplyTo || "");
     const amount = parseInt((to.amount * 10 ** 8).toFixed(0));
 
     if (memo === "") {
