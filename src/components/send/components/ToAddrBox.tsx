@@ -20,7 +20,8 @@ type ToAddrBoxProps = {
     id: number,
     address: React.ChangeEvent<HTMLInputElement> | null,
     amount: React.ChangeEvent<HTMLInputElement> | null,
-    memo: React.ChangeEvent<HTMLTextAreaElement> | string | null
+    memo: React.ChangeEvent<HTMLTextAreaElement> | string | null,
+    memoReplyTo: string | null
   ) => void;
   fromAddress: string;
   fromAmount: number;
@@ -78,13 +79,13 @@ const ToAddrBox = ({
 
   const usdValue = Utils.getZecToUsdString(zecPrice, toaddr.amount);
 
-  const addReplyTo = () => {
-    if (toaddr.memo.endsWith(fromAddress)) {
-      return;
-    }
-
-    if (fromAddress && toaddr.id) {
-      updateToField(toaddr.id, null, null, `${toaddr.memo}\nReply to: \n${fromAddress}`);
+  const addReplyTo = (checked: boolean) => {
+    if (toaddr.id) {
+      if (fromAddress && checked) {
+        updateToField(toaddr.id, null, null, null, `\nReply to: \n${fromAddress}`);
+      } else {
+        updateToField(toaddr.id, null, null, null, "");
+      }
     }
   };
 
@@ -111,7 +112,7 @@ const ToAddrBox = ({
           placeholder="Unified | Sapling | Transparent address"
           className={cstyles.inputbox}
           value={toaddr.to}
-          onChange={(e) => updateToField(toaddr.id as number, e, null, null)}
+          onChange={(e) => updateToField(toaddr.id as number, e, null, null, null)}
         />
         <Spacer />
         <div className={[cstyles.flexspacebetween].join(" ")}>
@@ -126,7 +127,7 @@ const ToAddrBox = ({
             step="any"
             className={cstyles.inputbox}
             value={isNaN(toaddr.amount) ? "" : toaddr.amount}
-            onChange={(e) => updateToField(toaddr.id as number, null, e, null)}
+            onChange={(e) => updateToField(toaddr.id as number, null, e, null, null)}
           />
           <img
             className={styles.toaddrbutton}
@@ -147,20 +148,29 @@ const ToAddrBox = ({
               <div className={cstyles.validationerror}>{toaddr.memo.length}</div>
             </div>
             <TextareaAutosize
-              className={[cstyles.inputbox].join(" ")}
+              className={[toaddr.memoReplyTo ? cstyles.inputboxmemo : cstyles.inputbox].join(" ")}
               value={toaddr.memo}
               disabled={isMemoDisabled}
-              onChange={(e) => updateToField(toaddr.id as number, null, null, e)}
+              onChange={(e) => updateToField(toaddr.id as number, null, null, e, null)}
               minRows={2}
               maxRows={5}
             />
-            <input type="checkbox" onChange={(e) => e.target.checked && addReplyTo()} />
+            {toaddr.memoReplyTo && (
+              <TextareaAutosize
+                className={[cstyles.inputbox].join(" ")}
+                value={toaddr.memoReplyTo}
+                disabled={true}
+                minRows={2}
+                maxRows={5}
+              />
+            )}
+            <input style={{ marginTop: 5 }} type="checkbox" onChange={(e) => addReplyTo(e.target.checked)} />
             Include Reply to Unified address
           </div>
         )}
       </div>
     </div>
   );
-};
+}; 
 
 export default ToAddrBox;

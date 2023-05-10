@@ -4,6 +4,7 @@ export default class ToAddr {
     to: string;
     amount: number;
     memo: string;
+    memoReplyTo: string;
   
     constructor(id?: number) {
       this.id = id;
@@ -11,6 +12,7 @@ export default class ToAddr {
       this.to = "";
       this.amount = 0;
       this.memo = "";
+      this.memoReplyTo = ""; 
     }
   }
   

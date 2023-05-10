@@ -155,7 +155,7 @@ type ConfirmModalProps = {
                   <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
                 ))}
               </div>
-              <ConfirmModalToAddr toaddr={{ to: "Fee", amount: defaultFee, memo: "" }} info={info} />
+              <ConfirmModalToAddr toaddr={{ to: "Fee", amount: defaultFee, memo: "", memoReplyTo: "" }} info={info} />
     
               <div className={cstyles.well}>
                 <div className={[cstyles.flexspacebetween, cstyles.margintoplarge].join(" ")}>

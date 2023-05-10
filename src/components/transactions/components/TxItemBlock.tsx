@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import dateformat from "dateformat";
 import styles from "../Transactions.module.css";
 import cstyles from "../../common/Common.module.css";
-import { Transaction } from "../../appstate";
+import { Transaction, TxDetail } from "../../appstate";
 import Utils from "../../../utils/utils";
 const { clipboard } = window.require("electron");
 
@@ -35,7 +35,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
         </div>
         <div className={styles.txaddressamount}>
-          {transaction.detailedTxns.map((txdetail) => {
+          {transaction.detailedTxns.map((txdetail: TxDetail) => {
             const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
 
             let { address } = txdetail;

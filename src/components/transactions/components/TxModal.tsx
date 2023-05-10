@@ -91,7 +91,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   let fees = 0;
 
   const totalAmounts =
-    tx && tx.detailedTxns ? tx.detailedTxns.reduce((s, t) => s + (parseFloat(t.amount) ? parseFloat(t.amount) : 0), 0) : 0;
+    tx && tx.detailedTxns ? tx.detailedTxns.reduce((s, t: TxDetail) => s + (parseFloat(t.amount) ? parseFloat(t.amount) : 0), 0) : 0;
   // normal case: spend 1600 fee 1000 sent 600
   if (tx && tx.type === 'sent' && tx.amount && Math.abs(tx.amount) > Math.abs(totalAmounts)) {
     fees = Math.abs(tx.amount) - Math.abs(totalAmounts);
@@ -189,7 +189,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-        {detailedTxns.map((txdetail) => {
+        {detailedTxns.map((txdetail: TxDetail) => {
           const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
 
           let { address } = txdetail;

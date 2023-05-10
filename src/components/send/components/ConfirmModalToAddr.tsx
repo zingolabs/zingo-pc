@@ -12,6 +12,7 @@ const ConfirmModalToAddr = ({ toaddr, info }: ConfirmModalToAddrProps) => {
   const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(toaddr.amount);
 
   const memo: string = toaddr.memo ? toaddr.memo : "";
+  const memoReplyTo: string = toaddr.memoReplyTo ? toaddr.memoReplyTo : "";
 
   return (
     <div className={cstyles.well}>
@@ -33,7 +34,7 @@ const ConfirmModalToAddr = ({ toaddr, info }: ConfirmModalToAddrProps) => {
           <div>{Utils.getZecToUsdString(info.zecPrice, toaddr.amount)}</div>
         </div>
       </div>
-      <div className={[cstyles.sublight, cstyles.breakword, cstyles.memodiv].join(" ")}>{memo}</div>
+      <div className={[cstyles.sublight, cstyles.breakword, cstyles.memodiv].join(" ")}>{memo + memoReplyTo}</div>
     </div>
   );
 };
