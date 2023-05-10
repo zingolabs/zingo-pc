@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { withRouter, RouteComponentProps } from "react-router-dom";
 import {
   AccordionItemButton,
@@ -11,6 +11,8 @@ import cstyles from "../../common/Common.module.css";
 import { AddressBookEntry } from "../../appstate";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
+import Utils from "../../../utils/utils";
+const { clipboard } = window.require("electron");
 
 type AddressBookItemProps = {
   item: AddressBookEntry;
@@ -25,13 +27,32 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
   setSendTo,
   history,
 }) => {
+  const [expandAddress, setExpandAddress] = useState(false); 
+  
   return (
     <AccordionItem key={item.label} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.label}>
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={[cstyles.flexspacebetween].join(" ")}>
             <div>{item.label}</div>
-            <div>{item.address}</div>
+            <div
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                if (item.address) {
+                  clipboard.writeText(item.address);
+                  setExpandAddress(true);
+                }
+              }}>
+              <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                {!item.address && 'Unknown'}
+                {!expandAddress && !!item.address && Utils.trimToSmall(item.address, 10)}
+                {expandAddress && !!item.address && (
+                  <>
+                    {item.address.length < 80 ? item.address : Utils.splitStringIntoChunks(item.address, 3).map(item => <div key={item}>{item}</div>)}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         </AccordionItemButton>
       </AccordionItemHeading>
