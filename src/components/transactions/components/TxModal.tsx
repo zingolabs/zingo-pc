@@ -200,11 +200,15 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
           }
 
           let replyTo: string = "";
+          //console.log(memo, tx); 
           if (tx && tx.type === "receive" && memo) {
             const split = memo.split(/[ :\n\r\t]+/);
-            // TODO: parse this address to know what kind is it.
+            // read the last row & if this is a valid address => show the button up
+            //console.log("-", split, "-");
             if (split && split.length > 0) {
-              replyTo = split[split.length - 1];
+              if (Utils.getAddressType(split[split.length - 1]) !== undefined) {
+                replyTo = split[split.length - 1];
+              }
             }
           }
 
@@ -219,7 +223,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                     clipboard.writeText(address);
                     setExpandAddress(true);
                   }
-                }}>
+                }}> 
                 <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
                   {!address && 'Unknown'}
                   {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
@@ -256,10 +260,20 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                 <div>
                   <div className={[cstyles.sublight].join(" ")}>Memo</div>
                   <div className={[cstyles.flexspacebetween].join(" ")}>
-                    <div className={[cstyles.memodiv].join(" ")}>{memo}</div>
+                    <div
+                      className={[
+                        cstyles.small,
+                        cstyles.sublight,
+                        cstyles.padtopsmall,
+                        cstyles.memodiv,
+                        styles.txmemo,
+                      ].join(" ")}
+                    >
+                      {memo}
+                    </div>
                     {replyTo && (
                       <div className={cstyles.primarybutton} onClick={() => doReply(replyTo)}>
-                        Reply
+                        Reply to
                       </div>
                     )}
                   </div>

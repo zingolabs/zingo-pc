@@ -47,7 +47,8 @@ const PayURIModal = ({
       <div className={cstyles.buttoncontainer}>
         {actionButtonName && (
           <button
-            type="button"
+            type="button" 
+            disabled={!modalInput}
             className={cstyles.primarybutton}
             onClick={() => {
               if (modalInput) {

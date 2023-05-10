@@ -84,7 +84,7 @@ const ToAddrBox = ({
     }
 
     if (fromAddress && toaddr.id) {
-      updateToField(toaddr.id, null, null, `${toaddr.memo}\nReply-To:\n${fromAddress}`);
+      updateToField(toaddr.id, null, null, `${toaddr.memo}\nReply to: \n${fromAddress}`);
     }
   };
 
@@ -155,7 +155,7 @@ const ToAddrBox = ({
               maxRows={5}
             />
             <input type="checkbox" onChange={(e) => e.target.checked && addReplyTo()} />
-            Include Reply-To address
+            Include Reply to Unified address
           </div>
         )}
       </div>

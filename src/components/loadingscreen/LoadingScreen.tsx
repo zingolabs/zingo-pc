@@ -337,7 +337,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     if (result.toLowerCase().startsWith("error")) {
       console.log(result);
-      this.setState({ newWalletError: result });
+      this.setState({ walletScreen: 2, newWalletError: result });
     } else {
       const r = JSON.parse(result);
       this.setState({ walletScreen: 2, seed: r.seed });
@@ -413,10 +413,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     type="button"
                     className={cstyles.primarybutton}
                     onClick={() => {
-                      this.setState({ walletScreen: 1 });
                       this.setState({
                         currentStatus: "",
                         currentStatusIsError: false,
+                        walletScreen: 0,
+                        newWalletError: null,
                       });
                       this.createNewWallet();
                     }}
@@ -427,10 +428,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     type="button"
                     className={cstyles.primarybutton}
                     onClick={() => {
-                      this.setState({ walletScreen: 0 });
                       this.setState({
                         currentStatus: "", 
                         currentStatusIsError: false,
+                        newWalletError: null
                       });
                       this.doFirstTimeSetup();
                     }}
@@ -441,15 +442,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     type="button"
                     className={cstyles.primarybutton}
                     onClick={() => {
-                      this.setState({ walletScreen: 1 });
                       this.setState({
                         currentStatus: "",
                         currentStatusIsError: false,
+                        newWalletError: null
                       });
                       this.restoreExistingWallet();
                     }}
                   >
-                    Restore Wallet From Seed
+                    Restore Wallet from Seed
                   </button>
                 </div>
               )}
@@ -470,8 +471,20 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     carefully, it&rsquo;s the only way to restore your wallet.
                   </div>
                   <div className={cstyles.margintoplarge}>
-                    <button type="button" className={cstyles.primarybutton} onClick={this.createNewWallet}>
-                      Create New
+                    <button
+                      type="button"
+                      className={cstyles.primarybutton}
+                      onClick={() => {
+                        this.setState({
+                          currentStatus: "",
+                          currentStatusIsError: false,
+                          walletScreen: 0,
+                          newWalletError: null,
+                        });
+                        this.createNewWallet();
+                      }}
+                    >
+                      Create New Wallet
                     </button>
                   </div>
                 </div>
@@ -482,8 +495,19 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     blockchain for all transactions from the seed phrase.
                   </div>
                   <div className={cstyles.margintoplarge}>
-                    <button type="button" className={cstyles.primarybutton} onClick={this.restoreExistingWallet}>
-                      Restore Existing
+                    <button
+                      type="button"
+                      className={cstyles.primarybutton}
+                      onClick={() => {
+                        this.setState({
+                          currentStatus: "",
+                          currentStatusIsError: false,
+                          newWalletError: null
+                        });
+                        this.restoreExistingWallet();
+                      }}
+                    >
+                      Restore Wallet from Seed
                     </button>
                   </div>
                 </div>
@@ -506,6 +530,14 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       <hr style={{ width: "100%" }} />
                       <div className={cstyles.padtopsmall}>{newWalletError}</div>
                       <hr style={{ width: "100%" }} />
+                      <div className={cstyles.margintoplarge}>
+                        <button type="button" className={cstyles.primarybutton} onClick={() => {
+                          this.setState({ walletScreen: 0 });
+                          this.doFirstTimeSetup();
+                        }}>
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   )}
 
@@ -576,6 +608,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       <div className={cstyles.margintoplarge}>
                         <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreWallet()}>
                           Restore Wallet
+                        </button>
+                        <button type="button" className={cstyles.primarybutton} onClick={() => {
+                          this.setState({ walletScreen: 0 });
+                          this.doFirstTimeSetup();
+                        }}>
+                          Cancel
                         </button>
                       </div>
                     </div>
