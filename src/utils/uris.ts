@@ -3,6 +3,8 @@ import { Base64 } from "js-base64";
 
 import Utils from "./utils";
 
+import native from '../native.node';
+
 export class ZcashURITarget {
   address?: string;
   amount?: number;
@@ -164,4 +166,51 @@ export const parseZcashURI = (uri: string): ZcashURITarget[] | string => {
   }
 
   return ans as ZcashURITarget[];
+};
+
+export const checkServerURI = async (uri: string, oldUri: string): Promise<boolean> => {
+  const parsedUri = new Url(uri, true);
+
+  let port = parsedUri.port;
+
+  if (!port) {
+    // by default -> 9067
+    // for `zecwallet` -> 443
+    port = uri.includes('lwdv3.zecwallet') ? '443' : '9067';
+  }
+
+  try {
+    const resultStrServer: string = native.zingolib_execute(
+      'changeserver',
+      `${parsedUri.protocol}//${parsedUri.hostname}:${port}`,
+    );
+
+    if (!resultStrServer || resultStrServer.toLowerCase().startsWith('error')) {
+      // I have to restore the old server again. Just in case.
+      console.log('changeserver', resultStrServer);
+      native.zingolib_execute('changeserver', oldUri);
+      // error, no timeout
+      return false;
+    } else {
+      // the server is changed
+      const infoStr = native.zingolib_execute('info', '');
+
+      if (!infoStr || infoStr.toLowerCase().startsWith('error')) {
+        console.log('info', infoStr);
+        // I have to restore the old server again.
+        native.zingolib_execute('changeserver', oldUri);
+        // error, no timeout
+        return false;
+      }
+    }
+  } catch (error: any) {
+    console.log('catch', error);
+    // I have to restore the old server again. Just in case.
+    await native.zingolib_execute('changeserver', oldUri);
+    // error, YES timeout
+    return false;
+  }
+
+  // NO error, no timeout
+  return true;
 };

@@ -102,17 +102,19 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     fees = Math.abs(tx.amount);
   }
 
+  const localCloseModal = () => {
+    setExpandAddress(false);
+    setExpandTxid(false);
+    closeModal();
+  };
+
   //console.log(tx);
   //console.log(tx?.detailedTxns);
 
   return (
     <Modal
       isOpen={modalIsOpen}
-      onRequestClose={() => {
-        setExpandAddress(false);
-        setExpandTxid(false);
-        closeModal();
-      }}
+      onRequestClose={localCloseModal}
       className={styles.txmodal}
       overlayClassName={styles.txmodalOverlay}
     >
@@ -287,11 +289,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
         })}
 
         <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>
-          <button type="button" className={cstyles.primarybutton} onClick={() => {
-            setExpandAddress(false);
-            setExpandTxid(false);
-            closeModal();
-          }}>
+          <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>
             Close
           </button>
         </div>

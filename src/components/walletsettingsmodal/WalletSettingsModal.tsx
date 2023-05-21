@@ -18,18 +18,27 @@ export default function WalletSettingsModal({
 }: WalletSettingsModalProps) {
   const [selected, setSelected] = useState(""); 
 
-  useEffect(() => {
-    if (walletSettings.transaction_filter_threshold <= 0) {
+  const initialValue = (tft: number) => {
+    if (tft <= 0) {
       setSelected("no_filter");
     } else {
       setSelected("filter"); 
     }
+  };
+
+  useEffect(() => {
+    initialValue(walletSettings.transaction_filter_threshold);
   }, [walletSettings.transaction_filter_threshold]);
+
+  const localCloseModal = () => {
+    initialValue(walletSettings.transaction_filter_threshold);
+    closeModal();
+  };
 
   return (
     <Modal
       isOpen={modalIsOpen}
-      onRequestClose={closeModal}
+      onRequestClose={localCloseModal}
       className={cstyles.modal}
       overlayClassName={cstyles.modalOverlay}
     >
@@ -45,7 +54,7 @@ export default function WalletSettingsModal({
               name="filter"
               defaultChecked={selected === "filter"}
               value="filter"
-              onClick={(e) => setWalletSpamFilterThreshold(500)}
+              onClick={(e) => setSelected("filter")}
             />
             Don't scan spammy transactions (value: 500)
           </div>
@@ -56,17 +65,24 @@ export default function WalletSettingsModal({
               name="filter"
               value="no_filter"
               defaultChecked={selected === "no_filter"}
-              onClick={(e) => setWalletSpamFilterThreshold(0)}
+              onClick={(e) => setSelected("no_filter")}
             />
             Scan all transactions (value: 0)
           </div>
         </div>
 
         <div className={cstyles.buttoncontainer}>
-          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          <button type="button" className={cstyles.primarybutton} onClick={() => {
+            if (selected === "filter") {
+              setWalletSpamFilterThreshold(500);
+            } else {
+              setWalletSpamFilterThreshold(0);
+            }
+            localCloseModal(); 
+          }}>
             Save
           </button>
-          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>
             Close
           </button>
         </div>
