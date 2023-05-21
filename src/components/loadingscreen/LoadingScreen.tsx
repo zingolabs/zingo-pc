@@ -481,10 +481,13 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                           walletScreen: 0,
                           newWalletError: null,
                         });
-                        this.createNewWallet();
+                        this.createNewWallet(); 
                       }}
                     >
                       Create New Wallet
+                    </button>
+                    <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
+                      Switch to Another Server
                     </button>
                   </div>
                 </div>

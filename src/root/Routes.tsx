@@ -1,6 +1,6 @@
 import React from "react";
 import ReactModal from "react-modal";
-import { Switch, Route } from "react-router";
+import { Switch, Route, withRouter, RouteComponentProps } from "react-router";
 import { ErrorModal, ErrorModalData } from "../components/errormodal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json";
@@ -39,10 +39,10 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 
 type Props = {};
 
-export default class Routes extends React.Component<Props, AppState> {
+class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   rpc: RPC;
 
-  constructor(props: Props) {
+  constructor(props: Props & RouteComponentProps) {
     super(props);
 
     this.state = defaultAppState;
@@ -445,6 +445,10 @@ export default class Routes extends React.Component<Props, AppState> {
     this.rpc.clearTimers();
   };
 
+  navigateToLoadingScreen = () => {
+    this.props.history.push(routes.LOADING);
+  };
+
   render() {
     const { info } = this.state;
 
@@ -455,7 +459,7 @@ export default class Routes extends React.Component<Props, AppState> {
       openPasswordAndUnlockIfNeeded: this.openPasswordAndUnlockIfNeeded,
     };
 
-    const hasLatestBlock = info && info.latestBlock > 0 ? true : false;
+    const hasLatestBlock = info && info.latestBlock > 0 ? true : false; 
 
     return (
       <ContextAppProvider value={this.state}>
@@ -562,3 +566,7 @@ export default class Routes extends React.Component<Props, AppState> {
     );
   }
 }
+
+
+// @ts-ignore
+export default withRouter(Routes);

@@ -13,10 +13,16 @@ const ImportPrivKeyModal = ({ modalIsOpen, closeModal, doImportPrivKeys }: Impor
   const [pkey, setPKey] = useState("");
   const [birthday, setBirthday] = useState("0");
 
+  const localCloseModal = () => {
+    setPKey("");
+    setBirthday("0");
+    closeModal();
+  };
+
   return (
     <Modal
       isOpen={modalIsOpen}
-      onRequestClose={closeModal}
+      onRequestClose={localCloseModal}
       className={cstyles.modal}
       overlayClassName={cstyles.modalOverlay}
     >
@@ -63,7 +69,7 @@ const ImportPrivKeyModal = ({ modalIsOpen, closeModal, doImportPrivKeys }: Impor
         >
           Import
         </button>
-        <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+        <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>
           Cancel
         </button>
       </div>

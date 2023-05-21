@@ -16,27 +16,34 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   const { modalIsOpen } = serverSelectState;
   const [selected, setSelected] = useState("");
   const [custom, setCustom] = useState("");
+  const [server, setServer] = useState("");
 
   const servers = [
     { name: "Zcash Community (Default)", uri: Utils.ZCASH_COMMUNITY},
     { name: "Zec Wallet", uri: Utils.V3_LIGHTWALLETD},
   ];
 
+  const initialServerValue = (server: string) => {
+    // not custom
+    if (server === Utils.ZCASH_COMMUNITY || server === Utils.V3_LIGHTWALLETD) {
+      setSelected(server);
+      setCustom("");
+    } else {
+      setSelected("custom");
+      setCustom(server);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       const settings = await ipcRenderer.invoke("loadSettings");
-      const server = settings?.serveruri || "";
-      // not custom
-      if (server === Utils.ZCASH_COMMUNITY || server === Utils.V3_LIGHTWALLETD) {
-        setSelected(server);
-      } else {
-        setSelected("custom");
-        setCustom(server);
-      }
+      const currServer = settings?.serveruri || "";
+      initialServerValue(currServer);
+      setServer(currServer);
     })();
   }, []);
 
-  const switchServer = () => {
+  const switchServer = async () => {
     let serveruri = selected;
     if (serveruri === "custom") {
       serveruri = custom;
@@ -44,17 +51,22 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
 
     ipcRenderer.invoke("saveSettings", { key: "serveruri", value: serveruri });
 
-    closeModal();
+    localCloseModal(serveruri);
 
     setTimeout(() => {
       openErrorModal("Restart Zingo PC", "Please restart Zingo PC to connect to the new server");
     }, 10);
   };
 
+  const localCloseModal = (server: string) => {
+    initialServerValue(server);
+    closeModal();
+  };
+
   return (
     <Modal
       isOpen={modalIsOpen}
-      onRequestClose={closeModal}
+      onRequestClose={() => localCloseModal(server)}
       className={cstyles.modal}
       overlayClassName={cstyles.modalOverlay}
     >
@@ -88,7 +100,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
           <button type="button" className={cstyles.primarybutton} onClick={switchServer} disabled={selected === "custom" && custom === ""}>
             Switch Server
           </button>
-          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          <button type="button" className={cstyles.primarybutton} onClick={() => localCloseModal(server)}>
             Close
           </button>
         </div>
