@@ -31,6 +31,9 @@ register_module!(mut m, {
     m.export_function(
         "zingolib_initialize_new_from_phrase",
         zingolib_initialize_new_from_phrase,
+    )?;    m.export_function(
+        "zingolib_initialize_new_from_ufvk",
+        zingolib_initialize_new_from_ufvk,
     )?;
     m.export_function("zingolib_deinitialize", zingolib_deinitialize)?;
     m.export_function("zingolib_execute", zingolib_execute)?;
@@ -133,6 +136,48 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
 
         let lightclient = match LightClient::new_from_wallet_base(
             WalletBase::MnemonicPhrase(seed),
+            &config,
+            birthday as u64,
+            overwrite,
+        ) {
+            Ok(l) => l,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
+
+        // Initialize logging
+        let _ = LightClient::init_logging();
+
+        let lc = Arc::new(lightclient);
+        LightClient::start_mempool_monitor(lc.clone());
+
+        LIGHTCLIENT.lock().unwrap().replace(Some(lc));
+
+        format!("OK")
+    };
+    Ok(cx.string(resp()))
+}
+
+fn zingolib_initialize_new_from_ufvk(mut cx: FunctionContext) -> JsResult<JsString> {
+    let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
+    let ufvk = cx.argument::<JsString>(1)?.value(&mut cx);
+    let birthday = cx.argument::<JsNumber>(2)?.value(&mut cx);
+    let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);   
+
+    let resp = || {
+        let server = construct_lightwalletd_uri(Some(server_uri));
+        let chaintype = get_chainnym(&server.to_string());
+
+        let config = match zingolib::load_clientconfig(server, None, chaintype) {
+            Ok(c) => c,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
+
+        let lightclient = match LightClient::new_from_wallet_base(
+            WalletBase::Ufvk(ufvk),
             &config,
             birthday as u64,
             overwrite,
