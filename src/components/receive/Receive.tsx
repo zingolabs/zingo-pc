@@ -13,6 +13,7 @@ type ReceiveProps = {
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
   //createNewAddress: (t: AddressType) => void;
+  shieldBalanceToOrchard: () => void;
 };
 
 export default class Receive extends Component<ReceiveProps> {
@@ -22,6 +23,7 @@ export default class Receive extends Component<ReceiveProps> {
       fetchAndSetSinglePrivKey,
       fetchAndSetSingleViewKey,
       //createNewAddress,
+      shieldBalanceToOrchard
     } = this.props;
     const {
       addresses,
@@ -74,6 +76,8 @@ export default class Receive extends Component<ReceiveProps> {
       return m;
     }, new Map());
 
+    console.log('<Receive />')
+
     return (
       <div>
         <div className={styles.receivecontainer}>
@@ -98,6 +102,7 @@ export default class Receive extends Component<ReceiveProps> {
                       viewKey={addressViewKeys.get(a.address)}
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
+                      shieldBalanceToOrchard={shieldBalanceToOrchard}
                     />
                   ))}
                 </Accordion>
@@ -127,6 +132,7 @@ export default class Receive extends Component<ReceiveProps> {
                       viewKey={addressViewKeys.get(a.address)}
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
+                      shieldBalanceToOrchard={shieldBalanceToOrchard}
                     />
                   ))}
                 </Accordion>
@@ -155,6 +161,7 @@ export default class Receive extends Component<ReceiveProps> {
                       viewKey={addressViewKeys.get(a.address)}
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
+                      shieldBalanceToOrchard={shieldBalanceToOrchard}
                     />
                   ))}
                 </Accordion>

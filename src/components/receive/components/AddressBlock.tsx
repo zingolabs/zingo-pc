@@ -22,6 +22,7 @@ type AddressBlockProps = {
   label?: string;
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
+  shieldBalanceToOrchard: () => void;
 };
 
 const AddressBlock = ({
@@ -33,6 +34,7 @@ const AddressBlock = ({
   fetchAndSetSinglePrivKey,
   viewKey,
   fetchAndSetSingleViewKey,
+  shieldBalanceToOrchard
 }: AddressBlockProps) => {
   const { receivers, type } = address;
   const address_address = address.address;
@@ -56,6 +58,8 @@ const AddressBlock = ({
       shell.openExternal(`https://zecblockexplorer.com/address/${address_address}`);
     }
   };
+
+  console.log('<AddressBlock />')
 
   return (
     <AccordionItem key={copied ? 1 : 0} className={[cstyles.well, styles.receiveblock].join(" ")} uuid={address_address}>
@@ -169,6 +173,11 @@ const AddressBlock = ({
               {type === AddressType.transparent && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => openAddress()}>
                   View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                </button>
+              )}
+              {type === AddressType.transparent && (
+                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldBalanceToOrchard}>
+                  Shield Balance
                 </button>
               )}
             </div>

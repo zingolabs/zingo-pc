@@ -40,7 +40,7 @@ export default class RPC {
     fnSetInfo: (info: Info) => void,
     fnSetZecPrice: (p?: number) => void,
     fnSetWalletSettings: (settings: WalletSettings) => void,
-    fnSetVerificationProgress: (verificationProgress: number) => void,
+    fnSetVerificationProgress: (verificationProgress: number) => void
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
     this.fnSetAddresses = fnSetAddresses;
@@ -64,9 +64,9 @@ export default class RPC {
       this.refreshTimerID = setInterval(() => {
         // trying to sync
         this.refresh(false);
-        // I need to save the wallet every minute Just in case. 
+        // I need to save the wallet every minute Just in case.
         RPC.doSave();
-        // and I need to update the wallet info if the sync is running 
+        // and I need to update the wallet info if the sync is running
         if (this.updateDataLock) {
           this.updateDataLock = false;
           this.updateData();
@@ -133,6 +133,24 @@ export default class RPC {
     console.log(`Deinitialize status: ${str}`);
   }
 
+  static doShield(): string {
+    const shieldstr = native.zingolib_execute("shield", "all");
+    console.log(`Shield status: ${shieldstr}`)
+    return shieldstr;
+  }
+
+  // shield transparent balance to orchard
+  async shieldBalanceToOrchard(): Promise<string> {
+    try {
+      const result = await RPC.doShield();
+      this.updateData()
+      return String(result)
+    } catch(error) {
+      console.log(`Error while trying to shield balance ${{error}}`)
+      return JSON.stringify(error)
+    }
+  }
+
   async updateData() {
     //console.log("Update data triggered");
     if (this.updateDataLock) {
@@ -176,7 +194,12 @@ export default class RPC {
     const latestBlockHeight = await this.fetchInfo();
     const walletHeight = RPC.fetchWalletHeight();
 
-    if (fullRefresh || !this.lastBlockHeight || this.lastBlockHeight < latestBlockHeight || walletHeight < latestBlockHeight) {
+    if (
+      fullRefresh ||
+      !this.lastBlockHeight ||
+      this.lastBlockHeight < latestBlockHeight ||
+      walletHeight < latestBlockHeight
+    ) {
       this.updateDataLock = true;
 
       // If the latest block height has changed, make sure to sync. This will happen in a new thread
@@ -208,7 +231,7 @@ export default class RPC {
 
           this.updateDataLock = false;
 
-          // All done 
+          // All done
           console.log(`Finished (blocks) full refresh at server: ${latestBlockHeight} & wallet: ${walletHeight}`);
         } else {
           // if the progress is still running we need to update the UI
@@ -219,7 +242,7 @@ export default class RPC {
             clearInterval(this.syncTimerID);
             this.syncTimerID = undefined;
             // the sync is finished
-            // the sync process in zingolib finish fakely & if you try again 
+            // the sync process in zingolib finish fakely & if you try again
             // the sync continue with a NEW ID
             // verificationProgress = 100;
             // And fetch the rest of the data.
@@ -242,17 +265,15 @@ export default class RPC {
 
             // this calculation is for the total of blocks, nothing to do with batches
             // because batches are calculated only for the current sync process
-            // which in most of the times is partial, not total. 
+            // which in most of the times is partial, not total.
             const sync_blocks = ss.end_block + progress_blocks - walletBirthday;
             const total_blocks = latestBlockHeight - walletBirthday;
 
             verificationProgress = (sync_blocks * 100) / total_blocks;
           }
-
         }
 
         this.fnSetVerificationProgress(verificationProgress);
-
       }, 2000); // two seconds is ok for the UI.
     } else {
       // Already at the latest block
@@ -265,7 +286,7 @@ export default class RPC {
     const infostr = native.zingolib_execute("info", "");
     //console.log(`INFO INFO INFO: ${infostr}`);
     try {
-      if (infostr.toLowerCase().startsWith('error')) {
+      if (infostr.toLowerCase().startsWith("error")) {
         console.log("server info Failed", infostr);
         return new Info(infostr);
       }
@@ -284,7 +305,7 @@ export default class RPC {
       // Also set `zecPrice` manually
       const resultStr = native.zingolib_execute("updatecurrentprice", "");
       if (resultStr) {
-        if (resultStr.toLowerCase().startsWith('error') || isNaN(parseFloat(resultStr))) {
+        if (resultStr.toLowerCase().startsWith("error") || isNaN(parseFloat(resultStr))) {
           console.log(`Error fetching price Info ${resultStr}`);
           info.zecPrice = 0;
         } else {
@@ -362,77 +383,75 @@ export default class RPC {
     const balanceJSON = JSON.parse(balanceStr);
 
     let formattedJSON = {
-      "uabalance": balanceJSON.orchard_balance,
-      "zbalance": balanceJSON.sapling_balance,
-      "verified_zbalance": balanceJSON.verified_sapling_balance,
-      "spendable_zbalance": balanceJSON.spendable_sapling_balance,
-      "unverified_zbalance": balanceJSON.unverified_sapling_balance,
-      "tbalance": balanceJSON.transparent_balance,
-      "ua_addresses": [],
-      "z_addresses": [],
-      "t_addresses": []
+      uabalance: balanceJSON.orchard_balance,
+      zbalance: balanceJSON.sapling_balance,
+      verified_zbalance: balanceJSON.verified_sapling_balance,
+      spendable_zbalance: balanceJSON.spendable_sapling_balance,
+      unverified_zbalance: balanceJSON.unverified_sapling_balance,
+      tbalance: balanceJSON.transparent_balance,
+      ua_addresses: [],
+      z_addresses: [],
+      t_addresses: [],
     };
 
     // fetch all addresses
-    const addressesStr = native.zingolib_execute('addresses','');
+    const addressesStr = native.zingolib_execute("addresses", "");
     const addressesJSON = JSON.parse(addressesStr);
 
     // fetch all notes
-    const notesStr = native.zingolib_execute('notes','');
+    const notesStr = native.zingolib_execute("notes", "");
     const notesJSON = JSON.parse(notesStr);
 
     //console.log(notesJSON);
 
     // construct ua_addresses with their respective balance
-    const ua_addr = addressesJSON
-      .map((a: any) => {
-    
+    const ua_addr = addressesJSON.map((a: any) => {
       // To get the balance, sum all notes related to this address
       const ua_bal = notesJSON.unspent_orchard_notes
-      .filter((o: any) => o.address === a.address)
-      .reduce((acc: any, ua_unsp_note: any) => acc + ua_unsp_note.value, 0);
-      
+        .filter((o: any) => o.address === a.address)
+        .reduce((acc: any, ua_unsp_note: any) => acc + ua_unsp_note.value, 0);
+
       // Also add pending notes
       const ua_pend_bal = notesJSON.pending_orchard_notes
         .filter((o: any) => o.address === a.address)
         .reduce((acc: any, ua_pend_note: any) => acc + ua_pend_note.value, 0);
 
       return {
-        "address": a.address,
-        "balance": ua_bal + ua_pend_bal,
-        "receivers": a.receivers,
-        "address_type": AddressType.unified
-      }
+        address: a.address,
+        balance: ua_bal + ua_pend_bal,
+        receivers: a.receivers,
+        address_type: AddressType.unified,
+      };
     });
 
     // construct z_addresses with their respective balance
     const z_addr = addressesJSON
-    .filter((a: any) => a.receivers.sapling)
-    .map((a: any) => {
-    // To get the balance, sum all notes related to this address
-      const z_bal = notesJSON.unspent_sapling_notes
-        .filter((o: any) => o.address === a.address)
-        .reduce((acc: any, z_unsp_note: any) => acc + z_unsp_note.value, 0)
+      .filter((a: any) => a.receivers.sapling)
+      .map((a: any) => {
+        // To get the balance, sum all notes related to this address
+        const z_bal = notesJSON.unspent_sapling_notes
+          .filter((o: any) => o.address === a.address)
+          .reduce((acc: any, z_unsp_note: any) => acc + z_unsp_note.value, 0);
 
-      // Also add pending notes
-      const z_pend_bal = notesJSON.pending_sapling_notes
-        .filter((o: any) => o.address === a.address)
-        .reduce((acc: any, z_pend_note: any) => acc + z_pend_note, 0)
+        // Also add pending notes
+        const z_pend_bal = notesJSON.pending_sapling_notes
+          .filter((o: any) => o.address === a.address)
+          .reduce((acc: any, z_pend_note: any) => acc + z_pend_note, 0);
 
-      // To get spendable balance, filter the unspent_sapling_notes where spendable = true
-      const z_spendable_bal = notesJSON.unspent_sapling_notes
-        .filter((o: any) => o.address === a.address && o.spendable)
-        .reduce((acc: any, z_spendable_note: any) => acc + z_spendable_note.value, 0)
-      
-      return {
-        "address": a.receivers.sapling,
-        "zbalance": z_bal + z_pend_bal,
-        "verified_zbalance": z_bal,
-        "spendable_zbalance": z_spendable_bal,
-        "unverified_zbalance": z_pend_bal,
-        "address_type": AddressType.sapling
-      }      
-    });
+        // To get spendable balance, filter the unspent_sapling_notes where spendable = true
+        const z_spendable_bal = notesJSON.unspent_sapling_notes
+          .filter((o: any) => o.address === a.address && o.spendable)
+          .reduce((acc: any, z_spendable_note: any) => acc + z_spendable_note.value, 0);
+
+        return {
+          address: a.receivers.sapling,
+          zbalance: z_bal + z_pend_bal,
+          verified_zbalance: z_bal,
+          spendable_zbalance: z_spendable_bal,
+          unverified_zbalance: z_pend_bal,
+          address_type: AddressType.sapling,
+        };
+      });
 
     // construct t_addresses with their respective balance
     const t_addr = addressesJSON
@@ -440,73 +459,73 @@ export default class RPC {
       .map((a: any) => {
         // To get the balance, sum all UTXOs related to this address
         const t_bal = notesJSON.utxos
-        .filter((o: any) => o.address === a.address)
-        .reduce((acc: any, t_utxo: any) => acc + t_utxo.value, 0)
+          .filter((o: any) => o.address === a.address)
+          .reduce((acc: any, t_utxo: any) => acc + t_utxo.value, 0);
 
         // Also add pending UTXOs
         const t_pend_bal = notesJSON.pending_utxos
-        .filter((o: any) => o.address === a.address)
-        .reduce((acc: any, t_pend_utxo: any) => acc + t_pend_utxo, 0)
+          .filter((o: any) => o.address === a.address)
+          .reduce((acc: any, t_pend_utxo: any) => acc + t_pend_utxo, 0);
 
         return {
-          "address": a.receivers.transparent,
-          "balance": t_bal + t_pend_bal,
-          "address_type": AddressType.transparent
-        }
-      })
+          address: a.receivers.transparent,
+          balance: t_bal + t_pend_bal,
+          address_type: AddressType.transparent,
+        };
+      });
 
     // set corresponding addresses in the formatted Json
     formattedJSON.ua_addresses = ua_addr;
     formattedJSON.z_addresses = z_addr;
     formattedJSON.t_addresses = t_addr;
-    
+
     return formattedJSON;
-}
+  }
 
   zingolibNotes(): any {
     // fetch all notes
-    const notesStr = native.zingolib_execute('notes', '');
+    const notesStr = native.zingolib_execute("notes", "");
     const notesJSON = JSON.parse(notesStr);
 
     // fetch all addresses
-    const addressesStr = native.zingolib_execute('addresses','');
+    const addressesStr = native.zingolib_execute("addresses", "");
     const addressesJSON = JSON.parse(addressesStr);
 
     let formattedJSON = {
-      "unspent_notes": [],
-      "pending_notes": [],
-      "utxos": [],
-      "pending_utxos": []
+      unspent_notes: [],
+      pending_notes: [],
+      utxos: [],
+      pending_utxos: [],
     };
 
     // Construct unspent_notes concatenating unspent_orchard_notes and unspent_sapling_notes
     const ua_unsp_notes = notesJSON.unspent_orchard_notes;
-    const z_unsp_notes = notesJSON.unspent_sapling_notes.map((z_unsp_note: any) =>{
-      // need to get the sapling address, instead of ua address 
+    const z_unsp_notes = notesJSON.unspent_sapling_notes.map((z_unsp_note: any) => {
+      // need to get the sapling address, instead of ua address
       const z_addr = addressesJSON.find((a: any) => a.address === z_unsp_note.address);
       if (z_addr) {
         z_unsp_note.address = z_addr.receivers.sapling;
       }
-      
+
       return z_unsp_note;
     });
-    
+
     const unsp_notes = ua_unsp_notes.concat(z_unsp_notes);
 
     // Construct pending_notes concatenating pending_orchard_notes and pending_sapling_notes
     const ua_pend_notes = notesJSON.pending_orchard_notes;
-    const z_pend_notes = notesJSON.pending_sapling_notes.map((z_pend_note: any) =>{
+    const z_pend_notes = notesJSON.pending_sapling_notes.map((z_pend_note: any) => {
       // need to get the sapling address, instead of ua address
       const z_addr = addressesJSON.find((a: any) => a.address === z_pend_note.address);
       if (z_addr) {
         z_pend_note.address = z_addr.receivers.sapling;
       }
-      
+
       return z_pend_note;
     });
-    
+
     const pend_notes = ua_pend_notes.concat(z_pend_notes);
-    
+
     // construct utxos, replacing the addresses accordingly
     const utxos = notesJSON.utxos.map((utxo: any) => {
       // need to get the transparent address, instead of ua address
@@ -534,7 +553,7 @@ export default class RPC {
     formattedJSON.pending_notes = pend_notes;
     formattedJSON.utxos = utxos;
     formattedJSON.pending_utxos = pending_utxos;
-    
+
     return formattedJSON;
   }
 
@@ -542,29 +561,29 @@ export default class RPC {
     // fetch transaction list
     const txListStr = native.zingolib_execute("list", "");
     const txListJSON = JSON.parse(txListStr);
-  
+
     // fetch all notes
-    const notesStr = native.zingolib_execute('notes', '');
+    const notesStr = native.zingolib_execute("notes", "");
     const notesJSON = JSON.parse(notesStr);
-  
+
     // fetch all addresses
-    const addressesStr = native.zingolib_execute('addresses','');
+    const addressesStr = native.zingolib_execute("addresses", "");
     const addressesJSON = JSON.parse(addressesStr);
-  
+
     // construct the list, changing ua addresses to sappling addresses, when suitable
     const newTxList = txListJSON.map((tx: any) => {
-      const note = notesJSON.unspent_sapling_notes.find((n: any) => n.created_in_txid === tx.txid);    
-      
-      if(note) {
+      const note = notesJSON.unspent_sapling_notes.find((n: any) => n.created_in_txid === tx.txid);
+
+      if (note) {
         const z_addr = addressesJSON.find((a: any) => a.address === tx.address);
         if (z_addr) {
           tx.address = z_addr.receivers.sapling;
         }
       }
-  
+
       return tx;
-    })
-  
+    });
+
     return newTxList;
   }
 
@@ -572,7 +591,7 @@ export default class RPC {
   fetchTotalBalance() {
     //const balanceStr = native.zingolib_execute("balance", "");
     //const balanceJSON = JSON.parse(balanceStr);
-    
+
     const balanceJSON = this.zingolibBalance();
 
     //console.log(balanceJSON);
@@ -588,7 +607,7 @@ export default class RPC {
     balance.total = balance.uabalance + balance.zbalance + balance.transparent;
     this.fnSetTotalBalance(balance);
 
-    // Fetch pending notes and UTXOs    
+    // Fetch pending notes and UTXOs
     // const pendingNotes = native.zingolib_execute("notes", "");
     // const pendingJSON = JSON.parse(pendingNotes);
 
@@ -607,54 +626,51 @@ export default class RPC {
     });
 
     // Addresses with Balance. The client reports balances in zatoshi, so divide by 10^8;
-    const uaddresses = balanceJSON.ua_addresses
-      .map((o: any) => {
-        // If this has any unconfirmed txns, show that in the UI
-        const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
-        if (pendingAddressBalances.has(ab.address)) {
-          ab.containsPending = true;
-        }
-        // Add receivers to unified addresses
-        let receivers: ReceiverType[] = [];
-        if (o.receivers.orchard_exists) receivers.push(ReceiverType.orchard);
-        if (o.receivers.transparent) receivers.push(ReceiverType.transparent);
-        if (o.receivers.sapling) receivers.push(ReceiverType.sapling);
-        ab.receivers = receivers;
-        ab.type = o.address_type;
-        return ab;
-      })
-      // I need all the addresses here
-      //.filter((ab: Address) => ab.balance > 0);
+    const uaddresses = balanceJSON.ua_addresses.map((o: any) => {
+      // If this has any unconfirmed txns, show that in the UI
+      const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
+      if (pendingAddressBalances.has(ab.address)) {
+        ab.containsPending = true;
+      }
+      // Add receivers to unified addresses
+      let receivers: ReceiverType[] = [];
+      if (o.receivers.orchard_exists) receivers.push(ReceiverType.orchard);
+      if (o.receivers.transparent) receivers.push(ReceiverType.transparent);
+      if (o.receivers.sapling) receivers.push(ReceiverType.sapling);
+      ab.receivers = receivers;
+      ab.type = o.address_type;
+      return ab;
+    });
+    // I need all the addresses here
+    //.filter((ab: Address) => ab.balance > 0);
 
-    const zaddresses = balanceJSON.z_addresses
-      .map((o: any) => {
-        // If this has any unconfirmed txns, show that in the UI
-        const ab = new Address(o.address, o.zbalance / 10 ** 8, o.address_type);
-        if (pendingAddressBalances.has(ab.address)) {
-          ab.containsPending = true;
-        }
-        ab.type = o.address_type;
-        return ab;
-      })
-      // I need all the addresses here
-      //.filter((ab: Address) => ab.balance > 0);
+    const zaddresses = balanceJSON.z_addresses.map((o: any) => {
+      // If this has any unconfirmed txns, show that in the UI
+      const ab = new Address(o.address, o.zbalance / 10 ** 8, o.address_type);
+      if (pendingAddressBalances.has(ab.address)) {
+        ab.containsPending = true;
+      }
+      ab.type = o.address_type;
+      return ab;
+    });
+    // I need all the addresses here
+    //.filter((ab: Address) => ab.balance > 0);
 
     //console.log(zaddresses);
 
-    const taddresses = balanceJSON.t_addresses
-      .map((o: any) => {
-        // If this has any unconfirmed txns, show that in the UI
-        const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
-        if (pendingAddressBalances.has(ab.address)) {
-          ab.containsPending = true;
-        }
-        ab.type = o.address_type;
-        return ab;
-      })
-      // I need all the addresses here
-      //.filter((ab: Address) => ab.balance > 0);
+    const taddresses = balanceJSON.t_addresses.map((o: any) => {
+      // If this has any unconfirmed txns, show that in the UI
+      const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
+      if (pendingAddressBalances.has(ab.address)) {
+        ab.containsPending = true;
+      }
+      ab.type = o.address_type;
+      return ab;
+    });
+    // I need all the addresses here
+    //.filter((ab: Address) => ab.balance > 0);
 
-    const addresses = uaddresses.concat(zaddresses.concat(taddresses));    
+    const addresses = uaddresses.concat(zaddresses.concat(taddresses));
 
     this.fnSetAddresses(addresses);
   }
@@ -666,7 +682,7 @@ export default class RPC {
     if (txListJSON && txListJSON.length) {
       return txListJSON[txListJSON.length - 1].txid;
     } else {
-      return '0';
+      return "0";
     }
   }
 
@@ -689,10 +705,10 @@ export default class RPC {
     // ozt = orchard + sapling + transparent (orchard unified)
     // o = orchard only
     // oz = orchard + sapling
-    // ot = orchard + transparent    
+    // ot = orchard + transparent
     // zt = spling + transparent
-    // z = sapling only    
-    // it's not possible to create a transparent only address    
+    // z = sapling only
+    // it's not possible to create a transparent only address
     const addrStr = native.zingolib_execute(
       "new",
       type === AddressType.unified ? "ozt" : type === AddressType.sapling ? "oz" : "ot"
@@ -713,7 +729,7 @@ export default class RPC {
     const seedStr = native.zingolib_execute("seed", "");
     const seedJSON = JSON.parse(seedStr);
 
-    return seedJSON.birthday; 
+    return seedJSON.birthday;
   }
 
   static fetchWalletHeight(): number {
@@ -732,7 +748,7 @@ export default class RPC {
     // Zingolib return transaction list with ua addresses for sapling transactions
     // we need to reconstruct it
     const listJSON = this.zingolibTxList();
-    
+
     //console.log(listJSON);
 
     let txlist: Transaction[] = listJSON.map((tx: any) => {
@@ -978,11 +994,11 @@ export default class RPC {
     return resultJSON.result === "success";
   }
 
-  async getZecPrice() {    
-    const resultStr: string = native.zingolib_execute("updatecurrentprice", ""); 
-    
+  async getZecPrice() {
+    const resultStr: string = native.zingolib_execute("updatecurrentprice", "");
+
     if (resultStr) {
-      if (resultStr.toLowerCase().startsWith('error') || isNaN(parseFloat(resultStr))) {
+      if (resultStr.toLowerCase().startsWith("error") || isNaN(parseFloat(resultStr))) {
         console.log(`Error fetching price ${resultStr}`);
         this.fnSetZecPrice(0);
       } else {
@@ -990,7 +1006,7 @@ export default class RPC {
       }
     } else {
       console.log(`Error fetching price ${resultStr}`);
-      this.fnSetZecPrice(0); 
+      this.fnSetZecPrice(0);
     }
   }
 }
