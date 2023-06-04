@@ -76,8 +76,6 @@ export default class Receive extends Component<ReceiveProps> {
       return m;
     }, new Map());
 
-    console.log('<Receive />')
-
     return (
       <div>
         <div className={styles.receivecontainer}>

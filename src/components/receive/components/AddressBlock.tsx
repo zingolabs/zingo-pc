@@ -59,8 +59,6 @@ const AddressBlock = ({
     }
   };
 
-  console.log('<AddressBlock />')
-
   return (
     <AccordionItem key={copied ? 1 : 0} className={[cstyles.well, styles.receiveblock].join(" ")} uuid={address_address}>
       <AccordionItemHeading>
