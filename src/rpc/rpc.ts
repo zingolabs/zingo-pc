@@ -133,16 +133,27 @@ export default class RPC {
     console.log(`Deinitialize status: ${str}`);
   }
 
-  static doShield(): string {
-    const shieldstr = native.zingolib_execute("shield", "all");
+  static doShield(poolToShield: string): string {
+    const shieldstr = native.zingolib_execute("shield", poolToShield);
     console.log(`Shield status: ${shieldstr}`)
     return shieldstr;
   }
 
   // shield transparent balance to orchard
-  async shieldBalanceToOrchard(): Promise<string> {
+  async shieldTransparentBalanceToOrchard(): Promise<string> {
     try {
-      const result = await RPC.doShield();
+      const result = await RPC.doShield('transparent');
+      this.updateData()
+      return String(result)
+    } catch(error) {
+      console.log(`Error while trying to shield balance ${{error}}`)
+      return JSON.stringify(error)
+    }
+  }
+
+  async shieldSaplingBalanceToOrchard(): Promise<string> {
+    try {
+      const result = await RPC.doShield('sapling');
       this.updateData()
       return String(result)
     } catch(error) {

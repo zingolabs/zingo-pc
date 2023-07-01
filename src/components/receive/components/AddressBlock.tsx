@@ -22,7 +22,8 @@ type AddressBlockProps = {
   label?: string;
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
-  shieldBalanceToOrchard: () => void;
+  shieldTransparentBalanceToOrchard: () => void;
+  shieldSaplingBalanceToOrchard: () => void;
 };
 
 const AddressBlock = ({
@@ -34,7 +35,8 @@ const AddressBlock = ({
   fetchAndSetSinglePrivKey,
   viewKey,
   fetchAndSetSingleViewKey,
-  shieldBalanceToOrchard
+  shieldTransparentBalanceToOrchard,
+  shieldSaplingBalanceToOrchard
 }: AddressBlockProps) => {
   const { receivers, type } = address;
   const address_address = address.address;
@@ -174,8 +176,13 @@ const AddressBlock = ({
                 </button>
               )}
               {type === AddressType.transparent && (
-                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldBalanceToOrchard}>
-                  Shield Balance
+                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldTransparentBalanceToOrchard}>
+                  Shield Balance To Orchard
+                </button>
+              )}
+              {type === AddressType.sapling && (
+                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldSaplingBalanceToOrchard}>
+                  Shield Balance To Orchard
                 </button>
               )}
             </div>

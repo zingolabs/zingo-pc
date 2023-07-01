@@ -447,9 +447,23 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.rpc.clearTimers();
   };
 
-  shieldBalanceToOrchard = async () => {
+  shieldSaplingBalanceToOrchard = async () => {
     try {
-    const result = await this.rpc.shieldBalanceToOrchard()
+    const result = await this.rpc.shieldSaplingBalanceToOrchard()
+
+    if (!result.includes('txid')) {
+      throw new Error(result)
+    }
+
+    } catch(error) {
+      this.openErrorModal('Failed to shield balance', String(error))
+    }
+
+  }
+
+  shieldTransparentBalanceToOrchard = async () => {
+    try {
+    const result = await this.rpc.shieldTransparentBalanceToOrchard()
 
     if (!result.includes('txid')) {
       throw new Error(result)
@@ -524,7 +538,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 render={() => (
                   <Receive
                     {...standardProps}
-                    shieldBalanceToOrchard={this.shieldBalanceToOrchard}
+                    shieldTransparentBalanceToOrchard={this.shieldTransparentBalanceToOrchard}
+                    shieldSaplingBalanceToOrchard={this.shieldSaplingBalanceToOrchard}
                     fetchAndSetSinglePrivKey={this.fetchAndSetSinglePrivKey}
                     fetchAndSetSingleViewKey={this.fetchAndSetSingleViewKey}
                   />
