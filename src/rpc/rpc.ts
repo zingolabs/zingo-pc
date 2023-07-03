@@ -243,8 +243,17 @@ export default class RPC {
             // this calculation is for the total of blocks, nothing to do with batches
             // because batches are calculated only for the current sync process
             // which in most of the times is partial, not total. 
-            const sync_blocks = ss.end_block + progress_blocks - walletBirthday;
-            const total_blocks = latestBlockHeight - walletBirthday;
+            // edge case: in a rescan sometimes the process can start from sapling age, but the
+            // wallet birthday doesn't change...
+            const firstBlockProcess = ss.end_block - (ss.batch_num * 100);
+            let firstBlockProcessFixed;
+            if (firstBlockProcess < walletBirthday) {
+              firstBlockProcessFixed = firstBlockProcess;
+            } else {
+              firstBlockProcessFixed = walletBirthday;
+            }
+            const sync_blocks = ss.end_block + progress_blocks - firstBlockProcessFixed;
+            const total_blocks = latestBlockHeight - firstBlockProcessFixed;
 
             verificationProgress = (sync_blocks * 100) / total_blocks;
           }
