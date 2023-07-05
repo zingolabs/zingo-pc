@@ -19,8 +19,8 @@ export default class Utils {
 
   static getAddressType(addr: string): AddressType | undefined {
     if (!addr) return;
-    const resultParse = native.zingolib_execute('parse', addr);
-    //console.log(addr, resultParse); 
+    const resultParse = native.zingolib_execute('parse_address', addr);
+    //console.log(addr, resultParse);
     const resultParseJSON = JSON.parse(resultParse);
 
     if (resultParseJSON.status === "success") {
