@@ -7,7 +7,7 @@ const fs = window.require("fs");
 // Utility class to save / read the address book.
 export default class AddressbookImpl {
   static async getFileName() {
-    const dir = path.join(remote.app.getPath("appData"), "zingopc");
+    const dir = path.join(remote.app.getPath("appData"), "Zingo PC");
     if (!fs.existsSync(dir)) {
       await fs.promises.mkdir(dir);
     }
