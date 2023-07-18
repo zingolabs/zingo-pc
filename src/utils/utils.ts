@@ -23,7 +23,7 @@ export default class Utils {
     //console.log(addr, resultParse);
     const resultParseJSON = JSON.parse(resultParse);
 
-    if (resultParseJSON.status === "success") {
+    if (resultParseJSON && resultParseJSON.status && resultParseJSON.status === "success") {
       if (resultParseJSON.address_kind === "unified") return AddressType.unified;
       else if (resultParseJSON.address_kind === "sapling") return AddressType.sapling;
       else if (resultParseJSON.address_kind === "transparent") return AddressType.transparent;
