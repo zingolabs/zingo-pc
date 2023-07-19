@@ -21,6 +21,9 @@ export default class Utils {
     if (!addr) return;
     const resultParse = native.zingolib_execute('parse_address', addr);
     //console.log(addr, resultParse);
+    if (resultParse.toLowerCase().startsWith('error') || resultParse.toLowerCase() === 'null') {
+      return;
+    }
     const resultParseJSON = JSON.parse(resultParse);
 
     if (resultParseJSON && resultParseJSON.status && resultParseJSON.status === "success") {

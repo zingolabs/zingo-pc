@@ -30,9 +30,6 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
   }
 
   updateLabel = (currentLabel: string) => {
-    // Don't update the field if it is longer than 20 chars
-    if (currentLabel.length > 20) return;
-
     const { currentAddress } = this.state;
     this.setState({ currentLabel });
 
@@ -55,7 +52,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     const { currentLabel, currentAddress } = this.state;
 
     addAddressBookEntry(currentLabel, currentAddress);
-    this.setState({ currentLabel: "", currentAddress: "" });
+    this.setState({ currentLabel: "", currentAddress: "", addButtonEnabled: false });
   };
 
   setAddButtonEnabled = (addButtonEnabled: boolean) => {
@@ -153,12 +150,12 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
 
           {addressBook && addressBook.length > 0 && ( 
             <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
-              <div style={{ marginLeft: 40 }}>Label</div>
-              <div style={{ marginRight: 100 }}>Address</div>
+              <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>
+              <div style={{ marginRight: 100, marginBottom: 15 }}>Address</div>
             </div>
           )}
 
-          <ScrollPane offsetHeight={300}>
+          <ScrollPane offsetHeight={320}>
             <div className={styles.addressbooklist}>
               {addressBook && addressBook.length > 0 && (
                 <Accordion>

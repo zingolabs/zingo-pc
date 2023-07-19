@@ -81,7 +81,7 @@ fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
             Err(e) => return e,
         };
 
-        let config = match zingolib::load_clientconfig(server, None, chaintype) {
+        let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
@@ -127,14 +127,14 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
         let server = construct_lightwalletd_uri(Some(server_uri));
         let chaintype = get_chainnym(&server.to_string());
 
-        let config = match zingolib::load_clientconfig(server, None, chaintype) {
+        let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
             }
         };
 
-        let lightclient = match LightClient::new_from_wallet_base(
+        let lightclient = match LightClient::create_from_wallet_base(
             WalletBase::MnemonicPhrase(seed),
             &config,
             birthday as u64,
@@ -169,14 +169,14 @@ fn zingolib_initialize_new_from_ufvk(mut cx: FunctionContext) -> JsResult<JsStri
         let server = construct_lightwalletd_uri(Some(server_uri));
         let chaintype = get_chainnym(&server.to_string());
 
-        let config = match zingolib::load_clientconfig(server, None, chaintype) {
+        let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
             }
         };
 
-        let lightclient = match LightClient::new_from_wallet_base(
+        let lightclient = match LightClient::create_from_wallet_base(
             WalletBase::Ufvk(ufvk),
             &config,
             birthday as u64,
@@ -209,7 +209,7 @@ fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
         let server = construct_lightwalletd_uri(Some(server_uri));
         let chaintype = get_chainnym(&server.to_string());
 
-        let config = match zingolib::load_clientconfig(server, None, chaintype) {
+        let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
