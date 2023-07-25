@@ -13,6 +13,8 @@ type ReceiveProps = {
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
   //createNewAddress: (t: AddressType) => void;
+  shieldTransparentBalanceToOrchard: () => void;
+  shieldSaplingBalanceToOrchard: () => void;
 };
 
 export default class Receive extends Component<ReceiveProps> {
@@ -22,6 +24,8 @@ export default class Receive extends Component<ReceiveProps> {
       fetchAndSetSinglePrivKey,
       fetchAndSetSingleViewKey,
       //createNewAddress,
+      shieldTransparentBalanceToOrchard,
+      shieldSaplingBalanceToOrchard
     } = this.props;
     const {
       addresses,
@@ -98,6 +102,8 @@ export default class Receive extends Component<ReceiveProps> {
                       viewKey={addressViewKeys.get(a.address)}
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
+                      shieldTransparentBalanceToOrchard={shieldTransparentBalanceToOrchard}
+                      shieldSaplingBalanceToOrchard={shieldSaplingBalanceToOrchard}
                     />
                   ))}
                 </Accordion>
@@ -127,6 +133,8 @@ export default class Receive extends Component<ReceiveProps> {
                       viewKey={addressViewKeys.get(a.address)}
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
+                      shieldTransparentBalanceToOrchard={shieldTransparentBalanceToOrchard}
+                      shieldSaplingBalanceToOrchard={shieldSaplingBalanceToOrchard}
                     />
                   ))}
                 </Accordion>
@@ -155,6 +163,8 @@ export default class Receive extends Component<ReceiveProps> {
                       viewKey={addressViewKeys.get(a.address)}
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
+                      shieldTransparentBalanceToOrchard={shieldTransparentBalanceToOrchard}
+                      shieldSaplingBalanceToOrchard={shieldSaplingBalanceToOrchard}
                     />
                   ))}
                 </Accordion>

@@ -366,6 +366,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
+  
+
   // Get a single private key for this address, and return it as a string.
   // Wallet needs to be unlocked
   getPrivKeyAsString = (address: string): string => {
@@ -445,6 +447,34 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.rpc.clearTimers();
   };
 
+  shieldSaplingBalanceToOrchard = async () => {
+    try {
+    const result = await this.rpc.shieldSaplingBalanceToOrchard()
+
+    if (!result.includes('txid')) {
+      throw new Error(result)
+    }
+
+    } catch(error) {
+      this.openErrorModal('Failed to shield balance', String(error))
+    }
+
+  }
+
+  shieldTransparentBalanceToOrchard = async () => {
+    try {
+    const result = await this.rpc.shieldTransparentBalanceToOrchard()
+
+    if (!result.includes('txid')) {
+      throw new Error(result)
+    }
+
+    } catch(error) {
+      this.openErrorModal('Failed to shield balance', String(error))
+    }
+
+  }
+
   navigateToLoadingScreen = () => {
     this.props.history.push(routes.LOADING);
   };
@@ -508,6 +538,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 render={() => (
                   <Receive
                     {...standardProps}
+                    shieldTransparentBalanceToOrchard={this.shieldTransparentBalanceToOrchard}
+                    shieldSaplingBalanceToOrchard={this.shieldSaplingBalanceToOrchard}
                     fetchAndSetSinglePrivKey={this.fetchAndSetSinglePrivKey}
                     fetchAndSetSingleViewKey={this.fetchAndSetSingleViewKey}
                   />
