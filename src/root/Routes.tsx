@@ -447,6 +447,20 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.rpc.clearTimers();
   };
 
+  shieldAllBalanceToOrchard = async () => {
+    try {
+    const result = await this.rpc.shieldAllBalanceToOrchard()
+
+    if (!result.includes('txid')) {
+      throw new Error(result)
+    }
+
+    } catch(error) {
+      this.openErrorModal('Failed to shield all balance', String(error))
+    }
+
+  }
+
   shieldSaplingBalanceToOrchard = async () => {
     try {
     const result = await this.rpc.shieldSaplingBalanceToOrchard()
@@ -456,7 +470,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
 
     } catch(error) {
-      this.openErrorModal('Failed to shield balance', String(error))
+      this.openErrorModal('Failed to shield sapling balance', String(error))
     }
 
   }
@@ -470,7 +484,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
 
     } catch(error) {
-      this.openErrorModal('Failed to shield balance', String(error))
+      this.openErrorModal('Failed to shield transparent balance', String(error))
     }
 
   }
@@ -558,7 +572,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
               <Route
                 path={routes.DASHBOARD}
                 render={() => (
-                  <Dashboard />
+                  <Dashboard shieldAllBalanceToOrchard={this.shieldAllBalanceToOrchard} />
                 )}
               />
               <Route

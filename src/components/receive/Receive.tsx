@@ -102,8 +102,6 @@ export default class Receive extends Component<ReceiveProps> {
                       viewKey={addressViewKeys.get(a.address)}
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
-                      shieldTransparentBalanceToOrchard={shieldTransparentBalanceToOrchard}
-                      shieldSaplingBalanceToOrchard={shieldSaplingBalanceToOrchard}
                     />
                   ))}
                 </Accordion>
@@ -133,7 +131,6 @@ export default class Receive extends Component<ReceiveProps> {
                       viewKey={addressViewKeys.get(a.address)}
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
-                      shieldTransparentBalanceToOrchard={shieldTransparentBalanceToOrchard}
                       shieldSaplingBalanceToOrchard={shieldSaplingBalanceToOrchard}
                     />
                   ))}
@@ -164,7 +161,6 @@ export default class Receive extends Component<ReceiveProps> {
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
                       shieldTransparentBalanceToOrchard={shieldTransparentBalanceToOrchard}
-                      shieldSaplingBalanceToOrchard={shieldSaplingBalanceToOrchard}
                     />
                   ))}
                 </Accordion>

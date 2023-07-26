@@ -10,6 +10,7 @@ import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { Address, AddressType } from "../../appstate";
+import RPC from '../../../rpc/rpc';
 
 const { shell, clipboard } = window.require("electron");
 
@@ -22,8 +23,8 @@ type AddressBlockProps = {
   label?: string;
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
-  shieldTransparentBalanceToOrchard: () => void;
-  shieldSaplingBalanceToOrchard: () => void;
+  shieldTransparentBalanceToOrchard?: () => void;
+  shieldSaplingBalanceToOrchard?: () => void;
 };
 
 const AddressBlock = ({
@@ -41,6 +42,7 @@ const AddressBlock = ({
   const { receivers, type } = address;
   const address_address = address.address;
   const balance = address.balance || 0;
+  const defaultFee = RPC.getDefaultFee();
 
   const [copied, setCopied] = useState(false);
   const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
@@ -175,14 +177,14 @@ const AddressBlock = ({
                   View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                 </button>
               )}
-              {type === AddressType.transparent && (
+              {type === AddressType.transparent && shieldTransparentBalanceToOrchard && balance > defaultFee && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldTransparentBalanceToOrchard}>
                   Shield Balance To Orchard
                 </button>
               )}
-              {type === AddressType.sapling && (
+              {type === AddressType.sapling && shieldSaplingBalanceToOrchard && balance > defaultFee && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldSaplingBalanceToOrchard}>
-                  Shield Balance To Orchard
+                  Promote Balance To Orchard
                 </button>
               )}
             </div>

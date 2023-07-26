@@ -133,32 +133,39 @@ export default class RPC {
     console.log(`Deinitialize status: ${str}`);
   }
 
-  static doShield(poolToShield: string): string {
-    const shieldstr = native.zingolib_execute("shield", poolToShield);
-    console.log(`Shield status: ${shieldstr}`)
-    return shieldstr;
+  // shield transparent balance to orchard
+  async shieldAllBalanceToOrchard(): Promise<string> {
+    try {
+      const result = native.zingolib_execute("shield", 'all');
+      this.updateData();
+      return String(result);
+    } catch(error) {
+      console.log(`Error while trying to shield all balance ${{error}}`);
+      return JSON.stringify(error);
+    }
   }
-
+  
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
     try {
-      const result = await RPC.doShield('transparent');
-      this.updateData()
-      return String(result)
+      const result = native.zingolib_execute("shield", 'transparent');
+      this.updateData();
+      return String(result);
     } catch(error) {
-      console.log(`Error while trying to shield balance ${{error}}`)
-      return JSON.stringify(error)
+      console.log(`Error while trying to shield transparent balance ${{error}}`);
+      return JSON.stringify(error);
     }
   }
 
+  // shield sapling balance to orchard
   async shieldSaplingBalanceToOrchard(): Promise<string> {
     try {
-      const result = await RPC.doShield('sapling');
-      this.updateData()
-      return String(result)
+      const result = native.zingolib_execute("shield", 'sapling');
+      this.updateData();
+      return String(result);
     } catch(error) {
-      console.log(`Error while trying to shield balance ${{error}}`)
-      return JSON.stringify(error)
+      console.log(`Error while trying to shield sapling balance ${{error}}`);
+      return JSON.stringify(error);
     }
   }
 
