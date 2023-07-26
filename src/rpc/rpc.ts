@@ -133,15 +133,15 @@ export default class RPC {
     console.log(`Deinitialize status: ${str}`);
   }
 
-  // shield transparent balance to orchard
+  // shield all balance to orchard
   async shieldAllBalanceToOrchard(): Promise<string> {
     try {
       const result = native.zingolib_execute("shield", 'all');
       this.updateData();
-      return String(result);
-    } catch(error) {
-      console.log(`Error while trying to shield all balance ${{error}}`);
-      return JSON.stringify(error);
+      return result;
+    } catch(error: any) {
+      console.log(`Error while trying to shield all balance ${error.message}`);
+      return `Error: ${error.message}`;
     }
   }
   
@@ -150,10 +150,10 @@ export default class RPC {
     try {
       const result = native.zingolib_execute("shield", 'transparent');
       this.updateData();
-      return String(result);
-    } catch(error) {
-      console.log(`Error while trying to shield transparent balance ${{error}}`);
-      return JSON.stringify(error);
+      return result;
+    } catch(error: any) {
+      console.log(`Error while trying to shield transparent balance ${error.message}`);
+      return `Error: ${error.message}`;
     }
   }
 
@@ -162,10 +162,10 @@ export default class RPC {
     try {
       const result = native.zingolib_execute("shield", 'sapling');
       this.updateData();
-      return String(result);
-    } catch(error) {
-      console.log(`Error while trying to shield sapling balance ${{error}}`);
-      return JSON.stringify(error);
+      return result;
+    } catch(error: any) {
+      console.log(`Error while trying to shield sapling balance ${error.message}`);
+      return `Error: ${error.message}`;
     }
   }
 

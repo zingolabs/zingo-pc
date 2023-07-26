@@ -13,14 +13,42 @@ import { Address } from "../appstate";
 import RPC from '../../rpc/rpc';
 
 type DashboardProps = {
-  shieldAllBalanceToOrchard: () => void;
+  shieldAllBalanceToOrchard: () => Promise<string>;
+  openErrorModal: (title: string, body: string) => void;
 };
 
 export default class Dashboard extends Component<DashboardProps> {
   static contextType = ContextApp;
+
+  promoteButton = () => {
+    this.props.openErrorModal("Computing Transaction", "Please wait...This could take a while");
+
+    setTimeout(() => {
+      (async () => {
+        try {
+          const result = await this.props.shieldAllBalanceToOrchard();
+          console.log(result);
+
+          if (result.toLocaleLowerCase().startsWith('error')) {
+            this.props.openErrorModal("Error Shielding Transaction", `${result}`);
+            return;  
+          }
+          const resultJSON = await JSON.parse(result);
+          this.props.openErrorModal(
+            "Successfully Broadcast Transaction",
+            `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+          );
+
+        } catch (err) {
+          // If there was an error, show the error modal
+          this.props.openErrorModal("Error Shielding Transaction", `${err}`);
+        }
+      })();
+    }, 10);
+  };
+
   render() {
     const { totalBalance, info, addresses } = this.context;
-    const { shieldAllBalanceToOrchard } = this.props;
     const defaultFee = RPC.getDefaultFee();
 
     const anyPending = addresses && addresses.find((i: Address) => i.containsPending);
@@ -56,7 +84,7 @@ export default class Dashboard extends Component<DashboardProps> {
           </div>
           <div className={cstyles.balancebox}>
             {totalBalance.zbalance + totalBalance.transparent > defaultFee && (
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldAllBalanceToOrchard}>
+              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={this.promoteButton}>
                 Promote All Balance To Orchard
               </button>
             )}

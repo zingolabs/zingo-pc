@@ -23,8 +23,9 @@ type AddressBlockProps = {
   label?: string;
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
-  shieldTransparentBalanceToOrchard?: () => void;
-  shieldSaplingBalanceToOrchard?: () => void;
+  shieldTransparentBalanceToOrchard?: () => Promise<string>;
+  shieldSaplingBalanceToOrchard?: () => Promise<string>;
+  openErrorModal?: (title: string, body: string) => void;
 };
 
 const AddressBlock = ({
@@ -37,7 +38,8 @@ const AddressBlock = ({
   viewKey,
   fetchAndSetSingleViewKey,
   shieldTransparentBalanceToOrchard,
-  shieldSaplingBalanceToOrchard
+  shieldSaplingBalanceToOrchard,
+  openErrorModal,
 }: AddressBlockProps) => {
   const { receivers, type } = address;
   const address_address = address.address;
@@ -61,6 +63,66 @@ const AddressBlock = ({
     } else {
       shell.openExternal(`https://zecblockexplorer.com/address/${address_address}`);
     }
+  };
+
+  const promoteButton = () => {
+    if (!shieldSaplingBalanceToOrchard || !openErrorModal) {
+      return;
+    }
+    openErrorModal("Computing Transaction", "Please wait...This could take a while");
+
+    setTimeout(() => {
+      (async () => {
+        try {
+          const result = await shieldSaplingBalanceToOrchard();
+          console.log(result);
+
+          if (result.toLocaleLowerCase().startsWith('error')) {
+            openErrorModal("Error Promoting Transaction", `${result}`);
+            return;  
+          }
+          const resultJSON = await JSON.parse(result);
+          openErrorModal(
+            "Successfully Broadcast Transaction",
+            `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+          );
+
+        } catch (err) {
+          // If there was an error, show the error modal
+          openErrorModal("Error Promoting Transaction", `${err}`);
+        }
+      })();
+    }, 10);
+  };
+
+  const shieldButton = () => {
+    if (!shieldTransparentBalanceToOrchard || !openErrorModal) {
+      return;
+    }
+    openErrorModal("Computing Transaction", "Please wait...This could take a while");
+
+    setTimeout(() => {
+      (async () => {
+        try {
+          const result = await shieldTransparentBalanceToOrchard();
+          console.log(result);
+
+          if (result.toLocaleLowerCase().startsWith('error')) {
+            openErrorModal("Error Shielding Transaction", `${result}`);
+            return;  
+          }
+          const resultJSON = await JSON.parse(result);
+          openErrorModal(
+            "Successfully Broadcast Transaction",
+            `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+          );
+
+        } catch (err) {
+          // If there was an error, show the error modal
+          openErrorModal("Error Shielding Transaction", `${err}`);
+        }
+      })();
+    }, 10);
   };
 
   return (
@@ -177,13 +239,13 @@ const AddressBlock = ({
                   View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                 </button>
               )}
-              {type === AddressType.transparent && shieldTransparentBalanceToOrchard && balance > defaultFee && (
-                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldTransparentBalanceToOrchard}>
+              {type === AddressType.transparent && balance > defaultFee && (
+                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
                   Shield Balance To Orchard
                 </button>
               )}
-              {type === AddressType.sapling && shieldSaplingBalanceToOrchard && balance > defaultFee && (
-                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldSaplingBalanceToOrchard}>
+              {type === AddressType.sapling && balance > defaultFee && (
+                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={promoteButton}>
                   Promote Balance To Orchard
                 </button>
               )}

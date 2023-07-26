@@ -447,46 +447,19 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.rpc.clearTimers();
   };
 
-  shieldAllBalanceToOrchard = async () => {
-    try {
-    const result = await this.rpc.shieldAllBalanceToOrchard()
-
-    if (!result.includes('txid')) {
-      throw new Error(result)
-    }
-
-    } catch(error) {
-      this.openErrorModal('Failed to shield all balance', String(error))
-    }
-
+  shieldAllBalanceToOrchard = async (): Promise<string> => {
+    const result = await this.rpc.shieldAllBalanceToOrchard();
+    return result;
   }
 
-  shieldSaplingBalanceToOrchard = async () => {
-    try {
-    const result = await this.rpc.shieldSaplingBalanceToOrchard()
-
-    if (!result.includes('txid')) {
-      throw new Error(result)
-    }
-
-    } catch(error) {
-      this.openErrorModal('Failed to shield sapling balance', String(error))
-    }
-
+  shieldSaplingBalanceToOrchard = async (): Promise<string> => {
+    const result = await this.rpc.shieldSaplingBalanceToOrchard();
+    return result;
   }
 
-  shieldTransparentBalanceToOrchard = async () => {
-    try {
-    const result = await this.rpc.shieldTransparentBalanceToOrchard()
-
-    if (!result.includes('txid')) {
-      throw new Error(result)
-    }
-
-    } catch(error) {
-      this.openErrorModal('Failed to shield transparent balance', String(error))
-    }
-
+  shieldTransparentBalanceToOrchard = async (): Promise<string> => {
+    const result = await this.rpc.shieldTransparentBalanceToOrchard();
+    return result;
   }
 
   navigateToLoadingScreen = () => {
@@ -572,7 +545,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
               <Route
                 path={routes.DASHBOARD}
                 render={() => (
-                  <Dashboard shieldAllBalanceToOrchard={this.shieldAllBalanceToOrchard} />
+                  <Dashboard 
+                    shieldAllBalanceToOrchard={this.shieldAllBalanceToOrchard} 
+                    openErrorModal={this.openErrorModal} 
+                  />
                 )}
               />
               <Route
