@@ -30,7 +30,7 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
   const [expandAddress, setExpandAddress] = useState(false); 
   
   return (
-    <AccordionItem key={item.label} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.label}>
+    <AccordionItem key={item.label.replace(/\s/g, '')} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.label.replace(/\s/g, '')}>
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={[cstyles.flexspacebetween].join(" ")}>
