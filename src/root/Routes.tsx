@@ -1,6 +1,7 @@
 import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route, withRouter, RouteComponentProps } from "react-router";
+import { isEqual } from 'lodash';
 import { ErrorModal, ErrorModalData } from "../components/errormodal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json";
@@ -201,11 +202,17 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setTotalBalance = (totalBalance: TotalBalance) => {
-    this.setState({ totalBalance });
+    console.log('=============== total balance', totalBalance);
+    if (!isEqual(totalBalance, this.state.totalBalance)) {
+      this.setState({ totalBalance });
+    }
   };
 
   setWalletSettings = (walletSettings: WalletSettings) => {
-    this.setState({ walletSettings });
+    console.log('=============== wallet settings', walletSettings);
+    if (!isEqual(walletSettings, this.state.walletSettings)) {
+      this.setState({ walletSettings });
+    }
   };
 
   updateWalletSettings = async () => {
@@ -213,43 +220,52 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setAddresses = (addresses: Address[]) => {
-    this.setState({ addresses });
+    console.log('=============== addresses', addresses.length)
+    if (!isEqual(addresses, this.state.addresses)) {
+      this.setState({ addresses });
 
-    const { sendPageState } = this.state;
-
-    // If there is no 'from' address, we'll set a default one
-    if (!sendPageState.fromaddr) {
-      // Find a u-address with the highest balance
-      const defaultAB = addresses
-        .filter((ab) => ab.type === AddressType.unified)
-        .reduce((prev: Address | null, ab) => {
-          // We'll start with a unified address
-          if (!prev) {
-            return ab;
-          } else if (prev.balance < ab.balance) {
-            // Find the unified address with the highest balance
-            return ab;
-          } else {
-            return prev;
-          }
-        }, null);
-
-      if (defaultAB) {
-        const newSendPageState = new SendPageState();
-        newSendPageState.fromaddr = defaultAB.address;
-        newSendPageState.toaddrs = sendPageState.toaddrs;
-
-        this.setState({ sendPageState: newSendPageState });
+      const { sendPageState } = this.state;
+  
+      // If there is no 'from' address, we'll set a default one
+      if (!sendPageState.fromaddr) {
+        // Find a u-address with the highest balance
+        const defaultAB = addresses
+          .filter((ab) => ab.type === AddressType.unified)
+          .reduce((prev: Address | null, ab) => {
+            // We'll start with a unified address
+            if (!prev) {
+              return ab;
+            } else if (prev.balance < ab.balance) {
+              // Find the unified address with the highest balance
+              return ab;
+            } else {
+              return prev;
+            }
+          }, null);
+  
+        if (defaultAB) {
+          const newSendPageState = new SendPageState();
+          newSendPageState.fromaddr = defaultAB.address;
+          newSendPageState.toaddrs = sendPageState.toaddrs;
+  
+          this.setState({ sendPageState: newSendPageState });
+        }
       }
     }
   };
 
   setTransactionList = (transactions: Transaction[]) => {
-    this.setState({ transactions });
+    console.log('=============== transaction list', transactions);
+    if (!isEqual(transactions, this.state.transactions)) {
+      this.setState({ transactions });
+    }
   };
 
   setSendPageState = (sendPageState: SendPageState) => {
-    this.setState({ sendPageState });
+    console.log('=============== send page state', sendPageState);
+    if (!isEqual(sendPageState, this.state.sendPageState)) {
+      this.setState({ sendPageState });
+    }
   };
 
   importPrivKeys = async (keys: string[], birthday: string): Promise<boolean> => {
@@ -311,44 +327,57 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setRPCConfig = (rpcConfig: RPCConfig) => {
-    this.setState({ rpcConfig });
-    console.log(rpcConfig);
-
-    this.rpc.configure(rpcConfig);
+    console.log('=============== rpc config', rpcConfig);
+    if (!isEqual(rpcConfig, this.state.rpcConfig)) {
+      this.setState({ rpcConfig });
+      console.log(rpcConfig);
+  
+      this.rpc.configure(rpcConfig);
+    }
   };
 
   setZecPrice = (price?: number) => {
-    console.log(`Price = ${price}`);
-    const { info } = this.state;
-
-    const newInfo = new Info();
-    Object.assign(newInfo, info);
-    if (price) {
+    console.log('=============== price', price);
+    if (!!price && price !== this.state.info.zecPrice) {
+      console.log(`Price = ${price}`);
+      const { info } = this.state;
+  
+      const newInfo = new Info();
+      Object.assign(newInfo, info);
       newInfo.zecPrice = price;
+  
+      this.setState({ info: newInfo });  
     }
-
-    this.setState({ info: newInfo });
   };
 
   setRescanning = (rescanning: boolean, prevSyncId: number) => {
-    this.setState({ rescanning });
-    this.setState({ prevSyncId });
+    if (rescanning !== this.state.rescanning) {
+      this.setState({ rescanning });
+    }
+    if (prevSyncId !== this.state.prevSyncId) {
+      this.setState({ prevSyncId });
+    }
   };
 
   setInfo = (newInfo: Info) => {
-    // If the price is not set in this object, copy it over from the current object
-    const { info } = this.state;
-    if (!newInfo.zecPrice) {
-      newInfo.zecPrice = info.zecPrice;
+    console.log('=============== info', newInfo);
+    if (!isEqual(newInfo, this.state.info)) {
+      // If the price is not set in this object, copy it over from the current object 
+      const { info } = this.state;
+      if (!newInfo.zecPrice) {
+        newInfo.zecPrice = info.zecPrice;
+      }
+
+      //console.log(newInfo);
+
+      this.setState({ info: newInfo });
     }
-
-    //console.log(newInfo);
-
-    this.setState({ info: newInfo });
   };
 
   setVerificationProgress = (verificationProgress: number) => {
-    this.setState({ verificationProgress });
+    if (verificationProgress !== this.state.verificationProgress) {
+      this.setState({ verificationProgress });
+    }
   };
 
   sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> => {

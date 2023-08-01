@@ -41,6 +41,8 @@ class LoadingScreenState {
 
   getinfoRetryCount: number;
 
+  nextSaveBatch: number;
+
   constructor() {
     this.currentStatus = "Loading...";
     this.currentStatusIsError = false;
@@ -52,6 +54,7 @@ class LoadingScreenState {
     this.newWalletError = null;
     this.seed = "";
     this.birthday = 0;
+    this.nextSaveBatch = -1;
   }
 }
 
@@ -299,6 +302,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             progress = (progress_blocks * 100) / ss.total_blocks;
           }
 
+          // every 2 batches I need to save the progress of the wallet
+          if (ss.batch_num >= this.state.nextSaveBatch) {
+            RPC.doSave();
+            me.setState({ nextSaveBatch: ss.batch_num + 5});
+          }
+
           let base = 0;
           if (ss.batch_total) {
             base = (ss.batch_num * 100) / ss.batch_total;
@@ -328,7 +337,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           }
         }
       }
-    }, 1000);
+    }, 2 * 1000);
   };
 
   createNewWallet = () => {
