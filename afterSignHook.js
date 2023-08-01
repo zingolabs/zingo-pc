@@ -24,11 +24,12 @@ module.exports = async function (params) {
     await electron_notarize.notarize({
       appBundleId: appId,
       appPath,
-      appleId: process.env.appleId,
-      appleIdPassword: process.env.appleIdPassword,
+      appleId: "juanky@zingolabs.org",
+      appleIdPassword: "vdmd-**************",
     });
   } catch (error) {
     console.error(error);
+    return;
   }
 
   console.log(`Done notarizing ${appId}`);
