@@ -62,9 +62,10 @@ export default class RPC {
 
     if (!this.refreshTimerID) {
       this.refreshTimerID = setInterval(() => {
+        console.log('refresh - 30 sec');
         // trying to sync
         this.refresh(false);
-        // I need to save the wallet every minute Just in case.
+        // I need to save the wallet every 30 seconds  Just in case.
         RPC.doSave();
         // and I need to update the wallet info if the sync is running
         if (this.updateDataLock) {
@@ -72,11 +73,14 @@ export default class RPC {
           this.updateData();
           this.updateDataLock = true;
         }
-      }, 60 * 1000); // 1 min
+      }, 30 * 1000); // 30 sec
     }
 
     if (!this.updateTimerID) {
-      this.updateTimerID = setInterval(() => this.updateData(), 3 * 1000); // 3 secs
+      this.updateTimerID = setInterval(() => {
+        console.log('update data - 3 sec');
+        this.updateData();
+      }, 3 * 1000); // 3 secs
     }
 
     // Immediately call the refresh after configure to update the UI
@@ -226,6 +230,7 @@ export default class RPC {
       // We need to wait for the sync to finish. The way we know the sync is done is
       // if the height matches the latestBlockHeight
       this.syncTimerID = setInterval(async () => {
+        console.log('sync status - 2 sec'); 
         const walletHeight = RPC.fetchWalletHeight();
         const walletBirthday: number = RPC.fetchBirthday();
 
@@ -301,7 +306,7 @@ export default class RPC {
         }
 
         this.fnSetVerificationProgress(verificationProgress);
-      }, 2000); // two seconds is ok for the UI.
+      }, 2 * 1000); // two seconds is ok for the UI.
     } else {
       // Already at the latest block
       console.log("Already have latest block, waiting for next refresh");
@@ -706,7 +711,9 @@ export default class RPC {
     const txListStr = native.zingolib_execute("list", "");
     const txListJSON = JSON.parse(txListStr);
 
-    if (txListJSON && txListJSON.length) {
+    console.log('=============== get Last TX ID', txListJSON.length); 
+
+    if (txListJSON && txListJSON.length && txListJSON.length > 0) {
       return txListJSON[txListJSON.length - 1].txid;
     } else {
       return "0";
