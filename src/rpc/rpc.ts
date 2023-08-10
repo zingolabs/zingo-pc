@@ -67,24 +67,22 @@ export default class RPC {
         this.refresh(false);
         // I need to save the wallet every 30 seconds  Just in case.
         RPC.doSave();
-        // and I need to update the wallet info if the sync is running
-        if (this.updateDataLock) {
-          this.updateDataLock = false;
-          this.updateData();
-          this.updateDataLock = true;
-        }
+        // I need to fetch the ZEC price in USD.
+        this.getZecPrice();
       }, 30 * 1000); // 30 sec
     }
 
     if (!this.updateTimerID) {
       this.updateTimerID = setInterval(() => {
-        console.log('update data - 3 sec');
+        console.log('update data - 5 sec');
         this.updateData();
-      }, 3 * 1000); // 3 secs
+      }, 5 * 1000); // 3 secs
     }
 
     // Immediately call the refresh after configure to update the UI
     this.refresh(true);
+    this.updateData();
+    RPC.doSave();
   }
 
   clearTimers() {
@@ -173,7 +171,7 @@ export default class RPC {
     }
   }
 
-  async updateData() {
+  updateData() {
     //console.log("Update data triggered");
     if (this.updateDataLock) {
       //console.log("Update lock, returning");
@@ -183,12 +181,8 @@ export default class RPC {
     this.updateDataLock = true;
     const latest_txid = RPC.getLastTxid();
 
-    // the sync process finish fakely, I need to try to sync here every 3 seconds, Just in Case
-    const walletHeight = RPC.fetchWalletHeight();
-    const latestBlockHeight = await this.fetchInfo();
-    if (!this.lastBlockHeight || this.lastBlockHeight < latestBlockHeight || walletHeight < latestBlockHeight) {
-      this.refresh(false);
-    }
+    const latestBlockHeight = this.fetchInfo();
+    //this.getZecPrice();
 
     if (this.lastTxId !== latest_txid) {
       console.log(`Latest: ${latest_txid}, prev = ${this.lastTxId}`);
@@ -200,7 +194,6 @@ export default class RPC {
       // And fetch the rest of the data.
       this.fetchTotalBalance();
       this.fetchTandZTransactions(latestBlockHeight);
-      this.getZecPrice();
       this.fetchWalletSettings();
 
       console.log(`Finished update data at ${latestBlockHeight}`);
@@ -208,12 +201,12 @@ export default class RPC {
     this.updateDataLock = false;
   }
 
-  async refresh(fullRefresh: boolean) {
+  refresh(fullRefresh: boolean) {
     if (this.syncTimerID) {
       console.log("Already have a sync process launched", this.syncTimerID);
       return;
     }
-    const latestBlockHeight = await this.fetchInfo();
+    const latestBlockHeight = this.fetchInfo();
     const walletHeight = RPC.fetchWalletHeight();
 
     if (
@@ -222,7 +215,6 @@ export default class RPC {
       this.lastBlockHeight < latestBlockHeight ||
       walletHeight < latestBlockHeight
     ) {
-      this.updateDataLock = true;
 
       // If the latest block height has changed, make sure to sync. This will happen in a new thread
       RPC.doSync();
@@ -245,14 +237,12 @@ export default class RPC {
           // And fetch the rest of the data.
           this.fetchTotalBalance();
           this.fetchTandZTransactions(latestBlockHeight);
-          this.getZecPrice();
+          //this.getZecPrice();
 
           this.lastBlockHeight = latestBlockHeight;
 
           // Save the wallet
           RPC.doSave();
-
-          this.updateDataLock = false;
 
           // All done
           console.log(`Finished (blocks) full refresh at server: ${latestBlockHeight} & wallet: ${walletHeight}`);
@@ -271,14 +261,12 @@ export default class RPC {
             // And fetch the rest of the data.
             this.fetchTotalBalance();
             this.fetchTandZTransactions(latestBlockHeight);
-            this.getZecPrice();
+            //this.getZecPrice();
 
             this.lastBlockHeight = latestBlockHeight;
 
             // Save the wallet
             RPC.doSave();
-
-            this.updateDataLock = false;
 
             // All done
             console.log(`Finished (in_progress) full refresh at ${latestBlockHeight} & wallet: ${walletHeight}`);
@@ -402,7 +390,7 @@ export default class RPC {
     return r;
   }
 
-  async fetchInfo(): Promise<number> {
+  fetchInfo(): number {
     const info = RPC.getInfoObject();
 
     this.fnSetInfo(info);

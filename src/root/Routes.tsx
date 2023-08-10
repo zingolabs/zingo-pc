@@ -2,6 +2,7 @@ import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route, withRouter, RouteComponentProps } from "react-router";
 import { isEqual } from 'lodash';
+import deepDiff from 'deep-diff';
 import { ErrorModal, ErrorModalData } from "../components/errormodal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json";
@@ -202,15 +203,15 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setTotalBalance = (totalBalance: TotalBalance) => {
-    console.log('=============== total balance', totalBalance);
     if (!isEqual(totalBalance, this.state.totalBalance)) {
+      console.log('=============== total balance', totalBalance);
       this.setState({ totalBalance });
     }
   };
 
   setWalletSettings = (walletSettings: WalletSettings) => {
-    console.log('=============== wallet settings', walletSettings);
     if (!isEqual(walletSettings, this.state.walletSettings)) {
+      console.log('=============== wallet settings', walletSettings);
       this.setState({ walletSettings });
     }
   };
@@ -220,52 +221,51 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setAddresses = (addresses: Address[]) => {
-    console.log('=============== addresses', addresses.length)
-    if (!isEqual(addresses, this.state.addresses)) {
+    if (deepDiff(addresses, this.state.addresses)) {
+      console.log('=============== addresses', addresses.length);
       this.setState({ addresses });
+    }
 
-      const { sendPageState } = this.state;
-  
-      // If there is no 'from' address, we'll set a default one
-      if (!sendPageState.fromaddr) {
-        // Find a u-address with the highest balance
-        const defaultAB = addresses
-          .filter((ab) => ab.type === AddressType.unified)
-          .reduce((prev: Address | null, ab) => {
-            // We'll start with a unified address
-            if (!prev) {
-              return ab;
-            } else if (prev.balance < ab.balance) {
-              // Find the unified address with the highest balance
-              return ab;
-            } else {
-              return prev;
-            }
-          }, null);
-  
-        if (defaultAB) {
-          const newSendPageState = new SendPageState();
-          newSendPageState.fromaddr = defaultAB.address;
-          newSendPageState.toaddrs = sendPageState.toaddrs;
-  
-          this.setState({ sendPageState: newSendPageState });
-        }
+    const { sendPageState } = this.state;
+    // If there is no 'from' address, we'll set a default one
+    if (!sendPageState.fromaddr) {
+      // Find a u-address with the highest balance
+      const defaultAB = addresses
+        .filter((ab) => ab.type === AddressType.unified)
+        .reduce((prev: Address | null, ab) => {
+          // We'll start with a unified address
+          if (!prev) {
+            return ab;
+          } else if (prev.balance < ab.balance) {
+            // Find the unified address with the highest balance
+            return ab;
+          } else {
+            return prev;
+          }
+        }, null);
+
+      if (defaultAB) {
+        const newSendPageState = new SendPageState();
+        newSendPageState.fromaddr = defaultAB.address;
+        newSendPageState.toaddrs = sendPageState.toaddrs;
+
+        console.log('=============== default fromaddr', defaultAB.address);
+
+        this.setState({ sendPageState: newSendPageState });
       }
     }
   };
 
   setTransactionList = (transactions: Transaction[]) => {
-    console.log('=============== transaction list', transactions);
-    if (!isEqual(transactions, this.state.transactions)) {
+    if (deepDiff(transactions, this.state.transactions)) {
+      console.log('=============== transaction list', transactions);
       this.setState({ transactions });
     }
   };
 
   setSendPageState = (sendPageState: SendPageState) => {
     console.log('=============== send page state', sendPageState);
-    if (!isEqual(sendPageState, this.state.sendPageState)) {
-      this.setState({ sendPageState });
-    }
+    this.setState({ sendPageState });
   };
 
   importPrivKeys = async (keys: string[], birthday: string): Promise<boolean> => {
@@ -302,7 +302,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     newSendPageState.toaddrs = [];
     newSendPageState.fromaddr = sendPageState.fromaddr;
 
-    // If a single object is passed, accept that as well.
+    // If a single object is passed, accept that as well. 
     let tgts = targets;
     if (!Array.isArray(tgts)) {
       tgts = [targets as ZcashURITarget];
@@ -328,12 +328,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   setRPCConfig = (rpcConfig: RPCConfig) => {
     console.log('=============== rpc config', rpcConfig);
-    if (!isEqual(rpcConfig, this.state.rpcConfig)) {
-      this.setState({ rpcConfig });
-      console.log(rpcConfig);
+    this.setState({ rpcConfig });
+    console.log(rpcConfig);
   
-      this.rpc.configure(rpcConfig);
-    }
+    this.rpc.configure(rpcConfig);
   };
 
   setZecPrice = (price?: number) => {
@@ -360,8 +358,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setInfo = (newInfo: Info) => {
-    console.log('=============== info', newInfo);
     if (!isEqual(newInfo, this.state.info)) {
+      console.log('=============== info', newInfo);
       // If the price is not set in this object, copy it over from the current object 
       const { info } = this.state;
       if (!newInfo.zecPrice) {
@@ -394,8 +392,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       throw err;
     }
   };
-
-  
 
   // Get a single private key for this address, and return it as a string.
   // Wallet needs to be unlocked

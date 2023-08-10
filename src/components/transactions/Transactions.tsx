@@ -87,7 +87,7 @@ export default class Transactions extends Component<TransactionsProps, Transacti
           </div>
         </div>
 
-        <div className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Transactions</div>
+        <div style={{ marginBottom: 5 }} className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Transactions</div>
 
         {/* Change the hardcoded height */}
         <ScrollPane offsetHeight={180}>
