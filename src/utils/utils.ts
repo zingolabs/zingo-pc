@@ -77,7 +77,7 @@ export default class Utils {
 
   static splitZecAmountIntoBigSmall(zecValue: number) {
     if (!zecValue) {
-      return { bigPart: zecValue, smallPart: "" };
+      return { bigPart: zecValue.toString(), smallPart: "" };
     }
 
     let bigPart = Utils.maxPrecision(zecValue);
