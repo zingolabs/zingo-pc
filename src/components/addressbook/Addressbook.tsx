@@ -19,31 +19,56 @@ type AddressBookState = {
   currentLabel: string;
   currentAddress: string;
   addButtonEnabled: boolean;
+  labelError: string | null;
+  addressIsValid: boolean;
+  addressType?: AddressType;
 };
 
-export default class AddressBook extends Component<AddressBookProps, AddressBookState> {
+export default class AddressBook extends Component<AddressBookProps, AddressBookState> { 
   static contextType = ContextApp;
   constructor(props: AddressBookProps) {
     super(props);
 
-    this.state = { currentLabel: "", currentAddress: "", addButtonEnabled: false };
+    this.state = { 
+      currentLabel: "", 
+      currentAddress: "", 
+      addButtonEnabled: false,
+      labelError: null,
+      addressIsValid: true,
+    };
   }
 
-  updateLabel = (currentLabel: string) => {
-    const { currentAddress } = this.state;
-    this.setState({ currentLabel });
+  async componentDidMount() {
+    const{ labelError, addressIsValid, addressType } = await this.validate(this.state.currentLabel, this.state.currentAddress);
+    this.setState({
+      labelError,
+      addressIsValid,
+      addressType,
+    });
+  }
 
-    const { labelError, addressIsValid } = this.validate(currentLabel, currentAddress);
+
+  updateLabel = async (currentLabel: string) => {
+    const { currentAddress } = this.state;
+
+    const { labelError, addressIsValid } = await this.validate(currentLabel, currentAddress);
+    this.setState({
+      labelError,
+      addressIsValid,
+      currentLabel,
+    });
     this.setAddButtonEnabled(!labelError && addressIsValid && currentLabel !== "" && currentAddress !== ""); 
   };
 
-  updateAddress = (currentAddress: string) => {
+  updateAddress = async (currentAddress: string) => {
     const { currentLabel } = this.state;
-    const newCurrentAddress = currentAddress.replace(/ /g, ""); // Remove spaces
-    this.setState({ currentAddress: newCurrentAddress });
 
-    const { labelError, addressIsValid } = this.validate(currentLabel, currentAddress);
-
+    const { labelError, addressIsValid } = await this.validate(currentLabel, currentAddress);
+    this.setState({
+      labelError,
+      addressIsValid,
+      currentAddress,
+    });
     this.setAddButtonEnabled(!labelError && addressIsValid && currentLabel !== "" && currentAddress !== "");
   };
 
@@ -51,7 +76,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     const { addAddressBookEntry } = this.props;
     const { currentLabel, currentAddress } = this.state;
 
-    addAddressBookEntry(currentLabel, currentAddress);
+    addAddressBookEntry(currentLabel, currentAddress.replace(/ /g, ""));
     this.setState({ currentLabel: "", currentAddress: "", addButtonEnabled: false });
   };
 
@@ -59,13 +84,13 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     this.setState({ addButtonEnabled });
   };
 
-  validate = (currentLabel: string, currentAddress: string) => {
+  validate = async (currentLabel: string, currentAddress: string) => {
     const { addressBook } = this.context;
 
     let labelError = addressBook.find((i: AddressBookEntry) => i.label === currentLabel) ? "Duplicate Label" : null;
     labelError = currentLabel.length > 12 ? "Label is too long" : labelError;
 
-    const addressType = Utils.getAddressType(currentAddress);
+    const addressType = await Utils.getAddressType(currentAddress);
     const addressIsValid =
       currentAddress === "" || addressType !== undefined; 
 
@@ -73,15 +98,13 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
   };
 
   clearFields = () => {
-    this.setState({ currentLabel: "", currentAddress: "", addButtonEnabled: false });
+    this.setState({ currentLabel: "", currentAddress: "", addButtonEnabled: false, labelError: "", addressIsValid: true, addressType: undefined });
   };
 
   render() {
     const { removeAddressBookEntry, setSendTo } = this.props;
     const { addressBook } = this.context;
-    const { currentLabel, currentAddress, addButtonEnabled } = this.state; 
-
-    const { labelError, addressIsValid, addressType } = this.validate(currentLabel, currentAddress);
+    const { currentLabel, currentAddress, addButtonEnabled, labelError, addressIsValid, addressType } = this.state;
 
     return (
       <div>

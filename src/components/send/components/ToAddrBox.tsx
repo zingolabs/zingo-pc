@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
@@ -18,9 +18,9 @@ type ToAddrBoxProps = {
   zecPrice: number;
   updateToField: (
     id: number,
-    address: React.ChangeEvent<HTMLInputElement> | null,
-    amount: React.ChangeEvent<HTMLInputElement> | null,
-    memo: React.ChangeEvent<HTMLTextAreaElement> | string | null,
+    address: string | null,
+    amount: string | null,
+    memo: string | null,
     memoReplyTo: string | null
   ) => void;
   fromAddress: string;
@@ -40,45 +40,60 @@ const ToAddrBox = ({
   setSendButtonEnable,
   totalAmountAvailable,
 }: ToAddrBoxProps) => {
-  const addressType = Utils.getAddressType(toaddr.to);
-  const isMemoDisabled = !(addressType === AddressType.sapling || addressType === AddressType.unified);
+  const [addressType, setAddressType] = useState<AddressType>();
+  const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
+  const [addressIsValid, setAddressIsValid] = useState<boolean>(true);
+  const [amountError, setAmountError] = useState<string | null>(null);
+  const [usdValue, setUsdValue] = useState<string>('');
 
-  const addressIsValid =
-    toaddr.to === "" || addressType !== undefined;
-
-  let amountError = null;
-  if (toaddr.amount) {
-    if (toaddr.amount < 0) {
-      amountError = "Amount cannot be negative";
-    }
-    if (toaddr.amount > fromAmount) {
-      amountError = "Amount Exceeds Balance";
-    }
-    if (toaddr.amount < 10 ** -8) {
-      amountError = "Amount is too small";
-    }
-    const s = toaddr.amount.toString().split(".");
-    if (s && s.length > 1 && s[1].length > 8) {
-      amountError = "Too Many Decimals";
-    }
-  }
-
-  if (isNaN(toaddr.amount)) {
-    // Amount is empty
-    amountError = "Amount cannot be empty";
-  }
-
-  let buttonstate = true;
-  if (!addressIsValid || amountError || toaddr.to === "" || toaddr.amount === 0 || fromAmount === 0) {
-    buttonstate = false;
-  }
-
-  setTimeout(() => {
-    setSendButtonEnable(buttonstate);
-  }, 10);
-
-  const usdValue = Utils.getZecToUsdString(zecPrice, toaddr.amount);
-
+  useEffect(() => {
+    (async () => {
+      const addressType = await Utils.getAddressType(toaddr.to);
+      setAddressType(addressType);
+      const isMemoDisabled = !(addressType === AddressType.sapling || addressType === AddressType.unified);
+      setIsMemoDisabled(isMemoDisabled);
+    
+      const addressIsValid =
+        toaddr.to === "" || addressType !== undefined;
+      setAddressIsValid(addressIsValid);
+    
+      let amountError = null;
+      if (toaddr.amount) {
+        if (toaddr.amount < 0) {
+          amountError = "Amount cannot be negative";
+        }
+        if (toaddr.amount > fromAmount) {
+          amountError = "Amount Exceeds Balance";
+        }
+        if (toaddr.amount < 10 ** -8) {
+          amountError = "Amount is too small";
+        }
+        const s = toaddr.amount.toString().split(".");
+        if (s && s.length > 1 && s[1].length > 8) {
+          amountError = "Too Many Decimals";
+        }
+      }
+    
+      if (isNaN(toaddr.amount)) {
+        // Amount is empty
+        amountError = "Amount cannot be empty";
+      }
+      setAmountError(amountError);
+    
+      let buttonstate = true;
+      if (!addressIsValid || amountError || toaddr.to === "" || toaddr.amount === 0 || fromAmount === 0) {
+        buttonstate = false;
+      }
+    
+      setTimeout(() => {
+        setSendButtonEnable(buttonstate);
+      }, 10);
+    
+      const usdValue = Utils.getZecToUsdString(zecPrice, toaddr.amount);
+      setUsdValue(usdValue);
+    })();
+  }, [fromAmount, setSendButtonEnable, toaddr.amount, toaddr.to, zecPrice]);
+  
   const addReplyTo = (checked: boolean) => {
     if (toaddr.id) {
       if (fromAddress && checked) {
@@ -112,7 +127,7 @@ const ToAddrBox = ({
           placeholder="Unified | Sapling | Transparent address"
           className={cstyles.inputbox}
           value={toaddr.to}
-          onChange={(e) => updateToField(toaddr.id as number, e, null, null, null)}
+          onChange={(e) => updateToField(toaddr.id as number, e.target.value, null, null, null)}
         />
         <Spacer />
         <div className={[cstyles.flexspacebetween].join(" ")}>
@@ -127,7 +142,7 @@ const ToAddrBox = ({
             step="any"
             className={cstyles.inputbox}
             value={isNaN(toaddr.amount) ? "" : toaddr.amount}
-            onChange={(e) => updateToField(toaddr.id as number, null, e, null, null)}
+            onChange={(e) => updateToField(toaddr.id as number, null, e.target.value, null, null)}
           />
           <img
             className={styles.toaddrbutton}
@@ -151,7 +166,7 @@ const ToAddrBox = ({
               className={[toaddr.memoReplyTo ? cstyles.inputboxmemo : cstyles.inputbox].join(" ")}
               value={toaddr.memo}
               disabled={isMemoDisabled}
-              onChange={(e) => updateToField(toaddr.id as number, null, null, e, null)}
+              onChange={(e) => updateToField(toaddr.id as number, null, null, e.target.value, null)}
               minRows={2}
               maxRows={5}
             />

@@ -90,35 +90,35 @@ export default class Send extends PureComponent<SendProps, SendState> {
     setSendPageState(newState);
   };
 
-  updateToField = (
+  updateToField = async (
     id: number,
-    address: React.ChangeEvent<HTMLInputElement> | null,
-    amount: React.ChangeEvent<HTMLInputElement> | null,
-    memo: React.ChangeEvent<HTMLTextAreaElement> | string | null,
+    address: string | null,
+    amount: string | null,
+    memo: string | null,
     memoReplyTo: string | null
   ) => {
     const { setSendPageState, setSendTo } = this.props;
     const { sendPageState } = this.context;
 
-    const newToAddrs = sendPageState.toaddrs.slice(0);
     // Find the correct toAddr
-    const toAddr = newToAddrs.find((a: ToAddr) => a.id === id) as ToAddr;
+    const toAddr = sendPageState.toaddrs.find((a: ToAddr) => a.id === id) as ToAddr;
+    const restToAddr = sendPageState.toaddrs.find((a: ToAddr) => a.id !== id) as ToAddr[];
     if (address !== null) {
       // First, check if this is a URI
       // $FlowFixMe
-      const parsedUri = parseZcashURI(address.target.value);
+      const parsedUri = await parseZcashURI(address); 
       if (Array.isArray(parsedUri)) {
         setSendTo(parsedUri);
         return;
       }
 
-      toAddr.to = address.target.value.replace(/ /g, ""); // Remove spaces
+      toAddr.to = address.replace(/ /g, ""); // Remove spaces 
     }
 
     if (amount !== null) {
       // Check to see the new amount if valid
       // $FlowFixMe
-      const newAmount = parseFloat(amount.target.value);
+      const newAmount = parseFloat(amount);
       if (newAmount < 0 || newAmount > 21 * 10 ** 6) {
         return;
       }
@@ -131,7 +131,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
         toAddr.memo = memo;
       } else {
         // $FlowFixMe
-        toAddr.memo = memo.target.value;
+        toAddr.memo = memo;
       }
     }
 
@@ -139,15 +139,19 @@ export default class Send extends PureComponent<SendProps, SendState> {
       toAddr.memoReplyTo = memoReplyTo;
     }
 
-    // Create the new state object
+    // Create the new state object 
     const newState = new SendPageState();
     newState.fromaddr = sendPageState.fromaddr;
-    newState.toaddrs = newToAddrs;
+    if (restToAddr && restToAddr.length > 0) {
+      newState.toaddrs = [toAddr, ...restToAddr];
+    } else {
+      newState.toaddrs = [toAddr];
+    }
 
     setSendPageState(newState);
   };
 
-  setMaxAmount = (id: number, total: number) => {
+  setMaxAmount = async (id: number, total: number) => {
     const { setSendPageState } = this.props;
     const { sendPageState } = this.context;
 
@@ -156,7 +160,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     let totalOtherAmount: number = newToAddrs.filter((a: ToAddr) => a.id !== id).reduce((s: number, a: ToAddr) => s + a.amount, 0);
 
     // Add Fee
-    totalOtherAmount += RPC.getDefaultFee();
+    totalOtherAmount += await RPC.getDefaultFee();
 
     // Find the correct toAddr
     const toAddr = newToAddrs.find((a: ToAddr) => a.id === id) as ToAddr;

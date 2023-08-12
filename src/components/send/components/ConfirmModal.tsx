@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Modal from "react-modal";
 import { RouteComponentProps, withRouter } from "react-router-dom";
 import styles from "../Send.module.css";
@@ -43,31 +43,59 @@ type ConfirmModalProps = {
     openPasswordAndUnlockIfNeeded,
     history,
   }) => {
-    const defaultFee = RPC.getDefaultFee();
-    const sendingTotal = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + defaultFee;
-    const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(sendingTotal);
-  
-    // Determine the tx privacy level
-    let privacyLevel = "";
-    // 1. If we're sending to a t-address, it is "transparent"
-    const isToTransparent = sendPageState.toaddrs.map((to) => Utils.getAddressType(to.to) === AddressType.transparent).reduce((p, c) => p || c, false);
-    if (isToTransparent) {
-      privacyLevel = "Transparent";
-    } else {
-      // 2. If we're sending to sapling or orchard, and don't have enough funds in the pool, it is "AmountsRevealed"
-      const toSapling = sendPageState.toaddrs
-        .map((to) => (Utils.getAddressType(to.to) === AddressType.sapling ? to.amount : 0))
-        .reduce((s, c) => s + c, 0);
-      const toOrchard = sendPageState.toaddrs
-        .map((to) => (Utils.getAddressType(to.to) === AddressType.unified ? to.amount : 0))
-        .reduce((s, c) => s + c, 0);
-      if (toSapling > totalBalance.spendableZ || toOrchard > totalBalance.uabalance) {
-        privacyLevel = "AmountsRevealed";
-      } else {
-        // Else, it is a shielded transaction
-        privacyLevel = "Shielded";
-      }
-    }
+    const [defaultFee, setDefaultFee] = useState<number>(0);
+    const [sendingTotal, setSendingTotal] = useState<number>(0);
+    const [bigPart, setBigPart] = useState<string>('');
+    const [smallPart, setSmallPart] = useState<string>('');
+    const [privacyLevel, setPrivacyLevel] = useState<string>('');
+
+    useEffect(() => {
+      (async () => {
+        const defaultFee = await RPC.getDefaultFee();
+        setDefaultFee(defaultFee);
+        const sendingTotal = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + defaultFee;
+        setSendingTotal(sendingTotal);
+        const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(sendingTotal);
+        setBigPart(bigPart);
+        setSmallPart(smallPart);
+      
+        // Determine the tx privacy level
+        let privacyLevel = "";
+        // 1. If we're sending to a t-address, it is "transparent" 
+        const isToTransparentArray: boolean[] = [];
+        sendPageState.toaddrs.forEach(async (to) => {
+          const at = await Utils.getAddressType(to.to);
+          isToTransparentArray.push(at === AddressType.transparent);
+        })
+        const isToTransparent: boolean = isToTransparentArray.reduce((p, c) => p || c, false);
+        if (isToTransparent) {
+          privacyLevel = "Transparent";
+        } else {
+          // 2. If we're sending to sapling or orchard, and don't have enough funds in the pool, it is "AmountsRevealed"
+          const toSaplingArray: number[] = [];
+          sendPageState.toaddrs
+            .forEach(async (to) => {
+              const a = await Utils.getAddressType(to.to);
+              toSaplingArray.push(a === AddressType.sapling ? to.amount : 0);
+            });
+          const toSapling: number = toSaplingArray.reduce((s, c) => s + c, 0);
+          const toOrchardArray: number[] = [];
+          sendPageState.toaddrs
+            .forEach(async(to) => {
+              const a = await Utils.getAddressType(to.to);
+              toOrchardArray.push(a === AddressType.unified ? to.amount : 0);
+            });
+          const toOrchard = toOrchardArray.reduce((s, c) => s + c, 0);
+          if (toSapling > totalBalance.spendableZ || toOrchard > totalBalance.uabalance) {
+            privacyLevel = "Amounts Revealed";
+          } else {
+            // Else, it is a shielded transaction
+            privacyLevel = "Shielded";
+          }
+        }
+        setPrivacyLevel(privacyLevel);
+      })();
+    },[sendPageState.toaddrs, totalBalance.spendableZ, totalBalance.uabalance]);
   
     const sendButton = () => {
       // First, close the confirm modal.
@@ -85,7 +113,7 @@ type ConfirmModalProps = {
         }
       };
   
-      // Now, send the Tx in a timeout, so that the error modal above has a chance to display
+      // Now, send the Tx in a timeout, so that the error modal above has a chance to display 
       setTimeout(() => {
         openPasswordAndUnlockIfNeeded(() => {
           // Then send the Tx async
@@ -95,7 +123,6 @@ type ConfirmModalProps = {
   
             try {
               txid = await sendTransaction(sendJson, setSendProgress);
-              console.log(txid);
   
               openErrorModal(
                 "Successfully Broadcast Transaction",

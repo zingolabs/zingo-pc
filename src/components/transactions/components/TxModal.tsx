@@ -78,8 +78,8 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     }
   };
 
-  const doReply = (address: string) => {
-    const defaultFee = RPC.getDefaultFee();
+  const doReply = async (address: string) => {
+    const defaultFee = await RPC.getDefaultFee();
     setSendTo(new ZcashURITarget(address, defaultFee));
     setExpandAddress(false);
     setExpandTxid(false);

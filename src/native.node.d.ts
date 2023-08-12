@@ -9,4 +9,4 @@ export function zingolib_initialize_new_from_phrase(
 ): string;
 export function zingolib_initialize_existing(server_uri: string): string;
 export function zingolib_deinitialize(): string;
-export function zingolib_execute(cmd: string, args: string): string;
+export function zingolib_execute(cmd: string, args: string): Promise<string>;

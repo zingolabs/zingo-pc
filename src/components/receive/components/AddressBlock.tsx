@@ -44,12 +44,16 @@ const AddressBlock = ({
   const { receivers, type } = address;
   const address_address = address.address;
   const balance = address.balance || 0;
-  const defaultFee = RPC.getDefaultFee();
 
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<boolean>(false);
   const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
+  const [defaultFee, setDefaultFee] = useState<number>(0);
 
   useEffect(() => {
+    (async () => {
+      const defaultFee = await RPC.getDefaultFee();
+      setDefaultFee(defaultFee);
+    })();
     return () => {
       if (timerID) {
         clearTimeout(timerID);
@@ -75,7 +79,7 @@ const AddressBlock = ({
       (async () => {
         try {
           const result = await shieldSaplingBalanceToOrchard();
-          console.log(result);
+          //console.log(result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
             openErrorModal("Error Promoting Transaction", `${result}`);
@@ -105,7 +109,7 @@ const AddressBlock = ({
       (async () => {
         try {
           const result = await shieldTransparentBalanceToOrchard();
-          console.log(result);
+          //console.log(result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
             openErrorModal("Error Shielding Transaction", `${result}`);

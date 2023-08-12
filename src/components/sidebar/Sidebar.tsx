@@ -24,7 +24,7 @@ type SidebarProps = {
   setInfo: (info: Info) => void;
   clearTimers: () => void;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
-  getPrivKeyAsString: (address: string) => string;
+  getPrivKeyAsString: (address: string) => Promise<string>;
   importPrivKeys: (keys: string[], birthday: string) => Promise<boolean>;
   openErrorModal: (title: string, body: string | ReactElement) => void;
   openPassword: (
@@ -276,13 +276,13 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     });
 
     // Rescan
-    ipcRenderer.on("rescan", () => {
+    ipcRenderer.on("rescan", async () => {
       // To rescan, we reset the wallet loading
       // So set info the default, and redirect to the loading screen
       clearTimers();
 
       // Grab the previous sync ID.
-      const prevSyncId = JSON.parse(RPC.doSyncStatus()).sync_id;
+      const prevSyncId = await  JSON.parse(await RPC.doSyncStatus()).sync_id;
 
       RPC.doRescan();
 
@@ -407,7 +407,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       clearTimers();
 
       // Grab the previous sync ID.
-      const prevSyncId = JSON.parse(RPC.doSyncStatus()).sync_id;
+      const prevSyncId = await JSON.parse(await RPC.doSyncStatus()).sync_id;
       const success = await importPrivKeys(keys, birthday);
 
       if (success) {
@@ -442,7 +442,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     await this.props.updateWalletSettings();
   };
 
-  payURI = (uri: string) => {
+  payURI = async (uri: string) => {
     console.log(`Paying ${uri}`);
     const { openErrorModal, setSendTo, history } = this.props;
 
@@ -461,7 +461,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       return;
     }
 
-    const parsedUri = parseZcashURI(uri);
+    const parsedUri = await parseZcashURI(uri);
     if (typeof parsedUri === "string") {
       openErrorModal(errTitle, getErrorBody(parsedUri));
       return;
