@@ -103,30 +103,30 @@ export default class RPC {
   }
 
   static async getDefaultFee(): Promise<number> {
-    const feeStr = await native.zingolib_execute("defaultfee", "");
+    const feeStr = await native.zingolib_execute_async("defaultfee", "");
     const fee = JSON.parse(feeStr);
 
     return fee.defaultfee / 10 ** 8;
   }
 
   static async doSync() {
-    const syncstr = await native.zingolib_execute("sync", "");
+    const syncstr = await native.zingolib_execute_spawm("sync", "");
     console.log(`Sync exec result: ${syncstr}`);
   }
 
   static async doRescan() {
-    const syncstr = await native.zingolib_execute("rescan", "");
+    const syncstr = await native.zingolib_execute_spawm("rescan", "");
     console.log(`rescan exec result: ${syncstr}`);
   }
 
   static async doSyncStatus(): Promise<string> {
-    const syncstr = await native.zingolib_execute("syncstatus", "");
+    const syncstr = await native.zingolib_execute_async("syncstatus", "");
     console.log(`sync status: ${syncstr}`);
     return syncstr;
   }
 
   static async doSave() {
-    const savestr = await native.zingolib_execute("save", "");
+    const savestr = await native.zingolib_execute_async("save", "");
     console.log(`Save status: ${savestr}`);
   }
 
@@ -138,7 +138,7 @@ export default class RPC {
   // shield all balance to orchard
   async shieldAllBalanceToOrchard(): Promise<string> {
     try {
-      const result = await native.zingolib_execute("shield", 'all');
+      const result = await native.zingolib_execute_async("shield", 'all');
       this.updateData();
       return result;
     } catch(error: any) {
@@ -150,7 +150,7 @@ export default class RPC {
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
     try {
-      const result = await native.zingolib_execute("shield", 'transparent');
+      const result = await native.zingolib_execute_async("shield", 'transparent');
       this.updateData();
       return result;
     } catch(error: any) {
@@ -162,7 +162,7 @@ export default class RPC {
   // shield sapling balance to orchard
   async shieldSaplingBalanceToOrchard(): Promise<string> {
     try {
-      const result = await native.zingolib_execute("shield", 'sapling');
+      const result = await native.zingolib_execute_async("shield", 'sapling');
       this.updateData();
       return result;
     } catch(error: any) {
@@ -303,7 +303,7 @@ export default class RPC {
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
   static async getInfoObject(): Promise<Info> {
-    const infostr = await native.zingolib_execute("info", "");
+    const infostr = await native.zingolib_execute_async("info", "");
     //console.log(`INFO INFO INFO: ${infostr}`);
     try {
       if (infostr.toLowerCase().startsWith("error")) {
@@ -323,7 +323,7 @@ export default class RPC {
       info.solps = 0;
 
       // Also set `zecPrice` manually
-      const resultStr = await native.zingolib_execute("updatecurrentprice", "");
+      const resultStr = await native.zingolib_execute_async("updatecurrentprice", "");
       if (resultStr) {
         if (resultStr.toLowerCase().startsWith("error") || isNaN(parseFloat(resultStr))) {
           console.log(`Error fetching price Info ${resultStr}`);
@@ -354,18 +354,18 @@ export default class RPC {
       return `Error: Couldn't parse ${birthday} as a number`;
     }
 
-    const address = await native.zingolib_execute("import", JSON.stringify(args));
+    const address = await native.zingolib_execute_spawm("import", JSON.stringify(args));
 
     return address;
   }
 
   async fetchWalletSettings() {
-    const download_memos_str = await native.zingolib_execute("getoption", "download_memos");
+    const download_memos_str = await native.zingolib_execute_async("getoption", "download_memos");
     const download_memos = JSON.parse(download_memos_str).download_memos;
 
     let transaction_filter_threshold = 0;
     try {
-      const spam_filter_str = await native.zingolib_execute("getoption", "transaction_filter_threshold");
+      const spam_filter_str = await native.zingolib_execute_async("getoption", "transaction_filter_threshold");
       transaction_filter_threshold = JSON.parse(spam_filter_str).transaction_filter_threshold;
 
       // If it is -1, i.e., it was not set, then set it to 50
@@ -384,7 +384,7 @@ export default class RPC {
   }
 
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
-    const r = await native.zingolib_execute("setoption", `${name}=${value}`);
+    const r = await native.zingolib_execute_async("setoption", `${name}=${value}`);
 
     RPC.doSave();
     return r;
@@ -399,7 +399,7 @@ export default class RPC {
   }
 
   async zingolibBalance(): Promise<any> {
-    const balanceStr = await native.zingolib_execute("balance", "");
+    const balanceStr = await native.zingolib_execute_async("balance", "");
     const balanceJSON = JSON.parse(balanceStr);
 
     let formattedJSON = {
@@ -415,11 +415,11 @@ export default class RPC {
     };
 
     // fetch all addresses
-    const addressesStr = await native.zingolib_execute("addresses", "");
+    const addressesStr = await native.zingolib_execute_async("addresses", "");
     const addressesJSON = JSON.parse(addressesStr);
 
     // fetch all notes
-    const notesStr = await native.zingolib_execute("notes", "");
+    const notesStr = await native.zingolib_execute_async("notes", "");
     const notesJSON = JSON.parse(notesStr);
 
     //console.log(notesJSON);
@@ -504,11 +504,11 @@ export default class RPC {
 
   async zingolibNotes(): Promise<any> {
     // fetch all notes
-    const notesStr = await native.zingolib_execute("notes", "");
+    const notesStr = await native.zingolib_execute_async("notes", "");
     const notesJSON = JSON.parse(notesStr);
 
     // fetch all addresses
-    const addressesStr = await native.zingolib_execute("addresses", "");
+    const addressesStr = await native.zingolib_execute_async("addresses", "");
     const addressesJSON = JSON.parse(addressesStr);
 
     let formattedJSON = {
@@ -579,15 +579,15 @@ export default class RPC {
 
   async zingolibTxList(): Promise<any> {
     // fetch transaction list
-    const txListStr = await native.zingolib_execute("list", "");
+    const txListStr = await native.zingolib_execute_async("list", "");
     const txListJSON = JSON.parse(txListStr);
 
     // fetch all notes
-    const notesStr = await native.zingolib_execute("notes", "");
+    const notesStr = await native.zingolib_execute_async("notes", "");
     const notesJSON = JSON.parse(notesStr);
 
     // fetch all addresses
-    const addressesStr = await native.zingolib_execute("addresses", "");
+    const addressesStr = await native.zingolib_execute_async("addresses", "");
     const addressesJSON = JSON.parse(addressesStr);
 
     // construct the list, changing ua addresses to sappling addresses, when suitable
@@ -609,7 +609,7 @@ export default class RPC {
 
   // This method will get the total balances
   async fetchTotalBalance() {
-    //const balanceStr = native.zingolib_execute("balance", "");
+    //const balanceStr = native.zingolib_execute_async("balance", "");
     //const balanceJSON = JSON.parse(balanceStr);
 
     const balanceJSON = await this.zingolibBalance();
@@ -628,7 +628,7 @@ export default class RPC {
     this.fnSetTotalBalance(balance);
 
     // Fetch pending notes and UTXOs
-    // const pendingNotes = native.zingolib_execute("notes", "");
+    // const pendingNotes = native.zingolib_execute_async("notes", "");
     // const pendingJSON = JSON.parse(pendingNotes);
 
     const pendingJSON = await this.zingolibNotes();
@@ -696,7 +696,7 @@ export default class RPC {
   }
 
   static async getLastTxid(): Promise<string> {
-    const txListStr = await native.zingolib_execute("list", "");
+    const txListStr = await native.zingolib_execute_async("list", "");
     const txListJSON = JSON.parse(txListStr);
 
     console.log('=============== get Last TX ID', txListJSON.length); 
@@ -709,14 +709,14 @@ export default class RPC {
   }
 
   static async getPrivKeyAsString(address: string): Promise<string> {
-    const privKeyStr = await native.zingolib_execute("export", address);
+    const privKeyStr = await native.zingolib_execute_async("export", address);
     const privKeyJSON = JSON.parse(privKeyStr);
 
     return privKeyJSON[0].private_key;
   }
 
   static async getViewKeyAsString(address: string): Promise<string> {
-    const privKeyStr = await native.zingolib_execute("export", address);
+    const privKeyStr = await native.zingolib_execute_async("export", address);
     const privKeyJSON = JSON.parse(privKeyStr);
 
     return privKeyJSON[0].viewing_key;
@@ -731,7 +731,7 @@ export default class RPC {
     // zt = spling + transparent
     // z = sapling only
     // it's not possible to create a transparent only address
-    const addrStr = await native.zingolib_execute(
+    const addrStr = await native.zingolib_execute_async(
       "new",
       type === AddressType.unified ? "ozt" : type === AddressType.sapling ? "oz" : "ot"
     );
@@ -741,21 +741,21 @@ export default class RPC {
   }
 
   static async fetchSeed(): Promise<string> {
-    const seedStr = await native.zingolib_execute("seed", "");
+    const seedStr = await native.zingolib_execute_async("seed", "");
     const seedJSON = JSON.parse(seedStr);
 
     return seedJSON.seed;
   }
 
   static async fetchBirthday(): Promise<number> {
-    const seedStr = await native.zingolib_execute("seed", "");
+    const seedStr = await native.zingolib_execute_async("seed", "");
     const seedJSON = JSON.parse(seedStr);
 
     return seedJSON.birthday;
   }
 
   static async fetchWalletHeight(): Promise<number> {
-    const heightStr = await native.zingolib_execute("height", "");
+    const heightStr = await native.zingolib_execute_async("height", "");
     const heightJSON = JSON.parse(heightStr);
 
     return heightJSON.height;
@@ -763,7 +763,7 @@ export default class RPC {
 
   // Fetch all T and Z transactions
   async fetchTandZTransactions(latestBlockHeight: number) {
-    // const listStr = native.zingolib_execute("list", "");
+    // const listStr = native.zingolib_execute_async("list", "");
     // const listJSON = JSON.parse(listStr);
     //console.log(listJSON);
 
@@ -892,12 +892,12 @@ export default class RPC {
   // Send a transaction using the already constructed sendJson structure
   async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> {
     // First, get the previous send progress id, so we know which ID to track
-    const prevProgress = await JSON.parse(await native.zingolib_execute("sendprogress", ""));
+    const prevProgress = await JSON.parse(await native.zingolib_execute_async("sendprogress", ""));
     const prevSendId = prevProgress.id;
 
     try {
       console.log(`Sending ${JSON.stringify(sendJson)}`);
-      const resp = native.zingolib_execute("send", JSON.stringify(sendJson));
+      const resp = native.zingolib_execute_async("send", JSON.stringify(sendJson));
       console.log(resp);
     } catch (err) {
       // TODO Show a modal with the error
@@ -910,7 +910,7 @@ export default class RPC {
     // The send command is async, so we need to poll to get the status
     const sendTxPromise: Promise<string> = new Promise((resolve, reject) => {
       const intervalID = setInterval(async () => {
-        const progress = await JSON.parse(await native.zingolib_execute("sendprogress", ""));
+        const progress = await JSON.parse(await native.zingolib_execute_async("sendprogress", ""));
         console.log(progress);
 
         const updatedProgress = new SendProgress();
@@ -971,7 +971,7 @@ export default class RPC {
   }
 
   async encryptWallet(password: string): Promise<boolean> {
-    const resultStr = await native.zingolib_execute("encrypt", password);
+    const resultStr = await native.zingolib_execute_async("encrypt", password);
     const resultJSON = JSON.parse(resultStr);
 
     // To update the wallet encryption status
@@ -984,7 +984,7 @@ export default class RPC {
   }
 
   async decryptWallet(password: string): Promise<boolean> {
-    const resultStr = await native.zingolib_execute("decrypt", password);
+    const resultStr = await native.zingolib_execute_async("decrypt", password);
     const resultJSON = JSON.parse(resultStr);
 
     // To update the wallet encryption status
@@ -997,7 +997,7 @@ export default class RPC {
   }
 
   async lockWallet(): Promise<boolean> {
-    const resultStr = await native.zingolib_execute("lock", "");
+    const resultStr = await native.zingolib_execute_async("lock", "");
     const resultJSON = JSON.parse(resultStr);
 
     // To update the wallet encryption status
@@ -1007,7 +1007,7 @@ export default class RPC {
   }
 
   async unlockWallet(password: string): Promise<boolean> {
-    const resultStr = await native.zingolib_execute("unlock", password);
+    const resultStr = await native.zingolib_execute_async("unlock", password);
     const resultJSON = JSON.parse(resultStr);
 
     // To update the wallet encryption status
@@ -1017,7 +1017,7 @@ export default class RPC {
   }
 
   async getZecPrice() {
-    const resultStr: string = await native.zingolib_execute("updatecurrentprice", "");
+    const resultStr: string = await native.zingolib_execute_async("updatecurrentprice", "");
 
     if (resultStr) {
       if (resultStr.toLowerCase().startsWith("error") || isNaN(parseFloat(resultStr))) {

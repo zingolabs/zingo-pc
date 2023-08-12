@@ -7,6 +7,7 @@ use neon::prelude::JsBoolean;
 use neon::prelude::JsNumber;
 use neon::prelude::JsResult;
 use neon::prelude::JsString;
+use neon::prelude::JsPromise;
 
 use neon::register_module;
 
@@ -36,7 +37,8 @@ register_module!(mut m, {
         zingolib_initialize_new_from_ufvk,
     )?;
     m.export_function("zingolib_deinitialize", zingolib_deinitialize)?;
-    m.export_function("zingolib_execute", zingolib_execute)?;
+    m.export_function("zingolib_execute_spawn", zingolib_execute_spawn)?;
+    m.export_function("zingolib_execute_async", zingolib_execute_async)?;
 
     Ok(())
 });
@@ -242,7 +244,7 @@ fn zingolib_deinitialize(mut cx: FunctionContext) -> JsResult<JsString> {
     Ok(cx.string(format!("OK")))
 }
 
-fn zingolib_execute(mut cx: FunctionContext) -> JsResult<JsString> {
+fn zingolib_execute_spawn(mut cx: FunctionContext) -> JsResult<JsString> {
     let cmd = cx.argument::<JsString>(0)?.value(&mut cx);
     let args_list = cx.argument::<JsString>(1)?.value(&mut cx);
 
@@ -258,28 +260,63 @@ fn zingolib_execute(mut cx: FunctionContext) -> JsResult<JsString> {
             lightclient = lc.borrow().as_ref().unwrap().clone();
         };
 
-        if cmd == "sync" || cmd == "rescan" || cmd == "import" {
-            thread::spawn(move || {
-                let args = if args_list.is_empty() {
-                    vec![]
-                } else {
-                    vec![&args_list[..]]
-                };
-                commands::do_user_command(&cmd, &args, lightclient.as_ref());
-            });
-
-            format!("OK")
-        } else {
+        // sync, rescan and import commands.
+        thread::spawn(move || {
             let args = if args_list.is_empty() {
                 vec![]
             } else {
                 vec![&args_list[..]]
             };
-            commands::do_user_command(&cmd, &args, lightclient.as_ref()).clone()
-        }
+            commands::do_user_command(&cmd, &args, lightclient.as_ref());
+        });
+
+        format!("OK")
     };
 
     Ok(cx.string(resp()))
 
 }
 
+fn zingolib_execute_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let cmd = cx.argument::<JsString>(0)?.value(&mut cx);
+    let args_list = cx.argument::<JsString>(1)?.value(&mut cx);
+    let channel = cx.channel();
+
+    // Create a JavaScript promise and a `deferred` handle for resolving it.
+    // It is important to be careful not to perform failable actions after
+    // creating the promise to avoid an unhandled rejection.
+    let (deferred, promise) = cx.promise();
+
+    // Spawn an `async` task on a separate thread.
+    thread::spawn(move || {
+        // Inside this closure, you can perform asynchronous operations
+
+        let resp = {
+            let lightclient = LIGHTCLIENT.lock().unwrap();
+
+            if lightclient.borrow().is_none() {
+                format!("Error: Light Client is not initialized")
+            } else {
+                let lightclient = lightclient.borrow();
+                let lightclient = lightclient.as_ref().unwrap();
+
+                let args = if args_list.is_empty() {
+                    vec![]
+                } else {
+                    vec![&args_list[..]]
+                };
+                commands::do_user_command(&cmd, &args, lightclient).clone()
+            }
+        };
+
+        deferred.settle_with(&channel, move |mut cx| {
+            Ok(cx.string(resp))
+        });
+
+        // Settle the promise based on the response
+        //deferred.resolve(&mut cx, cx.string(&resp));
+    });
+
+    // Return the promise back to JavaScript
+    Ok(promise)
+}

@@ -180,7 +180,7 @@ export const checkServerURI = async (uri: string, oldUri: string): Promise<boole
   }
 
   try {
-    const resultStrServer: string = await native.zingolib_execute(
+    const resultStrServer: string = await native.zingolib_execute_async(
       'changeserver',
       `${parsedUri.protocol}//${parsedUri.hostname}:${port}`,
     );
@@ -188,17 +188,17 @@ export const checkServerURI = async (uri: string, oldUri: string): Promise<boole
     if (!resultStrServer || resultStrServer.toLowerCase().startsWith('error')) {
       // I have to restore the old server again. Just in case.
       console.log('changeserver', resultStrServer);
-      native.zingolib_execute('changeserver', oldUri);
+      native.zingolib_execute_async('changeserver', oldUri);
       // error, no timeout
       return false;
     } else {
       // the server is changed
-      const infoStr: string = await native.zingolib_execute('info', '');
+      const infoStr: string = await native.zingolib_execute_async('info', '');
 
       if (!infoStr || infoStr.toLowerCase().startsWith('error')) {
         console.log('info', infoStr);
         // I have to restore the old server again.
-        native.zingolib_execute('changeserver', oldUri);
+        native.zingolib_execute_async('changeserver', oldUri);
         // error, no timeout
         return false;
       }
@@ -206,7 +206,7 @@ export const checkServerURI = async (uri: string, oldUri: string): Promise<boole
   } catch (error: any) {
     console.log('catch', error);
     // I have to restore the old server again. Just in case.
-    await native.zingolib_execute('changeserver', oldUri);
+    await native.zingolib_execute_async('changeserver', oldUri);
     // error, YES timeout
     return false;
   }
