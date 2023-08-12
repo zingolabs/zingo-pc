@@ -295,6 +295,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setSendTo = (targets: ZcashURITarget[] | ZcashURITarget) => {
+    console.log('=============== send to', targets);
     // Clear the existing send page state and set up the new one
     const { sendPageState } = this.state;
 
@@ -395,15 +396,15 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   // Get a single private key for this address, and return it as a string.
   // Wallet needs to be unlocked
-  getPrivKeyAsString = (address: string): string => {
-    const pk = RPC.getPrivKeyAsString(address);
+  getPrivKeyAsString = async (address: string): Promise<string> => {
+    const pk = await RPC.getPrivKeyAsString(address);
     return pk;
   };
 
   // Getter methods, which are called by the components to update the state
   fetchAndSetSinglePrivKey = async (address: string) => {
     this.openPasswordAndUnlockIfNeeded(async () => {
-      let key = RPC.getPrivKeyAsString(address);
+      let key = await RPC.getPrivKeyAsString(address);
       if (key === "") {
         key = "<No Key Available>";
       }
@@ -448,7 +449,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   createNewAddress = async (newType: AddressType) => {
     this.openPasswordAndUnlockIfNeeded(async () => {
       // Create a new address
-      const newAddress = RPC.createNewAddress(newType);
+      const newAddress = await RPC.createNewAddress(newType);
       console.log(`Created new Address ${newAddress}`);
 
       // And then fetch the list of addresses again to refresh (totalBalance gets all addresses)

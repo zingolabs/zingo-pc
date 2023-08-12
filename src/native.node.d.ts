@@ -9,4 +9,5 @@ export function zingolib_initialize_new_from_phrase(
 ): string;
 export function zingolib_initialize_existing(server_uri: string): string;
 export function zingolib_deinitialize(): string;
-export function zingolib_execute(cmd: string, args: string): string;
+export function zingolib_execute_spawm(cmd: string, args: string): Promise<string>;
+export function zingolib_execute_async(cmd: string, args: string): Promise<string>;

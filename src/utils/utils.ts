@@ -17,9 +17,9 @@ export default class Utils {
     return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
   }
 
-  static getAddressType(addr: string): AddressType | undefined {
+  static async getAddressType(addr: string): Promise<AddressType | undefined> {
     if (!addr) return;
-    const resultParse = native.zingolib_execute('parse_address', addr);
+    const resultParse = await native.zingolib_execute_async('parse_address', addr);
     //console.log(addr, resultParse);
     if (resultParse.toLowerCase().startsWith('error') || resultParse.toLowerCase() === 'null') {
       return;

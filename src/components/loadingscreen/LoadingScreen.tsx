@@ -202,14 +202,14 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     });
   };
 
-  getInfo() {
+  async getInfo() {
     // Try getting the info.
     try {
       // Do a sync at start
       this.setState({ currentStatus: "Setting things up..." });
 
       // Grab the previous sync ID.
-      const prevSyncId = JSON.parse(RPC.doSyncStatus()).sync_id;
+      const prevSyncId = await JSON.parse(await RPC.doSyncStatus()).sync_id;
 
       // This will do the sync in another thread, so we have to check for sync status
       RPC.doSync();
@@ -230,13 +230,13 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   }
 
-  runSyncStatusPoller = (prevSyncId: number) => {
+  runSyncStatusPoller = async (prevSyncId: number) => {
     const me = this;
 
     const { setRPCConfig, setInfo, setRescanning } = this.props;
     const { url } = this.state;
 
-    const info = RPC.getInfoObject();
+    const info = await RPC.getInfoObject();
 
     if (info.error) {
       this.setState({
@@ -253,8 +253,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
 
     // And after a while, check the sync status.
-    const poller = setInterval(() => {
-      const syncstatus = RPC.doSyncStatus();
+    const poller = setInterval(async () => {
+      const syncstatus = await RPC.doSyncStatus();
 
       if (syncstatus.toLowerCase().startsWith("error")) {
         // Something went wrong

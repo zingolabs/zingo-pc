@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { RouteComponentProps, withRouter } from "react-router";
@@ -9,7 +9,7 @@ import { Transaction, TxDetail } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
-import RPC from "../../../rpc/rpc";
+import { ContextApp } from "../../../context/ContextAppState";
 const { clipboard } = window.require("electron");
 
 const { shell } = window.require("electron"); 
@@ -30,6 +30,8 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   setSendTo,
   history,
 }) => {
+  const context = useContext(ContextApp);
+  const { info } = context;
   const [expandAddress, setExpandAddress] = useState(false); 
   const [expandTxid, setExpandTxid] = useState(false); 
   
@@ -78,9 +80,8 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     }
   };
 
-  const doReply = (address: string) => {
-    const defaultFee = RPC.getDefaultFee();
-    setSendTo(new ZcashURITarget(address, defaultFee));
+  const doReply = async (address: string) => {
+    setSendTo(new ZcashURITarget(address, info.defaultFee));
     setExpandAddress(false);
     setExpandTxid(false);
     closeModal();
