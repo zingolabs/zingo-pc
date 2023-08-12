@@ -28,7 +28,6 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
 
   // See if it is a straight address.
   let addressType = await Utils.getAddressType(uri);
-  console.log(addressType, uri);
   if (addressType !== undefined) {
     return uri;
   }
