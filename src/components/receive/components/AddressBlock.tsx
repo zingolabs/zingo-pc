@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import {
   AccordionItem,
   AccordionItemHeading,
@@ -10,7 +10,7 @@ import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { Address, AddressType } from "../../appstate";
-import RPC from '../../../rpc/rpc';
+import { ContextApp } from "../../../context/ContextAppState";
 
 const { shell, clipboard } = window.require("electron");
 
@@ -41,19 +41,16 @@ const AddressBlock = ({
   shieldSaplingBalanceToOrchard,
   openErrorModal,
 }: AddressBlockProps) => {
+  const context = useContext(ContextApp);
+  const { info } = context;
   const { receivers, type } = address;
   const address_address = address.address;
   const balance = address.balance || 0;
 
   const [copied, setCopied] = useState<boolean>(false);
   const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
-  const [defaultFee, setDefaultFee] = useState<number>(0);
 
   useEffect(() => {
-    (async () => {
-      const defaultFee = await RPC.getDefaultFee();
-      setDefaultFee(defaultFee);
-    })();
     return () => {
       if (timerID) {
         clearTimeout(timerID);
@@ -243,12 +240,12 @@ const AddressBlock = ({
                   View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                 </button>
               )}
-              {type === AddressType.transparent && balance > defaultFee && (
+              {type === AddressType.transparent && balance > info.defaultFee && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
                   Shield Balance To Orchard
                 </button>
               )}
-              {type === AddressType.sapling && balance > defaultFee && (
+              {type === AddressType.sapling && balance > info.defaultFee && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={promoteButton}>
                   Promote Balance To Orchard
                 </button>

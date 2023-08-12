@@ -102,13 +102,6 @@ export default class RPC {
     }
   }
 
-  static async getDefaultFee(): Promise<number> {
-    const feeStr = await native.zingolib_execute_async("defaultfee", "");
-    const fee = JSON.parse(feeStr);
-
-    return fee.defaultfee / 10 ** 8;
-  }
-
   static async doSync() {
     const syncstr = await native.zingolib_execute_spawm("sync", "");
     console.log(`Sync exec result: ${syncstr}`);
@@ -179,25 +172,25 @@ export default class RPC {
     }
 
     this.updateDataLock = true;
-    const latest_txid = await RPC.getLastTxid();
+    //const latest_txid = await RPC.getLastTxid();
 
     const latestBlockHeight = await this.fetchInfo();
     //this.getZecPrice();
 
-    if (this.lastTxId !== latest_txid) {
-      console.log(`Latest: ${latest_txid}, prev = ${this.lastTxId}`);
+    //if (this.lastTxId !== latest_txid) {
+    //  console.log(`Latest: ${latest_txid}, prev = ${this.lastTxId}`);
 
-      this.lastTxId = latest_txid;
+    //  this.lastTxId = latest_txid;
 
       //console.log("Update data fetching new txns");
 
       // And fetch the rest of the data.
-      this.fetchTotalBalance();
-      this.fetchTandZTransactions(latestBlockHeight);
-      this.fetchWalletSettings();
+      await this.fetchTotalBalance();
+      await this.fetchTandZTransactions(latestBlockHeight);
+      await this.fetchWalletSettings();
 
       console.log(`Finished update data at ${latestBlockHeight}`);
-    }
+    //}
     this.updateDataLock = false;
   }
 
@@ -335,6 +328,15 @@ export default class RPC {
         console.log(`Error fetching price Info ${resultStr}`);
         info.zecPrice = 0;
       }
+
+      //default fee
+      const feeStr = await native.zingolib_execute_async("defaultfee", "");
+      if (feeStr.toLowerCase().startsWith("error")) {
+        console.log("server defaultfee Failed", feeStr);
+        return new Info(feeStr);
+      }
+      const feeJSON = JSON.parse(feeStr);
+      info.defaultFee = feeJSON.defaultfee / 10 ** 8;
 
       // we want to update the wallet last block
       const walletHeight = await RPC.fetchWalletHeight();
@@ -897,8 +899,8 @@ export default class RPC {
 
     try {
       console.log(`Sending ${JSON.stringify(sendJson)}`);
-      const resp = native.zingolib_execute_async("send", JSON.stringify(sendJson));
-      console.log(resp);
+      const resp = await native.zingolib_execute_async("send", JSON.stringify(sendJson));
+      console.log(`End Sending, response: ${resp}`); 
     } catch (err) {
       // TODO Show a modal with the error
       console.log(`Error sending Tx: ${err}`);

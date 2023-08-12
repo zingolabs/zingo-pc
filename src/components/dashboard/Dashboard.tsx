@@ -10,7 +10,6 @@ import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
 import AddressBalanceItem from "./components/AddressBalanceItem"; 
 import { ContextApp } from "../../context/ContextAppState";
 import { Address } from "../appstate";
-import RPC from '../../rpc/rpc';
 
 type DashboardProps = {
   shieldAllBalanceToOrchard: () => Promise<string>;
@@ -49,7 +48,6 @@ export default class Dashboard extends Component<DashboardProps> {
 
   render() {
     const { totalBalance, info, addresses } = this.context;
-    const defaultFee = RPC.getDefaultFee();
 
     const anyPending = addresses && addresses.find((i: Address) => i.containsPending);
 
@@ -83,7 +81,7 @@ export default class Dashboard extends Component<DashboardProps> {
             />
           </div>
           <div className={cstyles.balancebox}>
-            {totalBalance.zbalance + totalBalance.transparent > defaultFee && (
+            {totalBalance.zbalance + totalBalance.transparent > info.defaultFee && (
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={this.promoteButton}>
                 Promote All Balance To Orchard
               </button>

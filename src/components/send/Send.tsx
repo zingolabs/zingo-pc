@@ -12,7 +12,6 @@ import {
 import Utils from "../../utils/utils";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight } from "../balanceblock";
-import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
 import ToAddrBox from "./components/ToAddrBox";
@@ -153,14 +152,14 @@ export default class Send extends PureComponent<SendProps, SendState> {
 
   setMaxAmount = async (id: number, total: number) => {
     const { setSendPageState } = this.props;
-    const { sendPageState } = this.context;
+    const { sendPageState, info } = this.context;
 
     const newToAddrs = sendPageState.toaddrs.slice(0);
 
     let totalOtherAmount: number = newToAddrs.filter((a: ToAddr) => a.id !== id).reduce((s: number, a: ToAddr) => s + a.amount, 0);
 
     // Add Fee
-    totalOtherAmount += await RPC.getDefaultFee();
+    totalOtherAmount += info.defaultFee;
 
     // Find the correct toAddr
     const toAddr = newToAddrs.find((a: ToAddr) => a.id === id) as ToAddr;

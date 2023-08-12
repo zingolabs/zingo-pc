@@ -12,7 +12,6 @@ import {
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ScrollPane from "../../scrollPane/ScrollPane";
-import RPC from "../../../rpc/rpc";
 import routes from "../../../constants/routes.json";
 import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
@@ -43,7 +42,6 @@ type ConfirmModalProps = {
     openPasswordAndUnlockIfNeeded,
     history,
   }) => {
-    const [defaultFee, setDefaultFee] = useState<number>(0);
     const [sendingTotal, setSendingTotal] = useState<number>(0);
     const [bigPart, setBigPart] = useState<string>('');
     const [smallPart, setSmallPart] = useState<string>('');
@@ -51,9 +49,7 @@ type ConfirmModalProps = {
 
     useEffect(() => {
       (async () => {
-        const defaultFee = await RPC.getDefaultFee();
-        setDefaultFee(defaultFee);
-        const sendingTotal = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + defaultFee;
+        const sendingTotal = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + info.defaultFee;
         setSendingTotal(sendingTotal);
         const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(sendingTotal);
         setBigPart(bigPart);
@@ -95,7 +91,7 @@ type ConfirmModalProps = {
         }
         setPrivacyLevel(privacyLevel);
       })();
-    },[sendPageState.toaddrs, totalBalance.spendableZ, totalBalance.uabalance]);
+    },[info.defaultFee, sendPageState.toaddrs, totalBalance.spendableZ, totalBalance.uabalance]);
   
     const sendButton = () => {
       // First, close the confirm modal.
@@ -182,7 +178,7 @@ type ConfirmModalProps = {
                   <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
                 ))}
               </div>
-              <ConfirmModalToAddr toaddr={{ to: "Fee", amount: defaultFee, memo: "", memoReplyTo: "" }} info={info} />
+              <ConfirmModalToAddr toaddr={{ to: "Fee", amount: info.defaultFee, memo: "", memoReplyTo: "" }} info={info} />
     
               <div className={cstyles.well}>
                 <div className={[cstyles.flexspacebetween, cstyles.margintoplarge].join(" ")}>
