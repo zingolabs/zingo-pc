@@ -192,7 +192,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-        {detailedTxns.map((txdetail: TxDetail) => {
+        {detailedTxns.map(async (txdetail: TxDetail) => {
           const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
 
           let { address } = txdetail;
@@ -209,7 +209,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
             // read the last row & if this is a valid address => show the button up
             //console.log("-", split, "-");
             if (split && split.length > 0) {
-              if (Utils.getAddressType(split[split.length - 1]) !== undefined) {
+              if (await Utils.getAddressType(split[split.length - 1]) !== undefined) {
                 replyTo = split[split.length - 1];
               }
             }

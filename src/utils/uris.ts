@@ -85,7 +85,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
           return `Duplicate param ${qName}`;
         }
 
-        const addressType = Utils.getAddressType(value);
+        const addressType = await Utils.getAddressType(value);
         if (addressType === undefined) {
           return `${value} was not a recognized zcash address`;
         }

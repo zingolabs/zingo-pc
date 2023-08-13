@@ -33,11 +33,15 @@ export default class Dashboard extends Component<DashboardProps> {
             return;  
           }
           const resultJSON = await JSON.parse(result);
-          this.props.openErrorModal(
-            "Successfully Broadcast Transaction",
-            `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
-          );
-
+          if (resultJSON.txid) {
+            this.props.openErrorModal(
+              "Successfully Broadcast Transaction",
+              `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+            );
+          }
+          if (resultJSON.error) {
+            this.props.openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
+          }
         } catch (err) {
           // If there was an error, show the error modal
           this.props.openErrorModal("Error Shielding Transaction", `${err}`);

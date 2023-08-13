@@ -83,11 +83,15 @@ const AddressBlock = ({
             return;  
           }
           const resultJSON = await JSON.parse(result);
-          openErrorModal(
-            "Successfully Broadcast Transaction",
-            `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
-          );
-
+          if (resultJSON.txid) {
+            openErrorModal(
+              "Successfully Broadcast Transaction",
+              `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+            );
+          }
+          if (resultJSON.error) {
+            openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
+          }
         } catch (err) {
           // If there was an error, show the error modal
           openErrorModal("Error Promoting Transaction", `${err}`);
@@ -113,11 +117,15 @@ const AddressBlock = ({
             return;  
           }
           const resultJSON = await JSON.parse(result);
-          openErrorModal(
-            "Successfully Broadcast Transaction",
-            `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
-          );
-
+          if (resultJSON.txid) {
+            openErrorModal(
+              "Successfully Broadcast Transaction",
+              `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+            );
+          }
+          if (resultJSON.error) {
+            openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
+          }
         } catch (err) {
           // If there was an error, show the error modal
           openErrorModal("Error Shielding Transaction", `${err}`);

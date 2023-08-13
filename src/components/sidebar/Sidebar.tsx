@@ -34,8 +34,8 @@ type SidebarProps = {
     helpText?: string | JSX.Element
   ) => void;
   openPasswordAndUnlockIfNeeded: (successCallback: () => void | Promise<void>) => void;
-  lockWallet: () => void;
-  encryptWallet: (p: string) => void;
+  lockWallet: () => Promise<boolean>;
+  encryptWallet: (p: string) => Promise<boolean>;
   decryptWallet: (p: string) => Promise<boolean>;
   updateWalletSettings: () => Promise<void>;
 };
@@ -212,14 +212,14 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       if (info.encrypted && info.locked) {
         openErrorModal("Already Encrypted", "Your wallet is already encrypted and locked.");
       } else if (info.encrypted && !info.locked) {
-        lockWallet();
+        await lockWallet();
         openErrorModal("Locked", "Your wallet has been locked. A password will be needed to spend funds.");
       } else {
         // Encrypt the wallet
         openPassword(
           true,
           async (password) => {
-            encryptWallet(password);
+            await encryptWallet(password);
             openErrorModal("Encrypted", "Your wallet has been encrypted. The password will be needed to spend funds.");
           },
           () => {
@@ -302,7 +302,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       const { addresses } = this.context;
       openPasswordAndUnlockIfNeeded(async () => {
         const privKeysPromise: Promise<string>[] = addresses.map(async (a: Address) => {
-          const privKey = getPrivKeyAsString(a.address);
+          const privKey = await getPrivKeyAsString(a.address);
           return `${privKey} #${a}`;
         });
         const exportedPrivKeys = await Promise.all(privKeysPromise);
