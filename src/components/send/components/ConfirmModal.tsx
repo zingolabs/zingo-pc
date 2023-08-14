@@ -153,8 +153,8 @@ type ConfirmModalProps = {
         const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(sendingTotal);
         setBigPart(bigPart);
         setSmallPart(smallPart);
-      
-        setPrivacyLevel(await getPrivacyLevel(sendPageState.toaddrs[0]));
+        const privacyLevel: string = await getPrivacyLevel(sendPageState.toaddrs[0]);
+        setPrivacyLevel(privacyLevel);
       })();
     },[getPrivacyLevel, info.defaultFee, sendPageState.toaddrs]);
   
