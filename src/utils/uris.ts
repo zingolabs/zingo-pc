@@ -4,6 +4,7 @@ import { Base64 } from "js-base64";
 import Utils from "./utils";
 
 import native from '../native.node';
+import { AddressType } from "../components/appstate";
 
 export class ZcashURITarget {
   address?: string;
@@ -27,7 +28,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
   }
 
   // See if it is a straight address.
-  let addressType = await Utils.getAddressType(uri);
+  let addressType: AddressType | undefined = await Utils.getAddressType(uri);
   if (addressType !== undefined) {
     return uri;
   }
@@ -41,7 +42,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
 
   // The first address is special, it can be the "host" part of the URI
   //console.log(parsedUri);
-  const address = parsedUri.pathname;
+  const address: string = parsedUri.pathname;
   if (address) {
     addressType = await Utils.getAddressType(address);
     if (addressType === undefined) {
@@ -68,13 +69,13 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
       return `Didn't understand param ${q}`;
     }
 
-    const qIdx = parseInt(qIdxS, 10) || 0;
+    const qIdx: number = parseInt(qIdxS, 10) || 0;
 
     if (!targets.has(qIdx)) {
       targets.set(qIdx, new ZcashURITarget());
     }
 
-    const target = targets.get(qIdx);
+    const target: ZcashURITarget | undefined = targets.get(qIdx);
     if (!target) {
       return `Unknown index ${qIdx}`;
     }
@@ -85,7 +86,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
           return `Duplicate param ${qName}`;
         }
 
-        const addressType = Utils.getAddressType(value);
+        const addressType: AddressType | undefined = await Utils.getAddressType(value);
         if (addressType === undefined) {
           return `${value} was not a recognized zcash address`;
         }
@@ -121,7 +122,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
         if (typeof target.amount !== "undefined") {
           return `Duplicate param ${qName}`;
         }
-        const a = parseFloat(value);
+        const a: number = parseFloat(value);
         if (isNaN(a)) {
           return `Amount ${value} could not be parsed`;
         }
@@ -171,7 +172,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
 export const checkServerURI = async (uri: string, oldUri: string): Promise<boolean> => {
   const parsedUri = new Url(uri, true);
 
-  let port = parsedUri.port;
+  let port: string = parsedUri.port;
 
   if (!port) {
     // by default -> 9067

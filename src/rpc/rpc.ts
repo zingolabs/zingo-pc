@@ -103,35 +103,35 @@ export default class RPC {
   }
 
   static async doSync() {
-    const syncstr = await native.zingolib_execute_spawm("sync", "");
+    const syncstr: string = await native.zingolib_execute_spawn("sync", "");
     console.log(`Sync exec result: ${syncstr}`);
   }
 
   static async doRescan() {
-    const syncstr = await native.zingolib_execute_spawm("rescan", "");
+    const syncstr: string = await native.zingolib_execute_spawn("rescan", "");
     console.log(`rescan exec result: ${syncstr}`);
   }
 
   static async doSyncStatus(): Promise<string> {
-    const syncstr = await native.zingolib_execute_async("syncstatus", "");
+    const syncstr: string = await native.zingolib_execute_async("syncstatus", "");
     console.log(`sync status: ${syncstr}`);
     return syncstr;
   }
 
   static async doSave() {
-    const savestr = await native.zingolib_execute_async("save", "");
+    const savestr: string = await native.zingolib_execute_async("save", "");
     console.log(`Save status: ${savestr}`);
   }
 
   static deinitialize() {
-    const str = native.zingolib_deinitialize();
+    const str: string = native.zingolib_deinitialize();
     console.log(`Deinitialize status: ${str}`);
   }
 
   // shield all balance to orchard
   async shieldAllBalanceToOrchard(): Promise<string> {
     try {
-      const result = await native.zingolib_execute_async("shield", 'all');
+      const result: string = await native.zingolib_execute_async("shield", 'all');
       this.updateData();
       return result;
     } catch(error: any) {
@@ -143,7 +143,7 @@ export default class RPC {
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
     try {
-      const result = await native.zingolib_execute_async("shield", 'transparent');
+      const result: string = await native.zingolib_execute_async("shield", 'transparent');
       this.updateData();
       return result;
     } catch(error: any) {
@@ -155,7 +155,7 @@ export default class RPC {
   // shield sapling balance to orchard
   async shieldSaplingBalanceToOrchard(): Promise<string> {
     try {
-      const result = await native.zingolib_execute_async("shield", 'sapling');
+      const result: string = await native.zingolib_execute_async("shield", 'sapling');
       this.updateData();
       return result;
     } catch(error: any) {
@@ -172,9 +172,9 @@ export default class RPC {
     }
 
     this.updateDataLock = true;
-    //const latest_txid = await RPC.getLastTxid();
+    //const latest_txid: string = await RPC.getLastTxid();
 
-    const latestBlockHeight = await this.fetchInfo();
+    const latestBlockHeight: number = await this.fetchInfo();
     //this.getZecPrice();
 
     //if (this.lastTxId !== latest_txid) {
@@ -199,8 +199,8 @@ export default class RPC {
       console.log("Already have a sync process launched", this.syncTimerID);
       return;
     }
-    const latestBlockHeight = await this.fetchInfo();
-    const walletHeight = await RPC.fetchWalletHeight();
+    const latestBlockHeight: number = await this.fetchInfo();
+    const walletHeight: number = await RPC.fetchWalletHeight();
 
     if (
       fullRefresh ||
@@ -219,7 +219,7 @@ export default class RPC {
         const walletHeight: number = await RPC.fetchWalletHeight();
         const walletBirthday: number = await RPC.fetchBirthday();
 
-        let verificationProgress = 100;
+        let verificationProgress: number = 100;
 
         if (walletHeight >= latestBlockHeight) {
           // We are synced. Cancel the poll timer
@@ -242,7 +242,8 @@ export default class RPC {
         } else {
           // if the progress is still running we need to update the UI
           // we want to update the progress of the current syncing
-          const ss = await JSON.parse(await RPC.doSyncStatus());
+          const ssStr: string = await RPC.doSyncStatus();
+          const ss = JSON.parse(ssStr);
           if (!ss.in_progress) {
             // We are synced. Cancel the poll timer
             clearInterval(this.syncTimerID);
@@ -265,22 +266,22 @@ export default class RPC {
             console.log(`Finished (in_progress) full refresh at ${latestBlockHeight} & wallet: ${walletHeight}`);
           } else {
             // the sync is running
-            const progress_blocks = (ss.synced_blocks + ss.trial_decryptions_blocks + ss.witnesses_updated) / 3;
+            const progress_blocks: number = (ss.synced_blocks + ss.trial_decryptions_blocks + ss.witnesses_updated) / 3;
 
             // this calculation is for the total of blocks, nothing to do with batches
             // because batches are calculated only for the current sync process
             // which in most of the times is partial, not total. 
             // edge case: in a rescan sometimes the process can start from sapling age, but the
             // wallet birthday doesn't change...
-            const firstBlockProcess = ss.end_block - (ss.batch_num * 100);
-            let firstBlockProcessFixed;
+            const firstBlockProcess: number = ss.end_block - (ss.batch_num * 100);
+            let firstBlockProcessFixed: number;
             if (firstBlockProcess < walletBirthday) {
               firstBlockProcessFixed = firstBlockProcess;
             } else {
               firstBlockProcessFixed = walletBirthday;
             }
-            const sync_blocks = ss.end_block + progress_blocks - firstBlockProcessFixed;
-            const total_blocks = latestBlockHeight - firstBlockProcessFixed;
+            const sync_blocks: number = ss.end_block + progress_blocks - firstBlockProcessFixed;
+            const total_blocks: number = latestBlockHeight - firstBlockProcessFixed;
 
             verificationProgress = (sync_blocks * 100) / total_blocks;
           }
@@ -296,7 +297,7 @@ export default class RPC {
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
   static async getInfoObject(): Promise<Info> {
-    const infostr = await native.zingolib_execute_async("info", "");
+    const infostr: string = await native.zingolib_execute_async("info", "");
     //console.log(`INFO INFO INFO: ${infostr}`);
     try {
       if (infostr.toLowerCase().startsWith("error")) {
@@ -316,7 +317,7 @@ export default class RPC {
       info.solps = 0;
 
       // Also set `zecPrice` manually
-      const resultStr = await native.zingolib_execute_async("updatecurrentprice", "");
+      const resultStr: string = await native.zingolib_execute_async("updatecurrentprice", "");
       if (resultStr) {
         if (resultStr.toLowerCase().startsWith("error") || isNaN(parseFloat(resultStr))) {
           console.log(`Error fetching price Info ${resultStr}`);
@@ -330,7 +331,7 @@ export default class RPC {
       }
 
       //default fee
-      const feeStr = await native.zingolib_execute_async("defaultfee", "");
+      const feeStr: string = await native.zingolib_execute_async("defaultfee", "");
       if (feeStr.toLowerCase().startsWith("error")) {
         console.log("server defaultfee Failed", feeStr);
         return new Info(feeStr);
@@ -339,7 +340,7 @@ export default class RPC {
       info.defaultFee = feeJSON.defaultfee / 10 ** 8;
 
       // we want to update the wallet last block
-      const walletHeight = await RPC.fetchWalletHeight();
+      const walletHeight: number = await RPC.fetchWalletHeight();
       info.walletHeight = walletHeight;
 
       return info;
@@ -356,18 +357,18 @@ export default class RPC {
       return `Error: Couldn't parse ${birthday} as a number`;
     }
 
-    const address = await native.zingolib_execute_spawm("import", JSON.stringify(args));
+    const address: string = await native.zingolib_execute_spawn("import", JSON.stringify(args));
 
     return address;
   }
 
   async fetchWalletSettings() {
-    const download_memos_str = await native.zingolib_execute_async("getoption", "download_memos");
+    const download_memos_str: string = await native.zingolib_execute_async("getoption", "download_memos");
     const download_memos = JSON.parse(download_memos_str).download_memos;
 
     let transaction_filter_threshold = 0;
     try {
-      const spam_filter_str = await native.zingolib_execute_async("getoption", "transaction_filter_threshold");
+      const spam_filter_str: string = await native.zingolib_execute_async("getoption", "transaction_filter_threshold");
       transaction_filter_threshold = JSON.parse(spam_filter_str).transaction_filter_threshold;
 
       // If it is -1, i.e., it was not set, then set it to 50
@@ -386,14 +387,14 @@ export default class RPC {
   }
 
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
-    const r = await native.zingolib_execute_async("setoption", `${name}=${value}`);
+    const r: string = await native.zingolib_execute_async("setoption", `${name}=${value}`);
 
     RPC.doSave();
     return r;
   }
 
   async fetchInfo(): Promise<number> {
-    const info = await RPC.getInfoObject();
+    const info: Info = await RPC.getInfoObject();
 
     this.fnSetInfo(info);
 
@@ -401,11 +402,16 @@ export default class RPC {
   }
 
   async zingolibBalance(): Promise<any> {
-    const balanceStr = await native.zingolib_execute_async("balance", "");
+    const balanceStr: string = await native.zingolib_execute_async("balance", "");
     const balanceJSON = JSON.parse(balanceStr);
 
+    //console.log(balanceJSON);
+
     let formattedJSON = {
-      uabalance: balanceJSON.orchard_balance,
+      obalance: balanceJSON.orchard_balance,
+      verified_obalance: balanceJSON.verified_orchard_balance,
+      spendable_obalance: balanceJSON.spendable_orchard_balance,
+      unverified_obalance: balanceJSON.unverified_orchard_balance,
       zbalance: balanceJSON.sapling_balance,
       verified_zbalance: balanceJSON.verified_sapling_balance,
       spendable_zbalance: balanceJSON.spendable_sapling_balance,
@@ -417,11 +423,11 @@ export default class RPC {
     };
 
     // fetch all addresses
-    const addressesStr = await native.zingolib_execute_async("addresses", "");
+    const addressesStr: string = await native.zingolib_execute_async("addresses", "");
     const addressesJSON = JSON.parse(addressesStr);
 
     // fetch all notes
-    const notesStr = await native.zingolib_execute_async("notes", "");
+    const notesStr: string = await native.zingolib_execute_async("notes", "");
     const notesJSON = JSON.parse(notesStr);
 
     //console.log(notesJSON);
@@ -506,11 +512,11 @@ export default class RPC {
 
   async zingolibNotes(): Promise<any> {
     // fetch all notes
-    const notesStr = await native.zingolib_execute_async("notes", "");
+    const notesStr: string = await native.zingolib_execute_async("notes", "");
     const notesJSON = JSON.parse(notesStr);
 
     // fetch all addresses
-    const addressesStr = await native.zingolib_execute_async("addresses", "");
+    const addressesStr: string = await native.zingolib_execute_async("addresses", "");
     const addressesJSON = JSON.parse(addressesStr);
 
     let formattedJSON = {
@@ -581,15 +587,15 @@ export default class RPC {
 
   async zingolibTxList(): Promise<any> {
     // fetch transaction list
-    const txListStr = await native.zingolib_execute_async("list", "");
+    const txListStr: string = await native.zingolib_execute_async("list", "");
     const txListJSON = JSON.parse(txListStr);
 
     // fetch all notes
-    const notesStr = await native.zingolib_execute_async("notes", "");
+    const notesStr: string = await native.zingolib_execute_async("notes", "");
     const notesJSON = JSON.parse(notesStr);
 
     // fetch all addresses
-    const addressesStr = await native.zingolib_execute_async("addresses", "");
+    const addressesStr: string = await native.zingolib_execute_async("addresses", "");
     const addressesJSON = JSON.parse(addressesStr);
 
     // construct the list, changing ua addresses to sappling addresses, when suitable
@@ -614,26 +620,29 @@ export default class RPC {
     //const balanceStr = native.zingolib_execute_async("balance", "");
     //const balanceJSON = JSON.parse(balanceStr);
 
-    const balanceJSON = await this.zingolibBalance();
+    const balanceJSON: any = await this.zingolibBalance();
 
-    //console.log(balanceJSON);
+    console.log(balanceJSON);
 
     // Total Balance
     const balance = new TotalBalance();
-    balance.uabalance = balanceJSON.uabalance / 10 ** 8;
+    balance.obalance = balanceJSON.obalance / 10 ** 8;
+    balance.verifiedO = balanceJSON.verified_obalance / 10 ** 8;
+    balance.unverifiedO = balanceJSON.unverified_obalance / 10 ** 8;
+    balance.spendableO = balanceJSON.spendable_obalance / 10 ** 8;
     balance.zbalance = balanceJSON.zbalance / 10 ** 8;
     balance.transparent = balanceJSON.tbalance / 10 ** 8;
     balance.verifiedZ = balanceJSON.verified_zbalance / 10 ** 8;
     balance.unverifiedZ = balanceJSON.unverified_zbalance / 10 ** 8;
     balance.spendableZ = balanceJSON.spendable_zbalance / 10 ** 8;
-    balance.total = balance.uabalance + balance.zbalance + balance.transparent;
+    balance.total = balance.obalance + balance.zbalance + balance.transparent;
     this.fnSetTotalBalance(balance);
 
     // Fetch pending notes and UTXOs
     // const pendingNotes = native.zingolib_execute_async("notes", "");
     // const pendingJSON = JSON.parse(pendingNotes);
 
-    const pendingJSON = await this.zingolibNotes();
+    const pendingJSON: any = await this.zingolibNotes();
 
     const pendingAddressBalances = new Map();
 
@@ -698,7 +707,7 @@ export default class RPC {
   }
 
   static async getLastTxid(): Promise<string> {
-    const txListStr = await native.zingolib_execute_async("list", "");
+    const txListStr: string = await native.zingolib_execute_async("list", "");
     const txListJSON = JSON.parse(txListStr);
 
     console.log('=============== get Last TX ID', txListJSON.length); 
@@ -711,14 +720,14 @@ export default class RPC {
   }
 
   static async getPrivKeyAsString(address: string): Promise<string> {
-    const privKeyStr = await native.zingolib_execute_async("export", address);
+    const privKeyStr: string = await native.zingolib_execute_async("export", address);
     const privKeyJSON = JSON.parse(privKeyStr);
 
     return privKeyJSON[0].private_key;
   }
 
   static async getViewKeyAsString(address: string): Promise<string> {
-    const privKeyStr = await native.zingolib_execute_async("export", address);
+    const privKeyStr: string = await native.zingolib_execute_async("export", address);
     const privKeyJSON = JSON.parse(privKeyStr);
 
     return privKeyJSON[0].viewing_key;
@@ -733,7 +742,7 @@ export default class RPC {
     // zt = spling + transparent
     // z = sapling only
     // it's not possible to create a transparent only address
-    const addrStr = await native.zingolib_execute_async(
+    const addrStr: string = await native.zingolib_execute_async(
       "new",
       type === AddressType.unified ? "ozt" : type === AddressType.sapling ? "oz" : "ot"
     );
@@ -743,21 +752,21 @@ export default class RPC {
   }
 
   static async fetchSeed(): Promise<string> {
-    const seedStr = await native.zingolib_execute_async("seed", "");
+    const seedStr: string = await native.zingolib_execute_async("seed", "");
     const seedJSON = JSON.parse(seedStr);
 
     return seedJSON.seed;
   }
 
   static async fetchBirthday(): Promise<number> {
-    const seedStr = await native.zingolib_execute_async("seed", "");
+    const seedStr: string = await native.zingolib_execute_async("seed", "");
     const seedJSON = JSON.parse(seedStr);
 
     return seedJSON.birthday;
   }
 
   static async fetchWalletHeight(): Promise<number> {
-    const heightStr = await native.zingolib_execute_async("height", "");
+    const heightStr: string = await native.zingolib_execute_async("height", "");
     const heightJSON = JSON.parse(heightStr);
 
     return heightJSON.height;
@@ -771,14 +780,14 @@ export default class RPC {
 
     // Zingolib return transaction list with ua addresses for sapling transactions
     // we need to reconstruct it
-    const listJSON = await this.zingolibTxList();
+    const listJSON: any = await this.zingolibTxList();
 
     //console.log(listJSON);
 
     let txlist: Transaction[] = listJSON.map((tx: any) => {
       const transaction = new Transaction();
 
-      const type = tx.outgoing_metadata ? "sent" : "receive";
+      const type: "sent" | "receive" = tx.outgoing_metadata ? "sent" : "receive";
 
       transaction.address =
         type === "sent" ? (tx.outgoing_metadata.length > 0 ? tx.outgoing_metadata[0].address : "") : tx.address;
@@ -791,7 +800,7 @@ export default class RPC {
       transaction.position = tx.position;
 
       if (tx.outgoing_metadata) {
-        const dts = tx.outgoing_metadata.map((o: any) => {
+        const dts: TxDetail[] = tx.outgoing_metadata.map((o: any) => {
           const detail = new TxDetail();
           detail.address = o.address;
           detail.amount = (o.value / 10 ** 8).toFixed(8);
@@ -818,8 +827,8 @@ export default class RPC {
     // We need to group transactions that have the same (txid and send/recive), for multi-part memos
     const m = new Map<string, Transaction[]>();
     txlist.forEach((tx) => {
-      const key = tx.txid + tx.type;
-      const coll = m.get(key);
+      const key: string = tx.txid + tx.type;
+      const coll: Transaction[] | undefined = m.get(key);
       if (!coll) {
         m.set(key, [tx]);
       } else {
@@ -833,7 +842,7 @@ export default class RPC {
       // Get all the txdetails and merge them
 
       // Clone the first tx into a new one
-      const combinedTx = Object.assign({}, txns[0]);
+      const combinedTx: Transaction = Object.assign({}, txns[0]);
       combinedTx.detailedTxns = RPC.combineTxDetails(txns.flatMap((tx) => tx.detailedTxns));
 
       combinedTxList.push(combinedTx);
@@ -852,7 +861,7 @@ export default class RPC {
     // First, group by outgoing address.
     const m = new Map<string, TxDetail[]>();
     txdetails.forEach((i) => {
-      const coll = m.get(i.address);
+      const coll: TxDetail[] | undefined = m.get(i.address);
       if (!coll) {
         m.set(i.address, [i]);
       } else {
@@ -863,9 +872,9 @@ export default class RPC {
     // Reduce the groups to a single TxDetail, combining memos and summing amounts
     const reducedDetailedTxns: TxDetail[] = [];
     m.forEach((txns, toaddr) => {
-      const totalAmount = txns.reduce((p, td) => p + parseFloat(td.amount), 0);
+      const totalAmount: number = txns.reduce((p, td) => p + parseFloat(td.amount), 0);
 
-      const memos = txns
+      const memos: (string | null)[] = txns
         .filter((i) => i.memo)
         .map((i) => {
           const rex = /\((\d+)\/(\d+)\)((.|[\r\n])*)/;
@@ -894,12 +903,13 @@ export default class RPC {
   // Send a transaction using the already constructed sendJson structure
   async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> {
     // First, get the previous send progress id, so we know which ID to track
-    const prevProgress = await JSON.parse(await native.zingolib_execute_async("sendprogress", ""));
-    const prevSendId = prevProgress.id;
+    const prevProgressStr: string = await native.zingolib_execute_async("sendprogress", "");
+    const prevProgressJSON = JSON.parse(prevProgressStr);
+    const prevSendId: number = prevProgressJSON.id;
 
     try {
       console.log(`Sending ${JSON.stringify(sendJson)}`);
-      const resp = await native.zingolib_execute_async("send", JSON.stringify(sendJson));
+      const resp: string = await native.zingolib_execute_async("send", JSON.stringify(sendJson));
       console.log(`End Sending, response: ${resp}`); 
     } catch (err) {
       // TODO Show a modal with the error
@@ -907,46 +917,47 @@ export default class RPC {
       throw err;
     }
 
-    const startTimeSeconds = new Date().getTime() / 1000;
+    const startTimeSeconds: number = new Date().getTime() / 1000;
 
     // The send command is async, so we need to poll to get the status
     const sendTxPromise: Promise<string> = new Promise((resolve, reject) => {
       const intervalID = setInterval(async () => {
-        const progress = await JSON.parse(await native.zingolib_execute_async("sendprogress", ""));
-        console.log(progress);
+        const progressStr: string = await native.zingolib_execute_async("sendprogress", "");
+        const progressJSON = JSON.parse(progressStr);
+        console.log(progressJSON);
 
         const updatedProgress = new SendProgress();
-        if (progress.id === prevSendId) {
+        if (progressJSON.id === prevSendId) {
           // Still not started, so wait for more time
           setSendProgress(updatedProgress);
           return;
         }
 
         // Calculate ETA.
-        let secondsPerComputation = 3; // defalt
-        if (progress.progress > 0) {
-          const currentTimeSeconds = new Date().getTime() / 1000;
-          secondsPerComputation = (currentTimeSeconds - startTimeSeconds) / progress.progress;
+        let secondsPerComputation: number = 3; // defalt
+        if (progressJSON.progress > 0) {
+          const currentTimeSeconds: number = new Date().getTime() / 1000;
+          secondsPerComputation = (currentTimeSeconds - startTimeSeconds) / progressJSON.progress;
         }
         //console.log(`Seconds Per compute = ${secondsPerComputation}`);
 
-        let eta = Math.round((progress.total - progress.progress) * secondsPerComputation);
+        let eta: number = Math.round((progressJSON.total - progressJSON.progress) * secondsPerComputation);
         if (eta <= 0) {
           eta = 1;
         }
 
-        updatedProgress.progress = progress.progress;
-        updatedProgress.total = Math.max(progress.total, progress.progress); // sometimes, due to change, the total can be off by 1
+        updatedProgress.progress = progressJSON.progress;
+        updatedProgress.total = Math.max(progressJSON.total, progressJSON.progress); // sometimes, due to change, the total can be off by 1
         updatedProgress.sendInProgress = true;
         updatedProgress.etaSeconds = eta;
 
-        if (progress.id === prevSendId) {
+        if (progressJSON.id === prevSendId) {
           // Still not started, so wait for more time
           setSendProgress(updatedProgress);
           return;
         }
 
-        if (!progress.txid && !progress.error) {
+        if (!progressJSON.txid && !progressJSON.error) {
           // Still processing
           setSendProgress(updatedProgress);
           return;
@@ -956,15 +967,15 @@ export default class RPC {
         clearInterval(intervalID);
         setSendProgress(undefined);
 
-        if (progress.txid) {
+        if (progressJSON.txid) {
           // And refresh data (full refresh)
           this.refresh(true);
 
-          resolve(progress.txid as string);
+          resolve(progressJSON.txid as string);
         }
 
-        if (progress.error) {
-          reject(progress.error as string);
+        if (progressJSON.error) {
+          reject(progressJSON.error as string);
         }
       }, 2 * 1000); // Every 2 seconds
     });
@@ -973,7 +984,7 @@ export default class RPC {
   }
 
   async encryptWallet(password: string): Promise<boolean> {
-    const resultStr = await native.zingolib_execute_async("encrypt", password);
+    const resultStr: string = await native.zingolib_execute_async("encrypt", password);
     const resultJSON = JSON.parse(resultStr);
 
     // To update the wallet encryption status
@@ -986,7 +997,7 @@ export default class RPC {
   }
 
   async decryptWallet(password: string): Promise<boolean> {
-    const resultStr = await native.zingolib_execute_async("decrypt", password);
+    const resultStr: string = await native.zingolib_execute_async("decrypt", password);
     const resultJSON = JSON.parse(resultStr);
 
     // To update the wallet encryption status
@@ -999,7 +1010,7 @@ export default class RPC {
   }
 
   async lockWallet(): Promise<boolean> {
-    const resultStr = await native.zingolib_execute_async("lock", "");
+    const resultStr: string = await native.zingolib_execute_async("lock", "");
     const resultJSON = JSON.parse(resultStr);
 
     // To update the wallet encryption status
@@ -1009,7 +1020,7 @@ export default class RPC {
   }
 
   async unlockWallet(password: string): Promise<boolean> {
-    const resultStr = await native.zingolib_execute_async("unlock", password);
+    const resultStr: string = await native.zingolib_execute_async("unlock", password);
     const resultJSON = JSON.parse(resultStr);
 
     // To update the wallet encryption status

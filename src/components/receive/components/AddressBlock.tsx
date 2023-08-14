@@ -75,19 +75,23 @@ const AddressBlock = ({
     setTimeout(() => {
       (async () => {
         try {
-          const result = await shieldSaplingBalanceToOrchard();
+          const result: string = await shieldSaplingBalanceToOrchard();
           //console.log(result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
             openErrorModal("Error Promoting Transaction", `${result}`);
             return;  
           }
-          const resultJSON = await JSON.parse(result);
-          openErrorModal(
-            "Successfully Broadcast Transaction",
-            `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
-          );
-
+          const resultJSON = JSON.parse(result);
+          if (resultJSON.txid) {
+            openErrorModal(
+              "Successfully Broadcast Transaction",
+              `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+            );
+          }
+          if (resultJSON.error) {
+            openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
+          }
         } catch (err) {
           // If there was an error, show the error modal
           openErrorModal("Error Promoting Transaction", `${err}`);
@@ -105,19 +109,23 @@ const AddressBlock = ({
     setTimeout(() => {
       (async () => {
         try {
-          const result = await shieldTransparentBalanceToOrchard();
+          const result: string = await shieldTransparentBalanceToOrchard();
           //console.log(result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
             openErrorModal("Error Shielding Transaction", `${result}`);
             return;  
           }
-          const resultJSON = await JSON.parse(result);
-          openErrorModal(
-            "Successfully Broadcast Transaction",
-            `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
-          );
-
+          const resultJSON = JSON.parse(result);
+          if (resultJSON.txid) {
+            openErrorModal(
+              "Successfully Broadcast Transaction",
+              `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+            );
+          }
+          if (resultJSON.error) {
+            openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
+          }
         } catch (err) {
           // If there was an error, show the error modal
           openErrorModal("Error Shielding Transaction", `${err}`);

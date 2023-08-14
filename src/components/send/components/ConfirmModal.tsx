@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import Modal from "react-modal";
 import { RouteComponentProps, withRouter } from "react-router-dom";
 import styles from "../Send.module.css";
@@ -8,7 +8,6 @@ import {
   Info,
   TotalBalance,
   SendProgress,
-  AddressType,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ScrollPane from "../../scrollPane/ScrollPane";
@@ -16,6 +15,7 @@ import routes from "../../../constants/routes.json";
 import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
 import ConfirmModalToAddr from "./ConfirmModalToAddr";
+import native from "../../../native.node";
 
 // Internal because we're using withRouter just below
 type ConfirmModalProps = {
@@ -47,51 +47,116 @@ type ConfirmModalProps = {
     const [smallPart, setSmallPart] = useState<string>('');
     const [privacyLevel, setPrivacyLevel] = useState<string>('');
 
+    const getPrivacyLevel = useCallback(async (toaddr) => {
+  
+      let from: 'orchard' | 'orchard+sapling' | 'sapling' | '' = '';
+      // amount + fee
+      if (Number(toaddr.amount) + info.defaultFee <= totalBalance.spendableO) {
+        from = 'orchard';
+      } else if (
+        totalBalance.spendableO > 0 &&
+        Number(toaddr.amount) + info.defaultFee <= totalBalance.spendableO + totalBalance.spendableZ
+      ) {
+        from = 'orchard+sapling';
+      } else if (Number(toaddr.amount) + info.defaultFee <= totalBalance.spendableZ) {
+        from = 'sapling';
+      }
+  
+      if (from === '') {
+        return '-';
+      }
+  
+      const result: string = await native.zingolib_execute_async('parse_address', toaddr.to);
+      if (result) {
+        if (result.toLowerCase().startsWith('error') || result.toLowerCase() === 'null') {
+          return '-';
+        }
+      } else {
+        return '-';
+      }
+      // TODO: check if the json parse is correct.
+      const resultJSON = await JSON.parse(result);
+  
+      //console.log('parse-address', address, resultJSON.status === 'success');
+  
+      if (resultJSON.status !== 'success') {
+        return '-';
+      }
+  
+      //console.log(from, result, resultJSON);
+  
+      // Private -> orchard to orchard (UA with orchard receiver)
+      if (
+        from === 'orchard' &&
+        resultJSON.address_kind === 'unified' &&
+        resultJSON.receivers_available?.includes('orchard')
+      ) {
+        return 'Private';
+      }
+  
+      // Private -> sapling to sapling (ZA or UA with sapling receiver and NO orchard receiver)
+      if (
+        from === 'sapling' &&
+        (resultJSON.address_kind === 'sapling' ||
+          (resultJSON.address_kind === 'unified' &&
+            resultJSON.receivers_available?.includes('sapling') &&
+            !resultJSON.receivers_available?.includes('orchard')))
+      ) {
+        return 'Private';
+      }
+  
+      // Amount Revealed -> orchard to sapling (ZA or UA with sapling receiver)
+      if (
+        from === 'orchard' &&
+        (resultJSON.address_kind === 'sapling' ||
+          (resultJSON.address_kind === 'unified' && resultJSON.receivers_available?.includes('sapling')))
+      ) {
+        return 'Amount Revealed';
+      }
+  
+      // Amount Revealed -> sapling to orchard (UA with orchard receiver)
+      if (
+        from === 'sapling' &&
+        resultJSON.address_kind === 'unified' &&
+        resultJSON.receivers_available?.includes('orchard')
+      ) {
+        return 'Amount Revealed';
+      }
+  
+      // Amount Revealed -> sapling+orchard to orchard or sapling (UA with orchard receiver or ZA or
+      // UA with sapling receiver)
+      if (
+        from === 'orchard+sapling' &&
+        (resultJSON.address_kind === 'sapling' ||
+          (resultJSON.address_kind === 'unified' &&
+            (resultJSON.receivers_available?.includes('orchard') || resultJSON.receivers_available?.includes('sapling'))))
+      ) {
+        return 'Amount Revealed';
+      }
+  
+      // Deshielded -> orchard or sapling or orchard+sapling to transparent
+      if (
+        (from === 'orchard' || from === 'sapling' || from === 'orchard+sapling') &&
+        resultJSON.address_kind === 'transparent'
+      ) {
+        return 'Deshielded';
+      }
+  
+      // whatever else
+      return '-';
+    }, [info.defaultFee, totalBalance.spendableZ, totalBalance.spendableO]);
+
     useEffect(() => {
       (async () => {
-        const sendingTotal = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + info.defaultFee;
+        const sendingTotal: number = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + info.defaultFee;
         setSendingTotal(sendingTotal);
-        const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(sendingTotal);
+        const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(sendingTotal);
         setBigPart(bigPart);
         setSmallPart(smallPart);
       
-        // Determine the tx privacy level
-        let privacyLevel = "";
-        // 1. If we're sending to a t-address, it is "transparent" 
-        const isToTransparentArray: boolean[] = [];
-        sendPageState.toaddrs.forEach(async (to) => {
-          const at = await Utils.getAddressType(to.to);
-          isToTransparentArray.push(at === AddressType.transparent);
-        })
-        const isToTransparent: boolean = isToTransparentArray.reduce((p, c) => p || c, false);
-        if (isToTransparent) {
-          privacyLevel = "Transparent";
-        } else {
-          // 2. If we're sending to sapling or orchard, and don't have enough funds in the pool, it is "AmountsRevealed"
-          const toSaplingArray: number[] = [];
-          sendPageState.toaddrs
-            .forEach(async (to) => {
-              const a = await Utils.getAddressType(to.to);
-              toSaplingArray.push(a === AddressType.sapling ? to.amount : 0);
-            });
-          const toSapling: number = toSaplingArray.reduce((s, c) => s + c, 0);
-          const toOrchardArray: number[] = [];
-          sendPageState.toaddrs
-            .forEach(async(to) => {
-              const a = await Utils.getAddressType(to.to);
-              toOrchardArray.push(a === AddressType.unified ? to.amount : 0);
-            });
-          const toOrchard = toOrchardArray.reduce((s, c) => s + c, 0);
-          if (toSapling > totalBalance.spendableZ || toOrchard > totalBalance.uabalance) {
-            privacyLevel = "Amounts Revealed";
-          } else {
-            // Else, it is a shielded transaction
-            privacyLevel = "Shielded";
-          }
-        }
-        setPrivacyLevel(privacyLevel);
+        setPrivacyLevel(await getPrivacyLevel(sendPageState.toaddrs[0]));
       })();
-    },[info.defaultFee, sendPageState.toaddrs, totalBalance.spendableZ, totalBalance.uabalance]);
+    },[getPrivacyLevel, info.defaultFee, sendPageState.toaddrs]);
   
     const sendButton = () => {
       // First, close the confirm modal.
@@ -114,11 +179,9 @@ type ConfirmModalProps = {
         openPasswordAndUnlockIfNeeded(() => {
           // Then send the Tx async
           (async () => {
-            const sendJson = getSendManyJSON(sendPageState);
-            let txid = "";
-  
             try {
-              txid = await sendTransaction(sendJson, setSendProgress);
+              const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
+              const txid: string = await sendTransaction(sendJson, setSendProgress);
   
               openErrorModal(
                 "Successfully Broadcast Transaction",

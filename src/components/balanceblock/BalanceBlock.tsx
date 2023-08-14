@@ -3,7 +3,7 @@ import Utils from "../../utils/utils";
 import BalanceBlockType from "./components/BalanceBlockType";
 
 const BalanceBlock = ({ zecValue, usdValue, topLabel, currencyName }: BalanceBlockType) => {
-  const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(zecValue);
+  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(zecValue);
 
   return (
     <div className={cstyles.padall}>

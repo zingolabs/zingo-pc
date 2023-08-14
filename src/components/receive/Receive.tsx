@@ -39,9 +39,9 @@ export default class Receive extends Component<ReceiveProps> {
       rerenderKey,
     } = this.context;
 
-    const uaddrs = addresses
+    const uaddrs: Address[] = addresses
       .filter((a: Address) => a.type === AddressType.unified);
-    let defaultUaddr = uaddrs.length > 0 ? uaddrs[0].address : "";
+    let defaultUaddr: string = uaddrs.length > 0 ? uaddrs[0].address : "";
     if (receivePageState && receivePageState.newType === AddressType.unified) {
       defaultUaddr = receivePageState.newAddress;
 
@@ -51,9 +51,9 @@ export default class Receive extends Component<ReceiveProps> {
       });
     }
 
-    const zaddrs = addresses
+    const zaddrs: Address[] = addresses
       .filter((a: Address) => a.type === AddressType.sapling);
-    let defaultZaddr = zaddrs.length > 0 ? zaddrs[0].address : "";
+    let defaultZaddr: string = zaddrs.length > 0 ? zaddrs[0].address : "";
     if (receivePageState && receivePageState.newType === AddressType.sapling) {
       defaultZaddr = receivePageState.newAddress;
 
@@ -63,9 +63,9 @@ export default class Receive extends Component<ReceiveProps> {
       });
     }
 
-    const taddrs = addresses
+    const taddrs: Address[] = addresses
       .filter((a: Address) => a.type === AddressType.transparent);
-    let defaultTaddr = taddrs.length > 0 ? taddrs[0].address : "";
+    let defaultTaddr: string = taddrs.length > 0 ? taddrs[0].address : "";
     if (receivePageState && receivePageState.newType === AddressType.transparent) {
       defaultTaddr = receivePageState.newAddress;
 

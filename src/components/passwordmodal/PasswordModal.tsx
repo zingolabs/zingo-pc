@@ -44,7 +44,7 @@ export default class PasswordModal extends PureComponent<PasswordModalProps, Pas
     const { modalIsOpen, confirmNeeded, helpText } = passwordState;
     const { password, confirmPassword } = this.state;
 
-    const enabled = !confirmNeeded || password === confirmPassword;
+    const enabled: boolean = !confirmNeeded || password === confirmPassword;
 
     return (
       <Modal

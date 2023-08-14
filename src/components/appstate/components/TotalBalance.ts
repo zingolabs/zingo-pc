@@ -3,7 +3,16 @@ export default class TotalBalance {
     transparent: number;
   
     // Total orchard balance
-    uabalance: number;
+    obalance: number;
+
+    // Total orchard, confirmed funds that have been verified
+    verifiedO: number;
+  
+    // Total orchard that are waiting for confirmation
+    unverifiedO: number;
+  
+    // Total orchard funds that are spendable
+    spendableO: number;
   
     // Total private, confirmed + unconfirmed
     zbalance: number;
@@ -21,9 +30,12 @@ export default class TotalBalance {
     total: number;
   
     constructor() {
-      this.uabalance = 0;
+      this.obalance = 0;
       this.zbalance = 0;
       this.transparent = 0;
+      this.verifiedO = 0;
+      this.unverifiedO = 0;
+      this.spendableO = 0;
       this.verifiedZ = 0;
       this.unverifiedZ = 0;
       this.spendableZ = 0;

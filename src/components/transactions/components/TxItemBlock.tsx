@@ -17,9 +17,9 @@ type TxItemBlockProps = {
 const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBookMap }: TxItemBlockProps) => {
   const [expandAddress, setExpandAddress] = useState(false); 
   
-  const txDate = new Date(transaction.time * 1000);
-  const datePart = dateformat(txDate, "mmm dd, yyyy");
-  const timePart = dateformat(txDate, "hh:MM tt");
+  const txDate: Date = new Date(transaction.time * 1000);
+  const datePart: string = dateformat(txDate, "mmm dd, yyyy");
+  const timePart: string = dateformat(txDate, "hh:MM tt");
 
   return (
     <div>
@@ -36,7 +36,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
         </div>
         <div className={styles.txaddressamount}>
           {transaction.detailedTxns.map((txdetail: TxDetail) => {
-            const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
+            const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
 
             let { address } = txdetail;
             const { memo } = txdetail;
@@ -45,7 +45,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
               address = "(Shielded)";
             }
 
-            const label = addressBookMap.get(address) || "";
+            const label: string = addressBookMap.get(address) || "";
 
             return (
               <div key={address} className={cstyles.padtopsmall}>

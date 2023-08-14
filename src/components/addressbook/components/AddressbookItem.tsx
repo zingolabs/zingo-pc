@@ -27,7 +27,7 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
   setSendTo,
   history,
 }) => {
-  const [expandAddress, setExpandAddress] = useState(false); 
+  const [expandAddress, setExpandAddress] = useState<boolean>(false); 
   
   return (
     <AccordionItem key={item.label.replace(/\s/g, '')} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.label.replace(/\s/g, '')}>

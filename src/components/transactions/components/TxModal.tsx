@@ -35,17 +35,17 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   const [expandAddress, setExpandAddress] = useState(false); 
   const [expandTxid, setExpandTxid] = useState(false); 
   
-  let txid = "";
-  let type = "";
-  let typeIcon = "";
-  let typeColor = "";
-  let confirmations = 0;
+  let txid: string = "";
+  let type: string = "";
+  let typeIcon: string = "";
+  let typeColor: string = "";
+  let confirmations: number = 0;
   let detailedTxns: TxDetail[] = [];
-  let amount = 0;
-  let datePart = "";
-  let timePart = "";
-  let price = 0;
-  let priceString = "";
+  let amount: number = 0;
+  let datePart: string = "";
+  let timePart: string = "";
+  let price: number = 0;
+  let priceString: string = "";
 
   if (tx) {
     txid = tx.txid;
@@ -80,7 +80,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     }
   };
 
-  const doReply = async (address: string) => {
+  const doReply = (address: string) => {
     setSendTo(new ZcashURITarget(address, info.defaultFee));
     setExpandAddress(false);
     setExpandTxid(false);
@@ -89,7 +89,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     history.push(routes.SEND);
   };
 
-  let fees = 0;
+  let fees: number = 0;
 
   const totalAmounts =
     tx && tx.detailedTxns ? tx.detailedTxns.reduce((s, t: TxDetail) => s + (parseFloat(t.amount) ? parseFloat(t.amount) : 0), 0) : 0;
@@ -192,8 +192,8 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-        {detailedTxns.map((txdetail: TxDetail) => {
-          const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
+        {detailedTxns.map(async (txdetail: TxDetail) => {
+          const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
 
           let { address } = txdetail;
           const { memo } = txdetail;
@@ -205,11 +205,11 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
           let replyTo: string = "";
           //console.log(memo, tx); 
           if (tx && tx.type === "receive" && memo) {
-            const split = memo.split(/[ :\n\r\t]+/);
+            const split: string[] = memo.split(/[ :\n\r\t]+/);
             // read the last row & if this is a valid address => show the button up
             //console.log("-", split, "-");
             if (split && split.length > 0) {
-              if (Utils.getAddressType(split[split.length - 1]) !== undefined) {
+              if (await Utils.getAddressType(split[split.length - 1]) !== undefined) {
                 replyTo = split[split.length - 1];
               }
             }
