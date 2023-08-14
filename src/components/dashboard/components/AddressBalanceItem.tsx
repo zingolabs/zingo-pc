@@ -18,9 +18,9 @@ type AddressBalanceItemProps = {
 };
 
 const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItemProps) => {
-  const [expandAddress, setExpandAddress] = useState(false); 
+  const [expandAddress, setExpandAddress] = useState<boolean>(false); 
 
-  const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(Math.abs(item.balance));
+  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(item.balance));
   
   return (
     <AccordionItem key={item.address} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.address}>

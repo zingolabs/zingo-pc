@@ -69,7 +69,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   componentDidMount() {
     // Read the address book
     (async () => {
-      const addressBook = await AddressbookImpl.readAddressBook();
+      const addressBook: AddressBookEntry[] = await AddressbookImpl.readAddressBook();
       if (addressBook) {
         this.setState({ addressBook });
       }
@@ -162,7 +162,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         false,
         (password: string) => {
           (async () => {
-            const success = await this.unlockWallet(password);
+            const success: boolean = await this.unlockWallet(password);
 
             if (success) {
               // If the unlock succeeded, do the submit
@@ -182,23 +182,23 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   unlockWallet = async (password: string): Promise<boolean> => {
-    const success = await this.rpc.unlockWallet(password);
+    const success: boolean = await this.rpc.unlockWallet(password);
 
     return success;
   };
 
   lockWallet = async (): Promise<boolean> => {
-    const success = await this.rpc.lockWallet();
+    const success: boolean = await this.rpc.lockWallet();
     return success;
   };
 
   encryptWallet = async (password: string): Promise<boolean> => {
-    const success = await this.rpc.encryptWallet(password);
+    const success: boolean = await this.rpc.encryptWallet(password);
     return success;
   };
 
   decryptWallet = async (password: string): Promise<boolean> => {
-    const success = await this.rpc.decryptWallet(password);
+    const success: boolean = await this.rpc.decryptWallet(password);
     return success;
   };
 
@@ -230,7 +230,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     // If there is no 'from' address, we'll set a default one
     if (!sendPageState.fromaddr) {
       // Find a u-address with the highest balance
-      const defaultAB = addresses
+      const defaultAB: Address | null = addresses
         .filter((ab) => ab.type === AddressType.unified)
         .reduce((prev: Address | null, ab) => {
           // We'll start with a unified address
@@ -271,8 +271,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   importPrivKeys = async (keys: string[], birthday: string): Promise<boolean> => {
     console.log(keys);
 
-    for (let i = 0; i < keys.length; i++) {
-      const result = await RPC.doImportPrivKey(keys[i], birthday);
+    for (let i: number = 0; i < keys.length; i++) {
+      const result: string = await RPC.doImportPrivKey(keys[i], birthday);
       if (result === "OK") {
         return true;
       } else {
@@ -294,7 +294,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     return true;
   };
 
-  setSendTo = (targets: ZcashURITarget[] | ZcashURITarget) => {
+  setSendTo = (targets: ZcashURITarget[] | ZcashURITarget): void => {
     console.log('=============== send to', targets);
     // Clear the existing send page state and set up the new one
     const { sendPageState } = this.state;
@@ -304,7 +304,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     newSendPageState.fromaddr = sendPageState.fromaddr;
 
     // If a single object is passed, accept that as well. 
-    let tgts = targets;
+    let tgts: ZcashURITarget | ZcashURITarget[] = targets;
     if (!Array.isArray(tgts)) {
       tgts = [targets as ZcashURITarget];
     }
@@ -381,7 +381,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> => {
     try {
-      const txid = await this.rpc.sendTransaction(sendJson, setSendProgress);
+      const txid: string = await this.rpc.sendTransaction(sendJson, setSendProgress);
 
       if (txid.toLowerCase().startsWith("error")) {
         throw txid;
@@ -397,14 +397,14 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   // Get a single private key for this address, and return it as a string.
   // Wallet needs to be unlocked
   getPrivKeyAsString = async (address: string): Promise<string> => {
-    const pk = await RPC.getPrivKeyAsString(address);
+    const pk: string = await RPC.getPrivKeyAsString(address);
     return pk;
   };
 
   // Getter methods, which are called by the components to update the state
   fetchAndSetSinglePrivKey = async (address: string) => {
     this.openPasswordAndUnlockIfNeeded(async () => {
-      let key = await RPC.getPrivKeyAsString(address);
+      let key: string = await RPC.getPrivKeyAsString(address);
       if (key === "") {
         key = "<No Key Available>";
       }
@@ -417,7 +417,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   fetchAndSetSingleViewKey = async (address: string) => {
     this.openPasswordAndUnlockIfNeeded(async () => {
-      const key = RPC.getViewKeyAsString(address);
+      const key: string = await RPC.getViewKeyAsString(address);
       const addressViewKeys = new Map();
       addressViewKeys.set(address, key);
 
@@ -425,10 +425,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     });
   };
 
-  addAddressBookEntry = (label: string, address: string) => {
+  addAddressBookEntry = (label: string, address: string): void => {
     // Add an entry into the address book
     const { addressBook } = this.state;
-    const newAddressBook = addressBook.concat(new AddressBookEntry(label, address));
+    const newAddressBook: AddressBookEntry[] = addressBook.concat(new AddressBookEntry(label, address));
 
     // Write to disk. This method is async
     AddressbookImpl.writeAddressBook(newAddressBook);
@@ -436,9 +436,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ addressBook: newAddressBook });
   };
 
-  removeAddressBookEntry = (label: string) => {
+  removeAddressBookEntry = (label: string): void => {
     const { addressBook } = this.state;
-    const newAddressBook = addressBook.filter((i) => i.label !== label);
+    const newAddressBook: AddressBookEntry[] = addressBook.filter((i) => i.label !== label);
 
     // Write to disk. This method is async
     AddressbookImpl.writeAddressBook(newAddressBook);
@@ -449,14 +449,14 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   createNewAddress = async (newType: AddressType) => {
     this.openPasswordAndUnlockIfNeeded(async () => {
       // Create a new address
-      const newAddress = await RPC.createNewAddress(newType);
+      const newAddress: any = await RPC.createNewAddress(newType);
       console.log(`Created new Address ${newAddress}`);
 
       // And then fetch the list of addresses again to refresh (totalBalance gets all addresses)
       this.rpc.fetchTotalBalance();
 
       const { receivePageState } = this.state;
-      const newRerenderKey = receivePageState.rerenderKey + 1;
+      const newRerenderKey: number = receivePageState.rerenderKey + 1;
 
       const newReceivePageState = new ReceivePageState(newAddress, newType);
       newReceivePageState.rerenderKey = newRerenderKey;
@@ -474,17 +474,17 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   shieldAllBalanceToOrchard = async (): Promise<string> => {
-    const result = await this.rpc.shieldAllBalanceToOrchard();
+    const result: string = await this.rpc.shieldAllBalanceToOrchard();
     return result;
   }
 
   shieldSaplingBalanceToOrchard = async (): Promise<string> => {
-    const result = await this.rpc.shieldSaplingBalanceToOrchard();
+    const result: string = await this.rpc.shieldSaplingBalanceToOrchard();
     return result;
   }
 
   shieldTransparentBalanceToOrchard = async (): Promise<string> => {
-    const result = await this.rpc.shieldTransparentBalanceToOrchard();
+    const result: string = await this.rpc.shieldTransparentBalanceToOrchard();
     return result;
   }
 
@@ -502,7 +502,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       openPasswordAndUnlockIfNeeded: this.openPasswordAndUnlockIfNeeded,
     };
 
-    const hasLatestBlock = info && info.latestBlock > 0 ? true : false; 
+    const hasLatestBlock: boolean = info && info.latestBlock > 0 ? true : false; 
 
     return (
       <ContextAppProvider value={this.state}>

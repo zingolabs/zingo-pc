@@ -39,7 +39,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
   }
 
   async componentDidMount() {
-    const{ labelError, addressIsValid, addressType } = await this.validate(this.state.currentLabel, this.state.currentAddress);
+    const{ labelError, addressIsValid, addressType }: { labelError: string | null, addressIsValid: boolean, addressType: AddressType | undefined } = await this.validate(this.state.currentLabel, this.state.currentAddress);
     this.setState({
       labelError,
       addressIsValid,
@@ -51,7 +51,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
   updateLabel = async (currentLabel: string) => {
     const { currentAddress } = this.state;
 
-    const { labelError, addressIsValid } = await this.validate(currentLabel, currentAddress);
+    const { labelError, addressIsValid }: { labelError: string | null, addressIsValid: boolean } = await this.validate(currentLabel, currentAddress);
     this.setState({
       labelError,
       addressIsValid,
@@ -63,7 +63,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
   updateAddress = async (currentAddress: string) => {
     const { currentLabel } = this.state;
 
-    const { labelError, addressIsValid } = await this.validate(currentLabel, currentAddress);
+    const { labelError, addressIsValid }: { labelError: string | null, addressIsValid: boolean } = await this.validate(currentLabel, currentAddress);
     this.setState({
       labelError,
       addressIsValid,
@@ -77,7 +77,7 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
     const { currentLabel, currentAddress } = this.state;
 
     addAddressBookEntry(currentLabel, currentAddress.replace(/ /g, ""));
-    this.setState({ currentLabel: "", currentAddress: "", addButtonEnabled: false });
+    this.setState({ currentLabel: "", currentAddress: "", addButtonEnabled: false, labelError: "", addressIsValid: true, addressType: undefined });
   };
 
   setAddButtonEnabled = (addButtonEnabled: boolean) => {
@@ -87,11 +87,11 @@ export default class AddressBook extends Component<AddressBookProps, AddressBook
   validate = async (currentLabel: string, currentAddress: string) => {
     const { addressBook } = this.context;
 
-    let labelError = addressBook.find((i: AddressBookEntry) => i.label === currentLabel) ? "Duplicate Label" : null;
+    let labelError: string | null = addressBook.find((i: AddressBookEntry) => i.label === currentLabel) ? "Duplicate Label" : null;
     labelError = currentLabel.length > 12 ? "Label is too long" : labelError;
 
-    const addressType = await Utils.getAddressType(currentAddress);
-    const addressIsValid =
+    const addressType: AddressType | undefined = await Utils.getAddressType(currentAddress);
+    const addressIsValid: boolean =
       currentAddress === "" || addressType !== undefined; 
 
     return { labelError, addressIsValid, addressType };

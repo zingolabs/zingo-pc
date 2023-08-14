@@ -67,7 +67,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
   clearToAddrs = () => {
     const { setSendPageState } = this.props;
     const { sendPageState } = this.context;
-    const newToAddrs = [new ToAddr(Utils.getNextToAddrID())];
+    const newToAddrs: ToAddr[] = [new ToAddr(Utils.getNextToAddrID())];
 
     // Create the new state object
     const newState = new SendPageState();
@@ -100,12 +100,12 @@ export default class Send extends PureComponent<SendProps, SendState> {
     const { sendPageState } = this.context;
 
     // Find the correct toAddr
-    const toAddr = sendPageState.toaddrs.find((a: ToAddr) => a.id === id) as ToAddr;
-    const restToAddr = sendPageState.toaddrs.find((a: ToAddr) => a.id !== id) as ToAddr[];
+    const toAddr: ToAddr = sendPageState.toaddrs.find((a: ToAddr) => a.id === id);
+    const restToAddr: ToAddr[] = sendPageState.toaddrs.find((a: ToAddr) => a.id !== id);
     if (address !== null) {
       // First, check if this is a URI
       // $FlowFixMe
-      const parsedUri = await parseZcashURI(address); 
+      const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address); 
       if (Array.isArray(parsedUri)) {
         setSendTo(parsedUri);
         return;
@@ -117,7 +117,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     if (amount !== null) {
       // Check to see the new amount if valid
       // $FlowFixMe
-      const newAmount = parseFloat(amount);
+      const newAmount: number = parseFloat(amount);
       if (newAmount < 0 || newAmount > 21 * 10 ** 6) {
         return;
       }
@@ -126,12 +126,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     }
 
     if (memo !== null) {
-      if (typeof memo === "string") {
-        toAddr.memo = memo;
-      } else {
-        // $FlowFixMe
-        toAddr.memo = memo;
-      }
+      toAddr.memo = memo;
     }
 
     if (memoReplyTo != null) {
@@ -154,23 +149,27 @@ export default class Send extends PureComponent<SendProps, SendState> {
     const { setSendPageState } = this.props;
     const { sendPageState, info } = this.context;
 
-    const newToAddrs = sendPageState.toaddrs.slice(0);
+    // Find the correct toAddr
+    const toAddr: ToAddr = sendPageState.toaddrs.find((a: ToAddr) => a.id === id);
+    const restToAddr: ToAddr[] = sendPageState.toaddrs.find((a: ToAddr) => a.id !== id);
 
-    let totalOtherAmount: number = newToAddrs.filter((a: ToAddr) => a.id !== id).reduce((s: number, a: ToAddr) => s + a.amount, 0);
+    let totalOtherAmount: number = restToAddr.reduce((s: number, a: ToAddr) => s + a.amount, 0);
 
     // Add Fee
     totalOtherAmount += info.defaultFee;
 
-    // Find the correct toAddr
-    const toAddr = newToAddrs.find((a: ToAddr) => a.id === id) as ToAddr;
     toAddr.amount = total - totalOtherAmount;
     if (toAddr.amount < 0) toAddr.amount = 0;
     toAddr.amount = Number(Utils.maxPrecisionTrimmed(toAddr.amount)); 
-
-    // Create the new state object
+    
+    // Create the new state object 
     const newState = new SendPageState();
     newState.fromaddr = sendPageState.fromaddr;
-    newState.toaddrs = newToAddrs;
+    if (restToAddr && restToAddr.length > 0) {
+      newState.toaddrs = [toAddr, ...restToAddr];
+    } else {
+      newState.toaddrs = [toAddr];
+    }
 
     setSendPageState(newState);
   };
@@ -189,7 +188,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
 
   getBalanceForAddress = (addr: string, addresses: Address[]): number => {
     // Find the addr in addresses
-    const address = addresses.find((ab) => ab.address === addr) as Address;
+    const address: Address | undefined = addresses.find((ab) => ab.address === addr);
 
     if (!address) {
       return 0;
@@ -201,10 +200,10 @@ export default class Send extends PureComponent<SendProps, SendState> {
   getLabelForFromAddress = (addr: string, addresses: Address[], currencyName: string) => {
     // Find the addr in addresses
     const { addressBook } = this.context;
-    const label = addressBook.find((ab: AddressBookEntry) => ab.address === addr);
-    const labelStr = label ? ` [ ${label.label} ]` : "";
+    const label: AddressBookEntry = addressBook.find((ab: AddressBookEntry) => ab.address === addr);
+    const labelStr: string = label ? ` [ ${label.label} ]` : "";
 
-    const balance = this.getBalanceForAddress(addr, addresses);
+    const balance: number = this.getBalanceForAddress(addr, addresses);
 
     return `[ ${currencyName} ${balance.toString()} ]${labelStr} ${addr}`;
   };
@@ -223,8 +222,8 @@ export default class Send extends PureComponent<SendProps, SendState> {
       totalBalance,
     } = this.context;
 
-    const totalAmountAvailable = totalBalance.transparent + totalBalance.spendableZ + totalBalance.uabalance;
-    const fromaddr = addresses.find((a: Address) => a.type === AddressType.unified)?.address || ""; 
+    const totalAmountAvailable: number = totalBalance.transparent + totalBalance.spendableZ + totalBalance.uabalance;
+    const fromaddr: string = addresses.find((a: Address) => a.type === AddressType.unified)?.address || ""; 
 
     // If there are unverified funds, then show a tooltip
     let tooltip: string = "";

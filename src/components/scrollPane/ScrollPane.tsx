@@ -30,7 +30,7 @@ export default class ScrollPane extends Component<Props, PaneState> {
    * Calculate & Update state of height, needed for the scrolling
    */
   updateDimensions = () => {
-    const updateHeight = window.innerHeight - this.props.offsetHeight;
+    const updateHeight: number = window.innerHeight - this.props.offsetHeight;
     this.setState({ height: updateHeight });
   };
 

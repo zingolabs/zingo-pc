@@ -75,14 +75,14 @@ const AddressBlock = ({
     setTimeout(() => {
       (async () => {
         try {
-          const result = await shieldSaplingBalanceToOrchard();
+          const result: string = await shieldSaplingBalanceToOrchard();
           //console.log(result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
             openErrorModal("Error Promoting Transaction", `${result}`);
             return;  
           }
-          const resultJSON = await JSON.parse(result);
+          const resultJSON = JSON.parse(result);
           if (resultJSON.txid) {
             openErrorModal(
               "Successfully Broadcast Transaction",
@@ -109,14 +109,14 @@ const AddressBlock = ({
     setTimeout(() => {
       (async () => {
         try {
-          const result = await shieldTransparentBalanceToOrchard();
+          const result: string = await shieldTransparentBalanceToOrchard();
           //console.log(result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
             openErrorModal("Error Shielding Transaction", `${result}`);
             return;  
           }
-          const resultJSON = await JSON.parse(result);
+          const resultJSON = JSON.parse(result);
           if (resultJSON.txid) {
             openErrorModal(
               "Successfully Broadcast Transaction",

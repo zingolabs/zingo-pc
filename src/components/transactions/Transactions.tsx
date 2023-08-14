@@ -49,7 +49,7 @@ export default class Transactions extends Component<TransactionsProps, Transacti
     const { transactions, info, addressBook, totalBalance } = this.context;
     const { clickedTx, modalIsOpen, numTxnsToShow } = this.state;
 
-    const isLoadMoreEnabled = transactions && numTxnsToShow < transactions.length;
+    const isLoadMoreEnabled: boolean = transactions && numTxnsToShow < transactions.length;
 
     const addressBookMap: Map<string, string> = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
       m.set(obj.address, obj.label);
@@ -101,7 +101,7 @@ export default class Transactions extends Component<TransactionsProps, Transacti
           )}
           {transactions &&
             transactions.slice(0, numTxnsToShow).map((t: Transaction) => {
-              const key = t.type + t.txid + (t.position || "");
+              const key: string = t.type + t.txid + (t.position || "");
               return (
                 <TxItemBlock
                   key={key}

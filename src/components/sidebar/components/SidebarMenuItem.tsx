@@ -11,13 +11,13 @@ type SidebarMenuItemProps = {
 };
 
 const SidebarMenuItem = ({ name, routeName, currentRoute, iconname }: SidebarMenuItemProps) => {
-  let isActive = false;
+  let isActive: boolean = false;
 
   if ((currentRoute.endsWith("app.html") && routeName === routes.HOME) || currentRoute === routeName) {
     isActive = true;
   }
 
-  let activeColorClass = "";
+  let activeColorClass: string = "";
   if (isActive) {
     activeColorClass = styles.sidebarmenuitemactive;
   }

@@ -9,7 +9,7 @@ type ConfirmModalToAddrProps = {
 };
 
 const ConfirmModalToAddr = ({ toaddr, info }: ConfirmModalToAddrProps) => {
-  const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(toaddr.amount);
+  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(toaddr.amount);
 
   const memo: string = toaddr.memo ? toaddr.memo : "";
   const memoReplyTo: string = toaddr.memoReplyTo ? toaddr.memoReplyTo : "";

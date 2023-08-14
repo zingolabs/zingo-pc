@@ -48,16 +48,16 @@ const ToAddrBox = ({
 
   useEffect(() => {
     (async () => {
-      const addressType = await Utils.getAddressType(toaddr.to);
+      const addressType: AddressType | undefined = await Utils.getAddressType(toaddr.to);
       setAddressType(addressType);
-      const isMemoDisabled = !(addressType === AddressType.sapling || addressType === AddressType.unified);
+      const isMemoDisabled: boolean = !(addressType === AddressType.sapling || addressType === AddressType.unified);
       setIsMemoDisabled(isMemoDisabled);
     
-      const addressIsValid =
+      const addressIsValid: boolean =
         toaddr.to === "" || addressType !== undefined;
       setAddressIsValid(addressIsValid);
     
-      let amountError = null;
+      let amountError: string | null = null;
       if (toaddr.amount) {
         if (toaddr.amount < 0) {
           amountError = "Amount cannot be negative";
@@ -80,7 +80,7 @@ const ToAddrBox = ({
       }
       setAmountError(amountError);
     
-      let buttonstate = true;
+      let buttonstate: boolean = true;
       if (!addressIsValid || amountError || toaddr.to === "" || toaddr.amount === 0 || fromAmount === 0) {
         buttonstate = false;
       }
@@ -89,7 +89,7 @@ const ToAddrBox = ({
         setSendButtonEnable(buttonstate);
       }, 10);
     
-      const usdValue = Utils.getZecToUsdString(zecPrice, toaddr.amount);
+      const usdValue: string = Utils.getZecToUsdString(zecPrice, toaddr.amount);
       setUsdValue(usdValue);
     })();
   }, [fromAmount, setSendButtonEnable, toaddr.amount, toaddr.to, zecPrice]);

@@ -25,14 +25,14 @@ export default class Dashboard extends Component<DashboardProps> {
     setTimeout(() => {
       (async () => {
         try {
-          const result = await this.props.shieldAllBalanceToOrchard();
+          const result: string = await this.props.shieldAllBalanceToOrchard();
           console.log(result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
             this.props.openErrorModal("Error Shielding Transaction", `${result}`);
             return;  
           }
-          const resultJSON = await JSON.parse(result);
+          const resultJSON = JSON.parse(result);
           if (resultJSON.txid) {
             this.props.openErrorModal(
               "Successfully Broadcast Transaction",
@@ -53,7 +53,7 @@ export default class Dashboard extends Component<DashboardProps> {
   render() {
     const { totalBalance, info, addresses } = this.context;
 
-    const anyPending = addresses && addresses.find((i: Address) => i.containsPending);
+    const anyPending: Address | Address[] = !!addresses && addresses.find((i: Address) => i.containsPending === true);
 
     return (
       <div>
@@ -90,7 +90,7 @@ export default class Dashboard extends Component<DashboardProps> {
                 Promote All Balance To Orchard
               </button>
             )}
-            {anyPending && (
+            {!!anyPending && (
               <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
                 Some transactions are pending. Balances may change.
               </div>

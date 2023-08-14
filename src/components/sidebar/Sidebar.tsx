@@ -68,7 +68,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
   }
 
   // Handle menu items 
-  setupMenuHandlers = async () => {
+  setupMenuHandlers = async (): Promise<void> => {
     const { clearTimers, setSendTo, setInfo, setRescanning, history, openErrorModal, openPasswordAndUnlockIfNeeded } =
       this.props;
 
@@ -131,9 +131,9 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Export Seed
     ipcRenderer.on("seed", () => {
-      openPasswordAndUnlockIfNeeded(() => {
-        const seed = RPC.fetchSeed();
-        const birthday = RPC.fetchBirthday();
+      openPasswordAndUnlockIfNeeded(async () => {
+        const seed: string = await RPC.fetchSeed();
+        const birthday: number = await RPC.fetchBirthday();
 
         openErrorModal(
           "Wallet Seed",
@@ -245,7 +245,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         openPassword(
           false,
           async (password) => {
-            const success = await decryptWallet(password);
+            const success: boolean = await decryptWallet(password);
             if (success) {
               openErrorModal(
                 "Decrypted",
@@ -269,7 +269,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       if (!info.encrypted || !info.locked) {
         openErrorModal("Already Unlocked", "Your wallet is already unlocked for spending");
       } else {
-        openPasswordAndUnlockIfNeeded(async () => {
+        openPasswordAndUnlockIfNeeded(() => {
           openErrorModal("Unlocked", "Your wallet is unlocked for spending");
         });
       }
@@ -282,7 +282,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       clearTimers();
 
       // Grab the previous sync ID.
-      const prevSyncId = await  JSON.parse(await RPC.doSyncStatus()).sync_id;
+      const syncStatus: string = await RPC.doSyncStatus();
+      const prevSyncId: number = JSON.parse(syncStatus).sync_id;
 
       RPC.doRescan();
 
@@ -302,10 +303,10 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       const { addresses } = this.context;
       openPasswordAndUnlockIfNeeded(async () => {
         const privKeysPromise: Promise<string>[] = addresses.map(async (a: Address) => {
-          const privKey = await getPrivKeyAsString(a.address);
+          const privKey: string = await getPrivKeyAsString(a.address);
           return `${privKey} #${a}`;
         });
-        const exportedPrivKeys = await Promise.all(privKeysPromise);
+        const exportedPrivKeys: string[] = await Promise.all(privKeysPromise);
 
         this.setState({ exportPrivKeysModalIsOpen: true, exportedPrivKeys });
       });
@@ -332,7 +333,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
   };
 
   openImportPrivKeyModal = (defaultValue: string | null) => {
-    const privKeyInputValue = defaultValue || "";
+    const privKeyInputValue: string = defaultValue || "";
     this.setState({ privKeyModalIsOpen: true, privKeyInputValue });
   };
 
@@ -345,7 +346,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
   };
 
   openURIModal = (defaultValue: string | null) => {
-    const uriModalInputValue = defaultValue || "";
+    const uriModalInputValue: string = defaultValue || "";
     this.setState({ uriModalIsOpen: true, uriModalInputValue });
   };
 
@@ -354,7 +355,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     const { info } = this.context;
 
     if (key) {
-      let keys = key.split(new RegExp("[\\n\\r]+"));
+      let keys: string[] = key.split(new RegExp("[\\n\\r]+"));
       if (!keys || keys.length === 0) {
         openErrorModal("No Keys Imported", "No keys were specified, so none were imported");
         return;
@@ -407,8 +408,9 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       clearTimers();
 
       // Grab the previous sync ID.
-      const prevSyncId = await JSON.parse(await RPC.doSyncStatus()).sync_id;
-      const success = await importPrivKeys(keys, birthday);
+      const syncStatus: string = await RPC.doSyncStatus();
+      const prevSyncId: number = JSON.parse(syncStatus).sync_id;
+      const success: boolean = await importPrivKeys(keys, birthday);
 
       if (success) {
         // Set the rescanning global state to true
@@ -446,7 +448,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     console.log(`Paying ${uri}`);
     const { openErrorModal, setSendTo, history } = this.props;
 
-    const errTitle = "URI Error";
+    const errTitle: string = "URI Error";
     const getErrorBody = (explain: string): ReactElement => {
       return (
         <div>
@@ -461,7 +463,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       return;
     }
 
-    const parsedUri = await parseZcashURI(uri);
+    const parsedUri: string | ZcashURITarget[] = await parseZcashURI(uri);
     if (typeof parsedUri === "string") {
       openErrorModal(errTitle, getErrorBody(parsedUri));
       return;
@@ -484,8 +486,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       walletSettingsModalIsOpen,
     } = this.state;
 
-    let stateSync = "DISCONNECTED";
-    let progress = "100";
+    let stateSync: string = "DISCONNECTED";
+    let progress: string = "100";
     if (info.latestBlock) {
       if (verificationProgress < 99.9999) {
         stateSync = "SYNCING";

@@ -13,13 +13,13 @@ export default class Utils {
     if (!addr) {
       return '';
     }
-    const trimSize = numChars || 5;
+    const trimSize: number = numChars || 5;
     return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
   }
 
   static async getAddressType(addr: string): Promise<AddressType | undefined> {
     if (!addr) return;
-    const resultParse = await native.zingolib_execute_async('parse_address', addr);
+    const resultParse: string = await native.zingolib_execute_async('parse_address', addr);
     //console.log(addr, resultParse);
     if (resultParse.toLowerCase().startsWith('error') || resultParse.toLowerCase() === 'null') {
       return;
@@ -59,7 +59,7 @@ export default class Utils {
   }
 
   static maxPrecisionTrimmed(v: number): string {
-    let s = Utils.maxPrecision(v);
+    let s: string = Utils.maxPrecision(v);
     if (!s) {
       return s;
     }
@@ -80,11 +80,11 @@ export default class Utils {
       return { bigPart: zecValue.toString(), smallPart: "" };
     }
 
-    let bigPart = Utils.maxPrecision(zecValue);
-    let smallPart = "";
+    let bigPart: string = Utils.maxPrecision(zecValue);
+    let smallPart: string = "";
 
     if (bigPart.indexOf(".") >= 0) {
-      const decimalPart = bigPart.substr(bigPart.indexOf(".") + 1);
+      const decimalPart: string = bigPart.substr(bigPart.indexOf(".") + 1);
       if (decimalPart.length > 4) {
         smallPart = decimalPart.substr(4);
         bigPart = bigPart.substr(0, bigPart.length - smallPart.length);
@@ -119,8 +119,8 @@ export default class Utils {
     if (numChunks > s.length) return [s];
     if (s.length < 16) return [s];
 
-    const chunkSize = Math.round(s.length / numChunks);
-    const chunks = [];
+    const chunkSize: number = Math.round(s.length / numChunks);
+    const chunks: string[] = [];
     for (let i = 0; i < numChunks - 1; i++) {
       chunks.push(s.substr(i * chunkSize, chunkSize));
     }
@@ -165,14 +165,14 @@ export default class Utils {
   }
 
   static utf16Split(s: string, chunksize: number): string[] {
-    const ans = [];
+    const ans: string[] = [];
 
-    let current = "";
-    let currentLen = 0;
-    const a = [...s];
+    let current: string = "";
+    let currentLen: number = 0;
+    const a: string[] = [...s];
     for (let i = 0; i < a.length; i++) {
       // Each UTF-16 char will take upto 4 bytes when encoded
-      const utf8len = a[i].length > 1 ? 4 : 1;
+      const utf8len: number = a[i].length > 1 ? 4 : 1;
 
       // Test if adding it will exceed the size
       if (currentLen + utf8len > chunksize) {

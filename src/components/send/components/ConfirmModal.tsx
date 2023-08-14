@@ -49,18 +49,18 @@ type ConfirmModalProps = {
 
     useEffect(() => {
       (async () => {
-        const sendingTotal = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + info.defaultFee;
+        const sendingTotal: number = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + info.defaultFee;
         setSendingTotal(sendingTotal);
-        const { bigPart, smallPart } = Utils.splitZecAmountIntoBigSmall(sendingTotal);
+        const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(sendingTotal);
         setBigPart(bigPart);
         setSmallPart(smallPart);
       
         // Determine the tx privacy level
-        let privacyLevel = "";
+        let privacyLevel: string = "";
         // 1. If we're sending to a t-address, it is "transparent" 
         const isToTransparentArray: boolean[] = [];
         sendPageState.toaddrs.forEach(async (to) => {
-          const at = await Utils.getAddressType(to.to);
+          const at: AddressType | undefined = await Utils.getAddressType(to.to);
           isToTransparentArray.push(at === AddressType.transparent);
         })
         const isToTransparent: boolean = isToTransparentArray.reduce((p, c) => p || c, false);
@@ -71,17 +71,17 @@ type ConfirmModalProps = {
           const toSaplingArray: number[] = [];
           sendPageState.toaddrs
             .forEach(async (to) => {
-              const a = await Utils.getAddressType(to.to);
+              const a: AddressType | undefined = await Utils.getAddressType(to.to);
               toSaplingArray.push(a === AddressType.sapling ? to.amount : 0);
             });
           const toSapling: number = toSaplingArray.reduce((s, c) => s + c, 0);
           const toOrchardArray: number[] = [];
           sendPageState.toaddrs
             .forEach(async(to) => {
-              const a = await Utils.getAddressType(to.to);
+              const a: AddressType | undefined = await Utils.getAddressType(to.to);
               toOrchardArray.push(a === AddressType.unified ? to.amount : 0);
             });
-          const toOrchard = toOrchardArray.reduce((s, c) => s + c, 0);
+          const toOrchard: number = toOrchardArray.reduce((s, c) => s + c, 0);
           if (toSapling > totalBalance.spendableZ || toOrchard > totalBalance.uabalance) {
             privacyLevel = "Amounts Revealed";
           } else {
@@ -114,11 +114,9 @@ type ConfirmModalProps = {
         openPasswordAndUnlockIfNeeded(() => {
           // Then send the Tx async
           (async () => {
-            const sendJson = getSendManyJSON(sendPageState);
-            let txid = "";
-  
             try {
-              txid = await sendTransaction(sendJson, setSendProgress);
+              const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
+              const txid: string = await sendTransaction(sendJson, setSendProgress);
   
               openErrorModal(
                 "Successfully Broadcast Transaction",

@@ -156,7 +156,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         // Show the wallet creation screen
         this.setState({ walletScreen: 1 });
       } else {
-        const result = native.zingolib_initialize_existing(url);
+        const result: string = native.zingolib_initialize_existing(url);
         console.log(`Initialization: ${result}`);
         if (result !== "OK") {
           this.setState({
@@ -209,7 +209,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       this.setState({ currentStatus: "Setting things up..." });
 
       // Grab the previous sync ID.
-      const prevSyncId = await JSON.parse(await RPC.doSyncStatus()).sync_id;
+      const syncStatus: string = await RPC.doSyncStatus();
+      const prevSyncId: number = JSON.parse(syncStatus).sync_id;
 
       // This will do the sync in another thread, so we have to check for sync status
       RPC.doSync();
@@ -236,7 +237,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { setRPCConfig, setInfo, setRescanning } = this.props;
     const { url } = this.state;
 
-    const info = await RPC.getInfoObject();
+    const info: Info = await RPC.getInfoObject();
 
     if (info.error) {
       this.setState({
@@ -254,7 +255,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     // And after a while, check the sync status.
     const poller = setInterval(async () => {
-      const syncstatus = await RPC.doSyncStatus();
+      const syncstatus: string = await RPC.doSyncStatus();
 
       if (syncstatus.toLowerCase().startsWith("error")) {
         // Something went wrong
@@ -342,7 +343,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   createNewWallet = () => {
     const { url } = this.state;
-    const result = native.zingolib_initialize_new(url);
+    const result: string = native.zingolib_initialize_new(url);
 
     if (result.toLowerCase().startsWith("error")) {
       console.log(result);
@@ -385,9 +386,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { seed, birthday, url } = this.state;
     console.log(`Restoring ${seed} with ${birthday}`);
 
-    const allowOverwrite = true;
+    const allowOverwrite: boolean = true;
 
-    const result = native.zingolib_initialize_new_from_phrase(url, seed, birthday, allowOverwrite);
+    const result: string = native.zingolib_initialize_new_from_phrase(url, seed, birthday, allowOverwrite);
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {

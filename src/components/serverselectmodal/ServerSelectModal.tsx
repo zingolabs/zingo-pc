@@ -14,11 +14,11 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   const context = useContext(ContextApp);
   const { serverSelectState } = context;
   const { modalIsOpen } = serverSelectState;
-  const [selected, setSelected] = useState("");
-  const [custom, setCustom] = useState("");
-  const [server, setServer] = useState("");
+  const [selected, setSelected] = useState<string>("");
+  const [custom, setCustom] = useState<string>("");
+  const [server, setServer] = useState<string>("");
 
-  const servers = [
+  const servers: {name: string, uri: string}[] = [
     { name: "Zcash Community (Default)", uri: Utils.ZCASH_COMMUNITY},
     { name: "Zec Wallet", uri: Utils.V3_LIGHTWALLETD},
   ];
@@ -37,14 +37,14 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   useEffect(() => {
     (async () => {
       const settings = await ipcRenderer.invoke("loadSettings");
-      const currServer = settings?.serveruri || "";
+      const currServer: string = settings?.serveruri || "";
       initialServerValue(currServer);
       setServer(currServer);
     })();
   }, []);
 
   const switchServer = async () => {
-    let serveruri = selected;
+    let serveruri: string = selected;
     if (serveruri === "custom") {
       serveruri = custom;
     }
