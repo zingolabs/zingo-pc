@@ -222,13 +222,13 @@ export default class Send extends PureComponent<SendProps, SendState> {
       totalBalance,
     } = this.context;
 
-    const totalAmountAvailable: number = totalBalance.transparent + totalBalance.spendableZ + totalBalance.uabalance;
+    const totalAmountAvailable: number = totalBalance.transparent + totalBalance.spendableZ + totalBalance.spendableO;
     const fromaddr: string = addresses.find((a: Address) => a.type === AddressType.unified)?.address || ""; 
 
     // If there are unverified funds, then show a tooltip
     let tooltip: string = "";
-    if (totalBalance.unverifiedZ) {
-      tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ} with 5 blocks (approx 6 minutes)`; 
+    if (totalBalance.unverifiedZ + totalBalance.unverifiedO > 0) {
+      tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ + totalBalance.unverifiedO} with 5 blocks (approx 6 minutes)`; 
     }
 
     return (

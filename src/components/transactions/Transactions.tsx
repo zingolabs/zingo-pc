@@ -68,8 +68,8 @@ export default class Transactions extends Component<TransactionsProps, Transacti
             />
             <BalanceBlock
               topLabel="Orchard"
-              zecValue={totalBalance.uabalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.uabalance)}
+              zecValue={totalBalance.obalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
               currencyName={info.currencyName}
             />
             <BalanceBlock

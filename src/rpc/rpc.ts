@@ -405,8 +405,13 @@ export default class RPC {
     const balanceStr: string = await native.zingolib_execute_async("balance", "");
     const balanceJSON = JSON.parse(balanceStr);
 
+    //console.log(balanceJSON);
+
     let formattedJSON = {
-      uabalance: balanceJSON.orchard_balance,
+      obalance: balanceJSON.orchard_balance,
+      verified_obalance: balanceJSON.verified_orchard_balance,
+      spendable_obalance: balanceJSON.spendable_orchard_balance,
+      unverified_obalance: balanceJSON.unverified_orchard_balance,
       zbalance: balanceJSON.sapling_balance,
       verified_zbalance: balanceJSON.verified_sapling_balance,
       spendable_zbalance: balanceJSON.spendable_sapling_balance,
@@ -617,17 +622,20 @@ export default class RPC {
 
     const balanceJSON: any = await this.zingolibBalance();
 
-    //console.log(balanceJSON);
+    console.log(balanceJSON);
 
     // Total Balance
     const balance = new TotalBalance();
-    balance.uabalance = balanceJSON.uabalance / 10 ** 8;
+    balance.obalance = balanceJSON.obalance / 10 ** 8;
+    balance.verifiedO = balanceJSON.verified_obalance / 10 ** 8;
+    balance.unverifiedO = balanceJSON.unverified_obalance / 10 ** 8;
+    balance.spendableO = balanceJSON.spendable_obalance / 10 ** 8;
     balance.zbalance = balanceJSON.zbalance / 10 ** 8;
     balance.transparent = balanceJSON.tbalance / 10 ** 8;
     balance.verifiedZ = balanceJSON.verified_zbalance / 10 ** 8;
     balance.unverifiedZ = balanceJSON.unverified_zbalance / 10 ** 8;
     balance.spendableZ = balanceJSON.spendable_zbalance / 10 ** 8;
-    balance.total = balance.uabalance + balance.zbalance + balance.transparent;
+    balance.total = balance.obalance + balance.zbalance + balance.transparent;
     this.fnSetTotalBalance(balance);
 
     // Fetch pending notes and UTXOs
