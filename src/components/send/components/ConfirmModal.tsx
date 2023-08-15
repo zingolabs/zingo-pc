@@ -48,6 +48,9 @@ type ConfirmModalProps = {
     const [privacyLevel, setPrivacyLevel] = useState<string>('');
 
     const getPrivacyLevel = useCallback(async (toaddr) => {
+      if (!toaddr.to) {
+        return '-'; 
+      }
   
       let from: 'orchard' | 'orchard+sapling' | 'sapling' | '' = '';
       // amount + fee

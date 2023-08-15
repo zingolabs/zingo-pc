@@ -465,11 +465,16 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     const parsedUri: string | ZcashURITarget[] = await parseZcashURI(uri);
     if (typeof parsedUri === "string") {
-      openErrorModal(errTitle, getErrorBody(parsedUri));
-      return;
+      if (parsedUri.toLowerCase().startsWith('error')) {
+        openErrorModal(errTitle, getErrorBody(parsedUri));
+        return;
+      } else {
+        setSendTo({ address: parsedUri });
+      }
+    } else {
+      setSendTo(parsedUri);
     }
-
-    setSendTo(parsedUri);
+    
     history.push(routes.SEND);
   };
 
