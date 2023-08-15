@@ -622,7 +622,7 @@ export default class RPC {
 
     const balanceJSON: any = await this.zingolibBalance();
 
-    console.log(balanceJSON);
+    //console.log(balanceJSON);
 
     // Total Balance
     const balance = new TotalBalance();

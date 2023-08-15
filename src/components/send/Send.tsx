@@ -105,13 +105,20 @@ export default class Send extends PureComponent<SendProps, SendState> {
     if (address !== null) {
       // First, check if this is a URI
       // $FlowFixMe
-      const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address); 
-      if (Array.isArray(parsedUri)) {
+      const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address.replace(/ /g, ""));
+      if (typeof parsedUri === "string") {
+        if (parsedUri.toLowerCase().startsWith('error')) {
+          // with error leave the same value
+          toAddr.to = address.replace(/ /g, ""); // Remove spaces 
+        } else {
+          // if it is string with no error, it is an address
+          toAddr.to = parsedUri
+        }
+      } else {
+        // if no string and no error extract all the infro from the URI
         setSendTo(parsedUri);
         return;
       }
-
-      toAddr.to = address.replace(/ /g, ""); // Remove spaces 
     }
 
     if (amount !== null) {
@@ -266,7 +273,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
         <div className={[styles.horizontalcontainer].join(" ")}>
           <div className={cstyles.containermarginleft}>
             <ScrollPane offsetHeight={220}>
-              {sendPageState.toaddrs.map((toaddr: ToAddr) => {
+              {[sendPageState.toaddrs[0]].map((toaddr: ToAddr) => {
                 return (
                   <ToAddrBox
                     key={toaddr.id}

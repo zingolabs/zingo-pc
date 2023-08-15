@@ -24,7 +24,7 @@ export class ZcashURITarget {
 
 export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | string> => {
   if (!uri || uri === "") {
-    return "Bad URI";
+    return "Error: Bad URI";
   }
 
   // See if it is a straight address.
@@ -35,7 +35,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
 
   const parsedUri = new Url(uri, true);
   if (!parsedUri || parsedUri.protocol !== "zcash:") {
-    return "Invalid URI or protocol";
+    return "Error: Invalid URI or protocol";
   }
 
   const targets: Map<number, ZcashURITarget> = new Map();
@@ -46,7 +46,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
   if (address) {
     addressType = await Utils.getAddressType(address);
     if (addressType === undefined) {
-      return `"${address || ""}" was not a valid zcash address`; 
+      return `Error: "${address || ""}" was not a valid zcash address`; 
     }
   }
 
@@ -62,11 +62,11 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
   for (const [q, value] of Object.entries(params)) {
     const [qName, qIdxS, extra] = q.split(".");
     if (typeof extra !== "undefined") {
-      return `${q} was not understood as a valid parameter`;
+      return `Error: ${q} was not understood as a valid parameter`;
     }
 
     if (typeof value !== "string") {
-      return `Didn't understand param ${q}`;
+      return `Error: Didn't understand param ${q}`;
     }
 
     const qIdx: number = parseInt(qIdxS, 10) || 0;
@@ -77,36 +77,36 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
 
     const target: ZcashURITarget | undefined = targets.get(qIdx);
     if (!target) {
-      return `Unknown index ${qIdx}`;
+      return `Error: Unknown index ${qIdx}`;
     }
 
     switch (qName.toLowerCase()) {
       case "address":
         if (typeof target.address !== "undefined") {
-          return `Duplicate param ${qName}`;
+          return `Error: Duplicate param ${qName}`;
         }
 
         const addressType: AddressType | undefined = await Utils.getAddressType(value);
         if (addressType === undefined) {
-          return `${value} was not a recognized zcash address`;
+          return `Error: ${value} was not a recognized zcash address`;
         }
         target.address = value;
         break;
       case "label":
         if (typeof target.label !== "undefined") {
-          return `Duplicate param ${qName}`;
+          return `Error: Duplicate param ${qName}`;
         }
         target.label = value;
         break;
       case "message":
         if (typeof target.message !== "undefined") {
-          return `Duplicate param ${qName}`;
+          return `Error: Duplicate param ${qName}`;
         }
         target.message = value;
         break;
       case "memo":
         if (typeof target.memoBase64 !== "undefined") {
-          return `Duplicate param ${qName}`;
+          return `Error: Duplicate param ${qName}`;
         }
 
         // Parse as base64
@@ -114,23 +114,23 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
           target.memoString = Base64.decode(value);
           target.memoBase64 = value;
         } catch (e) {
-          return `Couldn't parse ${value} as base64`;
+          return `Error: Couldn't parse ${value} as base64`;
         }
 
         break;
       case "amount":
         if (typeof target.amount !== "undefined") {
-          return `Duplicate param ${qName}`;
+          return `Error: Duplicate param ${qName}`;
         }
         const a: number = parseFloat(value);
         if (isNaN(a)) {
-          return `Amount ${value} could not be parsed`;
+          return `Error: Amount ${value} could not be parsed`;
         }
 
         target.amount = a;
         break;
       default:
-        return `Unknown parameter ${qName}`;
+        return `Error: Unknown parameter ${qName}`;
     }
   }
 
@@ -138,21 +138,21 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
   if (targets.size > 1) {
     for (const [key, value] of targets) {
       if (typeof value.amount === "undefined") {
-        return `URI ${key} didn't have an amount`;
+        return `Error: URI ${key} didn't have an amount`;
       }
 
       if (typeof value.address === "undefined") {
-        return `URI ${key} didn't have an address`;
+        return `Error: URI ${key} didn't have an address`;
       }
     }
   } else {
     // If there is only 1 entry, make sure it has at least an address
     if (!targets.get(0)) {
-      return "URI Should have at least 1 entry";
+      return "Error: URI Should have at least 1 entry";
     }
 
     if (typeof targets.get(0)?.address === "undefined") {
-      return `URI ${0} didn't have an address`;
+      return `Error: URI ${0} didn't have an address`;
     }
   }
 
@@ -163,10 +163,11 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
   });
 
   if (ans.includes(undefined)) {
-    return "Some indexes were missing";
+    return "Error: Some indexes were missing";
   }
 
-  return ans as ZcashURITarget[];
+  // only the first item. 
+  return [ans[0]] as ZcashURITarget[];
 };
 
 export const checkServerURI = async (uri: string, oldUri: string): Promise<boolean> => {
