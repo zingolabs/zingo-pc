@@ -5,23 +5,23 @@ use neon::prelude::Context;
 use neon::prelude::FunctionContext;
 use neon::prelude::JsBoolean;
 use neon::prelude::JsNumber;
+use neon::prelude::JsPromise;
 use neon::prelude::JsResult;
 use neon::prelude::JsString;
-use neon::prelude::JsPromise;
 
 use neon::register_module;
 
-use zingoconfig::{self, ZingoConfig, construct_lightwalletd_uri, ChainType};
+use zingoconfig::{self, construct_lightwalletd_uri, ChainType, ZingoConfig};
 use zingolib::{commands, lightclient::LightClient, wallet::WalletBase};
 
-use std::{cell::RefCell, sync::Arc, sync::Mutex, thread};
+use std::sync::RwLock;
+use std::{sync::Arc, thread};
 
 // We'll use a MUTEX to store a global lightclient instance,
 // so we don't have to keep creating it. We need to store it here, in rust
 // because we can't return such a complex structure back to JS
 lazy_static! {
-    static ref LIGHTCLIENT: Mutex<RefCell<Option<Arc<LightClient>>>> =
-        Mutex::new(RefCell::new(None));
+    static ref LIGHTCLIENT: RwLock<Option<Arc<LightClient>>> = RwLock::new(None);
 }
 
 register_module!(mut m, {
@@ -32,7 +32,8 @@ register_module!(mut m, {
     m.export_function(
         "zingolib_initialize_new_from_phrase",
         zingolib_initialize_new_from_phrase,
-    )?;    m.export_function(
+    )?;
+    m.export_function(
         "zingolib_initialize_new_from_ufvk",
         zingolib_initialize_new_from_ufvk,
     )?;
@@ -46,7 +47,7 @@ register_module!(mut m, {
 fn get_chainnym(server: &str) -> ChainType {
     // Attempt to guess type from known URIs
     match server {
-        "https://mainnet.lightwalletd.com:9067/" 
+        "https://mainnet.lightwalletd.com:9067/"
         | "https://lwdv2.zecwallet.co:1443/"
         | "https://lwdv3.zecwallet.co:443/"
         | "https://zebra-lwd.zecwallet.co:9067/" => ChainType::Mainnet,
@@ -75,8 +76,7 @@ fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
         let chaintype = get_chainnym(&server.to_string());
-        let block_height =
-        match zingolib::get_latest_block_height(server.clone())
+        let block_height = match zingolib::get_latest_block_height(server.clone())
             .map_err(|e| format! {"Error: {e}"})
         {
             Ok(height) => height,
@@ -110,7 +110,7 @@ fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
         let lc = Arc::new(lightclient);
         LightClient::start_mempool_monitor(lc.clone());
 
-        LIGHTCLIENT.lock().unwrap().replace(Some(lc));
+        *LIGHTCLIENT.write().unwrap() = Some(lc);
 
         // Return the wallet's seed
         seed
@@ -123,7 +123,7 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
     let seed = cx.argument::<JsString>(1)?.value(&mut cx);
     let birthday = cx.argument::<JsNumber>(2)?.value(&mut cx);
-    let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);   
+    let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);
 
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
@@ -154,7 +154,7 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
         let lc = Arc::new(lightclient);
         LightClient::start_mempool_monitor(lc.clone());
 
-        LIGHTCLIENT.lock().unwrap().replace(Some(lc));
+        *LIGHTCLIENT.write().unwrap() = Some(lc);
 
         format!("OK")
     };
@@ -165,7 +165,7 @@ fn zingolib_initialize_new_from_ufvk(mut cx: FunctionContext) -> JsResult<JsStri
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
     let ufvk = cx.argument::<JsString>(1)?.value(&mut cx);
     let birthday = cx.argument::<JsNumber>(2)?.value(&mut cx);
-    let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);   
+    let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);
 
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
@@ -196,7 +196,7 @@ fn zingolib_initialize_new_from_ufvk(mut cx: FunctionContext) -> JsResult<JsStri
         let lc = Arc::new(lightclient);
         LightClient::start_mempool_monitor(lc.clone());
 
-        LIGHTCLIENT.lock().unwrap().replace(Some(lc));
+        *LIGHTCLIENT.write().unwrap() = Some(lc);
 
         format!("OK")
     };
@@ -231,7 +231,7 @@ fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
         let lc = Arc::new(lightclient);
         LightClient::start_mempool_monitor(lc.clone());
 
-        LIGHTCLIENT.lock().unwrap().replace(Some(lc));
+        *LIGHTCLIENT.write().unwrap() = Some(lc);
 
         format!("OK")
     };
@@ -239,7 +239,7 @@ fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
 }
 
 fn zingolib_deinitialize(mut cx: FunctionContext) -> JsResult<JsString> {
-    LIGHTCLIENT.lock().unwrap().replace(None);
+    *LIGHTCLIENT.write().unwrap() = None;
 
     Ok(cx.string(format!("OK")))
 }
@@ -249,32 +249,27 @@ fn zingolib_execute_spawn(mut cx: FunctionContext) -> JsResult<JsString> {
     let args_list = cx.argument::<JsString>(1)?.value(&mut cx);
 
     let resp = || {
-        let lightclient: Arc<LightClient>;
         {
-            let lc = LIGHTCLIENT.lock().unwrap();
+            if let Some(lc) = &*LIGHTCLIENT.read().unwrap() {
+                let lightclient = lc.clone();
+                // sync, rescan and import commands.
+                thread::spawn(move || {
+                    let args = if args_list.is_empty() {
+                        vec![]
+                    } else {
+                        vec![&args_list[..]]
+                    };
+                    commands::do_user_command(&cmd, &args, lightclient.as_ref());
+                });
 
-            if lc.borrow().is_none() {
+                format!("OK")
+            } else {
                 return format!("Error: Light Client is not initialized");
             }
-
-            lightclient = lc.borrow().as_ref().unwrap().clone();
-        };
-
-        // sync, rescan and import commands.
-        thread::spawn(move || {
-            let args = if args_list.is_empty() {
-                vec![]
-            } else {
-                vec![&args_list[..]]
-            };
-            commands::do_user_command(&cmd, &args, lightclient.as_ref());
-        });
-
-        format!("OK")
+        }
     };
 
     Ok(cx.string(resp()))
-
 }
 
 fn zingolib_execute_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
@@ -292,26 +287,21 @@ fn zingolib_execute_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
         // Inside this closure, you can perform asynchronous operations
 
         let resp = {
-            let lightclient = LIGHTCLIENT.lock().unwrap();
+            let lightclient = LIGHTCLIENT.read().unwrap();
 
-            if lightclient.borrow().is_none() {
+            if lightclient.is_none() {
                 format!("Error: Light Client is not initialized")
             } else {
-                let lightclient = lightclient.borrow();
-                let lightclient = lightclient.as_ref().unwrap();
-
                 let args = if args_list.is_empty() {
                     vec![]
                 } else {
                     vec![&args_list[..]]
                 };
-                commands::do_user_command(&cmd, &args, lightclient).clone()
+                commands::do_user_command(&cmd, &args, lightclient.as_ref().unwrap()).clone()
             }
         };
 
-        deferred.settle_with(&channel, move |mut cx| {
-            Ok(cx.string(resp))
-        });
+        deferred.settle_with(&channel, move |mut cx| Ok(cx.string(resp)));
 
         // Settle the promise based on the response
         //deferred.resolve(&mut cx, cx.string(&resp));
