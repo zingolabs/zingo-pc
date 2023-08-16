@@ -240,7 +240,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const me = this;
 
     const { setRPCConfig, setInfo, setRescanning } = this.props;
-    const { url } = this.state;
+    const { url, chain } = this.state;
 
     const info: Info = await RPC.getInfoObject();
 
@@ -292,6 +292,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           // Configure the RPC, which will setup the refresh
           const rpcConfig = new RPCConfig();
           rpcConfig.url = url;
+          rpcConfig.chain = chain;
           setRPCConfig(rpcConfig);
 
           // And cancel the updater

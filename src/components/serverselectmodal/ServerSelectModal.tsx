@@ -21,13 +21,12 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   const [customChain, setCustomChain] = useState<'main' | 'test' | 'regtest' | ''>("");
   const [chain, setChain] = useState<'main' | 'test' | 'regtest' | ''>("");
 
-  const servers: {name: string, uri: string, chain_name: 'main' | 'test' | 'regtest'}[] = [
-    { name: "Zcash Community (Default)", uri: Utils.ZCASH_COMMUNITY, chain_name: 'main'},
-    { name: "Zec Wallet", uri: Utils.V3_LIGHTWALLETD, chain_name: 'main'},
+  const servers: {name: string, uri: string, chain: 'main' | 'test' | 'regtest'}[] = [
+    { name: "Zcash Community (Default)", uri: Utils.ZCASH_COMMUNITY, chain: 'main'},
+    { name: "Zec Wallet", uri: Utils.V3_LIGHTWALLETD, chain: 'main'},
   ];
 
   const chains = {
-
     "main": "Mainnet",
     "test": "Testnet",
     "regtest": "Regtest"
@@ -69,8 +68,14 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
       serverchain_name = customChain;
     }
 
-    ipcRenderer.invoke("saveSettings", { key: "serveruri", value: serveruri });
-    ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: serverchain_name });
+    const settingsb = await ipcRenderer.invoke("loadSettings");
+    console.log('before', serveruri, serverchain_name, settingsb);
+
+    await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: serveruri });
+    await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: serverchain_name });
+
+    const settingsa = await ipcRenderer.invoke("loadSettings");
+    console.log('after', serveruri, serverchain_name, settingsa);
 
     localCloseModal(serveruri, serverchain_name);
 
@@ -98,7 +103,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
 
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
           {servers.map((s) => (
-            <div style={{ margin: "10px" }} key={s.uri}>
+            <div className={cstyles.horizontalflex} style={{ margin: "10px" }} key={s.uri}>
               <input
                 checked={selectedServer === s.uri} 
                 type="radio" 
@@ -106,13 +111,13 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                 value={s.uri} 
                 onClick={(e) => {
                   setSelectedServer(e.currentTarget.value);
-                  setSelectedChain(s.chain_name);
+                  setSelectedChain(s.chain);
                 }} 
                 onChange={(e) => {
                   setSelectedServer(e.currentTarget.value);
-                  setSelectedChain(s.chain_name);
+                  setSelectedChain(s.chain);
                 }} />
-              {`${s.name} - ${s.uri} [${chains[s.chain_name]}]`}
+              <div>{`${s.name} - ${s.uri} - [${chains[s.chain]}]`}</div> 
             </div>
           ))}
 
@@ -133,8 +138,9 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
             />
             Custom
             <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
-              <div style={{ width: '80%'}}>
+              <div style={{ width: '80%', padding: 0, margin: 0 }}>
                 <input
+                  disabled={selectedServer !== "custom"}
                   type="text"
                   className={cstyles.inputbox} 
                   style={{ marginLeft: "20px", width: '80%' }}
@@ -142,8 +148,9 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                   onChange={(e) => setCustomServer(e.target.value)}
                 />
               </div>
-              <div style={{ width: '20%' }}>
+              <div style={{ width: '20%', padding: 0, margin: 0 }}>
                 <select
+                  disabled={selectedChain !== "custom"}
                   className={cstyles.inputbox}
                   style={{ marginLeft: "20px" }}
                   value={customChain}
@@ -160,7 +167,12 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
         </div>
 
         <div className={cstyles.buttoncontainer}>
-          <button type="button" className={cstyles.primarybutton} onClick={switchServer} disabled={selectedServer === "custom" && customServer === "" && customChain === ""}>
+          <button 
+            type="button" 
+            className={cstyles.primarybutton} 
+            onClick={switchServer} 
+            disabled={(selectedServer === "custom" && customServer === "") || (selectedChain === "custom" && customChain === "")}
+          >
             Switch Server
           </button>
           <button type="button" className={cstyles.primarybutton} onClick={() => localCloseModal(server, chain)}>

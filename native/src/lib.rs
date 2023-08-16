@@ -48,7 +48,7 @@ fn get_chainnym(chain_hint_str: &str) -> Result<ChainType, String> {
         "main" => ChainType::Mainnet,
         "test" => ChainType::Testnet,
         "regtest" => ChainType::Regtest,
-        _ => return Err("Error: Not a valid chain hint!".to_string()),
+        _ => return Err("Not a valid chain hint!".to_string()),
     };
     
     Ok(result)
@@ -76,17 +76,19 @@ fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
         let chaintype = match get_chainnym(&chain_hint.to_string())
-        .map_err(|e| format! {"Error: {e}"})
         {
             Ok(c) => c,
-            Err(e) => return e,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
         };
         let block_height =
         match zingolib::get_latest_block_height(server.clone())
-            .map_err(|e| format! {"Error: {e}"})
         {
             Ok(height) => height,
-            Err(e) => return e,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
         };
 
         let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
@@ -135,10 +137,11 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
         let chaintype = match get_chainnym(&chain_hint.to_string())
-        .map_err(|e| format! {"Error: {e}"})
         {
             Ok(c) => c,
-            Err(e) => return e,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
         };
 
         let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
@@ -183,10 +186,11 @@ fn zingolib_initialize_new_from_ufvk(mut cx: FunctionContext) -> JsResult<JsStri
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
         let chaintype = match get_chainnym(&chain_hint.to_string())
-        .map_err(|e| format! {"Error: {e}"})
         {
             Ok(c) => c,
-            Err(e) => return e,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
         };
 
         let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
@@ -229,10 +233,11 @@ fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
         let chaintype = match get_chainnym(&chain_hint.to_string())
-        .map_err(|e| format! {"Error: {e}"})
         {
             Ok(c) => c,
-            Err(e) => return e,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
         };
 
         let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
