@@ -133,8 +133,27 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   loadServer = async () => {
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
-    let server = settings?.serveruri || Utils.ZCASH_COMMUNITY;
-    let chain_name: 'main' | 'test' | 'regtest' = settings?.serverchain_name || 'main';
+    console.log(settings);
+    let server: string, chain_name: 'main' | 'test' | 'regtest'; 
+    if (!settings) {
+      server = Utils.ZCASH_COMMUNITY;
+      chain_name = 'main';
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
+      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
+    } else {
+      if (!settings.serveruri) {
+        server = Utils.ZCASH_COMMUNITY;
+        await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
+      } else {
+        server = settings.serveruri;
+      }
+      if (!settings.serverchain_name) {
+        chain_name = 'main';
+        await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
+      } else {
+        chain_name = settings.serverchain_name;
+      }
+    }
 
     const newstate = new LoadingScreenState();
     Object.assign(newstate, this.state);

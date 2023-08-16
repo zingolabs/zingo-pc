@@ -114,18 +114,18 @@ class MenuBuilder {
             mainWindow.webContents.send("seed");
           },
         },
-        {
-          label: "&Import Private Keys",
-          click: () => {
-            mainWindow.webContents.send("import");
-          },
-        },
-        {
-          label: "&Export All Private Keys",
-          click: () => {
-            mainWindow.webContents.send("exportall");
-          },
-        },
+        //{
+        //  label: "&Import Private Keys",
+        //  click: () => {
+        //    mainWindow.webContents.send("import");
+        //  },
+        //},
+        //{
+        //  label: "&Export All Private Keys",
+        //  click: () => {
+        //    mainWindow.webContents.send("exportall");
+        //  },
+        //},
         { type: "separator" },
         {
           label: "&Pay URI",
@@ -184,18 +184,18 @@ class MenuBuilder {
             mainWindow.webContents.send("seed");
           },
         },
-        {
-          label: "&Import Private Keys",
-          click: () => {
-            mainWindow.webContents.send("import");
-          },
-        },
-        {
-          label: "&Export All Private Keys",
-          click: () => {
-            mainWindow.webContents.send("exportall");
-          },
-        },
+        //{
+        //  label: "&Import Private Keys",
+        //  click: () => {
+        //    mainWindow.webContents.send("import");
+        //  },
+        //},
+        //{
+        //  label: "&Export All Private Keys",
+        //  click: () => {
+        //    mainWindow.webContents.send("exportall");
+        //  },
+        //},
         { type: "separator" },
         {
           label: "&Pay URI",
