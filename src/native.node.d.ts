@@ -1,4 +1,3 @@
-//export function zingolib_say_hello(s: string): string;
 export function zingolib_wallet_exists(chain_hint: string): boolean;
 export function zingolib_initialize_new(server_uri: string, chain_hint: string): string;
 export function zingolib_initialize_existing(server_uri: string, chain_hint: string): string;
