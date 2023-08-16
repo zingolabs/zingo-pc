@@ -27,6 +27,8 @@ class LoadingScreenState {
 
   url: string;
 
+  chain: '' | 'main' | 'test' | 'regtest';
+
   walletScreen: number; 
   // 0 -> no wallet, load existing wallet 
   // 1 -> show options
@@ -49,6 +51,7 @@ class LoadingScreenState {
     this.loadingDone = false;
     this.rpcConfig = null;
     this.url = "";
+    this.chain = "";
     this.getinfoRetryCount = 0;
     this.walletScreen = 0;
     this.newWalletError = null;
@@ -127,23 +130,25 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     });
   };
 
-  loadServerURI = async () => {
+  loadServer = async () => {
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
     let server = settings?.serveruri || Utils.ZCASH_COMMUNITY;
+    let chain_name: 'main' | 'test' | 'regtest' = settings?.serverchain_name || 'main';
 
     const newstate = new LoadingScreenState();
     Object.assign(newstate, this.state);
 
     newstate.url = server;
+    newstate.chain = chain_name;
     this.setState(newstate);
   };
 
   doFirstTimeSetup = async () => {
-    await this.loadServerURI();
+    await this.loadServer();
 
     // Try to load the light client
-    const { url } = this.state;
+    const { url, chain } = this.state;
 
     console.log(`Url: -${url}-`);
 
@@ -152,11 +157,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     try {
       // Test to see if the wallet exists
-      if (!native.zingolib_wallet_exists(url)) {
+      if (!native.zingolib_wallet_exists(chain)) {
         // Show the wallet creation screen
         this.setState({ walletScreen: 1 });
       } else {
-        const result: string = native.zingolib_initialize_existing(url);
+        const result: string = native.zingolib_initialize_existing(url, chain);
         console.log(`Initialization: ${result}`);
         if (result !== "OK") {
           this.setState({
@@ -235,7 +240,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const me = this;
 
     const { setRPCConfig, setInfo, setRescanning } = this.props;
-    const { url } = this.state;
+    const { url, chain } = this.state;
 
     const info: Info = await RPC.getInfoObject();
 
@@ -287,6 +292,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           // Configure the RPC, which will setup the refresh
           const rpcConfig = new RPCConfig();
           rpcConfig.url = url;
+          rpcConfig.chain = chain;
           setRPCConfig(rpcConfig);
 
           // And cancel the updater
@@ -342,8 +348,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   createNewWallet = () => {
-    const { url } = this.state;
-    const result: string = native.zingolib_initialize_new(url);
+    const { url, chain } = this.state;
+    const result: string = native.zingolib_initialize_new(url, chain);
 
     if (result.toLowerCase().startsWith("error")) {
       console.log(result);
@@ -383,12 +389,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreWallet = () => {
-    const { seed, birthday, url } = this.state;
+    const { seed, birthday, url, chain } = this.state;
     console.log(`Restoring ${seed} with ${birthday}`);
 
     const allowOverwrite: boolean = true;
 
-    const result: string = native.zingolib_initialize_new_from_phrase(url, seed, birthday, allowOverwrite);
+    const result: string = native.zingolib_initialize_new_from_phrase(url, seed, birthday, allowOverwrite, chain);
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {

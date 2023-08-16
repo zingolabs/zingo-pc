@@ -25,7 +25,6 @@ lazy_static! {
 }
 
 register_module!(mut m, {
-    //m.export_function("zingolib_say_hello", zingolib_say_hello)?;
     m.export_function("zingolib_wallet_exists", zingolib_wallet_exists)?;
     m.export_function("zingolib_initialize_new", zingolib_initialize_new)?;
     m.export_function("zingolib_initialize_existing", zingolib_initialize_existing)?;
@@ -44,26 +43,27 @@ register_module!(mut m, {
     Ok(())
 });
 
-fn get_chainnym(server: &str) -> ChainType {
+fn get_chainnym(chain_hint_str: &str) -> Result<ChainType, String> {
     // Attempt to guess type from known URIs
-    match server {
-        "https://mainnet.lightwalletd.com:9067/"
-        | "https://lwdv2.zecwallet.co:1443/"
-        | "https://lwdv3.zecwallet.co:443/"
-        | "https://zebra-lwd.zecwallet.co:9067/" => ChainType::Mainnet,
-        x if x.contains("testnet") => ChainType::Testnet,
-        x if x.contains("127.0.0.1") | x.contains("localhost") => ChainType::Regtest,
-        x if x.contains("fakemain") => ChainType::FakeMainnet,
-        _ => panic!("Unrecognized server URI, is it a new server?  What chain does it serve?"),
-    }
+    let result = match chain_hint_str {
+        "main" => ChainType::Mainnet,
+        "test" => ChainType::Testnet,
+        "regtest" => ChainType::Regtest,
+        _ => return Err("Not a valid chain hint!".to_string()),
+    };
+    
+    Ok(result)
 }
 
 // Check if there is an existing wallet
 fn zingolib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
-    let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
+    let chain_hint = cx.argument::<JsString>(0)?.value(&mut cx);
 
-    let server = construct_lightwalletd_uri(Some(server_uri));
-    let chaintype = get_chainnym(&server.to_string());
+    let chaintype = match get_chainnym(&chain_hint.to_string())
+    {
+        Ok(c) => c,
+        Err(_) => return Ok(cx.boolean(false)),
+    };
     let config = ZingoConfig::create_unconnected(chaintype, None);
 
     Ok(cx.boolean(config.wallet_exists()))
@@ -72,15 +72,23 @@ fn zingolib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
 /// Create a new wallet and return the seed for the newly created wallet.
 fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
+    let chain_hint = cx.argument::<JsString>(1)?.value(&mut cx);
 
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
-        let chaintype = get_chainnym(&server.to_string());
+        let chaintype = match get_chainnym(&chain_hint.to_string())
+        {
+            Ok(c) => c,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
         let block_height = match zingolib::get_latest_block_height(server.clone())
-            .map_err(|e| format! {"Error: {e}"})
         {
             Ok(height) => height,
-            Err(e) => return e,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
         };
 
         let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
@@ -123,11 +131,18 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
     let seed = cx.argument::<JsString>(1)?.value(&mut cx);
     let birthday = cx.argument::<JsNumber>(2)?.value(&mut cx);
-    let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);
+    let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);   
+    let chain_hint = cx.argument::<JsString>(4)?.value(&mut cx);
 
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
-        let chaintype = get_chainnym(&server.to_string());
+        let chaintype = match get_chainnym(&chain_hint.to_string())
+        {
+            Ok(c) => c,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
 
         let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
@@ -166,10 +181,17 @@ fn zingolib_initialize_new_from_ufvk(mut cx: FunctionContext) -> JsResult<JsStri
     let ufvk = cx.argument::<JsString>(1)?.value(&mut cx);
     let birthday = cx.argument::<JsNumber>(2)?.value(&mut cx);
     let overwrite = cx.argument::<JsBoolean>(3)?.value(&mut cx);
+    let chain_hint = cx.argument::<JsString>(4)?.value(&mut cx);
 
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
-        let chaintype = get_chainnym(&server.to_string());
+        let chaintype = match get_chainnym(&chain_hint.to_string())
+        {
+            Ok(c) => c,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
 
         let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
@@ -206,10 +228,17 @@ fn zingolib_initialize_new_from_ufvk(mut cx: FunctionContext) -> JsResult<JsStri
 // Initialize a new lightclient and store its value
 fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
+    let chain_hint = cx.argument::<JsString>(1)?.value(&mut cx);
 
     let resp = || {
         let server = construct_lightwalletd_uri(Some(server_uri));
-        let chaintype = get_chainnym(&server.to_string());
+        let chaintype = match get_chainnym(&chain_hint.to_string())
+        {
+            Ok(c) => c,
+            Err(e) => {
+                return format!("Error: {}", e);
+            }
+        };
 
         let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,

@@ -11,12 +11,18 @@ type ZcashdProps = {
   openServerSelectModal: () => void;
 };
 
+const chains = {
+  "main": "Mainnet",
+  "test": "Testnet",
+  "regtest": "Regtest"
+};
+
 export default class Zcashd extends Component<ZcashdProps> {
   static contextType = ContextApp;
   render() {
     const { refresh, openServerSelectModal } = this.props;
     const { info, rpcConfig } = this.context;
-    const { url } = rpcConfig;
+    const { url, chain }: {url: string, chain: 'main' | 'test' | 'regtest'} = rpcConfig;
 
     if (!info || !info.latestBlock) {
       return (
@@ -42,8 +48,9 @@ export default class Zcashd extends Component<ZcashdProps> {
                 <div className={styles.detaillines}>
                   <DetailLine label="Version" value={info.version} />
                   <DetailLine label="Node" value={info.zcashdVersion} />
-                  <DetailLine label="Lightwallet Server" value={url} />
-                  <DetailLine label="Network" value={info.testnet ? "Testnet" : "Mainnet"} />
+                  <DetailLine label="Lightwallet Server URI" value={url} />
+                  <DetailLine label="Chain Name" value={chains[chain]} />
+                  <DetailLine label="Server Network" value={info.testnet ? "Testnet" : "Mainnet"} />
                   <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                   <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
                 </div>

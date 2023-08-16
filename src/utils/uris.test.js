@@ -1,7 +1,7 @@
 import { parseZcashURI } from "./uris";
 import native from '../native.node';
 
-native.zingolib_initialize_existing('https://mainnet.lightwalletd.com:9067');
+native.zingolib_initialize_existing('https://mainnet.lightwalletd.com:9067', 'main');
 
 test("ZIP321 case 1", async () => { 
   const targets = await parseZcashURI(
