@@ -50,8 +50,9 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   useEffect(() => {
     (async () => {
       const settings = await ipcRenderer.invoke("loadSettings");
-      const currServer: string = settings?.serveruri || "";
-      const currChain: 'main' | 'test' | 'regtest' | '' = settings?.serverchain_name || "";
+      console.log(settings);
+      const currServer: string = settings?.serveruri || Utils.ZCASH_COMMUNITY; 
+      const currChain: 'main' | 'test' | 'regtest' | '' = settings?.serverchain_name || "main";
       initialServerValue(currServer, currChain);
       setServer(currServer);
       setChain(currChain);
