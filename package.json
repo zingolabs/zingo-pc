@@ -199,7 +199,8 @@
       "category": "Development",
       "icon": "./resources/icon.icns",
       "target": [
-        "AppImage"
+        "AppImage",
+        "deb"
       ],
       "desktop": {
         "Name": "Zingo PC",
