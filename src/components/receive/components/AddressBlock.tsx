@@ -60,9 +60,13 @@ const AddressBlock = ({
 
   const openAddress = () => { 
     if (currencyName === "TAZ") {
-      shell.openExternal(`https://chain.so/address/ZECTEST/${address_address}`);
+      shell.openExternal(`https://testnet.zcashblockexplorer.com/address/${address_address}`);
     } else {
-      shell.openExternal(`https://zecblockexplorer.com/address/${address_address}`);
+      if (address_address.startsWith('u')) {
+        shell.openExternal(`https://zcashblockexplorer.com/ua/${address_address}`);
+      } else {
+        shell.openExternal(`https://zcashblockexplorer.com/address/${address_address}`);
+      }
     }
   };
 
@@ -243,11 +247,9 @@ const AddressBlock = ({
                 </button>
               )} */}
 
-              {type === AddressType.transparent && (
-                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => openAddress()}>
-                  View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                </button>
-              )}
+              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => openAddress()}>
+                View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+              </button>
               {type === AddressType.transparent && balance > info.defaultFee && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
                   Shield Balance To Orchard
