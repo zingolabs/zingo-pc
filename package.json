@@ -117,7 +117,7 @@
     "dist:mac": "yarn build && electron-builder -m -c.extraMetadata.main=build/electron.js --publish never",
     "dist:linux": "electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
     "react-start": "node scripts/start.js",
-    "neon": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --manifest-path native/Cargo.toml --message-format=json-render-diagnostics"
+    "neon": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --manifest-path native/Cargo.toml --message-format=json-render-diagnostics"
   },
   "electronmon": {
     "patterns": [
