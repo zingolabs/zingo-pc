@@ -256,7 +256,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   }
 
   runSyncStatusPoller = async (prevSyncId: number) => {
-    const me = this;
 
     const { setRPCConfig, setInfo, setRescanning } = this.props;
     const { url, chain } = this.state;
@@ -278,12 +277,13 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
 
     // And after a while, check the sync status.
+    const myThis = this;
     const poller = setInterval(async () => {
       const syncstatus: string = await RPC.doSyncStatus();
 
       if (syncstatus.toLowerCase().startsWith("error")) {
         // Something went wrong
-        this.setState({
+        myThis.setState({
           currentStatus: syncstatus,
           currentStatusIsError: true,
         });
@@ -318,7 +318,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           clearInterval(poller);
 
           // This will cause a redirect to the dashboard screen
-          me.setState({ loadingDone: true });
+          myThis.setState({ loadingDone: true });
         } else {
           // Still syncing, grab the status and update the status
           let progress_blocks = (ss.synced_blocks + ss.trial_decryptions_blocks + ss.witnesses_updated) / 3;
@@ -328,10 +328,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             progress = (progress_blocks * 100) / ss.total_blocks;
           }
 
-          // every 2 batches I need to save the progress of the wallet
-          if (ss.batch_num >= this.state.nextSaveBatch) {
+          // every 5 batches I need to save the progress of the wallet
+          if (ss.batch_num >= myThis.state.nextSaveBatch) {
+            console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&& save wallet', ss.batch_num, myThis.state.nextSaveBatch);
             RPC.doSave();
-            me.setState({ nextSaveBatch: ss.batch_num + 5});
+            myThis.setState({ nextSaveBatch: ss.batch_num + 5});
           }
 
           let base = 0;
@@ -359,7 +360,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                 This could take several minutes or hours
               </div>
             );
-            me.setState({ currentStatus });
+            myThis.setState({ currentStatus });
           }
         }
       }
@@ -436,7 +437,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "100px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.0</div>
-                <img src={Logo} width="200px;" alt="Logo" />
+                <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div>{currentStatus}</div>
               {currentStatusIsError && (
@@ -496,7 +497,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.0</div>
-                <img src={Logo} width="200px;" alt="Logo" />
+                <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
                 <div className={cstyles.verticalflex}>
@@ -557,7 +558,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.0</div>
-                <img src={Logo} width="200px;" alt="Logo" />
+                <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
                 <div className={cstyles.verticalflex}>
@@ -605,7 +606,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.0</div>
-                <img src={Logo} width="200px;" alt="Logo" />
+                <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
                 <div className={cstyles.verticalflex}>
