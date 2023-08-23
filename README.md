@@ -19,7 +19,7 @@ nvm install 16.16
 nvm use 16.16
 ```
   
-
+NOTE2: You have to install `openssl` & `protobuf compiler` as well.
 
 ```
 git clone https://github.com/zingolabs/zingo-pc.git
@@ -29,7 +29,7 @@ yarn install
 yarn build
 ```
 
-If for some reason you get an `ERR_OSSL_EVP_UNSUPPORTED` error when running `yarn build` in node v17 or v18, just run the command with `NODE_OPTIONS=--openssl-legacy-provider` env variable, or downgrade the `node` version to v16.16.0.
+If for some reason you get an `ERR_OSSL_EVP_UNSUPPORTED` error when running `yarn build` in node v17, v18 or higher, just run the command with `NODE_OPTIONS=--openssl-legacy-provider` env variable, or downgrade the `node` version to v16.16.0.
 
 To start in locally, run
 ```
@@ -42,7 +42,9 @@ yarn dist:linux
 or
 yarn dist:win
 or
-yarn dist:mac
+yarn dist:mac-arm64
+or
+yarn dist:mac-x64
 ```
 
 The binaries should be in the *dist* directory.
