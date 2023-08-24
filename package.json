@@ -114,15 +114,20 @@
     "build": "yarn neon && node scripts/build.js",
     "build-mac-x64": "yarn neon-mac-x64 && node scripts/build.js",
     "build-mac-arm64": "yarn neon-mac-arm64 && node scripts/build.js",
+    "build-win-x64": "yarn neon-win-x64 && node scripts/build.js",
+    "build-win-arm64": "yarn neon-win-arm64 && node scripts/build.js",
     "test": "yarn neon && node scripts/test.js",
-    "dist:win": "yarn build && electron-builder -w -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:linux": "yarn build && electron-builder -l --universal -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-arm64": "yarn build-mac-arm64 && electron-builder -m --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-x64": "yarn build-mac-x64 && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:linux": "electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:win-arm64": "yarn build-win-arm64 && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:win-x64": "yarn build-win-x64 && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "react-start": "node scripts/start.js",
     "neon": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
     "neon-mac-x64": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target x86_64-apple-darwin --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
-    "neon-mac-arm64": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target aarch64-apple-darwin --manifest-path native/Cargo.toml --message-format=json-render-diagnostics"
+    "neon-mac-arm64": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target aarch64-apple-darwin --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
+    "neon-win-x64": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target x86_64-pc-windows-msvc --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
+    "neon-win-arm64": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target aarch64-pc-windows-msvc --manifest-path native/Cargo.toml --message-format=json-render-diagnostics"
   },
   "electronmon": {
     "patterns": [
