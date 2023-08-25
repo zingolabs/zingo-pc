@@ -40,7 +40,9 @@ If for some reason, you couldn't run zingo-pc using the above command, so I comp
 ```
 yarn dist:linux
 or
-yarn dist:win
+yarn dist:win-arm64
+or
+yarn dist:win-x64
 or
 yarn dist:mac-arm64
 or
