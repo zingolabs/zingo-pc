@@ -145,7 +145,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   //  1. Check if the wallet is encrypted and locked
   //  2. If it is, open the password dialog
   //  3. Attempt to unlock wallet.
-  //    a. If unlock suceeds, do the callback
+  //    a. If unlock succeeds, do the callback
   //    b. If the unlock fails, show an error
   //  4. If wallet is not encrypted or already unlocked, just call the successcallback.
   openPasswordAndUnlockIfNeeded = (successCallback: () => void) => {

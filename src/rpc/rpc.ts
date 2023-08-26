@@ -312,7 +312,7 @@ export default class RPC {
       info.connections = 1;
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit.substring(0, 6)}/${infoJSON.version}`;
       //info.zcashdVersion = infoJSON.zcashd_version;
-      info.zcashdVersion = "Not Avaiable";
+      info.zcashdVersion = "Not Available";
       info.currencyName = info.testnet ? "TAZ" : "ZEC";
       info.solps = 0;
 
@@ -821,10 +821,10 @@ export default class RPC {
     });
 
     // If you send yourself transactions, the underlying SDK doesn't handle it very well, so
-    // we supress these in the UI to make things a bit clearer.
+    // we suppress these in the UI to make things a bit clearer.
     //txlist = txlist.filter((tx) => !(tx.type === "sent" && tx.amount < 0 && tx.detailedTxns.length === 0));
 
-    // We need to group transactions that have the same (txid and send/recive), for multi-part memos
+    // We need to group transactions that have the same (txid and send/receive), for multi-part memos
     const m = new Map<string, Transaction[]>();
     txlist.forEach((tx) => {
       const key: string = tx.txid + tx.type;
@@ -934,7 +934,7 @@ export default class RPC {
         }
 
         // Calculate ETA.
-        let secondsPerComputation: number = 3; // defalt
+        let secondsPerComputation: number = 3; // default
         if (progressJSON.progress > 0) {
           const currentTimeSeconds: number = new Date().getTime() / 1000;
           secondsPerComputation = (currentTimeSeconds - startTimeSeconds) / progressJSON.progress;
