@@ -4,7 +4,7 @@
 Zingo PC is written in Electron/Javascript and can be build from source. It will also automatically compile the Rust SDK needed to run zingo-pc.
 
 #### Pre-Requisites
-You need to have the following software installed before you can build Zingo PC Fullnode
+You need to have the following software installed before you can build Zingo PC
 
 * [Nodejs recommended version: v16.16.0 (LTS) ](https://nodejs.org/en/blog/release/v16.16.0)
 * [Yarn](https://yarnpkg.com)
