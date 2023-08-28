@@ -102,13 +102,13 @@ export default class RPC {
     }
   }
 
-  static async doSync() {
-    const syncstr: string = await native.zingolib_execute_spawn("sync", "");
+  static doSync() {
+    const syncstr: string = native.zingolib_execute_spawn("sync", "");
     console.log(`Sync exec result: ${syncstr}`);
   }
 
-  static async doRescan() {
-    const syncstr: string = await native.zingolib_execute_spawn("rescan", "");
+  static doRescan() {
+    const syncstr: string = native.zingolib_execute_spawn("rescan", "");
     console.log(`rescan exec result: ${syncstr}`);
   }
 
@@ -350,14 +350,14 @@ export default class RPC {
     }
   }
 
-  static async doImportPrivKey(key: string, birthday: string): Promise<string> {
+  static doImportPrivKey(key: string, birthday: string): string {
     const args = { key, birthday: parseInt(birthday, 10) };
 
     if (isNaN(parseInt(birthday, 10))) {
       return `Error: Couldn't parse ${birthday} as a number`;
     }
 
-    const address: string = await native.zingolib_execute_spawn("import", JSON.stringify(args));
+    const address: string = native.zingolib_execute_spawn("import", JSON.stringify(args));
 
     return address;
   }

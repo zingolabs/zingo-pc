@@ -114,6 +114,13 @@ class MenuBuilder {
             mainWindow.webContents.send("seed");
           },
         },
+        { type: "separator" },
+        {
+          label: "Change to another Wallet",
+          click: () => {
+            mainWindow.webContents.send("change");
+          },
+        },
         //{
         //  label: "&Import Private Keys",
         //  click: () => {
@@ -182,6 +189,13 @@ class MenuBuilder {
           label: "Wallet Seed",
           click: () => {
             mainWindow.webContents.send("seed");
+          },
+        },
+        { type: "separator" },
+        {
+          label: "Change to another Wallet",
+          click: () => {
+            mainWindow.webContents.send("change");
           },
         },
         //{
@@ -316,6 +330,13 @@ class MenuBuilder {
             label: "Wallet Seed",
             click: () => {
               mainWindow.webContents.send("seed");
+            },
+          },
+          { type: "separator" },
+          {
+            label: "Change to another Wallet",
+            click: () => {
+              mainWindow.webContents.send("change");
             },
           },
           // {

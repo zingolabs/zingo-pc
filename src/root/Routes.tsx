@@ -268,11 +268,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ sendPageState });
   };
 
-  importPrivKeys = async (keys: string[], birthday: string): Promise<boolean> => {
+  importPrivKeys = (keys: string[], birthday: string): boolean => {
     console.log(keys);
 
     for (let i: number = 0; i < keys.length; i++) {
-      const result: string = await RPC.doImportPrivKey(keys[i], birthday);
+      const result: string = RPC.doImportPrivKey(keys[i], birthday);
       if (result === "OK") {
         return true;
       } else {

@@ -16,5 +16,5 @@ export function zingolib_initialize_new_from_ufvk(
   chain_hint: string
 ): string;
 export function zingolib_deinitialize(): string;
-export function zingolib_execute_spawn(cmd: string, args: string): Promise<string>;
+export function zingolib_execute_spawn(cmd: string, args: string): string;
 export function zingolib_execute_async(cmd: string, args: string): Promise<string>;
