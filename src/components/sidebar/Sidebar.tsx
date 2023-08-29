@@ -25,7 +25,7 @@ type SidebarProps = {
   clearTimers: () => void;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   getPrivKeyAsString: (address: string) => Promise<string>;
-  importPrivKeys: (keys: string[], birthday: string) => Promise<boolean>;
+  importPrivKeys: (keys: string[], birthday: string) => boolean;
   openErrorModal: (title: string, body: string | ReactElement) => void;
   openPassword: (
     confirmNeeded: boolean,
@@ -162,6 +162,24 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
             </div>
           </div>
         );
+      });
+    });
+
+    // Rescan
+    ipcRenderer.on("change", async () => {
+      // To change to another wallet, we reset the wallet loading
+      // and redirect to the loading screen
+      clearTimers();
+
+      // Reset the info object, it will be refetched
+      setInfo(new Info());
+
+      history.push({
+        pathname: routes.LOADING,
+        state: { 
+          currentStatusIsError: true,
+          currentStatus: "Change to another wallet...",
+        },
       });
     });
 
@@ -410,7 +428,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       // Grab the previous sync ID.
       const syncStatus: string = await RPC.doSyncStatus();
       const prevSyncId: number = JSON.parse(syncStatus).sync_id;
-      const success: boolean = await importPrivKeys(keys, birthday);
+      const success: boolean = importPrivKeys(keys, birthday);
 
       if (success) {
         // Set the rescanning global state to true

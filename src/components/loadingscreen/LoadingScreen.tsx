@@ -45,9 +45,11 @@ class LoadingScreenState {
 
   nextSaveBatch: number;
 
-  constructor() {
-    this.currentStatus = "Loading...";
-    this.currentStatusIsError = false;
+  changeAnotherWallet: boolean;
+
+  constructor(currentStatus: string | JSX.Element, currentStatusIsError: boolean, changeAnotherWallet: boolean) {
+    this.currentStatus = currentStatus;
+    this.currentStatusIsError = currentStatusIsError;
     this.loadingDone = false;
     this.rpcConfig = null;
     this.url = "";
@@ -58,6 +60,7 @@ class LoadingScreenState {
     this.seed = "";
     this.birthday = 0;
     this.nextSaveBatch = -1;
+    this.changeAnotherWallet = changeAnotherWallet;
   }
 }
 
@@ -73,7 +76,16 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   constructor(props: LoadingScreenProps & RouteComponentProps) {
     super(props);
 
-    const state = new LoadingScreenState();
+    let currentStatus: string = "Loading...", 
+        currentStatusIsError: boolean = false, 
+        changeAnotherWallet: boolean = false; 
+    if (props.location.state) {
+      const locationState = props.location.state as {currentStatus: string, currentStatusIsError: boolean };
+      currentStatus = locationState.currentStatus;
+      currentStatusIsError = locationState.currentStatusIsError;
+      changeAnotherWallet = true;
+    }
+    const state = new LoadingScreenState(currentStatus, currentStatusIsError, changeAnotherWallet);
     this.state = state;
   }
 
@@ -155,7 +167,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     }
 
-    const newstate = new LoadingScreenState();
+    const newstate = new LoadingScreenState(this.state.currentStatus, this.state.currentStatusIsError, this.state.changeAnotherWallet);
     Object.assign(newstate, this.state);
 
     newstate.url = server;
@@ -167,7 +179,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     await this.loadServer();
 
     // Try to load the light client
-    const { url, chain } = this.state;
+    const { url, chain, changeAnotherWallet } = this.state;
 
     console.log(`Url: -${url}-`);
 
@@ -175,7 +187,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.setupExitHandler();
 
     try {
-      // Test to see if the wallet exists
+      // Test to see if the wallet exists 
       if (!native.zingolib_wallet_exists(chain)) {
         // Show the wallet creation screen
         this.setState({ walletScreen: 1 });
@@ -194,6 +206,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             currentStatusIsError: true,
           });
 
+          return;
+        }
+        // if is: `change to another wallet` exit here
+        if (changeAnotherWallet) {
           return;
         }
 
@@ -368,7 +384,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   createNewWallet = () => {
-    const { url, chain } = this.state;
+        const { url, chain } = this.state;
     const result: string = native.zingolib_initialize_new(url, chain);
 
     if (result.toLowerCase().startsWith("error")) {
@@ -399,7 +415,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   restoreWalletBack = () => {
-    // Reset the seed and birthday and try again
+    // Reset the seed and birthday and try again 
     this.setState({
       seed: "",
       birthday: 0,
@@ -423,13 +439,25 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   };
 
+  deleteWallet = async () => { 
+    const { url, chain } = this.state;
+    if (native.zingolib_wallet_exists(chain)) {
+      const result: string = native.zingolib_initialize_existing(url, chain);
+      console.log(`Initialization: ${result}`);
+      const resultDelete: string = await native.zingolib_execute_async("delete", "");
+      console.log("deleting ...", resultDelete);
+
+      this.componentDidMount();
+    }
+  };
+
   render() {
     const { loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed, birthday } =
       this.state;
 
     const { openServerSelectModal } = this.props;
 
-    // If still loading, show the status
+    // If still loading, show the status 
     if (!loadingDone) {
       return (
         <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
@@ -445,7 +473,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                   <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
                     Switch to Another Server
                   </button>
-                  <button
+                  {/*<button
                     type="button"
                     className={cstyles.primarybutton}
                     onClick={() => {
@@ -459,7 +487,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     }}
                   >
                     Create New Wallet
-                  </button>
+                  </button>*/}
                   <button
                     type="button"
                     className={cstyles.primarybutton}
@@ -467,14 +495,31 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       this.setState({
                         currentStatus: "", 
                         currentStatusIsError: false,
-                        newWalletError: null
+                        newWalletError: null,
+                        changeAnotherWallet: false,
                       });
                       this.doFirstTimeSetup();
                     }}
                   >
-                    Open Current Wallet
+                    Open Current Wallet File
                   </button>
                   <button
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => {
+                      this.setState({
+                        currentStatus: "",
+                        currentStatusIsError: false,
+                        walletScreen: 0,
+                        newWalletError: null,
+                        changeAnotherWallet: false,
+                      });
+                      this.deleteWallet();
+                    }}
+                  >
+                    Delete Current Wallet File
+                  </button>
+                  {/*<button
                     type="button"
                     className={cstyles.primarybutton}
                     onClick={() => {
@@ -487,7 +532,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     }}
                   >
                     Restore Wallet from Seed
-                  </button>
+                  </button>*/}
                 </div>
               )}
             </div>
