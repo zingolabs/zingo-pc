@@ -47,6 +47,7 @@ export default class Zcashd extends Component<ZcashdProps> {
               <div className={styles.detailcontainer}>
                 <div className={styles.detaillines}>
                   <DetailLine label="Version" value={info.version} />
+                  <DetailLine label="Zingolib Version" value={info.zingolib} />
                   <DetailLine label="Node" value={info.zcashdVersion} />
                   <DetailLine label="Lightwallet Server URI" value={url} />
                   <DetailLine label="Chain Name" value={chains[chain]} />
