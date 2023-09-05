@@ -311,7 +311,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         console.log(ss);
         //console.log(`Prev SyncID: ${prevSyncId}`);
 
-        if (ss.sync_id > prevSyncId && !ss.in_progress) {
+        // if this process synced already 25 batches (2.500 blocks) -> let's go to dashboard
+        if ((ss.sync_id > prevSyncId && !ss.in_progress) || ss.batch_num >= 25) {
           // First, save the wallet so we don't lose the just-synced data
           if (!ss.last_error) {
             RPC.doSave();
@@ -344,11 +345,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             progress = (progress_blocks * 100) / ss.total_blocks;
           }
 
-          // every 5 batches I need to save the progress of the wallet
+          // every 2 batches I need to save the progress of the wallet
           if (ss.batch_num >= myThis.state.nextSaveBatch) {
             console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&& save wallet', ss.batch_num, myThis.state.nextSaveBatch);
             RPC.doSave();
-            myThis.setState({ nextSaveBatch: ss.batch_num + 5});
+            myThis.setState({ nextSaveBatch: ss.batch_num + 2});
           }
 
           let base = 0;
