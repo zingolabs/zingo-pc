@@ -339,6 +339,17 @@ export default class RPC {
       const feeJSON = JSON.parse(feeStr);
       info.defaultFee = feeJSON.defaultfee / 10 ** 8;
 
+      //zingolib version
+      let zingolibStr: string = await native.zingolib_execute_async("version", "");
+      if (zingolibStr) {
+        if (zingolibStr.toLowerCase().startsWith('error')) {
+          zingolibStr = '<error>';
+        }
+      } else {
+        zingolibStr = '<none>';
+      }
+      info.zingolib = zingolibStr;
+
       // we want to update the wallet last block
       const walletHeight: number = await RPC.fetchWalletHeight();
       info.walletHeight = walletHeight;

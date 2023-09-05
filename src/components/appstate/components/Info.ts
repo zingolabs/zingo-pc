@@ -10,6 +10,7 @@ export default class Info {
     walletHeight: number;
     defaultFee: number;
     error?: string;
+    zingolib: string;
   
     constructor(error?: string) {
       this.testnet = false;
@@ -23,6 +24,7 @@ export default class Info {
       this.walletHeight = 0;
       this.defaultFee = 0;
       this.error = error;
+      this.zingolib = "";
     }
   }
   
