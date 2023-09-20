@@ -309,10 +309,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       } else {
         const ss = JSON.parse(syncstatus);
         console.log(ss);
-        //console.log(`Prev SyncID: ${prevSyncId}`);
+        console.log(`Prev SyncID: ${prevSyncId} - Current SyncID: ${ss.sync_id} - progress: ${ss.in_progress} - Current Batch: ${ss.batch_num}`);
 
-        // if this process synced already 25 batches (2.500 blocks) -> let's go to dashboard
-        if ((ss.sync_id > prevSyncId && !ss.in_progress) || ss.batch_num >= 25) {
+        // if this process synced already 25 batches (2.500 blocks) -> let's go to dashboard 
+        if (ss.sync_id > prevSyncId || !ss.in_progress || ss.batch_num >= 25) {
           // First, save the wallet so we don't lose the just-synced data
           if (!ss.last_error) {
             RPC.doSave();

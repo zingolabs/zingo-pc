@@ -160,7 +160,11 @@ export default class Send extends PureComponent<SendProps, SendState> {
     const toAddr: ToAddr = sendPageState.toaddrs.find((a: ToAddr) => a.id === id);
     const restToAddr: ToAddr[] = sendPageState.toaddrs.find((a: ToAddr) => a.id !== id);
 
-    let totalOtherAmount: number = restToAddr.reduce((s: number, a: ToAddr) => s + a.amount, 0);
+    let totalOtherAmount: number = 0;
+    
+    if (restToAddr && restToAddr.length > 0) {
+      restToAddr.reduce((s: number, a: ToAddr) => s + a.amount, 0);
+    }
 
     // Add Fee
     totalOtherAmount += info.defaultFee;
