@@ -108,20 +108,12 @@ fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
         // Initialize logging
         let _ = LightClient::init_logging();
 
-        let seed = match lightclient.do_seed_phrase_sync() {
-            Ok(s) => s.dump(),
-            Err(e) => {
-                return format!("Error: {}", e);
-            }
-        };
-
         let lc = Arc::new(lightclient);
         LightClient::start_mempool_monitor(lc.clone());
 
         *LIGHTCLIENT.write().unwrap() = Some(lc);
 
-        // Return the wallet's seed
-        seed
+        format!("OK")
     };
     Ok(cx.string(resp()))
 }
