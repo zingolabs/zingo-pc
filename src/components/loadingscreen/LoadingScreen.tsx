@@ -372,7 +372,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                 <br />
                 <br />
                 <br />
-                Please wait... 
+                Please wait...
                 <br />
                 This could take several minutes or hours
               </div>
@@ -384,16 +384,16 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }, 2 * 1000);
   };
 
-  createNewWallet = () => {
-        const { url, chain } = this.state;
+  createNewWallet = async () => {
+    const { url, chain } = this.state;
     const result: string = native.zingolib_initialize_new(url, chain);
 
     if (result.toLowerCase().startsWith("error")) {
       console.log(result);
       this.setState({ walletScreen: 2, newWalletError: result });
     } else {
-      const r = JSON.parse(result);
-      this.setState({ walletScreen: 2, seed: r.seed });
+      const seed: string = await RPC.fetchSeed();
+      this.setState({ walletScreen: 2, seed });
     }
   };
 
@@ -465,7 +465,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           {walletScreen === 0 && (
             <div>
               <div style={{ marginTop: "100px", marginBottom: "20px" }}>
-                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.2</div>
+                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
                 <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div>{currentStatus}</div>
@@ -542,7 +542,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           {walletScreen === 1 && (
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
-                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.2</div>
+                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
                 <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
@@ -603,7 +603,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           {walletScreen === 2 && (
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
-                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.2</div>
+                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
                 <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
@@ -651,7 +651,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           {walletScreen === 3 && (
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
-                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.2</div>
+                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
                 <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>

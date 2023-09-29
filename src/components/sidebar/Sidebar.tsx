@@ -77,7 +77,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zingo PC v1.0.2</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v1.0.3</div>
           <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2023, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
             The MIT License (MIT) Copyright (c) 2023 ZingoLabs
@@ -557,7 +557,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         />
 
         <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
-          <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.2</div>
+          <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
           <img src={Logo} width="70" alt="logo" style={{ borderRadius: 5 }} /> 
         </div>
 
