@@ -11,7 +11,7 @@ use neon::prelude::JsString;
 
 use neon::register_module;
 
-use zingoconfig::{self, construct_lightwalletd_uri, ChainType, ZingoConfig};
+use zingoconfig::{self, construct_lightwalletd_uri, ChainType, RegtestNetwork, ZingoConfig};
 use zingolib::{commands, lightclient::LightClient, wallet::WalletBase};
 
 use std::sync::RwLock;
@@ -48,7 +48,7 @@ fn get_chainnym(chain_hint_str: &str) -> Result<ChainType, String> {
     let result = match chain_hint_str {
         "main" => ChainType::Mainnet,
         "test" => ChainType::Testnet,
-        "regtest" => ChainType::Regtest,
+        "regtest" => ChainType::Regtest(RegtestNetwork::all_upgrades_active()),
         _ => return Err("Not a valid chain hint!".to_string()),
     };
     
