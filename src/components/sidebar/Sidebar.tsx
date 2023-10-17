@@ -196,14 +196,14 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         // Construct a CSV
         const { transactions } = this.context;
         const rows = transactions.flatMap((t: Transaction) => {
-          if (t.detailedTxns) {
-            return t.detailedTxns.map((dt: TxDetail) => {
+          if (t.txDetails) {
+            return t.txDetails.map((dt: TxDetail) => {
               const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
 
               // Add a single quote "'" into the memo field to force interpretation as a string, rather than as a
               // formula from a rogue memo
-              const escapedMemo = dt.memo ? `'${dt.memo.replace(/"/g, '""')}'` : "";
-              const price = t.zecPrice ? t.zecPrice.toFixed(2) : "--";
+              const escapedMemo = dt.memos && dt.memos.length > 0 ? `'${dt.memos.join("").replace(/"/g, '""')}'` : "";
+              const price = t.zec_price ? t.zec_price.toFixed(2) : "--";
 
               return `${t.time},"${normaldate}","${t.txid}","${t.type}",${dt.amount},"${dt.address}","${price}","${escapedMemo}"`;
             });

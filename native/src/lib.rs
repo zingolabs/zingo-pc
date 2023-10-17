@@ -66,7 +66,7 @@ fn zingolib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
     };
     let config = ZingoConfig::create_unconnected(chaintype, None);
 
-    Ok(cx.boolean(config.wallet_exists()))
+    Ok(cx.boolean(config.wallet_path_exists()))
 }
 
 /// Create a new wallet and return the seed for the newly created wallet.

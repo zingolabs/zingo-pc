@@ -35,15 +35,15 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
         </div>
         <div className={styles.txaddressamount}>
-          {transaction.detailedTxns.map((txdetail: TxDetail) => {
-            const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
+          {transaction.txDetails.map((txdetail: TxDetail) => {
+            const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount.toString())));
 
             let { address } = txdetail;
-            const { memo } = txdetail;
+            const { memos } = txdetail;
 
-            if (!address) {
-              address = "(Shielded)";
-            }
+            //if (!address) {
+            //  address = "(Shielded)";
+            //}
 
             const label: string = addressBookMap.get(address) || "";
 
@@ -82,7 +82,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
                       styles.txmemo,
                     ].join(" ")}
                   >
-                    {memo}
+                    {memos ? memos.join("") : null}
                   </div>
                 </div>
                 <div className={[styles.txamount, cstyles.right].join(" ")}>
@@ -93,7 +93,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
                     <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
                   </div>
                   <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
-                    {Utils.getZecToUsdString(zecPrice, Math.abs(parseFloat(txdetail.amount)))}
+                    {Utils.getZecToUsdString(zecPrice, Math.abs(parseFloat(txdetail.amount.toString())))}
                   </div>
                 </div>
               </div>

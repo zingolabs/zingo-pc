@@ -50,7 +50,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   if (tx) {
     txid = tx.txid;
     type = tx.type;
-    if (tx.type === "receive") {
+    if (tx.type === "Received") {
       typeIcon = "fa-arrow-circle-down";
       typeColor = "green";
     } else {
@@ -62,9 +62,9 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     timePart = dateformat(tx.time * 1000, "hh:MM tt");
 
     confirmations = tx.confirmations;
-    detailedTxns = tx.detailedTxns;
-    amount = Math.abs(tx.amount);
-    price = tx.zecPrice;
+    detailedTxns = tx.txDetails;
+    amount = tx.txDetails.reduce((s, d) => s + d.amount, 0);
+    price = tx.zec_price ? tx.zec_price : 0;
     if (price) {
       priceString = `USD ${price.toFixed(2)} / ZEC`;
     }
@@ -89,17 +89,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
   let fees: number = 0;
 
-  const totalAmounts =
-    tx && tx.detailedTxns ? tx.detailedTxns.reduce((s, t: TxDetail) => s + (parseFloat(t.amount) ? parseFloat(t.amount) : 0), 0) : 0;
-  // normal case: spend 1600 fee 1000 sent 600
-  if (tx && tx.type === 'sent' && tx.amount && Math.abs(tx.amount) > Math.abs(totalAmounts)) {
-    fees = Math.abs(tx.amount) - Math.abs(totalAmounts);
-  }
-  // self-send case: spend 1000 fee 1000 sent 0
-  // this is temporary until we have a new field in 'list' object, called: fee.
-  if (tx && tx.type === 'sent' && tx.amount && Math.abs(tx.amount) <= Math.abs(totalAmounts)) {
-    fees = Math.abs(tx.amount);
-  }
+  fees = tx && tx.fee ? tx.fee : 0;
 
   const localCloseModal = () => {
     setExpandAddress(false);
@@ -108,7 +98,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   };
 
   //console.log(tx);
-  //console.log(tx?.detailedTxns);
+  console.log(tx?.txDetails);
 
   return (
     <Modal
@@ -191,19 +181,19 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
         <hr style={{ width: "100%" }} />
 
         {detailedTxns.map((txdetail: TxDetail) => {
-          const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount)));
+          const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount.toString())));
 
           let { address } = txdetail;
-          const { memo } = txdetail;
+          const { memos, pool } = txdetail;
 
-          if (!address) {
-            address = "(Shielded)";
-          }
+          //if (!address) {
+          //  address = "(Shielded)";
+          //}
 
           let replyTo: string = "";
           //console.log(memo, tx); 
-          if (tx && tx.type === "receive" && memo) {
-            const split: string[] = memo.split(/[ :\n\r\t]+/);
+          if (tx && tx.type === "Received" && memos && memos.length > 0 ) {
+            const split: string[] = memos.join("").split(/[ :\n\r\t]+/);
             // read the last row & if this is a valid address => show the button up
             //console.log("-", split, "-");
             if (split && split.length > 0) {
@@ -239,25 +229,38 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
               <div className={cstyles.margintoplarge} />
 
-              <div className={[cstyles.sublight].join(" ")}>Amount</div>
               <div className={[cstyles.flexspacebetween].join(" ")}>
                 <div className={[cstyles.verticalflex].join(" ")}>
-                  <div>
-                    <span>
-                      {currencyName} {bigPart}
-                    </span>
-                    <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
+                  <div className={[cstyles.sublight].join(" ")}>Amount</div>
+                  <div className={[cstyles.flexspacebetween].join(" ")}>
+                    <div className={[cstyles.verticalflex].join(" ")}>
+                      <div>
+                        <span>
+                          {currencyName} {bigPart}
+                        </span>
+                        <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
+                      </div>
+                      <div>{Utils.getZecToUsdString(price, Math.abs(amount))}</div>
+                    </div>
+                    <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
+                      <div className={[cstyles.sublight].join(" ")}>{priceString}</div>
+                    </div>
                   </div>
-                  <div>{Utils.getZecToUsdString(price, Math.abs(amount))}</div>
                 </div>
-                <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
-                  <div className={[cstyles.sublight].join(" ")}>{priceString}</div>
-                </div>
+
+                {pool && (
+                  <div className={[cstyles.verticalflex].join(" ")}>
+                    <div className={[cstyles.sublight].join(" ")}>Pool</div>
+                    <div className={[cstyles.flexspacebetween].join(" ")}>
+                      <div>{pool}</div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className={cstyles.margintoplarge} />
 
-              {memo && (
+              {memos && memos.length > 0 && (
                 <div>
                   <div className={[cstyles.sublight].join(" ")}>Memo</div>
                   <div className={[cstyles.flexspacebetween].join(" ")}>
@@ -270,7 +273,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                         styles.txmemo,
                       ].join(" ")}
                     >
-                      {memo}
+                      {memos.join("")}
                     </div>
                     {replyTo && (
                       <div className={cstyles.primarybutton} onClick={() => doReply(replyTo)}>

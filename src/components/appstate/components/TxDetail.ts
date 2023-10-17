@@ -1,14 +1,12 @@
 export default class TxDetail {
-    address: string;
+  address: string;
+  amount: number;
+  memos?: string[];
+  pool?: 'Orchard' | 'Sapling' | 'Transparent';
   
-    amount: string;
-  
-    memo: string | null;
-  
-    constructor() {
-      this.address = "";
-      this.amount = "";
-      this.memo = null;
-    }
+  constructor(address: string, amount: number) {
+    this.address = address;
+    this.amount = amount;
   }
+}
   

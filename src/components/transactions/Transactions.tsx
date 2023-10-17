@@ -101,7 +101,7 @@ export default class Transactions extends Component<TransactionsProps, Transacti
           )}
           {transactions &&
             transactions.slice(0, numTxnsToShow).map((t: Transaction) => {
-              const key: string = t.type + t.txid + (t.position || "");
+              const key: string = t.type + t.txid;
               return (
                 <TxItemBlock
                   key={key}
