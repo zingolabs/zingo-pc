@@ -186,7 +186,7 @@ export default class RPC {
 
       // And fetch the rest of the data.
       await this.fetchTotalBalance();
-      await this.fetchTandZTransactions(latestBlockHeight);
+      await this.fetchTandZandOTransactionsSummaries(latestBlockHeight);
       await this.fetchWalletSettings();
 
       console.log(`Finished update data at ${latestBlockHeight}`);
@@ -229,7 +229,7 @@ export default class RPC {
           verificationProgress = 100;
           // And fetch the rest of the data.
           this.fetchTotalBalance();
-          this.fetchTandZTransactions(latestBlockHeight);
+          this.fetchTandZandOTransactionsSummaries(latestBlockHeight);
           //this.getZecPrice();
 
           this.lastBlockHeight = latestBlockHeight;
@@ -254,7 +254,7 @@ export default class RPC {
             // verificationProgress = 100;
             // And fetch the rest of the data.
             this.fetchTotalBalance();
-            this.fetchTandZTransactions(latestBlockHeight);
+            this.fetchTandZandOTransactionsSummaries(latestBlockHeight);
             //this.getZecPrice();
 
             this.lastBlockHeight = latestBlockHeight;
@@ -596,34 +596,12 @@ export default class RPC {
     return formattedJSON;
   }
 
-  async zingolibTxList(): Promise<any> {
-    // fetch transaction list
-    const txListStr: string = await native.zingolib_execute_async("list", "");
-    const txListJSON = JSON.parse(txListStr);
+  async zingolibTxSummaries(): Promise<any> {
+    // fetch transaction summaries
+    const txSummariesStr: string = await native.zingolib_execute_async("summaries", "");
+    const txSummariesJSON = JSON.parse(txSummariesStr);
 
-    // fetch all notes
-    const notesStr: string = await native.zingolib_execute_async("notes", "");
-    const notesJSON = JSON.parse(notesStr);
-
-    // fetch all addresses
-    const addressesStr: string = await native.zingolib_execute_async("addresses", "");
-    const addressesJSON = JSON.parse(addressesStr);
-
-    // construct the list, changing ua addresses to sappling addresses, when suitable
-    const newTxList = txListJSON.map((tx: any) => {
-      const note = notesJSON.unspent_sapling_notes.find((n: any) => n.created_in_txid === tx.txid);
-
-      if (note) {
-        const z_addr = addressesJSON.find((a: any) => a.address === tx.address);
-        if (z_addr) {
-          tx.address = z_addr.receivers.sapling;
-        }
-      }
-
-      return tx;
-    });
-
-    return newTxList;
+    return txSummariesJSON;
   }
 
   // This method will get the total balances
@@ -651,7 +629,7 @@ export default class RPC {
 
     // Fetch pending notes and UTXOs
     // const pendingNotes = native.zingolib_execute_async("notes", "");
-    // const pendingJSON = JSON.parse(pendingNotes);
+    // const pendingJSON = JSON.parse(pendingNotes); 
 
     const pendingJSON: any = await this.zingolibNotes();
 
@@ -718,7 +696,7 @@ export default class RPC {
   }
 
   static async getLastTxid(): Promise<string> {
-    const txListStr: string = await native.zingolib_execute_async("list", "");
+    const txListStr: string = await native.zingolib_execute_async("summaries", "");
     const txListJSON = JSON.parse(txListStr);
 
     console.log('=============== get Last TX ID', txListJSON.length); 
@@ -783,84 +761,92 @@ export default class RPC {
     return heightJSON.height;
   }
 
-  // Fetch all T and Z transactions
-  async fetchTandZTransactions(latestBlockHeight: number) {
-    // const listStr = native.zingolib_execute_async("list", "");
-    // const listJSON = JSON.parse(listStr);
-    //console.log(listJSON);
+  // Fetch all T and Z and O transactions
+  async fetchTandZandOTransactionsSummaries(latestBlockHeight: number) {
+    const summariesJSON: any = await this.zingolibTxSummaries();
 
-    // Zingolib return transaction list with ua addresses for sapling transactions
-    // we need to reconstruct it
-    const listJSON: any = await this.zingolibTxList();
+    //console.log('summaries antes', summariesJSON);
 
-    //console.log(listJSON);
+    let txList: Transaction[] = [];
 
-    let txlist: Transaction[] = listJSON.map((tx: any) => {
-      const transaction = new Transaction();
+    summariesJSON
+      //.filter(tx => tx.kind !== 'Fee')
+      .forEach((tx: any) => {
+        let currentTxList: Transaction[] = txList.filter(t => t.txid === tx.txid);
+        if (currentTxList.length === 0) {
+          currentTxList = [{} as Transaction];
+          currentTxList[0].txDetails = [];
+        }
+        let restTxList: Transaction[] = txList.filter(t => t.txid !== tx.txid);
 
-      const type: "sent" | "receive" = tx.outgoing_metadata ? "sent" : "receive";
+        const type = tx.kind === 'Fee' ? 'Sent' : tx.kind;
+        if (!currentTxList[0].type && !!type) {
+          currentTxList[0].type = type;
+        }
+        if (!currentTxList[0].confirmations) {
+          currentTxList[0].confirmations = latestBlockHeight
+            ? latestBlockHeight - tx.block_height + 1
+            : 0;
+        }
+        if (!currentTxList[0].txid && !!tx.txid) {
+          currentTxList[0].txid = tx.txid;
+        }
+        if (!currentTxList[0].time && !!tx.datetime) {
+          currentTxList[0].time = tx.datetime;
+        }
+        if (!currentTxList[0].zec_price && !!tx.price && tx.price !== 'None') {
+          currentTxList[0].zec_price = tx.price;
+        }
 
-      transaction.address =
-        type === "sent" ? (tx.outgoing_metadata.length > 0 ? tx.outgoing_metadata[0].address : "") : tx.address;
-      transaction.type = type;
-      transaction.amount = tx.amount / 10 ** 8;
-      transaction.confirmations = tx.unconfirmed ? 0 : latestBlockHeight - tx.block_height + 1;
-      transaction.txid = tx.txid;
-      transaction.zecPrice = tx.zec_price;
-      transaction.time = tx.datetime;
-      transaction.position = tx.position;
+        //if (tx.txid.startsWith('426e')) {
+        //  console.log('tran: ', tx);
+        //  console.log('--------------------------------------------------');
+        //}
 
-      if (tx.outgoing_metadata) {
-        const dts: TxDetail[] = tx.outgoing_metadata.map((o: any) => {
-          const detail = new TxDetail();
-          detail.address = o.address;
-          detail.amount = (o.value / 10 ** 8).toFixed(8);
-          detail.memo = o.memo;
+        let currenttxdetails: TxDetail = {} as TxDetail;
+        if (tx.kind === 'Fee') {
+          currentTxList[0].fee = (currentTxList[0].fee ? currentTxList[0].fee : 0) + tx.amount / 10 ** 8;
+          if (currentTxList[0].txDetails.length === 0) {
+            // when only have 1 item with `Fee`, we assume this tx is `SendToSelf`.
+            currentTxList[0].type = 'SendToSelf';
+            currenttxdetails.address = '';
+            currenttxdetails.amount = 0;
+            currentTxList[0].txDetails.push(currenttxdetails);
+          }
+        } else {
+          currenttxdetails.address = !tx.to_address || tx.to_address === 'None' ? '' : tx.to_address;
+          currenttxdetails.amount = tx.amount / 10 ** 8;
+          currenttxdetails.memos = !tx.memos ? undefined : tx.memos;
+          currenttxdetails.pool = !tx.pool || tx.pool === 'None' ? undefined : tx.pool;
+          currentTxList[0].txDetails.push(currenttxdetails);
+        }
 
-          return detail;
-        });
+        //currentTxList[0].txDetails.forEach(det => console.log(det.memos));
+        //console.log(currentTxList[0]);
+        txList = [...currentTxList, ...restTxList];
+      });
 
-        transaction.detailedTxns = RPC.combineTxDetails(dts);
-      } else {
-        transaction.detailedTxns = [new TxDetail()];
-        transaction.detailedTxns[0].address = tx.address;
-        transaction.detailedTxns[0].amount = (tx.amount / 10 ** 8).toFixed(8);
-        transaction.detailedTxns[0].memo = tx.memo;
-      }
-
-      return transaction;
-    });
-
-    // If you send yourself transactions, the underlying SDK doesn't handle it very well, so
-    // we suppress these in the UI to make things a bit clearer.
-    //txlist = txlist.filter((tx) => !(tx.type === "sent" && tx.amount < 0 && tx.detailedTxns.length === 0));
-
-    // We need to group transactions that have the same (txid and send/receive), for multi-part memos
-    const m = new Map<string, Transaction[]>();
-    txlist.forEach((tx) => {
-      const key: string = tx.txid + tx.type;
-      const coll: Transaction[] | undefined = m.get(key);
-      if (!coll) {
-        m.set(key, [tx]);
-      } else {
-        coll.push(tx);
-      }
-    });
+    //console.log('summaries despues', txList);
 
     // Now, combine the amounts and memos
     const combinedTxList: Transaction[] = [];
-    m.forEach((txns) => {
-      // Get all the txdetails and merge them
+    txList.forEach((txns: Transaction) => {
+      //console.log(txns.txDetails.length); 
+      const combinedTx = txns;
+      if (txns.type === 'Sent' || txns.type === 'SendToSelf') {
+        // using address for `Sent` & `SendToSelf`
+        combinedTx.txDetails = RPC.combineTxDetailsByAddress(txns.txDetails);
+      } else {
+        // using pool for `Received`
+        combinedTx.txDetails = RPC.combineTxDetailsByPool(txns.txDetails);
+      }
 
-      // Clone the first tx into a new one
-      const combinedTx: Transaction = Object.assign({}, txns[0]);
-      combinedTx.detailedTxns = RPC.combineTxDetails(txns.flatMap((tx) => tx.detailedTxns));
-
+      //combinedTx.txDetails.forEach(det => console.log(det.memos));
+      //console.log(combinedTx);
       combinedTxList.push(combinedTx);
     });
 
-    // Sort the list by confirmations
-    combinedTxList.sort((t1, t2) => t1.confirmations - t2.confirmations);
+    //console.log(combinedTxList);
 
     this.fnSetTransactionsList(combinedTxList);
   }
@@ -868,48 +854,121 @@ export default class RPC {
   // We combine detailed transactions if they are sent to the same outgoing address in the same txid. This
   // is usually done to split long memos.
   // Remember to add up both amounts and combine memos
-  static combineTxDetails(txdetails: TxDetail[]): TxDetail[] {
+  static combineTxDetailsByAddress(txdetails: TxDetail[]): TxDetail[] {
     // First, group by outgoing address.
+    //console.log(txdetails);
     const m = new Map<string, TxDetail[]>();
-    txdetails.forEach((i) => {
-      const coll: TxDetail[] | undefined = m.get(i.address);
-      if (!coll) {
-        m.set(i.address, [i]);
-      } else {
-        coll.push(i);
-      }
-    });
+    txdetails
+      .filter(i => i.address !== undefined)
+      .forEach(i => {
+        const coll = m.get(i.address as string);
+        if (!coll) {
+          m.set(i.address as string, [i]);
+        } else {
+          coll.push(i);
+        }
+      });
+    
+    //console.log(m);
 
     // Reduce the groups to a single TxDetail, combining memos and summing amounts
     const reducedDetailedTxns: TxDetail[] = [];
     m.forEach((txns, toaddr) => {
-      const totalAmount: number = txns.reduce((p, td) => p + parseFloat(td.amount), 0);
+      const totalAmount = txns.reduce((sum, i) => sum + i.amount, 0);
 
-      const memos: (string | null)[] = txns
-        .filter((i) => i.memo)
-        .map((i) => {
-          const rex = /\((\d+)\/(\d+)\)((.|[\r\n])*)/;
-          const tags = i.memo?.match(rex);
-          if (tags && tags.length >= 4) {
-            return { num: parseInt(tags[1], 10), memo: tags[3] };
-          }
+      const memos = txns
+        .filter(i => i.memos && i.memos.length > 0)
+        .map(i => {
+          const combinedMemo = i.memos
+            ?.filter(memo => memo)
+            .map(memo => {
+              const rex = /\((\d+)\/(\d+)\)((.|[\r\n])*)/;
+              const tags = memo.match(rex);
+              if (tags && tags.length >= 4) {
+                return { num: parseInt(tags[1], 10), memo: tags[3] };
+              }
 
-          // Just return as is
-          return { num: 0, memo: i.memo };
+              // Just return as is
+              return { num: 0, memo };
+            })
+            .sort((a, b) => a.num - b.num)
+            .map(a => a.memo);
+          return combinedMemo && combinedMemo.length > 0 ? combinedMemo.join('') : undefined;
         })
-        .sort((a, b) => a.num - b.num)
-        .map((a) => a.memo);
+        .map(a => a);
 
-      const detail = new TxDetail();
-      detail.address = toaddr;
-      detail.amount = totalAmount.toFixed(8);
-      detail.memo = memos.length > 0 ? memos.join("") : null;
+      const detail: TxDetail = {
+        address: toaddr,
+        amount: totalAmount,
+        memos: memos && memos.length > 0 ? [memos.join('')] : undefined,
+      };
+
+      //console.log(detail);
+
+      reducedDetailedTxns.push(detail);
+    });
+
+    //console.log(reducedDetailedTxns);
+
+    return reducedDetailedTxns;
+  }
+
+  // We combine detailed transactions if they are received to the same pool in the same txid. This
+  // is usually done to split long memos.
+  // Remember to add up both amounts and combine memos
+  static combineTxDetailsByPool(txdetails: TxDetail[]): TxDetail[] {
+    // First, group by pool.
+    const m = new Map<'Orchard' | 'Sapling' | 'Transparent', TxDetail[]>();
+    txdetails
+      .filter(i => i.pool !== undefined)
+      .forEach(i => {
+        const coll = m.get(i.pool as 'Orchard' | 'Sapling' | 'Transparent');
+        if (!coll) {
+          m.set(i.pool as 'Orchard' | 'Sapling' | 'Transparent', [i]);
+        } else {
+          coll.push(i);
+        }
+      });
+
+    // Reduce the groups to a single TxDetail, combining memos and summing amounts
+    const reducedDetailedTxns: TxDetail[] = [];
+    m.forEach((txns, pool) => {
+      const totalAmount = txns.reduce((sum, i) => sum + i.amount, 0);
+
+      const memos = txns
+        .filter(i => i.memos && i.memos.length > 0)
+        .map(i => {
+          const combinedMemo = i.memos
+            ?.filter(memo => memo)
+            .map(memo => {
+              const rex = /\((\d+)\/(\d+)\)((.|[\r\n])*)/;
+              const tags = memo.match(rex);
+              if (tags && tags.length >= 4) {
+                return { num: parseInt(tags[1], 10), memo: tags[3] };
+              }
+
+              // Just return as is
+              return { num: 0, memo };
+            })
+            .sort((a, b) => a.num - b.num)
+            .map(a => a.memo);
+          return combinedMemo && combinedMemo.length > 0 ? combinedMemo.join('') : undefined;
+        })
+        .map(a => a);
+
+      const detail: TxDetail = {
+        address: '',
+        amount: totalAmount,
+        memos: memos && memos.length > 0 ? [memos.join('')] : undefined,
+        pool: pool,
+      };
 
       reducedDetailedTxns.push(detail);
     });
 
     return reducedDetailedTxns;
   }
+
 
   // Send a transaction using the already constructed sendJson structure
   async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> {
