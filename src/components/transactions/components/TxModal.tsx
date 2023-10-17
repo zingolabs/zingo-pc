@@ -181,7 +181,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
         <hr style={{ width: "100%" }} />
 
         {detailedTxns.map((txdetail: TxDetail) => {
-          const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount.toString())));
+          const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(txdetail.amount);
 
           let { address } = txdetail;
           const { memos, pool } = txdetail;

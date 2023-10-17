@@ -36,7 +36,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
         </div>
         <div className={styles.txaddressamount}>
           {transaction.txDetails.map((txdetail: TxDetail) => {
-            const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(parseFloat(txdetail.amount.toString())));
+            const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(txdetail.amount);
 
             let { address } = txdetail;
             const { memos } = txdetail;
@@ -93,7 +93,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
                     <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
                   </div>
                   <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
-                    {Utils.getZecToUsdString(zecPrice, Math.abs(parseFloat(txdetail.amount.toString())))}
+                    {Utils.getZecToUsdString(zecPrice, txdetail.amount)}
                   </div>
                 </div>
               </div>
