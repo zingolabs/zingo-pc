@@ -15,7 +15,8 @@ type TxItemBlockProps = {
 };
 
 const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBookMap }: TxItemBlockProps) => {
-  const [expandAddress, setExpandAddress] = useState(false); 
+  const [expandAddress, setExpandAddress] = useState(false);
+  const [expandTxid, setExpandTxid] = useState(false); 
   
   const txDate: Date = new Date(transaction.time * 1000);
   const datePart: string = dateformat(txDate, "mmm dd, yyyy");
@@ -40,6 +41,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
 
             let { address } = txdetail;
             const { memos } = txdetail;
+            const { txid } = transaction;
 
             //if (!address) {
             //  address = "(Shielded)";
@@ -53,26 +55,47 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
                   {label && (
                     <div className={cstyles.highlight} style={{ marginBottom: 5 }}>{label}</div> 
                   )}
-                  <div className={[cstyles.verticalflex].join(" ")}>
+                  {!!address ? (
+                    <div className={[cstyles.verticalflex].join(" ")}>
+                      <div
+                        style={{ cursor: "pointer" }} 
+                        onClick={() => {
+                          if (address) {
+                            clipboard.writeText(address);
+                            setExpandAddress(true);
+                          }
+                        }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                          {!address && 'Unknown'}
+                          {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
+                          {expandAddress && !!address && (
+                            <>
+                              {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
                     <div
-                      style={{ cursor: "pointer" }} 
+                      style={{ cursor: "pointer" }}
                       onClick={() => {
-                        if (address) {
-                          clipboard.writeText(address);
-                          setExpandAddress(true);
+                        if (txid) {
+                          clipboard.writeText(txid);
+                          setExpandTxid(true);
                         }
                       }}>
                       <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
-                        {!address && 'Unknown'}
-                        {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
-                        {expandAddress && !!address && (
+                        {!txid && '-'}
+                        {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
+                        {expandTxid && !!txid && (
                           <>
-                            {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+                            {txid.length < 80 ? txid : Utils.splitStringIntoChunks(txid, 3).map(item => <div key={item}>{item}</div>)}
                           </>
                         )}
                       </div>
                     </div>
-                  </div>
+                  )}
                   <div
                     className={[
                       cstyles.small,
