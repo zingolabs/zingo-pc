@@ -21,6 +21,8 @@ const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItem
   const [expandAddress, setExpandAddress] = useState<boolean>(false); 
 
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(item.balance));
+
+  if (!item.address) return null;
   
   return (
     <AccordionItem key={item.address} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.address}>
@@ -38,7 +40,6 @@ const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItem
                     }
                   }}>
                   <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
-                    {!item.address && 'Unknown'}
                     {!expandAddress && !!item.address && Utils.trimToSmall(item.address, 10)}
                     {expandAddress && !!item.address && (
                       <>

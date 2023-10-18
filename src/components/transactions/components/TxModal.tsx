@@ -150,27 +150,28 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
         <div className={cstyles.margintoplarge} />
 
         <div className={[cstyles.flexspacebetween].join(" ")}>
-          <div>
-            <div className={[cstyles.sublight].join(" ")}>TXID</div>
-            <div
-              style={{ cursor: "pointer" }}
-              onClick={() => {
-                if (txid) {
-                  clipboard.writeText(txid);
-                  setExpandTxid(true);
-                }
-              }}>
-              <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
-                {!txid && 'Unknown'}
-                {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
-                {expandTxid && !!txid && (
-                  <>
-                    {txid.length < 80 ? txid : Utils.splitStringIntoChunks(txid, 3).map(item => <div key={item}>{item}</div>)}
-                  </>
-                )}
+          {!!txid && ( 
+            <div>
+              <div className={[cstyles.sublight].join(" ")}>TXID</div>
+              <div
+                style={{ cursor: "pointer" }}
+                onClick={() => {
+                  if (txid) {
+                    clipboard.writeText(txid);
+                    setExpandTxid(true);
+                  }
+                }}>
+                <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                  {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
+                  {expandTxid && !!txid && (
+                    <>
+                      {txid.length < 80 ? txid : Utils.splitStringIntoChunks(txid, 3).map(item => <div key={item}>{item}</div>)}
+                    </>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className={cstyles.primarybutton} onClick={openTxid}>
             View TXID &nbsp;
@@ -205,29 +206,31 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
           return (
             <div key={address} className={cstyles.verticalflex}>
-              <div className={[cstyles.sublight].join(" ")}>Address</div>
-              <div className={[cstyles.verticalflex].join(" ")}>
-              <div
-                style={{ cursor: "pointer" }}
-                onClick={() => {
-                  if (address) {
-                    clipboard.writeText(address);
-                    setExpandAddress(true);
-                  }
-                }}> 
-                <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
-                  {!address && 'Unknown'}
-                  {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
-                  {expandAddress && !!address && (
-                    <>
-                      {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
-                    </>
-                  )}
-                </div>
-              </div>
-              </div>
-
-              <div className={cstyles.margintoplarge} />
+              {!!address && (
+                <>
+                  <div className={[cstyles.sublight].join(" ")}>Address</div>
+                  <div className={[cstyles.verticalflex].join(" ")}>
+                    <div
+                      style={{ cursor: "pointer" }}
+                      onClick={() => {
+                        if (address) {
+                          clipboard.writeText(address);
+                          setExpandAddress(true);
+                        }
+                      }}> 
+                      <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                        {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
+                        {expandAddress && !!address && (
+                          <>
+                            {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={cstyles.margintoplarge} />
+                </>
+              )}
 
               <div className={[cstyles.flexspacebetween].join(" ")}>
                 <div className={[cstyles.verticalflex].join(" ")}>
