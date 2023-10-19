@@ -39,18 +39,13 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
           {transaction.txDetails.map((txdetail: TxDetail) => {
             const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(txdetail.amount);
 
-            let { address } = txdetail;
-            const { memos } = txdetail;
+            const { memos, address } = txdetail;
             const { txid } = transaction;
-
-            //if (!address) {
-            //  address = "(Shielded)";
-            //}
 
             const label: string = addressBookMap.get(address) || "";
 
             return (
-              <div key={address} className={cstyles.padtopsmall}>
+              <div key={address}>
                 <div className={styles.txaddress}>
                   {label && (
                     <div className={cstyles.highlight} style={{ marginBottom: 5 }}>{label}</div> 
@@ -123,6 +118,14 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
             );
           })}
         </div>
+        {!!transaction.fee && (
+          <div className={[styles.txtype, cstyles.right].join(" ")}> 
+            <div>Fees</div>
+            <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
+            <div>ZEC {Utils.maxPrecisionTrimmed(transaction.fee)}</div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

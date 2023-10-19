@@ -112,6 +112,7 @@
     "lint": "eslint . --fix --ext .js,.jsx,.ts,.tsx",
     "start": "concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
     "build": "yarn neon && node scripts/build.js",
+    "update": "cd native && cargo clean && cargo update && cd ..",
     "build-mac-x64": "yarn neon-mac-x64 && node scripts/build.js",
     "build-mac-arm64": "yarn neon-mac-arm64 && node scripts/build.js",
     "build-win-x64": "yarn neon-win-x64 && node scripts/build.js",
