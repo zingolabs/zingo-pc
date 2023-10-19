@@ -22,6 +22,8 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
   const datePart: string = dateformat(txDate, "mmm dd, yyyy");
   const timePart: string = dateformat(txDate, "hh:MM tt");
 
+  const fees: number = transaction && transaction.fee ? transaction.fee : 0;
+
   return (
     <div>
       <div className={[cstyles.small, cstyles.sublight, styles.txdate].join(" ")}>{datePart}</div>
@@ -118,11 +120,11 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
             );
           })}
         </div>
-        {!!transaction.fee && (
+        {fees > 0 && (
           <div className={[styles.txtype, cstyles.right].join(" ")}> 
             <div>Fees</div>
             <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
-            <div>ZEC {Utils.maxPrecisionTrimmed(transaction.fee)}</div>
+            <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
             </div>
           </div>
         )}

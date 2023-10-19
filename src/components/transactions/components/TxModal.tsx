@@ -134,7 +134,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
             </div>
           </div>
 
-          {(type === "Sent" || type === "SendToSelf") && (
+          {fees > 0 && (
             <div>
               <div className={[cstyles.sublight].join(" ")}>Fees</div>
               <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
