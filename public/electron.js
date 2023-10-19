@@ -459,6 +459,8 @@ function createWindow() {
     },
   });
 
+  mainWindow.webContents.setIgnoreMenuShortcuts(true);
+
   // Load from localhost if in development
   // Otherwise load index.html file
   mainWindow.loadURL(isDev ? "http://localhost:3000" : `file://${path.join(__dirname, "../build/index.html")}`);
