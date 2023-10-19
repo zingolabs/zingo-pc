@@ -19,8 +19,6 @@
 .txaddressamount {
   width: 90%;
   float: left;
-  display: flex;
-  flex-direction: column;
 }
 
 .txaddress {

@@ -36,7 +36,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   const [expandTxid, setExpandTxid] = useState(false); 
   
   let txid: string = "";
-  let type: string = "";
+  let type: 'Sent' | 'Received' | 'SendToSelf' | "" = ""; 
   let typeIcon: string = "";
   let typeColor: string = "";
   let confirmations: number = 0;
@@ -134,7 +134,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
             </div>
           </div>
 
-          {type === "sent" && (
+          {(type === "Sent" || type === "SendToSelf") && (
             <div>
               <div className={[cstyles.sublight].join(" ")}>Fees</div>
               <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
