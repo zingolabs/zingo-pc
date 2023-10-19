@@ -4,7 +4,6 @@ import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import Logo from "../../assets/img/logobig.png";
 import { Address, Info, Transaction, TxDetail } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
@@ -38,6 +37,7 @@ type SidebarProps = {
   encryptWallet: (p: string) => Promise<boolean>;
   decryptWallet: (p: string) => Promise<boolean>;
   updateWalletSettings: () => Promise<void>;
+  logo: string;
 };
 
 type SidebarState = {
@@ -558,7 +558,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
         <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
           <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-          <img src={Logo} width="70" alt="logo" style={{ borderRadius: 5 }} /> 
+          <img src={this.props.logo} width="70" alt="logo" style={{ borderRadius: 5 }} /> 
         </div>
 
         <div className={styles.sidebar}>

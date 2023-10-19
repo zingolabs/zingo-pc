@@ -39,6 +39,8 @@ import PasswordModal from "../components/passwordmodal/PasswordModal";
 import ServerSelectModal from "../components/serverselectmodal/ServerSelectModal";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
+import Logo from "../assets/img/logobig.png";
+
 type Props = {};
 
 class Routes extends React.Component<Props & RouteComponentProps, AppState> {
@@ -529,6 +531,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 openPassword={this.openPassword}
                 clearTimers={this.clearTimers}
                 updateWalletSettings={this.updateWalletSettings}
+                logo={Logo}
                 {...standardProps}
               />
             </div>
@@ -604,6 +607,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setRescanning={this.setRescanning}
                     setInfo={this.setInfo}
                     openServerSelectModal={this.openServerSelectModal}
+                    logo={Logo}
                   />
                 )}
               />

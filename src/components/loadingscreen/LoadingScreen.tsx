@@ -9,7 +9,6 @@ import { RPCConfig, Info } from "../appstate";
 import RPC from "../../rpc/rpc";
 import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
-import Logo from "../../assets/img/logobig.png";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 
@@ -69,6 +68,7 @@ type LoadingScreenProps = {
   setRescanning: (rescan: boolean, prevSyncId: number) => void;
   setInfo: (info: Info) => void;
   openServerSelectModal: () => void;
+  logo: string;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
@@ -466,7 +466,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "100px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-                <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
+                <img src={this.props.logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div>{currentStatus}</div>
               {currentStatusIsError && (
@@ -543,7 +543,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-                <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
+                <img src={this.props.logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
                 <div className={cstyles.verticalflex}>
@@ -604,7 +604,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-                <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
+                <img src={this.props.logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
                 <div className={cstyles.verticalflex}>
@@ -652,7 +652,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-                <img src={Logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
+                <img src={this.props.logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
                 <div className={cstyles.verticalflex}>

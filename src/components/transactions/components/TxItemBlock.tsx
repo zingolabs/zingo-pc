@@ -47,7 +47,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
             const label: string = addressBookMap.get(address) || "";
 
             return (
-              <div key={address}>
+              <div key={txid}> 
                 <div className={styles.txaddress}>
                   {label && (
                     <div className={cstyles.highlight} style={{ marginBottom: 5 }}>{label}</div> 
