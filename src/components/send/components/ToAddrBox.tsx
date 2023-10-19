@@ -25,7 +25,7 @@ type ToAddrBoxProps = {
   ) => void;
   fromAddress: string;
   fromAmount: number;
-  setSendButtonEnable: (sendButtonEnabled: boolean) => void;
+  setSendButtonEnabled: (sendButtonEnabled: boolean) => void;
   setMaxAmount: (id: number, total: number) => void;
   totalAmountAvailable: number;
 };
@@ -37,7 +37,7 @@ const ToAddrBox = ({
   fromAddress,
   fromAmount,
   setMaxAmount,
-  setSendButtonEnable,
+  setSendButtonEnabled,
   totalAmountAvailable,
 }: ToAddrBoxProps) => {
   const [addressType, setAddressType] = useState<AddressType>();
@@ -86,13 +86,13 @@ const ToAddrBox = ({
       }
     
       setTimeout(() => {
-        setSendButtonEnable(buttonstate);
+        setSendButtonEnabled(buttonstate);
       }, 10);
     
       const usdValue: string = Utils.getZecToUsdString(zecPrice, toaddr.amount);
       setUsdValue(usdValue);
     })();
-  }, [fromAmount, setSendButtonEnable, toaddr.amount, toaddr.to, zecPrice]);
+  }, [fromAmount, setSendButtonEnabled, toaddr.amount, toaddr.to, zecPrice]);
   
   const addReplyTo = (checked: boolean) => {
     if (toaddr.id) {

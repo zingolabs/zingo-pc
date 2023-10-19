@@ -185,7 +185,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     setSendPageState(newState);
   };
 
-  setSendButtonEnable = (sendButtonEnabled: boolean) => {
+  setSendButtonEnabled = (sendButtonEnabled: boolean) => {
     this.setState({ sendButtonEnabled });
   };
 
@@ -233,7 +233,11 @@ export default class Send extends PureComponent<SendProps, SendState> {
       totalBalance,
     } = this.context;
 
-    const totalAmountAvailable: number = totalBalance.transparent + totalBalance.spendableZ + totalBalance.spendableO;
+    // transparent funds are not spendable.
+    let totalAmountAvailable: number = totalBalance.spendableZ + totalBalance.spendableO - info.defaultFee;
+    if (totalAmountAvailable < 0) {
+      totalAmountAvailable = 0;
+    }
     const fromaddr: string = addresses.find((a: Address) => a.type === AddressType.unified)?.address || ""; 
 
     // If there are unverified funds, then show a tooltip
@@ -287,7 +291,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
                     fromAddress={fromaddr}
                     fromAmount={totalAmountAvailable}
                     setMaxAmount={this.setMaxAmount}
-                    setSendButtonEnable={this.setSendButtonEnable}
+                    setSendButtonEnabled={this.setSendButtonEnabled}
                     totalAmountAvailable={totalAmountAvailable}
                   />
                 );
