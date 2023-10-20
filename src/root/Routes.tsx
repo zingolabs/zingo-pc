@@ -66,7 +66,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       this.setWalletSettings,
       this.setVerificationProgress
     );
-  }
+  };
 
   componentDidMount() {
     // Read the address book
@@ -76,9 +76,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         this.setState({ addressBook });
       }
     })();
-  }
+  };
 
-  componentWillUnmount() {}
+  componentWillUnmount() {};
 
   getFullState = (): AppState => {
     return this.state;
@@ -495,16 +495,12 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   render() {
-    const { info } = this.state;
-
     const standardProps = {
       openErrorModal: this.openErrorModal,
       closeErrorModal: this.closeErrorModal,
       setSendTo: this.setSendTo,
       openPasswordAndUnlockIfNeeded: this.openPasswordAndUnlockIfNeeded,
     };
-
-    const hasLatestBlock: boolean = info && info.latestBlock > 0 ? true : false; 
 
     return (
       <ContextAppProvider value={this.state}>
@@ -518,24 +514,22 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         />
 
         <div style={{ overflow: "hidden" }}>
-          {hasLatestBlock && (
-            <div className={cstyles.sidebarcontainer}>
-              <Sidebar
-                setInfo={this.setInfo}
-                setRescanning={this.setRescanning}
-                getPrivKeyAsString={this.getPrivKeyAsString}
-                importPrivKeys={this.importPrivKeys}
-                lockWallet={this.lockWallet}
-                encryptWallet={this.encryptWallet}
-                decryptWallet={this.decryptWallet}
-                openPassword={this.openPassword}
-                clearTimers={this.clearTimers}
-                updateWalletSettings={this.updateWalletSettings}
-                logo={Logo}
-                {...standardProps}
-              />
-            </div>
-          )}
+          <div className={cstyles.sidebarcontainer}>
+            <Sidebar
+              setInfo={this.setInfo}
+              setRescanning={this.setRescanning}
+              getPrivKeyAsString={this.getPrivKeyAsString}
+              importPrivKeys={this.importPrivKeys}
+              lockWallet={this.lockWallet}
+              encryptWallet={this.encryptWallet}
+              decryptWallet={this.decryptWallet}
+              openPassword={this.openPassword}
+              clearTimers={this.clearTimers}
+              updateWalletSettings={this.updateWalletSettings}
+              logo={Logo}
+              {...standardProps}
+            />
+          </div>
 
           <div className={cstyles.contentcontainer}>
             <Switch>
