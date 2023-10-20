@@ -620,7 +620,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
           {stateSync === "DISCONNECTED" && (
             <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
               <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
-              &nbsp; Connected
+              &nbsp; Not Connected
             </div>
           )}
         </div>
