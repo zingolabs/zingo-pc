@@ -41,13 +41,13 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
           {transaction.txDetails.map((txdetail: TxDetail) => {
             const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(txdetail.amount);
 
-            const { memos, address } = txdetail;
+            const { memos, address, pool } = txdetail;
             const { txid } = transaction;
 
             const label: string = addressBookMap.get(address) || "";
 
             return (
-              <div key={txid}> 
+              <div key={`${txid}-${address}-${pool}`}> 
                 <div className={styles.txaddress}>
                   {label && (
                     <div className={cstyles.highlight} style={{ marginBottom: 5 }}>{label}</div> 

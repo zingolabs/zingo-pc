@@ -747,11 +747,30 @@ export default class RPC {
     return seedJSON.seed;
   }
 
-  static async fetchBirthday(): Promise<number> {
-    const seedStr: string = await native.zingolib_execute_async("seed", "");
-    const seedJSON = JSON.parse(seedStr);
+  static async fetchUfvk(): Promise<string> {
+    const ufvkStr: string = await native.zingolib_execute_async("exportufvk", "");
+    const ufvkJSON = JSON.parse(ufvkStr);
 
-    return seedJSON.birthday;
+    return ufvkJSON.ufvk;
+  }
+
+  static async fetchBirthday(): Promise<number> {
+    const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+    const walletKindJSON = JSON.parse(walletKindStr);
+
+    if (walletKindJSON.kind === "Seeded") {
+      // seed
+      const seedStr: string = await native.zingolib_execute_async("seed", ""); 
+      const seedJSON = JSON.parse(seedStr);
+
+      return seedJSON.birthday;
+    } else {
+      // ufvk
+      const ufvkStr: string = await native.zingolib_execute_async("exportufvk", "");
+      const ufvkJSON = JSON.parse(ufvkStr);
+
+      return ufvkJSON.birthday;
+    } 
   }
 
   static async fetchWalletHeight(): Promise<number> {

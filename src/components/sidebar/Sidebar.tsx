@@ -14,6 +14,8 @@ import ImportPrivKeyModal from "./components/ImportPrivKeyModal";
 import ExportPrivKeyModal from "./components/ExportPrivKeyModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faSnowflake } from '@fortawesome/free-solid-svg-icons';
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
@@ -133,26 +135,53 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     ipcRenderer.on("seed", () => {
       openPasswordAndUnlockIfNeeded(async () => {
         const seed: string = await RPC.fetchSeed();
+        const ufvk: string = await RPC.fetchUfvk();
         const birthday: number = await RPC.fetchBirthday();
+
+        console.log(seed, ufvk, birthday);
 
         openErrorModal(
           "Wallet Seed",
           <div className={cstyles.verticalflex}>
-            <div>
-              This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet.
-              <br />
-              PLEASE KEEP IT SAFE!
-            </div>
-            <hr style={{ width: "100%" }} />
-            <div
-              style={{
-                wordBreak: "break-word",
-                fontFamily: "monospace, Roboto",
-              }}
-            >
-              {seed}
-            </div>
-            <hr style={{ width: "100%" }} />
+            {!!seed && (
+              <>
+                <div>
+                  This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet. 
+                  <br />
+                  PLEASE KEEP IT SAFE!
+                </div>
+                <hr style={{ width: "100%" }} />
+                <div
+                  style={{
+                    wordBreak: "break-word",
+                    fontFamily: "monospace, Roboto",
+                    fontWeight: 'bolder',
+                  }}
+                >
+                  {seed}
+                </div>
+                <hr style={{ width: "100%" }} />
+              </>
+            )}
+            {!!ufvk && (
+              <>
+                <div>
+                  This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
+                  <br />
+                  PLEASE KEEP IT SAFE!
+                </div>
+                <hr style={{ width: "100%" }} />
+                <div
+                  style={{
+                    fontFamily: "monospace, Roboto",
+                    fontWeight: 'bolder',
+                  }}
+                >
+                  {ufvk}
+                </div>
+                <hr style={{ width: "100%" }} />
+              </>
+            )}
             <div
               style={{
                 fontFamily: "monospace, Roboto",
@@ -161,7 +190,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
               {'Birthday: ' + birthday}
             </div>
           </div>
-        );
+        );        
       });
     });
 
@@ -498,7 +527,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
   render() {
     const { location } = this.props;
-    const { info, walletSettings, verificationProgress } = this.context;
+    const { info, walletSettings, verificationProgress, readOnly } = this.context;
     const {
       uriModalIsOpen,
       uriModalInputValue,
@@ -558,7 +587,12 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
         <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
           <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-          <img src={this.props.logo} width="70" alt="logo" style={{ borderRadius: 5 }} /> 
+          <div>
+            <img src={this.props.logo} width="70" alt="logo" style={{ borderRadius: 5, marginRight: 10 }} />
+            {readOnly && (
+              <FontAwesomeIcon icon={faSnowflake} color={"'#888888'"} style={{ height: 30, marginBottom: 20 }} />
+            )}
+          </div>
         </div>
 
         <div className={styles.sidebar}>
@@ -568,12 +602,14 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
             currentRoute={location.pathname}
             iconname="fa-home"
           />
-          <SidebarMenuItem
-            name="Send"
-            routeName={routes.SEND}
-            currentRoute={location.pathname}
-            iconname="fa-paper-plane"
-          />
+          {!readOnly && (
+            <SidebarMenuItem
+              name="Send"
+              routeName={routes.SEND}
+              currentRoute={location.pathname}
+              iconname="fa-paper-plane"
+            />
+          )}
           <SidebarMenuItem
             name="Receive"
             routeName={routes.RECEIVE}
