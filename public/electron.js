@@ -109,7 +109,7 @@ class MenuBuilder {
       label: "Wallet",
       submenu: [
         {
-          label: "Wallet Seed",
+          label: "Wallet Seed / Viewing Key",
           click: () => {
             mainWindow.webContents.send("seed");
           },
@@ -186,7 +186,7 @@ class MenuBuilder {
       label: "Wallet",
       submenu: [
         {
-          label: "Wallet Seed",
+          label: "Wallet Seed / Viewing Key",
           click: () => {
             mainWindow.webContents.send("seed");
           },
@@ -327,7 +327,7 @@ class MenuBuilder {
         label: "&Wallet",
         submenu: [
           {
-            label: "Wallet Seed",
+            label: "Wallet Seed / Viewing Key",
             click: () => {
               mainWindow.webContents.send("seed");
             },

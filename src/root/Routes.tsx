@@ -360,6 +360,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
+  setReadOnly = (readOnly: boolean) => {
+    this.setState({ readOnly });
+  };
+
   setInfo = (newInfo: Info) => {
     if (!isEqual(newInfo, this.state.info)) {
       console.log('=============== info', newInfo);
@@ -502,6 +506,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       openPasswordAndUnlockIfNeeded: this.openPasswordAndUnlockIfNeeded,
     };
 
+    console.log(this.props.location);
+
     return (
       <ContextAppProvider value={this.state}>
         <ErrorModal closeModal={this.closeErrorModal} />
@@ -514,22 +520,24 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         />
 
         <div style={{ overflow: "hidden" }}>
-          <div className={cstyles.sidebarcontainer}>
-            <Sidebar
-              setInfo={this.setInfo}
-              setRescanning={this.setRescanning}
-              getPrivKeyAsString={this.getPrivKeyAsString}
-              importPrivKeys={this.importPrivKeys}
-              lockWallet={this.lockWallet}
-              encryptWallet={this.encryptWallet}
-              decryptWallet={this.decryptWallet}
-              openPassword={this.openPassword}
-              clearTimers={this.clearTimers}
-              updateWalletSettings={this.updateWalletSettings}
-              logo={Logo}
-              {...standardProps}
-            />
-          </div>
+          {this.props.location.pathname !== "/" && (
+            <div className={cstyles.sidebarcontainer}>
+              <Sidebar
+                setInfo={this.setInfo}
+                setRescanning={this.setRescanning}
+                getPrivKeyAsString={this.getPrivKeyAsString}
+                importPrivKeys={this.importPrivKeys}
+                lockWallet={this.lockWallet}
+                encryptWallet={this.encryptWallet}
+                decryptWallet={this.decryptWallet}
+                openPassword={this.openPassword}
+                clearTimers={this.clearTimers}
+                updateWalletSettings={this.updateWalletSettings}
+                logo={Logo}
+                {...standardProps}
+              />
+            </div>
+          )}
 
           <div className={cstyles.contentcontainer}>
             <Switch>
@@ -602,6 +610,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setInfo={this.setInfo}
                     openServerSelectModal={this.openServerSelectModal}
                     logo={Logo}
+                    setReadOnly={this.setReadOnly}
                   />
                 )}
               />

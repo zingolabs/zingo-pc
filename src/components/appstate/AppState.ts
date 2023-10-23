@@ -62,6 +62,9 @@ export default class AppState {
   // Callbacks for the password dialog box
   passwordState: PasswordState;
 
+  // if the wallet is seeded or from VK
+  readOnly: boolean;
+
   constructor() {
     this.totalBalance = new TotalBalance();
     this.addressPrivateKeys = new Map();
@@ -80,5 +83,6 @@ export default class AppState {
     this.prevSyncId = -1;
     this.passwordState = new PasswordState();
     this.walletSettings = new WalletSettings();
+    this.readOnly = false;
   }
 }

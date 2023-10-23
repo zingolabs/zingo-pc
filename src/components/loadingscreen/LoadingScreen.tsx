@@ -32,11 +32,14 @@ class LoadingScreenState {
   // 0 -> no wallet, load existing wallet 
   // 1 -> show options
   // 2 -> create new 
-  // 3 -> restore existing
+  // 3 -> restore existing seed
+  // 4 -> restore existing ufvk 
 
   newWalletError: null | string; // Any errors when creating/restoring wallet
 
   seed: string; // The new seed phrase for a newly created wallet or the seed phrase to restore from
+
+  ufvk: string; // The UFVK to restore from
 
   birthday: number; // Wallet birthday if we're restoring
 
@@ -57,6 +60,7 @@ class LoadingScreenState {
     this.walletScreen = 0;
     this.newWalletError = null;
     this.seed = "";
+    this.ufvk = "";
     this.birthday = 0;
     this.nextSaveBatch = -1;
     this.changeAnotherWallet = changeAnotherWallet;
@@ -69,6 +73,7 @@ type LoadingScreenProps = {
   setInfo: (info: Info) => void;
   openServerSelectModal: () => void;
   logo: string;
+  setReadOnly: (readOnly: boolean) => void;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
@@ -214,6 +219,17 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }
 
         this.getInfo();
+        // seed or ufvk
+        const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+        const walletKindJSON = JSON.parse(walletKindStr);
+
+        if (walletKindJSON.kind === "Seeded") {
+          // seed
+          this.props.setReadOnly(false);
+        } else {
+          // ufvk
+          this.props.setReadOnly(true);
+        }
       }
     } catch (err) {
       console.log("Error initializing", err);
@@ -394,6 +410,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     } else {
       const seed: string = await RPC.fetchSeed();
       this.setState({ walletScreen: 2, seed });
+      this.props.setReadOnly(false);
     }
   };
 
@@ -403,19 +420,27 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.getInfo();
   };
 
-  restoreExistingWallet = () => {
+  restoreExistingSeedWallet = () => {
     this.setState({ walletScreen: 3 });
+  };
+
+  restoreExistingUfvkWallet = () => {
+    this.setState({ walletScreen: 4 });
   };
 
   updateSeed = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     this.setState({ seed: e.target.value });
   };
 
+  updateUfvk = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    this.setState({ ufvk: e.target.value });
+  };
+
   updateBirthday = (e: React.ChangeEvent<HTMLInputElement>) => {
     this.setState({ birthday: isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value) }); 
   };
 
-  restoreWalletBack = () => {
+  restoreSeedWalletBack = () => {
     // Reset the seed and birthday and try again 
     this.setState({
       seed: "",
@@ -423,9 +448,21 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       newWalletError: null,
       walletScreen: 3,
     });
+    this.props.setReadOnly(false);
   };
 
-  doRestoreWallet = () => {
+  restoreUfvkWalletBack = () => {
+    // Reset the ufvk and birthday and try again 
+    this.setState({
+      ufvk: "",
+      birthday: 0,
+      newWalletError: null,
+      walletScreen: 4,
+    });
+    this.props.setReadOnly(false);
+  };
+
+  doRestoreSeedWallet = () => {
     const { seed, birthday, url, chain } = this.state;
     console.log(`Restoring ${seed} with ${birthday}`);
 
@@ -437,6 +474,23 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     } else {
       this.setState({ walletScreen: 0 });
       this.getInfo();
+      this.props.setReadOnly(false);
+    }
+  };
+
+  doRestoreUfvkWallet = () => {
+    const { ufvk, birthday, url, chain } = this.state;
+    console.log(`Restoring ${ufvk} with ${birthday}`);
+
+    const allowOverwrite: boolean = true;
+
+    const result: string = native.zingolib_initialize_new_from_ufvk(url, ufvk, birthday, allowOverwrite, chain);
+    if (result.toLowerCase().startsWith("error")) {
+      this.setState({ newWalletError: result });
+    } else {
+      this.setState({ walletScreen: 0 });
+      this.getInfo();
+      this.props.setReadOnly(true);
     }
   };
 
@@ -453,7 +507,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   render() {
-    const { loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed, birthday } =
+    const { loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed, ufvk, birthday } =
       this.state;
 
     const { openServerSelectModal } = this.props;
@@ -466,7 +520,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "100px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-                <img src={this.props.logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
+                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div>{currentStatus}</div>
               {currentStatusIsError && (
@@ -543,7 +597,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-                <img src={this.props.logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
+                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
                 <div className={cstyles.verticalflex}>
@@ -589,10 +643,33 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                           currentStatusIsError: false,
                           newWalletError: null
                         });
-                        this.restoreExistingWallet();
+                        this.restoreExistingSeedWallet();
                       }}
                     >
                       Restore Wallet from Seed
+                    </button>
+                  </div>
+                </div>
+                <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
+                  <div className={[cstyles.large, cstyles.highlight].join(" ")}>Restore Wallet From Viewing Key</div>
+                  <div className={cstyles.padtopsmall}>
+                    If you already have a Unified Full Viewing Key, you can restore it to this wallet. This will rescan the
+                    blockchain for all transactions from the UFVK.
+                  </div>
+                  <div className={cstyles.margintoplarge}>
+                    <button
+                      type="button"
+                      className={cstyles.primarybutton}
+                      onClick={() => {
+                        this.setState({
+                          currentStatus: "",
+                          currentStatusIsError: false,
+                          newWalletError: null
+                        });
+                        this.restoreExistingUfvkWallet();
+                      }}
+                    >
+                      Restore Wallet from Viewing Key
                     </button>
                   </div>
                 </div>
@@ -604,7 +681,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-                <img src={this.props.logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
+                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
                 <div className={cstyles.verticalflex}>
@@ -652,7 +729,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>
               <div style={{ marginTop: "20px", marginBottom: "20px" }}>
                 <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
-                <img src={this.props.logo} width="200px;" alt="Logo" style={{ borderRadius: 20 }} />
+                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
               <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
                 <div className={cstyles.verticalflex}>
@@ -664,7 +741,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       <div className={cstyles.padtopsmall}>{newWalletError}</div>
                       <hr style={{ width: "100%" }} />
                       <div className={cstyles.margintoplarge}>
-                        <button type="button" className={cstyles.primarybutton} onClick={this.restoreWalletBack}>
+                        <button type="button" className={cstyles.primarybutton} onClick={this.restoreSeedWalletBack}>
                           Back
                         </button>
                       </div>
@@ -691,7 +768,67 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       />
 
                       <div className={cstyles.margintoplarge}>
-                        <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreWallet()}>
+                        <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreSeedWallet()}>
+                          Restore Wallet
+                        </button>
+                        <button type="button" className={cstyles.primarybutton} onClick={() => {
+                          this.setState({ walletScreen: 0 });
+                          this.doFirstTimeSetup();
+                        }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {walletScreen === 4 && (
+            <div>
+              <div style={{ marginTop: "20px", marginBottom: "20px" }}>
+                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.3</div>
+                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
+              </div>
+              <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
+                <div className={cstyles.verticalflex}>
+                  {newWalletError && (
+                    <div>
+                      <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Restoring Wallet</div>
+                      <div className={cstyles.padtopsmall}>There was an error restoring your Viewing Key</div>
+                      <hr style={{ width: "100%" }} />
+                      <div className={cstyles.padtopsmall}>{newWalletError}</div>
+                      <hr style={{ width: "100%" }} />
+                      <div className={cstyles.margintoplarge}>
+                        <button type="button" className={cstyles.primarybutton} onClick={this.restoreUfvkWalletBack}>
+                          Back
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!newWalletError && (
+                    <div>
+                      <div className={[cstyles.large].join(" ")}>Please enter your Unified Full Viewing Key</div>
+                      <TextareaAutosize
+                        className={cstyles.inputbox}
+                        value={ufvk}
+                        onChange={(e) => this.updateUfvk(e)}
+                      />
+
+                      <div className={[cstyles.large, cstyles.margintoplarge].join(" ")}>
+                        Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;0&rsquo;
+                      </div>
+                      <input
+                        type="number"
+                        className={cstyles.inputbox}
+                        value={birthday}
+                        onChange={(e) => this.updateBirthday(e)}
+                      />
+
+                      <div className={cstyles.margintoplarge}>
+                        <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreUfvkWallet()}>
                           Restore Wallet
                         </button>
                         <button type="button" className={cstyles.primarybutton} onClick={() => {

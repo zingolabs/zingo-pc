@@ -21,6 +21,7 @@ export const defaultAppState: AppState = {
   prevSyncId: -1,
   passwordState: new PasswordState(),
   walletSettings: new WalletSettings(),
+  readOnly: false,
 };
 
 export const ContextApp = React.createContext(defaultAppState);
