@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useContext } from "react";
 import Modal from "react-modal";
 import cstyles from "../../common/Common.module.css";
+import { ContextApp } from "../../../context/ContextAppState";
 
 type PayURIModalProps = {
   modalIsOpen: boolean;
@@ -21,6 +22,8 @@ const PayURIModal = ({
   actionButtonName,
   actionCallback,
 }: PayURIModalProps) => {
+  const context = useContext(ContextApp);
+  const { readOnly } = context; 
   return (
     <Modal
       isOpen={modalIsOpen}
@@ -33,15 +36,20 @@ const PayURIModal = ({
           {modalTitle}
         </div>
 
-        <div className={cstyles.well} style={{ textAlign: "center" }}>
-          <input
-            type="text"
-            className={cstyles.inputbox}
-            placeholder="URI"
-            value={modalInput}
-            onChange={(e) => setModalInput(e.target.value)}
-          />
-        </div>
+        {readOnly && (
+          <div className={cstyles.well} style={{ textAlign: "center" }}>This is a only-watch wallet, it is imposible to spend/send the balance.</div>  
+        )}
+        {!readOnly && (
+          <div className={cstyles.well} style={{ textAlign: "center" }}>
+            <input
+              type="text"
+              className={cstyles.inputbox}
+              placeholder="URI"
+              value={modalInput}
+              onChange={(e) => setModalInput(e.target.value)}
+            />
+          </div>
+        )}
       </div>
 
       <div className={cstyles.buttoncontainer}>
