@@ -51,7 +51,7 @@ export default class Dashboard extends Component<DashboardProps> {
   };
 
   render() {
-    const { totalBalance, info, addresses } = this.context;
+    const { totalBalance, info, addresses, readOnly } = this.context;
 
     const anyPending: Address | Address[] = !!addresses && addresses.find((i: Address) => i.containsPending === true);
 
@@ -85,7 +85,7 @@ export default class Dashboard extends Component<DashboardProps> {
             />
           </div>
           <div className={cstyles.balancebox}>
-            {totalBalance.zbalance + totalBalance.transparent > info.defaultFee && (
+            {totalBalance.zbalance + totalBalance.transparent > info.defaultFee && !readOnly &&  (
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={this.promoteButton}>
                 Promote All Balance To Orchard
               </button>
