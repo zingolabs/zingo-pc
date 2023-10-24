@@ -42,7 +42,7 @@ const AddressBlock = ({
   openErrorModal,
 }: AddressBlockProps) => {
   const context = useContext(ContextApp);
-  const { info } = context;
+  const { info, readOnly } = context;
   const { receivers, type } = address;
   const address_address = address.address;
   const balance = address.balance || 0;
@@ -250,12 +250,12 @@ const AddressBlock = ({
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => openAddress()}>
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </button>
-              {type === AddressType.transparent && balance > info.defaultFee && (
+              {type === AddressType.transparent && balance > info.defaultFee && !readOnly && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
                   Shield Balance To Orchard
                 </button>
               )}
-              {type === AddressType.sapling && balance > info.defaultFee && (
+              {type === AddressType.sapling && balance > info.defaultFee && !readOnly && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={promoteButton}>
                   Promote Balance To Orchard
                 </button>

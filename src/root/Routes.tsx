@@ -506,7 +506,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       openPasswordAndUnlockIfNeeded: this.openPasswordAndUnlockIfNeeded,
     };
 
-    console.log(this.props.location);
+    //console.log(this.props.location);
 
     return (
       <ContextAppProvider value={this.state}>
