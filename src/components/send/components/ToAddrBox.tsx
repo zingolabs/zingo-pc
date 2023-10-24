@@ -81,7 +81,7 @@ const ToAddrBox = ({
       setAmountError(amountError);
     
       let buttonstate: boolean = true;
-      if (!addressIsValid || amountError || toaddr.to === "" || toaddr.amount === 0 || fromAmount === 0) {
+      if (!addressIsValid || amountError || toaddr.to === "" || totalAmountAvailable < 0) {
         buttonstate = false;
       }
     
@@ -92,7 +92,7 @@ const ToAddrBox = ({
       const usdValue: string = Utils.getZecToUsdString(zecPrice, toaddr.amount);
       setUsdValue(usdValue);
     })();
-  }, [fromAmount, setSendButtonEnabled, toaddr.amount, toaddr.to, zecPrice]);
+  }, [fromAmount, setSendButtonEnabled, toaddr.amount, toaddr.to, totalAmountAvailable, zecPrice]);
   
   const addReplyTo = (checked: boolean) => {
     if (toaddr.id) {
@@ -148,7 +148,7 @@ const ToAddrBox = ({
             className={styles.toaddrbutton}
             src={ArrowUpLight}
             alt="Max"
-            onClick={() => setMaxAmount(toaddr.id as number, totalAmountAvailable)}
+            onClick={() => setMaxAmount(toaddr.id as number, fromAmount)}
           />
         </div>
 

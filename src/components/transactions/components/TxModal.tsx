@@ -235,7 +235,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
               <div className={[cstyles.flexspacebetween].join(" ")}>
                 <div className={[cstyles.verticalflex].join(" ")}>
                   <div className={[cstyles.sublight].join(" ")}>Amount</div>
-                  <div className={[cstyles.flexspacebetween].join(" ")}>
+                  <div className={[cstyles.verticalflex].join(" ")}>
                     <div className={[cstyles.verticalflex].join(" ")}>
                       <div>
                         <span>
@@ -245,7 +245,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                       </div>
                       <div>{Utils.getZecToUsdString(price, Math.abs(amount))}</div>
                     </div>
-                    <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
+                    <div className={[cstyles.verticalflex].join(" ")}>
                       <div className={[cstyles.sublight].join(" ")}>{priceString}</div>
                     </div>
                   </div>

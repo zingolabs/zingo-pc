@@ -154,7 +154,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
 
   setMaxAmount = async (id: number, total: number) => {
     const { setSendPageState } = this.props;
-    const { sendPageState, info } = this.context;
+    const { sendPageState } = this.context;
 
     // Find the correct toAddr
     const toAddr: ToAddr = sendPageState.toaddrs.find((a: ToAddr) => a.id === id);
@@ -163,16 +163,16 @@ export default class Send extends PureComponent<SendProps, SendState> {
     let totalOtherAmount: number = 0;
     
     if (restToAddr && restToAddr.length > 0) {
-      restToAddr.reduce((s: number, a: ToAddr) => s + a.amount, 0);
+      totalOtherAmount = restToAddr.reduce((s: number, a: ToAddr) => s + a.amount, 0);
     }
 
     // Add Fee
-    totalOtherAmount += info.defaultFee;
+    //totalOtherAmount += info.defaultFee;
 
     toAddr.amount = total - totalOtherAmount;
     if (toAddr.amount < 0) toAddr.amount = 0;
     toAddr.amount = Number(Utils.maxPrecisionTrimmed(toAddr.amount)); 
-    
+        
     // Create the new state object 
     const newState = new SendPageState();
     newState.fromaddr = sendPageState.fromaddr;
@@ -292,7 +292,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
                     fromAmount={totalAmountAvailable}
                     setMaxAmount={this.setMaxAmount}
                     setSendButtonEnabled={this.setSendButtonEnabled}
-                    totalAmountAvailable={totalAmountAvailable}
+                    totalAmountAvailable={totalBalance.total - info.defaultFee}
                   />
                 );
               })}
