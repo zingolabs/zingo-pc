@@ -6,17 +6,17 @@ Zingo PC is written in Electron/Javascript and can be build from source. It will
 #### Pre-Requisites
 You need to have the following software installed before you can build Zingo PC
 
-* [Nodejs recommended version: v16.16.0 (LTS) ](https://nodejs.org/en/blog/release/v16.16.0)
+* [Nodejs recommended version: v16.20.2 (LTS) ](https://nodejs.org/en/blog/release/v16.20.2)
 * [Yarn](https://yarnpkg.com)
 * [Rust stable/nightly version](https://www.rust-lang.org/tools/install)
 
-NOTE:  To ensure node 16.16 on Arch:
+NOTE:  To ensure node 16.20.2 on Arch:
 paru -S nvm
-And follow "Alternate Installations" for 16.16 https://wiki.archlinux.org/title/node.js_ I.E.:
+And follow "Alternate Installations" for 16.20.2 https://wiki.archlinux.org/title/node.js_ I.E.:
 
 ```
-nvm install 16.16
-nvm use 16.16
+nvm install 16.20.2
+nvm use 16.20.2
 ```
   
 NOTE2: You have to install `openssl` & `protobuf compiler` as well.
@@ -29,7 +29,7 @@ yarn install
 yarn build
 ```
 
-If for some reason you get an `ERR_OSSL_EVP_UNSUPPORTED` error when running `yarn build` in node v17, v18 or higher, just run the command with `NODE_OPTIONS=--openssl-legacy-provider` env variable, or downgrade the `node` version to v16.16.0.
+If for some reason you get an `ERR_OSSL_EVP_UNSUPPORTED` error when running `yarn build` in node v17, v18 or higher, just run the command with `NODE_OPTIONS=--openssl-legacy-provider` env variable, or downgrade the `node` version to v16.20.2.
 
 To start in locally, run
 ```
