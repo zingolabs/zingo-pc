@@ -3,6 +3,8 @@ import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
+import { Server } from "../appstate";
+import serverUris from "../../utils/serverUris";
 const { ipcRenderer } = window.require("electron");
 
 type ModalProps = {
@@ -12,19 +14,18 @@ type ModalProps = {
 
 export default function ServerSelectModal({ closeModal, openErrorModal }: ModalProps) {
   const context = useContext(ContextApp);
-  const { serverSelectState } = context;
+  const { serverSelectState, serverUris: serverUrisContext } = context;
   const { modalIsOpen } = serverSelectState;
   const [selectedServer, setSelectedServer] = useState<string>("");
-  const [selectedChain, setSelectedChain] = useState<'main' | 'test' | 'regtest' | '' | 'custom'>("");
+  const [selectedChain, setSelectedChain] = useState<'main' | 'test' | 'regtest' | '' | 'custom' | 'auto'>("");
+  const [autoServer, setAutoServer] = useState<string>("");
   const [customServer, setCustomServer] = useState<string>("");
   const [server, setServer] = useState<string>("");
+  const [autoChain, setAutoChain] = useState<'main' | 'test' | 'regtest' | ''>("");
   const [customChain, setCustomChain] = useState<'main' | 'test' | 'regtest' | ''>("");
   const [chain, setChain] = useState<'main' | 'test' | 'regtest' | ''>("");
 
-  const servers: {name: string, uri: string, chain: 'main' | 'test' | 'regtest'}[] = [
-    { name: "Zcash Community (Default)", uri: Utils.ZCASH_COMMUNITY, chain: 'main'},
-    { name: "Zec Wallet", uri: Utils.V3_LIGHTWALLETD, chain: 'main'},
-  ];
+  const servers: Server[] = serverUris();
 
   const chains = {
     "main": "Mainnet",
@@ -64,7 +65,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     if (serveruri === "custom") {
       serveruri = customServer;
     }
-    let serverchain_name: 'main' | 'test' | 'regtest' | '' | 'custom' = selectedChain;
+    let serverchain_name: 'main' | 'test' | 'regtest' | '' | 'custom' | 'auto' = selectedChain;
     if (serverchain_name === 'custom') {
       serverchain_name = customChain;
     }
@@ -90,6 +91,8 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     closeModal();
   };
 
+  console.log(serverUrisContext);
+
   return (
     <Modal
       isOpen={modalIsOpen}
@@ -103,24 +106,32 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
         </div>
 
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
-          {servers.map((s) => (
-            <div className={cstyles.horizontalflex} style={{ margin: "10px" }} key={s.uri}>
-              <input
-                checked={selectedServer === s.uri} 
-                type="radio" 
-                name="server" 
-                value={s.uri} 
-                onClick={(e) => {
-                  setSelectedServer(e.currentTarget.value);
-                  setSelectedChain(s.chain);
-                }} 
-                onChange={(e) => {
-                  setSelectedServer(e.currentTarget.value);
-                  setSelectedChain(s.chain);
-                }} />
-              <div>{`${s.name} - ${s.uri} - [${chains[s.chain]}]`}</div> 
-            </div>
-          ))}
+          <div className={cstyles.horizontalflex} style={{ margin: "10px" }}>
+            <input
+              checked={selectedSelection === 'list'} 
+              type="radio" 
+              name="server" 
+              value={'list'} 
+              onClick={(e) => {
+                setSelectedSelection('list');
+              }} 
+              onChange={(e) => {
+                setSelectedSelection('list');
+              }}>
+                <select
+                  disabled={selectedChain !== "custom"}
+                  className={cstyles.inputbox}
+                  style={{ marginLeft: "20px" }}
+                  value={customChain}
+                  onChange={(e) => setCustomChain(e.target.value as 'main' | 'test' | 'regtest' | '')}
+                >
+                  <option key="" value=""></option>
+                  {servers.map((s: Server) => (
+                    <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + ' _ ' + s.latency ? s.latency + ' ms.' : ''}</option>
+                  ))}
+                </select>
+              </input>
+          </div>
 
           <div style={{ margin: "10px" }}>
             <input 

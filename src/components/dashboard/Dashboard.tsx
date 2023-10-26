@@ -26,7 +26,7 @@ export default class Dashboard extends Component<DashboardProps> {
       (async () => {
         try {
           const result: string = await this.props.shieldAllBalanceToOrchard();
-          console.log(result);
+          console.log('shielding all balance', result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
             this.props.openErrorModal("Error Shielding Transaction", `${result}`);

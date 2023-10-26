@@ -18,3 +18,4 @@ export function zingolib_initialize_new_from_ufvk(
 export function zingolib_deinitialize(): string;
 export function zingolib_execute_spawn(cmd: string, args: string): string;
 export function zingolib_execute_async(cmd: string, args: string): Promise<string>;
+export function zingolib_server_uri_latency(server_uri: string): string;

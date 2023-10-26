@@ -5,12 +5,12 @@ import request from "request";
 import progress from "progress-stream";
 import native from "../../native.node";
 import routes from "../../constants/routes.json";
-import { RPCConfig, Info } from "../appstate";
+import { RPCConfig, Info, Server } from "../appstate";
 import RPC from "../../rpc/rpc";
 import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
-import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
+import serverUris from "../../utils/serverUris";
 
 const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
@@ -27,6 +27,8 @@ class LoadingScreenState {
   url: string;
 
   chain: '' | 'main' | 'test' | 'regtest';
+
+  selection: '' | 'auto' | 'list' | 'custom';
 
   walletScreen: number; 
   // 0 -> no wallet, load existing wallet 
@@ -56,6 +58,7 @@ class LoadingScreenState {
     this.rpcConfig = null;
     this.url = "";
     this.chain = "";
+    this.selection = '';
     this.getinfoRetryCount = 0;
     this.walletScreen = 0;
     this.newWalletError = null;
@@ -74,6 +77,7 @@ type LoadingScreenProps = {
   openServerSelectModal: () => void;
   logo: string;
   setReadOnly: (readOnly: boolean) => void;
+  setServerUris: (serverUris: Server[]) => void;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
@@ -148,35 +152,86 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   loadServer = async () => {
+    // checking servers
+    this.setState({ currentStatus: "Checking servers to connect..." }); 
+
+    let servers: Server[] = [];
+    
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
-    console.log(settings);
-    let server: string, chain_name: 'main' | 'test' | 'regtest'; 
+    console.log('SETTINGS;;;;;;;;;', settings);
+    let server: string, chain_name: 'main' | 'test' | 'regtest', selection: 'auto' | 'list' | 'custom';
     if (!settings) {
-      server = Utils.ZCASH_COMMUNITY;
-      chain_name = 'main';
+      // no settings stored, asumming `auto` by default.
+      servers = this.calculateServerLatency(serverUris()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
+      server = servers[0].uri;
+      chain_name = servers[0].chain_name;
+      selection = 'auto';
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
+      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     } else {
       if (!settings.serveruri) {
-        server = Utils.ZCASH_COMMUNITY;
+        // no server in settings, asuming `auto` by default.
+        servers = this.calculateServerLatency(serverUris()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
+        server = servers[0].uri;
+        chain_name = servers[0].chain_name;
+        selection = 'auto';
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
-      } else {
-        server = settings.serveruri;
-      }
-      if (!settings.serverchain_name) {
-        chain_name = 'main';
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
+        await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
       } else {
-        chain_name = settings.serverchain_name;
+        // the server is in settings, asking for the others fields.
+        server = settings.serveruri;
+        const serverInList = serverUris().filter((s: Server) => s.uri === server)
+        if (!settings.serverchain_name) {
+          chain_name = 'main';
+          if (serverInList && serverInList.length === 1) {
+            // if the server is in the list, then selection is `list`
+            selection = 'list';
+          } else {
+            selection = 'custom';
+          }
+          await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
+          await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
+        } else {
+          chain_name = settings.serverchain_name;
+          // the server & chain are in settings, asking for selection
+          if (!settings.selection) {
+            if (serverInList && serverInList.length === 1) {
+              // if the server is in the list, then selection is `list`
+              selection = 'list';
+            } else {
+              selection = 'custom';
+            }
+            await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
+          } else {
+            selection = settings.selection;
+          }
+        }
       }
     }
+
+    if (selection === 'auto' && servers.length === 0) {
+      servers = this.calculateServerLatency(serverUris()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
+      server = servers[0].uri;
+      chain_name = servers[0].chain_name;
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
+      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name }); 
+    }
+
+    if (server.length > 0) {
+      this.props.setServerUris(servers);
+    }
+
+    console.log('&&&&&&&&---------', server, chain_name, selection);
 
     const newstate = new LoadingScreenState(this.state.currentStatus, this.state.currentStatusIsError, this.state.changeAnotherWallet);
     Object.assign(newstate, this.state);
 
     newstate.url = server;
     newstate.chain = chain_name;
+    newstate.selection = selection;
     this.setState(newstate);
   };
 
@@ -258,6 +313,22 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     });
   };
 
+  calculateServerLatency = (serverUris: Server[]): Server[] => {
+    const servers: Server[] = serverUris;
+    servers.forEach((server: Server, index: number) => {
+      const start: number = Date.now();
+      const  b = native.zingolib_server_uri_latency(server.uri);
+      const end: number = Date.now();
+      let latency = null;
+      if (!b.toLowerCase().startsWith('error')) {
+        latency = end - start;
+      }
+      console.log('******* server LAST BLOCK', server.uri, index, b, latency, 'ms');
+      servers[index].latency = latency;
+    });
+    return servers;
+  };
+
   async getInfo() {
     // Try getting the info.
     try {
@@ -324,7 +395,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         clearInterval(poller);
       } else {
         const ss = JSON.parse(syncstatus);
-        console.log(ss);
+        console.log('sync status', ss);
         console.log(`Prev SyncID: ${prevSyncId} - Current SyncID: ${ss.sync_id} - progress: ${ss.in_progress} - Current Batch: ${ss.batch_num}`);
 
         // if this process synced already 25 batches (2.500 blocks) -> let's go to dashboard 
@@ -405,7 +476,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const result: string = native.zingolib_initialize_new(url, chain);
 
     if (result.toLowerCase().startsWith("error")) {
-      console.log(result);
+      console.log('creating new wallet', result);
       this.setState({ walletScreen: 2, newWalletError: result });
     } else {
       const seed: string = await RPC.fetchSeed();
