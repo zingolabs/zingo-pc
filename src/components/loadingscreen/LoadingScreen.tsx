@@ -153,7 +153,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   loadServer = async () => {
     // checking servers
-    this.setState({ currentStatus: "Checking servers to connect..." }); 
+    this.setState({ currentStatus: "Checking " + serverUris().length + " servers to connect..." }); 
 
     let servers: Server[] = [];
     
@@ -162,21 +162,21 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     console.log('SETTINGS;;;;;;;;;', settings);
     let server: string, chain_name: 'main' | 'test' | 'regtest', selection: 'auto' | 'list' | 'custom';
     if (!settings) {
-      // no settings stored, asumming `auto` by default.
+      // no settings stored, asumming `list` by default.
       servers = this.calculateServerLatency(serverUris()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
       server = servers[0].uri;
       chain_name = servers[0].chain_name;
-      selection = 'auto';
+      selection = 'list';
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
       await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     } else {
       if (!settings.serveruri) {
-        // no server in settings, asuming `auto` by default.
+        // no server in settings, asuming `list` by default.
         servers = this.calculateServerLatency(serverUris()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
         server = servers[0].uri;
         chain_name = servers[0].chain_name;
-        selection = 'auto';
+        selection = 'list';
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
         await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
@@ -197,16 +197,18 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         } else {
           chain_name = settings.serverchain_name;
           // the server & chain are in settings, asking for selection
-          if (!settings.selection) {
+          if (!settings.serverselection) {
             if (serverInList && serverInList.length === 1) {
               // if the server is in the list, then selection is `list`
+              chain_name = 'main';
               selection = 'list';
             } else {
               selection = 'custom';
             }
+            await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
             await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
           } else {
-            selection = settings.selection;
+            selection = settings.serverselection;
           }
         }
       }
@@ -224,7 +226,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       this.props.setServerUris(servers);
     }
 
-    console.log('&&&&&&&&---------', server, chain_name, selection);
+    console.log('&&&&&&&&----------', server, chain_name, selection);
 
     const newstate = new LoadingScreenState(this.state.currentStatus, this.state.currentStatusIsError, this.state.changeAnotherWallet);
     Object.assign(newstate, this.state);

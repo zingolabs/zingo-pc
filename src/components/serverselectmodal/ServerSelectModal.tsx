@@ -1,7 +1,6 @@
 import Modal from "react-modal";
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
-import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import { Server } from "../appstate";
 import serverUris from "../../utils/serverUris";
@@ -16,87 +15,109 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   const context = useContext(ContextApp);
   const { serverSelectState, serverUris: serverUrisContext } = context;
   const { modalIsOpen } = serverSelectState;
+
   const [selectedServer, setSelectedServer] = useState<string>("");
-  const [selectedChain, setSelectedChain] = useState<'main' | 'test' | 'regtest' | '' | 'custom' | 'auto'>("");
+  const [selectedChain, setSelectedChain] = useState<'main' | 'test' | 'regtest' | ''>("");
+  const [selectedSelection, setSelectedSelection] = useState<'auto' | 'list' | 'custom' | ''>("");
+
   const [autoServer, setAutoServer] = useState<string>("");
   const [customServer, setCustomServer] = useState<string>("");
-  const [server, setServer] = useState<string>("");
-  const [autoChain, setAutoChain] = useState<'main' | 'test' | 'regtest' | ''>("");
+  const [listServer, setListServer] = useState<string>("");
+  
+  //const [autoChain, setAutoChain] = useState<'main' | 'test' | 'regtest' | ''>("");
   const [customChain, setCustomChain] = useState<'main' | 'test' | 'regtest' | ''>("");
-  const [chain, setChain] = useState<'main' | 'test' | 'regtest' | ''>("");
+  //const [listChain, setListChain] = useState<'main' | 'test' | 'regtest' | ''>("");
 
-  const servers: Server[] = serverUris();
+  const [servers, setServers] = useState<Server[]>(serverUrisContext.length > 0 ? serverUrisContext : serverUris());
 
   const chains = {
     "main": "Mainnet",
     "test": "Testnet",
-    "regtest": "Regtest"
+    "regtest": "Regtest",
+    "": ""
   };
 
-  const initialServerValue = (server: string, chain: 'main' | 'test' | 'regtest' | '') => {
-    // not custom
-    if (server === Utils.ZCASH_COMMUNITY || server === Utils.V3_LIGHTWALLETD) {
-      setSelectedServer(server);
-      setCustomServer("");
-      setChain(chain);
-      setCustomChain('');
-    } else {
-      setSelectedServer("custom");
+  const initialServerValue = useCallback((servers: Server[], server: string, chain: 'main' | 'test' | 'regtest' | '', selection: 'auto' | 'list' | 'custom' | '') => {
+    if (selection === 'custom') {
       setCustomServer(server);
-      setSelectedChain("custom");
-      setCustomChain(chain)
+      setCustomChain(chain);
+
+      setListServer("");
+      //setListChain("");
+
+      setAutoServer(servers[0].uri);
+      //setAutoChain("");
+    } else if (selection === 'auto') {
+      setAutoServer(server);
+      //setAutoChain(chain);
+
+      setListServer("");
+      //setListChain("");
+
+      setCustomServer("");
+      setCustomChain("");
+    } else { // list
+      setListServer(server);
+      //setListChain(chain);
+
+      setCustomServer("");
+      setCustomChain("");
+
+      setAutoServer(servers[0].uri);
+      //setAutoChain("");
     }
-  };
+  }, []);
 
   useEffect(() => {
     (async () => {
+      const servers: Server[] = serverUrisContext.length > 0 ? serverUrisContext : serverUris();
       const settings = await ipcRenderer.invoke("loadSettings");
-      console.log(settings);
-      const currServer: string = settings?.serveruri || Utils.ZCASH_COMMUNITY; 
-      const currChain: 'main' | 'test' | 'regtest' | '' = settings?.serverchain_name || "main";
-      initialServerValue(currServer, currChain);
-      setServer(currServer);
-      setChain(currChain);
+      //console.log('modal server settings', settings);
+
+      const currServer: string = settings?.serveruri || servers[0].uri; 
+      const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main";
+      const currSelection: 'auto' | 'list' | 'custom' = settings?.serverselection || 'list'
+      initialServerValue(servers, currServer, currChain, currSelection);
+      setSelectedServer(currServer);
+      setSelectedChain(currChain);
+      setSelectedSelection(currSelection);
+      setServers(servers);
     })();
-  }, []);
+  }, [initialServerValue, serverUrisContext]);
 
   const switchServer = async () => {
-    let serveruri: string = selectedServer;
-    if (serveruri === "custom") {
-      serveruri = customServer;
-    }
-    let serverchain_name: 'main' | 'test' | 'regtest' | '' | 'custom' | 'auto' = selectedChain;
-    if (serverchain_name === 'custom') {
-      serverchain_name = customChain;
-    }
+    const serveruri: string = selectedServer;
+    const serverchain_name: 'main' | 'test' | 'regtest' | '' = selectedChain;
+    const serverselection: 'auto' | 'list' | 'custom' | '' = selectedSelection;
 
-    const settingsb = await ipcRenderer.invoke("loadSettings");
-    console.log('before', serveruri, serverchain_name, settingsb);
+    //const settingsb = await ipcRenderer.invoke("loadSettings");
+    //console.log('before', settingsb.serveruri, settingsb.serverchain_name, settingsb.serverselection, settingsb);
 
     await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: serveruri });
     await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: serverchain_name });
+    await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: serverselection });
 
-    const settingsa = await ipcRenderer.invoke("loadSettings");
-    console.log('after', serveruri, serverchain_name, settingsa);
+    //const settingsa = await ipcRenderer.invoke("loadSettings");
+    //console.log('after', settingsa.serveruri, settingsa.serverchain_name, settingsa.serverselection, settingsa);
 
-    localCloseModal(serveruri, serverchain_name);
+    localCloseModal(serveruri, serverchain_name, serverselection);
 
     setTimeout(() => {
       openErrorModal("Restart Zingo PC", "Please restart Zingo PC to connect to the new server");
     }, 10);
   };
 
-  const localCloseModal = (server: string, chain: 'main' | 'test' | 'regtest' | '') => {
-    initialServerValue(server, chain);
+  const localCloseModal = (server: string, chain: 'main' | 'test' | 'regtest' | '', selection: 'auto' | 'list' | 'custom' | '') => {
+    initialServerValue(servers, server, chain, selection);
     closeModal();
   };
 
-  console.log(serverUrisContext);
+  //console.log('render modal server', servers, selectedServer, selectedChain, selectedSelection);
 
   return (
     <Modal
       isOpen={modalIsOpen}
-      onRequestClose={() => localCloseModal(server, chain)}
+      onRequestClose={() => localCloseModal(selectedServer, selectedChain, selectedSelection)}
       className={cstyles.modal}
       overlayClassName={cstyles.modalOverlay}
     >
@@ -108,67 +129,118 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
           <div className={cstyles.horizontalflex} style={{ margin: "10px" }}>
             <input
+              checked={selectedSelection === 'auto'}
+              type="radio" 
+              name="selection" 
+              value={'auto'}
+              onClick={(e) => {
+                setSelectedSelection('auto');
+                setSelectedServer(autoServer);
+                if (!!autoServer) {
+                  setSelectedChain(servers.filter((s: Server) => s.uri === autoServer)[0].chain_name);
+                }
+              }} 
+              onChange={(e) => {
+                setSelectedSelection('auto');
+                setSelectedServer(autoServer);
+                if (!!autoServer) {
+                  setSelectedChain(servers.filter((s: Server) => s.uri === autoServer)[0].chain_name);
+                }
+              }}
+            />
+            Automatic
+            {!!autoServer && servers.filter((s: Server) => s.uri === autoServer)[0].latency !== null && selectedSelection === 'auto' && ( 
+              <div style={{ margin: "10px"}}>{autoServer + ' - ' + 
+                chains[servers.filter((s: Server) => s.uri === autoServer)[0].chain_name] + ' - ' + 
+                servers.filter((s: Server) => s.uri === autoServer)[0].region +
+                (servers.filter((s: Server) => s.uri === autoServer)[0].latency ? (' _ ' + servers.filter((s: Server) => s.uri === autoServer)[0].latency + ' ms.') : '')}
+              </div>
+            )}
+          </div>
+
+          <div className={cstyles.horizontalflex} style={{ margin: "10px" }}>
+            <input
               checked={selectedSelection === 'list'} 
               type="radio" 
-              name="server" 
+              name="selection" 
               value={'list'} 
               onClick={(e) => {
                 setSelectedSelection('list');
+                setSelectedServer(listServer);
+                if (!!listServer) {
+                  setSelectedChain(servers.filter((s: Server) => s.uri === listServer)[0].chain_name);
+                }
               }} 
               onChange={(e) => {
                 setSelectedSelection('list');
+                setSelectedServer(listServer);
+                if (!!listServer) {
+                  setSelectedChain(servers.filter((s: Server) => s.uri === listServer)[0].chain_name);
+                }
+              }}
+            />
+            Server
+            <select
+              disabled={selectedSelection !== "list"}
+              className={cstyles.inputbox}
+              style={{ marginLeft: "20px" }}
+              value={listServer}
+              onChange={(e) => {
+                setListServer(e.target.value);
+                setSelectedServer(e.target.value);
+                setSelectedChain(servers.filter((s: Server) => s.uri === e.target.value)[0].chain_name);
               }}>
-                <select
-                  disabled={selectedChain !== "custom"}
-                  className={cstyles.inputbox}
-                  style={{ marginLeft: "20px" }}
-                  value={customChain}
-                  onChange={(e) => setCustomChain(e.target.value as 'main' | 'test' | 'regtest' | '')}
-                >
-                  <option key="" value=""></option>
-                  {servers.map((s: Server) => (
-                    <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + ' _ ' + s.latency ? s.latency + ' ms.' : ''}</option>
-                  ))}
-                </select>
-              </input>
+                <option key="" value=""></option>
+                {servers.map((s: Server) => (
+                  <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + (s.latency ? (' _ ' + s.latency + ' ms.') : '')}</option>
+                ))}
+            </select>
           </div>
 
           <div style={{ margin: "10px" }}>
             <input 
-              checked={selectedServer === "custom"} 
+              checked={selectedSelection === "custom"} 
               type="radio" 
-              name="server" 
-              value="custom" 
+              name="selection" 
+              value={"custom"} 
               onClick={(e) => {
-                setSelectedServer(e.currentTarget.value);
-                setSelectedChain(e.currentTarget.value as 'custom');
+                setSelectedSelection('custom');
+                setSelectedServer(customServer);
+                setSelectedChain(customChain);
               }} 
               onChange={(e) => {
-                setSelectedServer(e.currentTarget.value);
-                setSelectedChain(e.currentTarget.value as 'custom');
+                setSelectedSelection('custom');
+                setSelectedServer(customServer);
+                setSelectedChain(customChain);
               }} 
             />
             Custom
             <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
               <div style={{ width: '80%', padding: 0, margin: 0 }}>
                 <input
-                  disabled={selectedServer !== "custom"}
+                  disabled={selectedSelection !== "custom"}
                   type="text"
                   className={cstyles.inputbox} 
                   style={{ marginLeft: "20px", width: '80%' }}
                   value={customServer}
-                  onChange={(e) => setCustomServer(e.target.value)}
+                  onChange={(e) => {
+                    setCustomServer(e.target.value);
+                    setSelectedServer(e.target.value);
+                  }}
                 />
               </div>
               <div style={{ width: '20%', padding: 0, margin: 0 }}>
                 <select
-                  disabled={selectedChain !== "custom"}
+                  disabled={selectedSelection !== "custom"}
                   className={cstyles.inputbox}
                   style={{ marginLeft: "20px" }}
                   value={customChain}
-                  onChange={(e) => setCustomChain(e.target.value as 'main' | 'test' | 'regtest' | '')}
+                  onChange={(e) => {
+                    setCustomChain(e.target.value as 'main' | 'test' | 'regtest' | '');
+                    setSelectedChain(e.target.value as 'main' | 'test' | 'regtest' | '');
+                  }}
                 >
-                  <option value=""></option>
+                  <option value=""></option> 
                   <option value="main">{chains["main"]}</option>
                   <option value="test">{chains["test"]}</option>
                   <option value="regtest">{chains['regtest']}</option> 
@@ -183,11 +255,11 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
             type="button" 
             className={cstyles.primarybutton} 
             onClick={switchServer} 
-            disabled={(selectedServer === "custom" && customServer === "") || (selectedChain === "custom" && customChain === "")}
+            disabled={(selectedServer === "custom" && customServer === "") || (selectedSelection === "custom" && customChain === "")}
           >
             Switch Server
           </button>
-          <button type="button" className={cstyles.primarybutton} onClick={() => localCloseModal(server, chain)}>
+          <button type="button" className={cstyles.primarybutton} onClick={() => localCloseModal(selectedServer, selectedChain, selectedSelection)}>
             Close
           </button>
         </div>
