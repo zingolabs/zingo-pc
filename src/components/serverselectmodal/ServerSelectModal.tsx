@@ -100,15 +100,23 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     //const settingsa = await ipcRenderer.invoke("loadSettings");
     //console.log('after', settingsa.serveruri, settingsa.serverchain_name, settingsa.serverselection, settingsa);
 
-    localCloseModal(serveruri, serverchain_name, serverselection);
+    localCloseModal();
 
     setTimeout(() => {
-      openErrorModal("Restart Zingo PC", "Please restart Zingo PC to connect to the new server");
+      openErrorModal("Restart Zingo PC", "Please restart Zingo PC to connect to the new server"); 
     }, 10);
   };
 
-  const localCloseModal = (server: string, chain: 'main' | 'test' | 'regtest' | '', selection: 'auto' | 'list' | 'custom' | '') => {
-    initialServerValue(servers, server, chain, selection);
+  const localCloseModal = async () => {
+    const settings = await ipcRenderer.invoke("loadSettings");
+      
+    const currServer: string = settings?.serveruri || servers[0].uri; 
+    const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main";
+    const currSelection: 'auto' | 'list' | 'custom' = settings?.serverselection || 'list'
+    initialServerValue(servers, currServer, currChain, currSelection);
+    setSelectedServer(currServer);
+    setSelectedChain(currChain);
+    setSelectedSelection(currSelection);
     closeModal();
   };
 
@@ -117,7 +125,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   return (
     <Modal
       isOpen={modalIsOpen}
-      onRequestClose={() => localCloseModal(selectedServer, selectedChain, selectedSelection)}
+      onRequestClose={() => localCloseModal()}
       className={cstyles.modal}
       overlayClassName={cstyles.modalOverlay}
     >
@@ -259,7 +267,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
           >
             Switch Server
           </button>
-          <button type="button" className={cstyles.primarybutton} onClick={() => localCloseModal(selectedServer, selectedChain, selectedSelection)}>
+          <button type="button" className={cstyles.primarybutton} onClick={() => localCloseModal()}>
             Close
           </button>
         </div>
