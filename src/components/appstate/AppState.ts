@@ -10,6 +10,7 @@ import ServerSelectState from "./components/ServerSelectState";
 import PasswordState from "./components/PasswordState";
 import WalletSettings from "./components/WalletSettings";
 import Address from "./components/Address";
+import Server from "./components/Server";
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
@@ -65,6 +66,9 @@ export default class AppState {
   // if the wallet is seeded or from VK
   readOnly: boolean;
 
+  // list of servers with the latency calculated at launch
+  serverUris: Server[];
+
   constructor() {
     this.totalBalance = new TotalBalance();
     this.addressPrivateKeys = new Map();
@@ -84,5 +88,6 @@ export default class AppState {
     this.passwordState = new PasswordState();
     this.walletSettings = new WalletSettings();
     this.readOnly = false;
+    this.serverUris = [] as Server[];
   }
 }

@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { Address, AddressBookEntry, AppState, Info, PasswordState, RPCConfig, ReceivePageState, SendPageState, ServerSelectState, TotalBalance, Transaction, WalletSettings } from "../components/appstate";
+import { Address, AddressBookEntry, AppState, Info, PasswordState, RPCConfig, ReceivePageState, SendPageState, ServerSelectState, TotalBalance, Transaction, WalletSettings, Server } from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
 
 
@@ -22,6 +22,7 @@ export const defaultAppState: AppState = {
   passwordState: new PasswordState(),
   walletSettings: new WalletSettings(),
   readOnly: false,
+  serverUris: [] as Server[],
 };
 
 export const ContextApp = React.createContext(defaultAppState);

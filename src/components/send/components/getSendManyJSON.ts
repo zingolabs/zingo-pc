@@ -30,7 +30,7 @@ function getSendManyJSON(sendPageState: SendPageState): SendManyJsonType[] {
   });
 
   console.log("Sending:");
-  console.log(json);
+  console.log('JSON', json);
 
   return json;
 }

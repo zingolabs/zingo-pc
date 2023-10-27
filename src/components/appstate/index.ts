@@ -14,6 +14,7 @@ import ToAddr from "./components/ToAddr";
 import TxDetail from "./components/TxDetail";
 import ReceiverType from "./components/ReceiverType";
 import Address from './components/Address';
+import Server from "./components/Server";
 
 import AppState from "./AppState";
 
@@ -35,4 +36,5 @@ export {
   TxDetail,
   ReceiverType,
   Address,
+  Server,
 };

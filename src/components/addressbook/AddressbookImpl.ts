@@ -31,7 +31,7 @@ export default class AddressbookImpl {
       return await JSON.parse((await fs.promises.readFile(fileName)).toString());
     } catch (err) {
       // File probably doesn't exist, so return nothing
-      console.log(err);
+      console.log('address book', err);
       return [] as AddressBookEntry[];
     }
   }

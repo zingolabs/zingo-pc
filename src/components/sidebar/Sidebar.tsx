@@ -138,7 +138,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         const ufvk: string = await RPC.fetchUfvk();
         const birthday: number = await RPC.fetchBirthday();
 
-        console.log(seed, ufvk, birthday);
+        console.log('data for seed/ufvk', seed, ufvk, birthday);
 
         openErrorModal(
           "Wallet Seed",

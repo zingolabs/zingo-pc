@@ -360,7 +360,7 @@ dependencies = [
 [[package]]
 name = "build_utils"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#f634e0049c4fa31fa8d324df042a9fc830d8bd9d"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#fe9a81d278b0f72952ff5166058be16690a6f26f"
 
 [[package]]
 name = "bumpalo"
@@ -2169,15 +2169,6 @@ dependencies = [
 
 [[package]]
 name = "redox_syscall"
-version = "0.3.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "567664f262709473930a4bf9e51bf2ebf3348f2e748ccc50dea20646858f8f29"
-dependencies = [
- "bitflags 1.3.2",
-]
-
-[[package]]
-name = "redox_syscall"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4722d768eff46b75989dd134e5c353f0d6296e5aaa3132e776cbdb56be7731aa"
@@ -2369,9 +2360,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.20"
+version = "0.38.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67ce50cb2e16c2903e30d1cbccfd8387a74b9d4c938b6a4c5ec6cc7556f7a8a0"
+checksum = "2b426b0506e5d50a7d8dafcf2e81471400deb602392c7dd110815afb4eaf02a3"
 dependencies = [
  "bitflags 2.4.1",
  "errno",
@@ -2800,13 +2791,13 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "tempfile"
-version = "3.8.0"
+version = "3.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cb94d2f3cc536af71caac6b6fcebf65860b347e7ce0cc9ebe8f70d3e521054ef"
+checksum = "7ef1adac450ad7f4b3c28589471ade84f25f731a7a0fe30d71dfa9f60fd808e5"
 dependencies = [
  "cfg-if",
  "fastrand",
- "redox_syscall 0.3.5",
+ "redox_syscall 0.4.1",
  "rustix",
  "windows-sys",
 ]
@@ -3735,7 +3726,7 @@ dependencies = [
 [[package]]
 name = "zingo-memo"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#f634e0049c4fa31fa8d324df042a9fc830d8bd9d"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#fe9a81d278b0f72952ff5166058be16690a6f26f"
 dependencies = [
  "zcash_address",
  "zcash_client_backend",
@@ -3747,7 +3738,7 @@ dependencies = [
 [[package]]
 name = "zingoconfig"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#f634e0049c4fa31fa8d324df042a9fc830d8bd9d"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#fe9a81d278b0f72952ff5166058be16690a6f26f"
 dependencies = [
  "dirs",
  "http",
@@ -3760,7 +3751,7 @@ dependencies = [
 [[package]]
 name = "zingolib"
 version = "0.2.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#f634e0049c4fa31fa8d324df042a9fc830d8bd9d"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#fe9a81d278b0f72952ff5166058be16690a6f26f"
 dependencies = [
  "append-only-vec",
  "base58",

@@ -26,6 +26,7 @@ import {
   AddressType,
   Address,
   WalletSettings,
+  Server,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
@@ -271,7 +272,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   importPrivKeys = (keys: string[], birthday: string): boolean => {
-    console.log(keys);
+    console.log('=============== keys', keys);
 
     for (let i: number = 0; i < keys.length; i++) {
       const result: string = RPC.doImportPrivKey(keys[i], birthday);
@@ -332,7 +333,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   setRPCConfig = (rpcConfig: RPCConfig) => {
     console.log('=============== rpc config', rpcConfig);
     this.setState({ rpcConfig });
-    console.log(rpcConfig);
   
     this.rpc.configure(rpcConfig);
   };
@@ -340,7 +340,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   setZecPrice = (price?: number) => {
     console.log('=============== price', price);
     if (!!price && price !== this.state.info.zecPrice) {
-      console.log(`Price = ${price}`);
       const { info } = this.state;
   
       const newInfo = new Info();
@@ -364,6 +363,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ readOnly });
   };
 
+  setServerUris = (serverUris: Server[]) => {
+    this.setState({ serverUris });
+  };
+
   setInfo = (newInfo: Info) => {
     if (!isEqual(newInfo, this.state.info)) {
       console.log('=============== info', newInfo);
@@ -372,8 +375,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       if (!newInfo.zecPrice) {
         newInfo.zecPrice = info.zecPrice;
       }
-
-      //console.log(newInfo);
 
       this.setState({ info: newInfo });
     }
@@ -506,8 +507,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       openPasswordAndUnlockIfNeeded: this.openPasswordAndUnlockIfNeeded,
     };
 
-    //console.log(this.props.location);
-
     return (
       <ContextAppProvider value={this.state}>
         <ErrorModal closeModal={this.closeErrorModal} />
@@ -611,6 +610,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     openServerSelectModal={this.openServerSelectModal}
                     logo={Logo}
                     setReadOnly={this.setReadOnly}
+                    setServerUris={this.setServerUris}
                   />
                 )}
               />
