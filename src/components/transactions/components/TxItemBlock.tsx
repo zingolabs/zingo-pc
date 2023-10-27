@@ -34,11 +34,11 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
         }}
       >
         <div className={styles.txtype}>
-          <div>{transaction.type}</div>
+          <div style={{ color: transaction.confirmations === 0 ? 'red' : transaction.type === 'Received' ? 'green' : 'white' }}>{transaction.type}</div>
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
         </div>
         <div className={styles.txaddressamount}>
-          {transaction.txDetails.map((txdetail: TxDetail) => {
+          {transaction.txDetails.map((txdetail: TxDetail) => { 
             const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(txdetail.amount);
 
             const { memos, address, pool } = txdetail;
