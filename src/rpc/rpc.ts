@@ -804,7 +804,7 @@ export default class RPC {
         }
         // unconfirmed means 0 confirmations, the tx is mining already.
         if (tx.unconfirmed) {
-          currentTxList[0].confirmations = 0;
+          currentTxList[0].confirmations = null;
         } else  if (!currentTxList[0].confirmations) {
           currentTxList[0].confirmations = latestBlockHeight
             ? latestBlockHeight - tx.block_height + 1
