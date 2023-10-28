@@ -39,7 +39,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   let type: 'Sent' | 'Received' | 'SendToSelf' | "" = ""; 
   let typeIcon: string = "";
   let typeColor: string = "";
-  let confirmations: number = 0;
+  let confirmations: number | null = 0;
   let detailedTxns: TxDetail[] = [];
   let amount: number = 0;
   let datePart: string = "";
@@ -143,7 +143,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
           <div>
             <div className={[cstyles.sublight].join(" ")}>Confirmations</div>
-            <div>{confirmations}</div>
+            <div>{confirmations === null ? '-' : confirmations}</div>
           </div>
         </div>
 

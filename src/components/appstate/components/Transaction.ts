@@ -4,7 +4,7 @@ import TxDetail from "./TxDetail";
 export default class Transaction {
   type: 'Sent' | 'Received' | 'SendToSelf'; // like kind
   fee?: number;
-  confirmations: number;
+  confirmations: number | null;
   txid: string;
   time: number;
   zec_price?: number;
