@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
 import { withRouter, RouteComponentProps } from "react-router-dom";
 import {
   AccordionItemButton,
@@ -12,6 +12,7 @@ import { AddressBookEntry } from "../../appstate";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
 import Utils from "../../../utils/utils";
+import { ContextApp } from "../../../context/ContextAppState";
 const { clipboard } = window.require("electron");
 
 type AddressBookItemProps = {
@@ -27,6 +28,8 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
   setSendTo,
   history,
 }) => {
+  const context = useContext(ContextApp);
+  const { readOnly } = context;
   const [expandAddress, setExpandAddress] = useState<boolean>(false); 
   
   return (
@@ -59,16 +62,18 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
       </AccordionItemHeading>
       <AccordionItemPanel>
         <div className={[cstyles.well, styles.addressbookentrybuttons].join(" ")}>
-          <button
-            type="button"
-            className={cstyles.primarybutton}
-            onClick={() => {
-              setSendTo(new ZcashURITarget(item.address, undefined, undefined));
-              history.push(routes.SEND);
-            }}
-          >
-            Send To
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                setSendTo(new ZcashURITarget(item.address, undefined, undefined));
+                history.push(routes.SEND);
+              }}
+            >
+              Send To
+            </button>
+          )}
           <button type="button" className={cstyles.primarybutton} onClick={() => removeAddressBookEntry(item.label)}>
             Delete
           </button>

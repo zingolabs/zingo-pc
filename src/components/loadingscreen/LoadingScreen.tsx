@@ -601,21 +601,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                   <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
                     Switch to Another Server
                   </button>
-                  {/*<button
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={() => {
-                      this.setState({
-                        currentStatus: "",
-                        currentStatusIsError: false,
-                        walletScreen: 0,
-                        newWalletError: null,
-                      });
-                      this.createNewWallet();
-                    }}
-                  >
-                    Create New Wallet
-                  </button>*/}
                   <button
                     type="button"
                     className={cstyles.primarybutton}
@@ -647,20 +632,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                   >
                     Delete Current Wallet File
                   </button>
-                  {/*<button
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={() => {
-                      this.setState({
-                        currentStatus: "",
-                        currentStatusIsError: false,
-                        newWalletError: null
-                      });
-                      this.restoreExistingWallet();
-                    }}
-                  >
-                    Restore Wallet from Seed
-                  </button>*/}
                 </div>
               )}
             </div>
