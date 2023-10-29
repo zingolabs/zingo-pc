@@ -31,7 +31,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   history,
 }) => {
   const context = useContext(ContextApp);
-  const { info } = context;
+  const { info, readOnly } = context;
   const [expandAddress, setExpandAddress] = useState(false); 
   const [expandTxid, setExpandTxid] = useState(false); 
   
@@ -278,7 +278,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                     >
                       {memos.join("")}
                     </div>
-                    {replyTo && (
+                    {replyTo && !readOnly && (
                       <div className={cstyles.primarybutton} onClick={() => doReply(replyTo)}>
                         Reply to
                       </div>

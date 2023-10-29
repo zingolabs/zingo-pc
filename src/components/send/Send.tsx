@@ -231,6 +231,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
       sendPageState,
       info,
       totalBalance,
+      readOnly,
     } = this.context;
 
     // transparent funds are not spendable.
@@ -244,6 +245,10 @@ export default class Send extends PureComponent<SendProps, SendState> {
     let tooltip: string = "";
     if (totalBalance.unverifiedZ + totalBalance.unverifiedO > 0) {
       tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ + totalBalance.unverifiedO} with 5 blocks (approx 6 minutes)`; 
+    }
+
+    if (readOnly) {
+      return <div className={cstyles.well} style={{ textAlign: "center" }}>This is a only-watch wallet, it is imposible to spend/send the balance.</div>;
     }
 
     return (

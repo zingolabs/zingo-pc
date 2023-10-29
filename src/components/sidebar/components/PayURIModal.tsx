@@ -53,7 +53,7 @@ const PayURIModal = ({
       </div>
 
       <div className={cstyles.buttoncontainer}>
-        {actionButtonName && (
+        {actionButtonName && !readOnly && (
           <button
             type="button" 
             disabled={!modalInput}
