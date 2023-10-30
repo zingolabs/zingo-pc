@@ -40,7 +40,7 @@ const serverUris = (): Server[] => {
     },
     {
       uri: 'https://lwd1.zcash-infra.com:9067',
-      region: 'East Europe',
+      region: 'USA',
       chain_name: 'main',
       latency: null,
     },
@@ -64,25 +64,25 @@ const serverUris = (): Server[] => {
     },
     {
       uri: 'https://lwd5.zcash-infra.com:9067',
-      region: '-',
+      region: 'France',
       chain_name: 'main',
       latency: null,
     },
     {
       uri: 'https://lwd6.zcash-infra.com:9067',
-      region: '-',
+      region: 'USA',
       chain_name: 'main',
       latency: null,
     },
     {
       uri: 'https://lwd7.zcash-infra.com:9067',
-      region: '-',
+      region: 'Netherlands',
       chain_name: 'main',
       latency: null,
     },
     {
       uri: 'https://lwd8.zcash-infra.com:9067',
-      region: '-',
+      region: 'UK',
       chain_name: 'main',
       latency: null,
     },
