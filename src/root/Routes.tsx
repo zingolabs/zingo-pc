@@ -496,7 +496,12 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   }
 
   navigateToLoadingScreen = () => {
-    this.props.history.push(routes.LOADING);
+    this.props.history.push({
+      pathname: routes.LOADING,
+      state: { 
+        serverUris: this.state.serverUris,
+      },
+    });
   };
 
   render() {

@@ -33,7 +33,7 @@ const TxItemBlock = ({ transaction, currencyName, zecPrice, txClicked, addressBo
           txClicked(transaction);
         }}
       >
-        <div className={styles.txtype}>
+        <div className={styles.txtype} style={{ marginRight: 10 }}>
           <div style={{ color: transaction.confirmations === null || transaction.confirmations === 0 ? 'red' : transaction.type === 'Received' ? 'green' : 'white' }}>{transaction.type}</div>
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
         </div>

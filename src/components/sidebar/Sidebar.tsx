@@ -16,6 +16,7 @@ import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faSnowflake } from '@fortawesome/free-solid-svg-icons';
+import serverUris from "../../utils/serverUris";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
@@ -65,14 +66,17 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       privKeyInputValue: null,
       walletSettingsModalIsOpen: false,
     };
+  }
 
+  componentDidMount(): void {
     this.setupMenuHandlers();
   }
 
   // Handle menu items 
   setupMenuHandlers = async (): Promise<void> => {
-    const { clearTimers, setSendTo, setInfo, setRescanning, history, openErrorModal, openPasswordAndUnlockIfNeeded } =
+    const { clearTimers, setSendTo, setInfo, setRescanning, history, openErrorModal, openPasswordAndUnlockIfNeeded, getPrivKeyAsString } =
       this.props;
+    const { info, serverUris, transactions, addresses } = this.context;
 
     // About
     ipcRenderer.on("about", () => {
@@ -108,13 +112,12 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Donate button
     ipcRenderer.on("donate", () => {
-      const { info } = this.context;
-
+      const i = info;
       setSendTo(
         new ZcashURITarget(
-          Utils.getDonationAddress(info.testnet),
-          Utils.getDefaultDonationAmount(info.testnet),
-          Utils.getDefaultDonationMemo(info.testnet)
+          Utils.getDonationAddress(i.testnet),
+          Utils.getDefaultDonationAmount(i.testnet),
+          Utils.getDefaultDonationMemo(i.testnet)
         )
       );
 
@@ -196,6 +199,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Rescan
     ipcRenderer.on("change", async () => {
+      const s = serverUris;
       // To change to another wallet, we reset the wallet loading
       // and redirect to the loading screen
       clearTimers();
@@ -208,6 +212,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         state: { 
           currentStatusIsError: true,
           currentStatus: "Change to another wallet...",
+          serverUris: s,
         },
       });
     });
@@ -221,10 +226,11 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         properties: ["showOverwriteConfirmation"],
       });
 
+      const tr = transactions;
+
       if (save.filePath) {
         // Construct a CSV
-        const { transactions } = this.context;
-        const rows = transactions.flatMap((t: Transaction) => {
+        const rows = tr.flatMap((t: Transaction) => {
           if (t.txDetails) {
             return t.txDetails.map((dt: TxDetail) => {
               const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
@@ -252,9 +258,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     });
 
     // Encrypt wallet
-    ipcRenderer.on("encrypt", async () => {
+    ipcRenderer.on("encrypt", async (info: any) => { // Obsolete: type Info - check fields
       const { lockWallet, encryptWallet, openPassword } = this.props;
-      const { info } = this.context;
 
       if (info.encrypted && info.locked) {
         openErrorModal("Already Encrypted", "Your wallet is already encrypted and locked.");
@@ -281,9 +286,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     });
 
     // Remove wallet encryption
-    ipcRenderer.on("decrypt", async () => {
+    ipcRenderer.on("decrypt", async (info: any) => { // Obsolete: type Info - check fields
       const { decryptWallet, openPassword } = this.props;
-      const { info } = this.context;
 
       if (!info.encrypted) {
         openErrorModal("Not Encrypted", "Your wallet is not encrypted and ready for spending.");
@@ -311,8 +315,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     });
 
     // Unlock wallet
-    ipcRenderer.on("unlock", () => {
-      const { info } = this.context;
+    ipcRenderer.on("unlock", (info: any) => { // Obsolete: type Info - check fields
       if (!info.encrypted || !info.locked) {
         openErrorModal("Already Unlocked", "Your wallet is already unlocked for spending");
       } else {
@@ -324,6 +327,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Rescan
     ipcRenderer.on("rescan", async () => {
+      const s = serverUris;
       // To rescan, we reset the wallet loading
       // So set info the default, and redirect to the loading screen
       clearTimers();
@@ -340,17 +344,22 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       // Reset the info object, it will be refetched
       setInfo(new Info());
 
-      history.push(routes.LOADING);
+      history.push({
+        pathname: routes.LOADING,
+        state: { 
+          serverUris: s,
+        },
+      });
     });
 
     // Export all private keys
     ipcRenderer.on("exportall", async () => {
+      const ad = addresses;
+      const ge = getPrivKeyAsString;
       // Get all the addresses and run export key on each of them.
-      const { getPrivKeyAsString } = this.props;
-      const { addresses } = this.context;
       openPasswordAndUnlockIfNeeded(async () => {
-        const privKeysPromise: Promise<string>[] = addresses.map(async (a: Address) => {
-          const privKey: string = await getPrivKeyAsString(a.address);
+        const privKeysPromise: Promise<string>[] = ad.map(async (a: Address) => {
+          const privKey: string = await ge(a.address);
           return `${privKey} #${a}`;
         });
         const exportedPrivKeys: string[] = await Promise.all(privKeysPromise);
@@ -458,6 +467,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       const syncStatus: string = await RPC.doSyncStatus();
       const prevSyncId: number = JSON.parse(syncStatus).sync_id;
       const success: boolean = importPrivKeys(keys, birthday);
+      const s = serverUris;
 
       if (success) {
         // Set the rescanning global state to true
@@ -466,7 +476,12 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         // Reset the info object, it will be refetched
         setInfo(new Info());
 
-        history.push(routes.LOADING);
+        history.push({
+          pathname: routes.LOADING,
+          state: { 
+            serverUris: s,
+          },
+        });
       }
     }
   };
