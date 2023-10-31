@@ -205,7 +205,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
           }
 
           return (
-            <div key={address} className={cstyles.verticalflex}>
+            <div key={`${txid}-${address}-${pool}`} className={cstyles.verticalflex}>
               {!!address && (
                 <>
                   <div className={[cstyles.sublight].join(" ")}>Address</div>

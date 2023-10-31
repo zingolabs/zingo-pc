@@ -51,7 +51,12 @@ class LoadingScreenState {
 
   changeAnotherWallet: boolean;
 
-  constructor(currentStatus: string | JSX.Element, currentStatusIsError: boolean, changeAnotherWallet: boolean) {
+  serverUris: Server[];
+
+  constructor(currentStatus: string | JSX.Element, 
+              currentStatusIsError: boolean, 
+              changeAnotherWallet: boolean, 
+              serverUris: Server[]) {
     this.currentStatus = currentStatus;
     this.currentStatusIsError = currentStatusIsError;
     this.loadingDone = false;
@@ -67,6 +72,7 @@ class LoadingScreenState {
     this.birthday = 0;
     this.nextSaveBatch = -1;
     this.changeAnotherWallet = changeAnotherWallet;
+    this.serverUris = serverUris;
   }
 }
 
@@ -87,15 +93,22 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     let currentStatus: string = "Loading...", 
         currentStatusIsError: boolean = false, 
-        changeAnotherWallet: boolean = false; 
+        changeAnotherWallet: boolean = false,
+        serverUris: Server[] = [];
     if (props.location.state) {
-      const locationState = props.location.state as {currentStatus: string, currentStatusIsError: boolean };
+      const locationState = props.location.state as { 
+        currentStatus: string, 
+        currentStatusIsError: boolean, 
+        serverUris: Server[],
+      };
       currentStatus = locationState.currentStatus;
       currentStatusIsError = locationState.currentStatusIsError;
       changeAnotherWallet = true;
+      serverUris = locationState.serverUris;
     }
-    const state = new LoadingScreenState(currentStatus, currentStatusIsError, changeAnotherWallet);
+    const state = new LoadingScreenState(currentStatus, currentStatusIsError, changeAnotherWallet, serverUris);
     this.state = state;
+    this.props.setServerUris(serverUris);
   }
 
   componentDidMount() {
@@ -105,7 +118,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       this.runSyncStatusPoller(prevSyncId);
     } else {
       (async () => {
-        // Do it in a timeout, so the window has a chance to load.
+        // Do it in a timeout, so the window has a chance to load. 
         setTimeout(() => this.doFirstTimeSetup(), 100);
       })();
     }
@@ -153,19 +166,18 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   loadServer = async () => {
     // checking servers
-    this.setState({ currentStatus: "Checking " + serverUris().length + " servers to connect..." }); 
-
-    let servers: Server[] = [];
+    const prevCurrentStatus = this.state.currentStatus;
     
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
     console.log('SETTINGS;;;;;;;;;', settings);
-    let server: string, chain_name: 'main' | 'test' | 'regtest', selection: 'auto' | 'list' | 'custom';
+    let server: string, 
+        chain_name: 'main' | 'test' | 'regtest', 
+        selection: 'auto' | 'list' | 'custom';
     if (!settings) {
       // no settings stored, asumming `list` by default.
-      servers = this.calculateServerLatency(serverUris()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
-      server = servers[0].uri;
-      chain_name = servers[0].chain_name;
+      server = serverUris()[0].uri;
+      chain_name = serverUris()[0].chain_name;
       selection = 'list';
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
@@ -173,9 +185,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     } else {
       if (!settings.serveruri) {
         // no server in settings, asuming `list` by default.
-        servers = this.calculateServerLatency(serverUris()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
-        server = servers[0].uri;
-        chain_name = servers[0].chain_name;
+        server = serverUris()[0].uri;
+        chain_name = serverUris()[0].chain_name;
         selection = 'list';
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
@@ -214,7 +225,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     }
 
+    // if empty is the first time and if auto => App needs to check the srvers.
+    let servers: Server[] = this.state.serverUris;
+
     if (selection === 'auto' && servers.length === 0) {
+      this.setState({ currentStatus: "Checking " + serverUris().length + " servers to connect..." }); 
       servers = this.calculateServerLatency(serverUris()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
       server = servers[0].uri;
       chain_name = servers[0].chain_name;
@@ -222,19 +237,16 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name }); 
     }
 
-    if (server.length > 0) {
-      this.props.setServerUris(servers);
-    }
-
     console.log('&&&&&&&&----------', server, chain_name, selection);
 
-    const newstate = new LoadingScreenState(this.state.currentStatus, this.state.currentStatusIsError, this.state.changeAnotherWallet);
-    Object.assign(newstate, this.state);
-
-    newstate.url = server;
-    newstate.chain = chain_name;
-    newstate.selection = selection;
-    this.setState(newstate);
+    this.setState({
+      currentStatus: prevCurrentStatus,
+      serverUris: servers,
+      url: server,
+      chain: chain_name,
+      selection,
+    });
+    this.props.setServerUris(servers);
   };
 
   doFirstTimeSetup = async () => {
