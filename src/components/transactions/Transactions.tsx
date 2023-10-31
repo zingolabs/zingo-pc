@@ -107,7 +107,6 @@ export default class Transactions extends Component<TransactionsProps, Transacti
                   key={key}
                   transaction={t}
                   currencyName={info.currencyName}
-                  zecPrice={info.zecPrice}
                   txClicked={this.txClicked}
                   addressBookMap={addressBookMap}
                 />
@@ -131,6 +130,7 @@ export default class Transactions extends Component<TransactionsProps, Transacti
           closeModal={this.closeModal}
           currencyName={info.currencyName}
           setSendTo={setSendTo}
+          addressBookMap={addressBookMap}
         />
       </div>
     );
