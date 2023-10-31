@@ -5,7 +5,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceblock";
 import styles from "../Transactions.module.css";
 import cstyles from "../../common/Common.module.css";
-import { Transaction, TxDetail } from "../../appstate";
+import { AddressType, Transaction, TxDetail } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
@@ -20,6 +20,7 @@ type TxModalInternalProps = {
   tx?: Transaction;
   currencyName: string;
   setSendTo: (targets: ZcashURITarget | ZcashURITarget[]) => void;
+  addressBookMap: Map<string, string>;
 };
 
 const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
@@ -29,6 +30,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   currencyName,
   setSendTo,
   history,
+  addressBookMap,
 }) => {
   const context = useContext(ContextApp);
   const { info, readOnly } = context;
@@ -97,6 +99,12 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     closeModal();
   };
 
+  const getAT = (address: string) => {
+    let type: AddressType | undefined = undefined;
+    (async() => type = await Utils.getAddressType(address))();
+    return type;
+  };
+
   //console.log(tx);
   console.log('tx details', tx?.txDetails);
 
@@ -120,7 +128,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
           <div className={[cstyles.center].join(" ")} style={{ marginLeft: 20 }}>
             <BalanceBlockHighlight
               zecValue={amount}
-              usdValue={Utils.getZecToUsdString(price, amount)}
+              usdValue={priceString} 
               currencyName={currencyName}
             />
           </div>
@@ -187,18 +195,18 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
           let { address } = txdetail;
           const { memos, pool } = txdetail;
 
-          //if (!address) {
-          //  address = "(Shielded)";
-          //}
+          const label: string = addressBookMap.get(address) || "";
 
           let replyTo: string = "";
           //console.log(memo, tx); 
           if (tx && tx.type === "Received" && memos && memos.length > 0 ) {
             const split: string[] = memos.join("").split(/[ :\n\r\t]+/);
             // read the last row & if this is a valid address => show the button up
-            //console.log("-", split, "-");
             if (split && split.length > 0) {
-              if (!!split[split.length - 1]) {
+              const address = split[split.length - 1];
+              const addressType: AddressType | undefined = getAT(address);
+              console.log("-", split, "-", addressType); 
+              if (!!addressType) {
                 replyTo = split[split.length - 1];
               }
             }
@@ -206,6 +214,9 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
           return (
             <div key={`${txid}-${address}-${pool}`} className={cstyles.verticalflex}>
+              {!!label && (
+                <div className={cstyles.highlight} style={{ marginBottom: 5 }}>{label}</div> 
+              )}
               {!!address && (
                 <>
                   <div className={[cstyles.sublight].join(" ")}>Address</div>
@@ -243,7 +254,6 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                         </span>
                         <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
                       </div>
-                      <div>{Utils.getZecToUsdString(price, Math.abs(amount))}</div>
                     </div>
                     <div className={[cstyles.verticalflex].join(" ")}>
                       <div className={[cstyles.sublight].join(" ")}>{priceString}</div>
@@ -278,7 +288,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                     >
                       {memos.join("")}
                     </div>
-                    {replyTo && !readOnly && (
+                    {!!replyTo && !readOnly && (
                       <div className={cstyles.primarybutton} onClick={() => doReply(replyTo)}>
                         Reply to
                       </div>
