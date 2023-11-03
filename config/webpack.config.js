@@ -386,10 +386,8 @@ module.exports = function (webpackEnv) {
                     },
                   ],
                 ],
-
                 plugins: [
                   [
-                    require.resolve("@babel/plugin-proposal-class-properties"),
                     require.resolve("babel-plugin-named-asset-import"),
                     {
                       loaderMap: {
@@ -398,6 +396,7 @@ module.exports = function (webpackEnv) {
                         },
                       },
                     },
+                    require.resolve("@babel/plugin-proposal-class-properties"),
                   ],
                   isEnvDevelopment && shouldUseReactRefresh && require.resolve("react-refresh/babel"),
                 ].filter(Boolean),
