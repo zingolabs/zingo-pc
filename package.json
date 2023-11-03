@@ -11,7 +11,7 @@
     "url": "https://github.com/zingolabs/zingo-pc"
   },
   "engines": {
-    "node": "^16.x"
+    "node": ">16"
   },
   "dependencies": {
     "@babel/core": "7.12.3",
@@ -116,20 +116,20 @@
   "scripts": {
     "lint": "eslint . --fix --ext .js,.jsx,.ts,.tsx",
     "start": "concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
-    "build": "yarn clean && yarn neon && node scripts/build.js",
+    "build": "yarn clean && yarn neon && cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
     "clean": "cd native && cargo clean && cd ..",
     "update": "cd native && cargo clean && cargo update && cd ..",
-    "build-mac-x64": "yarn clean && yarn neon-mac-x64 && node scripts/build.js",
-    "build-mac-arm64": "yarn clean && yarn neon-mac-arm64 && node scripts/build.js",
-    "build-win-x64": "yarn clean && yarn neon-win-x64 && node scripts/build.js",
-    "build-win-arm64": "yarn clean && yarn neon-win-arm64 && node scripts/build.js",
-    "test": "yarn neon && node scripts/test.js",
+    "build-mac-x64": "yarn clean && yarn neon-mac-x64 && cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
+    "build-mac-arm64": "yarn clean && yarn neon-mac-arm64 && cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
+    "build-win-x64": "yarn clean && yarn neon-win-x64 && cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
+    "build-win-arm64": "yarn clean && yarn neon-win-arm64 && cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
+    "test": "yarn neon && cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/test.js",
     "dist:linux": "rimraf dist && yarn build && electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-arm64": "rimraf dist && yarn build-mac-arm64 && electron-builder -m --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-x64": "rimraf dist && yarn build-mac-x64 && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-x64": "rimraf dist && yarn build-win-x64 && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
-    "react-start": "node scripts/start.js",
+    "react-start": "cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/start.js",
     "neon": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
     "neon-mac-x64": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target x86_64-apple-darwin --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
     "neon-mac-arm64": "cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target aarch64-apple-darwin --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
