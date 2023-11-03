@@ -378,6 +378,7 @@ module.exports = function (webpackEnv) {
               options: {
                 customize: require.resolve("babel-preset-react-app/webpack-overrides"),
                 presets: [
+                  [require.resolve("@babel/preset-env")],
                   [
                     require.resolve("babel-preset-react-app"),
                     {
@@ -388,6 +389,7 @@ module.exports = function (webpackEnv) {
 
                 plugins: [
                   [
+                    require.resolve("@babel/plugin-proposal-class-properties"),
                     require.resolve("babel-plugin-named-asset-import"),
                     {
                       loaderMap: {
@@ -430,7 +432,10 @@ module.exports = function (webpackEnv) {
                 babelrc: false,
                 configFile: false,
                 compact: false,
-                presets: [[require.resolve("babel-preset-react-app/dependencies"), { helpers: true }]],
+                presets: [
+                  [require.resolve("@babel/preset-env")],
+                  [require.resolve("babel-preset-react-app/dependencies"), { helpers: true }],
+                ],
                 cacheDirectory: true,
                 // See #6846 for context on why cacheCompression is disabled
                 cacheCompression: false,

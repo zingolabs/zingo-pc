@@ -1,4 +1,5 @@
 import { AddressType, ReceiverType } from "../components/appstate";
+import randomColor from 'randomcolor';
 
 import native from "../native.node";
 
@@ -190,5 +191,20 @@ export default class Utils {
     }
 
     return ans;
+  }
+
+  static generateColorList(numColors: number): string[] {
+    const colorList: string[] = [];
+
+    for (let i = 0; i < numColors; i++) {
+      const color = randomColor({
+        luminosity: 'bright', // Define la luminosidad de los colores generados
+        format: 'hex', // Formato de color en hexadecimal
+      });
+
+      colorList.push(color);
+    }
+
+    return colorList;
   }
 }

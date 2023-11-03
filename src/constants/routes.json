@@ -8,5 +8,6 @@
   "TRANSACTIONS": "/transactions",
   "SETTINGS": "/settings",
   "ZCASHD": "/zcashd",
-  "CONNECTMOBILE": "/connectmobile"
+  "CONNECTMOBILE": "/connectmobile",
+  "INSIGHT": "/insight"
 }

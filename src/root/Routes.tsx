@@ -5,8 +5,9 @@ import { isEqual } from 'lodash';
 import deepDiff from 'deep-diff';
 import { ErrorModal, ErrorModalData } from "../components/errormodal";
 import cstyles from "../components/common/Common.module.css";
-import routes from "../constants/routes.json";
+import routes from "../constants/routes.json"; 
 import Dashboard from "../components/dashboard/Dashboard";
+import Insight from "../components/insight/Insight";
 import { Send, SendManyJsonType } from "../components/send";
 import Receive from "../components/receive/Receive";
 import LoadingScreen from "../components/loadingscreen/LoadingScreen";
@@ -584,6 +585,12 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     shieldAllBalanceToOrchard={this.shieldAllBalanceToOrchard} 
                     openErrorModal={this.openErrorModal} 
                   />
+                )}
+              />
+              <Route
+                path={routes.INSIGHT}
+                render={() => (
+                  <Insight />
                 )}
               />
               <Route

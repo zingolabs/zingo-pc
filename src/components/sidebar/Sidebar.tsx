@@ -643,6 +643,12 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
             currentRoute={location.pathname}
             iconname="fa-address-book" 
           />
+          <SidebarMenuItem
+            name="Financial Insight"
+            routeName={routes.INSIGHT}
+            currentRoute={location.pathname}
+            iconname="fa-chart-line" 
+          />
         </div>
 
         <div className={cstyles.center}>
