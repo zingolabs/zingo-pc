@@ -1,10 +1,11 @@
 import React, { Component } from "react";
 import cstyles from "../common/Common.module.css";
 //import styles from "./Transactions.module.css";
-import { AddressBookEntry } from "../appstate";
+//import { AddressBookEntry } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
+import 'chart.js/auto';
 import { Pie } from 'react-chartjs-2';
 import native from '../../native.node';
 
@@ -26,26 +27,25 @@ export default class Insight extends Component<InsightProps, InsightState> {
     this.state = {
       expandAddress: [],
       data: {},
-      loading: false,
+      loading: true,
       tab: 'sent',
     };
   }
 
-  componentDidMount() {
-    this.setState({ loading: true });
+  componentDidMount: () => void = async () => {
     let resultStr: string = '';
     switch (this.state.tab) {
       case 'sent':
-        resultStr = native.zingolib_execute('value_to_address', '');
-        //console.log('################# value', resultStr);
+        resultStr = await native.zingolib_execute_async('value_to_address', '');
+        console.log('################# value', resultStr);
         break;
       case 'sends':
-        resultStr = native.zingolib_execute('sends_to_address', '');
-        //console.log('################# sends', resultStr);
+        resultStr = await native.zingolib_execute_async('sends_to_address', '');
+        console.log('################# sends', resultStr);
         break;
       case 'memobytes':
-        resultStr = native.zingolib_execute('memobytes_to_address', '');
-        //console.log('################# memobytes', resultStr);
+        resultStr = await native.zingolib_execute_async('memobytes_to_address', '');
+        console.log('################# memobytes', resultStr);
         break;
       default:
         break;
@@ -61,7 +61,7 @@ export default class Insight extends Component<InsightProps, InsightState> {
         }
       }
     });
-    const randomColors = Utils.generateColorList(amounts.length);
+        const randomColors = Utils.generateColorList(amounts.length);
     const newLabels: string[] = [];
     const newBackgroundColor: string[] = [];
     const newHoverBackgroundColor: string[] = [];
@@ -73,7 +73,7 @@ export default class Insight extends Component<InsightProps, InsightState> {
         newHoverBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
         return item.data;
       });
-    const newExpandAddress = Array(newData.length).fill(false);
+        const newExpandAddress = Array(newData.length).fill(false);
     this.setState({
       data: {
         labels: newLabels,
@@ -91,29 +91,29 @@ export default class Insight extends Component<InsightProps, InsightState> {
   }
 
   render() {
-    const { addressBook } = this.context; 
+    //const { addressBook } = this.context; 
 
-    const addressBookMap: Map<string, string> = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
-      m.set(obj.address, obj.label);
-      return m; 
-    }, new Map());
+    //const addressBookMap: Map<string, string> = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
+    //  m.set(obj.address, obj.label);
+    //  return m; 
+    //}, new Map());
 
     return (
       <div>
-        <div className={[cstyles.well].join(" ")}>
-          <div className={cstyles.balancebox}>
-            <Pie data={this.state.data} />
-          </div>
-        </div>
-
         <div className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Financial Insight</div>
 
         {/* Change the hardcoded height */}
-        <ScrollPane offsetHeight={180}>
-          {
-            /* If no data, show the "loading..." text */
-            this.state.loading && <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
-          }
+        <ScrollPane offsetHeight={40}>
+          {!this.state.loading && (
+            <div className={[cstyles.well].join(" ")}>
+              <div className={cstyles.balancebox}>
+                <Pie data={this.state.data} />
+              </div>
+            </div>
+          )}
+          {this.state.loading && (
+            <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
+          )}
 
           {this.state.data && this.state.data.length === 0 && (
             <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>

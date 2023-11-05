@@ -396,7 +396,12 @@ module.exports = function (webpackEnv) {
                         },
                       },
                     },
-                    require.resolve("@babel/plugin-proposal-class-properties"),
+                  ],
+                  [
+                    require.resolve("@babel/plugin-proposal-class-properties"), 
+                    { 
+                      "loose": true,
+                    },
                   ],
                   isEnvDevelopment && shouldUseReactRefresh && require.resolve("react-refresh/babel"),
                 ].filter(Boolean),
