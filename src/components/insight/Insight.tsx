@@ -81,14 +81,13 @@ export default class Insight extends Component<InsightProps, InsightState> {
     let amounts: { data: number; address: string; tag: string }[] = [];
     const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
     resultJSONEntries.forEach(([key, value]) => {
-      const tag = addressBook.filter((a: any) => a.address === key);
-      if (!(false && key === 'fee')) {
-        // excluding the fee for `sends` and `memobytes`.
-        if (value > 0) {
-          amounts.push({ data: true ? value / 10 ** 8 : value, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
-        }
+      if (value > 0) {
+        //console.log(value, key);
+        const tag = addressBook.filter((a: any) => a.address === key);
+        amounts.push({ data: value / 10 ** 8, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
       }
     });
+    //console.log(amounts);
     const randomColors = Utils.generateColorList(amounts.length);
     const newLabels: string[] = [];
     const newBackgroundColor: string[] = [];
@@ -126,12 +125,9 @@ export default class Insight extends Component<InsightProps, InsightState> {
     let amounts: { data: number; address: string; tag: string }[] = [];
     const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
     resultJSONEntries.forEach(([key, value]) => {
-      const tag = addressBook.filter((a: any) => a.address === key);
-      if (!(true && key === 'fee')) {
-        // excluding the fee for `sends` and `memobytes`.
-        if (value > 0) {
-          amounts.push({ data: false ? value / 10 ** 8 : value, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
-        }
+      if (key !== 'fee' && value > 0) {
+        const tag = addressBook.filter((a: any) => a.address === key);
+        amounts.push({ data: false ? value / 10 ** 8 : value, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
       }
     });
     const randomColors = Utils.generateColorList(amounts.length);
@@ -171,12 +167,9 @@ export default class Insight extends Component<InsightProps, InsightState> {
     let amounts: { data: number; address: string; tag: string }[] = [];
     const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
     resultJSONEntries.forEach(([key, value]) => {
-      const tag = addressBook.filter((a: any) => a.address === key);
-      if (!(true && key === 'fee')) {
-        // excluding the fee for `sends` and `memobytes`.
-        if (value > 0) {
-          amounts.push({ data: false ? value / 10 ** 8 : value, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
-        }
+      if (key !== 'fee' && value > 0) {
+        const tag = addressBook.filter((a: any) => a.address === key);
+        amounts.push({ data: false ? value / 10 ** 8 : value, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
       }
     });
     const randomColors = Utils.generateColorList(amounts.length);
@@ -238,6 +231,15 @@ export default class Insight extends Component<InsightProps, InsightState> {
                         type={"doughnut"}
                         options={{
                           cutout: '30%',
+                          plugins: {
+                            tooltip: {
+                              callbacks: {
+                                label: function(context) {
+                                  return context.label + ': ' + context.parsed.toString();
+                                }
+                              }
+                            }
+                          }
                         }}
                       />
                     </div>
