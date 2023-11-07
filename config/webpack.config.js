@@ -397,12 +397,9 @@ module.exports = function (webpackEnv) {
                       },
                     },
                   ],
-                  [
-                    require.resolve("@babel/plugin-proposal-class-properties"), 
-                    { 
-                      "loose": true,
-                    },
-                  ],
+                  require.resolve("@babel/plugin-transform-class-properties"), 
+                  require.resolve("@babel/plugin-transform-private-methods"),
+                  require.resolve("@babel/plugin-transform-private-property-in-object"),
                   isEnvDevelopment && shouldUseReactRefresh && require.resolve("react-refresh/babel"),
                 ].filter(Boolean),
                 // This is a feature of `babel-loader` for webpack (not Babel itself).
