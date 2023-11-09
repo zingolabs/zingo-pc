@@ -85,7 +85,7 @@ export default class Dashboard extends Component<DashboardProps> {
             />
           </div>
           <div className={cstyles.balancebox}>
-            {totalBalance.zbalance + totalBalance.transparent > info.defaultFee && !readOnly &&  (
+            {totalBalance.zbalance + totalBalance.transparent > info.defaultFee && !readOnly && !anyPending &&  (
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={this.promoteButton}>
                 Promote All Balance To Orchard
               </button>
