@@ -106,7 +106,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   };
 
   //console.log(tx);
-  console.log('tx details', tx?.txDetails);
+  //console.log('tx details', tx?.txDetails); 
 
   return (
     <Modal
