@@ -355,6 +355,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
       // This will do the sync in another thread, so we have to check for sync status
       RPC.doSync();
+      console.log('after dosync');
 
       this.runSyncStatusPoller(prevSyncId);
     } catch (err) {
@@ -362,7 +363,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       this.setState({
         currentStatus: (
           <span>
-            Error Initializing Lightclient
+            Error Initializing Lightclient 
             <br />
             {`${err}`}
           </span>
@@ -373,11 +374,13 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   }
 
   runSyncStatusPoller = async (prevSyncId: number) => {
+    console.log('start runSyncStatusPoller');
 
     const { setRPCConfig, setInfo, setRescanning } = this.props;
     const { url, chain } = this.state;
 
     const info: Info = await RPC.getInfoObject();
+    console.log(info);
 
     if (info.error) {
       this.setState({
