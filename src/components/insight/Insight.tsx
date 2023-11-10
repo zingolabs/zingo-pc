@@ -280,7 +280,7 @@ export default class Insight extends Component<InsightProps, InsightState> {
     //  return m; 
     //}, new Map()); 
 
-    console.log(this.state.dataSent.datasets[0].data, this.state.dataSent.labels);
+    //console.log(this.state.dataSent.datasets[0].data, this.state.dataSent.labels);
 
     return (
       <div>
