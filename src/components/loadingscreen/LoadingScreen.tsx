@@ -609,7 +609,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // If still loading, show the status 
     return (
       <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
-        <div style={{ marginTop: "100px", marginBottom: "20px" }}>
+        <div style={{ marginTop: "70px", marginBottom: "20px" }}>
           <Logo readOnly={false} />
         </div>
         {walletScreen === 0 && (

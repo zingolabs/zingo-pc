@@ -532,7 +532,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         />
 
         <div style={{ overflow: "hidden" }}>
-          {this.props.location.pathname !== "/" && !this.props.location.pathname.includes("zingo") && (
+          {this.props.location.pathname !== "/" && !this.props.location.pathname.toLowerCase().includes("zingo") && (
             <div className={cstyles.sidebarcontainer}>
               <Sidebar
                 setInfo={this.setInfo}
