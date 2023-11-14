@@ -66,7 +66,7 @@ export default class RPC {
         // trying to sync
         this.refresh(false);
         // I need to save the wallet every 30 seconds  Just in case.
-        RPC.doSave();
+        //RPC.doSave();
         // I need to fetch the ZEC price in USD.
         this.getZecPrice();
       }, 30 * 1000); // 30 sec
@@ -82,7 +82,7 @@ export default class RPC {
     // Immediately call the refresh after configure to update the UI
     this.refresh(true);
     this.updateData();
-    RPC.doSave();
+    //RPC.doSave();
   }
 
   clearTimers() {
@@ -118,10 +118,11 @@ export default class RPC {
     return syncstr;
   }
 
-  static async doSave() {
-    const savestr: string = await native.zingolib_execute_async("save", "");
-    console.log(`Save status: ${savestr}`);
-  }
+  // deprecated in zingolib 
+  //static async doSave() {
+  //  const savestr: string = await native.zingolib_execute_async("save", "");
+  //  console.log(`Save status: ${savestr}`);
+  //}
 
   static deinitialize() {
     const str: string = native.zingolib_deinitialize();
@@ -235,7 +236,7 @@ export default class RPC {
           this.lastBlockHeight = latestBlockHeight;
 
           // Save the wallet
-          RPC.doSave();
+          //RPC.doSave();
 
           // All done
           console.log(`Finished (blocks) full refresh at server: ${latestBlockHeight} & wallet: ${walletHeight}`);
@@ -260,7 +261,7 @@ export default class RPC {
             this.lastBlockHeight = latestBlockHeight;
 
             // Save the wallet
-            RPC.doSave();
+            //RPC.doSave();
 
             // All done
             console.log(`Finished (in_progress) full refresh at ${latestBlockHeight} & wallet: ${walletHeight}`);
@@ -400,7 +401,7 @@ export default class RPC {
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
     const r: string = await native.zingolib_execute_async("setoption", `${name}=${value}`);
 
-    RPC.doSave();
+    //RPC.doSave();
     return r;
   }
 
@@ -1083,7 +1084,7 @@ export default class RPC {
     this.fetchInfo();
 
     // And save the wallet
-    RPC.doSave();
+    //RPC.doSave();
 
     return resultJSON.result === "success";
   }
@@ -1096,7 +1097,7 @@ export default class RPC {
     this.fetchInfo();
 
     // And save the wallet
-    RPC.doSave();
+    //RPC.doSave();
 
     return resultJSON.result === "success";
   }

@@ -1,16 +1,16 @@
 import React, { Component } from "react";
-import { Redirect, RouteComponentProps, withRouter } from "react-router";
+import { RouteComponentProps, withRouter } from "react-router";
 import TextareaAutosize from "react-textarea-autosize";
 import request from "request";
 import progress from "progress-stream";
 import native from "../../native.node";
-import routes from "../../constants/routes.json";
 import { RPCConfig, Info, Server } from "../appstate";
 import RPC from "../../rpc/rpc";
 import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
-import serverUris from "../../utils/serverUris";
+import serverUrisList from "../../utils/serverUrisList";
+import { Logo } from "../logo";
 
 const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
@@ -81,9 +81,9 @@ type LoadingScreenProps = {
   setRescanning: (rescan: boolean, prevSyncId: number) => void;
   setInfo: (info: Info) => void;
   openServerSelectModal: () => void;
-  logo: string;
   setReadOnly: (readOnly: boolean) => void;
   setServerUris: (serverUris: Server[]) => void;
+  navigateToDashboard: () => void;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
@@ -103,7 +103,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       };
       currentStatus = locationState.currentStatus;
       currentStatusIsError = locationState.currentStatusIsError;
-      changeAnotherWallet = true;
+      if (locationState.currentStatus) {
+        changeAnotherWallet = true;
+      }
       serverUris = locationState.serverUris;
     }
     const state = new LoadingScreenState(currentStatus, currentStatusIsError, changeAnotherWallet, serverUris);
@@ -176,8 +178,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         selection: 'auto' | 'list' | 'custom';
     if (!settings) {
       // no settings stored, asumming `list` by default.
-      server = serverUris()[0].uri;
-      chain_name = serverUris()[0].chain_name;
+      server = serverUrisList()[0].uri;
+      chain_name = serverUrisList()[0].chain_name;
       selection = 'list';
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
@@ -185,8 +187,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     } else {
       if (!settings.serveruri) {
         // no server in settings, asuming `list` by default.
-        server = serverUris()[0].uri;
-        chain_name = serverUris()[0].chain_name;
+        server = serverUrisList()[0].uri;
+        chain_name = serverUrisList()[0].chain_name;
         selection = 'list';
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
@@ -194,7 +196,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       } else {
         // the server is in settings, asking for the others fields.
         server = settings.serveruri;
-        const serverInList = serverUris().filter((s: Server) => s.uri === server)
+        const serverInList = serverUrisList().filter((s: Server) => s.uri === server)
         if (!settings.serverchain_name) {
           chain_name = 'main';
           if (serverInList && serverInList.length === 1) {
@@ -229,8 +231,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     let servers: Server[] = this.state.serverUris;
 
     if (selection === 'auto' && servers.length === 0) {
-      this.setState({ currentStatus: "Checking " + serverUris().length + " servers to connect..." }); 
-      servers = this.calculateServerLatency(serverUris()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
+      this.setState({ currentStatus: "Checking " + serverUrisList().length + " servers to connect..." }); 
+      servers = this.calculateServerLatency(serverUrisList()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
       server = servers[0].uri;
       chain_name = servers[0].chain_name;
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
@@ -418,9 +420,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         // if this process synced already 25 batches (2.500 blocks) -> let's go to dashboard 
         if (ss.sync_id > prevSyncId || !ss.in_progress || ss.batch_num >= 25) {
           // First, save the wallet so we don't lose the just-synced data
-          if (!ss.last_error) {
-            RPC.doSave();
-          }
+          //if (!ss.last_error) {
+          //  RPC.doSave();
+          //}
 
           // Set the info object, so the sidebar will show
           //console.log("Object info\n");
@@ -450,11 +452,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           }
 
           // every 2 batches I need to save the progress of the wallet
-          if (ss.batch_num >= myThis.state.nextSaveBatch) {
-            console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&& save wallet', ss.batch_num, myThis.state.nextSaveBatch);
-            RPC.doSave();
-            myThis.setState({ nextSaveBatch: ss.batch_num + 2});
-          }
+          //if (ss.batch_num >= myThis.state.nextSaveBatch) {
+          //  console.log('&&&&&&&&&&&&&&&&&&&&&&&&&&& save wallet', ss.batch_num, myThis.state.nextSaveBatch);
+          //  RPC.doSave();
+          //  myThis.setState({ nextSaveBatch: ss.batch_num + 2});
+          //}
 
           let base = 0;
           if (ss.batch_total) {
@@ -600,37 +602,70 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     const { openServerSelectModal } = this.props;
 
+    if (loadingDone) {
+        setTimeout(() => this.props.navigateToDashboard(), 500);
+    }
+
     // If still loading, show the status 
-    if (!loadingDone) {
-      return (
-        <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
-          {walletScreen === 0 && (
-            <div>
-              <div style={{ marginTop: "100px", marginBottom: "20px" }}>
-                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.4</div>
-                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
+    return (
+      <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
+        <div style={{ marginTop: "100px", marginBottom: "20px" }}>
+          <Logo readOnly={false} />
+        </div>
+        {walletScreen === 0 && (
+          <div>
+            <div>{currentStatus}</div>
+            {currentStatusIsError && (
+              <div className={cstyles.buttoncontainer}>
+                <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
+                  Switch to Another Server
+                </button>
+                <button
+                  type="button"
+                  className={cstyles.primarybutton}
+                  onClick={() => {
+                    this.setState({
+                      currentStatus: "", 
+                      currentStatusIsError: false,
+                      newWalletError: null,
+                      changeAnotherWallet: false,
+                    });
+                    this.doFirstTimeSetup();
+                  }}
+                >
+                  Open Current Wallet File
+                </button>
+                <button
+                  type="button"
+                  className={cstyles.primarybutton}
+                  onClick={() => {
+                    this.setState({
+                      currentStatus: "",
+                      currentStatusIsError: false,
+                      walletScreen: 0,
+                      newWalletError: null,
+                      changeAnotherWallet: false,
+                    });
+                    this.deleteWallet();
+                  }}
+                >
+                  Delete Current Wallet File
+                </button>
               </div>
-              <div>{currentStatus}</div>
-              {currentStatusIsError && (
-                <div className={cstyles.buttoncontainer}>
-                  <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
-                    Switch to Another Server
-                  </button>
-                  <button
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={() => {
-                      this.setState({
-                        currentStatus: "", 
-                        currentStatusIsError: false,
-                        newWalletError: null,
-                        changeAnotherWallet: false,
-                      });
-                      this.doFirstTimeSetup();
-                    }}
-                  >
-                    Open Current Wallet File
-                  </button>
+            )}
+          </div>
+        )}
+
+        {walletScreen === 1 && (
+          <div>
+            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
+              <div className={cstyles.verticalflex}>
+                <div className={[cstyles.large, cstyles.highlight].join(" ")}>Create A New Wallet</div>
+                <div className={cstyles.padtopsmall}>
+                  Creates a new wallet with a new randomly generated seed phrase. Please save the seed phrase
+                  carefully, it&rsquo;s the only way to restore your wallet.
+                </div>
+                <div className={cstyles.margintoplarge}>
                   <button
                     type="button"
                     className={cstyles.primarybutton}
@@ -640,274 +675,225 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                         currentStatusIsError: false,
                         walletScreen: 0,
                         newWalletError: null,
-                        changeAnotherWallet: false,
                       });
-                      this.deleteWallet();
+                      this.createNewWallet(); 
                     }}
                   >
-                    Delete Current Wallet File
+                    Create New Wallet
+                  </button>
+                  <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
+                    Switch to Another Server
                   </button>
                 </div>
-              )}
-            </div>
-          )}
-
-          {walletScreen === 1 && (
-            <div>
-              <div style={{ marginTop: "20px", marginBottom: "20px" }}>
-                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.4</div>
-                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
               </div>
-              <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
-                <div className={cstyles.verticalflex}>
-                  <div className={[cstyles.large, cstyles.highlight].join(" ")}>Create A New Wallet</div>
-                  <div className={cstyles.padtopsmall}>
-                    Creates a new wallet with a new randomly generated seed phrase. Please save the seed phrase
-                    carefully, it&rsquo;s the only way to restore your wallet.
-                  </div>
-                  <div className={cstyles.margintoplarge}>
-                    <button
-                      type="button"
-                      className={cstyles.primarybutton}
-                      onClick={() => {
-                        this.setState({
-                          currentStatus: "",
-                          currentStatusIsError: false,
-                          walletScreen: 0,
-                          newWalletError: null,
-                        });
-                        this.createNewWallet(); 
-                      }}
-                    >
-                      Create New Wallet
-                    </button>
-                    <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
-                      Switch to Another Server
-                    </button>
-                  </div>
+              <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
+                <div className={[cstyles.large, cstyles.highlight].join(" ")}>Restore Wallet From Seed</div>
+                <div className={cstyles.padtopsmall}>
+                  If you already have a seed phrase, you can restore it to this wallet. This will rescan the
+                  blockchain for all transactions from the seed phrase.
                 </div>
-                <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
-                  <div className={[cstyles.large, cstyles.highlight].join(" ")}>Restore Wallet From Seed</div>
-                  <div className={cstyles.padtopsmall}>
-                    If you already have a seed phrase, you can restore it to this wallet. This will rescan the
-                    blockchain for all transactions from the seed phrase.
-                  </div>
-                  <div className={cstyles.margintoplarge}>
-                    <button
-                      type="button"
-                      className={cstyles.primarybutton}
-                      onClick={() => {
-                        this.setState({
-                          currentStatus: "",
-                          currentStatusIsError: false,
-                          newWalletError: null
-                        });
-                        this.restoreExistingSeedWallet();
-                      }}
-                    >
-                      Restore Wallet from Seed
-                    </button>
-                  </div>
+                <div className={cstyles.margintoplarge}>
+                  <button
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => {
+                      this.setState({
+                        currentStatus: "",
+                        currentStatusIsError: false,
+                        newWalletError: null
+                      });
+                      this.restoreExistingSeedWallet();
+                    }}
+                  >
+                    Restore Wallet from Seed
+                  </button>
                 </div>
-                <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
-                  <div className={[cstyles.large, cstyles.highlight].join(" ")}>Restore Wallet From Viewing Key</div>
-                  <div className={cstyles.padtopsmall}>
-                    If you already have a Unified Full Viewing Key, you can restore it to this wallet. This will rescan the
-                    blockchain for all transactions from the UFVK.
-                  </div>
-                  <div className={cstyles.margintoplarge}>
-                    <button
-                      type="button"
-                      className={cstyles.primarybutton}
-                      onClick={() => {
-                        this.setState({
-                          currentStatus: "",
-                          currentStatusIsError: false,
-                          newWalletError: null
-                        });
-                        this.restoreExistingUfvkWallet();
-                      }}
-                    >
-                      Restore Wallet from Viewing Key
-                    </button>
-                  </div>
+              </div>
+              <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
+                <div className={[cstyles.large, cstyles.highlight].join(" ")}>Restore Wallet From Viewing Key</div>
+                <div className={cstyles.padtopsmall}>
+                  If you already have a Unified Full Viewing Key, you can restore it to this wallet. This will rescan the
+                  blockchain for all transactions from the UFVK.
+                </div>
+                <div className={cstyles.margintoplarge}>
+                  <button
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => {
+                      this.setState({
+                        currentStatus: "",
+                        currentStatusIsError: false,
+                        newWalletError: null
+                      });
+                      this.restoreExistingUfvkWallet();
+                    }}
+                  >
+                    Restore Wallet from Viewing Key
+                  </button>
                 </div>
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {walletScreen === 2 && (
-            <div>
-              <div style={{ marginTop: "20px", marginBottom: "20px" }}>
-                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.4</div>
-                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
-              </div>
-              <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
-                <div className={cstyles.verticalflex}>
-                  {newWalletError && (
-                    <div>
-                      <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Creating New Wallet</div>
-                      <div className={cstyles.padtopsmall}>There was an error creating a new wallet</div>
-                      <hr style={{ width: "100%" }} />
-                      <div className={cstyles.padtopsmall}>{newWalletError}</div>
-                      <hr style={{ width: "100%" }} />
-                      <div className={cstyles.margintoplarge}>
-                        <button type="button" className={cstyles.primarybutton} onClick={() => {
-                          this.setState({ walletScreen: 0 });
-                          this.doFirstTimeSetup();
-                        }}>
-                          Cancel
-                        </button>
-                      </div>
+        {walletScreen === 2 && (
+          <div>
+            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
+              <div className={cstyles.verticalflex}>
+                {newWalletError && (
+                  <div>
+                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Creating New Wallet</div>
+                    <div className={cstyles.padtopsmall}>There was an error creating a new wallet</div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.padtopsmall}>{newWalletError}</div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.margintoplarge}>
+                      <button type="button" className={cstyles.primarybutton} onClick={() => {
+                        this.setState({ walletScreen: 0 });
+                        this.doFirstTimeSetup();
+                      }}>
+                        Cancel
+                      </button>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {!newWalletError && (
-                    <div>
-                      <div className={[cstyles.large, cstyles.highlight].join(" ")}>Your New Wallet</div>
-                      <div className={cstyles.padtopsmall}>
-                        This is your new wallet. Below is your seed phrase. PLEASE STORE IT CAREFULLY! The seed phrase
-                        is the only way to recover your funds and transactions.
-                      </div>
-                      <hr style={{ width: "100%" }} />
-                      <div className={cstyles.padtopsmall}>{seed}</div>
-                      <hr style={{ width: "100%" }} />
-                      <div className={cstyles.margintoplarge}>
-                        <button type="button" className={cstyles.primarybutton} onClick={this.startNewWallet}>
-                          Start Wallet
-                        </button>
-                      </div>
+                {!newWalletError && (
+                  <div>
+                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Your New Wallet</div>
+                    <div className={cstyles.padtopsmall}>
+                      This is your new wallet. Below is your seed phrase. PLEASE STORE IT CAREFULLY! The seed phrase
+                      is the only way to recover your funds and transactions.
                     </div>
-                  )}
-                </div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.padtopsmall}>{seed}</div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.margintoplarge}>
+                      <button type="button" className={cstyles.primarybutton} onClick={this.startNewWallet}>
+                        Start Wallet
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {walletScreen === 3 && (
-            <div>
-              <div style={{ marginTop: "20px", marginBottom: "20px" }}>
-                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.4</div>
-                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
-              </div>
-              <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
-                <div className={cstyles.verticalflex}>
-                  {newWalletError && (
-                    <div>
-                      <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Restoring Wallet</div>
-                      <div className={cstyles.padtopsmall}>There was an error restoring your seed phrase</div>
-                      <hr style={{ width: "100%" }} />
-                      <div className={cstyles.padtopsmall}>{newWalletError}</div>
-                      <hr style={{ width: "100%" }} />
-                      <div className={cstyles.margintoplarge}>
-                        <button type="button" className={cstyles.primarybutton} onClick={this.restoreSeedWalletBack}>
-                          Back
-                        </button>
-                      </div>
+        {walletScreen === 3 && (
+          <div>
+            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
+              <div className={cstyles.verticalflex}>
+                {newWalletError && (
+                  <div>
+                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Restoring Wallet</div>
+                    <div className={cstyles.padtopsmall}>There was an error restoring your seed phrase</div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.padtopsmall}>{newWalletError}</div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.margintoplarge}>
+                      <button type="button" className={cstyles.primarybutton} onClick={this.restoreSeedWalletBack}>
+                        Back
+                      </button>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {!newWalletError && (
-                    <div>
-                      <div className={[cstyles.large].join(" ")}>Please enter your seed phrase</div>
-                      <TextareaAutosize
-                        className={cstyles.inputbox}
-                        value={seed}
-                        onChange={(e) => this.updateSeed(e)}
-                      />
+                {!newWalletError && (
+                  <div>
+                    <div className={[cstyles.large].join(" ")}>Please enter your seed phrase</div>
+                    <TextareaAutosize
+                      className={cstyles.inputbox}
+                      value={seed}
+                      onChange={(e) => this.updateSeed(e)}
+                    />
 
-                      <div className={[cstyles.large, cstyles.margintoplarge].join(" ")}>
-                        Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;0&rsquo;
-                      </div>
-                      <input
-                        type="number"
-                        className={cstyles.inputbox}
-                        value={birthday}
-                        onChange={(e) => this.updateBirthday(e)}
-                      />
-
-                      <div className={cstyles.margintoplarge}>
-                        <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreSeedWallet()}>
-                          Restore Wallet
-                        </button>
-                        <button type="button" className={cstyles.primarybutton} onClick={() => {
-                          this.setState({ walletScreen: 0 });
-                          this.doFirstTimeSetup();
-                        }}>
-                          Cancel
-                        </button>
-                      </div>
+                    <div className={[cstyles.large, cstyles.margintoplarge].join(" ")}>
+                      Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;0&rsquo;
                     </div>
-                  )}
-                </div>
+                    <input
+                      type="number"
+                      className={cstyles.inputbox}
+                      value={birthday}
+                      onChange={(e) => this.updateBirthday(e)}
+                    />
+
+                    <div className={cstyles.margintoplarge}>
+                      <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreSeedWallet()}>
+                        Restore Wallet
+                      </button>
+                      <button type="button" className={cstyles.primarybutton} onClick={() => {
+                        this.setState({ walletScreen: 0 });
+                        this.doFirstTimeSetup();
+                      }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {walletScreen === 4 && (
-            <div>
-              <div style={{ marginTop: "20px", marginBottom: "20px" }}>
-                <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v4</div>
-                <img src={this.props.logo} width="100px;" alt="Logo" style={{ borderRadius: 20 }} />
-              </div>
-              <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
-                <div className={cstyles.verticalflex}>
-                  {newWalletError && (
-                    <div>
-                      <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Restoring Wallet</div>
-                      <div className={cstyles.padtopsmall}>There was an error restoring your Viewing Key</div>
-                      <hr style={{ width: "100%" }} />
-                      <div className={cstyles.padtopsmall}>{newWalletError}</div>
-                      <hr style={{ width: "100%" }} />
-                      <div className={cstyles.margintoplarge}>
-                        <button type="button" className={cstyles.primarybutton} onClick={this.restoreUfvkWalletBack}>
-                          Back
-                        </button>
-                      </div>
+        {walletScreen === 4 && (
+          <div>
+            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
+              <div className={cstyles.verticalflex}>
+                {newWalletError && (
+                  <div>
+                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Restoring Wallet</div>
+                    <div className={cstyles.padtopsmall}>There was an error restoring your Viewing Key</div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.padtopsmall}>{newWalletError}</div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.margintoplarge}>
+                      <button type="button" className={cstyles.primarybutton} onClick={this.restoreUfvkWalletBack}>
+                        Back
+                      </button>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {!newWalletError && (
-                    <div>
-                      <div className={[cstyles.large].join(" ")}>Please enter your Unified Full Viewing Key</div>
-                      <TextareaAutosize
-                        className={cstyles.inputbox}
-                        value={ufvk}
-                        onChange={(e) => this.updateUfvk(e)}
-                      />
+                {!newWalletError && (
+                  <div>
+                    <div className={[cstyles.large].join(" ")}>Please enter your Unified Full Viewing Key</div>
+                    <TextareaAutosize
+                      className={cstyles.inputbox}
+                      value={ufvk}
+                      onChange={(e) => this.updateUfvk(e)}
+                    />
 
-                      <div className={[cstyles.large, cstyles.margintoplarge].join(" ")}>
-                        Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;0&rsquo;
-                      </div>
-                      <input
-                        type="number"
-                        className={cstyles.inputbox}
-                        value={birthday}
-                        onChange={(e) => this.updateBirthday(e)}
-                      />
-
-                      <div className={cstyles.margintoplarge}>
-                        <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreUfvkWallet()}>
-                          Restore Wallet
-                        </button>
-                        <button type="button" className={cstyles.primarybutton} onClick={() => {
-                          this.setState({ walletScreen: 0 });
-                          this.doFirstTimeSetup();
-                        }}>
-                          Cancel
-                        </button>
-                      </div>
+                    <div className={[cstyles.large, cstyles.margintoplarge].join(" ")}>
+                      Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;0&rsquo;
                     </div>
-                  )}
-                </div>
+                    <input
+                      type="number"
+                      className={cstyles.inputbox}
+                      value={birthday}
+                      onChange={(e) => this.updateBirthday(e)}
+                    />
+
+                    <div className={cstyles.margintoplarge}>
+                      <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreUfvkWallet()}>
+                        Restore Wallet
+                      </button>
+                      <button type="button" className={cstyles.primarybutton} onClick={() => {
+                        this.setState({ walletScreen: 0 });
+                        this.doFirstTimeSetup();
+                      }}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-          )}
-        </div>
-      );
-    }
+          </div>
+        )}
+      </div>
+    );
 
-    return <Redirect to={routes.DASHBOARD} />;
   }
 }
 

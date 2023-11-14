@@ -3,7 +3,7 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import { Server } from "../appstate";
-import serverUris from "../../utils/serverUris";
+import serverUrisList from "../../utils/serverUrisList";
 const { ipcRenderer } = window.require("electron");
 
 type ModalProps = {
@@ -13,7 +13,7 @@ type ModalProps = {
 
 export default function ServerSelectModal({ closeModal, openErrorModal }: ModalProps) {
   const context = useContext(ContextApp);
-  const { serverSelectState, serverUris: serverUrisContext } = context;
+  const { serverSelectState, serverUris } = context;
   const { modalIsOpen } = serverSelectState;
 
   const [selectedServer, setSelectedServer] = useState<string>("");
@@ -28,7 +28,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   const [customChain, setCustomChain] = useState<'main' | 'test' | 'regtest' | ''>("");
   //const [listChain, setListChain] = useState<'main' | 'test' | 'regtest' | ''>("");
 
-  const [servers, setServers] = useState<Server[]>(serverUrisContext.length > 0 ? serverUrisContext : serverUris());
+  const [servers, setServers] = useState<Server[]>(serverUris.length > 0 ? serverUris : serverUrisList());
 
   const chains = {
     "main": "Mainnet",
@@ -70,7 +70,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
 
   useEffect(() => {
     (async () => {
-      const servers: Server[] = serverUrisContext.length > 0 ? serverUrisContext : serverUris();
+      const servers: Server[] = serverUris.length > 0 ? serverUris : serverUrisList();
       const settings = await ipcRenderer.invoke("loadSettings");
       //console.log('modal server settings', settings);
 
@@ -83,7 +83,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
       setSelectedSelection(currSelection);
       setServers(servers);
     })();
-  }, [initialServerValue, serverUrisContext]);
+  }, [initialServerValue, serverUris]);
 
   const switchServer = async () => {
     const serveruri: string = selectedServer;
