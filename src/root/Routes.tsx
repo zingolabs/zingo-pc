@@ -41,8 +41,6 @@ import PasswordModal from "../components/passwordmodal/PasswordModal";
 import ServerSelectModal from "../components/serverselectmodal/ServerSelectModal";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
-import Logo from "../assets/img/logobig.png";
-
 type Props = {};
 
 class Routes extends React.Component<Props & RouteComponentProps, AppState> {
@@ -496,11 +494,20 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     return result;
   }
 
-  navigateToLoadingScreen = () => {
-    this.props.history.push({
-      pathname: routes.LOADING,
+  navigateToDashboard = () => {
+    this.props.history.replace({
+      pathname: routes.DASHBOARD, 
+      state: {},
+    });
+  };
+
+  navigateToLoadingScreen = (currentStatusIsError: boolean, currentStatus: string, serverUris: Server[]) => {
+    this.props.history.replace({
+      pathname: routes.LOADING, 
       state: { 
-        serverUris: this.state.serverUris,
+        currentStatusIsError,
+        currentStatus,
+        serverUris,
       },
     });
   };
@@ -525,7 +532,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         />
 
         <div style={{ overflow: "hidden" }}>
-          {this.props.location.pathname !== "/" && (
+          {this.props.location.pathname !== "/" && !this.props.location.pathname.includes("zingo") && (
             <div className={cstyles.sidebarcontainer}>
               <Sidebar
                 setInfo={this.setInfo}
@@ -538,7 +545,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 openPassword={this.openPassword}
                 clearTimers={this.clearTimers}
                 updateWalletSettings={this.updateWalletSettings}
-                logo={Logo}
+                navigateToLoadingScreen={this.navigateToLoadingScreen}
                 {...standardProps}
               />
             </div>
@@ -620,9 +627,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setRescanning={this.setRescanning}
                     setInfo={this.setInfo}
                     openServerSelectModal={this.openServerSelectModal}
-                    logo={Logo}
                     setReadOnly={this.setReadOnly}
                     setServerUris={this.setServerUris}
+                    navigateToDashboard={this.navigateToDashboard}
                   />
                 )}
               />

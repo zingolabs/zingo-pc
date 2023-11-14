@@ -1,6 +1,6 @@
 import { Server } from "../components/appstate";
 
-const serverUris = (): Server[] => {
+const serverUrisList = (): Server[] => {
   return [
     {
       uri: 'https://mainnet.lightwalletd.com:9067',
@@ -89,4 +89,4 @@ const serverUris = (): Server[] => {
   ];
 };
 
-export default serverUris;
+export default serverUrisList;

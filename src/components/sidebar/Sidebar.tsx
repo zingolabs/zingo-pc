@@ -4,7 +4,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import { Address, Info, Transaction, TxDetail } from "../appstate";
+import { Address, Info, Server, Transaction, TxDetail } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
@@ -14,9 +14,7 @@ import ImportPrivKeyModal from "./components/ImportPrivKeyModal";
 import ExportPrivKeyModal from "./components/ExportPrivKeyModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faSnowflake } from '@fortawesome/free-solid-svg-icons';
-import serverUris from "../../utils/serverUris";
+import { Logo } from "../logo";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
@@ -40,7 +38,7 @@ type SidebarProps = {
   encryptWallet: (p: string) => Promise<boolean>;
   decryptWallet: (p: string) => Promise<boolean>;
   updateWalletSettings: () => Promise<void>;
-  logo: string;
+  navigateToLoadingScreen: (b: boolean, c: string, s: Server[]) => void;
 };
 
 type SidebarState = {
@@ -199,7 +197,6 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Rescan
     ipcRenderer.on("change", async () => {
-      const s = serverUris;
       // To change to another wallet, we reset the wallet loading
       // and redirect to the loading screen
       clearTimers();
@@ -207,14 +204,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       // Reset the info object, it will be refetched
       setInfo(new Info());
 
-      history.push({
-        pathname: routes.LOADING,
-        state: { 
-          currentStatusIsError: true,
-          currentStatus: "Change to another wallet...",
-          serverUris: s,
-        },
-      });
+      this.props.navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
     });
 
     // Export All Transactions
@@ -327,7 +317,6 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Rescan
     ipcRenderer.on("rescan", async () => {
-      const s = serverUris;
       // To rescan, we reset the wallet loading
       // So set info the default, and redirect to the loading screen
       clearTimers();
@@ -344,12 +333,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       // Reset the info object, it will be refetched
       setInfo(new Info());
 
-      history.push({
-        pathname: routes.LOADING,
-        state: { 
-          serverUris: s,
-        },
-      });
+      this.props.navigateToLoadingScreen(false, "", serverUris)
     });
 
     // Export all private keys
@@ -407,8 +391,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
   };
 
   doImportPrivKeys = async (key: string, birthday: string) => {
-    const { importPrivKeys, openErrorModal, setInfo, clearTimers, setRescanning, history } = this.props;
-    const { info } = this.context;
+    const { importPrivKeys, openErrorModal, setInfo, clearTimers, setRescanning } = this.props;
+    const { info, serverUris } = this.context;
 
     if (key) {
       let keys: string[] = key.split(new RegExp("[\\n\\r]+"));
@@ -467,7 +451,6 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       const syncStatus: string = await RPC.doSyncStatus();
       const prevSyncId: number = JSON.parse(syncStatus).sync_id;
       const success: boolean = importPrivKeys(keys, birthday);
-      const s = serverUris;
 
       if (success) {
         // Set the rescanning global state to true
@@ -476,12 +459,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         // Reset the info object, it will be refetched
         setInfo(new Info());
 
-        history.push({
-          pathname: routes.LOADING,
-          state: { 
-            serverUris: s,
-          },
-        });
+        this.props.navigateToLoadingScreen(false, "", serverUris)
       }
     }
   };
@@ -601,13 +579,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         />
 
         <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
-          <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.0.4</div>
-          <div>
-            <img src={this.props.logo} width="70" alt="logo" style={{ borderRadius: 5, marginRight: 10 }} />
-            {readOnly && (
-              <FontAwesomeIcon icon={faSnowflake} color={"'#888888'"} style={{ height: 30, marginBottom: 20 }} />
-            )}
-          </div>
+          <Logo readOnly={readOnly} />
         </div>
 
         <div className={styles.sidebar}>
