@@ -141,7 +141,7 @@ dependencies = [
  "bitflags 1.3.2",
  "bytes 1.5.0",
  "futures-util",
- "http",
+ "http 0.2.11",
  "http-body",
  "hyper",
  "itoa",
@@ -168,7 +168,7 @@ dependencies = [
  "async-trait",
  "bytes 1.5.0",
  "futures-util",
- "http",
+ "http 0.2.11",
  "http-body",
  "mime",
  "tower-layer",
@@ -360,7 +360,7 @@ dependencies = [
 [[package]]
 name = "build_utils"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#44a371caa3cf9f0c076e927cf35a103fb96666fb"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#50df67265d09fae02b3c66666aa3b633d8fe89ab"
 
 [[package]]
 name = "bumpalo"
@@ -928,17 +928,17 @@ dependencies = [
 
 [[package]]
 name = "h2"
-version = "0.3.21"
+version = "0.3.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "91fc23aa11be92976ef4729127f1a74adf36d8436f7816b185d18df956790833"
+checksum = "4d6250322ef6e60f93f9a2162799302cd6f68f79f6e5d85c8c16f14d1d958178"
 dependencies = [
  "bytes 1.5.0",
  "fnv",
  "futures-core",
  "futures-sink",
  "futures-util",
- "http",
- "indexmap 1.9.3",
+ "http 0.2.11",
+ "indexmap 2.1.0",
  "slab",
  "tokio",
  "tokio-util",
@@ -1064,13 +1064,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "http"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b32afd38673a8016f7c9ae69e5af41a58f81b1d31689040f2f1959594ce194ea"
+dependencies = [
+ "bytes 1.5.0",
+ "fnv",
+ "itoa",
+]
+
+[[package]]
 name = "http-body"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5f38f16d184e36f2408a55281cd658ecbd3ca05cce6d6510a176eca393e26d1"
 dependencies = [
  "bytes 1.5.0",
- "http",
+ "http 0.2.11",
  "pin-project-lite",
 ]
 
@@ -1109,7 +1120,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
+ "http 0.2.11",
  "http-body",
  "httparse",
  "httpdate",
@@ -1128,7 +1139,7 @@ version = "0.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1788965e61b367cd03a62950836d5cd41560c3577d90e40e0819373194d1661c"
 dependencies = [
- "http",
+ "http 0.2.11",
  "hyper",
  "log",
  "rustls",
@@ -2230,7 +2241,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
+ "http 0.2.11",
  "http-body",
  "hyper",
  "hyper-tls",
@@ -2356,9 +2367,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.23"
+version = "0.38.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ffb93593068e9babdad10e4fce47dc9b3ac25315a72a59766ffd9e9a71996a04"
+checksum = "9ad981d6c340a49cdc40a1028d9c6084ec7e9fa33fcb839cab656a267071e234"
 dependencies = [
  "bitflags 2.4.1",
  "errno",
@@ -2971,7 +2982,7 @@ dependencies = [
  "futures-core",
  "futures-util",
  "h2",
- "http",
+ "http 0.2.11",
  "http-body",
  "hyper",
  "hyper-timeout",
@@ -3049,7 +3060,7 @@ dependencies = [
  "bytes 1.5.0",
  "futures-core",
  "futures-util",
- "http",
+ "http 0.2.11",
  "http-body",
  "http-range-header",
  "pin-project-lite",
@@ -3067,7 +3078,7 @@ dependencies = [
  "bytes 1.5.0",
  "futures-core",
  "futures-util",
- "http",
+ "http 0.2.11",
  "http-body",
  "http-range-header",
  "pin-project-lite",
@@ -3722,7 +3733,7 @@ dependencies = [
 [[package]]
 name = "zingo-memo"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#44a371caa3cf9f0c076e927cf35a103fb96666fb"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#50df67265d09fae02b3c66666aa3b633d8fe89ab"
 dependencies = [
  "zcash_address",
  "zcash_client_backend",
@@ -3734,10 +3745,10 @@ dependencies = [
 [[package]]
 name = "zingoconfig"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#44a371caa3cf9f0c076e927cf35a103fb96666fb"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#50df67265d09fae02b3c66666aa3b633d8fe89ab"
 dependencies = [
  "dirs",
- "http",
+ "http 0.2.11",
  "log",
  "log4rs",
  "zcash_address",
@@ -3747,7 +3758,7 @@ dependencies = [
 [[package]]
 name = "zingolib"
 version = "0.2.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#44a371caa3cf9f0c076e927cf35a103fb96666fb"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#50df67265d09fae02b3c66666aa3b633d8fe89ab"
 dependencies = [
  "append-only-vec",
  "base58",
@@ -3764,7 +3775,7 @@ dependencies = [
  "futures",
  "group 0.13.0",
  "hex 0.3.2",
- "http",
+ "http 0.2.11",
  "http-body",
  "hyper",
  "hyper-rustls",
@@ -3816,7 +3827,7 @@ dependencies = [
 name = "zingolib-native"
 version = "0.1.0"
 dependencies = [
- "http",
+ "http 1.0.0",
  "lazy_static",
  "neon",
  "zingoconfig",
