@@ -11,7 +11,7 @@
     "url": "https://github.com/zingolabs/zingo-pc"
   },
   "engines": {
-    "node": ">16"
+    "node": ">=18"
   },
   "dependencies": {
     "@babel/core": "7.12.3",

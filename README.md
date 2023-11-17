@@ -6,17 +6,17 @@ Zingo PC is written in Electron/Javascript and can be build from source. It will
 #### Pre-Requisites
 You need to have the following software installed before you can build Zingo PC
 
-* [Nodejs recommended version: v17.9.1 (current) ](https://nodejs.org/en/blog/release/v17.9.1)
+* [Nodejs (>= 18.0.0) recommended version: v20.9.0 (current) ](https://nodejs.org/en/blog/release/v20.9.0)
 * [Yarn](https://yarnpkg.com)
 * [Rust stable/nightly version](https://www.rust-lang.org/tools/install)
 
-NOTE:  To ensure node 17.9.1 on Arch:
+NOTE:  To ensure node 20.9.0 on Arch:
 paru -S nvm
-And follow "Alternate Installations" for 17.9.1 https://wiki.archlinux.org/title/node.js_ I.E.:
+And follow "Alternate Installations" for 20.9.0 https://wiki.archlinux.org/title/node.js_ I.E.:
 
 ```
-nvm install 17.9.1
-nvm use 17.9.1
+nvm install 20.9.0
+nvm use 20.9.0
 ```
   
 NOTE2: You have to install `openssl` & `protobuf compiler` as well.
