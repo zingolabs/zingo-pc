@@ -360,7 +360,7 @@ dependencies = [
 [[package]]
 name = "build_utils"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#f1d34812b592f3ffe04f6c6c606ca8334a629cde"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#866fef691649581882f3c7a276b04c0eb9ade0ef"
 
 [[package]]
 name = "bumpalo"
@@ -1972,12 +1972,12 @@ dependencies = [
 
 [[package]]
 name = "prost"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a5a410fc7882af66deb8d01d01737353cf3ad6204c408177ba494291a626312"
+checksum = "146c289cda302b98a28d40c8b3b90498d6e526dd24ac2ecea73e4e491685b94a"
 dependencies = [
  "bytes 1.5.0",
- "prost-derive 0.12.2",
+ "prost-derive 0.12.3",
 ]
 
 [[package]]
@@ -2004,9 +2004,9 @@ dependencies = [
 
 [[package]]
 name = "prost-build"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fa3d084c8704911bfefb2771be2f9b6c5c0da7343a71e0021ee3c665cada738"
+checksum = "c55e02e35260070b6f716a2423c2ff1c3bb1642ddca6f99e1f26d06268a0e2d2"
 dependencies = [
  "bytes 1.5.0",
  "heck",
@@ -2016,8 +2016,8 @@ dependencies = [
  "once_cell",
  "petgraph",
  "prettyplease 0.2.15",
- "prost 0.12.2",
- "prost-types 0.12.2",
+ "prost 0.12.3",
+ "prost-types 0.12.3",
  "regex",
  "syn 2.0.39",
  "tempfile",
@@ -2039,9 +2039,9 @@ dependencies = [
 
 [[package]]
 name = "prost-derive"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "065717a5dfaca4a83d2fe57db3487b311365200000551d7a364e715dbf4346bc"
+checksum = "efb6c9a1dd1def8e2124d17e83a20af56f1570d6c2d2bd9e266ccb768df3840e"
 dependencies = [
  "anyhow",
  "itertools 0.11.0",
@@ -2062,11 +2062,11 @@ dependencies = [
 
 [[package]]
 name = "prost-types"
-version = "0.12.2"
+version = "0.12.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8339f32236f590281e2f6368276441394fcd1b2133b549cc895d0ae80f2f9a52"
+checksum = "193898f59edcf43c26227dcd4c8427f00d99d61e95dcde58dabd49fa291d470e"
 dependencies = [
- "prost 0.12.2",
+ "prost 0.12.3",
 ]
 
 [[package]]
@@ -3025,7 +3025,7 @@ checksum = "9d021fc044c18582b9a2408cd0dd05b1596e3ecdb5c4df822bb0183545683889"
 dependencies = [
  "prettyplease 0.2.15",
  "proc-macro2",
- "prost-build 0.12.2",
+ "prost-build 0.12.3",
  "quote",
  "syn 2.0.39",
 ]
@@ -3617,7 +3617,7 @@ dependencies = [
  "nom",
  "orchard",
  "percent-encoding",
- "prost 0.12.2",
+ "prost 0.12.3",
  "rayon",
  "secrecy",
  "shardtree",
@@ -3733,7 +3733,7 @@ dependencies = [
 [[package]]
 name = "zingo-memo"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#f1d34812b592f3ffe04f6c6c606ca8334a629cde"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#866fef691649581882f3c7a276b04c0eb9ade0ef"
 dependencies = [
  "zcash_address",
  "zcash_client_backend",
@@ -3745,7 +3745,7 @@ dependencies = [
 [[package]]
 name = "zingoconfig"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#f1d34812b592f3ffe04f6c6c606ca8334a629cde"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#866fef691649581882f3c7a276b04c0eb9ade0ef"
 dependencies = [
  "dirs",
  "http 0.2.11",
@@ -3758,7 +3758,7 @@ dependencies = [
 [[package]]
 name = "zingolib"
 version = "0.2.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=dev#f1d34812b592f3ffe04f6c6c606ca8334a629cde"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#866fef691649581882f3c7a276b04c0eb9ade0ef"
 dependencies = [
  "append-only-vec",
  "base58",
