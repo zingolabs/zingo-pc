@@ -11,6 +11,7 @@ import PasswordState from "./components/PasswordState";
 import WalletSettings from "./components/WalletSettings";
 import Address from "./components/Address";
 import Server from "./components/Server";
+import FetchErrorType from "./components/FetchErrorType";
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
@@ -69,6 +70,9 @@ export default class AppState {
   // list of servers with the latency calculated at launch
   serverUris: Server[];
 
+  // general error of some fetching command
+  fetchError: FetchErrorType;
+
   constructor() {
     this.totalBalance = new TotalBalance();
     this.addressPrivateKeys = new Map();
@@ -89,5 +93,6 @@ export default class AppState {
     this.walletSettings = new WalletSettings();
     this.readOnly = false;
     this.serverUris = [] as Server[];
+    this.fetchError = {} as FetchErrorType;
   }
 }

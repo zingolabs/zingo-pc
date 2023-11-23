@@ -1,7 +1,6 @@
 import React, { ReactNode } from 'react';
-import { Address, AddressBookEntry, AppState, Info, PasswordState, RPCConfig, ReceivePageState, SendPageState, ServerSelectState, TotalBalance, Transaction, WalletSettings, Server } from "../components/appstate";
+import { Address, AddressBookEntry, AppState, Info, PasswordState, RPCConfig, ReceivePageState, SendPageState, ServerSelectState, TotalBalance, Transaction, WalletSettings, Server, FetchErrorType } from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
-
 
 export const defaultAppState: AppState = {
   totalBalance: new TotalBalance(),
@@ -23,6 +22,7 @@ export const defaultAppState: AppState = {
   walletSettings: new WalletSettings(),
   readOnly: false,
   serverUris: [] as Server[],
+  fetchError: {} as FetchErrorType,
 };
 
 export const ContextApp = React.createContext(defaultAppState);

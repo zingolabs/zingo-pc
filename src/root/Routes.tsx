@@ -28,6 +28,7 @@ import {
   Address,
   WalletSettings,
   Server,
+  FetchErrorType,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
@@ -64,7 +65,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       this.setInfo,
       this.setZecPrice,
       this.setWalletSettings,
-      this.setVerificationProgress
+      this.setVerificationProgress,
+      this.setFetchError,
     );
   };
 
@@ -216,6 +218,17 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       console.log('=============== wallet settings', walletSettings);
       this.setState({ walletSettings });
     }
+  };
+
+  setFetchError = (command: string, error: string) => {
+    console.log('=============== fetch error', command, error);
+    this.setState({ fetchError: {
+      command,
+      error,
+    } });
+    setTimeout(() => {
+      this.setState({ fetchError: {} as FetchErrorType })
+    }, 5000);
   };
 
   updateWalletSettings = async () => {
