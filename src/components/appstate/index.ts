@@ -15,6 +15,7 @@ import TxDetail from "./components/TxDetail";
 import ReceiverType from "./components/ReceiverType";
 import Address from './components/Address';
 import Server from "./components/Server";
+import FetchErrorType from "./components/FetchErrorType";
 
 import AppState from "./AppState";
 
@@ -37,4 +38,5 @@ export {
   ReceiverType,
   Address,
   Server,
+  FetchErrorType,
 };

@@ -51,7 +51,9 @@ export default class Dashboard extends Component<DashboardProps> {
   };
 
   render() {
-    const { totalBalance, info, addresses, readOnly } = this.context;
+    const { totalBalance, info, addresses, readOnly, fetchError } = this.context;
+
+    console.log('%%%%%%', fetchError, '@@@@@@@@@');
 
     const anyPending: Address | Address[] = !!addresses && addresses.find((i: Address) => i.containsPending === true);
 
@@ -96,6 +98,14 @@ export default class Dashboard extends Component<DashboardProps> {
               </div>
             )}
           </div>
+          {!!fetchError && !!fetchError.error && (
+            <>
+              <hr />
+              <div className={cstyles.balancebox} style={{ color: 'red' }}>
+                {fetchError.command + ': ' + fetchError.error}
+              </div>
+            </>
+          )}
         </div>
 
         <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>

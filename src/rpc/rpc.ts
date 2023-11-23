@@ -33,6 +33,8 @@ export default class RPC {
   lastBlockHeight: number;
   lastTxId?: string;
 
+  fnSetFetchError: (command: string, error: string) => void;
+
   constructor(
     fnSetTotalBalance: (tb: TotalBalance) => void,
     fnSetAddresses: (abs: Address[]) => void,
@@ -40,7 +42,8 @@ export default class RPC {
     fnSetInfo: (info: Info) => void,
     fnSetZecPrice: (p?: number) => void,
     fnSetWalletSettings: (settings: WalletSettings) => void,
-    fnSetVerificationProgress: (verificationProgress: number) => void
+    fnSetVerificationProgress: (verificationProgress: number) => void,
+    fnSetFetchError: (command: string, error: string) => void,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
     this.fnSetAddresses = fnSetAddresses;
@@ -55,6 +58,8 @@ export default class RPC {
     this.updateTimerID = undefined;
     this.syncTimerID = undefined;
     this.updateDataLock = false;
+
+    this.fnSetFetchError = fnSetFetchError;
   }
 
   async configure(rpcConfig: RPCConfig) {
@@ -375,27 +380,52 @@ export default class RPC {
   }
 
   async fetchWalletSettings() {
-    const download_memos_str: string = await native.zingolib_execute_async("getoption", "download_memos");
-    const download_memos = JSON.parse(download_memos_str).download_memos;
-
-    let transaction_filter_threshold = 0;
+    const cmd = 'getoption';
     try {
-      const spam_filter_str: string = await native.zingolib_execute_async("getoption", "transaction_filter_threshold");
+      const download_memos_str: string = await native.zingolib_execute_async(cmd, "download_memos");
+      if (download_memos_str) {
+        if (download_memos_str.toLowerCase().startsWith('error')) {
+          console.log(`Error download memos ${download_memos_str}`);
+          this.fnSetFetchError(cmd, download_memos_str);
+          return;
+        }
+      } else {
+        console.log('Internal Error download memos');
+        this.fnSetFetchError(cmd, 'Error: Internal RPC Error download memos');
+        return;
+      }
+      const download_memos = JSON.parse(download_memos_str).download_memos;
+
+      let transaction_filter_threshold = 0;
+      const spam_filter_str: string = await native.zingolib_execute_async(cmd, "transaction_filter_threshold");
+      if (spam_filter_str) {
+        if (spam_filter_str.toLowerCase().startsWith('error')) {
+          console.log(`Error transaction filter threshold ${spam_filter_str}`);
+          this.fnSetFetchError(cmd, spam_filter_str);
+          return;
+        }
+      } else {
+        console.log('Internal Error transaction filter threshold');
+        this.fnSetFetchError(cmd, 'Error: Internal RPC Error transaction filter threshold');
+        return;
+      }
       transaction_filter_threshold = JSON.parse(spam_filter_str).transaction_filter_threshold;
 
-      // If it is -1, i.e., it was not set, then set it to 50
+      // If it is -1, i.e., it was not set, then set it to 500
       if (transaction_filter_threshold < 0) {
         await RPC.setWalletSettingOption("transaction_filter_threshold", "500");
       }
+
+      const wallet_settings = new WalletSettings();
+      wallet_settings.download_memos = download_memos;
+      wallet_settings.transaction_filter_threshold = transaction_filter_threshold;
+
+      this.fnSetWalletSettings(wallet_settings);
     } catch (e) {
       console.log(`Error getting spam filter threshold: ${e}`);
+      this.fnSetFetchError(cmd, `${e}`);
+      return;
     }
-
-    const wallet_settings = new WalletSettings();
-    wallet_settings.download_memos = download_memos;
-    wallet_settings.transaction_filter_threshold = transaction_filter_threshold;
-
-    this.fnSetWalletSettings(wallet_settings);
   }
 
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
@@ -415,6 +445,17 @@ export default class RPC {
 
   async zingolibBalance(): Promise<any> {
     const balanceStr: string = await native.zingolib_execute_async("balance", "");
+    if (balanceStr) {
+      if (balanceStr.toLowerCase().startsWith('error')) {
+        console.log(`Error balance ${balanceStr}`);
+        this.fnSetFetchError('balance', balanceStr);
+        return;
+      }
+    } else {
+      console.log('Internal Error balance');
+      this.fnSetFetchError('balance', 'Error: Internal RPC Error');
+      return;
+    }
     const balanceJSON = JSON.parse(balanceStr);
 
     //console.log(balanceJSON);
@@ -436,10 +477,32 @@ export default class RPC {
 
     // fetch all addresses
     const addressesStr: string = await native.zingolib_execute_async("addresses", "");
+    if (addressesStr) {
+      if (addressesStr.toLowerCase().startsWith('error')) {
+        console.log(`Error addresses ${addressesStr}`);
+        this.fnSetFetchError('addresses', addressesStr);
+        return;
+      }
+    } else {
+      console.log('Internal Error addresses');
+      this.fnSetFetchError('addresses', 'Error: Internal RPC Error');
+      return;
+    }
     const addressesJSON = JSON.parse(addressesStr);
 
     // fetch all notes
     const notesStr: string = await native.zingolib_execute_async("notes", "");
+    if (notesStr) {
+      if (notesStr.toLowerCase().startsWith('error')) {
+        console.log(`Error notes ${notesStr}`);
+        this.fnSetFetchError('notes', notesStr);
+        return;
+      }
+    } else {
+      console.log('Internal Error notes');
+      this.fnSetFetchError('notes', 'Error: Internal RPC Error');
+      return;
+    }
     const notesJSON = JSON.parse(notesStr);
 
     //console.log(notesJSON);
@@ -525,10 +588,32 @@ export default class RPC {
   async zingolibNotes(): Promise<any> {
     // fetch all notes
     const notesStr: string = await native.zingolib_execute_async("notes", "");
+    if (notesStr) {
+      if (notesStr.toLowerCase().startsWith('error')) {
+        console.log(`Error notes ${notesStr}`);
+        this.fnSetFetchError('notes', notesStr);
+        return;
+      }
+    } else {
+      console.log('Internal Error notes');
+      this.fnSetFetchError('notes', 'Error: Internal RPC Error');
+      return;
+    }
     const notesJSON = JSON.parse(notesStr);
 
     // fetch all addresses
     const addressesStr: string = await native.zingolib_execute_async("addresses", "");
+    if (addressesStr) {
+      if (addressesStr.toLowerCase().startsWith('error')) {
+        console.log(`Error addresses ${addressesStr}`);
+        this.fnSetFetchError('addresses', addressesStr);
+        return;
+      }
+    } else {
+      console.log('Internal Error addresses');
+      this.fnSetFetchError('addresses', 'Error: Internal RPC Error');
+      return;
+    }
     const addressesJSON = JSON.parse(addressesStr);
 
     let formattedJSON = {
@@ -599,7 +684,19 @@ export default class RPC {
 
   async zingolibTxSummaries(): Promise<any> {
     // fetch transaction summaries
-    const txSummariesStr: string = await native.zingolib_execute_async("summaries", "");
+    const cmd = 'summaries';
+    const txSummariesStr: string = await native.zingolib_execute_async(cmd, "");
+    if (txSummariesStr) {
+      if (txSummariesStr.toLowerCase().startsWith('error')) {
+        console.log(`Error txs summaries ${txSummariesStr}`);
+        this.fnSetFetchError(cmd, txSummariesStr);
+        return {};
+      }
+    } else {
+      console.log('Internal Error txs summaries');
+      this.fnSetFetchError(cmd, 'Error: Internal RPC Error');
+      return {};
+    }
     const txSummariesJSON = JSON.parse(txSummariesStr);
 
     return txSummariesJSON;
@@ -789,6 +886,8 @@ export default class RPC {
 
     let txList: Transaction[] = [];
 
+    const walletHeight: number = await RPC.fetchWalletHeight();
+
     summariesJSON
       //.filter(tx => tx.kind !== 'Fee')
       .forEach((tx: any) => {
@@ -809,7 +908,7 @@ export default class RPC {
         } else  if (!currentTxList[0].confirmations) {
           currentTxList[0].confirmations = latestBlockHeight
             ? latestBlockHeight - tx.block_height + 1
-            : 0;
+            : walletHeight - tx.block_height + 1;
         }
         if (!currentTxList[0].txid && !!tx.txid) {
           currentTxList[0].txid = tx.txid;
