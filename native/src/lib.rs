@@ -81,7 +81,7 @@ fn zingolib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
         Ok(c) => c,
         Err(_) => return Ok(cx.boolean(false)),
     };
-    let config = ZingoConfig::create_unconnected(chaintype, None);
+    let config = ZingoConfig::build(chaintype).create();
 
     Ok(cx.boolean(config.wallet_path_exists()))
 }
