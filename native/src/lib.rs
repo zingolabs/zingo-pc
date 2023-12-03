@@ -108,7 +108,7 @@ fn zingolib_initialize_new(mut cx: FunctionContext) -> JsResult<JsString> {
             }
         };
 
-        let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
+        let config = match zingoconfig::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
@@ -153,7 +153,7 @@ fn zingolib_initialize_new_from_phrase(mut cx: FunctionContext) -> JsResult<JsSt
             }
         };
 
-        let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
+        let config = match zingoconfig::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
@@ -202,7 +202,7 @@ fn zingolib_initialize_new_from_ufvk(mut cx: FunctionContext) -> JsResult<JsStri
             }
         };
 
-        let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
+        let config = match zingoconfig::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
@@ -249,7 +249,7 @@ fn zingolib_initialize_existing(mut cx: FunctionContext) -> JsResult<JsString> {
             }
         };
 
-        let config = match zingolib::load_clientconfig(server, None, chaintype, false) {
+        let config = match zingoconfig::load_clientconfig(server, None, chaintype, false) {
             Ok(c) => c,
             Err(e) => {
                 return format!("Error: {}", e);
