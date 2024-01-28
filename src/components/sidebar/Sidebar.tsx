@@ -81,10 +81,10 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zingo PC v1.0.4</div>
-          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2023, ZingoLabs.</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v1.1.0</div>
+          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2024, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
-            The MIT License (MIT) Copyright (c) 2023 ZingoLabs
+            The MIT License (MIT) Copyright (c) 2024 ZingoLabs
             <br />
             <br />
             Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
