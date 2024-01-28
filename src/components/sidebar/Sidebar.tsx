@@ -15,6 +15,7 @@ import ExportPrivKeyModal from "./components/ExportPrivKeyModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
+import native from "../../native.node";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
@@ -203,6 +204,10 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
       // Reset the info object, it will be refetched
       setInfo(new Info());
+
+      // interrupt syncing
+      const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
+      console.log("Interrupting sync ....", resultInterrupt);
 
       this.props.navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
     });
