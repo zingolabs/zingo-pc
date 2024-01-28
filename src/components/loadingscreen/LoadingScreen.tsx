@@ -590,6 +590,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     if (native.zingolib_wallet_exists(chain)) {
       const result: string = native.zingolib_initialize_existing(url, chain);
       console.log(`Initialization: ${result}`);
+      // interrupt syncing, just in case.
+      const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
+      console.log("Interrupting sync ...", resultInterrupt);
       const resultDelete: string = await native.zingolib_execute_async("delete", "");
       console.log("deleting ...", resultDelete);
 
