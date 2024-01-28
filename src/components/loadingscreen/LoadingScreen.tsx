@@ -91,7 +91,13 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   constructor(props: LoadingScreenProps & RouteComponentProps) {
     super(props);
 
-    let currentStatus: string = "Loading...", 
+    let currentStatus: string | JSX.Element = (
+          <span>
+            Checking servers to connect...
+            <br />
+            This process can take several seconds/minutes depends of the Server's status.
+          </span>
+        ),
         currentStatusIsError: boolean = false, 
         changeAnotherWallet: boolean = false,
         serverUris: Server[] = [];
@@ -166,10 +172,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     });
   };
 
-  loadServer = async () => {
-    // checking servers
-    const prevCurrentStatus = this.state.currentStatus;
-    
+  loadServer = async () => {    
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
     console.log('SETTINGS;;;;;;;;;', settings);
@@ -227,11 +230,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     }
 
-    // if empty is the first time and if auto => App needs to check the srvers.
+    // if empty is the first time and if auto => App needs to check the servers.
     let servers: Server[] = this.state.serverUris;
 
     if (selection === 'auto' && servers.length === 0) {
-      this.setState({ currentStatus: "Checking " + serverUrisList().length + " servers to connect..." }); 
       servers = this.calculateServerLatency(serverUrisList()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
       server = servers[0].uri;
       chain_name = servers[0].chain_name;
@@ -239,10 +241,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name }); 
     }
 
-    console.log('&&&&&&&&----------', server, chain_name, selection);
+    console.log('&&&&&&&&---------', server, chain_name, selection);
 
     this.setState({
-      currentStatus: prevCurrentStatus,
       serverUris: servers,
       url: server,
       chain: chain_name,
