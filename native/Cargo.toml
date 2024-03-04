@@ -12,8 +12,8 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zingolib = { git="https://github.com/zingolabs/zingolib", default-features=true, branch = "dev" }
-zingoconfig = { git="https://github.com/zingolabs/zingolib", default-features=true, branch = "dev" }
+zingolib = { git="https://github.com/zingolabs/zingolib", default-features=true, branch = "stable" }
+zingoconfig = { git="https://github.com/zingolabs/zingolib", default-features=true, branch = "stable" }
 http = "*"
 lazy_static = "1.4.0"
 

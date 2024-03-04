@@ -11,7 +11,7 @@ use neon::prelude::JsString;
 
 use neon::register_module;
 
-use zingoconfig::{self, construct_lightwalletd_uri, ChainType, RegtestNetwork, ZingoConfig};
+use zingoconfig::{construct_lightwalletd_uri, ChainType, RegtestNetwork, ZingoConfig};
 use zingolib::{commands, lightclient::LightClient, wallet::WalletBase};
 
 use std::sync::RwLock;
