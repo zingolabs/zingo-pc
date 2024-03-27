@@ -8,12 +8,18 @@ const serverUrisList = (): Server[] => {
       chain_name: 'main',
       latency: null,
     },
-    //{
-    //  uri: 'https://lwdv3.zecwallet.co:443',
-    //  region: 'North America',
-    //  chain_name: 'main',
-    //  latency: null,
-    //},
+    {
+      uri: 'https://lwd1.zcash-infra.com:9067',
+      region: 'USA',
+      chain_name: 'main',
+      latency: null,
+    },
+    {
+      uri: 'https://test.zec.rocks:443',
+      region: 'USA',
+      chain_name: 'main',
+      latency: null,
+    },
     {
       uri: 'https://na.lightwalletd.com:443',
       region: 'North America',
@@ -35,12 +41,6 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://ai.lightwalletd.com:443',
       region: 'Asia & Oceania',
-      chain_name: 'main',
-      latency: null,
-    },
-    {
-      uri: 'https://lwd1.zcash-infra.com:9067',
-      region: 'USA',
       chain_name: 'main',
       latency: null,
     },
