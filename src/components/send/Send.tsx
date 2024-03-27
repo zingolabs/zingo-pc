@@ -236,6 +236,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
 
     // transparent funds are not spendable.
     let totalAmountAvailable: number = totalBalance.spendableZ + totalBalance.spendableO - info.defaultFee;
+    totalAmountAvailable = Number(Utils.maxPrecisionTrimmed(totalAmountAvailable));
     if (totalAmountAvailable < 0) {
       totalAmountAvailable = 0;
     }

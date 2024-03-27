@@ -5,7 +5,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceblock";
 import styles from "../Transactions.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressType, Transaction, TxDetail } from "../../appstate";
+import { Transaction, TxDetail } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
@@ -33,7 +33,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   addressBookMap,
 }) => {
   const context = useContext(ContextApp);
-  const { info, readOnly } = context;
+  const { readOnly } = context;
   const [expandAddress, setExpandAddress] = useState(false); 
   const [expandTxid, setExpandTxid] = useState(false); 
   
@@ -81,7 +81,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   };
 
   const doReply = (address: string) => {
-    setSendTo(new ZcashURITarget(address, info.defaultFee));
+    setSendTo(new ZcashURITarget(address));
     setExpandAddress(false);
     setExpandTxid(false);
     closeModal();
@@ -97,12 +97,6 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     setExpandAddress(false);
     setExpandTxid(false);
     closeModal();
-  };
-
-  const getAT = (address: string) => {
-    let type: AddressType | undefined = undefined;
-    (async() => type = await Utils.getAddressType(address))();
-    return type;
   };
 
   //console.log(tx);
@@ -197,19 +191,13 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
           const label: string = addressBookMap.get(address) || "";
 
-          let replyTo: string = "";
-          //console.log(memo, tx); 
-          if (tx && tx.type === "Received" && memos && memos.length > 0 ) {
-            const split: string[] = memos.join("").split(/[ :\n\r\t]+/);
-            // read the last row & if this is a valid address => show the button up
-            if (split && split.length > 0) {
-              const address = split[split.length - 1];
-              const addressType: AddressType | undefined = getAT(address);
-              console.log("-", split, "-", addressType); 
-              if (!!addressType) {
-                replyTo = split[split.length - 1];
-              }
-            }
+          let replyTo: string = ""; 
+
+          const memoTotal = memos ? memos.join('') : '';
+          if (memoTotal.includes('\nReply to: \n')) {
+            let memoArray = memoTotal.split('\nReply to: \n');
+            const memoPoped = memoArray.pop();
+            replyTo = memoPoped ? memoPoped.toString() : ''; 
           }
 
           return (
@@ -289,8 +277,11 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                       {memos.join("")}
                     </div>
                     {!!replyTo && !readOnly && (
-                      <div className={cstyles.primarybutton} onClick={() => doReply(replyTo)}>
-                        Reply to
+                      <div>
+                        <div style={{ whiteSpace: 'nowrap' }} className={cstyles.primarybutton} onClick={() => doReply(replyTo)}>
+                          Reply to
+                        </div>
+                        <div />
                       </div>
                     )}
                   </div>
