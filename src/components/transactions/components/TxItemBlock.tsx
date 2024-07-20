@@ -22,11 +22,11 @@ const TxItemBlock = ({ transaction, currencyName, txClicked, addressBookMap }: T
   const timePart: string = dateformat(txDate, "hh:MM tt");
 
   const fees: number = transaction && transaction.fee ? transaction.fee : 0;
-  const amount: number = transaction.txDetails.reduce((s, d) => s + d.amount, 0);
-  const label: string | undefined = transaction.txDetails.length === 1 ? addressBookMap.get(transaction.txDetails[0].address) : "";
-  const address: string = transaction.txDetails.length === 1 ? transaction.txDetails[0].address : "";
+  const amount: number = transaction.amount;
+  const label: string | undefined = addressBookMap.get(transaction.address);
+  const address: string = transaction.address;
   const txid: string = transaction.txid;
-  const memos: string = transaction.txDetails.reduce((s, d) => s + "\n" + (d.memos && d.memos.length > 0 ? d.memos.join("") : ''), '');
+  const memos: string = transaction.memos && transaction.memos.length > 0 ? transaction.memos.join("\n") : "";
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
 
   const price: number = transaction.zec_price ? transaction.zec_price : 0;
@@ -45,7 +45,7 @@ const TxItemBlock = ({ transaction, currencyName, txClicked, addressBookMap }: T
         }}
       >
         <div className={styles.txtype} style={{ marginRight: 10 }}>
-          <div style={{ color: transaction.confirmations === null || transaction.confirmations === 0 ? 'red' : transaction.type === 'Received' ? 'green' : 'white' }}>{transaction.type}</div>
+          <div style={{ color: transaction.confirmations === null || transaction.confirmations === 0 ? 'red' : transaction.type === 'received' || transaction.type === 'shield' ? 'green' : 'white' }}>{transaction.type}</div>
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
         </div>
         <div className={styles.txaddressamount}>

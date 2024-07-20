@@ -2,7 +2,6 @@ import {
   TotalBalance,
   Transaction,
   RPCConfig,
-  TxDetail,
   Info,
   SendProgress,
   AddressType,
@@ -192,7 +191,8 @@ export default class RPC {
 
       // And fetch the rest of the data.
       await this.fetchTotalBalance();
-      await this.fetchTandZandOTransactionsSummaries(latestBlockHeight);
+      //await this.fetchTandZandOTransactionsSummaries(latestBlockHeight);
+      this.fetchTandZandOValueTransfers(latestBlockHeight);
       await this.fetchWalletSettings();
 
       console.log(`Finished update data at ${latestBlockHeight}`);
@@ -235,7 +235,9 @@ export default class RPC {
           verificationProgress = 100;
           // And fetch the rest of the data.
           this.fetchTotalBalance();
-          this.fetchTandZandOTransactionsSummaries(latestBlockHeight);
+          //this.fetchTandZandOTransactionsSummaries(latestBlockHeight);
+          this.fetchTandZandOValueTransfers(latestBlockHeight);
+      
           //this.getZecPrice();
 
           this.lastBlockHeight = latestBlockHeight;
@@ -260,7 +262,9 @@ export default class RPC {
             // verificationProgress = 100;
             // And fetch the rest of the data.
             this.fetchTotalBalance();
-            this.fetchTandZandOTransactionsSummaries(latestBlockHeight);
+            //this.fetchTandZandOTransactionsSummaries(latestBlockHeight);
+            this.fetchTandZandOValueTransfers(latestBlockHeight);
+      
             //this.getZecPrice();
 
             this.lastBlockHeight = latestBlockHeight;
@@ -682,24 +686,44 @@ export default class RPC {
     return formattedJSON;
   }
 
-  async zingolibTxSummaries(): Promise<any> {
+  /*
+  async zingolibTxSummaries() {
     // fetch transaction summaries
-    const cmd = 'summaries';
-    const txSummariesStr: string = await native.zingolib_execute_async(cmd, "");
+    const txSummariesStr: string = native.zingolib_get_transaction_summaries();
     if (txSummariesStr) {
       if (txSummariesStr.toLowerCase().startsWith('error')) {
         console.log(`Error txs summaries ${txSummariesStr}`);
-        this.fnSetFetchError(cmd, txSummariesStr);
+        this.fnSetFetchError('transaction summaries', txSummariesStr);
         return {};
       }
     } else {
       console.log('Internal Error txs summaries');
-      this.fnSetFetchError(cmd, 'Error: Internal RPC Error');
+      this.fnSetFetchError('transaction summaries', 'Error: Internal RPC Error');
       return {};
     }
     const txSummariesJSON = JSON.parse(txSummariesStr);
 
-    return txSummariesJSON;
+    return txSummariesJSON.transaction_summaries;
+  }
+  */
+
+  async zingolibValueTransfers() {
+    // fetch transaction value transfers
+    const txValueTransfersStr: string = native.zingolib_get_value_transfers();
+    if (txValueTransfersStr) {
+      if (txValueTransfersStr.toLowerCase().startsWith('error')) {
+        console.log(`Error txs ValueTransfers ${txValueTransfersStr}`);
+        this.fnSetFetchError('transaction ValueTransfers', txValueTransfersStr);
+        return {};
+      }
+    } else {
+      console.log('Internal Error txs ValueTransfers');
+      this.fnSetFetchError('transaction ValueTransfers', 'Error: Internal RPC Error');
+      return {};
+    }
+    const txValueTransfersJSON = JSON.parse(txValueTransfersStr);
+
+    return txValueTransfersJSON.value_transfers;
   }
 
   // This method will get the total balances
@@ -793,14 +817,14 @@ export default class RPC {
     this.fnSetAddresses(addresses);
   }
 
-  static async getLastTxid(): Promise<string> {
-    const txListStr: string = await native.zingolib_execute_async("summaries", "");
+  static getLastTxid(): string {
+    const txListStr: string = native.zingolib_get_value_transfers();
     const txListJSON = JSON.parse(txListStr);
 
-    console.log('=============== get Last TX ID', txListJSON.length); 
+    console.log('=============== get Last TX ID', txListJSON.value_transfers.length); 
 
-    if (txListJSON && txListJSON.length && txListJSON.length > 0) {
-      return txListJSON[txListJSON.length - 1].txid;
+    if (txListJSON.value_transfers && txListJSON.value_transfers.length && txListJSON.value_transfers.length > 0) {
+      return txListJSON.value_transfers[txListJSON.length - 1].txid;
     } else {
       return "0";
     }
@@ -878,11 +902,12 @@ export default class RPC {
     return heightJSON.height;
   }
 
+  /*
   // Fetch all T and Z and O transactions
   async fetchTandZandOTransactionsSummaries(latestBlockHeight: number) {
     const summariesJSON: any = await this.zingolibTxSummaries();
 
-    //console.log('summaries antes', summariesJSON);
+    console.log('summaries antes ', summariesJSON);
 
     let txList: Transaction[] = [];
 
@@ -972,7 +997,60 @@ export default class RPC {
 
     this.fnSetTransactionsList(combinedTxList);
   }
+  */
 
+  // Fetch all T and Z and O transactions value transfers
+  async fetchTandZandOValueTransfers(latestBlockHeight: number) {
+    const valueTransfersJSON: any = await this.zingolibValueTransfers();
+
+    //console.log('value transfers antes ', valueTransfersJSON);
+
+    let txList: Transaction[] = [];
+
+    const walletHeight: number = await RPC.fetchWalletHeight();
+
+    valueTransfersJSON
+      .forEach((tx: any) => {
+        let currentTxList: Transaction = {} as Transaction;
+
+        currentTxList.txid = tx.txid;
+        currentTxList.time = tx.datetime;
+        currentTxList.type = tx.kind;
+        currentTxList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
+        currentTxList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
+
+        // unconfirmed means 0 confirmations, the tx is mining already.
+        if (tx.status === 'pending') {
+          currentTxList.confirmations = 0;
+        } else  if (tx.status === 'confirmed') {
+          currentTxList.confirmations = latestBlockHeight
+            ? latestBlockHeight - tx.blockheight + 1
+            : walletHeight - tx.blockheight + 1;
+        } else {
+          // impossible case... I guess.
+          currentTxList.confirmations = 0;
+        }
+        
+        currentTxList.address = !tx.recipient_address ? undefined : tx.recipient_address;
+        currentTxList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
+        currentTxList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
+        currentTxList.pool = !tx.pool_received ? undefined : tx.pool_received;
+
+        //if (tx.txid.startsWith('426e')) {
+        //  console.log('valuetranfer: ', tx);
+        //  console.log('--------------------------------------------------');
+        //}
+
+        txList.push(currentTxList);
+      });
+
+    //console.log(TxList);
+
+    this.fnSetTransactionsList(txList);
+  }
+
+
+  /*
   // We combine detailed transactions if they are sent to the same outgoing address in the same txid. This
   // is usually done to split long memos.
   // Remember to add up both amounts and combine memos
@@ -1090,7 +1168,7 @@ export default class RPC {
 
     return reducedDetailedTxns;
   }
-
+  */
 
   // Send a transaction using the already constructed sendJson structure
   async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> {

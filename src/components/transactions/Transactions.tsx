@@ -51,6 +51,38 @@ export default class Transactions extends Component<TransactionsProps, Transacti
 
     const isLoadMoreEnabled: boolean = transactions && numTxnsToShow < transactions.length;
 
+    const transactionsSorted: Transaction[] = transactions
+    .sort((a: any, b: any) => {
+      const timeComparison = b.time - a.time;
+      if (timeComparison === 0) {
+        // same time
+        const txidComparison = a.txid.localeCompare(b.txid);
+        if (txidComparison === 0) {
+          // same txid
+          const aAddress = a.address?.toString() || '';
+          const bAddress = b.address?.toString() || '';
+          const addressComparison = aAddress.localeCompare(bAddress);
+          if (addressComparison === 0) {
+            // same address
+            const aPoolType = a.poolType?.toString() || '';
+            const bPoolType = b.poolType?.toString() || '';
+            // last one sort criteria - poolType.
+            return aPoolType.localeCompare(bPoolType);
+          } else {
+            // different address
+            return addressComparison;
+          }
+        } else {
+          // different txid
+          return txidComparison;
+        }
+      } else {
+        // different time
+        return timeComparison;
+      }
+    })
+    .slice(0, numTxnsToShow);
+
     const addressBookMap: Map<string, string> = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
       m.set(obj.address, obj.label);
       return m; 
@@ -93,15 +125,15 @@ export default class Transactions extends Component<TransactionsProps, Transacti
         <ScrollPane offsetHeight={180}>
           {
             /* If no transactions, show the "loading..." text */
-            !transactions && <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
+            !transactionsSorted && <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
           }
 
-          {transactions && transactions.length === 0 && (
+          {transactionsSorted && transactionsSorted.length === 0 && (
             <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
           )}
-          {transactions &&
-            transactions.slice(0, numTxnsToShow).map((t: Transaction) => {
-              const key: string = t.type + t.txid;
+          {transactionsSorted && transactionsSorted.length > 0 &&
+            transactionsSorted.map((t: Transaction, index: number) => {
+              const key: string = `${index}-${t.type}-${t.txid}`;
               return (
                 <TxItemBlock
                   key={key}

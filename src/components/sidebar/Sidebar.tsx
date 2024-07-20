@@ -4,7 +4,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import { Address, Info, Server, Transaction, TxDetail } from "../appstate";
+import { Address, Info, Server, Transaction } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
@@ -226,20 +226,14 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       if (save.filePath) {
         // Construct a CSV
         const rows = tr.flatMap((t: Transaction) => {
-          if (t.txDetails) {
-            return t.txDetails.map((dt: TxDetail) => {
-              const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
+          const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
 
-              // Add a single quote "'" into the memo field to force interpretation as a string, rather than as a
-              // formula from a rogue memo
-              const escapedMemo = dt.memos && dt.memos.length > 0 ? `'${dt.memos.join("").replace(/"/g, '""')}'` : "";
-              const price = t.zec_price ? t.zec_price.toFixed(2) : "--";
+          // Add a single quote "'" into the memo field to force interpretation as a string, rather than as a
+          // formula from a rogue memo
+          const escapedMemo = t.memos && t.memos.length > 0 ? `'${t.memos.join("").replace(/"/g, '""')}'` : "";
+          const price = t.zec_price ? t.zec_price.toFixed(2) : "--";
 
-              return `${t.time},"${normaldate}","${t.txid}","${t.type}",${dt.amount},"${dt.address}","${price}","${escapedMemo}"`;
-            });
-          } else {
-            return [];
-          }
+          return `${t.time},"${normaldate}","${t.txid}","${t.type}",${t.amount},"${t.address}","${price}","${escapedMemo}"`;
         });
 
         const header = [`UnixTime, Date, Txid, Type, Amount, Address, ZECPrice, Memo`];

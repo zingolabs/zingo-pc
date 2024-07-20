@@ -1,20 +1,30 @@
-import TxDetail from "./TxDetail";
-
 // List of transactions. TODO: Handle memos, multiple addresses etc...
 export default class Transaction {
-  type: 'Sent' | 'Received' | 'SendToSelf'; // like kind
+  type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield'; // like kind
   fee?: number;
-  confirmations: number | null;
+  confirmations: number;
   txid: string;
   time: number;
   zec_price?: number;
-  txDetails: TxDetail[];
+  address: string;
+  amount: number;
+  memos?: string[];
+  pool?: 'Orchard' | 'Sapling' | 'Transparent';
 
-  constructor(type: 'Sent' | 'Received' | 'SendToSelf', confirmations: number, txid: string, time: number, txDetails: TxDetail[] ) {
+
+  constructor(
+    type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield', 
+    confirmations: number, 
+    txid: string, 
+    time: number, 
+    address: string,
+    amount: number,  
+   ) {
     this.type = type;
     this.confirmations = confirmations;
     this.txid = txid;
     this.time = time;
-    this.txDetails = txDetails;
+    this.address = address;
+    this.amount = amount;
   }
 }

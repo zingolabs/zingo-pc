@@ -5,7 +5,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceblock";
 import styles from "../Transactions.module.css";
 import cstyles from "../../common/Common.module.css";
-import { Transaction, TxDetail } from "../../appstate";
+import { Transaction } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
@@ -38,11 +38,13 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   const [expandTxid, setExpandTxid] = useState(false); 
   
   let txid: string = "";
-  let type: 'Sent' | 'Received' | 'SendToSelf' | "" = ""; 
+  let type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | "" = ""; 
   let typeIcon: string = "";
   let typeColor: string = "";
-  let confirmations: number | null = 0;
-  let detailedTxns: TxDetail[] = [];
+  let confirmations: number = 0;
+  let address: string = "";
+  let memos: string[] = [];
+  let pool: 'Orchard' | 'Sapling' | 'Transparent' | "" = "";
   let amount: number = 0;
   let datePart: string = "";
   let timePart: string = "";
@@ -52,7 +54,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   if (tx) {
     txid = tx.txid;
     type = tx.type;
-    if (tx.type === "Received") {
+    if (tx.type === "received" || tx.type === "shield") {
       typeIcon = "fa-arrow-circle-down";
       typeColor = "green";
     } else {
@@ -64,8 +66,10 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     timePart = dateformat(tx.time * 1000, "hh:MM tt");
 
     confirmations = tx.confirmations;
-    detailedTxns = tx.txDetails;
-    amount = tx.txDetails.reduce((s, d) => s + d.amount, 0);
+    amount = tx.amount;
+    address = tx.address;
+    memos = tx.memos && tx.memos.length > 0 ? tx.memos : [];
+    pool = tx.pool ? tx.pool : '';
     price = tx.zec_price ? tx.zec_price : 0;
     if (price) {
       priceString = `USD ${price.toFixed(2)} / ZEC`;
@@ -93,6 +97,19 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
   fees = tx && tx.fee ? tx.fee : 0;
 
+  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
+
+  const label: string = addressBookMap.get(address) || "";
+
+  let replyTo: string = ""; 
+
+  const memoTotal = memos ? memos.join('') : '';
+  if (memoTotal.includes('\nReply to: \n')) {
+    let memoArray = memoTotal.split('\nReply to: \n');
+    const memoPoped = memoArray.pop();
+    replyTo = memoPoped ? memoPoped.toString() : ''; 
+  }
+
   const localCloseModal = () => {
     setExpandAddress(false);
     setExpandTxid(false);
@@ -100,7 +117,6 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   };
 
   //console.log(tx);
-  //console.log('tx details', tx?.txDetails); 
 
   return (
     <Modal
@@ -183,24 +199,6 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-        {detailedTxns.map((txdetail: TxDetail) => {
-          const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(txdetail.amount);
-
-          let { address } = txdetail;
-          const { memos, pool } = txdetail;
-
-          const label: string = addressBookMap.get(address) || "";
-
-          let replyTo: string = ""; 
-
-          const memoTotal = memos ? memos.join('') : '';
-          if (memoTotal.includes('\nReply to: \n')) {
-            let memoArray = memoTotal.split('\nReply to: \n');
-            const memoPoped = memoArray.pop();
-            replyTo = memoPoped ? memoPoped.toString() : ''; 
-          }
-
-          return (
             <div key={`${txid}-${address}-${pool}`} className={cstyles.verticalflex}>
               {!!label && (
                 <div className={cstyles.highlight} style={{ marginBottom: 5 }}>{label}</div> 
@@ -291,8 +289,6 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
               <hr style={{ width: "100%" }} />
 
             </div>
-          );
-        })}
 
         <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>
           <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>

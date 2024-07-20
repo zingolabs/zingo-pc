@@ -265,11 +265,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     try {
       // Test to see if the wallet exists 
-      if (!native.zingolib_wallet_exists(chain)) {
+      if (!native.zingolib_wallet_exists(url, chain)) {
         // Show the wallet creation screen
         this.setState({ walletScreen: 1 });
       } else {
-        const result: string = native.zingolib_initialize_existing(url, chain);
+        const result: string = native.zingolib_init_from_b64(url, chain);
         console.log(`Initialization: ${result}`);
         if (result !== "OK") {
           this.setState({
@@ -334,7 +334,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const servers: Server[] = serverUris;
     servers.forEach((server: Server, index: number) => {
       const start: number = Date.now();
-      const  b = native.zingolib_server_uri_latency(server.uri);
+      const  b = native.zingolib_get_latest_block_height(server.uri);
       const end: number = Date.now();
       let latency = null;
       if (!b.toLowerCase().startsWith('error')) {
@@ -493,7 +493,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   createNewWallet = async () => {
     const { url, chain } = this.state;
-    const result: string = native.zingolib_initialize_new(url, chain);
+    const result: string = native.zingolib_init_new(url, chain);
 
     if (result.toLowerCase().startsWith("error")) {
       console.log('creating new wallet', result);
@@ -557,9 +557,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { seed, birthday, url, chain } = this.state;
     console.log(`Restoring ${seed} with ${birthday}`);
 
-    const allowOverwrite: boolean = true;
-
-    const result: string = native.zingolib_initialize_new_from_phrase(url, seed, birthday, allowOverwrite, chain);
+    const result: string = native.zingolib_init_from_seed(url, seed, birthday, chain);
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
@@ -573,9 +571,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { ufvk, birthday, url, chain } = this.state;
     console.log(`Restoring ${ufvk} with ${birthday}`);
 
-    const allowOverwrite: boolean = true;
-
-    const result: string = native.zingolib_initialize_new_from_ufvk(url, ufvk, birthday, allowOverwrite, chain);
+    const result: string = native.zingolib_init_from_ufvk(url, ufvk, birthday, chain);
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
@@ -587,8 +583,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   deleteWallet = async () => { 
     const { url, chain } = this.state;
-    if (native.zingolib_wallet_exists(chain)) {
-      const result: string = native.zingolib_initialize_existing(url, chain);
+    if (native.zingolib_wallet_exists(url, chain)) {
+      const result: string = native.zingolib_init_from_b64(url, chain);
       console.log(`Initialization: ${result}`);
       // interrupt syncing, just in case.
       const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
