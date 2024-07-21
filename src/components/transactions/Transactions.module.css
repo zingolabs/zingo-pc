@@ -1,39 +1,59 @@
 .txbox {
   margin-left: 16px;
   margin-right: 16px;
-  margin-top: 4px;
-  margin-bottom: 16px;
+  margin-top: 0px;
+  margin-bottom: 0px;
   display: flex;
   cursor: pointer;
 }
 
 .txdate {
   margin-left: 16px;
+  margin-top: 16px;
+  margin-bottom: 4px;
 }
 
 .txtype {
-  width: 10%;
-  float: left;
+  width: 15%;
+  display: flex;
+  flex-direction: column;
 }
 
-.txaddressamount {
-  width: 90%;
-  float: left;
+.txaddressmemofeeamount {
+  width: 85%;
+  display: flex;
+  flex-direction: row;
+}
+
+.txaddressmemo {
+  width: 80%;
+  display: flex;
+  flex-direction: column;
 }
 
 .txaddress {
-  width: 80%;
   float: left;
-}
-
-.txamount {
-  width: 20%;
-  float: right;
 }
 
 .txmemo {
   word-break: break-all;
+  float: left;
 }
+
+.txfeeamount {
+  width: 20%;
+  display: flex;
+  flex-direction: column;
+}
+
+.txfee {
+  float: right;
+}
+
+.txamount {
+  float: right;
+}
+
 
 .txmodal {
   top: 12.5%;

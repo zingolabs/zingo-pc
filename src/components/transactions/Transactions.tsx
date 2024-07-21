@@ -123,14 +123,14 @@ export default class Transactions extends Component<TransactionsProps, Transacti
 
         {/* Change the hardcoded height */}
         <ScrollPane offsetHeight={180}>
-          {
-            /* If no transactions, show the "loading..." text */
-            !transactionsSorted && <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
-          }
+          {!transactionsSorted && (
+            <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
+          )}
 
           {transactionsSorted && transactionsSorted.length === 0 && (
             <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
           )}
+
           {transactionsSorted && transactionsSorted.length > 0 &&
             transactionsSorted.map((t: Transaction, index: number) => {
               const key: string = `${index}-${t.type}-${t.txid}`;
@@ -141,13 +141,18 @@ export default class Transactions extends Component<TransactionsProps, Transacti
                   currencyName={info.currencyName}
                   txClicked={this.txClicked}
                   addressBookMap={addressBookMap}
+                  previousLineWithSameTxid={
+                    index === 0 
+                      ? false 
+                      : (transactionsSorted[index - 1].txid === t.txid)
+                  }
                 />
               );
             })}
 
           {isLoadMoreEnabled && (
             <div
-              style={{ marginLeft: "45%", width: "100px" }}
+              style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
               className={cstyles.primarybutton}
               onClick={this.show100MoreTxns}
             >
