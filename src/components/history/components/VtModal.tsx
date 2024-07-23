@@ -3,9 +3,9 @@ import Modal from "react-modal";
 import dateformat from "dateformat";
 import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceblock";
-import styles from "../Transactions.module.css";
+import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
-import { Transaction } from "../../appstate";
+import { ValueTransfer } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
@@ -14,18 +14,18 @@ const { clipboard } = window.require("electron");
 
 const { shell } = window.require("electron"); 
 
-type TxModalInternalProps = {
+type VtModalInternalProps = {
   modalIsOpen: boolean;
   closeModal: () => void;
-  tx?: Transaction;
+  vt?: ValueTransfer;
   currencyName: string;
   setSendTo: (targets: ZcashURITarget | ZcashURITarget[]) => void;
   addressBookMap: Map<string, string>;
 };
 
-const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
+const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   modalIsOpen,
-  tx,
+  vt,
   closeModal,
   currencyName,
   setSendTo,
@@ -51,10 +51,10 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   let price: number = 0;
   let priceString: string = "";
 
-  if (tx) {
-    txid = tx.txid;
-    type = tx.type;
-    if (tx.type === "received" || tx.type === "shield") {
+  if (vt) {
+    txid = vt.txid;
+    type = vt.type;
+    if (vt.type === "received" || vt.type === "shield") {
       typeIcon = "fa-arrow-circle-down";
       typeColor = "green";
     } else {
@@ -62,15 +62,15 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
       typeColor = "red";
     }
 
-    datePart = dateformat(tx.time * 1000, "mmm dd, yyyy");
-    timePart = dateformat(tx.time * 1000, "hh:MM tt");
+    datePart = dateformat(vt.time * 1000, "mmm dd, yyyy");
+    timePart = dateformat(vt.time * 1000, "hh:MM tt");
 
-    confirmations = tx.confirmations;
-    amount = tx.amount;
-    address = tx.address;
-    memos = tx.memos && tx.memos.length > 0 ? tx.memos : [];
-    pool = tx.pool ? tx.pool : '';
-    price = tx.zec_price ? tx.zec_price : 0;
+    confirmations = vt.confirmations;
+    amount = vt.amount;
+    address = vt.address;
+    memos = vt.memos && vt.memos.length > 0 ? vt.memos : [];
+    pool = vt.pool ? vt.pool : '';
+    price = vt.zec_price ? vt.zec_price : 0;
     if (price) {
       priceString = `USD ${price.toFixed(2)} / ZEC`;
     }
@@ -95,7 +95,7 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
   let fees: number = 0;
 
-  fees = tx && tx.fee ? tx.fee : 0;
+  fees = vt && vt.fee ? vt.fee : 0;
 
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
 
@@ -300,4 +300,4 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   );
 };
 
-export default withRouter(TxModalInternal);
+export default withRouter(VtModalInternal);

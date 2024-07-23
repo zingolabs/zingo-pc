@@ -12,20 +12,21 @@ import { ContextApp } from "../../context/ContextAppState";
 import { Address } from "../appstate";
 
 type DashboardProps = {
-  shieldAllBalanceToOrchard: () => Promise<string>;
+  shieldTransparentBalanceToOrchard: () => Promise<string>;
   openErrorModal: (title: string, body: string) => void;
+  calculateShieldFee: () => Promise<number>;
 };
 
 export default class Dashboard extends Component<DashboardProps> {
   static contextType = ContextApp;
 
-  promoteButton = () => {
+  shieldButton = () => {
     this.props.openErrorModal("Computing Transaction", "Please wait...This could take a while");
 
     setTimeout(() => {
       (async () => {
         try {
-          const result: string = await this.props.shieldAllBalanceToOrchard();
+          const result: string = await this.props.shieldTransparentBalanceToOrchard();
           console.log('shielding all balance', result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
@@ -57,6 +58,15 @@ export default class Dashboard extends Component<DashboardProps> {
 
     const anyPending: Address | Address[] = !!addresses && addresses.find((i: Address) => i.containsPending === true);
 
+    let shieldFee: number = 0;
+    if (totalBalance.transparent) {
+      (async () => {
+        shieldFee = await this.props.calculateShieldFee();
+      })();
+    }
+
+    console.log('shield fee', shieldFee);
+
     return (
       <div>
         <div className={[cstyles.well, styles.containermargin].join(" ")}>
@@ -87,9 +97,9 @@ export default class Dashboard extends Component<DashboardProps> {
             />
           </div>
           <div className={cstyles.balancebox}>
-            {totalBalance.zbalance + totalBalance.transparent > info.defaultFee && !readOnly && !anyPending &&  (
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={this.promoteButton}>
-                Promote All Balance To Orchard
+            {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={this.shieldButton}>
+                Promote Transparent Balance To Orchard
               </button>
             )}
             {!!anyPending && (

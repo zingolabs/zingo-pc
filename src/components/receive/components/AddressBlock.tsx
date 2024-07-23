@@ -24,7 +24,7 @@ type AddressBlockProps = {
   fetchAndSetSinglePrivKey: (k: string) => void;
   fetchAndSetSingleViewKey: (k: string) => void;
   shieldTransparentBalanceToOrchard?: () => Promise<string>;
-  shieldSaplingBalanceToOrchard?: () => Promise<string>;
+  calculateShieldFee?: () => Promise<number>;
   openErrorModal?: (title: string, body: string) => void;
 };
 
@@ -38,17 +38,18 @@ const AddressBlock = ({
   viewKey,
   fetchAndSetSingleViewKey,
   shieldTransparentBalanceToOrchard,
-  shieldSaplingBalanceToOrchard,
+  calculateShieldFee,
   openErrorModal,
 }: AddressBlockProps) => {
   const context = useContext(ContextApp);
-  const { info, readOnly } = context;
+  const { readOnly } = context;
   const { receivers, type } = address;
   const address_address = address.address;
   const balance = address.balance || 0;
 
   const [copied, setCopied] = useState<boolean>(false);
   const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
+  const [shieldFee, setShieldFee] = useState<number>(0);
 
   useEffect(() => {
     return () => {
@@ -57,6 +58,14 @@ const AddressBlock = ({
       }
     };
   });
+
+  useEffect(() => {
+    if (type === AddressType.transparent && calculateShieldFee && balance > 0) {
+      (async () => {
+        setShieldFee(await calculateShieldFee());
+      })();
+    }
+  }, [balance, calculateShieldFee, type]);
 
   const openAddress = () => { 
     if (currencyName === "TAZ") {
@@ -68,40 +77,6 @@ const AddressBlock = ({
         shell.openExternal(`https://zcashblockexplorer.com/address/${address_address}`);
       }
     }
-  };
-
-  const promoteButton = () => {
-    if (!shieldSaplingBalanceToOrchard || !openErrorModal) {
-      return;
-    }
-    openErrorModal("Computing Transaction", "Please wait...This could take a while");
-
-    setTimeout(() => {
-      (async () => {
-        try {
-          const result: string = await shieldSaplingBalanceToOrchard();
-          //console.log(result);
-
-          if (result.toLocaleLowerCase().startsWith('error')) {
-            openErrorModal("Error Promoting Transaction", `${result}`);
-            return;  
-          }
-          const resultJSON = JSON.parse(result);
-          if (resultJSON.txid) {
-            openErrorModal(
-              "Successfully Broadcast Transaction",
-              `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
-            );
-          }
-          if (resultJSON.error) {
-            openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
-          }
-        } catch (err) {
-          // If there was an error, show the error modal
-          openErrorModal("Error Promoting Transaction", `${err}`);
-        }
-      })();
-    }, 10);
   };
 
   const shieldButton = () => {
@@ -250,14 +225,9 @@ const AddressBlock = ({
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => openAddress()}>
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </button>
-              {type === AddressType.transparent && balance > info.defaultFee && !readOnly && (
+              {type === AddressType.transparent && balance >= shieldFee && shieldFee > 0 && !readOnly && (
                 <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
                   Shield Balance To Orchard
-                </button>
-              )}
-              {type === AddressType.sapling && balance > info.defaultFee && !readOnly && (
-                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={promoteButton}>
-                  Promote Balance To Orchard
                 </button>
               )}
             </div>

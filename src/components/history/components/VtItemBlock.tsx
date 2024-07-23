@@ -1,36 +1,36 @@
 import React, { useState } from "react";
 import dateformat from "dateformat";
-import styles from "../Transactions.module.css";
+import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
-import { Transaction } from "../../appstate";
+import { ValueTransfer } from "../../appstate";
 import Utils from "../../../utils/utils";
 const { clipboard } = window.require("electron");
 
-type TxItemBlockProps = {
-  transaction: Transaction;
+type VtItemBlockProps = {
+  valueTransfer: ValueTransfer;
   currencyName: string;
-  txClicked: (tx: Transaction) => void;
+  vtClicked: (vt: ValueTransfer) => void;
   addressBookMap: Map<string, string>;
   previousLineWithSameTxid: boolean;
 };
 
-const TxItemBlock = ({ transaction, currencyName, txClicked, addressBookMap, previousLineWithSameTxid }: TxItemBlockProps) => {
+const VtItemBlock = ({ valueTransfer, currencyName, vtClicked, addressBookMap, previousLineWithSameTxid }: VtItemBlockProps) => {
   const [expandAddress, setExpandAddress] = useState(false);
   const [expandTxid, setExpandTxid] = useState(false); 
   
-  const txDate: Date = new Date(transaction.time * 1000);
+  const txDate: Date = new Date(valueTransfer.time * 1000);
   const datePart: string = dateformat(txDate, "mmm dd, yyyy");
   const timePart: string = dateformat(txDate, "hh:MM tt");
 
-  const fees: number = transaction && transaction.fee ? transaction.fee : 0;
-  const amount: number = transaction.amount;
-  const label: string | undefined = addressBookMap.get(transaction.address);
-  const address: string = transaction.address;
-  const txid: string = transaction.txid;
-  const memos: string = transaction.memos && transaction.memos.length > 0 ? transaction.memos.join("\n") : "";
+  const fees: number = valueTransfer && valueTransfer.fee ? valueTransfer.fee : 0;
+  const amount: number = valueTransfer.amount;
+  const label: string | undefined = addressBookMap.get(valueTransfer.address);
+  const address: string = valueTransfer.address;
+  const txid: string = valueTransfer.txid;
+  const memos: string = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos.join("\n") : "";
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
 
-  const price: number = transaction.zec_price ? transaction.zec_price : 0;
+  const price: number = valueTransfer.zec_price ? valueTransfer.zec_price : 0;
   let  priceString: string = '';
   if (price) {
     priceString = `USD ${price.toFixed(2)} / ZEC`; 
@@ -46,11 +46,11 @@ const TxItemBlock = ({ transaction, currencyName, txClicked, addressBookMap, pre
       <div
         className={[cstyles.well, styles.txbox].join(" ")}
         onClick={() => {
-          txClicked(transaction);
+          vtClicked(valueTransfer);
         }}
       >
         <div className={styles.txtype} style={{ marginRight: 10 }}>
-          <div style={{ color: transaction.confirmations === null || transaction.confirmations === 0 ? 'red' : transaction.type === 'received' || transaction.type === 'shield' ? 'green' : 'white' }}>{transaction.type}</div>
+          <div style={{ color: valueTransfer.confirmations === null || valueTransfer.confirmations === 0 ? 'red' : valueTransfer.type === 'received' || valueTransfer.type === 'shield' ? 'green' : 'white' }}>{valueTransfer.type}</div>
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
         </div>
         <div className={styles.txaddressmemofeeamount}>
@@ -140,4 +140,4 @@ const TxItemBlock = ({ transaction, currencyName, txClicked, addressBookMap, pre
   );
 };
 
-export default TxItemBlock;
+export default VtItemBlock;

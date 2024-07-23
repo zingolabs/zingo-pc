@@ -14,7 +14,7 @@ type ReceiveProps = {
   fetchAndSetSingleViewKey: (k: string) => void;
   //createNewAddress: (t: AddressType) => void;
   shieldTransparentBalanceToOrchard: () => Promise<string>;
-  shieldSaplingBalanceToOrchard: () => Promise<string>;
+  calculateShieldFee: () => Promise<number>;
   openErrorModal: (title: string, body: string) => void;
 };
 
@@ -26,7 +26,7 @@ export default class Receive extends Component<ReceiveProps> {
       fetchAndSetSingleViewKey,
       //createNewAddress,
       shieldTransparentBalanceToOrchard,
-      shieldSaplingBalanceToOrchard,
+      calculateShieldFee,
       openErrorModal,
     } = this.props;
     const {
@@ -133,7 +133,6 @@ export default class Receive extends Component<ReceiveProps> {
                       viewKey={addressViewKeys.get(a.address)}
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
-                      shieldSaplingBalanceToOrchard={shieldSaplingBalanceToOrchard}
                       openErrorModal={openErrorModal}
                     />
                   ))}
@@ -164,6 +163,7 @@ export default class Receive extends Component<ReceiveProps> {
                       fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
                       fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
                       shieldTransparentBalanceToOrchard={shieldTransparentBalanceToOrchard}
+                      calculateShieldFee={calculateShieldFee}
                       openErrorModal={openErrorModal}
                     />
                   ))}

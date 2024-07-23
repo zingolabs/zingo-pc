@@ -1,5 +1,5 @@
 // List of transactions. TODO: Handle memos, multiple addresses etc...
-export default class Transaction {
+export default class ValueTransfer {
   type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield'; // like kind
   fee?: number;
   confirmations: number;

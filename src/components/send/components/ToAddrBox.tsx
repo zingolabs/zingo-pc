@@ -28,6 +28,8 @@ type ToAddrBoxProps = {
   setSendButtonEnabled: (sendButtonEnabled: boolean) => void;
   setMaxAmount: (id: number, total: number) => void;
   totalAmountAvailable: number;
+  sendFee: number;
+  sendFeeError: string;
 };
 
 const ToAddrBox = ({
@@ -39,10 +41,12 @@ const ToAddrBox = ({
   setMaxAmount,
   setSendButtonEnabled,
   totalAmountAvailable,
+  sendFee,
+  sendFeeError,
 }: ToAddrBoxProps) => {
   const [addressType, setAddressType] = useState<AddressType>();
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
-  const [addressIsValid, setAddressIsValid] = useState<boolean>(true);
+  const [addressIsValid, setAddressIsValid] = useState<number>(0);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [usdValue, setUsdValue] = useState<string>('');
 
@@ -53,8 +57,14 @@ const ToAddrBox = ({
       const isMemoDisabled: boolean = !(addressType === AddressType.sapling || addressType === AddressType.unified);
       setIsMemoDisabled(isMemoDisabled);
     
-      const addressIsValid: boolean =
-        toaddr.to === "" || addressType !== undefined;
+      let addressIsValid: number;
+      if (!toaddr.to) {
+        addressIsValid = 0;
+      } else if (addressType !== undefined) {
+        addressIsValid = 1;
+      } else {
+        addressIsValid = -1;
+      }
       setAddressIsValid(addressIsValid);
     
       let amountError: string | null = null;
@@ -81,7 +91,7 @@ const ToAddrBox = ({
       setAmountError(amountError);
     
       let buttonstate: boolean = true;
-      if (!addressIsValid || amountError || toaddr.to === "" || totalAmountAvailable < 0) {
+      if (addressIsValid === -1 || amountError || toaddr.to === "" || totalAmountAvailable < 0) {
         buttonstate = false;
       }
     
@@ -104,10 +114,10 @@ const ToAddrBox = ({
     }
   };
 
-  return (
+  return ( 
     <div>
       <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
-        <div className={[cstyles.flexspacebetween].join(" ")}>
+        <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
           <div className={cstyles.sublight}>To</div>
             <div className={[cstyles.sublight, cstyles.green].join(" ")}>
                 {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
@@ -115,9 +125,10 @@ const ToAddrBox = ({
                 {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
               </div>
             <div className={cstyles.validationerror}>
-            {addressIsValid ? (
+            {addressIsValid === 1 && (
               <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
-            ) : (
+            )}
+            {addressIsValid === -1 && (
               <span className={cstyles.red}>Invalid Address</span>
             )}
           </div>
@@ -129,27 +140,50 @@ const ToAddrBox = ({
           value={toaddr.to}
           onChange={(e) => updateToField(toaddr.id as number, e.target.value, null, null, null)}
         />
+
         <Spacer />
-        <div className={[cstyles.flexspacebetween].join(" ")}>
-          <div className={cstyles.sublight}>Amount</div>
-          <div className={cstyles.validationerror}>
-            {amountError ? <span className={cstyles.red}>{amountError}</span> : <span>{usdValue}</span>}
+
+        <div className={[cstyles.well, cstyles.flexspacebetween].join(" ")}>
+          <div style={{ width: '60%' }} className={[cstyles.verticalflex].join(" ")}>
+            <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
+              <div className={cstyles.sublight}>Amount</div>
+              <div className={cstyles.validationerror}>
+                {amountError ? <span className={cstyles.red}>{amountError}</span> : <span>{usdValue}</span>}
+              </div>
+            </div>
+            <div className={[cstyles.flexspacebetween].join(" ")}>
+              <input
+                type="number"
+                step="any"
+                className={cstyles.inputbox}
+                value={isNaN(toaddr.amount) ? "" : toaddr.amount}
+                onChange={(e) => updateToField(toaddr.id as number, null, e.target.value, null, null)}
+              />
+              <img
+                className={styles.toaddrbutton}
+                src={ArrowUpLight}
+                alt="Max"
+                onClick={() => setMaxAmount(toaddr.id as number, fromAmount)}
+              />
+            </div>
           </div>
-        </div>
-        <div className={[cstyles.flexspacebetween].join(" ")}>
-          <input
-            type="number"
-            step="any"
-            className={cstyles.inputbox}
-            value={isNaN(toaddr.amount) ? "" : toaddr.amount}
-            onChange={(e) => updateToField(toaddr.id as number, null, e.target.value, null, null)}
-          />
-          <img
-            className={styles.toaddrbutton}
-            src={ArrowUpLight}
-            alt="Max"
-            onClick={() => setMaxAmount(toaddr.id as number, fromAmount)}
-          />
+          <div style={{ width: '30%' }} className={[cstyles.verticalflex].join(" ")}>
+            <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
+              <div className={cstyles.sublight}>Fee</div>
+              <div className={cstyles.validationerror}>
+                {amountError ? <span className={cstyles.red}>{sendFeeError}</span> : <span></span>}
+              </div>
+            </div>
+            <div className={[cstyles.flexspacebetween].join(" ")}>
+              <input
+                type="number"
+                step="any"
+                className={cstyles.inputbox}
+                value={isNaN(sendFee) ? "" : sendFee}
+                disabled={true}
+              />
+            </div>
+          </div>
         </div>
 
         <Spacer />

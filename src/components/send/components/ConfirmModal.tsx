@@ -28,6 +28,7 @@ type ConfirmModalProps = {
     modalIsOpen: boolean;
     openErrorModal: (title: string, body: string) => void;
     openPasswordAndUnlockIfNeeded: (successCallback: () => void | Promise<void>) => void;
+    sendFee: number;
   };
   
   const ConfirmModalInternal: React.FC<RouteComponentProps & ConfirmModalProps> = ({
@@ -41,6 +42,7 @@ type ConfirmModalProps = {
     openErrorModal,
     openPasswordAndUnlockIfNeeded,
     history,
+    sendFee,
   }) => {
     const [sendingTotal, setSendingTotal] = useState<number>(0);
     const [bigPart, setBigPart] = useState<string>('');
@@ -54,14 +56,14 @@ type ConfirmModalProps = {
   
       let from: 'orchard' | 'orchard+sapling' | 'sapling' | '' = '';
       // amount + fee
-      if (Number(toaddr.amount) + info.defaultFee <= totalBalance.spendableO) {
+      if (Number(toaddr.amount) + sendFee <= totalBalance.spendableO) {
         from = 'orchard';
       } else if (
         totalBalance.spendableO > 0 &&
-        Number(toaddr.amount) + info.defaultFee <= totalBalance.spendableO + totalBalance.spendableZ
+        Number(toaddr.amount) + sendFee <= totalBalance.spendableO + totalBalance.spendableZ
       ) {
         from = 'orchard+sapling';
-      } else if (Number(toaddr.amount) + info.defaultFee <= totalBalance.spendableZ) {
+      } else if (Number(toaddr.amount) + sendFee <= totalBalance.spendableZ) {
         from = 'sapling';
       }
   
@@ -147,11 +149,11 @@ type ConfirmModalProps = {
   
       // whatever else
       return '-';
-    }, [info.defaultFee, totalBalance.spendableZ, totalBalance.spendableO]);
+    }, [sendFee, totalBalance.spendableZ, totalBalance.spendableO]);
 
     useEffect(() => {
       (async () => {
-        const sendingTotal: number = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + info.defaultFee;
+        const sendingTotal: number = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + sendFee;
         setSendingTotal(sendingTotal);
         const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(sendingTotal);
         setBigPart(bigPart);
@@ -159,7 +161,7 @@ type ConfirmModalProps = {
         const privacyLevel: string = await getPrivacyLevel(sendPageState.toaddrs[0]);
         setPrivacyLevel(privacyLevel);
       })();
-    },[getPrivacyLevel, info.defaultFee, sendPageState.toaddrs]);
+    },[getPrivacyLevel, sendFee, sendPageState.toaddrs]);
   
     const sendButton = () => {
       // First, close the confirm modal.
@@ -244,7 +246,7 @@ type ConfirmModalProps = {
                   <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
                 ))}
               </div>
-              <ConfirmModalToAddr toaddr={{ to: "Fee", amount: info.defaultFee, memo: "", memoReplyTo: "" }} info={info} />
+              <ConfirmModalToAddr toaddr={{ to: "Fee", amount: sendFee, memo: "", memoReplyTo: "" }} info={info} />
     
               <div className={cstyles.well}>
                 <div className={[cstyles.flexspacebetween, cstyles.margintoplarge].join(" ")}>

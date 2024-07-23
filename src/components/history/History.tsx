@@ -1,11 +1,11 @@
 import React, { Component } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Transactions.module.css";
-import { Transaction, AddressBookEntry } from "../appstate";
+import { ValueTransfer, AddressBookEntry } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
-import TxItemBlock from "./components/TxItemBlock";
-import TxModal from "./components/TxModal";
+import TxItemBlock from "./components/VtItemBlock";
+import TxModal from "./components/VtModal";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
@@ -15,7 +15,7 @@ type TransactionsProps = {
 };
 
 type TransactionsState = {
-  clickedTx?: Transaction;
+  clickedVt?: ValueTransfer;
   modalIsOpen: boolean;
   numTxnsToShow: number;
 };
@@ -25,17 +25,17 @@ export default class Transactions extends Component<TransactionsProps, Transacti
   constructor(props: TransactionsProps) {
     super(props);
 
-    this.state = { clickedTx: undefined, modalIsOpen: false, numTxnsToShow: 100 };
+    this.state = { clickedVt: undefined, modalIsOpen: false, numTxnsToShow: 100 };
   }
 
-  txClicked = (tx: Transaction) => {
+  txClicked = (vt: ValueTransfer) => {
     // Show the modal
-    if (!tx) return;
-    this.setState({ clickedTx: tx, modalIsOpen: true });
+    if (!vt) return;
+    this.setState({ clickedVt: vt, modalIsOpen: true });
   };
 
   closeModal = () => {
-    this.setState({ clickedTx: undefined, modalIsOpen: false });
+    this.setState({ clickedVt: undefined, modalIsOpen: false });
   };
 
   show100MoreTxns = () => {
@@ -46,12 +46,12 @@ export default class Transactions extends Component<TransactionsProps, Transacti
 
   render() {
     const { setSendTo } = this.props;
-    const { transactions, info, addressBook, totalBalance } = this.context;
-    const { clickedTx, modalIsOpen, numTxnsToShow } = this.state;
+    const { valueTransfers, info, addressBook, totalBalance } = this.context;
+    const { clickedVt, modalIsOpen, numTxnsToShow } = this.state;
 
-    const isLoadMoreEnabled: boolean = transactions && numTxnsToShow < transactions.length;
+    const isLoadMoreEnabled: boolean = valueTransfers && numTxnsToShow < valueTransfers.length;
 
-    const transactionsSorted: Transaction[] = transactions
+    const valueTransfersSorted: ValueTransfer[] = valueTransfers
     .sort((a: any, b: any) => {
       const timeComparison = b.time - a.time;
       if (timeComparison === 0) {
@@ -123,28 +123,28 @@ export default class Transactions extends Component<TransactionsProps, Transacti
 
         {/* Change the hardcoded height */}
         <ScrollPane offsetHeight={180}>
-          {!transactionsSorted && (
+          {!valueTransfersSorted && (
             <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
           )}
 
-          {transactionsSorted && transactionsSorted.length === 0 && (
+          {valueTransfersSorted && valueTransfersSorted.length === 0 && (
             <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
           )}
 
-          {transactionsSorted && transactionsSorted.length > 0 &&
-            transactionsSorted.map((t: Transaction, index: number) => {
-              const key: string = `${index}-${t.type}-${t.txid}`;
+          {valueTransfersSorted && valueTransfersSorted.length > 0 &&
+            valueTransfersSorted.map((vt: ValueTransfer, index: number) => {
+              const key: string = `${index}-${vt.type}-${vt.txid}`;
               return (
                 <TxItemBlock
                   key={key}
-                  transaction={t}
+                  valueTransfer={vt}
                   currencyName={info.currencyName}
-                  txClicked={this.txClicked}
+                  vtClicked={this.txClicked}
                   addressBookMap={addressBookMap}
                   previousLineWithSameTxid={
                     index === 0 
                       ? false 
-                      : (transactionsSorted[index - 1].txid === t.txid)
+                      : (valueTransfersSorted[index - 1].txid === vt.txid)
                   }
                 />
               );
@@ -163,7 +163,7 @@ export default class Transactions extends Component<TransactionsProps, Transacti
 
         <TxModal
           modalIsOpen={modalIsOpen}
-          tx={clickedTx}
+          vt={clickedVt}
           closeModal={this.closeModal}
           currencyName={info.currencyName}
           setSendTo={setSendTo}

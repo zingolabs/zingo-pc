@@ -18,6 +18,8 @@ import ToAddrBox from "./components/ToAddrBox";
 import ConfirmModal from "./components/ConfirmModal";
 import { ContextApp } from "../../context/ContextAppState";
 
+import native from "../../native.node";
+
 type OptionType = {
   value: string;
   label: string;
@@ -33,12 +35,15 @@ type SendProps = {
 
 class SendState {
   modalIsOpen: boolean;
-
   sendButtonEnabled: boolean;
+  sendFee: number;
+  sendFeeError: string;
 
   constructor() {
     this.modalIsOpen = false;
     this.sendButtonEnabled = false;
+    this.sendFee = 0;
+    this.sendFeeError = '';
   }
 }
 
@@ -166,9 +171,6 @@ export default class Send extends PureComponent<SendProps, SendState> {
       totalOtherAmount = restToAddr.reduce((s: number, a: ToAddr) => s + a.amount, 0);
     }
 
-    // Add Fee
-    //totalOtherAmount += info.defaultFee;
-
     toAddr.amount = total - totalOtherAmount;
     if (toAddr.amount < 0) toAddr.amount = 0;
     toAddr.amount = Number(Utils.maxPrecisionTrimmed(toAddr.amount)); 
@@ -219,6 +221,27 @@ export default class Send extends PureComponent<SendProps, SendState> {
     return `[ ${currencyName} ${balance.toString()} ]${labelStr} ${addr}`;
   };
 
+  calculateSendFee = async (): Promise<{fee: number, error: string}> => {
+    const result: string = await native.zingolib_execute_async("shield", '');
+    const resultJSON = JSON.parse(result);
+    if (resultJSON.error) {
+      return { fee: 0, error: resultJSON.error };
+    } else if (resultJSON.fee) {
+      return { fee: resultJSON.fee, error: '' };
+    } else {
+      return { fee: 0, error: '' };
+    }
+  };
+
+  setSendFee = async (): Promise<void> => {
+    const { fee, error} = await this.calculateSendFee();
+    this.setState({
+      sendFee: fee,
+      sendFeeError: error,
+    })
+  };
+
+
   render() {
     const { modalIsOpen, sendButtonEnabled } = this.state;
     const {
@@ -235,7 +258,7 @@ export default class Send extends PureComponent<SendProps, SendState> {
     } = this.context;
 
     // transparent funds are not spendable.
-    let totalAmountAvailable: number = totalBalance.spendableZ + totalBalance.spendableO - info.defaultFee;
+    let totalAmountAvailable: number = totalBalance.spendableZ + totalBalance.spendableO - this.state.sendFee;
     totalAmountAvailable = Number(Utils.maxPrecisionTrimmed(totalAmountAvailable));
     if (totalAmountAvailable < 0) {
       totalAmountAvailable = 0;
@@ -264,21 +287,22 @@ export default class Send extends PureComponent<SendProps, SendState> {
             modalIsOpen={modalIsOpen}
             clearToAddrs={this.clearToAddrs}
             openPasswordAndUnlockIfNeeded={openPasswordAndUnlockIfNeeded}
+            sendFee={this.state.sendFee}
         />
 
         <div className={[cstyles.well, cstyles.balancebox, styles.containermargin].join(" ")}>
+          <BalanceBlockHighlight
+            topLabel="All Funds"
+            zecValue={totalBalance.total}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
+            currencyName={info.currencyName}
+          />
           <BalanceBlockHighlight
             topLabel="Spendable Funds"
             zecValue={totalAmountAvailable}
             usdValue={Utils.getZecToUsdString(info.zecPrice, totalAmountAvailable)}
             currencyName={info.currencyName}
             tooltip={tooltip}
-          />
-          <BalanceBlockHighlight
-            topLabel="All Funds"
-            zecValue={totalBalance.total}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
-            currencyName={info.currencyName}
           />
         </div>
 
@@ -298,7 +322,9 @@ export default class Send extends PureComponent<SendProps, SendState> {
                     fromAmount={totalAmountAvailable}
                     setMaxAmount={this.setMaxAmount}
                     setSendButtonEnabled={this.setSendButtonEnabled}
-                    totalAmountAvailable={totalBalance.total - info.defaultFee}
+                    totalAmountAvailable={totalBalance.total - this.state.sendFee}
+                    sendFee={this.state.sendFee}
+                    sendFeeError={this.state.sendFeeError}
                   />
                 );
               })}

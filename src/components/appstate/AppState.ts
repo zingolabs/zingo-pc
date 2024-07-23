@@ -1,7 +1,7 @@
 import { ErrorModalData } from "../errormodal";
 import TotalBalance from "./components/TotalBalance";
 import AddressBookEntry from "./components/AddressbookEntry";
-import Transaction from "./components/Transaction";
+import ValueTransfer from "./components/ValueTransfer";
 import SendPageState from "./components/SendPageState";
 import ReceivePageState from "./components/ReceivePageState";
 import RPCConfig from "./components/RPCConfig";
@@ -30,8 +30,8 @@ export default class AppState {
   // List of Address / Label pairs
   addressBook: AddressBookEntry[];
 
-  // List of all T and Z transactions
-  transactions: Transaction[];
+  // List of all T and Z ValueTransfer
+  valueTransfers: ValueTransfer[];
 
   // The state of the send page, as the user constructs a transaction
   sendPageState: SendPageState;
@@ -79,7 +79,7 @@ export default class AppState {
     this.addressViewKeys = new Map();
     this.addresses = [] as Address[];
     this.addressBook = [] as AddressBookEntry[];
-    this.transactions = [] as Transaction[];
+    this.valueTransfers = [] as ValueTransfer[];
     this.errorModalData = new ErrorModalData();
     this.serverSelectState = new ServerSelectState();
     this.sendPageState = new SendPageState();

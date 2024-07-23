@@ -4,7 +4,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import { Address, Info, Server, Transaction } from "../appstate";
+import { Address, Info, Server, ValueTransfer } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
@@ -75,7 +75,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
   setupMenuHandlers = async (): Promise<void> => {
     const { clearTimers, setSendTo, setInfo, setRescanning, history, openErrorModal, openPasswordAndUnlockIfNeeded, getPrivKeyAsString } =
       this.props;
-    const { info, serverUris, transactions, addresses } = this.context;
+    const { info, serverUris, valueTransfers, addresses } = this.context;
 
     // About
     ipcRenderer.on("about", () => {
@@ -221,11 +221,11 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         properties: ["showOverwriteConfirmation"],
       });
 
-      const tr = transactions;
+      const vt = valueTransfers;
 
       if (save.filePath) {
         // Construct a CSV
-        const rows = tr.flatMap((t: Transaction) => {
+        const rows = vt.flatMap((t: ValueTransfer) => {
           const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
 
           // Add a single quote "'" into the memo field to force interpretation as a string, rather than as a
@@ -603,8 +603,8 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
             iconname="fa-download"
           />
           <SidebarMenuItem
-            name="Transactions"
-            routeName={routes.TRANSACTIONS}
+            name="History"
+            routeName={routes.HISTORY}
             currentRoute={location.pathname}
             iconname="fa-list"
           />

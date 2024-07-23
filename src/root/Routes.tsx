@@ -14,7 +14,7 @@ import LoadingScreen from "../components/loadingscreen/LoadingScreen";
 import {
   AppState,
   TotalBalance,
-  Transaction,
+  ValueTransfer,
   SendPageState,
   ToAddr,
   RPCConfig,
@@ -37,10 +37,12 @@ import Zcashd from "../components/zcashd/Zcashd";
 import AddressBook from "../components/addressbook/Addressbook";
 import AddressbookImpl from "../components/addressbook/AddressbookImpl";
 import Sidebar from "../components/sidebar/Sidebar";
-import Transactions from "../components/transactions/Transactions";
+import History from "../components/history/History";
 import PasswordModal from "../components/passwordmodal/PasswordModal";
 import ServerSelectModal from "../components/serverselectmodal/ServerSelectModal";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
+
+import native from "../native.node";
 
 type Props = {};
 
@@ -61,7 +63,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.rpc = new RPC(
       this.setTotalBalance,
       this.setAddresses,
-      this.setTransactionList,
+      this.setValueTransferList,
       this.setInfo,
       this.setZecPrice,
       this.setWalletSettings,
@@ -74,7 +76,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     // Read the address book
     (async () => {
       const addressBook: AddressBookEntry[] = await AddressbookImpl.readAddressBook();
-      if (addressBook) {
+      if (addressBook && addressBook.length > 0) {
         this.setState({ addressBook });
       }
     })();
@@ -271,10 +273,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  setTransactionList = (transactions: Transaction[]) => {
-    if (deepDiff(transactions, this.state.transactions)) {
-      console.log('=============== transaction list', transactions);
-      this.setState({ transactions });
+  setValueTransferList = (valueTransfers: ValueTransfer[]) => {
+    if (deepDiff(valueTransfers, this.state.valueTransfers)) {
+      console.log('=============== ValueTransfer list', valueTransfers);
+      this.setState({ valueTransfers });
     }
   };
 
@@ -492,14 +494,17 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.rpc.clearTimers();
   };
 
-  shieldAllBalanceToOrchard = async (): Promise<string> => {
-    const result: string = await this.rpc.shieldAllBalanceToOrchard();
-    return result;
-  }
-
-  shieldSaplingBalanceToOrchard = async (): Promise<string> => {
-    const result: string = await this.rpc.shieldSaplingBalanceToOrchard();
-    return result;
+  calculateShieldFee = async (): Promise<number> => {
+    const result: string = await native.zingolib_execute_async("shield", '');
+    console.log(result);
+    const resultJSON = JSON.parse(result);
+    if (resultJSON.error) {
+      return 0;
+    } else if (resultJSON.fee) {
+      return resultJSON.fee;
+    } else {
+      return 0;
+    }
   }
 
   shieldTransparentBalanceToOrchard = async (): Promise<string> => {
@@ -582,9 +587,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <Receive
                     {...standardProps}
                     shieldTransparentBalanceToOrchard={this.shieldTransparentBalanceToOrchard}
-                    shieldSaplingBalanceToOrchard={this.shieldSaplingBalanceToOrchard}
                     fetchAndSetSinglePrivKey={this.fetchAndSetSinglePrivKey}
                     fetchAndSetSingleViewKey={this.fetchAndSetSingleViewKey}
+                    calculateShieldFee={this.calculateShieldFee}
                   />
                 )}
               />
@@ -602,7 +607,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.DASHBOARD}
                 render={() => (
                   <Dashboard 
-                    shieldAllBalanceToOrchard={this.shieldAllBalanceToOrchard} 
+                    shieldTransparentBalanceToOrchard={this.shieldTransparentBalanceToOrchard}
+                    calculateShieldFee={this.calculateShieldFee}
                     openErrorModal={this.openErrorModal} 
                   />
                 )}
@@ -614,9 +620,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 )}
               />
               <Route
-                path={routes.TRANSACTIONS}
+                path={routes.HISTORY}
                 render={() => (
-                  <Transactions
+                  <History
                     setSendTo={this.setSendTo}
                   />
                 )}
