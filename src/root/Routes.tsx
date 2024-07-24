@@ -2,7 +2,6 @@ import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route, withRouter, RouteComponentProps } from "react-router";
 import { isEqual } from 'lodash';
-import deepDiff from 'deep-diff';
 import { ErrorModal, ErrorModalData } from "../components/errormodal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json"; 
@@ -238,7 +237,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setAddresses = (addresses: Address[]) => {
-    if (deepDiff(addresses, this.state.addresses)) {
+    if (!isEqual(addresses, this.state.addresses)) {
       console.log('=============== addresses', addresses.length);
       this.setState({ addresses });
     }
@@ -274,7 +273,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setValueTransferList = (valueTransfers: ValueTransfer[]) => {
-    if (deepDiff(valueTransfers, this.state.valueTransfers)) {
+    if (!isEqual(valueTransfers, this.state.valueTransfers)) {
       console.log('=============== ValueTransfer list', valueTransfers);
       this.setState({ valueTransfers });
     }

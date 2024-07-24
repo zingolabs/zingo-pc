@@ -28,7 +28,7 @@ type AddressBlockProps = {
   openErrorModal?: (title: string, body: string) => void;
 };
 
-const AddressBlock = ({
+const AddressBlock: React.FC<AddressBlockProps> = ({
   address,
   label,
   currencyName,
@@ -40,7 +40,7 @@ const AddressBlock = ({
   shieldTransparentBalanceToOrchard,
   calculateShieldFee,
   openErrorModal,
-}: AddressBlockProps) => {
+}) => {
   const context = useContext(ContextApp);
   const { readOnly } = context;
   const { receivers, type } = address;
