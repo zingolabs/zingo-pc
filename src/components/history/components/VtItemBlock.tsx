@@ -14,7 +14,7 @@ type VtItemBlockProps = {
   previousLineWithSameTxid: boolean;
 };
 
-const VtItemBlock = ({ valueTransfer, currencyName, vtClicked, addressBookMap, previousLineWithSameTxid }: VtItemBlockProps) => {
+const VtItemBlock: React.FC<VtItemBlockProps> = ({ valueTransfer, currencyName, vtClicked, addressBookMap, previousLineWithSameTxid }) => {
   const [expandAddress, setExpandAddress] = useState(false);
   const [expandTxid, setExpandTxid] = useState(false); 
   
@@ -28,6 +28,7 @@ const VtItemBlock = ({ valueTransfer, currencyName, vtClicked, addressBookMap, p
   const address: string = valueTransfer.address;
   const txid: string = valueTransfer.txid;
   const memos: string = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos.join("\n") : "";
+  
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
 
   const price: number = valueTransfer.zec_price ? valueTransfer.zec_price : 0;

@@ -473,7 +473,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       const newAddress: any = await RPC.createNewAddress(newType);
       console.log(`Created new Address ${newAddress}`);
 
-      // And then fetch the list of addresses again to refresh (totalBalance gets all addresses)
+      // And then fetch the list of addresses again to refresh (totalBalance gets all addresses) 
       this.rpc.fetchTotalBalance();
 
       const { receivePageState } = this.state;
@@ -501,7 +501,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     if (resultJSON.error) {
       return 0;
     } else if (resultJSON.fee) {
-      return resultJSON.fee;
+      return resultJSON.fee / 10 ** 8;
     } else {
       return 0;
     }

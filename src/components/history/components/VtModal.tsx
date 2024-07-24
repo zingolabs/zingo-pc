@@ -46,10 +46,12 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   let memos: string[] = [];
   let pool: 'Orchard' | 'Sapling' | 'Transparent' | "" = "";
   let amount: number = 0;
+  let fees: number = 0;
   let datePart: string = "";
   let timePart: string = "";
   let price: number = 0;
   let priceString: string = "";
+  let replyTo: string = ""; 
 
   if (vt) {
     txid = vt.txid;
@@ -59,7 +61,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       typeColor = "green";
     } else {
       typeIcon = "fa-arrow-circle-up";
-      typeColor = "red";
+      typeColor = "white";
     }
 
     datePart = dateformat(vt.time * 1000, "mmm dd, yyyy");
@@ -67,6 +69,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
     confirmations = vt.confirmations;
     amount = vt.amount;
+    fees = vt.fee ? vt.fee : 0;
     address = vt.address;
     memos = vt.memos && vt.memos.length > 0 ? vt.memos : [];
     pool = vt.pool ? vt.pool : '';
@@ -75,6 +78,18 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       priceString = `USD ${price.toFixed(2)} / ZEC`;
     }
   }
+
+  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
+
+  const label: string = addressBookMap.get(address) || "";
+
+  const memoTotal = memos ? memos.join('') : '';
+  if (memoTotal.includes('\nReply to: \n')) {
+    let memoArray = memoTotal.split('\nReply to: \n');
+    const memoPoped = memoArray.pop();
+    replyTo = memoPoped ? memoPoped.toString() : ''; 
+  }
+
 
   const openTxid = () => {
     if (currencyName === "TAZ") {
@@ -92,23 +107,6 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
     history.push(routes.SEND);
   };
-
-  let fees: number = 0;
-
-  fees = vt && vt.fee ? vt.fee : 0;
-
-  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
-
-  const label: string = addressBookMap.get(address) || "";
-
-  let replyTo: string = ""; 
-
-  const memoTotal = memos ? memos.join('') : '';
-  if (memoTotal.includes('\nReply to: \n')) {
-    let memoArray = memoTotal.split('\nReply to: \n');
-    const memoPoped = memoArray.pop();
-    replyTo = memoPoped ? memoPoped.toString() : ''; 
-  }
 
   const localCloseModal = () => {
     setExpandAddress(false);

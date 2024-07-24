@@ -1,4 +1,4 @@
-import React, { Component } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import {
   Accordion,
 } from "react-accessible-accordion";
@@ -17,136 +17,141 @@ type DashboardProps = {
   calculateShieldFee: () => Promise<number>;
 };
 
-export default class Dashboard extends Component<DashboardProps> {
-  static contextType = ContextApp;
+const Dashboard: React.FC<DashboardProps> = ({shieldTransparentBalanceToOrchard, openErrorModal, calculateShieldFee}) => {
+  const context = useContext(ContextApp);
+  const { totalBalance, info, addresses, readOnly, fetchError } = context;
 
-  shieldButton = () => {
-    this.props.openErrorModal("Computing Transaction", "Please wait...This could take a while");
+  const [anyPending, setAnyPending] = useState<boolean>(false);
+  const [shieldFee, setShieldFee] = useState<number>(0);
+
+  useEffect(() => {
+    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+    setAnyPending(!!_anyPending);
+  }, [addresses]);
+    
+  useEffect(() => {
+    if (totalBalance.transparent > 0) {
+      (async () => {
+        setShieldFee(await calculateShieldFee());
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalBalance.transparent]); 
+
+  const shieldButton = () => {
+    openErrorModal("Computing Transaction", "Please wait...This could take a while");
 
     setTimeout(() => {
       (async () => {
         try {
-          const result: string = await this.props.shieldTransparentBalanceToOrchard();
-          console.log('shielding all balance', result);
+          const result: string = await shieldTransparentBalanceToOrchard();
+          console.log('shielding balance', result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
-            this.props.openErrorModal("Error Shielding Transaction", `${result}`);
+            openErrorModal("Error Shielding Transaction", `${result}`);
             return;  
           }
           const resultJSON = JSON.parse(result);
-          if (resultJSON.txid) {
-            this.props.openErrorModal(
+          if (resultJSON.txids) {
+            openErrorModal(
               "Successfully Broadcast Transaction",
-              `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+              `Transaction was successfully broadcast.\n${resultJSON.txids.length === 1 ? 'TXID' : "TXID's"}: ${resultJSON.txids.join(' ')}`
             );
           }
           if (resultJSON.error) {
-            this.props.openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
+            openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
           }
         } catch (err) {
           // If there was an error, show the error modal
-          this.props.openErrorModal("Error Shielding Transaction", `${err}`);
+          openErrorModal("Error Shielding Transaction", `${err}`);
         }
       })();
     }, 10);
   };
 
-  render() {
-    const { totalBalance, info, addresses, readOnly, fetchError } = this.context;
+  console.log('shield fee', shieldFee);
 
-    console.log('%%%%%%', fetchError, '@@@@@@@@@');
-
-    const anyPending: Address | Address[] = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-
-    let shieldFee: number = 0;
-    if (totalBalance.transparent) {
-      (async () => {
-        shieldFee = await this.props.calculateShieldFee();
-      })();
-    }
-
-    console.log('shield fee', shieldFee);
-
-    return (
-      <div>
-        <div className={[cstyles.well, styles.containermargin].join(" ")}>
-          <div className={cstyles.balancebox}>
-            <BalanceBlockHighlight
-              topLabel="All Funds"
-              zecValue={totalBalance.total}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
-              currencyName={info.currencyName}
-            />
-            <BalanceBlock
-              topLabel="Orchard"
-              zecValue={totalBalance.obalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
-              currencyName={info.currencyName}
-            />
-            <BalanceBlock
-              topLabel="Sapling"
-              zecValue={totalBalance.zbalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.zbalance)}
-              currencyName={info.currencyName}
-            />
-            <BalanceBlock
-              topLabel="Transparent"
-              zecValue={totalBalance.transparent}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.transparent)}
-              currencyName={info.currencyName}
-            />
-          </div>
-          <div className={cstyles.balancebox}>
-            {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={this.shieldButton}>
-                Promote Transparent Balance To Orchard
-              </button>
-            )}
-            {!!anyPending && (
-              <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
-                Some transactions are pending. Balances may change.
-              </div>
-            )}
-          </div>
-          {!!fetchError && !!fetchError.error && (
-            <>
-              <hr />
-              <div className={cstyles.balancebox} style={{ color: 'red' }}>
-                {fetchError.command + ': ' + fetchError.error}
-              </div>
-            </>
+  return (
+    <div>
+      <div className={[cstyles.well, styles.containermargin].join(" ")}>
+        <div className={cstyles.balancebox}>
+          <BalanceBlockHighlight
+            topLabel="All Funds"
+            zecValue={totalBalance.total}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
+            currencyName={info.currencyName}
+          />
+          <BalanceBlock
+            topLabel="Orchard"
+            zecValue={totalBalance.obalance}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
+            currencyName={info.currencyName}
+          />
+          <BalanceBlock
+            topLabel="Sapling"
+            zecValue={totalBalance.zbalance}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.zbalance)}
+            currencyName={info.currencyName}
+          />
+          <BalanceBlock
+            topLabel="Transparent"
+            zecValue={totalBalance.transparent}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.transparent)}
+            currencyName={info.currencyName}
+          />
+        </div>
+        <div className={cstyles.balancebox}>
+          {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+            <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
+              Shield Transparent Balance To Orchard
+            </button>
+          )}
+          {!!anyPending && (
+            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+              Some transactions are pending. Balances may change.
+            </div>
           )}
         </div>
-
-        <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
-          <div style={{ marginLeft: 100 }}>Address</div>
-          <div style={{ marginRight: 40 }}>Balance</div>
-        </div>
-
-        <div className={styles.addressbalancecontainer}>
-          <ScrollPane offsetHeight={190}>
-            <div className={styles.addressbooklist}>
-              {addresses &&
-                (addresses.length === 0 ? (
-                  <div className={[cstyles.center, cstyles.sublight, cstyles.margintoplarge].join(" ")}>No Addresses with a balance</div>
-                ) : (
-                  <Accordion>
-                    {addresses
-                      .filter((ab: Address) => ab.balance > 0)
-                      .map((ab: Address) => (
-                        <AddressBalanceItem
-                          key={ab.address}
-                          item={ab}
-                          currencyName={info.currencyName}
-                          zecPrice={info.zecPrice}
-                        />
-                      ))}
-                  </Accordion>
-                ))}
+        {!!fetchError && !!fetchError.error && (
+          <>
+            <hr />
+            <div className={cstyles.balancebox} style={{ color: 'red' }}>
+              {fetchError.command + ': ' + fetchError.error}
             </div>
-          </ScrollPane>
-        </div>
+          </>
+        )}
       </div>
-    );
-  }
-}
+
+      <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
+        <div style={{ marginLeft: 100 }}>Address</div>
+        <div style={{ marginRight: 40 }}>Balance</div>
+      </div>
+
+      <div className={styles.addressbalancecontainer}>
+        <ScrollPane offsetHeight={190}>
+          <div className={styles.addressbooklist}>
+            {addresses &&
+              (addresses.length === 0 ? (
+                <div className={[cstyles.center, cstyles.sublight, cstyles.margintoplarge].join(" ")}>No Addresses with a balance</div>
+              ) : (
+                <Accordion>
+                  {addresses
+                    .filter((ab: Address) => ab.balance > 0)
+                    .map((ab: Address) => (
+                      <AddressBalanceItem
+                        key={ab.address}
+                        item={ab}
+                        currencyName={info.currencyName}
+                        zecPrice={info.zecPrice}
+                      />
+                    ))}
+                </Accordion>
+              ))}
+          </div>
+        </ScrollPane>
+      </div>
+    </div>
+  );
+};
+
+export default Dashboard;
