@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import cstyles from "../common/Common.module.css";
-import styles from "./Transactions.module.css";
+import styles from "./History.module.css";
 import { ValueTransfer, AddressBookEntry } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
@@ -10,19 +10,19 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 
-type TransactionsProps = {
+type HistoryProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
 };
 
-type TransactionsState = {
+type HistoryState = {
   clickedVt?: ValueTransfer;
   modalIsOpen: boolean;
   numTxnsToShow: number;
 };
 
-export default class Transactions extends Component<TransactionsProps, TransactionsState> {
+export default class History extends Component<HistoryProps, HistoryState> {
   static contextType = ContextApp;
-  constructor(props: TransactionsProps) {
+  constructor(props: HistoryProps) {
     super(props);
 
     this.state = { clickedVt: undefined, modalIsOpen: false, numTxnsToShow: 100 };
@@ -119,7 +119,7 @@ export default class Transactions extends Component<TransactionsProps, Transacti
           </div>
         </div>
 
-        <div style={{ marginBottom: 5 }} className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Transactions</div>
+        <div style={{ marginBottom: 5 }} className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>History</div>
 
         {/* Change the hardcoded height */}
         <ScrollPane offsetHeight={180}>

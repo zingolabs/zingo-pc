@@ -402,13 +402,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> => {
     try {
-      const txid: string = await this.rpc.sendTransaction(sendJson, setSendProgress);
+      const result: string = await this.rpc.sendTransaction(sendJson, setSendProgress);
 
-      if (txid.toLowerCase().startsWith("error")) {
-        throw txid;
+      if (result.toLowerCase().startsWith("error")) {
+        throw result;
       }
 
-      return txid;
+      return result;
     } catch (err) {
       console.log("route sendtx error", err);
       throw err;
@@ -585,11 +585,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.RECEIVE}
                 render={() => (
                   <Receive
-                    {...standardProps}
                     shieldTransparentBalanceToOrchard={this.shieldTransparentBalanceToOrchard}
                     fetchAndSetSinglePrivKey={this.fetchAndSetSinglePrivKey}
                     fetchAndSetSingleViewKey={this.fetchAndSetSingleViewKey}
                     calculateShieldFee={this.calculateShieldFee}
+                    {...standardProps}
                   />
                 )}
               />
