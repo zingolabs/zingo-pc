@@ -204,7 +204,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           chain_name = 'main';
           if (serverInList && serverInList.length === 1) {
             // if the server is in the list, then selection is `list`
-            selection = 'list';
+            if (serverInList[0].obsolete) {
+              // if obsolete then select the first one on list
+              server = serverUrisList()[0].uri;
+              chain_name = serverUrisList()[0].chain_name;
+              selection = 'list';
+              await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
+            } else {
+              selection = 'list';
+            }
           } else {
             selection = 'custom';
           }
@@ -212,7 +220,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
         } else {
           chain_name = settings.serverchain_name;
-          // the server & chain are in settings, asking for selection
+          // the server & chain are in settings, asking for selection 
           if (!settings.serverselection) {
             if (serverInList && serverInList.length === 1) {
               // if the server is in the list, then selection is `list`
@@ -228,6 +236,17 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           }
         }
       }
+    }
+    // if the server selected is now obsolete, change it for the first one
+    const serverInList = serverUrisList().filter((s: Server) => s.uri === server)
+    if (serverInList[0].obsolete) {
+      console.log('server obsolete', server, '=>', serverUrisList()[0].uri);
+      server = serverUrisList()[0].uri;
+      chain_name = serverUrisList()[0].chain_name;
+      selection = 'list';
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
+      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
+      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     }
 
     // if empty is the first time and if auto => App needs to check the servers.
