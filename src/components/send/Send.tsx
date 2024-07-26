@@ -100,6 +100,16 @@ const Send: React.FC<SendProps> = ({
     newState.toaddrs = newToAddrs;
 
     setSendPageState(newState);
+    setSendFee(0);
+    setSendFeeError('');
+
+    // transparent funds are not spendable.
+    let _totalAmountAvailable: number = totalBalance.spendableZ + totalBalance.spendableO;
+    _totalAmountAvailable = Number(Utils.maxPrecisionTrimmed(_totalAmountAvailable));
+    if (_totalAmountAvailable < 0) {
+      _totalAmountAvailable = 0;
+    }
+    setTotalAmountAvailable(_totalAmountAvailable);
   };
 
   //const changeFrom = (selectedOption: OptionType) => {
@@ -246,8 +256,20 @@ const Send: React.FC<SendProps> = ({
   const calculateSendFee = async (): Promise<{fee: number, error: string, spendable: number}> => {
     let _fee: number = 0;
     let _error: string = '';
+    // transparent funds are not spendable.
     let _spendable: number = totalBalance.spendableZ + totalBalance.spendableO;
-    if (sendPageState.toaddrs[0].amount >= 0 && sendPageState.toaddrs[0].to) {
+    if (sendPageState.toaddrs[0].to) {
+      const result: string = await native.zingolib_execute_async("spendablebalance", sendPageState.toaddrs[0].to);
+      console.log('SPENDABLEBALANCE', result);
+      const resultJSON = JSON.parse(result);
+      if (resultJSON.error) {
+        _error = resultJSON.error;
+        _spendable = 0;
+      } else if (resultJSON.balance) {
+        _spendable = resultJSON.balance / 10 ** 8;
+      }
+    }
+    if (sendPageState.toaddrs[0].amount >= 0 && sendPageState.toaddrs[0].to && !_error) {
       const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
       console.log(sendJson);
       const result: string = await native.zingolib_execute_async("send", JSON.stringify(sendJson));
@@ -259,16 +281,9 @@ const Send: React.FC<SendProps> = ({
         _fee = resultJSON.fee / 10 ** 8;
       }
     }
-    if (sendPageState.toaddrs[0].to) {
-      const result: string = await native.zingolib_execute_async("spendablebalance", sendPageState.toaddrs[0].to);
-      console.log('SPENDABLEBALANCE', result);
-      const resultJSON = JSON.parse(result);
-      if (resultJSON.error) {
-        _error = _error + resultJSON.error;
-        _spendable = 0;
-      } else if (resultJSON.balance) {
-        _spendable = resultJSON.balance / 10 ** 8;
-      }
+    _spendable = Number(Utils.maxPrecisionTrimmed(_spendable));
+    if (_spendable < 0) {
+      _spendable = 0;
     }
     return {fee: _fee, error: _error, spendable: _spendable};
   };
@@ -330,6 +345,7 @@ const Send: React.FC<SendProps> = ({
                   updateToField={updateToField}
                   fromAddress={fromaddr}
                   fromAmount={totalAmountAvailable}
+                  fromAmountDefault={totalBalance.spendableZ + totalBalance.spendableO}
                   setMaxAmount={setMaxAmount}
                   setSendButtonEnabled={setSendButtonEnabled}
                   sendFee={sendFee}
@@ -337,6 +353,7 @@ const Send: React.FC<SendProps> = ({
                   fetchSendFeeAndErrorAndSpendable={fetchSendFeeAndErrorAndSpendable}
                   setSendFee={setSendFee}
                   setSendFeeError={setSendFeeError}
+                  setTotalAmountAvailable={setTotalAmountAvailable}
                 />
               );
             })}

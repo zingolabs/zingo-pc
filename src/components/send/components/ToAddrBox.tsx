@@ -25,6 +25,7 @@ type ToAddrBoxProps = {
   ) => void;
   fromAddress: string;
   fromAmount: number;
+  fromAmountDefault: number;
   setSendButtonEnabled: (sendButtonEnabled: boolean) => void;
   setMaxAmount: (id: number, total: number) => void;
   sendFee: number;
@@ -32,6 +33,7 @@ type ToAddrBoxProps = {
   fetchSendFeeAndErrorAndSpendable: () => Promise<void>;
   setSendFee: (fee: number) => void;
   setSendFeeError: (error: string) => void;
+  setTotalAmountAvailable: (amount: number) => void;
 };
 
 const ToAddrBox = ({
@@ -40,6 +42,7 @@ const ToAddrBox = ({
   updateToField,
   fromAddress,
   fromAmount,
+  fromAmountDefault,
   setMaxAmount,
   setSendButtonEnabled,
   sendFee,
@@ -47,6 +50,7 @@ const ToAddrBox = ({
   fetchSendFeeAndErrorAndSpendable,
   setSendFee,
   setSendFeeError,
+  setTotalAmountAvailable,
 }: ToAddrBoxProps) => {
   const [addressType, setAddressType] = useState<AddressType>();
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
@@ -100,11 +104,12 @@ const ToAddrBox = ({
         if (sendFee) {
           setSendFee(0);
           setSendFeeError('');
+          setTotalAmountAvailable(fromAmountDefault);
         }
       }
     
       let buttonstate: boolean = true;
-      if (_addressIsValid === -1 || _amountError || toaddr.to === "" || fromAmount < 0 || sendFee <= 0) {
+      if (_addressIsValid === -1 || _amountError || toaddr.to === "" || fromAmount < 0 || sendFee <= 0 || sendFeeError) {
         buttonstate = false;
       }
     
@@ -115,7 +120,7 @@ const ToAddrBox = ({
       const usdValue: string = Utils.getZecToUsdString(zecPrice, toaddr.amount);
       setUsdValue(usdValue);
     })();
-  }, [fetchSendFeeAndErrorAndSpendable, fromAmount, sendFee, setSendButtonEnabled, setSendFee, setSendFeeError, toaddr.amount, toaddr.to, zecPrice]);
+  }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.to, zecPrice]);
   
   const addReplyTo = (checked: boolean) => {
     if (toaddr.id) {
@@ -183,10 +188,17 @@ const ToAddrBox = ({
             </div>
           </div>
           <div style={{ width: '30%' }} className={[cstyles.verticalflex].join(" ")}>
-            <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
-              <div className={cstyles.sublight}>Fee</div>
-              <div className={cstyles.validationerror}>
-                {amountError ? <span className={cstyles.red}>{sendFeeError}</span> : <span></span>}
+            <div style={{ marginBottom: 5 }} className={[cstyles.horizontalflex].join(" ")}>
+              <div style={{ color: sendFeeError && !amountError && addressIsValid ? 'red' : '' }} className={cstyles.sublight}>Fee</div>
+              <div style={{ paddingTop: 3, paddingLeft: 10 }} title={sendFeeError}>
+                <div className={[cstyles.small].join(" ")}>
+                  {sendFeeError && !amountError && addressIsValid !== -1 && (
+                    <span>
+                      &nbsp;
+                      <i className={[cstyles.red, "fas", "fa-info-circle"].join(" ")} />
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             <div className={[cstyles.flexspacebetween].join(" ")}>
