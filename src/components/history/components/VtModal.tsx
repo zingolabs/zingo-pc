@@ -93,9 +93,9 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
   const openTxid = () => {
     if (currencyName === "TAZ") {
-      shell.openExternal(`https://testnet.zcashblockexplorer.com/transactions/${txid}`);
+      shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
     } else {
-      shell.openExternal(`https://zcashblockexplorer.com/transactions/${txid}`);
+      shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
     }
   };
 

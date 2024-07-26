@@ -42,6 +42,7 @@ import ServerSelectModal from "../components/serverselectmodal/ServerSelectModal
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
 import native from "../native.node";
+import deepDiff from "deep-diff";
 
 type Props = {};
 
@@ -208,7 +209,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setTotalBalance = (totalBalance: TotalBalance) => {
-    if (!isEqual(totalBalance, this.state.totalBalance)) {
+    if (deepDiff(totalBalance, this.state.totalBalance)) {
       console.log('=============== total balance', totalBalance);
       this.setState({ totalBalance });
     }
@@ -273,7 +274,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setValueTransferList = (valueTransfers: ValueTransfer[]) => {
-    if (!isEqual(valueTransfers, this.state.valueTransfers)) {
+    if (deepDiff(valueTransfers, this.state.valueTransfers)) {
       console.log('=============== ValueTransfer list', valueTransfers);
       this.setState({ valueTransfers });
     }

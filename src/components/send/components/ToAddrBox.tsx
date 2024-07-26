@@ -27,9 +27,11 @@ type ToAddrBoxProps = {
   fromAmount: number;
   setSendButtonEnabled: (sendButtonEnabled: boolean) => void;
   setMaxAmount: (id: number, total: number) => void;
-  totalAmountAvailable: number;
   sendFee: number;
   sendFeeError: string;
+  fetchSendFeeAndErrorAndSpendable: () => Promise<void>;
+  setSendFee: (fee: number) => void;
+  setSendFeeError: (error: string) => void;
 };
 
 const ToAddrBox = ({
@@ -40,9 +42,11 @@ const ToAddrBox = ({
   fromAmount,
   setMaxAmount,
   setSendButtonEnabled,
-  totalAmountAvailable,
   sendFee,
   sendFeeError,
+  fetchSendFeeAndErrorAndSpendable,
+  setSendFee,
+  setSendFeeError,
 }: ToAddrBoxProps) => {
   const [addressType, setAddressType] = useState<AddressType>();
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
@@ -57,41 +61,50 @@ const ToAddrBox = ({
       const isMemoDisabled: boolean = !(addressType === AddressType.sapling || addressType === AddressType.unified);
       setIsMemoDisabled(isMemoDisabled);
     
-      let addressIsValid: number;
+      let _addressIsValid: number;
       if (!toaddr.to) {
-        addressIsValid = 0;
+        _addressIsValid = 0;
       } else if (addressType !== undefined) {
-        addressIsValid = 1;
+        _addressIsValid = 1;
       } else {
-        addressIsValid = -1;
+        _addressIsValid = -1;
       }
-      setAddressIsValid(addressIsValid);
+      setAddressIsValid(_addressIsValid);
     
-      let amountError: string | null = null;
+      let _amountError: string | null = null;
       if (toaddr.amount) {
         if (toaddr.amount < 0) {
-          amountError = "Amount cannot be negative";
+          _amountError = "Amount cannot be negative";
         }
         if (toaddr.amount > fromAmount) {
-          amountError = "Amount Exceeds Balance";
+          _amountError = "Amount Exceeds Balance";
         }
         if (toaddr.amount < 10 ** -8) {
-          amountError = "Amount is too small";
+          _amountError = "Amount is too small";
         }
         const s = toaddr.amount.toString().split(".");
         if (s && s.length > 1 && s[1].length > 8) {
-          amountError = "Too Many Decimals";
+          _amountError = "Too Many Decimals";
         }
       }
     
       if (isNaN(toaddr.amount)) {
         // Amount is empty
-        amountError = "Amount cannot be empty";
+        _amountError = "Amount cannot be empty";
       }
-      setAmountError(amountError);
+      setAmountError(_amountError);
+
+      if (_amountError === null && _addressIsValid === 1) {
+        fetchSendFeeAndErrorAndSpendable();
+      } else {
+        if (sendFee) {
+          setSendFee(0);
+          setSendFeeError('');
+        }
+      }
     
       let buttonstate: boolean = true;
-      if (addressIsValid === -1 || amountError || toaddr.to === "" || totalAmountAvailable < 0) {
+      if (_addressIsValid === -1 || _amountError || toaddr.to === "" || fromAmount < 0 || sendFee <= 0) {
         buttonstate = false;
       }
     
@@ -102,7 +115,7 @@ const ToAddrBox = ({
       const usdValue: string = Utils.getZecToUsdString(zecPrice, toaddr.amount);
       setUsdValue(usdValue);
     })();
-  }, [fromAmount, setSendButtonEnabled, toaddr.amount, toaddr.to, totalAmountAvailable, zecPrice]);
+  }, [fetchSendFeeAndErrorAndSpendable, fromAmount, sendFee, setSendButtonEnabled, setSendFee, setSendFeeError, toaddr.amount, toaddr.to, zecPrice]);
   
   const addReplyTo = (checked: boolean) => {
     if (toaddr.id) {
@@ -113,6 +126,8 @@ const ToAddrBox = ({
       }
     }
   };
+
+  console.log(sendFeeError);
 
   return ( 
     <div>

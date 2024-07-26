@@ -910,6 +910,7 @@ export default class RPC {
     const prevProgressStr: string = await native.zingolib_execute_async("sendprogress", "");
     const prevProgressJSON = JSON.parse(prevProgressStr);
     const prevSendId: number = prevProgressJSON.id;
+    let sendTxids: string = '';
 
     // proposing...
     try {
@@ -926,7 +927,22 @@ export default class RPC {
     try {
       console.log('Confirming');
       const resp: string = await native.zingolib_execute_async("confirm", "");
-      console.log(`End Confirming, response: ${resp}`); 
+      console.log(`End Confirming, response: ${resp}`);
+      if (resp.toLowerCase().startsWith('error')) {
+        console.log(`Error confirming Tx: ${resp}`);
+        throw Error(resp);  
+      } else {
+        const respJSON = JSON.parse(resp);
+        if (respJSON.error) {
+          console.log(`Error confirming Tx: ${respJSON.error}`);
+          throw Error(respJSON.error);
+        } else if (respJSON.txids) {
+          sendTxids = respJSON.txids.join(', ');
+        } else {
+          console.log(`Error confirming: no error, no txids `);
+          throw Error('Error confirming: no error, no txids');
+        }
+      }
     } catch (err) {
       // TODO Show a modal with the error
       console.log(`Error confirming Tx: ${err}`);
@@ -940,14 +956,15 @@ export default class RPC {
       const intervalID = setInterval(async () => {
         const progressStr: string = await native.zingolib_execute_async("sendprogress", "");
         const progressJSON = JSON.parse(progressStr);
-        console.log(progressJSON);
-
+        
         const updatedProgress = new SendProgress();
-        if (progressJSON.id === prevSendId) {
+        if (progressJSON.id === prevSendId && !sendTxids) {
           // Still not started, so wait for more time
           setSendProgress(updatedProgress);
           return;
         }
+
+        console.log(progressJSON);
 
         // Calculate ETA.
         let secondsPerComputation: number = 3; // default
@@ -967,13 +984,13 @@ export default class RPC {
         updatedProgress.sendInProgress = true;
         updatedProgress.etaSeconds = eta;
 
-        if (progressJSON.id === prevSendId) {
+        if (progressJSON.id === prevSendId && !sendTxids) {
           // Still not started, so wait for more time
           setSendProgress(updatedProgress);
           return;
         }
 
-        if (!progressJSON.txid && !progressJSON.error) {
+        if (!progressJSON.txid && !progressJSON.error && !sendTxids) {
           // Still processing
           setSendProgress(updatedProgress);
           return;
@@ -992,6 +1009,13 @@ export default class RPC {
 
         if (progressJSON.error) {
           reject(progressJSON.error as string);
+        }
+
+        if (sendTxids) {
+          // And refresh data (full refresh)
+          this.refresh(true);
+
+          resolve(sendTxids as string);
         }
       }, 2 * 1000); // Every 2 seconds
     });

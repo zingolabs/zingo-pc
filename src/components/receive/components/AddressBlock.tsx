@@ -69,12 +69,12 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
   const openAddress = () => { 
     if (currencyName === "TAZ") {
-      shell.openExternal(`https://testnet.zcashblockexplorer.com/address/${address_address}`);
+      shell.openExternal(`https://testnet.zcashexplorer.app/address/${address_address}`);
     } else {
       if (address_address.startsWith('u')) {
-        shell.openExternal(`https://zcashblockexplorer.com/ua/${address_address}`);
+        shell.openExternal(`https://mainnet.zcashexplorer.app/ua/${address_address}`);
       } else {
-        shell.openExternal(`https://zcashblockexplorer.com/address/${address_address}`);
+        shell.openExternal(`https://mainnet.zcashexplorer.app/address/${address_address}`);
       }
     }
   };
@@ -96,10 +96,10 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
             return;  
           }
           const resultJSON = JSON.parse(result);
-          if (resultJSON.txid) {
+          if (resultJSON.txids) {
             openErrorModal(
               "Successfully Broadcast Transaction",
-              `Transaction was successfully broadcast.\nTXID: ${resultJSON.txid}`
+              `Transaction was successfully broadcast.\n${resultJSON.txids.length === 1 ? 'TXID' : "TXID's"}: ${resultJSON.txids.join(', ')}`
             );
           }
           if (resultJSON.error) {
@@ -226,9 +226,11 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </button>
               {type === AddressType.transparent && balance >= shieldFee && shieldFee > 0 && !readOnly && (
-                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
-                  Shield Balance To Orchard
-                </button>
+                <>
+                  <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
+                    Shield Balance To Orchard (Fee: {shieldFee})
+                  </button>
+                </>
               )}
             </div>
           </div>

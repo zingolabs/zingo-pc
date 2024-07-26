@@ -1,4 +1,4 @@
-import React, { PureComponent, ReactElement } from "react";
+import React, { ReactElement, useContext, useEffect, useState } from "react";
 import dateformat from "dateformat";
 import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
@@ -42,40 +42,53 @@ type SidebarProps = {
   navigateToLoadingScreen: (b: boolean, c: string, s: Server[]) => void;
 };
 
-type SidebarState = {
-  uriModalIsOpen: boolean;
-  uriModalInputValue?: string;
-  privKeyModalIsOpen: boolean;
-  privKeyInputValue: string | null;
-  exportPrivKeysModalIsOpen: boolean;
-  exportedPrivKeys: string[];
-  walletSettingsModalIsOpen: boolean;
-};
+const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
+  setRescanning, 
+  setInfo, 
+  clearTimers,
+  setSendTo,
+  getPrivKeyAsString,
+  importPrivKeys,
+  openErrorModal,
+  openPassword,
+  openPasswordAndUnlockIfNeeded,
+  lockWallet,
+  encryptWallet,
+  decryptWallet,
+  updateWalletSettings,
+  navigateToLoadingScreen,
+  history,
+  location,
+}) => {
+  const context = useContext(ContextApp);
+  const { info, serverUris, valueTransfers, addresses, verificationProgress, walletSettings, readOnly } = context;
 
-class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarState> {
-  static contextType = ContextApp;
-  constructor(props: SidebarProps & RouteComponentProps) {
-    super(props);
-    this.state = {
-      uriModalIsOpen: false,
-      uriModalInputValue: undefined,
-      privKeyModalIsOpen: false,
-      exportPrivKeysModalIsOpen: false,
-      exportedPrivKeys: [],
-      privKeyInputValue: null,
-      walletSettingsModalIsOpen: false,
-    };
+  const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
+  const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
+  const [privKeyModalIsOpen, setPrivKeyModalIsOpen] = useState<boolean>(false);
+  //const [privKeyInputValue, setPrivKeyInputValue] = useState<string | null>(null);
+  const [exportPrivKeysModalIsOpen, setExportPrivKeysModalIsOpen] = useState<boolean>(false);
+  const [exportedPrivKeys, setExportedPrivKeys] = useState<string[]>([]);
+  const [walletSettingsModalIsOpen, setWalletSettingsModalIsOpen] = useState<boolean>(false);
+
+  let stateSync: string = "DISCONNECTED";
+  let progress: string = "100";
+  if (info.latestBlock) {
+    if (verificationProgress < 99.9999) {
+      stateSync = "SYNCING";
+      progress = (verificationProgress).toFixed(2);
+    } else {
+      stateSync = "CONNECTED";
+    }
   }
 
-  componentDidMount(): void {
-    this.setupMenuHandlers();
-  }
+  useEffect(() => {
+    setupMenuHandlers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Handle menu items 
-  setupMenuHandlers = async (): Promise<void> => {
-    const { clearTimers, setSendTo, setInfo, setRescanning, history, openErrorModal, openPasswordAndUnlockIfNeeded, getPrivKeyAsString } =
-      this.props;
-    const { info, serverUris, valueTransfers, addresses } = this.context;
+  const setupMenuHandlers = async (): Promise<void> => {
 
     // About
     ipcRenderer.on("about", () => {
@@ -124,13 +137,13 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     });
 
     // Import a Private Key
-    ipcRenderer.on("import", () => {
-      this.openImportPrivKeyModal(null);
-    });
+    //ipcRenderer.on("import", () => {
+    //  openImportPrivKeyModal(null);
+    //});
 
     // Pay URI
     ipcRenderer.on("payuri", (event: any, uri: string) => {
-      this.openURIModal(uri);
+      openURIModal(uri);
     });
 
     // Export Seed
@@ -209,7 +222,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
       console.log("Interrupting sync ....", resultInterrupt);
 
-      this.props.navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
+      navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
     });
 
     // Export All Transactions
@@ -248,8 +261,6 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Encrypt wallet
     ipcRenderer.on("encrypt", async (info: any) => { // Obsolete: type Info - check fields
-      const { lockWallet, encryptWallet, openPassword } = this.props;
-
       if (info.encrypted && info.locked) {
         openErrorModal("Already Encrypted", "Your wallet is already encrypted and locked.");
       } else if (info.encrypted && !info.locked) {
@@ -276,8 +287,6 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Remove wallet encryption
     ipcRenderer.on("decrypt", async (info: any) => { // Obsolete: type Info - check fields
-      const { decryptWallet, openPassword } = this.props;
-
       if (!info.encrypted) {
         openErrorModal("Not Encrypted", "Your wallet is not encrypted and ready for spending.");
       } else {
@@ -332,7 +341,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       // Reset the info object, it will be refetched
       setInfo(new Info());
 
-      this.props.navigateToLoadingScreen(false, "", serverUris)
+      navigateToLoadingScreen(false, "", serverUris)
     });
 
     // Export all private keys
@@ -341,13 +350,14 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
       const ge = getPrivKeyAsString;
       // Get all the addresses and run export key on each of them.
       openPasswordAndUnlockIfNeeded(async () => {
-        const privKeysPromise: Promise<string>[] = ad.map(async (a: Address) => {
+        const _privKeysPromise: Promise<string>[] = ad.map(async (a: Address) => {
           const privKey: string = await ge(a.address);
           return `${privKey} #${a}`;
         });
-        const exportedPrivKeys: string[] = await Promise.all(privKeysPromise);
+        const _exportedPrivKeys: string[] = await Promise.all(_privKeysPromise);
 
-        this.setState({ exportPrivKeysModalIsOpen: true, exportedPrivKeys });
+        setExportPrivKeysModalIsOpen(true);
+        setExportedPrivKeys(_exportedPrivKeys);
       });
     });
 
@@ -358,7 +368,7 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
     // Wallet Settings
     ipcRenderer.on("walletSettings", () => {
-      this.setState({ walletSettingsModalIsOpen: true });
+      setWalletSettingsModalIsOpen(true);
     });
 
     // Connect mobile app
@@ -367,32 +377,32 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     });
   };
 
-  closeExportPrivKeysModal = () => {
-    this.setState({ exportPrivKeysModalIsOpen: false, exportedPrivKeys: [] });
+  const closeExportPrivKeysModal = () => {
+    setExportPrivKeysModalIsOpen(false);
+    setExportedPrivKeys([]);
   };
 
-  openImportPrivKeyModal = (defaultValue: string | null) => {
-    const privKeyInputValue: string = defaultValue || "";
-    this.setState({ privKeyModalIsOpen: true, privKeyInputValue });
+  //const openImportPrivKeyModal = (defaultValue: string | null) => {
+  //  const _privKeyInputValue: string = defaultValue || "";
+  //  setPrivKeyModalIsOpen(true);
+  //  setPrivKeyInputValue(_privKeyInputValue);
+  //};
+
+  //const setImprovPrivKeyInputValue = (_privKeyInputValue: string) => {
+  //  setPrivKeyInputValue(_privKeyInputValue);
+  //};
+
+  const closeImportPrivKeyModal = () => {
+    setPrivKeyModalIsOpen(false);
   };
 
-  setImprovPrivKeyInputValue = (privKeyInputValue: string) => {
-    this.setState({ privKeyInputValue });
+  const openURIModal = (defaultValue: string | null) => {
+    const _uriModalInputValue: string = defaultValue || "";
+    setUriModalIsOpen(true);
+    setUriModalInputValue(_uriModalInputValue);
   };
 
-  closeImportPrivKeyModal = () => {
-    this.setState({ privKeyModalIsOpen: false });
-  };
-
-  openURIModal = (defaultValue: string | null) => {
-    const uriModalInputValue: string = defaultValue || "";
-    this.setState({ uriModalIsOpen: true, uriModalInputValue });
-  };
-
-  doImportPrivKeys = async (key: string, birthday: string) => {
-    const { importPrivKeys, openErrorModal, setInfo, clearTimers, setRescanning } = this.props;
-    const { info, serverUris } = this.context;
-
+  const doImportPrivKeys = async (key: string, birthday: string) => {
     if (key) {
       let keys: string[] = key.split(new RegExp("[\\n\\r]+"));
       if (!keys || keys.length === 0) {
@@ -425,22 +435,22 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
 
       // in order to import a viewing key, the wallet can be encrypted,
       // but it must be unlocked
-      if (Utils.isValidSaplingViewingKey(keys[0]) && info.locked) {
-        openErrorModal(
-          "Wallet Is Locked",
-          "In order to import a Sapling viewing key, your wallet must be unlocked. If you wish to continue, unlock your wallet and try again."
-        );
-        return;
-      }
+      //if (Utils.isValidSaplingViewingKey(keys[0]) && info.locked) {
+      //  openErrorModal(
+      //    "Wallet Is Locked",
+      //    "In order to import a Sapling viewing key, your wallet must be unlocked. If you wish to continue, unlock your wallet and try again."
+      //  );
+      //  return;
+      //}
 
       // in order to import a private key, the wallet must be unencrypted
-      if (Utils.isValidSaplingPrivateKey(keys[0]) && info.encrypted) {
-        openErrorModal(
-          "Wallet Is Encrypted",
-          "In order to import a Sapling private key, your wallet cannot be encrypted. If you wish to continue, remove the encryption from your wallet and try again."
-        );
-        return;
-      }
+      //if (Utils.isValidSaplingPrivateKey(keys[0]) && info.encrypted) {
+      //  openErrorModal(
+      //    "Wallet Is Encrypted",
+      //    "In order to import a Sapling private key, your wallet cannot be encrypted. If you wish to continue, remove the encryption from your wallet and try again."
+      //  );
+      //  return;
+      //}
 
       // To rescan, we reset the wallet loading
       // So set info the default, and redirect to the loading screen
@@ -458,34 +468,33 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
         // Reset the info object, it will be refetched
         setInfo(new Info());
 
-        this.props.navigateToLoadingScreen(false, "", serverUris)
+        navigateToLoadingScreen(false, "", serverUris)
       }
     }
   };
 
-  setURIInputValue = (uriModalInputValue: string) => {
-    this.setState({ uriModalInputValue });
+  const setURIInputValue = (_uriModalInputValue: string) => {
+    setUriModalInputValue(_uriModalInputValue);
   };
 
-  closeURIModal = () => {
-    this.setState({ uriModalIsOpen: false });
+  const closeURIModal = () => {
+    setUriModalIsOpen(false);
   };
 
-  closeWalletSettingsModal = () => {
-    this.setState({ walletSettingsModalIsOpen: false });
+  const closeWalletSettingsModal = () => {
+    setWalletSettingsModalIsOpen(false);
   };
 
-  setWalletSpamFilterThreshold = async (threshold: number) => {
+  const setWalletSpamFilterThreshold = async (threshold: number) => {
     // Call the RPC to set the threshold as an option
     await RPC.setWalletSettingOption("transaction_filter_threshold", threshold.toString());
 
     // Refresh the wallet settings
-    await this.props.updateWalletSettings();
+    await updateWalletSettings();
   };
 
-  payURI = async (uri: string) => {
+  const payURI = async (uri: string) => {
     console.log(`Paying ${uri}`);
-    const { openErrorModal, setSendTo, history } = this.props;
 
     const errTitle: string = "URI Error";
     const getErrorBody = (explain: string): ReactElement => {
@@ -517,144 +526,119 @@ class Sidebar extends PureComponent<SidebarProps & RouteComponentProps, SidebarS
     history.push(routes.SEND);
   };
 
-  render() {
-    const { location } = this.props;
-    const { info, walletSettings, verificationProgress, readOnly } = this.context;
-    const {
-      uriModalIsOpen,
-      uriModalInputValue,
-      privKeyModalIsOpen,
-      //privKeyInputValue,
-      exportPrivKeysModalIsOpen,
-      exportedPrivKeys,
-      walletSettingsModalIsOpen,
-    } = this.state;
+  return (
+    <div>
+      {/* Payment URI Modal */}
+      <PayURIModal
+        modalInput={uriModalInputValue}
+        setModalInput={setURIInputValue}
+        modalIsOpen={uriModalIsOpen}
+        closeModal={closeURIModal}
+        modalTitle="Pay URI"
+        actionButtonName="Pay URI"
+        actionCallback={payURI}
+      />
 
-    let stateSync: string = "DISCONNECTED";
-    let progress: string = "100";
-    if (info.latestBlock) {
-      if (verificationProgress < 99.9999) {
-        stateSync = "SYNCING";
-        progress = (verificationProgress).toFixed(2);
-      } else {
-        stateSync = "CONNECTED";
-      }
-    }
+      {/* Import Private Key Modal */}
+      <ImportPrivKeyModal
+        modalIsOpen={privKeyModalIsOpen}
+        // setModalInput={this.setImprovPrivKeyInputValue}
+        // modalInput={privKeyInputValue}
+        closeModal={closeImportPrivKeyModal}
+        doImportPrivKeys={doImportPrivKeys}
+      />
 
-    return (
-      <div>
-        {/* Payment URI Modal */}
-        <PayURIModal
-          modalInput={uriModalInputValue}
-          setModalInput={this.setURIInputValue}
-          modalIsOpen={uriModalIsOpen}
-          closeModal={this.closeURIModal}
-          modalTitle="Pay URI"
-          actionButtonName="Pay URI"
-          actionCallback={this.payURI}
-        />
+      {/* Exported (all) Private Keys */}
+      <ExportPrivKeyModal
+        modalIsOpen={exportPrivKeysModalIsOpen}
+        exportedPrivKeys={exportedPrivKeys}
+        closeModal={closeExportPrivKeysModal}
+      />
 
-        {/* Import Private Key Modal */}
-        <ImportPrivKeyModal
-          modalIsOpen={privKeyModalIsOpen}
-          // setModalInput={this.setImprovPrivKeyInputValue}
-          // modalInput={privKeyInputValue}
-          closeModal={this.closeImportPrivKeyModal}
-          doImportPrivKeys={this.doImportPrivKeys}
-        />
+      <WalletSettingsModal
+        modalIsOpen={walletSettingsModalIsOpen}
+        closeModal={closeWalletSettingsModal}
+        walletSettings={walletSettings}
+        setWalletSpamFilterThreshold={setWalletSpamFilterThreshold}
+      />
 
-        {/* Exported (all) Private Keys */}
-        <ExportPrivKeyModal
-          modalIsOpen={exportPrivKeysModalIsOpen}
-          exportedPrivKeys={exportedPrivKeys}
-          closeModal={this.closeExportPrivKeysModal}
-        />
-
-        <WalletSettingsModal
-          modalIsOpen={walletSettingsModalIsOpen}
-          closeModal={this.closeWalletSettingsModal}
-          walletSettings={walletSettings}
-          setWalletSpamFilterThreshold={this.setWalletSpamFilterThreshold}
-        />
-
-        <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
-          <Logo readOnly={readOnly} />
-        </div>
-
-        <div className={styles.sidebar}>
-          <SidebarMenuItem
-            name="Dashboard"
-            routeName={routes.DASHBOARD}
-            currentRoute={location.pathname}
-            iconname="fa-home"
-          />
-          {!readOnly && (
-            <SidebarMenuItem
-              name="Send"
-              routeName={routes.SEND}
-              currentRoute={location.pathname}
-              iconname="fa-paper-plane"
-            />
-          )}
-          <SidebarMenuItem
-            name="Receive"
-            routeName={routes.RECEIVE}
-            currentRoute={location.pathname}
-            iconname="fa-download"
-          />
-          <SidebarMenuItem
-            name="History"
-            routeName={routes.HISTORY}
-            currentRoute={location.pathname}
-            iconname="fa-list"
-          />
-          <SidebarMenuItem
-            name="Address Book"
-            routeName={routes.ADDRESSBOOK}
-            currentRoute={location.pathname}
-            iconname="fa-address-book" 
-          />
-          <SidebarMenuItem
-            name="Financial Insight"
-            routeName={routes.INSIGHT}
-            currentRoute={location.pathname}
-            iconname="fa-chart-line" 
-          />
-        </div>
-
-        <div className={cstyles.center}>
-          {stateSync === "CONNECTED" && (
-            <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
-              <div>
-                {info.latestBlock === info.walletHeight ? (
-                  <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
-                ) : (
-                  <i className={[cstyles.yellow, "fas", "fa-check"].join(" ")} />
-                )}
-                &nbsp; {info.walletHeight} &nbsp;
-              </div>
-              {info.latestBlock > info.walletHeight && `(${info.latestBlock - info.walletHeight} blocks behind)`}
-            </div>
-          )}
-          {stateSync === "SYNCING" && (
-            <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
-              <div>
-                <i className={[cstyles.yellow, "fas", "fa-sync"].join(" ")} />
-                &nbsp; Syncing
-              </div>
-              <div>{`${progress}%`}</div>
-            </div>
-          )}
-          {stateSync === "DISCONNECTED" && (
-            <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
-              <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
-              &nbsp; Not Connected
-            </div>
-          )}
-        </div>
+      <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
+        <Logo readOnly={readOnly} />
       </div>
-    );
-  }
+
+      <div className={styles.sidebar}>
+        <SidebarMenuItem
+          name="Dashboard"
+          routeName={routes.DASHBOARD}
+          currentRoute={location.pathname}
+          iconname="fa-home"
+        />
+        {!readOnly && (
+          <SidebarMenuItem
+            name="Send"
+            routeName={routes.SEND}
+            currentRoute={location.pathname}
+            iconname="fa-paper-plane"
+          />
+        )}
+        <SidebarMenuItem
+          name="Receive"
+          routeName={routes.RECEIVE}
+          currentRoute={location.pathname}
+          iconname="fa-download"
+        />
+        <SidebarMenuItem
+          name="History"
+          routeName={routes.HISTORY}
+          currentRoute={location.pathname}
+          iconname="fa-list"
+        />
+        <SidebarMenuItem
+          name="Address Book"
+          routeName={routes.ADDRESSBOOK}
+          currentRoute={location.pathname}
+          iconname="fa-address-book" 
+        />
+        <SidebarMenuItem
+          name="Financial Insight"
+          routeName={routes.INSIGHT}
+          currentRoute={location.pathname}
+          iconname="fa-chart-line" 
+        />
+      </div>
+
+      <div className={cstyles.center}>
+        {stateSync === "CONNECTED" && (
+          <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
+            <div>
+              {info.latestBlock === info.walletHeight ? (
+                <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
+              ) : (
+                <i className={[cstyles.yellow, "fas", "fa-check"].join(" ")} />
+              )}
+              &nbsp; {info.walletHeight} &nbsp;
+            </div>
+            {info.latestBlock > info.walletHeight && `(${info.latestBlock - info.walletHeight} blocks behind)`}
+          </div>
+        )}
+        {stateSync === "SYNCING" && (
+          <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
+            <div>
+              <i className={[cstyles.yellow, "fas", "fa-sync"].join(" ")} />
+              &nbsp; Syncing
+            </div>
+            <div>{`${progress}%`}</div>
+          </div>
+        )}
+        {stateSync === "DISCONNECTED" && (
+          <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
+            <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
+            &nbsp; Not Connected
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 // @ts-ignore

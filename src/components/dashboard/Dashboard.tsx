@@ -55,7 +55,7 @@ const Dashboard: React.FC<DashboardProps> = ({shieldTransparentBalanceToOrchard,
           if (resultJSON.txids) {
             openErrorModal(
               "Successfully Broadcast Transaction",
-              `Transaction was successfully broadcast.\n${resultJSON.txids.length === 1 ? 'TXID' : "TXID's"}: ${resultJSON.txids.join(' ')}`
+              `Transaction was successfully broadcast.\n${resultJSON.txids.length === 1 ? 'TXID' : "TXID's"}: ${resultJSON.txids.join(', ')}`
             );
           }
           if (resultJSON.error) {
@@ -102,9 +102,11 @@ const Dashboard: React.FC<DashboardProps> = ({shieldTransparentBalanceToOrchard,
         </div>
         <div className={cstyles.balancebox}>
           {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
-            <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
-              Shield Transparent Balance To Orchard
-            </button>
+            <>
+              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
+                Shield Transparent Balance To Orchard (Fee: {shieldFee})
+              </button>
+            </>
           )}
           {!!anyPending && (
             <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
