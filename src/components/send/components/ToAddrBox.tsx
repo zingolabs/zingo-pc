@@ -34,6 +34,7 @@ type ToAddrBoxProps = {
   setSendFee: (fee: number) => void;
   setSendFeeError: (error: string) => void;
   setTotalAmountAvailable: (amount: number) => void;
+  label: string;
 };
 
 const ToAddrBox = ({
@@ -51,6 +52,7 @@ const ToAddrBox = ({
   setSendFee,
   setSendFeeError,
   setTotalAmountAvailable,
+  label,
 }: ToAddrBoxProps) => {
   const [addressType, setAddressType] = useState<AddressType>();
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
@@ -138,13 +140,16 @@ const ToAddrBox = ({
     <div>
       <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
         <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
-          <div className={cstyles.sublight}>To</div>
-            <div className={[cstyles.sublight, cstyles.green].join(" ")}>
-                {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
-                {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
-                {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
-              </div>
-            <div className={cstyles.validationerror}>
+          <div className={cstyles.horizontalflex}>
+            <div className={cstyles.sublight}>To </div>
+            <div style={{ fontWeight: 900, marginLeft: 20 }}>{label ? label : ""}</div>
+          </div>
+          <div className={[cstyles.sublight, cstyles.green].join(" ")}>
+            {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
+            {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
+            {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
+          </div>
+          <div className={cstyles.validationerror}>
             {addressIsValid === 1 && (
               <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
             )}

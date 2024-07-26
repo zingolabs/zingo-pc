@@ -4,7 +4,7 @@ import cstyles from "../common/Common.module.css";
 import {
   ToAddr,
   SendPageState,
-  //AddressBookEntry,
+  AddressBookEntry,
   SendProgress,
   Address,
   AddressType,
@@ -48,7 +48,7 @@ const Send: React.FC<SendProps> = ({
     info,
     totalBalance,
     readOnly,
-    //addressBook,
+    addressBook,
   } = context;
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
@@ -232,26 +232,13 @@ const Send: React.FC<SendProps> = ({
     setModalIsOpen(false);
   };
 
-  //const getBalanceForAddress = (addr: string, addresses: Address[]): number => {
+  const getLabelAddressBook = (addr: string) => {
     // Find the addr in addresses
-  //  const address: Address | undefined = addresses.find((ab) => ab.address === addr);
+    const label: AddressBookEntry | undefined = addressBook.find((ab: AddressBookEntry) => ab.address === addr);
+    const labelStr: string = label ? ` [ ${label.label} ]` : "";
 
-  //  if (!address) {
-  //    return 0;
-  //  }
-
-  //  return address.balance;
-  //};
-
-  //const getLabelForFromAddress = (addr: string, addresses: Address[], currencyName: string) => {
-    // Find the addr in addresses
-  //  const label: AddressBookEntry | undefined = addressBook.find((ab: AddressBookEntry) => ab.address === addr);
-  //  const labelStr: string = label ? ` [ ${label.label} ]` : "";
-
-  //  const balance: number = getBalanceForAddress(addr, addresses);
-
-  //  return `[ ${currencyName} ${balance.toString()} ]${labelStr} ${addr}`; 
-  //};
+    return labelStr; 
+  };
 
   const calculateSendFee = async (): Promise<{fee: number, error: string, spendable: number}> => {
     let _fee: number = 0;
@@ -259,7 +246,8 @@ const Send: React.FC<SendProps> = ({
     // transparent funds are not spendable.
     let _spendable: number = totalBalance.spendableZ + totalBalance.spendableO;
     if (sendPageState.toaddrs[0].to) {
-      const result: string = await native.zingolib_execute_async("spendablebalance", sendPageState.toaddrs[0].to);
+      const spendableBalanceJSON = { address: sendPageState.toaddrs[0].to, zennies_for_zingo: false };
+      const result: string = await native.zingolib_execute_async("spendablebalance", JSON.stringify(spendableBalanceJSON));
       console.log('SPENDABLEBALANCE', result);
       const resultJSON = JSON.parse(result);
       if (resultJSON.error) {
@@ -354,6 +342,7 @@ const Send: React.FC<SendProps> = ({
                   setSendFee={setSendFee}
                   setSendFeeError={setSendFeeError}
                   setTotalAmountAvailable={setTotalAmountAvailable}
+                  label={getLabelAddressBook(toaddr.to)}
                 />
               );
             })}
