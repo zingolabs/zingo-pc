@@ -2,7 +2,7 @@ import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import BalanceBlockType from "./components/BalanceBlockType";
 
-const BalanceBlock = ({ zecValue, usdValue, topLabel, currencyName }: BalanceBlockType) => {
+const BalanceBlock: React.FC<BalanceBlockType> = ({ zecValue, usdValue, topLabel, currencyName }) => {
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(zecValue);
 
   return (

@@ -3,9 +3,9 @@ import Modal from "react-modal";
 import dateformat from "dateformat";
 import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceblock";
-import styles from "../Transactions.module.css";
+import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressType, Transaction, TxDetail } from "../../appstate";
+import { ValueTransfer } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
@@ -14,18 +14,18 @@ const { clipboard } = window.require("electron");
 
 const { shell } = window.require("electron"); 
 
-type TxModalInternalProps = {
+type VtModalInternalProps = {
   modalIsOpen: boolean;
   closeModal: () => void;
-  tx?: Transaction;
+  vt?: ValueTransfer;
   currencyName: string;
   setSendTo: (targets: ZcashURITarget | ZcashURITarget[]) => void;
   addressBookMap: Map<string, string>;
 };
 
-const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
+const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   modalIsOpen,
-  tx,
+  vt,
   closeModal,
   currencyName,
   setSendTo,
@@ -33,55 +33,74 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   addressBookMap,
 }) => {
   const context = useContext(ContextApp);
-  const { info, readOnly } = context;
+  const { readOnly } = context;
   const [expandAddress, setExpandAddress] = useState(false); 
   const [expandTxid, setExpandTxid] = useState(false); 
   
   let txid: string = "";
-  let type: 'Sent' | 'Received' | 'SendToSelf' | "" = ""; 
+  let type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | "" = ""; 
   let typeIcon: string = "";
   let typeColor: string = "";
-  let confirmations: number | null = 0;
-  let detailedTxns: TxDetail[] = [];
+  let confirmations: number = 0;
+  let address: string = "";
+  let memos: string[] = [];
+  let pool: 'Orchard' | 'Sapling' | 'Transparent' | "" = "";
   let amount: number = 0;
+  let fees: number = 0;
   let datePart: string = "";
   let timePart: string = "";
   let price: number = 0;
   let priceString: string = "";
+  let replyTo: string = ""; 
 
-  if (tx) {
-    txid = tx.txid;
-    type = tx.type;
-    if (tx.type === "Received") {
+  if (vt) {
+    txid = vt.txid;
+    type = vt.type;
+    if (vt.type === "received" || vt.type === "shield") {
       typeIcon = "fa-arrow-circle-down";
       typeColor = "green";
     } else {
       typeIcon = "fa-arrow-circle-up";
-      typeColor = "red";
+      typeColor = "white";
     }
 
-    datePart = dateformat(tx.time * 1000, "mmm dd, yyyy");
-    timePart = dateformat(tx.time * 1000, "hh:MM tt");
+    datePart = dateformat(vt.time * 1000, "mmm dd, yyyy");
+    timePart = dateformat(vt.time * 1000, "hh:MM tt");
 
-    confirmations = tx.confirmations;
-    detailedTxns = tx.txDetails;
-    amount = tx.txDetails.reduce((s, d) => s + d.amount, 0);
-    price = tx.zec_price ? tx.zec_price : 0;
+    confirmations = vt.confirmations;
+    amount = vt.amount;
+    fees = vt.fee ? vt.fee : 0;
+    address = vt.address;
+    memos = vt.memos && vt.memos.length > 0 ? vt.memos : [];
+    pool = vt.pool ? vt.pool : '';
+    price = vt.zec_price ? vt.zec_price : 0;
     if (price) {
       priceString = `USD ${price.toFixed(2)} / ZEC`;
     }
   }
 
+  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
+
+  const label: string = addressBookMap.get(address) || "";
+
+  const memoTotal = memos ? memos.join('') : '';
+  if (memoTotal.includes('\nReply to: \n')) {
+    let memoArray = memoTotal.split('\nReply to: \n');
+    const memoPoped = memoArray.pop();
+    replyTo = memoPoped ? memoPoped.toString() : ''; 
+  }
+
+
   const openTxid = () => {
     if (currencyName === "TAZ") {
-      shell.openExternal(`https://testnet.zcashblockexplorer.com/transactions/${txid}`);
+      shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
     } else {
-      shell.openExternal(`https://zcashblockexplorer.com/transactions/${txid}`);
+      shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
     }
   };
 
   const doReply = (address: string) => {
-    setSendTo(new ZcashURITarget(address, info.defaultFee));
+    setSendTo(new ZcashURITarget(address));
     setExpandAddress(false);
     setExpandTxid(false);
     closeModal();
@@ -89,24 +108,13 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
     history.push(routes.SEND);
   };
 
-  let fees: number = 0;
-
-  fees = tx && tx.fee ? tx.fee : 0;
-
   const localCloseModal = () => {
     setExpandAddress(false);
     setExpandTxid(false);
     closeModal();
   };
 
-  const getAT = (address: string) => {
-    let type: AddressType | undefined = undefined;
-    (async() => type = await Utils.getAddressType(address))();
-    return type;
-  };
-
   //console.log(tx);
-  //console.log('tx details', tx?.txDetails); 
 
   return (
     <Modal
@@ -189,30 +197,6 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-        {detailedTxns.map((txdetail: TxDetail) => {
-          const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(txdetail.amount);
-
-          let { address } = txdetail;
-          const { memos, pool } = txdetail;
-
-          const label: string = addressBookMap.get(address) || "";
-
-          let replyTo: string = "";
-          //console.log(memo, tx); 
-          if (tx && tx.type === "Received" && memos && memos.length > 0 ) {
-            const split: string[] = memos.join("").split(/[ :\n\r\t]+/);
-            // read the last row & if this is a valid address => show the button up
-            if (split && split.length > 0) {
-              const address = split[split.length - 1];
-              const addressType: AddressType | undefined = getAT(address);
-              console.log("-", split, "-", addressType); 
-              if (!!addressType) {
-                replyTo = split[split.length - 1];
-              }
-            }
-          }
-
-          return (
             <div key={`${txid}-${address}-${pool}`} className={cstyles.verticalflex}>
               {!!label && (
                 <div className={cstyles.highlight} style={{ marginBottom: 5 }}>{label}</div> 
@@ -289,8 +273,11 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
                       {memos.join("")}
                     </div>
                     {!!replyTo && !readOnly && (
-                      <div className={cstyles.primarybutton} onClick={() => doReply(replyTo)}>
-                        Reply to
+                      <div>
+                        <div style={{ whiteSpace: 'nowrap' }} className={cstyles.primarybutton} onClick={() => doReply(replyTo)}>
+                          Reply to
+                        </div>
+                        <div />
                       </div>
                     )}
                   </div>
@@ -300,8 +287,6 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
               <hr style={{ width: "100%" }} />
 
             </div>
-          );
-        })}
 
         <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>
           <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>
@@ -313,4 +298,4 @@ const TxModalInternal: React.FC<RouteComponentProps & TxModalInternalProps> = ({
   );
 };
 
-export default withRouter(TxModalInternal);
+export default withRouter(VtModalInternal);

@@ -17,8 +17,8 @@ type AddressBalanceItemProps = {
   item: Address; 
 };
 
-const AddressBalanceItem = ({ currencyName, zecPrice, item }: AddressBalanceItemProps) => {
-  const [expandAddress, setExpandAddress] = useState<boolean>(false); 
+const AddressBalanceItem: React.FC<AddressBalanceItemProps> = ({ currencyName, zecPrice, item }) => {
+  const [expandAddress, setExpandAddress] = useState<boolean>(false);
 
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(Math.abs(item.balance));
 

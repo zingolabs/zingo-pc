@@ -5,7 +5,7 @@
   "SEND": "/send",
   "RECEIVE": "/receive",
   "ADDRESSBOOK": "/addressbook",
-  "TRANSACTIONS": "/transactions",
+  "HISTORY": "/history",
   "SETTINGS": "/settings",
   "ZCASHD": "/zcashd",
   "CONNECTMOBILE": "/connectmobile",

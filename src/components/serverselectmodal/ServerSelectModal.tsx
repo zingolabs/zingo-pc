@@ -28,7 +28,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   const [customChain, setCustomChain] = useState<'main' | 'test' | 'regtest' | ''>("");
   //const [listChain, setListChain] = useState<'main' | 'test' | 'regtest' | ''>("");
 
-  const [servers, setServers] = useState<Server[]>(serverUris.length > 0 ? serverUris : serverUrisList());
+  const [servers, setServers] = useState<Server[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: Server) => s.obsolete === false));
 
   const chains = {
     "main": "Mainnet",
@@ -70,7 +70,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
 
   useEffect(() => {
     (async () => {
-      const servers: Server[] = serverUris.length > 0 ? serverUris : serverUrisList();
+      const servers: Server[] = serverUris.length > 0 ? serverUris : serverUrisList().filter((s: Server) => s.obsolete === false);
       const settings = await ipcRenderer.invoke("loadSettings");
       //console.log('modal server settings', settings);
 

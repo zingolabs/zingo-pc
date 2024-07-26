@@ -7,10 +7,11 @@ type ErrorModalProps = {
   closeModal: () => void
 };
 
-const ErrorModal = ({ closeModal }: ErrorModalProps) => {
+const ErrorModal: React.FC<ErrorModalProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
   const { errorModalData } = context;
   const { title, body, modalIsOpen } = errorModalData;
+  
   return (
     <Modal
       isOpen={modalIsOpen}

@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { Address, AddressBookEntry, AppState, Info, PasswordState, RPCConfig, ReceivePageState, SendPageState, ServerSelectState, TotalBalance, Transaction, WalletSettings, Server, FetchErrorType } from "../components/appstate";
+import { Address, AddressBookEntry, AppState, Info, PasswordState, RPCConfig, ReceivePageState, SendPageState, ServerSelectState, TotalBalance, ValueTransfer, WalletSettings, Server, FetchErrorType } from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
 
 export const defaultAppState: AppState = {
@@ -8,7 +8,7 @@ export const defaultAppState: AppState = {
   addressViewKeys: new Map(),
   addresses: [] as Address[],
   addressBook: [] as AddressBookEntry[],
-  transactions: [] as Transaction[],
+  valueTransfers: [] as ValueTransfer[],
   errorModalData: new ErrorModalData(),
   serverSelectState: new ServerSelectState(),
   sendPageState: new SendPageState(),

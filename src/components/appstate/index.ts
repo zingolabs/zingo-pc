@@ -1,6 +1,6 @@
 import TotalBalance from "./components/TotalBalance";
 import AddressBookEntry from "./components/AddressbookEntry";
-import Transaction from "./components/Transaction";
+import ValueTransfer from "./components/ValueTransfer";
 import SendPageState from "./components/SendPageState";
 import ReceivePageState from "./components/ReceivePageState";
 import RPCConfig from "./components/RPCConfig";
@@ -23,7 +23,7 @@ export {
   TotalBalance, 
   AddressBookEntry, 
   AddressType,
-  Transaction, 
+  ValueTransfer, 
   SendPageState, 
   SendProgress,
   ReceivePageState, 

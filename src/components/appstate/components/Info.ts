@@ -8,7 +8,6 @@ export default class Info {
     zecPrice: number;
     zcashdVersion: string;
     walletHeight: number;
-    defaultFee: number;
     error?: string;
     zingolib: string;
   
@@ -22,7 +21,6 @@ export default class Info {
       this.solps = 0;
       this.zecPrice = 0;
       this.walletHeight = 0;
-      this.defaultFee = 0;
       this.error = error;
       this.zingolib = "";
     }
