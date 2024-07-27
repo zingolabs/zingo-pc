@@ -1,4 +1,4 @@
-export function zingolib_get_latest_block_height(server_uri: string): string;
+export function zingolib_get_latest_block_server(server_uri: string): string;
 export function zingolib_wallet_exists(server_uri: string, chain_hint: string): boolean;
 export function zingolib_init_new(server_uri: string, chain_hint: string): string;
 export function zingolib_init_from_seed(

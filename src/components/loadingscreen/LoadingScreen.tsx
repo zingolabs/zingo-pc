@@ -353,7 +353,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const servers: Server[] = serverUris;
     servers.forEach((server: Server, index: number) => {
       const start: number = Date.now();
-      const  b = native.zingolib_get_latest_block_height(server.uri);
+      const  b = native.zingolib_get_latest_block_server(server.uri);
       const end: number = Date.now();
       let latency = null;
       if (!b.toLowerCase().startsWith('error')) {
