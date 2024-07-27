@@ -350,7 +350,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   calculateServerLatency = (serverUris: Server[]): Server[] => {
-    const servers: Server[] = serverUris;
+    const servers: Server[] = serverUris.filter((s: Server) => s.obsolete === false);
     servers.forEach((server: Server, index: number) => {
       const start: number = Date.now();
       const  b = native.zingolib_get_latest_block_server(server.uri);
