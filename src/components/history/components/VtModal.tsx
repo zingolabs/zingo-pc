@@ -152,7 +152,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
           {fees > 0 && (
             <div>
-              <div className={[cstyles.sublight].join(" ")}>Fees</div>
+              <div className={[cstyles.sublight].join(" ")}>Transaction Fee</div>
               <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
             </div>
           )}

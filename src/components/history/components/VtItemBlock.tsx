@@ -117,7 +117,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({ valueTransfer, currencyName, 
           <div className={[styles.txfeeamount, cstyles.right].join(" ")}>
             {fees > 0 && (
               <div className={[styles.txfee, cstyles.right].join(" ")}> 
-                <div>Fees</div>
+                <div>Transaction Fee</div>
                 <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
                   <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
                 </div>
