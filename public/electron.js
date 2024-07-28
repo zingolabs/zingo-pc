@@ -479,6 +479,13 @@ function createWindow() {
     return await settings.set(`all.${kv.key}`, kv.value);
   });
 
+  ipcMain.on("apprestart", () => {
+    //console.log(process.argv);
+    //console.log(process.argv.slice(1).concat(['--relaunch']));
+    app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) })
+    app.exit(0) 
+  });  
+
   mainWindow.on("close", (event) => {
     // If we are clear to close, then return and allow everything to close
     if (proceedToClose) {

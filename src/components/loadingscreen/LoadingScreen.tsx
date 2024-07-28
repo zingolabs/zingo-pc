@@ -614,7 +614,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         console.log("deleting ...", resultDelete);
         native.zingolib_deinitialize();
   
-        this.componentDidMount();  
+        // restart the App now.
+        ipcRenderer.send("apprestart");
       }, 1000);
     }
   };
