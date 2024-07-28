@@ -256,8 +256,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       servers = this.calculateServerLatency(serverUrisList()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
       server = servers[0].uri;
       chain_name = servers[0].chain_name;
+      selection = 'list';
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
-      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name }); 
+      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
+      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     }
 
     console.log('&&&&&&&&---------', server, chain_name, selection);
@@ -282,6 +284,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // First, set up the exit handler
     this.setupExitHandler();
 
+    // if is: `change to another wallet` exit here 
+    if (changeAnotherWallet) {
+      return;
+    }
+    
     try {
       // Test to see if the wallet exists 
       if (!native.zingolib_wallet_exists(url, chain)) {
@@ -302,10 +309,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             currentStatusIsError: true,
           });
 
-          return;
-        }
-        // if is: `change to another wallet` exit here
-        if (changeAnotherWallet) {
           return;
         }
 
@@ -603,15 +606,16 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   deleteWallet = async () => { 
     const { url, chain } = this.state;
     if (native.zingolib_wallet_exists(url, chain)) {
-      const result: string = native.zingolib_init_from_b64(url, chain);
-      console.log(`Initialization: ${result}`);
       // interrupt syncing, just in case.
       const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
       console.log("Interrupting sync ...", resultInterrupt);
-      const resultDelete: string = await native.zingolib_execute_async("delete", "");
-      console.log("deleting ...", resultDelete);
-
-      this.componentDidMount();
+      setTimeout(async () => {
+        const resultDelete: string = await native.zingolib_execute_async("delete", "");
+        console.log("deleting ...", resultDelete);
+        native.zingolib_deinitialize();
+  
+        this.componentDidMount();  
+      }, 1000);
     }
   };
 
