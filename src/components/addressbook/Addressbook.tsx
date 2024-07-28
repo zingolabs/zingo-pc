@@ -23,36 +23,44 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   const [currentAddress, setCurrentAddress] = useState<string>('');
   const [addButtonEnabled, setAddButtonEnabled] = useState<boolean>(false);
   const [labelError, setLabelError] = useState<string | null>(null);
-  const [addressIsValid, setAddressIsValid] = useState<boolean>(true);
+  const [addressError, setAddressError] = useState<string | null>(null);
   const [addressType, setAddressType] = useState<AddressType | undefined>(undefined);
+  const [addressBookSorted, setAddressBookSorted] = useState<AddressBookEntry[]>([]);
 
   useEffect(() => {
     (async () => {
-      const { _labelError, _addressIsValid, _addressType } = await validate(currentLabel, currentAddress);
+      const { _labelError, _addressError, _addressType } = await validate(currentLabel, currentAddress);
       setLabelError(_labelError);
-      setAddressIsValid(_addressIsValid);
+      setAddressError(_addressError);
       setAddressType(_addressType);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLabel, currentAddress])
 
+  useEffect(() => {
+    setAddressBookSorted(addressBook.sort((a, b) => {
+      const aLabel = a.label;
+      const bLabel = b.label;
+      return aLabel.localeCompare(bLabel);
+    }))
+  }, [addressBook]);
 
   const updateLabel = async (_currentLabel: string) => {
     const _currentAddress = currentAddress;
-    const { _labelError, _addressIsValid } = await validate(_currentLabel, _currentAddress);
+    const { _labelError, _addressError } = await validate(_currentLabel, _currentAddress);
     setLabelError(_labelError);
-    setAddressIsValid(_addressIsValid);
+    setAddressError(_addressError);
     setCurrentLabel(_currentLabel);
-    setAddButtonEnabled(!_labelError && _addressIsValid && _currentLabel !== "" && _currentAddress !== ""); 
+    setAddButtonEnabled(!_labelError && !_addressError && _currentLabel !== "" && _currentAddress !== ""); 
   };
 
   const updateAddress = async (_currentAddress: string) => {
     const _currentLabel = currentLabel;
-    const { _labelError, _addressIsValid } = await validate(_currentLabel, _currentAddress);
+    const { _labelError, _addressError } = await validate(_currentLabel, _currentAddress);
     setLabelError(_labelError);
-    setAddressIsValid(_addressIsValid);
+    setAddressError(_addressError);
     setCurrentAddress(_currentAddress);
-    setAddButtonEnabled(!_labelError && _addressIsValid && _currentLabel !== "" && _currentAddress !== "");
+    setAddButtonEnabled(!_labelError && !_addressError && _currentLabel !== "" && _currentAddress !== "");
   };
 
   const addButtonClicked = () => {
@@ -67,18 +75,20 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     _labelError = _currentLabel.length > 12 ? "Label is too long" : _labelError;
 
     const _addressType: AddressType | undefined = await Utils.getAddressType(_currentAddress);
-    const _addressIsValid: boolean =
-      _currentAddress === "" || _addressType !== undefined; 
+    let _addressError: string | null = _currentAddress === "" || _addressType !== undefined ? null : 'Invalid Address';
+    if (!_addressError) {
+      _addressError = addressBook.find((i: AddressBookEntry) => i.address === _currentAddress) ? 'Duplicate Address' : null;
+    }
 
-    return { _labelError, _addressIsValid, _addressType };
+    return { _labelError, _addressError, _addressType };
   };
 
   const clearFields = () => {
     setCurrentLabel('');
     setCurrentAddress('');
     setAddButtonEnabled(false);
-    setLabelError('');
-    setAddressIsValid(true);
+    setLabelError(null);
+    setAddressError(null);
     setAddressType(undefined);
   };
 
@@ -115,10 +125,10 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
             </div>
             <div className={cstyles.validationerror}>
-              {addressIsValid ? (
+              {!addressError ? (
                 <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
               ) : (
-                <span className={cstyles.red}>Invalid Address</span>
+                <span className={cstyles.red}>{addressError}</span>
               )}
             </div>
           </div>
@@ -147,16 +157,16 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </button>
         </div>
 
-        {addressBook && addressBook.length > 0 && ( 
+        {addressBookSorted && addressBookSorted.length > 0 && ( 
           <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
             <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>
             <div style={{ marginRight: 100, marginBottom: 15 }}>Address</div>
           </div>
         )}
 
-        <ScrollPane offsetHeight={320}>
+        <ScrollPane offsetHeight={330}>
           <div className={styles.addressbooklist}>
-            {addressBook && addressBook.length > 0 && (
+            {addressBookSorted && addressBookSorted.length > 0 && (
               <Accordion>
                 {addressBook.map((item: AddressBookEntry) => (
                   <AddressBookItem
