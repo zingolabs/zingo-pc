@@ -49,7 +49,7 @@ register_module!(mut m, {
     Ok(())
 });
 
-fn lock_client_return_seed(lightclient: LightClient) {
+fn lock_client(lightclient: LightClient) {
     let lc = Arc::new(lightclient);
     LightClient::start_mempool_monitor(lc.clone());
 
@@ -132,7 +132,7 @@ fn zingolib_init_new(mut cx: FunctionContext) -> JsResult<JsString> {
                 return format!("Error: {}", e);
             }
         };
-        let _ = lock_client_return_seed(lightclient);
+        lock_client(lightclient);
 
         format!("OK")
     };
@@ -165,7 +165,7 @@ fn zingolib_init_from_seed(mut cx: FunctionContext) -> JsResult<JsString> {
                 return format!("Error: {}", e);
             }
         };
-        let _ = lock_client_return_seed(lightclient);
+        lock_client(lightclient);
 
         format!("OK")
     };
@@ -197,7 +197,7 @@ fn zingolib_init_from_ufvk(mut cx: FunctionContext) -> JsResult<JsString> {
                 return format!("Error: {}", e);
             }
         };
-        let _ = lock_client_return_seed(lightclient);
+        lock_client(lightclient);
 
         format!("OK")
     };
@@ -221,7 +221,7 @@ fn zingolib_init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
                 return format!("Error: {}", e);
             }
         };
-        let _ = lock_client_return_seed(lightclient);
+        lock_client(lightclient);
 
         format!("OK")
     };
