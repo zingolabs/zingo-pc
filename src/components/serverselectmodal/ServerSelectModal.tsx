@@ -103,8 +103,11 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     localCloseModal();
 
     setTimeout(() => {
-      openErrorModal("Restart Zingo PC", "Please restart Zingo PC to connect to the new server"); 
+      openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server"); 
     }, 10);
+    setTimeout(() => {
+      ipcRenderer.send("apprestart");
+    }, 5000);
   };
 
   const localCloseModal = async () => {

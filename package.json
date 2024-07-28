@@ -188,7 +188,7 @@
     "electron": "^13.6.8",
     "electron-builder": "^24.6.3",
     "electron-devtools-installer": "^3.2.0",
-    "electronmon": "^1.1.2",
+    "electronmon": "^2.0.3",
     "husky": "^6.0.0",
     "rimraf": "^5.0.5",
     "wait-on": "^5.2.1"
