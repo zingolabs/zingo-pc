@@ -5,7 +5,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceblock";
 import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
-import { ValueTransfer } from "../../appstate";
+import { Address, AddressBookEntry, ValueTransfer } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
@@ -33,7 +33,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   addressBookMap,
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly } = context;
+  const { readOnly, addressBook, addresses } = context;
   const [expandAddress, setExpandAddress] = useState(false); 
   const [expandTxid, setExpandTxid] = useState(false); 
   
@@ -52,6 +52,15 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   let price: number = 0;
   let priceString: string = "";
   let replyTo: string = ""; 
+  let labelReplyTo: string = "";
+
+  const getLabelAddressBook = (addr: string) => {
+    // Find the addr in addresses
+    const label: AddressBookEntry | undefined = addressBook.find((ab: AddressBookEntry) => ab.address === addr);
+    const labelStr: string = label ? `[ ${label.label} ]` : "";
+
+    return labelStr; 
+  };
 
   if (vt) {
     txid = vt.txid;
@@ -87,7 +96,11 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   if (memoTotal.includes('\nReply to: \n')) {
     let memoArray = memoTotal.split('\nReply to: \n');
     const memoPoped = memoArray.pop();
-    replyTo = memoPoped ? memoPoped.toString() : ''; 
+    replyTo = memoPoped ? memoPoped.toString() : '';
+    labelReplyTo = getLabelAddressBook(replyTo);
+    if (!labelReplyTo) {
+      labelReplyTo = addresses.find((a: Address) => a.address === replyTo) ? "[ This Wallet's Address ]" : "";
+    }
   }
 
 
@@ -100,7 +113,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   };
 
   const doReply = (address: string) => {
-    setSendTo(new ZcashURITarget(address));
+    setSendTo(new ZcashURITarget(address, undefined, undefined));
     setExpandAddress(false);
     setExpandTxid(false);
     closeModal();
@@ -198,12 +211,12 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
         <hr style={{ width: "100%" }} />
 
             <div key={`${txid}-${address}-${pool}`} className={cstyles.verticalflex}>
-              {!!label && (
-                <div className={cstyles.highlight} style={{ marginBottom: 5 }}>{label}</div> 
-              )}
               {!!address && (
                 <>
                   <div className={[cstyles.sublight].join(" ")}>Address</div>
+                  {!!label && (
+                    <div className={cstyles.highlight} style={{ marginBottom: 0 }}>{label}</div> 
+                  )}
                   <div className={[cstyles.verticalflex].join(" ")}>
                     <div
                       style={{ cursor: "pointer" }}
@@ -257,7 +270,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
               <div className={cstyles.margintoplarge} />
 
-              {memos && memos.length > 0 && (
+              {memos && memos.length > 0 && !!memos.join("") && (
                 <div>
                   <div className={[cstyles.sublight].join(" ")}>Memo</div>
                   <div className={[cstyles.flexspacebetween].join(" ")}>
@@ -270,7 +283,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
                         styles.txmemo,
                       ].join(" ")}
                     >
-                      {memos.join("")}
+                      {memos.join("\n") + "\n" + labelReplyTo}
                     </div>
                     {!!replyTo && !readOnly && (
                       <div>
