@@ -59,7 +59,8 @@ const ToAddrBox = ({
   const [addressIsValid, setAddressIsValid] = useState<number>(0);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [usdValue, setUsdValue] = useState<string>('');
-
+  const [memoError, setMemoError] = useState<string | null>(null);
+  
   useEffect(() => {
     (async () => {
       const addressType: AddressType | undefined = await Utils.getAddressType(toaddr.to);
@@ -100,7 +101,13 @@ const ToAddrBox = ({
       }
       setAmountError(_amountError);
 
-      if (_amountError === null && _addressIsValid === 1) {
+      let _memoError: string | null = null;
+      if ((toaddr.memo + toaddr.memoReplyTo).length > 511) {
+        _memoError = "Memo is too long";
+      }
+      setMemoError(_memoError);
+
+      if (_amountError === null && _addressIsValid === 1 && _memoError === null) {
         fetchSendFeeAndErrorAndSpendable();
       } else {
         if (sendFee) {
@@ -111,7 +118,7 @@ const ToAddrBox = ({
       }
     
       let buttonstate: boolean = true;
-      if (_addressIsValid === -1 || _amountError || toaddr.to === "" || fromAmount < 0 || sendFee <= 0 || sendFeeError) {
+      if (_addressIsValid === -1 || _amountError || _memoError || toaddr.to === "" || fromAmount < 0 || sendFee <= 0 || sendFeeError) {
         buttonstate = false;
       }
     
@@ -122,7 +129,7 @@ const ToAddrBox = ({
       const usdValue: string = Utils.getZecToUsdString(zecPrice, toaddr.amount);
       setUsdValue(usdValue);
     })();
-  }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.to, zecPrice]);
+  }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.memo, toaddr.memoReplyTo, toaddr.to, zecPrice]);
   
   const addReplyTo = (checked: boolean) => {
     if (toaddr.id) {
@@ -223,10 +230,14 @@ const ToAddrBox = ({
         {isMemoDisabled && <div className={cstyles.sublight}>Memos only for Unified or Sapling addresses</div>}
 
         {!isMemoDisabled && (
-          <div>
-            <div className={[cstyles.flexspacebetween].join(" ")}>
+          <div className={cstyles.verticalflex}>
+            <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
               <div className={cstyles.sublight}>Memo</div>
-              <div className={cstyles.validationerror}>{toaddr.memo.length}</div>
+              <div className={cstyles.validationerror}>
+                {memoError 
+                  ? <span className={cstyles.red}>{memoError + '. ' + (toaddr.memo + toaddr.memoReplyTo).length }</span> 
+                  : <span>{(toaddr.memo + toaddr.memoReplyTo).length}</span>}
+              </div>
             </div>
             <TextareaAutosize
               className={[toaddr.memoReplyTo ? cstyles.inputboxmemo : cstyles.inputbox].join(" ")}

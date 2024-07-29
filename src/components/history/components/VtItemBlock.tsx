@@ -27,7 +27,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({ valueTransfer, currencyName, 
   const label: string | undefined = addressBookMap.get(valueTransfer.address);
   const address: string = valueTransfer.address;
   const txid: string = valueTransfer.txid;
-  const memos: string = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos.join("\n") : "";
+  const memos: string = valueTransfer.memos && valueTransfer.memos.length > 0 && !!valueTransfer.memos.join("") ? valueTransfer.memos.join("\n") : "";
   
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
 
