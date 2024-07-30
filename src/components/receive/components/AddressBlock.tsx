@@ -89,7 +89,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
       (async () => {
         try {
           const result: string = await shieldTransparentBalanceToOrchard();
-          //console.log(result);
+          console.log('shielding balance', result);
 
           if (result.toLocaleLowerCase().startsWith('error')) {
             openErrorModal("Error Shielding Transaction", `${result}`);
