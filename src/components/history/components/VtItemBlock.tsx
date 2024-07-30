@@ -7,31 +7,43 @@ import Utils from "../../../utils/utils";
 const { clipboard } = window.require("electron");
 
 type VtItemBlockProps = {
-  valueTransfer: ValueTransfer;
+  index: number;
+  vt: ValueTransfer;
+  setValueTransferDetail: (t: ValueTransfer) => void;
+  setValueTransferDetailIndex: (i: number) => void;
+  setModalIsOpen: (b: boolean) => void;
   currencyName: string;
-  vtClicked: (vt: ValueTransfer) => void;
   addressBookMap: Map<string, string>;
   previousLineWithSameTxid: boolean;
 };
 
-const VtItemBlock: React.FC<VtItemBlockProps> = ({ valueTransfer, currencyName, vtClicked, addressBookMap, previousLineWithSameTxid }) => {
+const VtItemBlock: React.FC<VtItemBlockProps> = ({ 
+  index,
+  vt, 
+  setValueTransferDetail,
+  setValueTransferDetailIndex,
+  setModalIsOpen,
+  currencyName, 
+  addressBookMap, 
+  previousLineWithSameTxid 
+}) => {
   const [expandAddress, setExpandAddress] = useState(false);
   const [expandTxid, setExpandTxid] = useState(false); 
   
-  const txDate: Date = new Date(valueTransfer.time * 1000);
+  const txDate: Date = new Date(vt.time * 1000);
   const datePart: string = dateformat(txDate, "mmm dd, yyyy");
   const timePart: string = dateformat(txDate, "hh:MM tt");
 
-  const fees: number = valueTransfer && valueTransfer.fee ? valueTransfer.fee : 0;
-  const amount: number = valueTransfer.amount;
-  const label: string | undefined = addressBookMap.get(valueTransfer.address);
-  const address: string = valueTransfer.address;
-  const txid: string = valueTransfer.txid;
-  const memos: string = valueTransfer.memos && valueTransfer.memos.length > 0 && !!valueTransfer.memos.join("") ? valueTransfer.memos.join("\n") : "";
+  const fees: number = vt && vt.fee ? vt.fee : 0;
+  const amount: number = vt.amount;
+  const label: string | undefined = addressBookMap.get(vt.address);
+  const address: string = vt.address;
+  const txid: string = vt.txid;
+  const memos: string = vt.memos && vt.memos.length > 0 && !!vt.memos.join("") ? vt.memos.join("\n") : "";
   
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
 
-  const price: number = valueTransfer.zec_price ? valueTransfer.zec_price : 0;
+  const price: number = vt.zec_price ? vt.zec_price : 0;
   let  priceString: string = '';
   if (price) {
     priceString = `USD ${price.toFixed(2)} / ZEC`; 
@@ -47,11 +59,13 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({ valueTransfer, currencyName, 
       <div
         className={[cstyles.well, styles.txbox].join(" ")}
         onClick={() => {
-          vtClicked(valueTransfer);
+          setValueTransferDetail(vt);
+          setValueTransferDetailIndex(index);
+          setModalIsOpen(true);
         }}
       >
         <div className={styles.txtype} style={{ marginRight: 10 }}>
-          <div style={{ color: valueTransfer.confirmations === null || valueTransfer.confirmations === 0 ? 'red' : valueTransfer.type === 'received' || valueTransfer.type === 'shield' ? 'green' : 'white' }}>{valueTransfer.type}</div>
+          <div style={{ color: vt.confirmations === null || vt.confirmations === 0 ? 'red' : vt.type === 'received' || vt.type === 'shield' ? 'green' : 'white' }}>{vt.type}</div>
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
         </div>
         <div className={styles.txaddressmemofeeamount}>

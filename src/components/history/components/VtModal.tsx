@@ -15,22 +15,30 @@ const { clipboard } = window.require("electron");
 const { shell } = window.require("electron"); 
 
 type VtModalInternalProps = {
+  index: number;
+  length: number;
+  totalLength: number;
+  vt?: ValueTransfer;
   modalIsOpen: boolean;
   closeModal: () => void;
-  vt?: ValueTransfer;
   currencyName: string;
   setSendTo: (targets: ZcashURITarget | ZcashURITarget[]) => void;
   addressBookMap: Map<string, string>;
+  moveValueTransferDetail: (index: number, type: number) => void;
 };
 
 const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
-  modalIsOpen,
+  index,
+  length,
+  totalLength,
   vt,
+  modalIsOpen,
   closeModal,
   currencyName,
   setSendTo,
   history,
   addressBookMap,
+  moveValueTransferDetail,
 }) => {
   const context = useContext(ContextApp);
   const { readOnly, addressBook, addresses } = context;
@@ -127,7 +135,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     closeModal();
   };
 
-  //console.log(tx);
+  //console.log(tx); 
 
   return (
     <Modal
@@ -136,6 +144,27 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       className={styles.txmodal}
       overlayClassName={styles.txmodalOverlay}
     >
+      <div style={{ position: "absolute", alignItems: 'center', top: 15, left: 40 }} className={[cstyles.horizontalflex].join(" ")}>
+        {index === 0 ? (
+          <div style={{ marginRight: 25, cursor: 'pointer', opacity: 0.5 }}>
+            <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
+          </div>
+        ) : (
+          <div style={{ marginRight: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(index, -1)}>
+            <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
+          </div>
+        )}
+        <div>{(index + 1).toString()}</div>
+        {index === length - 1 ? (
+          <div style={{ marginLeft: 25, cursor: 'pointer', opacity: 0.5 }}>
+            <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
+          </div>
+        ) : (
+          <div style={{ marginLeft: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(index, 1)}>
+            <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
+          </div>
+        )}
+      </div>
       <div className={[cstyles.verticalflex].join(" ")}>
         <div className={[cstyles.center].join(" ")}>Transaction Status</div>
 

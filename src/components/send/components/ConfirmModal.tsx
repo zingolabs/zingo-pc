@@ -203,7 +203,7 @@ type ConfirmModalProps = {
   
               openErrorModal(
                 "Successfully Broadcast Transaction",
-                <div style={{ display: 'flex', flexDirection: 'row' }}>
+                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
                     <div>{'Transaction was successfully broadcast.'}</div>
                     <div>{`TXID: ${txid}`}</div>

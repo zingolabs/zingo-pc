@@ -18,16 +18,17 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
   const context = useContext(ContextApp);
   const { valueTransfers, info, addressBook, totalBalance } = context;
 
-  const [clickedVt, setClickedVt] = useState<ValueTransfer | undefined>(undefined);
+  const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransfer | undefined>(undefined);
+  const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
-  const [numTxnsToShow, setNumTxnsToShow] = useState<number>(100);
+  const [numVtnsToShow, setNumVtnsToShow] = useState<number>(100);
   const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
   const [valueTransfersSorted, setValueTransfersSorted] = useState<ValueTransfer[]>([]);
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
-    setIsLoadMoreEnabled(valueTransfers && numTxnsToShow < valueTransfers.length);
-  }, [numTxnsToShow, valueTransfers]);
+    setIsLoadMoreEnabled(valueTransfers && numVtnsToShow < valueTransfers.length);
+  }, [numVtnsToShow, valueTransfers]);
 
   useEffect(() => {
     setValueTransfersSorted(valueTransfers
@@ -60,8 +61,8 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
         return timeComparison;
       }
     })
-    .slice(0, numTxnsToShow));  
-  }, [numTxnsToShow, valueTransfers]);
+    .slice(0, numVtnsToShow));  
+  }, [numVtnsToShow, valueTransfers]);
 
   useEffect(() => {
     setAddressBookMap(addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
@@ -70,20 +71,23 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
     }, new Map()));
   }, [addressBook]);
 
-  const txClicked = (vt: ValueTransfer) => {
-    // Show the modal
-    if (!vt) return;
-    setClickedVt(vt);
-    setModalIsOpen(true);
-  };
-
   const closeModal = () => {
-    setClickedVt(undefined);
+    setValueTransferDetail(undefined);
+    setValueTransferDetailIndex(-1);
     setModalIsOpen(false);
   };
 
-  const show100MoreTxns = () => {
-    setNumTxnsToShow(numTxnsToShow + 100);
+  const show100MoreVtns = () => {
+    setNumVtnsToShow(numVtnsToShow + 100);
+  };
+
+  const moveValueTransferDetail = (index: number, type: number) => {
+    // -1 -> Previous ValueTransfer
+    //  1 -> Next ValueTransfer
+    if ((index > 0 && type === -1) || (index < valueTransfersSorted.length - 1 && type === 1)) {
+      setValueTransferDetail(valueTransfersSorted[index + type]);
+      setValueTransferDetailIndex(index + type);
+    }
   };
 
   return (
@@ -131,13 +135,15 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
 
         {valueTransfersSorted && valueTransfersSorted.length > 0 &&
           valueTransfersSorted.map((vt: ValueTransfer, index: number) => {
-            const key: string = `${index}-${vt.type}-${vt.txid}`;
             return (
               <VtItemBlock
-                key={key}
-                valueTransfer={vt}
+                index={index}
+                key={`${index}-${vt.type}-${vt.txid}`}
+                vt={vt}
+                setValueTransferDetail={(ttt: ValueTransfer) => setValueTransferDetail(ttt)}
+                setValueTransferDetailIndex={(iii: number) => setValueTransferDetailIndex(iii)}
+                setModalIsOpen={(bbb: boolean) => setModalIsOpen(bbb)}  
                 currencyName={info.currencyName}
-                vtClicked={txClicked}
                 addressBookMap={addressBookMap}
                 previousLineWithSameTxid={
                   index === 0 
@@ -152,7 +158,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
           <div
             style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
             className={cstyles.primarybutton}
-            onClick={show100MoreTxns}
+            onClick={show100MoreVtns}
           >
             Load more
           </div>
@@ -160,12 +166,16 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
       </ScrollPane>
 
       <VtModal
+        index={valueTransferDetailIndex}
+        length={valueTransfersSorted.length}
+        totalLength={valueTransfers.length}
+        vt={valueTransferDetail}
         modalIsOpen={modalIsOpen}
-        vt={clickedVt}
         closeModal={closeModal}
         currencyName={info.currencyName}
         setSendTo={setSendTo}
         addressBookMap={addressBookMap}
+        moveValueTransferDetail={moveValueTransferDetail}
       />
     </div>
   );
