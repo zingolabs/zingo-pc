@@ -104,7 +104,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   }
 
 
-  const openTxid = () => {
+  const openTxid = (txid: string) => {
     if (currencyName === "TAZ") {
       shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
     } else {
@@ -202,7 +202,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             </div>
           )}
 
-          <div className={cstyles.primarybutton} onClick={openTxid}>
+          <div className={cstyles.primarybutton} onClick={() => openTxid(txid)}>
             View TXID &nbsp;
             <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
           </div>

@@ -4,8 +4,8 @@ import styles from "./History.module.css";
 import { ValueTransfer, AddressBookEntry } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
-import TxItemBlock from "./components/VtItemBlock";
-import TxModal from "./components/VtModal";
+import VtItemBlock from "./components/VtItemBlock";
+import VtModal from "./components/VtModal";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
@@ -133,7 +133,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
           valueTransfersSorted.map((vt: ValueTransfer, index: number) => {
             const key: string = `${index}-${vt.type}-${vt.txid}`;
             return (
-              <TxItemBlock
+              <VtItemBlock
                 key={key}
                 valueTransfer={vt}
                 currencyName={info.currencyName}
@@ -159,7 +159,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
         )}
       </ScrollPane>
 
-      <TxModal
+      <VtModal
         modalIsOpen={modalIsOpen}
         vt={clickedVt}
         closeModal={closeModal}

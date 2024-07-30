@@ -30,7 +30,7 @@ type SendProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string>;
   setSendPageState: (sendPageState: SendPageState) => void;
-  openErrorModal: (title: string, body: string) => void;
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
   openPasswordAndUnlockIfNeeded: (successCallback: () => void) => void;
 };
 
@@ -301,6 +301,7 @@ const Send: React.FC<SendProps> = ({
           clearToAddrs={clearToAddrs}
           openPasswordAndUnlockIfNeeded={openPasswordAndUnlockIfNeeded}
           sendFee={sendFee}
+          currencyName={info.currencyName}
       />
 
       <div className={[cstyles.well, cstyles.balancebox, styles.containermargin].join(" ")}>

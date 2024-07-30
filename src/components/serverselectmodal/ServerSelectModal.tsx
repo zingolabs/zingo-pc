@@ -8,7 +8,7 @@ const { ipcRenderer } = window.require("electron");
 
 type ModalProps = {
   closeModal: () => void;
-  openErrorModal: (title: string, body: string) => void;
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
 };
 
 export default function ServerSelectModal({ closeModal, openErrorModal }: ModalProps) {

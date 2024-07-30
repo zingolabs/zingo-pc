@@ -15,7 +15,10 @@ import routes from "../../../constants/routes.json";
 import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
 import ConfirmModalToAddr from "./ConfirmModalToAddr";
+
 import native from "../../../native.node";
+
+const { shell } = window.require("electron"); 
 
 // Internal because we're using withRouter just below
 type ConfirmModalProps = {
@@ -26,9 +29,10 @@ type ConfirmModalProps = {
     clearToAddrs: () => void;
     closeModal: () => void;
     modalIsOpen: boolean;
-    openErrorModal: (title: string, body: string) => void;
+    openErrorModal: (title: string, body: string | JSX.Element) => void;
     openPasswordAndUnlockIfNeeded: (successCallback: () => void | Promise<void>) => void;
     sendFee: number;
+    currencyName: string;
   };
   
   const ConfirmModalInternal: React.FC<RouteComponentProps & ConfirmModalProps> = ({
@@ -43,6 +47,7 @@ type ConfirmModalProps = {
     openPasswordAndUnlockIfNeeded,
     history,
     sendFee,
+    currencyName,
   }) => {
     const [sendingTotal, setSendingTotal] = useState<number>(0);
     const [bigPart, setBigPart] = useState<string>('');
@@ -163,6 +168,14 @@ type ConfirmModalProps = {
       })();
     },[getPrivacyLevel, sendFee, sendPageState.toaddrs]);
   
+    const openTxid = (txid: string) => {
+      if (currencyName === "TAZ") {
+        shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
+      } else {
+        shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
+      }
+    };
+
     const sendButton = () => {
       // First, close the confirm modal.
       closeModal();
@@ -190,7 +203,16 @@ type ConfirmModalProps = {
   
               openErrorModal(
                 "Successfully Broadcast Transaction",
-                `Transaction was successfully broadcast.\nTXID: ${txid}`
+                <div style={{ display: 'flex', flexDirection: 'row' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                    <div>{'Transaction was successfully broadcast.'}</div>
+                    <div>{`TXID: ${txid}`}</div>
+                  </div>
+                  <div className={cstyles.primarybutton} onClick={() => openTxid(txid)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                </div>
               );
   
               clearToAddrs();
