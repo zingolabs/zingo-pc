@@ -165,18 +165,20 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
         )}
       </ScrollPane>
 
-      <VtModal
-        index={valueTransferDetailIndex}
-        length={valueTransfersSorted.length}
-        totalLength={valueTransfers.length}
-        vt={valueTransferDetail}
-        modalIsOpen={modalIsOpen}
-        closeModal={closeModal}
-        currencyName={info.currencyName}
-        setSendTo={setSendTo}
-        addressBookMap={addressBookMap}
-        moveValueTransferDetail={moveValueTransferDetail}
-      />
+      {modalIsOpen && (
+        <VtModal
+          index={valueTransferDetailIndex}
+          length={valueTransfersSorted.length}
+          totalLength={valueTransfers.length}
+          vt={valueTransferDetail}
+          modalIsOpen={modalIsOpen}
+          closeModal={closeModal}
+          currencyName={info.currencyName}
+          setSendTo={setSendTo}
+          addressBookMap={addressBookMap}
+          moveValueTransferDetail={moveValueTransferDetail}
+        />
+      )}
     </div>
   );
 };

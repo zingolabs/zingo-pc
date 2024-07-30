@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { RouteComponentProps, withRouter } from "react-router";
@@ -43,7 +43,24 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   const context = useContext(ContextApp);
   const { readOnly, addressBook, addresses } = context;
   const [expandAddress, setExpandAddress] = useState(false); 
-  const [expandTxid, setExpandTxid] = useState(false); 
+  const [expandTxid, setExpandTxid] = useState(false);
+  const [showNavigator, setShowNavigator] = useState<boolean>(true);
+  const isTheFirstMount = useRef(true);
+
+  // if the App is syncing, the VT list will change (new items).
+  // Hide the navigator is the solution because the current index
+  // will be associated to other item.
+  useEffect(() => {
+    if (isTheFirstMount.current) {
+      isTheFirstMount.current = false;
+      return;
+    }
+    if (showNavigator) {
+      setShowNavigator(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalLength]);
+
   
   let txid: string = "";
   let type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | "" = ""; 
@@ -135,7 +152,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     closeModal();
   };
 
-  //console.log(tx); 
+  //console.log('render details', isTheFirstMount); 
 
   return (
     <Modal
@@ -144,27 +161,29 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       className={styles.txmodal}
       overlayClassName={styles.txmodalOverlay}
     >
-      <div style={{ position: "absolute", alignItems: 'center', top: 15, left: 40 }} className={[cstyles.horizontalflex].join(" ")}>
-        {index === 0 ? (
-          <div style={{ marginRight: 25, cursor: 'pointer', opacity: 0.5 }}>
-            <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
-          </div>
-        ) : (
-          <div style={{ marginRight: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(index, -1)}>
-            <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
-          </div>
-        )}
-        <div>{(index + 1).toString()}</div>
-        {index === length - 1 ? (
-          <div style={{ marginLeft: 25, cursor: 'pointer', opacity: 0.5 }}>
-            <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
-          </div>
-        ) : (
-          <div style={{ marginLeft: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(index, 1)}>
-            <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
-          </div>
-        )}
-      </div>
+      {showNavigator && (
+        <div style={{ position: "absolute", alignItems: 'center', top: 15, left: 40 }} className={[cstyles.horizontalflex].join(" ")}>
+          {index === 0 ? (
+            <div style={{ marginRight: 25, cursor: 'pointer', opacity: 0.5 }}>
+              <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
+            </div>
+          ) : (
+            <div style={{ marginRight: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(index, -1)}>
+              <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
+            </div>
+          )}
+          <div>{(index + 1).toString()}</div>
+          {index === length - 1 ? (
+            <div style={{ marginLeft: 25, cursor: 'pointer', opacity: 0.5 }}>
+              <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
+            </div>
+          ) : (
+            <div style={{ marginLeft: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(index, 1)}>
+              <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
+            </div>
+          )}
+        </div>
+      )}
       <div className={[cstyles.verticalflex].join(" ")}>
         <div className={[cstyles.center].join(" ")}>Transaction Status</div>
 
