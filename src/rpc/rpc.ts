@@ -23,6 +23,7 @@ export default class RPC {
   fnSetValueTransfersList: (t: ValueTransfer[]) => void;
   fnSetZecPrice: (p?: number) => void;
   fnSetWalletSettings: (settings: WalletSettings) => void;
+
   refreshTimerID?: NodeJS.Timeout;
   updateTimerID?: NodeJS.Timeout;
   syncTimerID?: NodeJS.Timeout;
@@ -122,12 +123,6 @@ export default class RPC {
     return syncstr;
   }
 
-  // deprecated in zingolib 
-  //static async doSave() {
-  //  const savestr: string = await native.zingolib_execute_async("save", "");
-  //  console.log(`Save status: ${savestr}`);
-  //}
-
   static deinitialize() {
     const str: string = native.zingolib_deinitialize();
     console.log(`Deinitialize status: ${str}`);
@@ -135,52 +130,71 @@ export default class RPC {
   
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
-    try {
-      const result: string = await native.zingolib_execute_async("shield", '');
-      this.updateData();
-      console.log('shield proposal', result);
-    } catch(error: any) {
-      console.log(`Error while trying to shield transparent balance ${error.message}`);
-      return `Error: shield: ${error.message}`;
+    const shieldResult: string = await native.zingolib_execute_async("shield", '');
+    console.log('shield proposal', shieldResult);
+    if (shieldResult) {
+      if (shieldResult.toLowerCase().startsWith("error")) {
+        // error
+        console.log(shieldResult);
+        return shieldResult;
+      }
+    } else {
+      // error empty
+      const err = 'Error: Internal error shield';
+      console.log(err);
+      return err;
     }
+    let shieldJSON = {} as {fee: number, error: string};
     try {
-      const result: string = await native.zingolib_execute_async("confirm", '');
-      this.updateData();
-      console.log('shield confirm', result);
-      return result;
+      shieldJSON = JSON.parse(shieldResult);
     } catch(error: any) {
-      console.log(`Error while trying to confirm transparent balance ${error.message}`);
-      return `Error: confirm: ${error.message}`;
+      const err = `Error: parsing shield result ${error.message}`;
+      console.log(err);
+      return err;
     }
+    if (shieldJSON.error) {
+      const err = `Error: shield ${shieldJSON.error}`;
+      console.log(err);
+      return err;
+    }
+    console.log(shieldJSON);
+
+    const confirmResult: string = await native.zingolib_execute_async("confirm", '');
+    if (confirmResult) {
+      if (confirmResult.toLowerCase().startsWith("error")) {
+        // error
+        console.log(confirmResult);
+        return confirmResult;
+      }
+    } else {
+      // error empty
+      const err = 'Error: Internal error confirm';
+      console.log(err);
+      return err;
+    }
+    console.log(confirmResult);
+
+    this.updateData();
+    return confirmResult;
   }
 
   async updateData() {
-    //console.log("Update data triggered");
     if (this.updateDataLock) {
       //console.log("Update lock, returning");
       return;
     }
 
     this.updateDataLock = true;
-    //const latest_txid: string = await RPC.getLastTxid();
 
     const latestBlockHeight: number = await this.fetchInfo();
-    //this.getZecPrice();
 
-    //if (this.lastTxId !== latest_txid) {
-    //  console.log(`Latest: ${latest_txid}, prev = ${this.lastTxId}`);
+    // And fetch the rest of the data.
+    await this.fetchTotalBalance();
+    await this.fetchTandZandOValueTransfers(latestBlockHeight);
+    await this.fetchWalletSettings();
 
-    //  this.lastTxId = latest_txid;
+    console.log(`Finished update data at ${latestBlockHeight}`);
 
-      //console.log("Update data fetching new txns");
-
-      // And fetch the rest of the data.
-      await this.fetchTotalBalance();
-      this.fetchTandZandOValueTransfers(latestBlockHeight);
-      await this.fetchWalletSettings();
-
-      console.log(`Finished update data at ${latestBlockHeight}`);
-    //}
     this.updateDataLock = false;
   }
 
@@ -221,12 +235,7 @@ export default class RPC {
           this.fetchTotalBalance();
           this.fetchTandZandOValueTransfers(latestBlockHeight);
       
-          //this.getZecPrice();
-
           this.lastBlockHeight = latestBlockHeight;
-
-          // Save the wallet
-          //RPC.doSave();
 
           // All done
           console.log(`Finished (blocks) full refresh at server: ${latestBlockHeight} & wallet: ${walletHeight}`);
@@ -247,12 +256,7 @@ export default class RPC {
             this.fetchTotalBalance();
             this.fetchTandZandOValueTransfers(latestBlockHeight);
       
-            //this.getZecPrice();
-
             this.lastBlockHeight = latestBlockHeight;
-
-            // Save the wallet
-            //RPC.doSave();
 
             // All done
             console.log(`Finished (in_progress) full refresh at ${latestBlockHeight} & wallet: ${walletHeight}`);
@@ -303,7 +307,6 @@ export default class RPC {
       info.latestBlock = infoJSON.latest_block_height;
       info.connections = 1;
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit.substring(0, 6)}/${infoJSON.version}`;
-      //info.zcashdVersion = infoJSON.zcashd_version;
       info.zcashdVersion = "Not Available";
       info.currencyName = info.testnet ? "TAZ" : "ZEC";
       info.solps = 0;
@@ -878,12 +881,15 @@ export default class RPC {
         if (tx.status === 'pending') {
           currentTxList.confirmations = 0;
         } else  if (tx.status === 'confirmed') {
-          currentTxList.confirmations = latestBlockHeight
+          currentTxList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
             ? latestBlockHeight - tx.blockheight + 1
             : walletHeight - tx.blockheight + 1;
         } else {
           // impossible case... I guess.
           currentTxList.confirmations = 0;
+        }
+        if (currentTxList.confirmations < 0) {
+          console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
         }
         
         currentTxList.address = !tx.recipient_address ? undefined : tx.recipient_address;

@@ -29,10 +29,12 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
 
   useEffect(() => {
     (async () => {
-      const { _labelError, _addressError, _addressType } = await validate(currentLabel, currentAddress);
+      const { _labelError } = await validateLabel(currentLabel);
+      const { _addressError, _addressType } = await validateAddress(currentAddress);
       setLabelError(_labelError);
       setAddressError(_addressError);
       setAddressType(_addressType);
+      setAddButtonEnabled(!_labelError && !_addressError && currentLabel !== "" && currentAddress !== ""); 
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLabel, currentAddress])
@@ -46,21 +48,11 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   }, [addressBook]);
 
   const updateLabel = async (_currentLabel: string) => {
-    const _currentAddress = currentAddress;
-    const { _labelError, _addressError } = await validate(_currentLabel, _currentAddress);
-    setLabelError(_labelError);
-    setAddressError(_addressError);
     setCurrentLabel(_currentLabel);
-    setAddButtonEnabled(!_labelError && !_addressError && _currentLabel !== "" && _currentAddress !== ""); 
   };
 
   const updateAddress = async (_currentAddress: string) => {
-    const _currentLabel = currentLabel;
-    const { _labelError, _addressError } = await validate(_currentLabel, _currentAddress);
-    setLabelError(_labelError);
-    setAddressError(_addressError);
     setCurrentAddress(_currentAddress);
-    setAddButtonEnabled(!_labelError && !_addressError && _currentLabel !== "" && _currentAddress !== "");
   };
 
   const addButtonClicked = () => {
@@ -70,17 +62,21 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     clearFields();
   };
 
-  const validate = async (_currentLabel: string, _currentAddress: string) => {
+  const validateLabel = async (_currentLabel: string) => {
     let _labelError: string | null = addressBook.find((i: AddressBookEntry) => i.label === _currentLabel) ? "Duplicate Label" : null;
-    _labelError = _currentLabel.length > 12 ? "Label is too long" : _labelError;
+    _labelError = _currentLabel.length > 20 ? "Label is too long" : _labelError;
 
+    return { _labelError };
+  };
+
+  const validateAddress = async (_currentAddress: string) => {
     const _addressType: AddressType | undefined = await Utils.getAddressType(_currentAddress);
     let _addressError: string | null = _currentAddress === "" || _addressType !== undefined ? null : 'Invalid Address';
     if (!_addressError) {
       _addressError = addressBook.find((i: AddressBookEntry) => i.address === _currentAddress) ? 'Duplicate Address' : null;
     }
 
-    return { _labelError, _addressError, _addressType };
+    return { _addressError, _addressType };
   };
 
   const clearFields = () => {
