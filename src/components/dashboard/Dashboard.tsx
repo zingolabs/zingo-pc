@@ -13,7 +13,7 @@ import { Address } from "../appstate";
 
 type DashboardProps = {
   shieldTransparentBalanceToOrchard: () => Promise<string>;
-  openErrorModal: (title: string, body: string) => void;
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
   calculateShieldFee: () => Promise<number>;
 };
 

@@ -38,6 +38,7 @@
 .txmemo {
   word-break: break-all;
   float: left;
+  max-width: 800px; 
 }
 
 .txfeeamount {

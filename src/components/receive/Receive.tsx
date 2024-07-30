@@ -15,7 +15,7 @@ type ReceiveProps = {
   //createNewAddress: (t: AddressType) => void;
   shieldTransparentBalanceToOrchard: () => Promise<string>;
   calculateShieldFee: () => Promise<number>;
-  openErrorModal: (title: string, body: string) => void;
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
 };
 
 const Receive: React.FC<ReceiveProps> = ({ fetchAndSetSinglePrivKey, fetchAndSetSingleViewKey, shieldTransparentBalanceToOrchard, calculateShieldFee, openErrorModal }) => {
