@@ -52,7 +52,6 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   const [shieldFee, setShieldFee] = useState<number>(0);
   const [anyPending, setAnyPending] = useState<boolean>(false);
 
-
   useEffect(() => {
     return () => {
       if (timerID) {
@@ -136,6 +135,24 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     }, 10);
   };
 
+  const handleQRCodeClick = async () => {
+    console.log('____________ click processed');
+    const canvas: HTMLCanvasElement | null = document.querySelector("canvas");
+    if (canvas) {
+      const pngUrl = canvas
+        .toDataURL("image/png")
+        .replace("image/png", "image/octet-stream");
+    let downloadLink = document.createElement("a");
+    downloadLink.href = pngUrl;
+    downloadLink.download = "QR_" + 
+                            (type === AddressType.unified ? 'UA' : type === AddressType.sapling ? 'Z' : 'T') + 
+                            "_Zingo_PC.png";
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+    }
+  }
+
   return (
     <AccordionItem key={copied ? 1 : 0} className={[cstyles.well, styles.receiveblock].join(" ")} uuid={address_address}>
       <AccordionItemHeading>
@@ -179,40 +196,6 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
             </div>
             <div className={[cstyles.padtopsmall].join(" ")}>{Utils.getZecToUsdString(zecPrice, balance)}</div>
 
-            <div className={[cstyles.margintoplarge, cstyles.breakword].join(" ")}>
-              {privateKey && (
-                <div>
-                  <div className={[cstyles.sublight].join(" ")}>Private Key</div>
-                  <div
-                    className={[cstyles.breakword, cstyles.padtopsmall, cstyles.fixedfont, cstyles.flex].join(" ")}
-                    style={{ maxWidth: "600px" }}
-                  >
-                    {/*
-                    // @ts-ignore */}
-                    <QRCode value={privateKey} className={[styles.receiveQrcode].join(" ")} />
-                    <div>{privateKey}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className={[cstyles.margintoplarge, cstyles.breakword].join(" ")}>
-              {viewKey && (
-                <div>
-                  <div className={[cstyles.sublight].join(" ")}>Viewing Key</div>
-                  <div
-                    className={[cstyles.breakword, cstyles.padtopsmall, cstyles.fixedfont, cstyles.flex].join(" ")}
-                    style={{ maxWidth: "600px" }}
-                  >
-                    {/*
-                    // @ts-ignore */}
-                    <QRCode value={viewKey} className={[styles.receiveQrcode].join(" ")} />
-                    <div>{viewKey}</div>
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div>
               <button
                 className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
@@ -225,25 +208,6 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               >
                 {copied ? <span>Copied!</span> : <span>Copy Address</span>}
               </button>
-              {/* {type === addressType.sapling && !privateKey && (
-                <button
-                  className={[cstyles.primarybutton].join(" ")}
-                  type="button"
-                  onClick={() => fetchAndSetSinglePrivKey(address)}
-                >
-                  Export Private Key
-                </button>
-              )}
-
-              {type === addressType.sapling && !viewKey && (
-                <button
-                  className={[cstyles.primarybutton].join(" ")}
-                  type="button"
-                  onClick={() => fetchAndSetSingleViewKey(address)}
-                >
-                  Export Viewing Key
-                </button>
-              )} */}
 
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currencyName)}>
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
@@ -259,8 +223,9 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
           </div>
           <div>
             {/*
-                    // @ts-ignore */}
-            <QRCode value={address_address} className={[styles.receiveQrcode].join(" ")} />
+            // @ts-ignore */}
+            <QRCode value={address_address} className={[styles.receiveQrcode].join(" ")} onClick={handleQRCodeClick} />
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: 0.5 }}>{'Click to download'}</div>
           </div>
         </div>
       </AccordionItemPanel>
