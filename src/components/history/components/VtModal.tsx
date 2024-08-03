@@ -12,8 +12,6 @@ import routes from "../../../constants/routes.json";
 import { ContextApp } from "../../../context/ContextAppState";
 const { clipboard } = window.require("electron");
 
-const { shell } = window.require("electron"); 
-
 type VtModalInternalProps = {
   index: number;
   length: number;
@@ -61,6 +59,25 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalLength]);
 
+  const handleKeyDown = (event: any) => {
+    if (event.key === 'ArrowUp') {
+      // Mover a la transacción anterior
+      moveValueTransferDetail(index, -1);
+    } else if (event.key === 'ArrowDown') {
+      // Mover a la siguiente transacción
+      moveValueTransferDetail(index, 1);
+    }
+  };
+
+  useEffect(() => {
+    // Suscribirse al evento de teclado cuando el componente se monta
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      // Limpiar el evento cuando el componente se desmonta
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index]);
   
   let txid: string = "";
   let type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | "" = ""; 
@@ -127,15 +144,6 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       labelReplyTo = addresses.find((a: Address) => a.address === replyTo) ? "[ This Wallet's Address ]" : "";
     }
   }
-
-
-  const openTxid = (txid: string) => {
-    if (currencyName === "TAZ") {
-      shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
-    } else {
-      shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
-    }
-  };
 
   const doReply = (address: string) => {
     setSendTo(new ZcashURITarget(address, undefined, undefined));
@@ -250,7 +258,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             </div>
           )}
 
-          <div className={cstyles.primarybutton} onClick={() => openTxid(txid)}>
+          <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txid, currencyName)}>
             View TXID &nbsp;
             <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
           </div>

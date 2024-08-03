@@ -12,7 +12,7 @@ import Utils from "../../../utils/utils";
 import { Address, AddressType } from "../../appstate";
 import { ContextApp } from "../../../context/ContextAppState";
 
-const { shell, clipboard } = window.require("electron");
+const { clipboard } = window.require("electron");
 
 type AddressBlockProps = {
   address: Address;
@@ -25,7 +25,7 @@ type AddressBlockProps = {
   fetchAndSetSingleViewKey: (k: string) => void;
   shieldTransparentBalanceToOrchard?: () => Promise<string>;
   calculateShieldFee?: () => Promise<number>;
-  openErrorModal?: (title: string, body: string) => void;
+  openErrorModal?: (title: string, body: string | JSX.Element) => void;
 };
 
 const AddressBlock: React.FC<AddressBlockProps> = ({
@@ -42,7 +42,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   openErrorModal,
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly } = context;
+  const { readOnly, addresses } = context;
   const { receivers, type } = address;
   const address_address = address.address;
   const balance = address.balance || 0;
@@ -50,6 +50,8 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
   const [shieldFee, setShieldFee] = useState<number>(0);
+  const [anyPending, setAnyPending] = useState<boolean>(false);
+
 
   useEffect(() => {
     return () => {
@@ -60,24 +62,18 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   });
 
   useEffect(() => {
+    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+    setAnyPending(!!_anyPending);
+  }, [addresses]);
+
+  useEffect(() => {
     if (type === AddressType.transparent && calculateShieldFee && balance > 0) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [balance, calculateShieldFee, type]);
+  }, [balance, calculateShieldFee, type, anyPending]);
 
-  const openAddress = () => { 
-    if (currencyName === "TAZ") {
-      shell.openExternal(`https://testnet.zcashexplorer.app/address/${address_address}`);
-    } else {
-      if (address_address.startsWith('u')) {
-        shell.openExternal(`https://mainnet.zcashexplorer.app/ua/${address_address}`);
-      } else {
-        shell.openExternal(`https://mainnet.zcashexplorer.app/address/${address_address}`);
-      }
-    }
-  };
 
   const shieldButton = () => {
     if (!shieldTransparentBalanceToOrchard || !openErrorModal) {
@@ -99,7 +95,34 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
           if (resultJSON.txids) {
             openErrorModal(
               "Successfully Broadcast Transaction",
-              `Transaction was successfully broadcast.\n${resultJSON.txids.length === 1 ? 'TXID' : "TXID's"}: ${resultJSON.txids.join(', ')}`
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                  <div>{(resultJSON.txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
+                  <div>{`TXID: ${resultJSON.txids[0]}`}</div>
+                  {resultJSON.txids.length > 1 && (
+                    <div>{`TXID: ${resultJSON.txids[1]}`}</div>
+                  )}
+                  {resultJSON.txids.length > 2 && (
+                    <div>{`TXID: ${resultJSON.txids[2]}`}</div>
+                  )}
+                </div>
+                <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], currencyName)}>
+                  View TXID &nbsp;
+                  <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                </div>
+                {resultJSON.txids.length > 1 && (
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                )}
+                {resultJSON.txids.length > 2 && (
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                )}
+              </div>
             );
           }
           if (resultJSON.error) {
@@ -222,7 +245,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 </button>
               )} */}
 
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => openAddress()}>
+              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currencyName)}>
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </button>
               {type === AddressType.transparent && balance >= shieldFee && shieldFee > 0 && !readOnly && (
