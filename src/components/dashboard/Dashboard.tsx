@@ -36,7 +36,7 @@ const Dashboard: React.FC<DashboardProps> = ({shieldTransparentBalanceToOrchard,
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalBalance.transparent]); 
+  }, [totalBalance.transparent, anyPending]); 
 
   const shieldButton = () => {
     openErrorModal("Computing Transaction", "Please wait...This could take a while");
@@ -55,14 +55,41 @@ const Dashboard: React.FC<DashboardProps> = ({shieldTransparentBalanceToOrchard,
           if (resultJSON.txids) {
             openErrorModal(
               "Successfully Broadcast Transaction",
-              `Transaction was successfully broadcast.\n${resultJSON.txids.length === 1 ? 'TXID' : "TXID's"}: ${resultJSON.txids.join(', ')}`
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                  <div>{(resultJSON.txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
+                  <div>{`TXID: ${resultJSON.txids[0]}`}</div>
+                  {resultJSON.txids.length > 1 && (
+                    <div>{`TXID: ${resultJSON.txids[1]}`}</div>
+                  )}
+                  {resultJSON.txids.length > 2 && (
+                    <div>{`TXID: ${resultJSON.txids[2]}`}</div>
+                  )}
+                </div>
+                <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], info.currencyName)}>
+                  View TXID &nbsp;
+                  <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                </div>
+                {resultJSON.txids.length > 1 && (
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], info.currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                )}
+                {resultJSON.txids.length > 2 && (
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], info.currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                )}
+              </div>
             );
           }
           if (resultJSON.error) {
             openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
           }
         } catch (err) {
-          // If there was an error, show the error modal
+          // If there was an error, show the error modal 
           openErrorModal("Error Shielding Transaction", `${err}`);
         }
       })();

@@ -5,10 +5,9 @@ import native from "../native.node";
 
 export const NO_CONNECTION: string = "Could not connect to zcashd";
 
+const { shell } = window.require("electron"); 
+
 export default class Utils {
-  static ZCASH_COMMUNITY: string = "https://mainnet.lightwalletd.com:9067";
-  //static ZEBRA: string = "https://zebra-lwd.zecwallet.co:9067";
-  static V3_LIGHTWALLETD: string = "https://lwdv3.zecwallet.co:443";
 
   static trimToSmall(addr?: string, numChars?: number): string {
     if (!addr) {
@@ -207,4 +206,25 @@ export default class Utils {
 
     return colorList;
   }
+
+  static openTxid = (txid: string, currencyName: string) => {
+    if (currencyName === "TAZ") {
+      shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
+    } else {
+      shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
+    }
+  }
+
+  static openAddress = (address: string, currencyName: string) => { 
+    if (currencyName === "TAZ") {
+      shell.openExternal(`https://testnet.zcashexplorer.app/address/${address}`);
+    } else {
+      if (address.startsWith('u')) {
+        shell.openExternal(`https://mainnet.zcashexplorer.app/ua/${address}`);
+      } else {
+        shell.openExternal(`https://mainnet.zcashexplorer.app/address/${address}`);
+      }
+    }
+  }
+
 }

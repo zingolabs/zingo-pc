@@ -27,7 +27,7 @@ type SidebarProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   getPrivKeyAsString: (address: string) => Promise<string>;
   importPrivKeys: (keys: string[], birthday: string) => boolean;
-  openErrorModal: (title: string, body: string | ReactElement) => void;
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
   openPassword: (
     confirmNeeded: boolean,
     passwordCallback: (p: string) => void,

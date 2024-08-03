@@ -18,8 +18,6 @@ import ConfirmModalToAddr from "./ConfirmModalToAddr";
 
 import native from "../../../native.node";
 
-const { shell } = window.require("electron"); 
-
 // Internal because we're using withRouter just below
 type ConfirmModalProps = {
     sendPageState: SendPageState;
@@ -168,14 +166,6 @@ type ConfirmModalProps = {
       })();
     },[getPrivacyLevel, sendFee, sendPageState.toaddrs]);
   
-    const openTxid = (txid: string) => {
-      if (currencyName === "TAZ") {
-        shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
-      } else {
-        shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
-      }
-    };
-
     const sendButton = () => {
       // First, close the confirm modal.
       closeModal();
@@ -208,7 +198,7 @@ type ConfirmModalProps = {
                     <div>{'Transaction was successfully broadcast.'}</div>
                     <div>{`TXID: ${txid}`}</div>
                   </div>
-                  <div className={cstyles.primarybutton} onClick={() => openTxid(txid)}>
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txid, currencyName)}>
                     View TXID &nbsp;
                     <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                   </div>
