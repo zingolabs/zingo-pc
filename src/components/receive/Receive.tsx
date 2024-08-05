@@ -10,20 +10,17 @@ import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
 
 type ReceiveProps = {
-  fetchAndSetSinglePrivKey: (k: string) => void;
-  fetchAndSetSingleViewKey: (k: string) => void;
-  //createNewAddress: (t: AddressType) => void;
-  shieldTransparentBalanceToOrchard: () => Promise<string>;
   calculateShieldFee: () => Promise<number>;
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
+  handleShieldButton: () => void;
 };
 
-const Receive: React.FC<ReceiveProps> = ({ fetchAndSetSinglePrivKey, fetchAndSetSingleViewKey, shieldTransparentBalanceToOrchard, calculateShieldFee, openErrorModal }) => {
+const Receive: React.FC<ReceiveProps> = ({ 
+  calculateShieldFee, 
+  handleShieldButton,
+}) => {
   const context = useContext(ContextApp);
   const {
     addresses,
-    addressPrivateKeys,
-    addressViewKeys,
     addressBook,
     info,
     receivePageState,
@@ -117,27 +114,16 @@ const Receive: React.FC<ReceiveProps> = ({ fetchAndSetSinglePrivKey, fetchAndSet
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.address)}
                       zecPrice={info.zecPrice}
-                      privateKey={addressPrivateKeys.get(a.address)}
-                      viewKey={addressViewKeys.get(a.address)}
-                      fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
-                      fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
+                      handleShieldButton={handleShieldButton}
                     />
                   ))}
                 </Accordion>
               )}
               
-              {/*<button
-                className={[cstyles.primarybutton, cstyles.margintoplarge, cstyles.marginbottomlarge].join(" ")}
-                onClick={() => createNewAddress(AddressType.unified)}
-                type="button"
-              >
-                New Unified Address
-              </button>*/}
             </ScrollPane>
           </TabPanel>
 
           <TabPanel key={`z${rerenderKey}`}>
-            {/* Change the hardcoded height */}
             <ScrollPane offsetHeight={100}>
               {zaddrs && zaddrs.length > 0 && (
                 <Accordion preExpanded={[defaultZaddr]}>
@@ -148,29 +134,16 @@ const Receive: React.FC<ReceiveProps> = ({ fetchAndSetSinglePrivKey, fetchAndSet
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.address)}
                       zecPrice={info.zecPrice}
-                      privateKey={addressPrivateKeys.get(a.address)}
-                      viewKey={addressViewKeys.get(a.address)}
-                      fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
-                      fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
-                      openErrorModal={openErrorModal}
+                      handleShieldButton={handleShieldButton}
                     />
                   ))}
                 </Accordion>
               )}
               
-
-              {/*<button
-                className={[cstyles.primarybutton, cstyles.margintoplarge, cstyles.marginbottomlarge].join(" ")}
-                onClick={() => createNewAddress(AddressType.sapling)}
-                type="button"
-              >
-                New Sapling Address
-              </button>*/}
             </ScrollPane>
           </TabPanel>
 
           <TabPanel key={`t${rerenderKey}`}>
-            {/* Change the hardcoded height */}
             <ScrollPane offsetHeight={100}>
               {taddrs && taddrs.length > 0 && (
                 <Accordion preExpanded={[defaultTaddr]}>
@@ -181,25 +154,13 @@ const Receive: React.FC<ReceiveProps> = ({ fetchAndSetSinglePrivKey, fetchAndSet
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.address)}
                       zecPrice={info.zecPrice}
-                      privateKey={addressPrivateKeys.get(a.address)}
-                      viewKey={addressViewKeys.get(a.address)}
-                      fetchAndSetSinglePrivKey={fetchAndSetSinglePrivKey}
-                      fetchAndSetSingleViewKey={fetchAndSetSingleViewKey}
-                      shieldTransparentBalanceToOrchard={shieldTransparentBalanceToOrchard}
                       calculateShieldFee={calculateShieldFee}
-                      openErrorModal={openErrorModal}
+                      handleShieldButton={handleShieldButton}
                     />
                   ))}
                 </Accordion>
               )}
               
-              {/*<button
-                className={[cstyles.primarybutton, cstyles.margintoplarge, cstyles.marginbottomlarge].join(" ")}
-                type="button"
-                onClick={() => createNewAddress(AddressType.transparent)}
-              >
-                New Transparent Address
-              </button>*/}
             </ScrollPane>
           </TabPanel>
         </Tabs>

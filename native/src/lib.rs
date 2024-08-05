@@ -109,7 +109,7 @@ fn zingolib_wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
     Ok(cx.boolean(config.wallet_path_exists()))
 }
 
-/// Create a new wallet and return the seed for the newly created wallet.
+// Create a new wallet and return the seed for the newly created wallet.
 fn zingolib_init_new(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
     let chain_hint = cx.argument::<JsString>(1)?.value(&mut cx);
@@ -139,7 +139,7 @@ fn zingolib_init_new(mut cx: FunctionContext) -> JsResult<JsString> {
     Ok(cx.string(resp()))
 }
 
-/// Restore a wallet from the seed phrase
+// Restore a wallet from the seed phrase
 fn zingolib_init_from_seed(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
     let seed = cx.argument::<JsString>(1)?.value(&mut cx);
@@ -299,8 +299,6 @@ fn zingolib_execute_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
 
         deferred.settle_with(&channel, move |mut cx| Ok(cx.string(resp)));
 
-        // Settle the promise based on the response
-        //deferred.resolve(&mut cx, cx.string(&resp));
     });
 
     // Return the promise back to JavaScript

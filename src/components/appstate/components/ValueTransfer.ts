@@ -1,6 +1,5 @@
-// List of transactions. TODO: Handle memos, multiple addresses etc...
 export default class ValueTransfer {
-  type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield'; // like kind
+  type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield';
   fee?: number;
   confirmations: number;
   txid: string;

@@ -177,8 +177,8 @@ export const checkServerURI = async (uri: string, oldUri: string): Promise<boole
 
   if (!port) {
     // by default -> 9067
-    // for `zecwallet` -> 443
-    port = uri.includes('lwdv3.zecwallet') ? '443' : '9067';
+    // for `zec.rocks` -> 443
+    port = uri.includes('zec.rocks') ? '443' : '9067';
   }
 
   try {

@@ -12,12 +12,11 @@ import { ContextApp } from "../../context/ContextAppState";
 import { Address } from "../appstate";
 
 type DashboardProps = {
-  shieldTransparentBalanceToOrchard: () => Promise<string>;
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
   calculateShieldFee: () => Promise<number>;
+  handleShieldButton: () => void;
 };
 
-const Dashboard: React.FC<DashboardProps> = ({shieldTransparentBalanceToOrchard, openErrorModal, calculateShieldFee}) => {
+const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldButton}) => {
   const context = useContext(ContextApp);
   const { totalBalance, info, addresses, readOnly, fetchError } = context;
 
@@ -37,64 +36,6 @@ const Dashboard: React.FC<DashboardProps> = ({shieldTransparentBalanceToOrchard,
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalBalance.transparent, anyPending]); 
-
-  const shieldButton = () => {
-    openErrorModal("Computing Transaction", "Please wait...This could take a while");
-
-    setTimeout(() => {
-      (async () => {
-        try {
-          const result: string = await shieldTransparentBalanceToOrchard();
-          console.log('shielding balance', result);
-
-          if (result.toLocaleLowerCase().startsWith('error')) {
-            openErrorModal("Error Shielding Transaction", `${result}`);
-            return;  
-          }
-          const resultJSON = JSON.parse(result);
-          if (resultJSON.txids) {
-            openErrorModal(
-              "Successfully Broadcast Transaction",
-              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                  <div>{(resultJSON.txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
-                  <div>{`TXID: ${resultJSON.txids[0]}`}</div>
-                  {resultJSON.txids.length > 1 && (
-                    <div>{`TXID: ${resultJSON.txids[1]}`}</div>
-                  )}
-                  {resultJSON.txids.length > 2 && (
-                    <div>{`TXID: ${resultJSON.txids[2]}`}</div>
-                  )}
-                </div>
-                <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], info.currencyName)}>
-                  View TXID &nbsp;
-                  <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                </div>
-                {resultJSON.txids.length > 1 && (
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], info.currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
-                {resultJSON.txids.length > 2 && (
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], info.currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
-              </div>
-            );
-          }
-          if (resultJSON.error) {
-            openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
-          }
-        } catch (err) {
-          // If there was an error, show the error modal 
-          openErrorModal("Error Shielding Transaction", `${err}`);
-        }
-      })();
-    }, 10);
-  };
 
   console.log('shield fee', shieldFee);
 
@@ -130,7 +71,7 @@ const Dashboard: React.FC<DashboardProps> = ({shieldTransparentBalanceToOrchard,
         <div className={cstyles.balancebox}>
           {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
             <>
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
+              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
               </button>
             </>

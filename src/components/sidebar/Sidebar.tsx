@@ -4,14 +4,12 @@ import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import { Address, Info, Server, ValueTransfer } from "../appstate";
+import { Info, Server, ValueTransfer } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import WalletSettingsModal from "../walletsettingsmodal/WalletSettingsModal";
 import PayURIModal from "./components/PayURIModal";
-import ImportPrivKeyModal from "./components/ImportPrivKeyModal";
-import ExportPrivKeyModal from "./components/ExportPrivKeyModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
@@ -61,14 +59,10 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   location,
 }) => {
   const context = useContext(ContextApp);
-  const { info, serverUris, valueTransfers, addresses, verificationProgress, walletSettings, readOnly } = context;
+  const { info, serverUris, valueTransfers, verificationProgress, walletSettings, readOnly } = context;
 
   const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
   const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
-  const [privKeyModalIsOpen, setPrivKeyModalIsOpen] = useState<boolean>(false);
-  //const [privKeyInputValue, setPrivKeyInputValue] = useState<string | null>(null);
-  const [exportPrivKeysModalIsOpen, setExportPrivKeysModalIsOpen] = useState<boolean>(false);
-  const [exportedPrivKeys, setExportedPrivKeys] = useState<string[]>([]);
   const [walletSettingsModalIsOpen, setWalletSettingsModalIsOpen] = useState<boolean>(false);
 
   let stateSync: string = "DISCONNECTED";
@@ -95,7 +89,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zingo PC v1.1.0</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v1.4.3</div>
           <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2024, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
             The MIT License (MIT) Copyright (c) 2024 ZingoLabs
@@ -136,10 +130,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       history.push(routes.SEND);
     });
 
-    // Import a Private Key
-    //ipcRenderer.on("import", () => {
-    //  openImportPrivKeyModal(null);
-    //});
 
     // Pay URI
     ipcRenderer.on("payuri", (event: any, uri: string) => {
@@ -344,23 +334,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       navigateToLoadingScreen(false, "", serverUris)
     });
 
-    // Export all private keys
-    ipcRenderer.on("exportall", async () => {
-      const ad = addresses;
-      const ge = getPrivKeyAsString;
-      // Get all the addresses and run export key on each of them.
-      openPasswordAndUnlockIfNeeded(async () => {
-        const _privKeysPromise: Promise<string>[] = ad.map(async (a: Address) => {
-          const privKey: string = await ge(a.address);
-          return `${privKey} #${a}`;
-        });
-        const _exportedPrivKeys: string[] = await Promise.all(_privKeysPromise);
-
-        setExportPrivKeysModalIsOpen(true);
-        setExportedPrivKeys(_exportedPrivKeys);
-      });
-    });
-
     // View zcashd
     ipcRenderer.on("zcashd", () => {
       history.push(routes.ZCASHD);
@@ -377,100 +350,10 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     });
   };
 
-  const closeExportPrivKeysModal = () => {
-    setExportPrivKeysModalIsOpen(false);
-    setExportedPrivKeys([]);
-  };
-
-  //const openImportPrivKeyModal = (defaultValue: string | null) => {
-  //  const _privKeyInputValue: string = defaultValue || "";
-  //  setPrivKeyModalIsOpen(true);
-  //  setPrivKeyInputValue(_privKeyInputValue);
-  //};
-
-  //const setImprovPrivKeyInputValue = (_privKeyInputValue: string) => {
-  //  setPrivKeyInputValue(_privKeyInputValue);
-  //};
-
-  const closeImportPrivKeyModal = () => {
-    setPrivKeyModalIsOpen(false);
-  };
-
   const openURIModal = (defaultValue: string | null) => {
     const _uriModalInputValue: string = defaultValue || "";
     setUriModalIsOpen(true);
     setUriModalInputValue(_uriModalInputValue);
-  };
-
-  const doImportPrivKeys = async (key: string, birthday: string) => {
-    if (key) {
-      let keys: string[] = key.split(new RegExp("[\\n\\r]+"));
-      if (!keys || keys.length === 0) {
-        openErrorModal("No Keys Imported", "No keys were specified, so none were imported");
-        return;
-      }
-
-      // Filter out empty lines and clean up the private keys
-      keys = keys.filter((k) => !(k.trim().startsWith("#") || k.trim().length === 0));
-
-      // Special case.
-      // Sometimes, when importing from a paperwallet or such, the key is split by newlines, and might have
-      // been pasted like that. So check to see if the whole thing is one big private key
-      if (Utils.isValidSaplingPrivateKey(keys.join("")) || Utils.isValidSaplingViewingKey(keys.join(""))) {
-        keys = [keys.join("")];
-      }
-
-      if (keys.length > 1) {
-        openErrorModal("Multiple Keys Not Supported", "Please import one key at a time");
-        return;
-      }
-
-      if (!Utils.isValidSaplingPrivateKey(keys[0]) && !Utils.isValidSaplingViewingKey(keys[0])) {
-        openErrorModal(
-          "Bad Key",
-          "The input key was not recognized as either a sapling spending key or a sapling viewing key"
-        );
-        return;
-      }
-
-      // in order to import a viewing key, the wallet can be encrypted,
-      // but it must be unlocked
-      //if (Utils.isValidSaplingViewingKey(keys[0]) && info.locked) {
-      //  openErrorModal(
-      //    "Wallet Is Locked",
-      //    "In order to import a Sapling viewing key, your wallet must be unlocked. If you wish to continue, unlock your wallet and try again."
-      //  );
-      //  return;
-      //}
-
-      // in order to import a private key, the wallet must be unencrypted
-      //if (Utils.isValidSaplingPrivateKey(keys[0]) && info.encrypted) {
-      //  openErrorModal(
-      //    "Wallet Is Encrypted",
-      //    "In order to import a Sapling private key, your wallet cannot be encrypted. If you wish to continue, remove the encryption from your wallet and try again."
-      //  );
-      //  return;
-      //}
-
-      // To rescan, we reset the wallet loading
-      // So set info the default, and redirect to the loading screen
-      clearTimers();
-
-      // Grab the previous sync ID.
-      const syncStatus: string = await RPC.doSyncStatus();
-      const prevSyncId: number = JSON.parse(syncStatus).sync_id;
-      const success: boolean = importPrivKeys(keys, birthday);
-
-      if (success) {
-        // Set the rescanning global state to true
-        setRescanning(true, prevSyncId);
-
-        // Reset the info object, it will be refetched
-        setInfo(new Info());
-
-        navigateToLoadingScreen(false, "", serverUris)
-      }
-    }
   };
 
   const setURIInputValue = (_uriModalInputValue: string) => {
@@ -528,7 +411,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
   return (
     <div>
-      {/* Payment URI Modal */}
       <PayURIModal
         modalInput={uriModalInputValue}
         setModalInput={setURIInputValue}
@@ -537,22 +419,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         modalTitle="Pay URI"
         actionButtonName="Pay URI"
         actionCallback={payURI}
-      />
-
-      {/* Import Private Key Modal */}
-      <ImportPrivKeyModal
-        modalIsOpen={privKeyModalIsOpen}
-        // setModalInput={this.setImprovPrivKeyInputValue}
-        // modalInput={privKeyInputValue}
-        closeModal={closeImportPrivKeyModal}
-        doImportPrivKeys={doImportPrivKeys}
-      />
-
-      {/* Exported (all) Private Keys */}
-      <ExportPrivKeyModal
-        modalIsOpen={exportPrivKeysModalIsOpen}
-        exportedPrivKeys={exportedPrivKeys}
-        closeModal={closeExportPrivKeysModal}
       />
 
       <WalletSettingsModal

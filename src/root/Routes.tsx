@@ -512,6 +512,65 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     return result;
   }
 
+  handleShieldButton = () => {
+    this.openErrorModal("Computing Transaction", "Please wait...This could take a while");
+
+    setTimeout(() => {
+      (async () => {
+        try {
+          const result: string = await this.shieldTransparentBalanceToOrchard();
+          console.log('shielding balance', result);
+
+          if (result.toLocaleLowerCase().startsWith('error')) {
+            this.openErrorModal("Error Shielding Transaction", `${result}`);
+            return;  
+          }
+          const resultJSON = JSON.parse(result);
+          if (resultJSON.txids) {
+            this.openErrorModal(
+              "Successfully Broadcast Transaction",
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                  <div>{(resultJSON.txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
+                  <div>{`TXID: ${resultJSON.txids[0]}`}</div>
+                  {resultJSON.txids.length > 1 && (
+                    <div>{`TXID: ${resultJSON.txids[1]}`}</div>
+                  )}
+                  {resultJSON.txids.length > 2 && (
+                    <div>{`TXID: ${resultJSON.txids[2]}`}</div>
+                  )}
+                </div>
+                <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], this.state.info.currencyName)}>
+                  View TXID &nbsp;
+                  <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                </div>
+                {resultJSON.txids.length > 1 && (
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], this.state.info.currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                )}
+                {resultJSON.txids.length > 2 && (
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], this.state.info.currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                )}
+              </div>
+            );
+          }
+          if (resultJSON.error) {
+            this.openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
+          }
+        } catch (err) {
+          // If there was an error, show the error modal 
+          this.openErrorModal("Error Shielding Transaction", `${err}`);
+        }
+      })();
+    }, 10);
+  };
+
+
   navigateToDashboard = () => {
     this.props.history.replace({
       pathname: routes.DASHBOARD, 
@@ -577,6 +636,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <Send
                     sendTransaction={this.sendTransaction}
                     setSendPageState={this.setSendPageState}
+                    calculateShieldFee={this.calculateShieldFee}
+                    handleShieldButton={this.handleShieldButton}
                     {...standardProps}
                   />
                 )}
@@ -585,10 +646,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.RECEIVE}
                 render={() => (
                   <Receive
-                    shieldTransparentBalanceToOrchard={this.shieldTransparentBalanceToOrchard}
-                    fetchAndSetSinglePrivKey={this.fetchAndSetSinglePrivKey}
-                    fetchAndSetSingleViewKey={this.fetchAndSetSingleViewKey}
                     calculateShieldFee={this.calculateShieldFee}
+                    handleShieldButton={this.handleShieldButton}
                     {...standardProps}
                   />
                 )}
@@ -607,9 +666,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.DASHBOARD}
                 render={() => (
                   <Dashboard 
-                    shieldTransparentBalanceToOrchard={this.shieldTransparentBalanceToOrchard}
                     calculateShieldFee={this.calculateShieldFee}
-                    openErrorModal={this.openErrorModal} 
+                    handleShieldButton={this.handleShieldButton}
                   />
                 )}
               />
@@ -624,6 +682,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 render={() => (
                   <History
                     setSendTo={this.setSendTo}
+                    calculateShieldFee={this.calculateShieldFee}
+                    handleShieldButton={this.handleShieldButton}
                   />
                 )}
               />
