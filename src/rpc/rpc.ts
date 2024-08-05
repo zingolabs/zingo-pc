@@ -70,8 +70,6 @@ export default class RPC {
         console.log('refresh - 30 sec');
         // trying to sync
         this.refresh(false);
-        // I need to save the wallet every 30 seconds  Just in case.
-        //RPC.doSave();
         // I need to fetch the ZEC price in USD.
         this.getZecPrice();
       }, 30 * 1000); // 30 sec
@@ -87,7 +85,6 @@ export default class RPC {
     // Immediately call the refresh after configure to update the UI
     this.refresh(true);
     this.updateData();
-    //RPC.doSave();
   }
 
   clearTimers() {
@@ -251,7 +248,6 @@ export default class RPC {
             // the sync is finished
             // the sync process in zingolib finish fakely & if you try again
             // the sync continue with a NEW ID
-            // verificationProgress = 100;
             // And fetch the rest of the data.
             this.fetchTotalBalance();
             this.fetchTandZandOValueTransfers(latestBlockHeight);
@@ -325,7 +321,7 @@ export default class RPC {
         info.zecPrice = 0;
       }
 
-      //zingolib version
+      // zingolib version
       let zingolibStr: string = await native.zingolib_execute_async("version", "");
       if (zingolibStr) {
         if (zingolibStr.toLowerCase().startsWith('error')) {
@@ -411,7 +407,6 @@ export default class RPC {
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
     const r: string = await native.zingolib_execute_async("setoption", `${name}=${value}`);
 
-    //RPC.doSave();
     return r;
   }
 
@@ -683,8 +678,6 @@ export default class RPC {
 
   // This method will get the total balances
   async fetchTotalBalance() {
-    //const balanceStr = native.zingolib_execute_async("balance", "");
-    //const balanceJSON = JSON.parse(balanceStr);
 
     const balanceJSON: any = await this.zingolibBalance();
 
@@ -703,10 +696,6 @@ export default class RPC {
     balance.spendableZ = balanceJSON.spendable_zbalance / 10 ** 8;
     balance.total = balance.obalance + balance.zbalance + balance.transparent;
     this.fnSetTotalBalance(balance);
-
-    // Fetch pending notes and UTXOs
-    // const pendingNotes = native.zingolib_execute_async("notes", "");
-    // const pendingJSON = JSON.parse(pendingNotes); 
 
     const pendingJSON: any = await this.zingolibNotes();
 
@@ -738,8 +727,6 @@ export default class RPC {
       ab.type = o.address_type;
       return ab;
     });
-    // I need all the addresses here
-    //.filter((ab: Address) => ab.balance > 0);
 
     const zaddresses = balanceJSON.z_addresses.map((o: any) => {
       // If this has any unconfirmed txns, show that in the UI
@@ -750,8 +737,6 @@ export default class RPC {
       ab.type = o.address_type;
       return ab;
     });
-    // I need all the addresses here
-    //.filter((ab: Address) => ab.balance > 0);
 
     //console.log(zaddresses);
 
@@ -764,8 +749,6 @@ export default class RPC {
       ab.type = o.address_type;
       return ab;
     });
-    // I need all the addresses here
-    //.filter((ab: Address) => ab.balance > 0);
 
     const addresses = uaddresses.concat(zaddresses.concat(taddresses));
 
@@ -924,7 +907,6 @@ export default class RPC {
       const resp: string = await native.zingolib_execute_async("send", JSON.stringify(sendJson));
       console.log(`End Sending, response: ${resp}`); 
     } catch (err) {
-      // TODO Show a modal with the error
       console.log(`Error sending Tx: ${err}`);
       throw err;
     }
@@ -950,7 +932,6 @@ export default class RPC {
         }
       }
     } catch (err) {
-      // TODO Show a modal with the error
       console.log(`Error confirming Tx: ${err}`);
       throw err;
     }
@@ -1036,9 +1017,6 @@ export default class RPC {
     // To update the wallet encryption status
     this.fetchInfo();
 
-    // And save the wallet
-    //RPC.doSave();
-
     return resultJSON.result === "success";
   }
 
@@ -1048,9 +1026,6 @@ export default class RPC {
 
     // To update the wallet encryption status
     this.fetchInfo();
-
-    // And save the wallet
-    //RPC.doSave();
 
     return resultJSON.result === "success";
   }

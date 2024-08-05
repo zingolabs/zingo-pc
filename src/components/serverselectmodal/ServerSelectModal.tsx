@@ -24,9 +24,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
   
-  //const [autoChain, setAutoChain] = useState<'main' | 'test' | 'regtest' | ''>("");
   const [customChain, setCustomChain] = useState<'main' | 'test' | 'regtest' | ''>("");
-  //const [listChain, setListChain] = useState<'main' | 'test' | 'regtest' | ''>("");
 
   const [servers, setServers] = useState<Server[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: Server) => s.obsolete === false));
 
@@ -43,28 +41,22 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
       setCustomChain(chain);
 
       setListServer("");
-      //setListChain("");
 
       setAutoServer(servers[0].uri);
-      //setAutoChain("");
     } else if (selection === 'auto') {
       setAutoServer(server);
-      //setAutoChain(chain);
 
       setListServer("");
-      //setListChain("");
 
       setCustomServer("");
       setCustomChain("");
     } else { // list
       setListServer(server);
-      //setListChain(chain);
 
       setCustomServer("");
       setCustomChain("");
 
       setAutoServer(servers[0].uri);
-      //setAutoChain("");
     }
   }, []);
 
@@ -90,15 +82,9 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     const serverchain_name: 'main' | 'test' | 'regtest' | '' = selectedChain;
     const serverselection: 'auto' | 'list' | 'custom' | '' = selectedSelection;
 
-    //const settingsb = await ipcRenderer.invoke("loadSettings");
-    //console.log('before', settingsb.serveruri, settingsb.serverchain_name, settingsb.serverselection, settingsb);
-
     await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: serveruri });
     await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: serverchain_name });
     await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: serverselection });
-
-    //const settingsa = await ipcRenderer.invoke("loadSettings");
-    //console.log('after', settingsa.serveruri, settingsa.serverchain_name, settingsa.serverselection, settingsa);
 
     localCloseModal();
 

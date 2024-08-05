@@ -9,9 +9,6 @@ type ScrollPaneProps = {
 const ScrollPane: React.FC<ScrollPaneProps> = ({ children, className, offsetHeight }) => {
   const [height, setHeight] = useState<number>(0);
 
-  /**
-   * Calculate & Update state of height, needed for the scrolling
-   */
   const updateDimensions = useCallback(() => {
     const updateHeight = window.innerHeight - offsetHeight;
     setHeight(updateHeight);

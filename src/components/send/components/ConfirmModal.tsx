@@ -82,9 +82,15 @@ type ConfirmModalProps = {
       } else {
         return '-';
       }
-      // TODO: check if the json parse is correct.
-      const resultJSON = await JSON.parse(result);
-  
+      
+      let resultJSON;
+      try {
+        resultJSON = await JSON.parse(result);
+      } catch (error) {
+        console.log('parse-address', error);
+        return '-';
+      }
+      
       //console.log('parse-address', address, resultJSON.status === 'success');
   
       if (resultJSON.status !== 'success') {

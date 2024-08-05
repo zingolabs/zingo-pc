@@ -13,7 +13,7 @@
 }
 
 .receiveQrcode {
-  padding: 8px;
+  padding: 0px;
   background-color: white;
-  margin-right: 5px;
+  margin: 5px;
 }

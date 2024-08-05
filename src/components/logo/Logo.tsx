@@ -10,7 +10,7 @@ const Logo = ({ readOnly }: LogoProps) => {
 
   return (
     <>
-      <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.1.0</div>
+      <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.4.3</div>
       <div>
         <img src={logo} width="70" alt="logo" style={{ borderRadius: 5, marginRight: 10 }} />
         {readOnly && (

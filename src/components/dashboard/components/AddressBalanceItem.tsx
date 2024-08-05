@@ -49,7 +49,6 @@ const AddressBalanceItem: React.FC<AddressBalanceItemProps> = ({ currencyName, z
                   </div>
                 </div>
               </div>
-              {/* Add label displaying receiver types */}
               {item.type === AddressType.unified && !!item.receivers && (
                 <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
                   Address types: {Utils.getReceivers(item.receivers).join(" + ")}

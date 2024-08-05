@@ -16,16 +16,11 @@ const { clipboard } = window.require("electron");
 
 type AddressBlockProps = {
   address: Address;
+  label?: string;
   currencyName: string;
   zecPrice: number;
-  privateKey?: string;
-  viewKey?: string;
-  label?: string;
-  fetchAndSetSinglePrivKey: (k: string) => void;
-  fetchAndSetSingleViewKey: (k: string) => void;
-  shieldTransparentBalanceToOrchard?: () => Promise<string>;
   calculateShieldFee?: () => Promise<number>;
-  openErrorModal?: (title: string, body: string | JSX.Element) => void;
+  handleShieldButton: () => void;
 };
 
 const AddressBlock: React.FC<AddressBlockProps> = ({
@@ -33,13 +28,8 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   label,
   currencyName,
   zecPrice,
-  privateKey,
-  fetchAndSetSinglePrivKey,
-  viewKey,
-  fetchAndSetSingleViewKey,
-  shieldTransparentBalanceToOrchard,
   calculateShieldFee,
-  openErrorModal,
+  handleShieldButton
 }) => {
   const context = useContext(ContextApp);
   const { readOnly, addresses } = context;
@@ -72,68 +62,6 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
       })();
     }
   }, [balance, calculateShieldFee, type, anyPending]);
-
-
-  const shieldButton = () => {
-    if (!shieldTransparentBalanceToOrchard || !openErrorModal) {
-      return;
-    }
-    openErrorModal("Computing Transaction", "Please wait...This could take a while");
-
-    setTimeout(() => {
-      (async () => {
-        try {
-          const result: string = await shieldTransparentBalanceToOrchard();
-          console.log('shielding balance', result);
-
-          if (result.toLocaleLowerCase().startsWith('error')) {
-            openErrorModal("Error Shielding Transaction", `${result}`);
-            return;  
-          }
-          const resultJSON = JSON.parse(result);
-          if (resultJSON.txids) {
-            openErrorModal(
-              "Successfully Broadcast Transaction",
-              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                  <div>{(resultJSON.txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
-                  <div>{`TXID: ${resultJSON.txids[0]}`}</div>
-                  {resultJSON.txids.length > 1 && (
-                    <div>{`TXID: ${resultJSON.txids[1]}`}</div>
-                  )}
-                  {resultJSON.txids.length > 2 && (
-                    <div>{`TXID: ${resultJSON.txids[2]}`}</div>
-                  )}
-                </div>
-                <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], currencyName)}>
-                  View TXID &nbsp;
-                  <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                </div>
-                {resultJSON.txids.length > 1 && (
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
-                {resultJSON.txids.length > 2 && (
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
-              </div>
-            );
-          }
-          if (resultJSON.error) {
-            openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
-          }
-        } catch (err) {
-          // If there was an error, show the error modal
-          openErrorModal("Error Shielding Transaction", `${err}`);
-        }
-      })();
-    }, 10);
-  };
 
   const handleQRCodeClick = async () => {
     console.log('____________ click processed');
@@ -173,19 +101,19 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
             )}
 
             {type === AddressType.unified && !!receivers && (
-              <div className={cstyles.margintopsmall}>
+              <div className={cstyles.margintoplarge}>
                 <div className={[cstyles.sublight].join(" ")}>Address types: {Utils.getReceivers(receivers).join(" + ")}</div>
               </div>
             )}
 
             {type === AddressType.sapling && (
-              <div className={cstyles.margintopsmall}>
+              <div className={cstyles.margintoplarge}>
                 <div className={[cstyles.sublight].join(" ")}>Address type: Sapling</div>
               </div>
             )}
 
             {type === AddressType.transparent && (
-              <div className={cstyles.margintopsmall}>
+              <div className={cstyles.margintoplarge}>
                 <div className={[cstyles.sublight].join(" ")}>Address type: Transparent</div>
               </div>
             )}
@@ -209,12 +137,12 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 {copied ? <span>Copied!</span> : <span>Copy Address</span>}
               </button>
 
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currencyName)}>
+              <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currencyName)}>
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </button>
               {type === AddressType.transparent && balance >= shieldFee && shieldFee > 0 && !readOnly && (
                 <>
-                  <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={shieldButton}>
+                  <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={handleShieldButton}>
                     Shield Balance To Orchard (Fee: {shieldFee})
                   </button>
                 </>
@@ -224,7 +152,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
           <div>
             {/*
             // @ts-ignore */}
-            <QRCode value={address_address} className={[styles.receiveQrcode].join(" ")} onClick={handleQRCodeClick} />
+            <QRCode includeMargin={true} size={300} value={address_address} className={[styles.receiveQrcode].join(" ")} onClick={handleQRCodeClick} />
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: 0.5 }}>{'Click to download'}</div>
           </div>
         </div>

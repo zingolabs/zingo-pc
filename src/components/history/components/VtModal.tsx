@@ -70,10 +70,8 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   };
 
   useEffect(() => {
-    // Suscribirse al evento de teclado cuando el componente se monta
     window.addEventListener('keydown', handleKeyDown);
     return () => {
-      // Limpiar el evento cuando el componente se desmonta
       window.removeEventListener('keydown', handleKeyDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -21,17 +21,14 @@ import { ContextApp } from "../../context/ContextAppState";
 import native from "../../native.node";
 import getSendManyJSON from "./components/getSendManyJSON";
 
-//type OptionType = {
-//  value: string;
-//  label: string;
-//};
-
 type SendProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string>;
   setSendPageState: (sendPageState: SendPageState) => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
   openPasswordAndUnlockIfNeeded: (successCallback: () => void) => void;
+  calculateShieldFee: () => Promise<number>;
+  handleShieldButton: () => void;
 };
 
 const Send: React.FC<SendProps> = ({
@@ -40,6 +37,8 @@ const Send: React.FC<SendProps> = ({
   setSendPageState,
   openErrorModal,
   openPasswordAndUnlockIfNeeded,
+  calculateShieldFee,
+  handleShieldButton,
 }) => {
   const context = useContext(ContextApp);
   const {
@@ -49,6 +48,7 @@ const Send: React.FC<SendProps> = ({
     totalBalance,
     readOnly,
     addressBook,
+    fetchError,
   } = context;
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
@@ -58,6 +58,23 @@ const Send: React.FC<SendProps> = ({
   const [totalAmountAvailable, setTotalAmountAvailable] = useState<number>(0);
   const [tooltip, setTooltip ] = useState<string>('');
   const [fromaddr, setFromaddr] = useState<string>('');
+
+  const [anyPending, setAnyPending] = useState<boolean>(false);
+  const [shieldFee, setShieldFee] = useState<number>(0);
+
+  useEffect(() => {
+    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+    setAnyPending(!!_anyPending);
+  }, [addresses]);
+    
+  useEffect(() => {
+    if (totalBalance.transparent > 0) {
+      (async () => {
+        setShieldFee(await calculateShieldFee());
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalBalance.transparent, anyPending]); 
 
   useEffect(() => {
     // transparent funds are not spendable.
@@ -76,20 +93,6 @@ const Send: React.FC<SendProps> = ({
     }
     setTooltip(_tooltip);
   }, [addresses, totalBalance.spendableO, totalBalance.spendableZ, totalBalance.unverifiedO, totalBalance.unverifiedZ]);  
-
-  /*
-  addToAddr = () => {
-    const { sendPageState, setSendPageState } = this.props;
-    const newToAddrs = sendPageState.toaddrs.concat(new ToAddr(Utils.getNextToAddrID())); 
-
-    // Create the new state object
-    const newState = new SendPageState();
-    newState.fromaddr = sendPageState.fromaddr;
-    newState.toaddrs = newToAddrs;
-
-    setSendPageState(newState);
-  };
-  */
 
   const clearToAddrs = () => {
     const newToAddrs: ToAddr[] = [new ToAddr(Utils.getNextToAddrID())];
@@ -112,15 +115,6 @@ const Send: React.FC<SendProps> = ({
     setTotalAmountAvailable(_totalAmountAvailable);
   };
 
-  //const changeFrom = (selectedOption: OptionType) => {
-    // Create the new state object
-  //  const newState = new SendPageState();
-  //  newState.fromaddr = selectedOption.value;
-  //  newState.toaddrs = sendPageState.toaddrs;
-
-  //  setSendPageState(newState);
-  //};
-
   const updateToField = async (
     id: number,
     address: string | null,
@@ -133,7 +127,6 @@ const Send: React.FC<SendProps> = ({
     const restToAddr: ToAddr[] = sendPageState.toaddrs.filter((a: ToAddr) => a.id !== id);
     if (address !== null) {
       // First, check if this is a URI
-      // $FlowFixMe
       const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address.replace(/ /g, ""));
       if (typeof parsedUri === "string") {
         if (parsedUri.toLowerCase().startsWith('error')) {
@@ -156,12 +149,10 @@ const Send: React.FC<SendProps> = ({
 
     if (amount !== null) {
       // Check to see the new amount if valid
-      // $FlowFixMe
       const newAmount: number = parseFloat(amount);
       if (newAmount < 0 || newAmount > 21 * 10 ** 6) {
         return;
       }
-      // $FlowFixMe
       if (toAddr) {
         toAddr.amount = newAmount;
       }
@@ -304,27 +295,51 @@ const Send: React.FC<SendProps> = ({
           currencyName={info.currencyName}
       />
 
-      <div className={[cstyles.well, cstyles.balancebox, styles.containermargin].join(" ")}>
-        <BalanceBlockHighlight
-          topLabel="All Funds"
-          zecValue={totalBalance.total}
-          usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
-          currencyName={info.currencyName}
-        />
-        <BalanceBlockHighlight
-          topLabel="Spendable Funds"
-          zecValue={totalAmountAvailable}
-          usdValue={Utils.getZecToUsdString(info.zecPrice, totalAmountAvailable)}
-          currencyName={info.currencyName}
-          tooltip={tooltip}
-        />
+      <div className={[cstyles.well, styles.containermargin].join(" ")}>
+        <div className={[cstyles.balancebox].join(" ")}>
+          <BalanceBlockHighlight
+            topLabel="All Funds"
+            zecValue={totalBalance.total}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
+            currencyName={info.currencyName}
+          />
+          <BalanceBlockHighlight
+            topLabel="Spendable Funds"
+            zecValue={totalAmountAvailable}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalAmountAvailable)}
+            currencyName={info.currencyName}
+            tooltip={tooltip}
+          />
+        </div>
+        <div className={cstyles.balancebox}>
+          {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+            <>
+              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+                Shield Transparent Balance To Orchard (Fee: {shieldFee})
+              </button>
+            </>
+          )}
+          {!!anyPending && (
+            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+              Some transactions are pending. Balances may change.
+            </div>
+          )}
+        </div>
+        {!!fetchError && !!fetchError.error && (
+          <>
+            <hr />
+            <div className={cstyles.balancebox} style={{ color: 'red' }}>
+              {fetchError.command + ': ' + fetchError.error}
+            </div>
+          </>
+        )}
       </div>
 
       <div className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Send</div> 
 
       <div className={[styles.horizontalcontainer].join(" ")}>
         <div className={cstyles.containermarginleft}>
-          <ScrollPane offsetHeight={220}>
+          <ScrollPane offsetHeight={260}>
             {[sendPageState.toaddrs[0]].map((toaddr: ToAddr) => {
               return (
                 <ToAddrBox
@@ -347,11 +362,6 @@ const Send: React.FC<SendProps> = ({
                 />
               );
             })}
-            {/*<div style={{ textAlign: "right" }}>
-              <button type="button" onClick={this.addToAddr}>
-                <i className={["fas", "fa-plus"].join(" ")} />
-              </button> 
-            </div>*/}
           </ScrollPane>
         </div>
 

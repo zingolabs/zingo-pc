@@ -121,18 +121,6 @@ class MenuBuilder {
             mainWindow.webContents.send("change");
           },
         },
-        //{
-        //  label: "&Import Private Keys",
-        //  click: () => {
-        //    mainWindow.webContents.send("import");
-        //  },
-        //},
-        //{
-        //  label: "&Export All Private Keys",
-        //  click: () => {
-        //    mainWindow.webContents.send("exportall");
-        //  },
-        //},
         { type: "separator" },
         {
           label: "&Pay URI",
@@ -159,27 +147,6 @@ class MenuBuilder {
             this.mainWindow.webContents.send("zcashd");
           },
         },
-        // { type: "separator" },
-        // {
-        //   label: "Remove Wallet Encryption",
-        //   click: () => {
-        //     this.mainWindow.webContents.send("decrypt");
-        //   },
-        // },
-        // {
-        //   label: "Unlock",
-        //   click: () => {
-        //     this.mainWindow.webContents.send("unlock");
-        //   },
-        // },
-        // { type: 'separator' },
-        // {
-        //   label: 'Toggle Developer Tools',
-        //   accelerator: 'Alt+Command+I',
-        //   click: () => {
-        //     this.mainWindow.toggleDevTools();
-        //   }
-        // }
       ],
     };
     const subMenuViewProd = {
@@ -198,18 +165,6 @@ class MenuBuilder {
             mainWindow.webContents.send("change");
           },
         },
-        //{
-        //  label: "&Import Private Keys",
-        //  click: () => {
-        //    mainWindow.webContents.send("import");
-        //  },
-        //},
-        //{
-        //  label: "&Export All Private Keys",
-        //  click: () => {
-        //    mainWindow.webContents.send("exportall");
-        //  },
-        //},
         { type: "separator" },
         {
           label: "&Pay URI",
@@ -242,19 +197,6 @@ class MenuBuilder {
             this.mainWindow.webContents.send("zcashd");
           },
         },
-        // { type: "separator" },
-        // {
-        //   label: "Remove Wallet Encryption",
-        //   click: () => {
-        //     this.mainWindow.webContents.send("decrypt");
-        //   },
-        // },
-        // {
-        //   label: "Unlock",
-        //   click: () => {
-        //     this.mainWindow.webContents.send("unlock");
-        //   },
-        // },
       ],
     };
     const subMenuWindow = {
@@ -273,16 +215,9 @@ class MenuBuilder {
     const subMenuHelp = {
       label: "Help",
       submenu: [
-        //{
-        //  label: "Donate",
-        //  click() {
-        //    mainWindow.webContents.send("donate");
-        //  },
-        //},
         {
           label: "Check github.com for updates",
           click() {
-            //shell.openExternal("https://github.com/zingolabs/zingo-pc/releases");
             shell.openExternal("https://github.com/zingolabs/zingo-pc");
           },
         },
@@ -339,20 +274,6 @@ class MenuBuilder {
               mainWindow.webContents.send("change");
             },
           },
-          // {
-          //   label: "&Import Private Keys",
-          //   click: () => {
-          //     // Uninplemented by Zingolib
-          //     mainWindow.webContents.send("import");
-          //   },
-          // },
-          // {
-          //   label: "&Export All Private Keys",
-          //   click: () => {
-          //     // Uninplemented by Zingolib
-          //     mainWindow.webContents.send("exportall");
-          //   },
-          // },
           { type: "separator" },
           {
             label: "Export All &Transactions",
@@ -378,25 +299,6 @@ class MenuBuilder {
               this.mainWindow.webContents.send("zcashd");
             },
           },
-          // {
-          //   label: 'Devtools',
-          //   click: () => {
-          //     mainWindow.webContents.openDevTools();
-          //   }
-          // },
-          // { type: "separator" },
-          // {
-          //   label: "Remove Wallet Encryption",
-          //   click: () => {
-          //     this.mainWindow.webContents.send("decrypt");
-          //   },
-          // },
-          // {
-          //   label: "Unlock",
-          //   click: () => {
-          //     this.mainWindow.webContents.send("unlock");
-          //   },
-          // },
         ],
       },
       {
@@ -408,12 +310,6 @@ class MenuBuilder {
               mainWindow.webContents.send("about");
             },
           },
-          //{
-          //  label: "Donate",
-          //  click() {
-          //    mainWindow.webContents.send("donate");
-          //  },
-          //},
           {
             label: "Check github.com for updates",
             click() {
@@ -480,8 +376,6 @@ function createWindow() {
   });
 
   ipcMain.on("apprestart", () => {
-    //console.log(process.argv);
-    //console.log(process.argv.slice(1).concat(['--relaunch']));
     app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) })
     app.exit(0) 
   });  

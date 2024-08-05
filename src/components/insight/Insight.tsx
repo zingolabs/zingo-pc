@@ -1,7 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import styles from "./Insight.module.css";
 import cstyles from "../common/Common.module.css";
-//import { AddressBookEntry } from "../appstate"; 
 import ScrollPane from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
@@ -29,9 +28,6 @@ const Insight: React.FC<InsightProps> = () => {
   const context = useContext(ContextApp);
   const { addressBook } = context;
 
-  //const [expandAddressSent, setExpandAddressSent] = useState<boolean[]>([]);
-  //const [expandAddressSends, setExpandAddressSends] = useState<boolean[]>([]);
-  //const [expandAddressMemobytes, setExpandAddressMemobytes] = useState<boolean[]>([]);
   const [dataSent, setDataSent] = useState<Data>({} as Data);
   const [dataSends, setDataSends] = useState<Data>({} as Data);
   const [dataMemobytes, setDataMemobytes] = useState<Data>({} as Data);
@@ -82,8 +78,6 @@ const Insight: React.FC<InsightProps> = () => {
         } as Dataset,
       ],
     } as Data);
-    //const newExpandAddress = Array(newData.length).fill(false);
-    //setExpandAddressSent(newExpandAddress)
   }
 
   const fetchDataSends: () => void = async () => {
@@ -121,8 +115,6 @@ const Insight: React.FC<InsightProps> = () => {
         } as Dataset,
       ],
     } as Data);
-    //const newExpandAddress = Array(newData.length).fill(false);
-    //setExpandAddressSends(newExpandAddress);
   }
 
   const fetchDataMemobytes: () => void = async () => {
@@ -160,8 +152,6 @@ const Insight: React.FC<InsightProps> = () => {
         } as Dataset,
       ],
     } as Data);
-    //const newExpandAddress = Array(newData.length).fill(false);
-    //setExpandAddressMemobytes(newExpandAddress);
   }
 
   const getPercent = (percent: number) => {

@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
-import { ValueTransfer, AddressBookEntry } from "../appstate";
+import { ValueTransfer, AddressBookEntry, Address } from "../appstate";
 import ScrollPane from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
 import VtItemBlock from "./components/VtItemBlock";
@@ -12,11 +12,13 @@ import { ContextApp } from "../../context/ContextAppState";
 
 type HistoryProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
+  calculateShieldFee: () => Promise<number>;
+  handleShieldButton: () => void;
 };
 
-const History: React.FC<HistoryProps> = ({ setSendTo }) => {
+const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handleShieldButton }) => {
   const context = useContext(ContextApp);
-  const { valueTransfers, info, addressBook, totalBalance } = context;
+  const { valueTransfers, info, addressBook, totalBalance, addresses, readOnly, fetchError } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransfer | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
@@ -25,6 +27,23 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
   const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
   const [valueTransfersSorted, setValueTransfersSorted] = useState<ValueTransfer[]>([]);
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
+
+  const [anyPending, setAnyPending] = useState<boolean>(false);
+  const [shieldFee, setShieldFee] = useState<number>(0);
+
+  useEffect(() => {
+    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+    setAnyPending(!!_anyPending);
+  }, [addresses]);
+    
+  useEffect(() => {
+    if (totalBalance.transparent > 0) {
+      (async () => {
+        setShieldFee(await calculateShieldFee());
+      })();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [totalBalance.transparent, anyPending]); 
 
   useEffect(() => {
     setIsLoadMoreEnabled(valueTransfers && numVtnsToShow < valueTransfers.length);
@@ -119,11 +138,32 @@ const History: React.FC<HistoryProps> = ({ setSendTo }) => {
             currencyName={info.currencyName}
           />
         </div>
+        <div className={cstyles.balancebox}>
+          {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+            <>
+              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+                Shield Transparent Balance To Orchard (Fee: {shieldFee})
+              </button>
+            </>
+          )}
+          {!!anyPending && (
+            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+              Some transactions are pending. Balances may change.
+            </div>
+          )}
+        </div>
+        {!!fetchError && !!fetchError.error && (
+          <>
+            <hr />
+            <div className={cstyles.balancebox} style={{ color: 'red' }}>
+              {fetchError.command + ': ' + fetchError.error}
+            </div>
+          </>
+        )}
       </div>
 
       <div style={{ marginBottom: 5 }} className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>History</div>
 
-      {/* Change the hardcoded height */}
       <ScrollPane offsetHeight={180}>
         {!valueTransfersSorted && (
           <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>

@@ -51,10 +51,6 @@ export default class Utils {
   static maxPrecision(v: number): string {
     if (!v) return `${v}`;
 
-    // if (typeof v === 'string' || v instanceof String) {
-    //   v = parseFloat(v);
-    // }
-
     return v.toFixed(8);
   }
 
