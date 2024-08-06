@@ -22,3 +22,6 @@ tokio =  { version = "1.24", features = [ "full" ] }
 version = "0.10.1"
 default-features = false
 features = ["napi-6", "promise-api", "channel-api"]
+
+[patch.crates-io]
+hdwallet = { git = "https://github.com/juanky201271/hdwallet", rev = "13d36401100671e57a9a9b19942c77e06d3b0507" }
