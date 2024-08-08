@@ -116,24 +116,23 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.props.setServerUris(serverUris);
   }
 
-  componentDidMount() {
+  componentDidMount = async () => {
     this.setState({
       buttonsDisable: true,
     })
+    console.log('did mount, disable TRUE');
 
     const { rescanning, prevSyncId } = this.context;
     if (rescanning) {
-      this.runSyncStatusPoller(prevSyncId);
+      await this.runSyncStatusPoller(prevSyncId);
     } else {
-      (async () => {
-        // Do it in a timeout, so the window has a chance to load. 
-        setTimeout(() => this.doFirstTimeSetup(), 100);
-      })();
+      await this.doFirstTimeSetup();
     }
 
     this.setState({
       buttonsDisable: false,
     })
+    console.log('did mount, disable FALSE');
   }
 
   download = (url: string, dest: string, name: string, cb: (msg: string) => void) => {
@@ -378,7 +377,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     return servers;
   };
 
-  async getInfo() {
+  getInfo = async () => {
     // Try getting the info.
     try {
       // Do a sync at start
@@ -645,7 +644,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                   disabled={buttonsDisable}
                   type="button"
                   className={cstyles.primarybutton}
-                  onClick={() => {
+                  onClick={async () => {
                     this.setState({
                       currentStatus: "", 
                       currentStatusIsError: false,
@@ -653,7 +652,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       changeAnotherWallet: false,
                       buttonsDisable: true,
                     });
-                    this.doFirstTimeSetup();
+                    await this.doFirstTimeSetup();
                     this.setState({ buttonsDisable: false })
                   }}
                 >
@@ -663,7 +662,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                   disabled={buttonsDisable}
                   type="button"
                   className={cstyles.primarybutton}
-                  onClick={() => {
+                  onClick={async () => {
                     this.setState({
                       currentStatus: "",
                       currentStatusIsError: false,
@@ -672,7 +671,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       changeAnotherWallet: false,
                       buttonsDisable: true,
                     });
-                    this.deleteWallet();
+                    await this.deleteWallet();
                     this.setState({ buttonsDisable: false })
                   }}
                 >
@@ -790,7 +789,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                         className={cstyles.primarybutton} 
                         onClick={() => {
                           this.setState({ walletScreen: 1 });
-                          //this.doFirstTimeSetup();
                         }}
                       >
                         Cancel
@@ -888,7 +886,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                         className={cstyles.primarybutton} 
                         onClick={() => {
                           this.setState({ walletScreen: 1 });
-                          //this.doFirstTimeSetup();
                         }}
                       >
                         Cancel
@@ -963,7 +960,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                         className={cstyles.primarybutton} 
                         onClick={() => {
                           this.setState({ walletScreen: 1 });
-                          //this.doFirstTimeSetup();
                         }}
                       >
                         Cancel
