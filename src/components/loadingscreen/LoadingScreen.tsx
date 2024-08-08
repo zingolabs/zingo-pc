@@ -45,13 +45,11 @@ class LoadingScreenState {
 
   birthday: number; // Wallet birthday if we're restoring
 
-  getinfoRetryCount: number;
-
-  nextSaveBatch: number;
-
   changeAnotherWallet: boolean;
 
   serverUris: Server[];
+
+  buttonsDisable: boolean;
 
   constructor(currentStatus: string | JSX.Element, 
               currentStatusIsError: boolean, 
@@ -64,15 +62,14 @@ class LoadingScreenState {
     this.url = "";
     this.chain = "";
     this.selection = '';
-    this.getinfoRetryCount = 0;
     this.walletScreen = 0;
     this.newWalletError = null;
     this.seed = "";
     this.ufvk = "";
     this.birthday = 0;
-    this.nextSaveBatch = -1;
     this.changeAnotherWallet = changeAnotherWallet;
     this.serverUris = serverUris;
+    this.buttonsDisable = false;
   }
 }
 
@@ -120,8 +117,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   }
 
   componentDidMount() {
-    const { rescanning, prevSyncId } = this.context;
+    this.setState({
+      buttonsDisable: true,
+    })
 
+    const { rescanning, prevSyncId } = this.context;
     if (rescanning) {
       this.runSyncStatusPoller(prevSyncId);
     } else {
@@ -130,6 +130,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         setTimeout(() => this.doFirstTimeSetup(), 100);
       })();
     }
+
+    this.setState({
+      buttonsDisable: false,
+    })
   }
 
   download = (url: string, dest: string, name: string, cb: (msg: string) => void) => {
@@ -254,8 +258,14 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     if (selection === 'auto' && servers.length === 0) {
       servers = this.calculateServerLatency(serverUrisList()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
-      server = servers[0].uri;
-      chain_name = servers[0].chain_name;
+      if (servers.length > 0) {
+        server = servers[0].uri;
+        chain_name = servers[0].chain_name;  
+      } else {
+        // none of the servers are working properly.
+        server = serverUrisList()[0].uri;
+        chain_name = serverUrisList()[0].chain_name;
+      }
       selection = 'list';
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
@@ -560,7 +570,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.props.setReadOnly(false);
   };
 
-  doRestoreSeedWallet = () => {
+  doRestoreSeedWallet = async () => {
     const { seed, birthday, url, chain } = this.state;
     console.log(`Restoring ${seed} with ${birthday}`);
 
@@ -574,7 +584,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   };
 
-  doRestoreUfvkWallet = () => {
+  doRestoreUfvkWallet = async () => {
     const { ufvk, birthday, url, chain } = this.state;
     console.log(`Restoring ${ufvk} with ${birthday}`);
 
@@ -606,10 +616,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   render() {
-    const { loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed, ufvk, birthday } =
+    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed, ufvk, birthday } =
       this.state;
 
     const { openServerSelectModal } = this.props;
+
+    console.log('loading screen render', buttonsDisable);
 
     if (loadingDone) {
         setTimeout(() => this.props.navigateToDashboard(), 500);
@@ -626,10 +638,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             <div>{currentStatus}</div>
             {currentStatusIsError && (
               <div className={cstyles.buttoncontainer}>
-                <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
+                <button disabled={buttonsDisable} type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
                   Switch to Another Server
                 </button>
                 <button
+                  disabled={buttonsDisable}
                   type="button"
                   className={cstyles.primarybutton}
                   onClick={() => {
@@ -638,13 +651,16 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       currentStatusIsError: false,
                       newWalletError: null,
                       changeAnotherWallet: false,
+                      buttonsDisable: true,
                     });
                     this.doFirstTimeSetup();
+                    this.setState({ buttonsDisable: false })
                   }}
                 >
                   Open Current Wallet File
                 </button>
                 <button
+                  disabled={buttonsDisable}
                   type="button"
                   className={cstyles.primarybutton}
                   onClick={() => {
@@ -654,8 +670,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       walletScreen: 0,
                       newWalletError: null,
                       changeAnotherWallet: false,
+                      buttonsDisable: true,
                     });
                     this.deleteWallet();
+                    this.setState({ buttonsDisable: false })
                   }}
                 >
                   Delete Current Wallet File
@@ -676,21 +694,24 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                 </div>
                 <div className={cstyles.margintoplarge}>
                   <button
+                    disabled={buttonsDisable}
                     type="button"
                     className={cstyles.primarybutton}
-                    onClick={() => {
+                    onClick={async () => {
                       this.setState({
                         currentStatus: "",
                         currentStatusIsError: false,
                         walletScreen: 0,
                         newWalletError: null,
+                        buttonsDisable: true,
                       });
-                      this.createNewWallet(); 
+                      await this.createNewWallet();
+                      this.setState({ buttonsDisable: false })
                     }}
                   >
                     Create New Wallet
                   </button>
-                  <button type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
+                  <button disabled={buttonsDisable} type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
                     Switch to Another Server
                   </button>
                 </div>
@@ -703,15 +724,18 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                 </div>
                 <div className={cstyles.margintoplarge}>
                   <button
+                    disabled={buttonsDisable}
                     type="button"
                     className={cstyles.primarybutton}
                     onClick={() => {
                       this.setState({
                         currentStatus: "",
                         currentStatusIsError: false,
-                        newWalletError: null
+                        newWalletError: null,
+                        buttonsDisable: true,
                       });
                       this.restoreExistingSeedWallet();
+                      this.setState({ buttonsDisable: false })
                     }}
                   >
                     Restore Wallet from Seed
@@ -726,15 +750,18 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                 </div>
                 <div className={cstyles.margintoplarge}>
                   <button
+                    disabled={buttonsDisable}
                     type="button"
                     className={cstyles.primarybutton}
                     onClick={() => {
                       this.setState({
                         currentStatus: "",
                         currentStatusIsError: false,
-                        newWalletError: null
+                        newWalletError: null,
+                        buttonsDisable: true,
                       });
                       this.restoreExistingUfvkWallet();
+                      this.setState({ buttonsDisable: false })
                     }}
                   >
                     Restore Wallet from Viewing Key
@@ -757,10 +784,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     <div className={cstyles.padtopsmall}>{newWalletError}</div>
                     <hr style={{ width: "100%" }} />
                     <div className={cstyles.margintoplarge}>
-                      <button type="button" className={cstyles.primarybutton} onClick={() => {
-                        this.setState({ walletScreen: 0 });
-                        this.doFirstTimeSetup();
-                      }}>
+                      <button 
+                        disabled={buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={() => {
+                          this.setState({ walletScreen: 1 });
+                          //this.doFirstTimeSetup();
+                        }}
+                      >
                         Cancel
                       </button>
                     </div>
@@ -778,7 +810,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     <div className={cstyles.padtopsmall}>{seed}</div>
                     <hr style={{ width: "100%" }} />
                     <div className={cstyles.margintoplarge}>
-                      <button type="button" className={cstyles.primarybutton} onClick={this.startNewWallet}>
+                      <button 
+                        disabled={buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={this.startNewWallet}
+                      >
                         Start Wallet
                       </button>
                     </div>
@@ -801,7 +838,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     <div className={cstyles.padtopsmall}>{newWalletError}</div>
                     <hr style={{ width: "100%" }} />
                     <div className={cstyles.margintoplarge}>
-                      <button type="button" className={cstyles.primarybutton} onClick={this.restoreSeedWalletBack}>
+                      <button 
+                        disabled={this.state.buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={this.restoreSeedWalletBack}
+                      >
                         Back
                       </button>
                     </div>
@@ -828,13 +870,27 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     />
 
                     <div className={cstyles.margintoplarge}>
-                      <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreSeedWallet()}>
+                      <button 
+                        disabled={this.state.buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={async () => {
+                          this.setState({ buttonsDisable: true });
+                          await this.doRestoreSeedWallet();
+                          this.setState({ buttonsDisable: false });
+                        }}
+                      >
                         Restore Wallet
                       </button>
-                      <button type="button" className={cstyles.primarybutton} onClick={() => {
-                        this.setState({ walletScreen: 0 });
-                        this.doFirstTimeSetup();
-                      }}>
+                      <button 
+                        disabled={this.state.buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={() => {
+                          this.setState({ walletScreen: 1 });
+                          //this.doFirstTimeSetup();
+                        }}
+                      >
                         Cancel
                       </button>
                     </div>
@@ -857,7 +913,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     <div className={cstyles.padtopsmall}>{newWalletError}</div>
                     <hr style={{ width: "100%" }} />
                     <div className={cstyles.margintoplarge}>
-                      <button type="button" className={cstyles.primarybutton} onClick={this.restoreUfvkWalletBack}>
+                      <button 
+                        disabled={this.state.buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={this.restoreUfvkWalletBack}
+                      >
                         Back
                       </button>
                     </div>
@@ -884,13 +945,27 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     />
 
                     <div className={cstyles.margintoplarge}>
-                      <button type="button" className={cstyles.primarybutton} onClick={() => this.doRestoreUfvkWallet()}>
+                      <button 
+                        disabled={this.state.buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={async () => {
+                          this.setState({ buttonsDisable: true });
+                          await this.doRestoreUfvkWallet();
+                          this.setState({ buttonsDisable: false });
+                        }}
+                      >
                         Restore Wallet
                       </button>
-                      <button type="button" className={cstyles.primarybutton} onClick={() => {
-                        this.setState({ walletScreen: 0 });
-                        this.doFirstTimeSetup();
-                      }}>
+                      <button 
+                        disabled={this.state.buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={() => {
+                          this.setState({ walletScreen: 1 });
+                          //this.doFirstTimeSetup();
+                        }}
+                      >
                         Cancel
                       </button>
                     </div>
