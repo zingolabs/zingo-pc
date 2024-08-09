@@ -72,7 +72,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     );
   };
 
-  componentDidMount() {
+  componentDidMount = async () => {
     // Read the address book
     (async () => {
       const addressBook: AddressBookEntry[] = await AddressbookImpl.readAddressBook();
@@ -82,7 +82,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     })();
   };
 
-  componentWillUnmount() {};
+  componentWillUnmount = () => {};
 
   getFullState = (): AppState => {
     return this.state;
