@@ -241,8 +241,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     }
     // if the server selected is now obsolete, change it for the first one
-    const serverInList = serverUrisList().filter((s: Server) => s.uri === server)
-    if (serverInList[0].obsolete) {
+    const serverInList: Server[] = serverUrisList().filter((s: Server) => s.uri === server)
+    if (serverInList && serverInList.length > 0 && serverInList[0].obsolete) {
       console.log('server obsolete', server, '=>', serverUrisList()[0].uri);
       server = serverUrisList()[0].uri;
       chain_name = serverUrisList()[0].chain_name;
