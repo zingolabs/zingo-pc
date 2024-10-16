@@ -16,7 +16,7 @@ use std::thread;
 
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
-use zingoconfig::{construct_lightwalletd_uri, ChainType, RegtestNetwork, ZingoConfig};
+use zingolib::config::{construct_lightwalletd_uri, ChainType, RegtestNetwork, ZingoConfig};
 use zingolib::{commands, lightclient::LightClient, wallet::WalletBase};
 
 // We'll use a MUTEX to store a global lightclient instance,
@@ -69,7 +69,7 @@ fn construct_uri_load_config(
         "regtest" => ChainType::Regtest(RegtestNetwork::all_upgrades_active()),
         _ => return Err("Error: Not a valid chain hint!".to_string()),
     };
-    let config = match zingoconfig::load_clientconfig(
+    let config = match zingolib::config::load_clientconfig(
         lightwalletd_uri.clone(),
         None,
         chaintype,
@@ -306,7 +306,8 @@ fn zingolib_execute_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
 }
 
 fn zingolib_get_transaction_summaries(mut cx: FunctionContext) -> JsResult<JsString> {
-    let resp = {
+    let resp: String;
+    {
         let lightclient: Arc<LightClient>;
         {
             let lc = LIGHTCLIENT.lock().unwrap();
@@ -319,7 +320,7 @@ fn zingolib_get_transaction_summaries(mut cx: FunctionContext) -> JsResult<JsStr
         };
 
         let rt = Runtime::new().unwrap();
-        rt.block_on(async {
+        resp = rt.block_on(async {
             lightclient.transaction_summaries_json_string().await
         })
     };
@@ -328,7 +329,8 @@ fn zingolib_get_transaction_summaries(mut cx: FunctionContext) -> JsResult<JsStr
 }
 
 fn zingolib_get_value_transfers(mut cx: FunctionContext) -> JsResult<JsString> {
-    let resp = {
+    let resp: String;
+    {
         let lightclient: Arc<LightClient>;
         {
             let lc = LIGHTCLIENT.lock().unwrap();
@@ -341,7 +343,7 @@ fn zingolib_get_value_transfers(mut cx: FunctionContext) -> JsResult<JsString> {
         };
 
         let rt = Runtime::new().unwrap();
-        rt.block_on(async {
+        resp = rt.block_on(async {
             lightclient.value_transfers_json_string().await
         })
     };
