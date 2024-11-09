@@ -375,6 +375,10 @@ function createWindow() {
     return await settings.set(`all.${kv.key}`, kv.value);
   });
 
+  ipcMain.handle('get-app-data-path', () => {
+    return app.getPath('appData');
+  });
+
   ipcMain.on("apprestart", () => {
     app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) })
     app.exit(0) 

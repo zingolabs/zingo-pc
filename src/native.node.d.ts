@@ -19,3 +19,4 @@ export function zingolib_execute_spawn(cmd: string, args: string): string;
 export function zingolib_execute_async(cmd: string, args: string): Promise<string>;
 export function zingolib_get_transaction_summaries(): string;
 export function zingolib_get_value_transfers(): string;
+export function zingolib_set_crypto_default_provider_to_ring(): string;

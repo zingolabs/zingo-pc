@@ -122,6 +122,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     })
     console.log('did mount, disable TRUE');
 
+    const r = native.zingolib_set_crypto_default_provider_to_ring();
+    console.log('crypto provider result', r);
+
     const { rescanning, prevSyncId } = this.context;
     if (rescanning) {
       await this.runSyncStatusPoller(prevSyncId);

@@ -4,6 +4,10 @@ extern crate lazy_static;
 use neon::prelude::*;
 
 use tokio::runtime::Runtime;
+
+use rustls::crypto::ring::default_provider;
+use rustls::crypto::CryptoProvider;
+
 use std::thread;
 
 use std::cell::RefCell;
@@ -38,6 +42,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("zingolib_get_latest_block_server", zingolib_get_latest_block_server)?;
     cx.export_function("zingolib_get_transaction_summaries", zingolib_get_transaction_summaries)?;
     cx.export_function("zingolib_get_value_transfers", zingolib_get_value_transfers)?;
+    cx.export_function("zingolib_set_crypto_default_provider_to_ring", zingolib_set_crypto_default_provider_to_ring)?;
 
     Ok(())
 }
@@ -329,6 +334,25 @@ fn zingolib_get_value_transfers(mut cx: FunctionContext) -> JsResult<JsString> {
             lightclient.value_transfers_json_string().await
         })
     };
+
+    Ok(cx.string(resp))
+}
+
+pub fn zingolib_set_crypto_default_provider_to_ring(mut cx: FunctionContext) -> JsResult<JsString> {
+    let resp: String;
+    {
+        if CryptoProvider::get_default().is_none() {
+            resp = match default_provider()
+                .install_default()
+                .map_err(|_| "Error: Failed to install crypto provider".to_string())
+            {
+                Ok(_) => "true".to_string(),
+                Err(e) => e,
+            };
+        } else {
+            resp = "true".to_string();
+        };
+    }
 
     Ok(cx.string(resp))
 }
