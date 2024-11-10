@@ -35,10 +35,10 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     "": ""
   };
 
-  const initialServerValue = useCallback((servers: Server[], server: string, chain: 'main' | 'test' | 'regtest' | '', selection: 'auto' | 'list' | 'custom' | '') => {
+  const initialServerValue = useCallback((servers: Server[], server: string, chain_name: 'main' | 'test' | 'regtest' | '', selection: 'auto' | 'list' | 'custom' | '') => {
     if (selection === 'custom') {
       setCustomServer(server);
-      setCustomChain(chain);
+      setCustomChain(chain_name);
 
       setListServer("");
 

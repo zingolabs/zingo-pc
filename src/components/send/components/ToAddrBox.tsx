@@ -8,6 +8,7 @@ import {
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
+const { ipcRenderer } = window.require("electron");
 
 const Spacer = () => {
   return <div style={{ marginTop: "24px" }} />;
@@ -63,7 +64,9 @@ const ToAddrBox = ({
   
   useEffect(() => {
     (async () => {
-      const addressType: AddressType | undefined = await Utils.getAddressType(toaddr.to);
+      const settings = await ipcRenderer.invoke("loadSettings");
+      const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main";  
+      const addressType: AddressType | undefined = await Utils.getAddressType(toaddr.to, currChain);
       setAddressType(addressType);
       const isMemoDisabled: boolean = !(addressType === AddressType.sapling || addressType === AddressType.unified);
       setIsMemoDisabled(isMemoDisabled);
@@ -152,8 +155,9 @@ const ToAddrBox = ({
             <div style={{ fontWeight: 900, marginLeft: 20 }}>{label ? label : ""}</div>
           </div>
           <div className={[cstyles.sublight, cstyles.green].join(" ")}>
-            {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
+            {addressType !== undefined && addressType === AddressType.tex && 'TEX'}
             {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
+            {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
             {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
           </div>
           <div className={cstyles.validationerror}>
@@ -167,7 +171,7 @@ const ToAddrBox = ({
         </div>
         <input
           type="text"
-          placeholder="Unified | Sapling | Transparent address"
+          placeholder="Unified | Sapling | Transparent | TEX address"
           className={cstyles.inputbox}
           value={toaddr.to}
           onChange={(e) => updateToField(toaddr.id as number, e.target.value, null, null, null)}

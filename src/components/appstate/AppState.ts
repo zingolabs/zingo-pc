@@ -42,7 +42,7 @@ export default class AppState {
   // The Current configuration of the RPC params
   rpcConfig: RPCConfig;
 
-  // getinfo and getblockchaininfo result
+  // getinfo result
   info: Info;
 
   verificationProgress: number;
@@ -64,7 +64,7 @@ export default class AppState {
   // Callbacks for the password dialog box
   passwordState: PasswordState;
 
-  // if the wallet is seeded or from VK
+  // if the wallet is from seed or from VK
   readOnly: boolean;
 
   // list of servers with the latency calculated at launch

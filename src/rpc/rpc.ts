@@ -818,19 +818,22 @@ export default class RPC {
     const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
     const walletKindJSON = JSON.parse(walletKindStr);
 
-    if (walletKindJSON.kind === "Seeded") {
-      // seed
-      const seedStr: string = await native.zingolib_execute_async("seed", ""); 
-      const seedJSON = JSON.parse(seedStr);
-
-      return seedJSON.birthday;
-    } else {
+    if (
+      walletKindJSON.kind === "Loaded from unified full viewing key" ||
+      walletKindJSON.kind === "No keys found"
+    ) {
       // ufvk
       const ufvkStr: string = await native.zingolib_execute_async("exportufvk", "");
       const ufvkJSON = JSON.parse(ufvkStr);
 
       return ufvkJSON.birthday;
-    } 
+    } else {
+      // seed
+      const seedStr: string = await native.zingolib_execute_async("seed", ""); 
+      const seedJSON = JSON.parse(seedStr);
+
+      return seedJSON.birthday;
+    }
   }
 
   static async fetchWalletHeight(): Promise<number> {

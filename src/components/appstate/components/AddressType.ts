@@ -1,7 +1,8 @@
 enum AddressType {
-    transparent,
-    sapling,
-    unified,
+    tex = 'tex',
+    transparent = 'transparent',
+    sapling = 'sapling',
+    unified = 'unified',
   }
 
 export default AddressType;

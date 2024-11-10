@@ -26,7 +26,7 @@ class LoadingScreenState {
 
   url: string;
 
-  chain: '' | 'main' | 'test' | 'regtest';
+  chain_name: '' | 'main' | 'test' | 'regtest';
 
   selection: '' | 'auto' | 'list' | 'custom';
 
@@ -60,7 +60,7 @@ class LoadingScreenState {
     this.loadingDone = false;
     this.rpcConfig = null;
     this.url = "";
-    this.chain = "";
+    this.chain_name = "";
     this.selection = '';
     this.walletScreen = 0;
     this.newWalletError = null;
@@ -279,7 +279,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.setState({
       serverUris: servers,
       url: server,
-      chain: chain_name,
+      chain_name,
       selection,
     });
     this.props.setServerUris(servers);
@@ -289,7 +289,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     await this.loadServer();
 
     // Try to load the light client
-    const { url, chain, changeAnotherWallet } = this.state;
+    const { url, chain_name, changeAnotherWallet } = this.state;
 
     console.log(`Url: -${url}-`);
 
@@ -303,11 +303,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     
     try {
       // Test to see if the wallet exists 
-      if (!native.zingolib_wallet_exists(url, chain)) {
+      if (!native.zingolib_wallet_exists(url, chain_name)) {
         // Show the wallet creation screen
         this.setState({ walletScreen: 1 });
       } else {
-        const result: string = native.zingolib_init_from_b64(url, chain);
+        const result: string = native.zingolib_init_from_b64(url, chain_name);
         console.log(`Initialization: ${result}`);
         if (result !== "OK") {
           this.setState({
@@ -329,12 +329,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
         const walletKindJSON = JSON.parse(walletKindStr);
 
-        if (walletKindJSON.kind === "Seeded") {
-          // seed
-          this.props.setReadOnly(false);
-        } else {
+        if (
+          walletKindJSON.kind === "Loaded from unified full viewing key" ||
+          walletKindJSON.kind === "No keys found"
+        ) {
           // ufvk
           this.props.setReadOnly(true);
+        } else {
+          // seed
+          this.props.setReadOnly(false);
         }
       }
     } catch (err) {
@@ -414,7 +417,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     console.log('start runSyncStatusPoller');
 
     const { setRPCConfig, setInfo, setRescanning } = this.props;
-    const { url, chain } = this.state;
+    const { url, chain_name } = this.state;
 
     const info: Info = await RPC.getInfoObject();
     console.log(info);
@@ -461,7 +464,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           // Configure the RPC, which will setup the refresh
           const rpcConfig = new RPCConfig();
           rpcConfig.url = url;
-          rpcConfig.chain = chain;
+          rpcConfig.chain_name = chain_name;
           setRPCConfig(rpcConfig);
 
           // And cancel the updater
@@ -511,8 +514,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   createNewWallet = async () => {
-    const { url, chain } = this.state;
-    const result: string = native.zingolib_init_new(url, chain);
+    const { url, chain_name } = this.state;
+    const result: string = native.zingolib_init_new(url, chain_name);
 
     if (result.toLowerCase().startsWith("error")) {
       console.log('creating new wallet', result);
@@ -573,10 +576,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreSeedWallet = async () => {
-    const { seed, birthday, url, chain } = this.state;
+    const { seed, birthday, url, chain_name } = this.state;
     console.log(`Restoring ${seed} with ${birthday}`);
 
-    const result: string = native.zingolib_init_from_seed(url, seed, birthday, chain);
+    const result: string = native.zingolib_init_from_seed(url, seed, birthday, chain_name);
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
@@ -587,10 +590,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreUfvkWallet = async () => {
-    const { ufvk, birthday, url, chain } = this.state;
+    const { ufvk, birthday, url, chain_name } = this.state;
     console.log(`Restoring ${ufvk} with ${birthday}`);
 
-    const result: string = native.zingolib_init_from_ufvk(url, ufvk, birthday, chain);
+    const result: string = native.zingolib_init_from_ufvk(url, ufvk, birthday, chain_name);
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
@@ -601,8 +604,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   deleteWallet = async () => { 
-    const { url, chain } = this.state;
-    if (native.zingolib_wallet_exists(url, chain)) {
+    const { url, chain_name } = this.state;
+    if (native.zingolib_wallet_exists(url, chain_name)) {
       // interrupt syncing, just in case.
       const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
       console.log("Interrupting sync ...", resultInterrupt);

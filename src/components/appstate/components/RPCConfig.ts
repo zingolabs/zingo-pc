@@ -1,10 +1,10 @@
 export default class RPCConfig {
     url: string;
-    chain: 'main' | 'test' | 'regtest' | "";
+    chain_name: 'main' | 'test' | 'regtest' | "";
   
     constructor() {
       this.url = "";
-      this.chain = "";
+      this.chain_name = "";
     }
   }
   

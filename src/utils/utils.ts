@@ -17,20 +17,33 @@ export default class Utils {
     return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
   }
 
-  static async getAddressType(addr: string): Promise<AddressType | undefined> {
+  static async getAddressType(addr: string, chain_name: string): Promise<AddressType | undefined> {
     if (!addr) return;
     const resultParse: string = await native.zingolib_execute_async('parse_address', addr);
-    //console.log(addr, resultParse);
-    if (resultParse.toLowerCase().startsWith('error') || resultParse.toLowerCase() === 'null') {
+    if (resultParse) {
+      if (resultParse.toLowerCase().startsWith('error')) {
+        return;
+      }
+    } else {
       return;
     }
-    const resultParseJSON = JSON.parse(resultParse);
 
-    if (resultParseJSON && resultParseJSON.status && resultParseJSON.status === "success") {
-      if (resultParseJSON.address_kind === "unified") return AddressType.unified;
-      else if (resultParseJSON.address_kind === "sapling") return AddressType.sapling;
-      else if (resultParseJSON.address_kind === "transparent") return AddressType.transparent;
-      else return; 
+    let resultParseJSON;
+    try {
+      resultParseJSON = await JSON.parse(resultParse);
+    } catch (error) {
+      console.log('parse-address', error);
+      return;
+    }
+    
+    if (
+      resultParseJSON && 
+      resultParseJSON.status && 
+      resultParseJSON.status === "success" && 
+      resultParseJSON.chain_name &&
+      resultParseJSON.chain_name === chain_name
+    ) {
+      return resultParseJSON.address_kind;
     } else {
       return;
     }

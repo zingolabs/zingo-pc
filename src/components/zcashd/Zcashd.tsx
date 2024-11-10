@@ -21,7 +21,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
   const context = useContext(ContextApp);
 
   const { info, rpcConfig } = context;
-  const { url, chain }: {url: string, chain: '' | 'main' | 'test' | 'regtest'} = rpcConfig;
+  const { url, chain_name }: {url: string, chain_name: '' | 'main' | 'test' | 'regtest'} = rpcConfig;
 
   if (!info || !info.latestBlock) {
     return (
@@ -49,7 +49,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
                 <DetailLine label="Zingolib Version" value={info.zingolib} />
                 <DetailLine label="Node" value={info.zcashdVersion} />
                 <DetailLine label="Lightwallet Server URI" value={url} />
-                <DetailLine label="Chain Name" value={chain ? chains[chain] : ''} />
+                <DetailLine label="Chain Name" value={chain_name ? chains[chain_name] : ''} />
                 <DetailLine label="Server Network" value={info.testnet ? "Testnet" : "Mainnet"} />
                 <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                 <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
