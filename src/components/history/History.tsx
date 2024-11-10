@@ -10,6 +10,8 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 
+import native from "../../native.node";
+
 type HistoryProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;
@@ -30,6 +32,9 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
+  const [transparent, setTransparent] = useState<boolean>(true);
+  const [sapling, setSapling] = useState<boolean>(true);
+  const [orchard, setOrchard] = useState<boolean>(true);
 
   useEffect(() => {
     const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
@@ -48,6 +53,23 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
   useEffect(() => {
     setIsLoadMoreEnabled(valueTransfers && numVtnsToShow < valueTransfers.length);
   }, [numVtnsToShow, valueTransfers]);
+
+  useEffect(() => {
+    (async () => {
+      const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+      const walletKindJSON = JSON.parse(walletKindStr);
+
+      if (!walletKindJSON.transparent) {
+        setTransparent(false);
+      }
+      if (!walletKindJSON.sapling) {
+        setSapling(false);
+      }
+      if (!walletKindJSON.orchard) {
+        setOrchard(false);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     setValueTransfersSorted(valueTransfers
@@ -119,24 +141,30 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
             usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
             currencyName={info.currencyName}
           />
-          <BalanceBlock
-            topLabel="Orchard"
-            zecValue={totalBalance.obalance}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
-            currencyName={info.currencyName}
-          />
-          <BalanceBlock
-            topLabel="Sapling"
-            zecValue={totalBalance.zbalance}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.zbalance)}
-            currencyName={info.currencyName}
-          />
-          <BalanceBlock
-            topLabel="Transparent"
-            zecValue={totalBalance.transparent}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.transparent)}
-            currencyName={info.currencyName}
-          />
+          {orchard && (
+            <BalanceBlock
+              topLabel="Orchard"
+              zecValue={totalBalance.obalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
+              currencyName={info.currencyName}
+            />
+          )}
+          {sapling && (
+            <BalanceBlock
+              topLabel="Sapling"
+              zecValue={totalBalance.zbalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.zbalance)}
+              currencyName={info.currencyName}
+            />
+          )}
+          {transparent && (
+            <BalanceBlock
+              topLabel="Transparent"
+              zecValue={totalBalance.transparent}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.transparent)}
+              currencyName={info.currencyName}
+            />
+          )}
         </div>
         <div className={cstyles.balancebox}>
           {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (

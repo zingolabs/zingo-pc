@@ -8,7 +8,6 @@ import Utils from "../../utils/utils";
 import { ZcashURITarget } from "../../utils/uris";
 import AddressBookItem from './components/AddressbookItem';
 import { ContextApp } from "../../context/ContextAppState";
-const { ipcRenderer } = window.require("electron");
 
 type AddressBookProps = {
   addAddressBookEntry: (label: string, address: string) => void;
@@ -71,9 +70,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   };
 
   const validateAddress = async (_currentAddress: string) => {
-    const settings = await ipcRenderer.invoke("loadSettings");
-    const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main";
-    const _addressType: AddressType | undefined = await Utils.getAddressType(_currentAddress, currChain);
+    const _addressType: AddressType | undefined = await Utils.getAddressType(_currentAddress);
     let _addressError: string | null = _currentAddress === "" || _addressType !== undefined ? null : 'Invalid Address';
     if (!_addressError) {
       _addressError = addressBook.find((i: AddressBookEntry) => i.address === _currentAddress) ? 'Duplicate Address' : null;

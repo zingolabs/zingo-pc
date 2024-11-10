@@ -5,10 +5,6 @@ import Utils from "./utils";
 
 import native from '../native.node';
 import { AddressType } from "../components/appstate";
-const { ipcRenderer } = window.require("electron");
-
-const settings = await ipcRenderer.invoke("loadSettings");
-const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main";  
 
 export class ZcashURITarget {
   address?: string;
@@ -32,7 +28,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
   }
 
   // See if it is a straight address.
-  let addressType: AddressType | undefined = await Utils.getAddressType(uri, currChain);
+  let addressType: AddressType | undefined = await Utils.getAddressType(uri);
   if (addressType !== undefined) {
     return uri;
   }
@@ -48,7 +44,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
   //console.log(parsedUri);
   const address: string = parsedUri.pathname;
   if (address) {
-    addressType = await Utils.getAddressType(address, currChain);
+    addressType = await Utils.getAddressType(address);
     if (addressType === undefined) {
       return `Error: "${address || ""}" was not a valid zcash address`; 
     }
@@ -90,7 +86,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
           return `Error: Duplicate param ${qName}`;
         }
 
-        const addressType: AddressType | undefined = await Utils.getAddressType(value, currChain);
+        const addressType: AddressType | undefined = await Utils.getAddressType(value);
         if (addressType === undefined) {
           return `Error: ${value} was not a recognized zcash address`;
         }

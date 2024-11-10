@@ -3,6 +3,8 @@ import randomColor from 'randomcolor';
 
 import native from "../native.node";
 
+const { ipcRenderer } = window.require("electron");
+
 export const NO_CONNECTION: string = "Could not connect to zcashd";
 
 const { shell } = window.require("electron"); 
@@ -17,7 +19,7 @@ export default class Utils {
     return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
   }
 
-  static async getAddressType(addr: string, chain_name: string): Promise<AddressType | undefined> {
+  static async getAddressType(addr: string): Promise<AddressType | undefined> {
     if (!addr) return;
     const resultParse: string = await native.zingolib_execute_async('parse_address', addr);
     if (resultParse) {
@@ -35,13 +37,16 @@ export default class Utils {
       console.log('parse-address', error);
       return;
     }
+
+    const settings = await ipcRenderer.invoke("loadSettings");
+    const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main"; 
     
     if (
       resultParseJSON && 
       resultParseJSON.status && 
       resultParseJSON.status === "success" && 
       resultParseJSON.chain_name &&
-      resultParseJSON.chain_name === chain_name
+      resultParseJSON.chain_name === currChain
     ) {
       return resultParseJSON.address_kind;
     } else {

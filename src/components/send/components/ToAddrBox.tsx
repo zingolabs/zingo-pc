@@ -8,7 +8,6 @@ import {
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
-const { ipcRenderer } = window.require("electron");
 
 const Spacer = () => {
   return <div style={{ marginTop: "24px" }} />;
@@ -64,9 +63,7 @@ const ToAddrBox = ({
   
   useEffect(() => {
     (async () => {
-      const settings = await ipcRenderer.invoke("loadSettings");
-      const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main";  
-      const addressType: AddressType | undefined = await Utils.getAddressType(toaddr.to, currChain);
+      const addressType: AddressType | undefined = await Utils.getAddressType(toaddr.to);
       setAddressType(addressType);
       const isMemoDisabled: boolean = !(addressType === AddressType.sapling || addressType === AddressType.unified);
       setIsMemoDisabled(isMemoDisabled);
