@@ -18,7 +18,7 @@ export default class AppState {
   totalBalance: TotalBalance;
 
   // A map type that contains address -> privatekey/viewkey mapping, for display on the receive page
-  // This mapping is ephemeral, and will disappear when the user navigates away.
+  // This mapping will disappear when the user navigates away.
   addressPrivateKeys: Map<string, string>;
 
   addressViewKeys: Map<string, string>;

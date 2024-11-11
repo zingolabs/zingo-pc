@@ -12,6 +12,37 @@ const { shell } = window.require("electron");
 
 export default class Utils {
 
+  static VTTypeWithConfirmations(
+    type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | 'rejection' | "", 
+    confirmations:number,
+  ): string {
+    return type === 'sent' && confirmations === 0
+      ? '...Sending...'
+      : type === 'sent' && confirmations > 0
+      ? 'Sent'
+      : type === 'received' && confirmations === 0
+      ? '...Receiving...'
+      : type === 'received' && confirmations > 0
+      ? 'Received'
+      : type === 'memo-to-self' && confirmations === 0
+      ? '...Sending to self...'
+      : type === 'memo-to-self' && confirmations > 0
+      ? 'Memo to self'
+      : type === 'send-to-self' && confirmations === 0
+      ? '...Sending to self...'
+      : type === 'send-to-self' && confirmations > 0
+      ? 'Send to self'
+      : type === 'shield' && confirmations === 0
+      ? '...Shielding...'
+      : type === 'shield' && confirmations > 0
+      ? 'Shield'
+      : type === 'rejection' && confirmations === 0
+      ? '...Sending...'
+      : type === 'rejection' && confirmations > 0
+      ? 'Rejection'
+      : ''; 
+  }
+
   static trimToSmall(addr?: string, numChars?: number): string {
     if (!addr) {
       return '';

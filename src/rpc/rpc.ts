@@ -860,12 +860,18 @@ export default class RPC {
 
         currentTxList.txid = tx.txid;
         currentTxList.time = tx.datetime;
-        currentTxList.type = tx.kind;
+        // basic in zingolib is the same as send-to-self in zingo.
+        currentTxList.type = tx.kind === 'basic' ? 'send-to-self' : tx.kind;
         currentTxList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
         currentTxList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
         // unconfirmed means 0 confirmations, the tx is mining already.
-        if (tx.status === 'pending') {
+        // 'pending' is obsolete
+        if (
+          tx.status === 'calculated' ||
+          tx.status === 'transmitted' ||
+          tx.status === 'mempool'
+        ) {
           currentTxList.confirmations = 0;
         } else  if (tx.status === 'confirmed') {
           currentTxList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
@@ -875,15 +881,16 @@ export default class RPC {
           // impossible case... I guess.
           currentTxList.confirmations = 0;
         }
-        if (currentTxList.confirmations < 0) {
-          console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
-        }
-        
+
+        currentTxList.status = tx.status;
         currentTxList.address = !tx.recipient_address ? undefined : tx.recipient_address;
         currentTxList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
         currentTxList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
         currentTxList.pool = !tx.pool_received ? undefined : tx.pool_received;
 
+        if (currentTxList.confirmations < 0) {
+          console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
+        }
         //if (tx.txid.startsWith('426e')) {
         //  console.log('valuetranfer: ', tx);
         //  console.log('--------------------------------------------------');
@@ -995,7 +1002,8 @@ export default class RPC {
           // And refresh data (full refresh)
           this.refresh(true);
 
-          resolve(progressJSON.txid as string);
+          const progressTxids = progressJSON.txid.replaceAll('created txid: ', '').split(' & ').join(', ');
+          resolve(progressTxids as string);
         }
 
         if (progressJSON.error) {

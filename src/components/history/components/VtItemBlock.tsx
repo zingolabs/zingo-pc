@@ -65,8 +65,15 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
         }}
       >
         <div className={styles.txtype} style={{ marginRight: 10 }}>
-          <div style={{ color: vt.confirmations === null || vt.confirmations === 0 ? 'red' : vt.type === 'received' || vt.type === 'shield' ? 'green' : 'white' }}>{vt.type}</div>
+          <div style={{ color: vt.confirmations === 0 ? 'red' : vt.type === 'received' || vt.type === 'shield' ? 'green' : 'white' }}>
+            {Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)}
+          </div>
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
+          {(vt.status === 'calculated' || vt.status === 'transmitted' || vt.status === 'mempool') && (
+            <div style={{ color: vt.status === 'calculated' || vt.status === 'transmitted' ? 'red' : 'yellow' }}>
+              {vt.status}
+            </div>
+          )}
         </div>
         <div className={styles.txaddressmemofeeamount}>
           <div className={styles.txaddressmemo}>
