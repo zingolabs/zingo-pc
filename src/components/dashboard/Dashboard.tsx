@@ -34,13 +34,13 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
   }, [addresses]);
     
   useEffect(() => {
-    if (totalBalance.transparent > 0) {
+    // with transparent funds & no readonly wallet
+    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalBalance.transparent, anyPending]); 
+  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
     (async () => {

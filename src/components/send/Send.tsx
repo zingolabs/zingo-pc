@@ -68,13 +68,12 @@ const Send: React.FC<SendProps> = ({
   }, [addresses]);
     
   useEffect(() => {
-    if (totalBalance.transparent > 0) {
+    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalBalance.transparent, anyPending]); 
+  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
     // transparent funds are not spendable.

@@ -42,13 +42,12 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
   }, [addresses]);
     
   useEffect(() => {
-    if (totalBalance.transparent > 0) {
+    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalBalance.transparent, anyPending]); 
+  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
     setIsLoadMoreEnabled(valueTransfers && numVtnsToShow < valueTransfers.length);

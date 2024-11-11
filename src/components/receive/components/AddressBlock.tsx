@@ -56,12 +56,12 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   }, [addresses]);
 
   useEffect(() => {
-    if (type === AddressType.transparent && calculateShieldFee && balance > 0) {
+    if (type === AddressType.transparent && calculateShieldFee && balance > 0 && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [balance, calculateShieldFee, type, anyPending]);
+  }, [balance, calculateShieldFee, type, anyPending, readOnly]);
 
   const handleQRCodeClick = async () => {
     console.log('____________ click processed');
