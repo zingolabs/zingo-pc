@@ -14,6 +14,7 @@ import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
 import native from "../../native.node";
+import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
@@ -121,9 +122,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       const i = info;
       setSendTo(
         new ZcashURITarget(
-          Utils.getDonationAddress(i.testnet),
-          Utils.getDefaultDonationAmount(i.testnet),
-          Utils.getDefaultDonationMemo(i.testnet)
+          Utils.getDonationAddress(i.chainName !== ChainNameEnum.mainChainName),
+          Utils.getDefaultDonationAmount(i.chainName !== ChainNameEnum.mainChainName),
+          Utils.getDefaultDonationMemo(i.chainName !== ChainNameEnum.mainChainName)
         )
       );
 

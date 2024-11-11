@@ -5,6 +5,7 @@ import ScrollPane from "../scrollPane/ScrollPane";
 import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine"; 
 import { ContextApp } from "../../context/ContextAppState";
+import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
 
 type ZcashdProps = {
   refresh: () => void;
@@ -21,7 +22,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
   const context = useContext(ContextApp);
 
   const { info, rpcConfig } = context;
-  const { url, chain_name }: {url: string, chain_name: '' | 'main' | 'test' | 'regtest'} = rpcConfig;
+  const { url, chain_name }: {url: string, chain_name: '' | ChainNameEnum} = rpcConfig;
 
   if (!info || !info.latestBlock) {
     return (
@@ -50,7 +51,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
                 <DetailLine label="Node" value={info.zcashdVersion} />
                 <DetailLine label="Lightwallet Server URI" value={url} />
                 <DetailLine label="Chain Name" value={chain_name ? chains[chain_name] : ''} />
-                <DetailLine label="Server Network" value={info.testnet ? "Testnet" : "Mainnet"} />
+                <DetailLine label="Server Network" value={chains[info.chainName]} />
                 <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                 <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
               </div>

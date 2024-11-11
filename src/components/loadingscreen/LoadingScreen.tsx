@@ -11,6 +11,7 @@ import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
 import { Logo } from "../logo";
+import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
@@ -26,7 +27,7 @@ class LoadingScreenState {
 
   url: string;
 
-  chain_name: '' | 'main' | 'test' | 'regtest';
+  chain_name: '' | ChainNameEnum;
 
   selection: '' | 'auto' | 'list' | 'custom';
 
@@ -183,7 +184,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const settings = await ipcRenderer.invoke("loadSettings");
     console.log('SETTINGS;;;;;;;;;', settings);
     let server: string, 
-        chain_name: 'main' | 'test' | 'regtest', 
+        chain_name: ChainNameEnum, 
         selection: 'auto' | 'list' | 'custom';
     if (!settings) {
       // no settings stored, asumming `list` by default.
@@ -207,7 +208,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         server = settings.serveruri;
         const serverInList = serverUrisList().filter((s: Server) => s.uri === server)
         if (!settings.serverchain_name) {
-          chain_name = 'main';
+          chain_name = ChainNameEnum.mainChainName;
           if (serverInList && serverInList.length === 1) {
             // if the server is in the list, then selection is `list`
             if (serverInList[0].obsolete) {
@@ -230,7 +231,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           if (!settings.serverselection) {
             if (serverInList && serverInList.length === 1) {
               // if the server is in the list, then selection is `list`
-              chain_name = 'main';
+              chain_name = ChainNameEnum.mainChainName;
               selection = 'list';
             } else {
               selection = 'custom';

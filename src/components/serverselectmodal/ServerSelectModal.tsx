@@ -4,6 +4,7 @@ import cstyles from "../common/Common.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import { Server } from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
+import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
 const { ipcRenderer } = window.require("electron");
 
 type ModalProps = {
@@ -17,14 +18,14 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   const { modalIsOpen } = serverSelectState;
 
   const [selectedServer, setSelectedServer] = useState<string>("");
-  const [selectedChain, setSelectedChain] = useState<'main' | 'test' | 'regtest' | ''>("");
+  const [selectedChain, setSelectedChain] = useState<ChainNameEnum | ''>("");
   const [selectedSelection, setSelectedSelection] = useState<'auto' | 'list' | 'custom' | ''>("");
 
   const [autoServer, setAutoServer] = useState<string>("");
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
   
-  const [customChain, setCustomChain] = useState<'main' | 'test' | 'regtest' | ''>("");
+  const [customChain, setCustomChain] = useState<ChainNameEnum | ''>("");
 
   const [servers, setServers] = useState<Server[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: Server) => s.obsolete === false));
 
@@ -35,7 +36,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     "": ""
   };
 
-  const initialServerValue = useCallback((servers: Server[], server: string, chain_name: 'main' | 'test' | 'regtest' | '', selection: 'auto' | 'list' | 'custom' | '') => {
+  const initialServerValue = useCallback((servers: Server[], server: string, chain_name: ChainNameEnum | '', selection: 'auto' | 'list' | 'custom' | '') => {
     if (selection === 'custom') {
       setCustomServer(server);
       setCustomChain(chain_name);
@@ -67,7 +68,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
       //console.log('modal server settings', settings);
 
       const currServer: string = settings?.serveruri || servers[0].uri; 
-      const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main";
+      const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName;
       const currSelection: 'auto' | 'list' | 'custom' = settings?.serverselection || 'list'
       initialServerValue(servers, currServer, currChain, currSelection);
       setSelectedServer(currServer);
@@ -79,7 +80,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
 
   const switchServer = async () => {
     const serveruri: string = selectedServer;
-    const serverchain_name: 'main' | 'test' | 'regtest' | '' = selectedChain;
+    const serverchain_name: ChainNameEnum | '' = selectedChain;
     const serverselection: 'auto' | 'list' | 'custom' | '' = selectedSelection;
 
     await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: serveruri });
@@ -100,7 +101,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     const settings = await ipcRenderer.invoke("loadSettings");
       
     const currServer: string = settings?.serveruri || servers[0].uri; 
-    const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main";
+    const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName;
     const currSelection: 'auto' | 'list' | 'custom' = settings?.serverselection || 'list'
     initialServerValue(servers, currServer, currChain, currSelection);
     setSelectedServer(currServer);
@@ -233,14 +234,14 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                   style={{ marginLeft: "20px" }}
                   value={customChain}
                   onChange={(e) => {
-                    setCustomChain(e.target.value as 'main' | 'test' | 'regtest' | '');
-                    setSelectedChain(e.target.value as 'main' | 'test' | 'regtest' | '');
+                    setCustomChain(e.target.value as ChainNameEnum | '');
+                    setSelectedChain(e.target.value as ChainNameEnum | '');
                   }}
                 >
                   <option value=""></option> 
                   <option value="main">{chains["main"]}</option>
                   <option value="test">{chains["test"]}</option>
-                  <option value="regtest">{chains['regtest']}</option> 
+                  <option value="regtest">{chains["regtest"]}</option> 
                 </select>
               </div>
             </div>

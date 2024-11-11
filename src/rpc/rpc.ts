@@ -9,9 +9,11 @@ import {
   WalletSettings,
   ReceiverType,
 } from "../components/appstate";
+import { ChainNameEnum } from "../components/appstate/components/ChainNameEnum";
 import { SendManyJsonType } from "../components/send";
 
 import native from "../native.node";
+import { RPCInfoType } from "./components/RPCInfoType";
 
 export default class RPC {
   rpcConfig?: RPCConfig;
@@ -289,22 +291,21 @@ export default class RPC {
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
   static async getInfoObject(): Promise<Info> {
-    const infostr: string = await native.zingolib_execute_async("info", "");
-    //console.log(`INFO INFO INFO: ${infostr}`);
     try {
+      const infostr: string = await native.zingolib_execute_async("info", "");
       if (infostr.toLowerCase().startsWith("error")) {
         console.log("server info Failed", infostr);
         return new Info(infostr);
       }
-      const infoJSON = JSON.parse(infostr);
+      const infoJSON: RPCInfoType = JSON.parse(infostr);
 
       const info = new Info();
-      info.testnet = infoJSON.chain_name === "test";
+      info.chainName = infoJSON.chain_name;
       info.latestBlock = infoJSON.latest_block_height;
       info.connections = 1;
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit ? infoJSON.git_commit.substring(0, 6) : ""}/${infoJSON.version}`;
       info.zcashdVersion = "Not Available";
-      info.currencyName = info.testnet ? "TAZ" : "ZEC";
+      info.currencyName = info.chainName === ChainNameEnum.mainChainName ? "ZEC" : "TAZ";
       info.solps = 0;
 
       // Also set `zecPrice` manually

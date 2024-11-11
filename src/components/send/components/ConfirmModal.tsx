@@ -18,6 +18,7 @@ import SendManyJsonType from "./SendManyJSONType";
 import ConfirmModalToAddr from "./ConfirmModalToAddr";
 
 import native from "../../../native.node";
+import { ChainNameEnum } from "../../appstate/components/ChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -97,7 +98,7 @@ type ConfirmModalProps = {
       //console.log('parse-address', address, resultJSON.status === 'success');
   
       const settings = await ipcRenderer.invoke("loadSettings");
-      const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main";  
+      const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName;  
 
       if (
         !(resultJSON && 

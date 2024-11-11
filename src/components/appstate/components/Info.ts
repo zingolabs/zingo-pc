@@ -1,5 +1,7 @@
+import { ChainNameEnum } from "./ChainNameEnum";
+
 export default class Info {
-    testnet: boolean;
+    chainName: ChainNameEnum;
     latestBlock: number;
     connections: number;
     version: string;
@@ -12,7 +14,7 @@ export default class Info {
     zingolib: string;
   
     constructor(error?: string) {
-      this.testnet = false;
+      this.chainName = ChainNameEnum.mainChainName;
       this.latestBlock = 0;
       this.connections = 0;
       this.version = "";

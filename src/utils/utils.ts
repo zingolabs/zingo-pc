@@ -2,6 +2,7 @@ import { AddressType, ReceiverType } from "../components/appstate";
 import randomColor from 'randomcolor';
 
 import native from "../native.node";
+import { ChainNameEnum } from "../components/appstate/components/ChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -39,7 +40,7 @@ export default class Utils {
     }
 
     const settings = await ipcRenderer.invoke("loadSettings");
-    const currChain: 'main' | 'test' | 'regtest' = settings?.serverchain_name || "main"; 
+    const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName; 
     
     if (
       resultParseJSON && 
