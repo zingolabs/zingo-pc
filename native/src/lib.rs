@@ -83,14 +83,23 @@ fn construct_uri_load_config(
 }
 
 // check the latency of a server
-fn zingolib_get_latest_block_server(mut cx: FunctionContext) -> JsResult<JsString> {
+fn zingolib_get_latest_block_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
-    let lightwalletd_uri: http::Uri = server_uri.parse().expect("To be able to represent a Uri.");
-    match zingolib::get_latest_block_height(lightwalletd_uri).map_err(|e| format! {"Error: {e}"}) {
-        Ok(height) => Ok(cx.string(height.to_string())),
-        Err(e) => Ok(cx.string(e)),
-    }
+    let promise = cx
+        .task(move || {
+            let lightwalletd_uri: http::Uri = server_uri.parse().expect("To be able to represent a Uri.");
+            match zingolib::get_latest_block_height(lightwalletd_uri).map_err(|e| format! {"Error: {e}"}) {
+                Ok(height) => height.to_string(),
+                Err(e) => format!("{}", e),
+            }
+        })
+        .promise(move |mut cx, resp| {
+            Ok(cx.string(resp))
+        });
+
+    // Return the promise back to JavaScript
+    Ok(promise)
 }
 
 // Check if there is an existing wallet

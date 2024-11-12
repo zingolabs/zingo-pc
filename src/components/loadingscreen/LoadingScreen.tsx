@@ -257,13 +257,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
 
     // if empty is the first time and if auto => App needs to check the servers.
-    let servers: Server[] = this.state.serverUris;
-
-    if (selection === 'auto' && servers.length === 0) {
-      servers = this.calculateServerLatency(serverUrisList()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
-      if (servers.length > 0) {
-        server = servers[0].uri;
-        chain_name = servers[0].chain_name;  
+    if (selection === 'auto') {
+      const serverFaster = await this.selectingServer(serverUrisList().filter((s: Server) => !s.obsolete));
+      if (serverFaster) {
+        server = serverFaster.uri;
+        chain_name = serverFaster.chain_name;  
       } else {
         // none of the servers are working properly.
         server = serverUrisList()[0].uri;
@@ -275,15 +273,13 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     }
 
-    console.log('&&&&&&&&---------', server, chain_name, selection);
+    console.log('&&&&&&&&----------', server, chain_name, selection);
 
     this.setState({
-      serverUris: servers,
       url: server,
       chain_name,
       selection,
     });
-    this.props.setServerUris(servers);
   };
 
   doFirstTimeSetup = async () => {
@@ -368,20 +364,40 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     });
   };
 
-  calculateServerLatency = (serverUris: Server[]): Server[] => {
-    const servers: Server[] = serverUris.filter((s: Server) => s.obsolete === false);
-    servers.forEach((server: Server, index: number) => {
-      const start: number = Date.now();
-      const  b = native.zingolib_get_latest_block_server(server.uri);
-      const end: number = Date.now();
-      let latency = null;
-      if (!b.toLowerCase().startsWith('error')) {
-        latency = end - start;
-      }
-      console.log('******* server LAST BLOCK', server.uri, index, b, latency, 'ms');
-      servers[index].latency = latency;
-    });
-    return servers;
+  calculateLatency = async (server: Server, _index: number) => {
+    const start: number = Date.now();
+    const resp: string = await native.zingolib_get_latest_block_server(server.uri);
+  
+    const end: number = Date.now();
+    let latency = null;
+    if (resp && !resp.toLowerCase().startsWith('error')) {
+      latency = end - start;
+    }
+  
+    console.log('Checking SERVER', server, latency);
+  
+    return latency;
+  };
+  
+  selectingServer = async (serverUris: Server[]): Promise<Server | null> => {
+    const servers: Server[] = serverUris;
+  
+    // 30 seconds max.
+    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 30 * 1000));
+  
+    const validServersPromises = servers.map(
+      (server: Server) =>
+        new Promise<Server>(async resolve => {
+          const latency = await this.calculateLatency(server, servers.indexOf(server));
+          if (latency !== null) {
+            resolve({ ...server, latency });
+          }
+        }),
+    );
+  
+    const fastestServer = await Promise.race([...validServersPromises, timeoutPromise]);
+  
+    return fastestServer;
   };
 
   getInfo = async () => {
