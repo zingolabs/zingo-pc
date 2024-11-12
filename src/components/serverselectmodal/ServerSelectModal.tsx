@@ -125,7 +125,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
         </div>
 
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
-          <div className={cstyles.horizontalflex} style={{ margin: "10px" }}>
+          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
             <input
               checked={selectedSelection === 'auto'}
               type="radio" 
@@ -156,7 +156,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
             )}
           </div>
 
-          <div className={cstyles.horizontalflex} style={{ margin: "10px" }}>
+          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
             <input
               checked={selectedSelection === 'list'} 
               type="radio" 
