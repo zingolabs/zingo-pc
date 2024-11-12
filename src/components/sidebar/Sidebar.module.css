@@ -1,5 +1,5 @@
 .sidebar {
-  background-color: #000;
+  background-color: #040C17;
   height: calc(100vh - 190px);
 }
 
@@ -11,11 +11,11 @@
 }
 
 .sidebarmenuitemactive {
-  color: #18bd18;
+  color: #43a637;
 }
 
 .sidebarlogobg {
-  background: #011401; 
+  background: #06172d; 
   margin-bottom: 8px; 
   padding: 8px; 
 }

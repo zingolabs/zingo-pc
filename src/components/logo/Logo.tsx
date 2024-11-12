@@ -10,11 +10,11 @@ const Logo = ({ readOnly }: LogoProps) => {
 
   return (
     <>
-      <div style={{ color: "#888888", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.8.1</div>
+      <div style={{ color: "#7c8494", fontWeight: "bold", marginBottom: 10 }}>Zingo PC v1.8.1</div>
       <div>
         <img src={logo} width="70" alt="logo" style={{ borderRadius: 5, marginRight: 10 }} />
         {readOnly && (
-          <FontAwesomeIcon icon={faSnowflake} color={"'#888888'"} style={{ height: 30, marginBottom: 20 }} />
+          <FontAwesomeIcon icon={faSnowflake} color={"'#7c8494'"} style={{ height: 30, marginBottom: 20 }} />
         )}
       </div>
     </>
