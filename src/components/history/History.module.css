@@ -62,13 +62,13 @@
   right: auto;
   opacity: 1;
   transform: translate(0%, -5%);
-  background: #06172d;
+  background: var(--color-background);
   position: absolute;
   padding: 16px;
   min-width: 800px;
   max-height: calc(100vh - 130px);
   overflow-y: auto;
-  border: #18bd18 4px solid;
+  border: var(--color-primary) 4px solid;
 }
 
 .txmodalOverlay {

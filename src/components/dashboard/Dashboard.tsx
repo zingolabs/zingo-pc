@@ -113,7 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: 'red' }}>
+            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
               {fetchError.command + ': ' + fetchError.error}
             </div>
           </>

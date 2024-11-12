@@ -202,7 +202,7 @@ const ToAddrBox = ({
           </div>
           <div style={{ width: '30%' }} className={[cstyles.verticalflex].join(" ")}>
             <div style={{ marginBottom: 5 }} className={[cstyles.horizontalflex].join(" ")}>
-              <div style={{ color: sendFeeError && !amountError && addressIsValid ? 'red' : '' }} className={cstyles.sublight}>Fee</div>
+              <div style={{ color: sendFeeError && !amountError && addressIsValid ? Utils.getCssVariable('--color-error') : Utils.getCssVariable('--color-text') }} className={cstyles.sublight}>Fee</div>
               <div style={{ paddingTop: 3, paddingLeft: 10 }} title={sendFeeError}>
                 <div className={[cstyles.small].join(" ")}>
                   {sendFeeError && !amountError && addressIsValid !== -1 && (

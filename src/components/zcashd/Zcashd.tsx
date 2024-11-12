@@ -6,6 +6,7 @@ import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine"; 
 import { ContextApp } from "../../context/ContextAppState";
 import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
+import Utils from "../../utils/utils";
 
 type ZcashdProps = {
   refresh: () => void;
@@ -29,7 +30,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
       <div>
         <div className={[cstyles.verticalflex, cstyles.center].join(" ")}>
           <div style={{ marginTop: "100px" }}>
-            <i className={["fas", "fa-times-circle"].join(" ")} style={{ fontSize: "96px", color: "red" }} />
+            <i className={["fas", "fa-times-circle"].join(" ")} style={{ fontSize: "96px", color: Utils.getCssVariable('--color-error') }} />
           </div>
           <div className={cstyles.margintoplarge}>Not Connected</div>
         </div>

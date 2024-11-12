@@ -65,12 +65,12 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
         }}
       >
         <div className={styles.txtype} style={{ marginRight: 10 }}>
-          <div style={{ color: vt.confirmations === 0 ? 'red' : vt.type === 'received' || vt.type === 'shield' ? 'green' : 'white' }}>
+          <div style={{ color: vt.confirmations === 0 ? Utils.getCssVariable('--color-error') : vt.type === 'received' || vt.type === 'shield' ? Utils.getCssVariable('--color-primary') : Utils.getCssVariable('--color-text') }}>
             {Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)}
           </div>
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
           {(vt.status === 'calculated' || vt.status === 'transmitted' || vt.status === 'mempool') && (
-            <div style={{ color: vt.status === 'calculated' || vt.status === 'transmitted' ? 'red' : 'yellow' }}>
+            <div style={{ color: vt.status === 'calculated' || vt.status === 'transmitted' ? Utils.getCssVariable('--color-error') : Utils.getCssVariable('--color-warning') }}>
               {vt.status}
             </div>
           )}

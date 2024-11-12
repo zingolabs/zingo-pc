@@ -12,6 +12,11 @@ const { shell } = window.require("electron");
 
 export default class Utils {
 
+  // recover the var from the Global CSS.
+  static getCssVariable(variableName: string): string {
+    return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  };
+
   static VTTypeWithConfirmations(
     type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | 'rejection' | "", 
     confirmations:number,

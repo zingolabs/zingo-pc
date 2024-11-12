@@ -9,7 +9,7 @@
 }
 
 .well {
-  background-color: #040C17;
+  background-color: var(--color-background-dark);
   padding: 16px;
   padding-top: 11px;
   padding-bottom: 11px;
@@ -35,7 +35,7 @@
 }
 
 .highlight {
-  color: #43a637;
+  color: var(--color-primary);
 }
 
 .xlarge {
@@ -59,7 +59,7 @@
 }
 
 .sublight {
-  color: #23692f;
+  color: var(--color-primary-disable);
 }
 
 .center {
@@ -71,15 +71,15 @@
 }
 
 .red {
-  color: red;
+  color: var(--color-error);
 }
 
 .green {
-  color: #43a637;
+  color: var(--color-primary);
 }
 
 .yellow {
-  color: yellow;
+  color: var(--color-warning);
 }
 
 .breakword {
@@ -96,8 +96,8 @@
 }
 
 .primarybutton {
-  background-color: #43a637; 
-  color: white;
+  background-color: var(--color-primary); 
+  color: var(--color-text);
   text-align: center;
   font-weight: bold;
   font-size: 16px;
@@ -106,16 +106,16 @@
   padding-left: 16px;
   padding-right: 16px;
   border-radius: 4px;
-  border-color: #43a637;
+  border-color: var(--color-primary);
   margin-left: 8px;
   margin-right: 8px;
 }
 
 .primarybutton:disabled,
 .primarybutton[disabled] {
-  border: 1px solid #43a637;
-  background-color: #23692f;
-  color: #dadfe1;
+  border: 1px solid var(--color-primary);
+  background-color: var(--color-primary-disable);
+  color: var(--color-text);
 }
 
 .primarybutton:hover {
@@ -168,7 +168,7 @@
 }
 
 .blackbg {
-  background-color: #040C17;
+  background-color: var(--color-background-dark);
 }
 
 .maxwidth {
@@ -184,9 +184,9 @@
   padding-right: 8px;
   font-size: 16px;
   border: none;
-  border-bottom: #7c8494 1px solid;
-  background-color: #040C17;
-  color: #dadfe1;
+  border-bottom: var(--color-zingo) 1px solid;
+  background-color: var(--color-background-dark);
+  color: var(--color-text);
 }
 
 .inputboxmemo {
@@ -198,8 +198,8 @@
   padding-right: 8px;
   font-size: 16px;
   border: none;
-  background-color: #040C17;
-  color: #dadfe1;
+  background-color: var(--color-background-dark);
+  color: var(--color-text);
 }
 
 .buttoncontainer {
@@ -214,11 +214,11 @@
   bottom: auto;
   opacity: 1;
   transform: translate(0%, -12.5%);
-  background: #06172d;
+  background: var(--color-background);
   position: absolute;
   padding: 16px;
   min-width: 800px;
-  border: #43a637 4px solid;
+  border: var(--color-primary) 4px solid;
 }
 
 .modalOverlay {
@@ -240,7 +240,7 @@
 
 .tableheader {
   margin: 8px;
-  border-bottom: solid 1px #7c8494;
+  border-bottom: solid 1px var(--color-zingo);
 }
 
 .balancebox {

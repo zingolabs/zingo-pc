@@ -108,10 +108,10 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     typeText = Utils.VTTypeWithConfirmations(vt.type, vt.confirmations);
     if (vt.type === "received" || vt.type === "shield") {
       typeIcon = "fa-arrow-circle-down";
-      typeColor = "green";
+      typeColor = Utils.getCssVariable('--color-primary');
     } else {
       typeIcon = "fa-arrow-circle-up";
-      typeColor = "white";
+      typeColor = Utils.getCssVariable('--color-text');
     }
 
     datePart = dateformat(vt.time * 1000, "mmm dd, yyyy");

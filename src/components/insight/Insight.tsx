@@ -64,8 +64,8 @@ const Insight: React.FC<InsightProps> = () => {
       .sort((a, b) => b.data - a.data)
       .map((item, index) => {
         newLabels.push(!!item.tag ? item.tag : item.address === 'fee' ? item.address : Utils.trimToSmall(item.address, 10));
-        newBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
-        newHoverBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
+        newBackgroundColor.push(item.address === 'fee' ? Utils.getCssVariable('--color-zingo') : randomColors[index]);
+        newHoverBackgroundColor.push(item.address === 'fee' ? Utils.getCssVariable('--color-zingo') : randomColors[index]);
         return item.data;
       });
     setDataSent({
@@ -171,7 +171,7 @@ const Insight: React.FC<InsightProps> = () => {
             justifyContent: 'space-between',
             marginTop: 5,
             marginBottom: 5,
-            borderBottomColor: '#333333',
+            borderBottomColor: Utils.getCssVariable('--color-zingo'),
             borderBottomWidth: address !== 'fee' ? 1 : 0,
           }}>
           <div
@@ -219,7 +219,7 @@ const Insight: React.FC<InsightProps> = () => {
             )}
           </div>
         </div>
-        <div style={{ height: 1, backgroundColor: 'lightgray' }} />
+        <div style={{ height: 1, backgroundColor: Utils.getCssVariable('--color-zingo') }} />
       </div>
     );
   };
@@ -291,7 +291,7 @@ const Insight: React.FC<InsightProps> = () => {
                                 return null;
                               }
                             })}
-                          <div style={{ height: 1, backgroundColor: 'lightgray' }} />
+                          <div style={{ height: 1, backgroundColor: Utils.getCssVariable('--color-zingo') }} />
                           {dataSent.datasets[0].data
                             .map((value: number, index: number) => {
                               if (value > 0 && dataSent.labels[index] !== 'fee') {

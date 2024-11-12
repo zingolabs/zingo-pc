@@ -15,8 +15,8 @@
 }
 
 .addressbookentry:hover {
-  background-color: #040C17;
-  color: #43a637;
+  background-color: var(--color-background-dark);
+  color: var(--color-primary);
   cursor: pointer;
   border: solid 1px grey;
   padding: 8px;
