@@ -43,6 +43,7 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 
 import native from "../native.node";
 import deepDiff from "deep-diff";
+import { Messages } from "../components/messages";
 
 type Props = {};
 
@@ -681,6 +682,16 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.HISTORY}
                 render={() => (
                   <History
+                    setSendTo={this.setSendTo}
+                    calculateShieldFee={this.calculateShieldFee}
+                    handleShieldButton={this.handleShieldButton}
+                  />
+                )}
+              />
+              <Route
+                path={routes.MESSAGES}
+                render={() => (
+                  <Messages
                     setSendTo={this.setSendTo}
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}

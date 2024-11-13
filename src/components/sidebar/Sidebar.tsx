@@ -461,6 +461,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           iconname="fa-list"
         />
         <SidebarMenuItem
+          name="Messages"
+          routeName={routes.MESSAGES}
+          currentRoute={location.pathname}
+          iconname="fa-comments"
+        />
+        <SidebarMenuItem
           name="Address Book"
           routeName={routes.ADDRESSBOOK}
           currentRoute={location.pathname}
