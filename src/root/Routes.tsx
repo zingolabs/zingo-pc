@@ -65,6 +65,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       this.setTotalBalance,
       this.setAddresses,
       this.setValueTransferList,
+      this.setMessagesList,
       this.setInfo,
       this.setZecPrice,
       this.setWalletSettings,
@@ -278,6 +279,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     if (deepDiff(valueTransfers, this.state.valueTransfers)) {
       console.log('=============== ValueTransfer list', valueTransfers);
       this.setState({ valueTransfers });
+    }
+  };
+
+  setMessagesList = (messages: ValueTransfer[]) => {
+    if (deepDiff(messages, this.state.messages)) {
+      console.log('=============== ValueTransfer Messages list', messages);
+      this.setState({ messages });
     }
   };
 

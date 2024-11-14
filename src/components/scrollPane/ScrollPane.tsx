@@ -1,13 +1,21 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
-type ScrollPaneProps = {
+type ScrollPaneTopProps = {
   children: React.ReactNode;
   className?: string;
   offsetHeight: number;
+  initialScrollType?: 'top' | 'bottom'
 };
 
-const ScrollPane: React.FC<ScrollPaneProps> = ({ children, className, offsetHeight }) => {
+const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({ 
+  children, 
+  className, 
+  offsetHeight,
+  initialScrollType = 'top',
+}) => {
   const [height, setHeight] = useState<number>(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const isInitialLoad = useRef<boolean>(true);
 
   const updateDimensions = useCallback(() => {
     const updateHeight = window.innerHeight - offsetHeight;
@@ -23,11 +31,29 @@ const ScrollPane: React.FC<ScrollPaneProps> = ({ children, className, offsetHeig
     };
   }, [updateDimensions]);
 
+  useEffect(() => {
+    if (isInitialLoad && containerRef.current) {
+      const scrollToBottom = () => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = initialScrollType === 'top' ? 0 : containerRef.current.scrollHeight;
+          isInitialLoad.current = false;
+        }
+      };
+
+      requestAnimationFrame(scrollToBottom);
+    }
+  }, [initialScrollType]);
+
   return (
-    <div className={className} style={{ overflowY: "auto", overflowX: "hidden", height }}>
+    <div
+      ref={containerRef}
+      className={className}
+      style={{ overflowY: "auto", overflowX: "hidden", height }}
+    >
       {children}
     </div>
   );
 };
 
-export default ScrollPane;
+export default ScrollPaneTop;
+

@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Messages.module.css";
 import { ValueTransfer, AddressBookEntry, Address } from "../appstate";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneBottom from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
 import MessagesItemBlock from "./components/MessagesItemBlock";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
@@ -20,14 +20,14 @@ type MessagesProps = {
 
 const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton }) => {
   const context = useContext(ContextApp);
-  const { valueTransfers, info, addressBook, totalBalance, addresses, readOnly, fetchError } = context;
+  const { messages, info, addressBook, totalBalance, addresses, readOnly, fetchError } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransfer | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
   const [numVtnsToShow, setNumVtnsToShow] = useState<number>(100);
   const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
-  const [valueTransfersSorted, setValueTransfersSorted] = useState<ValueTransfer[]>([]);
+  const [messagesSorted, setMessagesSorted] = useState<ValueTransfer[]>([]);
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
@@ -50,8 +50,8 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
   }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
-    setIsLoadMoreEnabled(valueTransfers && numVtnsToShow < valueTransfers.length);
-  }, [numVtnsToShow, valueTransfers]);
+    setIsLoadMoreEnabled(messages && numVtnsToShow < messages.length);
+  }, [numVtnsToShow, messages]);
 
   useEffect(() => {
     (async () => {
@@ -71,38 +71,9 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
   }, []);
 
   useEffect(() => {
-    setValueTransfersSorted(valueTransfers
-    .sort((a: any, b: any) => {
-      const timeComparison = b.time - a.time;
-      if (timeComparison === 0) {
-        // same time
-        const txidComparison = a.txid.localeCompare(b.txid);
-        if (txidComparison === 0) {
-          // same txid
-          const aAddress = a.address?.toString() || '';
-          const bAddress = b.address?.toString() || '';
-          const addressComparison = aAddress.localeCompare(bAddress);
-          if (addressComparison === 0) {
-            // same address
-            const aPoolType = a.poolType?.toString() || '';
-            const bPoolType = b.poolType?.toString() || '';
-            // last one sort criteria - poolType.
-            return aPoolType.localeCompare(bPoolType);
-          } else {
-            // different address
-            return addressComparison;
-          }
-        } else {
-          // different txid
-          return txidComparison;
-        }
-      } else {
-        // different time
-        return timeComparison;
-      }
-    })
-    .slice(0, numVtnsToShow));  
-  }, [numVtnsToShow, valueTransfers]);
+    setMessagesSorted(messages
+    .slice(-numVtnsToShow));  
+  }, [numVtnsToShow, messages]);
 
   useEffect(() => {
     setAddressBookMap(addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
@@ -124,8 +95,8 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
   const moveValueTransferDetail = (index: number, type: number) => {
     // -1 -> Previous ValueTransfer
     //  1 -> Next ValueTransfer
-    if ((index > 0 && type === -1) || (index < valueTransfersSorted.length - 1 && type === 1)) {
-      setValueTransferDetail(valueTransfersSorted[index + type]);
+    if ((index > 0 && type === -1) || (index < messagesSorted.length - 1 && type === 1)) {
+      setValueTransferDetail(messagesSorted[index + type]);
       setValueTransferDetailIndex(index + type);
     }
   };
@@ -191,17 +162,27 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
 
       <div style={{ marginBottom: 5 }} className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Messages</div>
 
-      <ScrollPane offsetHeight={180}>
-        {!valueTransfersSorted && (
+      <ScrollPaneBottom offsetHeight={180} initialScrollType='bottom'>
+        {!messagesSorted && (
           <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
         )}
 
-        {valueTransfersSorted && valueTransfersSorted.length === 0 && (
+        {messagesSorted && messagesSorted.length === 0 && (
           <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
         )}
 
-        {valueTransfersSorted && valueTransfersSorted.length > 0 &&
-          valueTransfersSorted.map((vt: ValueTransfer, index: number) => {
+        {messagesSorted && messagesSorted.length > 0 && isLoadMoreEnabled && (
+          <div
+            style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
+            className={cstyles.primarybutton}
+            onClick={show100MoreVtns}
+          >
+            Load more
+          </div>
+        )}
+
+        {messagesSorted && messagesSorted.length > 0 &&
+          messagesSorted.map((vt: ValueTransfer, index: number) => {
             return (
               <MessagesItemBlock
                 index={index}
@@ -215,28 +196,18 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
                 previousLineWithSameTxid={
                   index === 0 
                     ? false 
-                    : (valueTransfersSorted[index - 1].txid === vt.txid)
+                    : (messagesSorted[index - 1].txid === vt.txid)
                 }
               />
             );
           })}
-
-        {isLoadMoreEnabled && (
-          <div
-            style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
-            className={cstyles.primarybutton}
-            onClick={show100MoreVtns}
-          >
-            Load more
-          </div>
-        )}
-      </ScrollPane>
+      </ScrollPaneBottom>
 
       {modalIsOpen && (
         <VtModal
           index={valueTransferDetailIndex}
-          length={valueTransfersSorted.length}
-          totalLength={valueTransfers.length}
+          length={messagesSorted.length}
+          totalLength={messages.length}
           vt={valueTransferDetail}
           modalIsOpen={modalIsOpen}
           closeModal={closeModal}

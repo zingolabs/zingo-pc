@@ -3,7 +3,7 @@ import { Accordion } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
 import cstyles from "../common/Common.module.css";
 import { AddressBookEntry, AddressType } from "../appstate";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ZcashURITarget } from "../../utils/uris";
 import AddressBookItem from './components/AddressbookItem';
@@ -161,7 +161,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </div>
         )}
 
-        <ScrollPane offsetHeight={330}>
+        <ScrollPaneTop offsetHeight={330}>
           <div className={styles.addressbooklist}>
             {addressBookSorted && addressBookSorted.length > 0 && (
               <Accordion>
@@ -176,7 +176,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               </Accordion>
             )}
           </div>
-        </ScrollPane>
+        </ScrollPaneTop>
       </div>
     </div>
   );

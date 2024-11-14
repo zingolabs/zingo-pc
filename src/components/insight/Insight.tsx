@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import styles from "./Insight.module.css";
 import cstyles from "../common/Common.module.css";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -251,7 +251,7 @@ const Insight: React.FC<InsightProps> = () => {
             </div>
           </div>
         </div>
-        <ScrollPane offsetHeight={150}>
+        <ScrollPaneTop offsetHeight={150}>
           {!loading && (
             <div className={[cstyles.well].join(" ")} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'stretch' }}>
               <div className={cstyles.balancebox} style={{ width: '30%', marginRight: 5 }}>
@@ -380,7 +380,7 @@ const Insight: React.FC<InsightProps> = () => {
           {loading && (
             <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div> 
           )}
-        </ScrollPane>
+        </ScrollPaneTop>
       </div>
 
     </div>

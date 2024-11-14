@@ -3,7 +3,7 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
 import { AddressBookEntry, Address, AddressType } from "../appstate";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
 
@@ -103,7 +103,7 @@ const Receive: React.FC<ReceiveProps> = ({
 
           {uaddrs && uaddrs.length > 0 && (
             <TabPanel key={`ua${rerenderKey}`}>
-              <ScrollPane offsetHeight={100}>
+              <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultUaddr]}>
                   {uaddrs.map((a: Address) => (
                     <AddressBlock
@@ -116,13 +116,13 @@ const Receive: React.FC<ReceiveProps> = ({
                     />
                   ))}
                 </Accordion>
-              </ScrollPane>
+              </ScrollPaneTop>
             </TabPanel>
           )}
 
           {zaddrs && zaddrs.length > 0 && (
             <TabPanel key={`z${rerenderKey}`}>
-              <ScrollPane offsetHeight={100}>
+              <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultZaddr]}>
                   {zaddrs.map((a: Address) => (
                     <AddressBlock
@@ -135,13 +135,13 @@ const Receive: React.FC<ReceiveProps> = ({
                     />
                   ))}
                 </Accordion>
-              </ScrollPane>
+              </ScrollPaneTop>
             </TabPanel>
           )}
 
           {taddrs && taddrs.length > 0 && (
             <TabPanel key={`t${rerenderKey}`}>
-              <ScrollPane offsetHeight={100}>
+              <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultTaddr]}>
                   {taddrs.map((a: Address) => (
                     <AddressBlock
@@ -155,7 +155,7 @@ const Receive: React.FC<ReceiveProps> = ({
                     />
                   ))}
                 </Accordion>
-              </ScrollPane>
+              </ScrollPaneTop>
             </TabPanel>
           )}
         </Tabs>

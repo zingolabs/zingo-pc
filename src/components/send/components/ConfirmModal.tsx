@@ -11,7 +11,7 @@ import {
   AddressType,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
-import ScrollPane from "../../scrollPane/ScrollPane";
+import ScrollPaneTop from "../../scrollPane/ScrollPane";
 import routes from "../../../constants/routes.json";
 import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
@@ -275,7 +275,7 @@ type ConfirmModalProps = {
           </div>
   
           <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
-            <ScrollPane offsetHeight={350}>
+            <ScrollPaneTop offsetHeight={350}>
               <div className={[cstyles.verticalflex].join(" ")}>
                 {sendPageState.toaddrs.map((t) => (
                   <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
@@ -295,7 +295,7 @@ type ConfirmModalProps = {
                   </div>
                 </div>
               </div>
-            </ScrollPane>
+            </ScrollPaneTop>
           </div>
   
           <div className={cstyles.buttoncontainer}>

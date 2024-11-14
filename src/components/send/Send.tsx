@@ -10,7 +10,7 @@ import {
   AddressType,
 } from "../appstate";
 import Utils from "../../utils/utils";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight } from "../balanceblock";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
@@ -338,7 +338,7 @@ const Send: React.FC<SendProps> = ({
 
       <div className={[styles.horizontalcontainer].join(" ")}>
         <div className={cstyles.containermarginleft}>
-          <ScrollPane offsetHeight={260}>
+          <ScrollPaneTop offsetHeight={260}>
             {[sendPageState.toaddrs[0]].map((toaddr: ToAddr) => {
               return (
                 <ToAddrBox
@@ -361,7 +361,7 @@ const Send: React.FC<SendProps> = ({
                 />
               );
             })}
-          </ScrollPane>
+          </ScrollPaneTop>
         </div>
 
         <div className={cstyles.verticalbuttons}>

@@ -1,7 +1,7 @@
 import React, { useContext } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Zcashd.module.css";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine"; 
 import { ContextApp } from "../../context/ContextAppState";
@@ -40,7 +40,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
     return (
       <div>
         <div className={styles.container}>
-          <ScrollPane offsetHeight={0}>
+          <ScrollPaneTop offsetHeight={0}>
             <div className={styles.imgcontainer}>
               <img src={Heart} alt="heart" />
             </div>
@@ -68,7 +68,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
             </div>
 
             <div className={cstyles.margintoplarge} />
-          </ScrollPane>
+          </ScrollPaneTop>
         </div>
       </div>
     );

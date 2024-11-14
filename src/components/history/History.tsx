@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
 import { ValueTransfer, AddressBookEntry, Address } from "../appstate";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
 import VtItemBlock from "./components/VtItemBlock";
 import VtModal from "./components/VtModal";
@@ -72,36 +72,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
 
   useEffect(() => {
     setValueTransfersSorted(valueTransfers
-    .sort((a: any, b: any) => {
-      const timeComparison = b.time - a.time;
-      if (timeComparison === 0) {
-        // same time
-        const txidComparison = a.txid.localeCompare(b.txid);
-        if (txidComparison === 0) {
-          // same txid
-          const aAddress = a.address?.toString() || '';
-          const bAddress = b.address?.toString() || '';
-          const addressComparison = aAddress.localeCompare(bAddress);
-          if (addressComparison === 0) {
-            // same address
-            const aPoolType = a.poolType?.toString() || '';
-            const bPoolType = b.poolType?.toString() || '';
-            // last one sort criteria - poolType.
-            return aPoolType.localeCompare(bPoolType);
-          } else {
-            // different address
-            return addressComparison;
-          }
-        } else {
-          // different txid
-          return txidComparison;
-        }
-      } else {
-        // different time
-        return timeComparison;
-      }
-    })
-    .slice(0, numVtnsToShow));  
+    .slice(0, numVtnsToShow));
   }, [numVtnsToShow, valueTransfers]);
 
   useEffect(() => {
@@ -191,7 +162,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
 
       <div style={{ marginBottom: 5 }} className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>History</div>
 
-      <ScrollPane offsetHeight={180}>
+      <ScrollPaneTop offsetHeight={180}>
         {!valueTransfersSorted && (
           <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
         )}
@@ -230,7 +201,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
             Load more
           </div>
         )}
-      </ScrollPane>
+      </ScrollPaneTop>
 
       {modalIsOpen && (
         <VtModal

@@ -5,7 +5,7 @@ import {
 import styles from "./Dashboard.module.css";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
 import AddressBalanceItem from "./components/AddressBalanceItem"; 
 import { ContextApp } from "../../context/ContextAppState";
@@ -126,7 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
       </div>
 
       <div className={styles.addressbalancecontainer}>
-        <ScrollPane offsetHeight={190}>
+        <ScrollPaneTop offsetHeight={190}>
           <div className={styles.addressbooklist}>
             {addresses &&
               (addresses.length === 0 ? (
@@ -146,7 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
                 </Accordion>
               ))}
           </div>
-        </ScrollPane>
+        </ScrollPaneTop>
       </div>
     </div>
   );

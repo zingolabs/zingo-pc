@@ -33,6 +33,9 @@ export default class AppState {
   // List of all T and Z ValueTransfer
   valueTransfers: ValueTransfer[];
 
+  // List of all T and Z ValueTransfer for messages
+  messages: ValueTransfer[];
+
   // The state of the send page, as the user constructs a transaction
   sendPageState: SendPageState;
 
@@ -80,6 +83,7 @@ export default class AppState {
     this.addresses = [] as Address[];
     this.addressBook = [] as AddressBookEntry[];
     this.valueTransfers = [] as ValueTransfer[];
+    this.messages = [] as ValueTransfer[];
     this.errorModalData = new ErrorModalData();
     this.serverSelectState = new ServerSelectState();
     this.sendPageState = new SendPageState();

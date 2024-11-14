@@ -9,6 +9,7 @@ export const defaultAppState: AppState = {
   addresses: [] as Address[],
   addressBook: [] as AddressBookEntry[],
   valueTransfers: [] as ValueTransfer[],
+  messages: [] as ValueTransfer[],
   errorModalData: new ErrorModalData(),
   serverSelectState: new ServerSelectState(),
   sendPageState: new SendPageState(),
