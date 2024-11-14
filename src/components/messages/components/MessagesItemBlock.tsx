@@ -28,35 +28,36 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
   previousLineWithSameTxid 
 }) => {
   const [expandAddress, setExpandAddress] = useState(false);
-  const [expandTxid, setExpandTxid] = useState(false); 
   
   const txDate: Date = new Date(vt.time * 1000);
   const datePart: string = dateformat(txDate, "mmm dd, yyyy");
   const timePart: string = dateformat(txDate, "hh:MM tt");
 
-  const fees: number = vt && vt.fee ? vt.fee : 0;
   const amount: number = vt.amount;
   const label: string | undefined = addressBookMap.get(vt.address);
   const address: string = vt.address;
-  const txid: string = vt.txid;
   const memos: string = vt.memos && vt.memos.length > 0 && !!vt.memos.join("") ? vt.memos.join("\n") : "";
   
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
 
-  const price: number = vt.zec_price ? vt.zec_price : 0;
-  let  priceString: string = '';
-  if (price) {
-    priceString = `USD ${price.toFixed(2)} / ZEC`; 
-  }
-
   return (
     <div>
-      {!previousLineWithSameTxid ? (
-        <div className={[cstyles.small, cstyles.sublight, styles.txdate].join(" ")}>{datePart}</div>
-      ) : (
-        <div style={{ marginLeft: 25, marginRight: 25, height: 1, background: 'white', opacity: 0.4 }}></div>
-      )}
       <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'flex-start',
+          justifyContent: 'flex-start',
+          padding: 20,
+          marginLeft: vt.type === 'received' ? 20 : 100,
+          marginRight: vt.type === 'received' ? 100 : 20,
+          borderRadius: 20,
+          borderBottomRightRadius: vt.type === 'received' ? 20 : 0,
+          borderBottomLeftRadius: vt.type === 'received' ? 0 : 20,
+          backgroundColor:
+            vt.type === 'received' ? Utils.getCssVariable('--color-primary-disable') : Utils.getCssVariable('--color-primary'),
+
+        }}
         className={[cstyles.well, styles.txbox].join(" ")}
         onClick={() => {
           setValueTransferDetail(vt);
@@ -64,99 +65,86 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           setModalIsOpen(true);
         }}
       >
-        <div className={styles.txtype} style={{ marginRight: 10 }}>
-          <div style={{ color: vt.confirmations === 0 ? Utils.getCssVariable('--color-error') : vt.type === 'received' || vt.type === 'shield' ? Utils.getCssVariable('--color-primary') : Utils.getCssVariable('--color-text') }}>
-            {Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)}
-          </div>
-          <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
-          {(vt.status === 'calculated' || vt.status === 'transmitted' || vt.status === 'mempool') && (
-            <div style={{ color: vt.status === 'calculated' || vt.status === 'transmitted' ? Utils.getCssVariable('--color-error') : Utils.getCssVariable('--color-warning') }}>
-              {vt.status}
-            </div>
-          )}
-        </div>
-        <div className={styles.txaddressmemofeeamount}>
-          <div className={styles.txaddressmemo}>
-            <div className={styles.txaddress}>
-              {!!label && (
-                <div className={cstyles.highlight} style={{ marginBottom: 5 }}>{label}</div> 
-              )}
-              {!!address ? (
-                <div className={[cstyles.verticalflex].join(" ")}>
-                  <div
-                    style={{ cursor: "pointer" }} 
-                    onClick={() => {
-                      if (address) {
-                        clipboard.writeText(address);
-                        setExpandAddress(true);
-                      }
-                    }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
-                      {!address && 'Unknown'}
-                      {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
-                      {expandAddress && !!address && (
-                        <>
-                          {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
+        <div className={styles.txaddressmemo}>
+          <div className={styles.txaddress}>
+            {!!label && (
+              <div style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }}>{label}</div> 
+            )}
+            {!!address && !label && (
+              <div 
+                style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }}
+                className={[cstyles.verticalflex].join(" ")}
+              >
                 <div
-                  style={{ cursor: "pointer" }}
+                  style={{ cursor: "pointer" }} 
                   onClick={() => {
-                    if (txid) {
-                      clipboard.writeText(txid);
-                      setExpandTxid(true);
+                    if (address) {
+                      clipboard.writeText(address);
+                      setExpandAddress(true);
                     }
                   }}>
                   <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
-                    {!txid && '-'}
-                    {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
-                    {expandTxid && !!txid && (
+                    {!address && 'Unknown'}
+                    {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
+                    {expandAddress && !!address && (
                       <>
-                        {txid.length < 80 ? txid : Utils.splitStringIntoChunks(txid, 3).map(item => <div key={item}>{item}</div>)}
+                        {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
                       </>
                     )}
                   </div>
                 </div>
-              )}
-            </div>
-            <div
-              className={[
-                cstyles.small,
-                cstyles.sublight,
-                cstyles.padtopsmall,
-                cstyles.memodiv,
-                styles.txmemo,
-              ].join(" ")}
-            >
-              {memos ? memos : null}
-            </div>
-          </div>
-          <div className={[styles.txfeeamount, cstyles.right].join(" ")}>
-            {fees > 0 && (
-              <div className={[styles.txfee, cstyles.right].join(" ")}> 
-                <div>Transaction Fee</div>
-                <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
-                  <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
-                </div>
               </div>
             )}
-            <div className={[styles.txamount, cstyles.right, cstyles.padtopsmall].join(" ")}>
-              <div className={cstyles.padtopsmall}>
-                <span>
-                  {currencyName} {bigPart}
-                </span>
-                <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
-              </div>
-              <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
-                {priceString}
-              </div>
-            </div>
+          </div>
+          <div
+            className={[
+              cstyles.padtopsmall,
+              cstyles.memodiv,
+              styles.txmemo,
+            ].join(" ")}
+          >
+            {memos ? memos : null}
           </div>
         </div>
+      </div>
+      <div 
+        style={{
+          display: 'flex',
+          flexDirection: vt.type === 'received' ? 'row' : 'row-reverse', 
+          alignItems: 'baseline',
+          marginBottom: 15,
+          marginTop: 5,
+        }} 
+        className={[cstyles.horizontalflex].join(" ")}
+      >
+        {amount >= 0.01 ? (
+          <>
+            <div 
+              style={{ 
+                marginLeft: vt.type === 'received' ? 20 : 10, 
+                marginRight: vt.type === 'received' ? 10 : 20, 
+              }} 
+              className={[vt.type === 'received' ? cstyles.highlight : null, styles.txamount].join(" ")}
+            >
+              <div 
+                style={{ alignItems: 'baseline' }} 
+                className={[cstyles.padtopsmall, cstyles.horizontalflex].join(" ")}
+              >
+                <div>{currencyName}{' '}{bigPart}</div>
+                <div className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</div>
+              </div>
+            </div>
+            <div style={{ opacity: 0.4 }} className={[cstyles.horizontalflex].join(" ")} >
+              <div className={[].join(" ")}>{datePart + ' ,'}</div>
+              <div className={[].join(" ")}>{timePart}</div>
+            </div>
+          </>
+        ) : (
+          <div style={{ opacity: 0.4, marginLeft: 20, marginRight: 20 }} className={[cstyles.horizontalflex].join(" ")} >
+            <div className={[].join(" ")}>{datePart + ' ,'}</div>
+            <div className={[].join(" ")}>{timePart}</div>
+          </div>
+        )}
       </div>
     </div>
   );

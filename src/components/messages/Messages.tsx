@@ -72,7 +72,8 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
 
   useEffect(() => {
     setMessagesSorted(messages
-    .slice(-numVtnsToShow));  
+      .filter((a: ValueTransfer) => a.memos && a.memos.length > 0 && a.memos.join(''))
+      .slice(-numVtnsToShow));  
   }, [numVtnsToShow, messages]);
 
   useEffect(() => {
@@ -173,7 +174,7 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
 
         {messagesSorted && messagesSorted.length > 0 && isLoadMoreEnabled && (
           <div
-            style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
+            style={{ marginLeft: "45%", width: "100px", marginTop: 15, marginBottom: 15 }}
             className={cstyles.primarybutton}
             onClick={show100MoreVtns}
           >
