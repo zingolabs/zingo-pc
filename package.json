@@ -14,7 +14,7 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@babel/core": "7.12.3",
+    "@babel/core": "^7.16.0",
     "@babel/plugin-transform-class-properties": "^7.22.5",
     "@babel/plugin-transform-private-methods": "^7.22.5",
     "@babel/plugin-transform-private-property-in-object": "^7.22.11",
