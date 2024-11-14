@@ -152,8 +152,9 @@ const ToAddrBox = ({
             <div style={{ fontWeight: 900, marginLeft: 20 }}>{label ? label : ""}</div>
           </div>
           <div className={[cstyles.sublight, cstyles.green].join(" ")}>
-            {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
+            {addressType !== undefined && addressType === AddressType.tex && 'TEX'}
             {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
+            {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
             {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
           </div>
           <div className={cstyles.validationerror}>
@@ -167,7 +168,7 @@ const ToAddrBox = ({
         </div>
         <input
           type="text"
-          placeholder="Unified | Sapling | Transparent address"
+          placeholder="Unified | Sapling | Transparent | TEX address"
           className={cstyles.inputbox}
           value={toaddr.to}
           onChange={(e) => updateToField(toaddr.id as number, e.target.value, null, null, null)}
@@ -201,7 +202,7 @@ const ToAddrBox = ({
           </div>
           <div style={{ width: '30%' }} className={[cstyles.verticalflex].join(" ")}>
             <div style={{ marginBottom: 5 }} className={[cstyles.horizontalflex].join(" ")}>
-              <div style={{ color: sendFeeError && !amountError && addressIsValid ? 'red' : '' }} className={cstyles.sublight}>Fee</div>
+              <div style={{ color: sendFeeError && !amountError && addressIsValid ? Utils.getCssVariable('--color-error') : Utils.getCssVariable('--color-text') }} className={cstyles.sublight}>Fee</div>
               <div style={{ paddingTop: 3, paddingLeft: 10 }} title={sendFeeError}>
                 <div className={[cstyles.small].join(" ")}>
                   {sendFeeError && !amountError && addressIsValid !== -1 && (

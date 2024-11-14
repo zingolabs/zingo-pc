@@ -10,7 +10,7 @@ import {
   AddressType,
 } from "../appstate";
 import Utils from "../../utils/utils";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight } from "../balanceblock";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
@@ -68,13 +68,12 @@ const Send: React.FC<SendProps> = ({
   }, [addresses]);
     
   useEffect(() => {
-    if (totalBalance.transparent > 0) {
+    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalBalance.transparent, anyPending]); 
+  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
     // transparent funds are not spendable.
@@ -328,7 +327,7 @@ const Send: React.FC<SendProps> = ({
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: 'red' }}>
+            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
               {fetchError.command + ': ' + fetchError.error}
             </div>
           </>
@@ -339,7 +338,7 @@ const Send: React.FC<SendProps> = ({
 
       <div className={[styles.horizontalcontainer].join(" ")}>
         <div className={cstyles.containermarginleft}>
-          <ScrollPane offsetHeight={260}>
+          <ScrollPaneTop offsetHeight={260}>
             {[sendPageState.toaddrs[0]].map((toaddr: ToAddr) => {
               return (
                 <ToAddrBox
@@ -362,7 +361,7 @@ const Send: React.FC<SendProps> = ({
                 />
               );
             })}
-          </ScrollPane>
+          </ScrollPaneTop>
         </div>
 
         <div className={cstyles.verticalbuttons}>

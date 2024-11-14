@@ -1,13 +1,14 @@
 import path from "path";
 import { AddressBookEntry } from "../appstate";
 
-const { remote } = window.require("electron");
+const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
 
 // Utility class to save / read the address book.
 export default class AddressbookImpl {
   static async getFileName(): Promise<string> {
-    const dir: string = path.join(remote.app.getPath("appData"), "Zingo PC");
+    const relativePath: string = await ipcRenderer.invoke('get-app-data-path');
+    const dir: string = path.join(relativePath, 'Zingo PC');
     if (!fs.existsSync(dir)) {
       await fs.promises.mkdir(dir);
     }

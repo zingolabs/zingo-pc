@@ -18,7 +18,7 @@ export default class AppState {
   totalBalance: TotalBalance;
 
   // A map type that contains address -> privatekey/viewkey mapping, for display on the receive page
-  // This mapping is ephemeral, and will disappear when the user navigates away.
+  // This mapping will disappear when the user navigates away.
   addressPrivateKeys: Map<string, string>;
 
   addressViewKeys: Map<string, string>;
@@ -33,6 +33,9 @@ export default class AppState {
   // List of all T and Z ValueTransfer
   valueTransfers: ValueTransfer[];
 
+  // List of all T and Z ValueTransfer for messages
+  messages: ValueTransfer[];
+
   // The state of the send page, as the user constructs a transaction
   sendPageState: SendPageState;
 
@@ -42,7 +45,7 @@ export default class AppState {
   // The Current configuration of the RPC params
   rpcConfig: RPCConfig;
 
-  // getinfo and getblockchaininfo result
+  // getinfo result
   info: Info;
 
   verificationProgress: number;
@@ -64,7 +67,7 @@ export default class AppState {
   // Callbacks for the password dialog box
   passwordState: PasswordState;
 
-  // if the wallet is seeded or from VK
+  // if the wallet is from seed or from VK
   readOnly: boolean;
 
   // list of servers with the latency calculated at launch
@@ -80,6 +83,7 @@ export default class AppState {
     this.addresses = [] as Address[];
     this.addressBook = [] as AddressBookEntry[];
     this.valueTransfers = [] as ValueTransfer[];
+    this.messages = [] as ValueTransfer[];
     this.errorModalData = new ErrorModalData();
     this.serverSelectState = new ServerSelectState();
     this.sendPageState = new SendPageState();

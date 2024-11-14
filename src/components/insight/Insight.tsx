@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import styles from "./Insight.module.css";
 import cstyles from "../common/Common.module.css";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -64,8 +64,8 @@ const Insight: React.FC<InsightProps> = () => {
       .sort((a, b) => b.data - a.data)
       .map((item, index) => {
         newLabels.push(!!item.tag ? item.tag : item.address === 'fee' ? item.address : Utils.trimToSmall(item.address, 10));
-        newBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
-        newHoverBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
+        newBackgroundColor.push(item.address === 'fee' ? Utils.getCssVariable('--color-zingo') : randomColors[index]);
+        newHoverBackgroundColor.push(item.address === 'fee' ? Utils.getCssVariable('--color-zingo') : randomColors[index]);
         return item.data;
       });
     setDataSent({
@@ -171,7 +171,7 @@ const Insight: React.FC<InsightProps> = () => {
             justifyContent: 'space-between',
             marginTop: 5,
             marginBottom: 5,
-            borderBottomColor: '#333333',
+            borderBottomColor: Utils.getCssVariable('--color-zingo'),
             borderBottomWidth: address !== 'fee' ? 1 : 0,
           }}>
           <div
@@ -219,7 +219,7 @@ const Insight: React.FC<InsightProps> = () => {
             )}
           </div>
         </div>
-        <div style={{ height: 1, backgroundColor: 'lightgray' }} />
+        <div style={{ height: 1, backgroundColor: Utils.getCssVariable('--color-zingo') }} />
       </div>
     );
   };
@@ -251,7 +251,7 @@ const Insight: React.FC<InsightProps> = () => {
             </div>
           </div>
         </div>
-        <ScrollPane offsetHeight={150}>
+        <ScrollPaneTop offsetHeight={150}>
           {!loading && (
             <div className={[cstyles.well].join(" ")} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'stretch' }}>
               <div className={cstyles.balancebox} style={{ width: '30%', marginRight: 5 }}>
@@ -291,7 +291,7 @@ const Insight: React.FC<InsightProps> = () => {
                                 return null;
                               }
                             })}
-                          <div style={{ height: 1, backgroundColor: 'lightgray' }} />
+                          <div style={{ height: 1, backgroundColor: Utils.getCssVariable('--color-zingo') }} />
                           {dataSent.datasets[0].data
                             .map((value: number, index: number) => {
                               if (value > 0 && dataSent.labels[index] !== 'fee') {
@@ -380,7 +380,7 @@ const Insight: React.FC<InsightProps> = () => {
           {loading && (
             <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div> 
           )}
-        </ScrollPane>
+        </ScrollPaneTop>
       </div>
 
     </div>

@@ -8,15 +8,19 @@ import {
   Info,
   TotalBalance,
   SendProgress,
+  AddressType,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
-import ScrollPane from "../../scrollPane/ScrollPane";
+import ScrollPaneTop from "../../scrollPane/ScrollPane";
 import routes from "../../../constants/routes.json";
 import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
 import ConfirmModalToAddr from "./ConfirmModalToAddr";
 
 import native from "../../../native.node";
+import { ChainNameEnum } from "../../appstate/components/ChainNameEnum";
+
+const { ipcRenderer } = window.require("electron");
 
 // Internal because we're using withRouter just below
 type ConfirmModalProps = {
@@ -76,7 +80,7 @@ type ConfirmModalProps = {
   
       const result: string = await native.zingolib_execute_async('parse_address', toaddr.to);
       if (result) {
-        if (result.toLowerCase().startsWith('error') || result.toLowerCase() === 'null') {
+        if (result.toLowerCase().startsWith('error')) {
           return '-';
         }
       } else {
@@ -93,6 +97,19 @@ type ConfirmModalProps = {
       
       //console.log('parse-address', address, resultJSON.status === 'success');
   
+      const settings = await ipcRenderer.invoke("loadSettings");
+      const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName;  
+
+      if (
+        !(resultJSON && 
+          resultJSON.status && 
+          resultJSON.status === "success" && 
+          resultJSON.chain_name &&
+          resultJSON.chain_name === currChain)
+      ) {
+        return '-';
+      }  
+
       if (resultJSON.status !== 'success') {
         return '-';
       }
@@ -102,7 +119,7 @@ type ConfirmModalProps = {
       // Private -> orchard to orchard (UA with orchard receiver)
       if (
         from === 'orchard' &&
-        resultJSON.address_kind === 'unified' &&
+        resultJSON.address_kind === AddressType.unified &&
         resultJSON.receivers_available?.includes('orchard')
       ) {
         return 'Private';
@@ -111,8 +128,8 @@ type ConfirmModalProps = {
       // Private -> sapling to sapling (ZA or UA with sapling receiver and NO orchard receiver)
       if (
         from === 'sapling' &&
-        (resultJSON.address_kind === 'sapling' ||
-          (resultJSON.address_kind === 'unified' &&
+        (resultJSON.address_kind === AddressType.sapling ||
+          (resultJSON.address_kind === AddressType.unified &&
             resultJSON.receivers_available?.includes('sapling') &&
             !resultJSON.receivers_available?.includes('orchard')))
       ) {
@@ -122,8 +139,8 @@ type ConfirmModalProps = {
       // Amount Revealed -> orchard to sapling (ZA or UA with sapling receiver)
       if (
         from === 'orchard' &&
-        (resultJSON.address_kind === 'sapling' ||
-          (resultJSON.address_kind === 'unified' && resultJSON.receivers_available?.includes('sapling')))
+        (resultJSON.address_kind === AddressType.sapling ||
+          (resultJSON.address_kind === AddressType.unified && resultJSON.receivers_available?.includes('sapling')))
       ) {
         return 'Amount Revealed';
       }
@@ -131,7 +148,7 @@ type ConfirmModalProps = {
       // Amount Revealed -> sapling to orchard (UA with orchard receiver)
       if (
         from === 'sapling' &&
-        resultJSON.address_kind === 'unified' &&
+        resultJSON.address_kind === AddressType.unified &&
         resultJSON.receivers_available?.includes('orchard')
       ) {
         return 'Amount Revealed';
@@ -141,8 +158,8 @@ type ConfirmModalProps = {
       // UA with sapling receiver)
       if (
         from === 'orchard+sapling' &&
-        (resultJSON.address_kind === 'sapling' ||
-          (resultJSON.address_kind === 'unified' &&
+        (resultJSON.address_kind === AddressType.sapling ||
+          (resultJSON.address_kind === AddressType.unified &&
             (resultJSON.receivers_available?.includes('orchard') || resultJSON.receivers_available?.includes('sapling'))))
       ) {
         return 'Amount Revealed';
@@ -151,7 +168,7 @@ type ConfirmModalProps = {
       // Deshielded -> orchard or sapling or orchard+sapling to transparent
       if (
         (from === 'orchard' || from === 'sapling' || from === 'orchard+sapling') &&
-        resultJSON.address_kind === 'transparent'
+        (resultJSON.address_kind === AddressType.transparent || resultJSON.address_kind === AddressType.tex)
       ) {
         return 'Deshielded';
       }
@@ -258,7 +275,7 @@ type ConfirmModalProps = {
           </div>
   
           <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
-            <ScrollPane offsetHeight={350}>
+            <ScrollPaneTop offsetHeight={350}>
               <div className={[cstyles.verticalflex].join(" ")}>
                 {sendPageState.toaddrs.map((t) => (
                   <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
@@ -278,7 +295,7 @@ type ConfirmModalProps = {
                   </div>
                 </div>
               </div>
-            </ScrollPane>
+            </ScrollPaneTop>
           </div>
   
           <div className={cstyles.buttoncontainer}>

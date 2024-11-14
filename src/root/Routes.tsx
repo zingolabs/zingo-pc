@@ -43,6 +43,7 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 
 import native from "../native.node";
 import deepDiff from "deep-diff";
+import { Messages } from "../components/messages";
 
 type Props = {};
 
@@ -64,6 +65,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       this.setTotalBalance,
       this.setAddresses,
       this.setValueTransferList,
+      this.setMessagesList,
       this.setInfo,
       this.setZecPrice,
       this.setWalletSettings,
@@ -277,6 +279,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     if (deepDiff(valueTransfers, this.state.valueTransfers)) {
       console.log('=============== ValueTransfer list', valueTransfers);
       this.setState({ valueTransfers });
+    }
+  };
+
+  setMessagesList = (messages: ValueTransfer[]) => {
+    if (deepDiff(messages, this.state.messages)) {
+      console.log('=============== ValueTransfer Messages list', messages);
+      this.setState({ messages });
     }
   };
 
@@ -681,6 +690,16 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.HISTORY}
                 render={() => (
                   <History
+                    setSendTo={this.setSendTo}
+                    calculateShieldFee={this.calculateShieldFee}
+                    handleShieldButton={this.handleShieldButton}
+                  />
+                )}
+              />
+              <Route
+                path={routes.MESSAGES}
+                render={() => (
+                  <Messages
                     setSendTo={this.setSendTo}
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}

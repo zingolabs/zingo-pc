@@ -2,12 +2,51 @@ import { AddressType, ReceiverType } from "../components/appstate";
 import randomColor from 'randomcolor';
 
 import native from "../native.node";
+import { ChainNameEnum } from "../components/appstate/components/ChainNameEnum";
+
+const { ipcRenderer } = window.require("electron");
 
 export const NO_CONNECTION: string = "Could not connect to zcashd";
 
 const { shell } = window.require("electron"); 
 
 export default class Utils {
+
+  // recover the var from the Global CSS.
+  static getCssVariable(variableName: string): string {
+    return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
+  };
+
+  static VTTypeWithConfirmations(
+    type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | 'rejection' | "", 
+    confirmations:number,
+  ): string {
+    return type === 'sent' && confirmations === 0
+      ? '...Sending...'
+      : type === 'sent' && confirmations > 0
+      ? 'Sent'
+      : type === 'received' && confirmations === 0
+      ? '...Receiving...'
+      : type === 'received' && confirmations > 0
+      ? 'Received'
+      : type === 'memo-to-self' && confirmations === 0
+      ? '...Sending to self...'
+      : type === 'memo-to-self' && confirmations > 0
+      ? 'Memo to self'
+      : type === 'send-to-self' && confirmations === 0
+      ? '...Sending to self...'
+      : type === 'send-to-self' && confirmations > 0
+      ? 'Send to self'
+      : type === 'shield' && confirmations === 0
+      ? '...Shielding...'
+      : type === 'shield' && confirmations > 0
+      ? 'Shield'
+      : type === 'rejection' && confirmations === 0
+      ? '...Sending...'
+      : type === 'rejection' && confirmations > 0
+      ? 'Rejection'
+      : ''; 
+  }
 
   static trimToSmall(addr?: string, numChars?: number): string {
     if (!addr) {
@@ -20,17 +59,33 @@ export default class Utils {
   static async getAddressType(addr: string): Promise<AddressType | undefined> {
     if (!addr) return;
     const resultParse: string = await native.zingolib_execute_async('parse_address', addr);
-    //console.log(addr, resultParse);
-    if (resultParse.toLowerCase().startsWith('error') || resultParse.toLowerCase() === 'null') {
+    if (resultParse) {
+      if (resultParse.toLowerCase().startsWith('error')) {
+        return;
+      }
+    } else {
       return;
     }
-    const resultParseJSON = JSON.parse(resultParse);
 
-    if (resultParseJSON && resultParseJSON.status && resultParseJSON.status === "success") {
-      if (resultParseJSON.address_kind === "unified") return AddressType.unified;
-      else if (resultParseJSON.address_kind === "sapling") return AddressType.sapling;
-      else if (resultParseJSON.address_kind === "transparent") return AddressType.transparent;
-      else return; 
+    let resultParseJSON;
+    try {
+      resultParseJSON = await JSON.parse(resultParse);
+    } catch (error) {
+      console.log('parse-address', error);
+      return;
+    }
+
+    const settings = await ipcRenderer.invoke("loadSettings");
+    const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName; 
+    
+    if (
+      resultParseJSON && 
+      resultParseJSON.status && 
+      resultParseJSON.status === "success" && 
+      resultParseJSON.chain_name &&
+      resultParseJSON.chain_name === currChain
+    ) {
+      return resultParseJSON.address_kind;
     } else {
       return;
     }

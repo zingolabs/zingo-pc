@@ -4,6 +4,8 @@ import "./index.css";
 import reportWebVitals from "./reportWebVitals";
 import Root from "./root/Root";
 
+import './components/common/Global.css';
+
 ReactDOM.render(
   <React.StrictMode>
     <Root />

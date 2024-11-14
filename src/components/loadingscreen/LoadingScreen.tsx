@@ -11,6 +11,7 @@ import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
 import { Logo } from "../logo";
+import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
@@ -26,7 +27,7 @@ class LoadingScreenState {
 
   url: string;
 
-  chain: '' | 'main' | 'test' | 'regtest';
+  chain_name: '' | ChainNameEnum;
 
   selection: '' | 'auto' | 'list' | 'custom';
 
@@ -60,7 +61,7 @@ class LoadingScreenState {
     this.loadingDone = false;
     this.rpcConfig = null;
     this.url = "";
-    this.chain = "";
+    this.chain_name = "";
     this.selection = '';
     this.walletScreen = 0;
     this.newWalletError = null;
@@ -122,6 +123,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     })
     console.log('did mount, disable TRUE');
 
+    const r = native.zingolib_set_crypto_default_provider_to_ring();
+    console.log('crypto provider result', r);
+
     const { rescanning, prevSyncId } = this.context;
     if (rescanning) {
       await this.runSyncStatusPoller(prevSyncId);
@@ -180,7 +184,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const settings = await ipcRenderer.invoke("loadSettings");
     console.log('SETTINGS;;;;;;;;;', settings);
     let server: string, 
-        chain_name: 'main' | 'test' | 'regtest', 
+        chain_name: ChainNameEnum, 
         selection: 'auto' | 'list' | 'custom';
     if (!settings) {
       // no settings stored, asumming `list` by default.
@@ -204,7 +208,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         server = settings.serveruri;
         const serverInList = serverUrisList().filter((s: Server) => s.uri === server)
         if (!settings.serverchain_name) {
-          chain_name = 'main';
+          chain_name = ChainNameEnum.mainChainName;
           if (serverInList && serverInList.length === 1) {
             // if the server is in the list, then selection is `list`
             if (serverInList[0].obsolete) {
@@ -227,7 +231,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           if (!settings.serverselection) {
             if (serverInList && serverInList.length === 1) {
               // if the server is in the list, then selection is `list`
-              chain_name = 'main';
+              chain_name = ChainNameEnum.mainChainName;
               selection = 'list';
             } else {
               selection = 'custom';
@@ -253,13 +257,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
 
     // if empty is the first time and if auto => App needs to check the servers.
-    let servers: Server[] = this.state.serverUris;
-
-    if (selection === 'auto' && servers.length === 0) {
-      servers = this.calculateServerLatency(serverUrisList()).filter(s => s.latency !== null).sort((a, b) => (a.latency ? a.latency : Infinity) - (b.latency ? b.latency : Infinity));
-      if (servers.length > 0) {
-        server = servers[0].uri;
-        chain_name = servers[0].chain_name;  
+    if (selection === 'auto') {
+      const serverFaster = await this.selectingServer(serverUrisList().filter((s: Server) => !s.obsolete));
+      if (serverFaster) {
+        server = serverFaster.uri;
+        chain_name = serverFaster.chain_name;  
       } else {
         // none of the servers are working properly.
         server = serverUrisList()[0].uri;
@@ -271,22 +273,20 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     }
 
-    console.log('&&&&&&&&---------', server, chain_name, selection);
+    console.log('&&&&&&&&----------', server, chain_name, selection);
 
     this.setState({
-      serverUris: servers,
       url: server,
-      chain: chain_name,
+      chain_name,
       selection,
     });
-    this.props.setServerUris(servers);
   };
 
   doFirstTimeSetup = async () => {
     await this.loadServer();
 
     // Try to load the light client
-    const { url, chain, changeAnotherWallet } = this.state;
+    const { url, chain_name, changeAnotherWallet } = this.state;
 
     console.log(`Url: -${url}-`);
 
@@ -300,11 +300,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     
     try {
       // Test to see if the wallet exists 
-      if (!native.zingolib_wallet_exists(url, chain)) {
+      if (!native.zingolib_wallet_exists(url, chain_name)) {
         // Show the wallet creation screen
         this.setState({ walletScreen: 1 });
       } else {
-        const result: string = native.zingolib_init_from_b64(url, chain);
+        const result: string = native.zingolib_init_from_b64(url, chain_name);
         console.log(`Initialization: ${result}`);
         if (result !== "OK") {
           this.setState({
@@ -326,12 +326,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
         const walletKindJSON = JSON.parse(walletKindStr);
 
-        if (walletKindJSON.kind === "Seeded") {
-          // seed
-          this.props.setReadOnly(false);
-        } else {
+        if (
+          walletKindJSON.kind === "Loaded from unified full viewing key" ||
+          walletKindJSON.kind === "No keys found"
+        ) {
           // ufvk
           this.props.setReadOnly(true);
+        } else {
+          // seed
+          this.props.setReadOnly(false);
         }
       }
     } catch (err) {
@@ -361,20 +364,40 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     });
   };
 
-  calculateServerLatency = (serverUris: Server[]): Server[] => {
-    const servers: Server[] = serverUris.filter((s: Server) => s.obsolete === false);
-    servers.forEach((server: Server, index: number) => {
-      const start: number = Date.now();
-      const  b = native.zingolib_get_latest_block_server(server.uri);
-      const end: number = Date.now();
-      let latency = null;
-      if (!b.toLowerCase().startsWith('error')) {
-        latency = end - start;
-      }
-      console.log('******* server LAST BLOCK', server.uri, index, b, latency, 'ms');
-      servers[index].latency = latency;
-    });
-    return servers;
+  calculateLatency = async (server: Server, _index: number) => {
+    const start: number = Date.now();
+    const resp: string = await native.zingolib_get_latest_block_server(server.uri);
+  
+    const end: number = Date.now();
+    let latency = null;
+    if (resp && !resp.toLowerCase().startsWith('error')) {
+      latency = end - start;
+    }
+  
+    console.log('Checking SERVER', server, latency);
+  
+    return latency;
+  };
+  
+  selectingServer = async (serverUris: Server[]): Promise<Server | null> => {
+    const servers: Server[] = serverUris;
+  
+    // 30 seconds max.
+    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 30 * 1000));
+  
+    const validServersPromises = servers.map(
+      (server: Server) =>
+        new Promise<Server>(async resolve => {
+          const latency = await this.calculateLatency(server, servers.indexOf(server));
+          if (latency !== null) {
+            resolve({ ...server, latency });
+          }
+        }),
+    );
+  
+    const fastestServer = await Promise.race([...validServersPromises, timeoutPromise]);
+  
+    return fastestServer;
   };
 
   getInfo = async () => {
@@ -411,7 +434,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     console.log('start runSyncStatusPoller');
 
     const { setRPCConfig, setInfo, setRescanning } = this.props;
-    const { url, chain } = this.state;
+    const { url, chain_name } = this.state;
 
     const info: Info = await RPC.getInfoObject();
     console.log(info);
@@ -458,7 +481,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           // Configure the RPC, which will setup the refresh
           const rpcConfig = new RPCConfig();
           rpcConfig.url = url;
-          rpcConfig.chain = chain;
+          rpcConfig.chain_name = chain_name;
           setRPCConfig(rpcConfig);
 
           // And cancel the updater
@@ -508,8 +531,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   createNewWallet = async () => {
-    const { url, chain } = this.state;
-    const result: string = native.zingolib_init_new(url, chain);
+    const { url, chain_name } = this.state;
+    const result: string = native.zingolib_init_new(url, chain_name);
 
     if (result.toLowerCase().startsWith("error")) {
       console.log('creating new wallet', result);
@@ -570,10 +593,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreSeedWallet = async () => {
-    const { seed, birthday, url, chain } = this.state;
+    const { seed, birthday, url, chain_name } = this.state;
     console.log(`Restoring ${seed} with ${birthday}`);
 
-    const result: string = native.zingolib_init_from_seed(url, seed, birthday, chain);
+    const result: string = native.zingolib_init_from_seed(url, seed, birthday, chain_name);
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
@@ -584,10 +607,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreUfvkWallet = async () => {
-    const { ufvk, birthday, url, chain } = this.state;
+    const { ufvk, birthday, url, chain_name } = this.state;
     console.log(`Restoring ${ufvk} with ${birthday}`);
 
-    const result: string = native.zingolib_init_from_ufvk(url, ufvk, birthday, chain);
+    const result: string = native.zingolib_init_from_ufvk(url, ufvk, birthday, chain_name);
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
@@ -598,8 +621,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   deleteWallet = async () => { 
-    const { url, chain } = this.state;
-    if (native.zingolib_wallet_exists(url, chain)) {
+    const { url, chain_name } = this.state;
+    if (native.zingolib_wallet_exists(url, chain_name)) {
       // interrupt syncing, just in case.
       const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
       console.log("Interrupting sync ...", resultInterrupt);

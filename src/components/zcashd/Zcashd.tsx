@@ -1,10 +1,12 @@
 import React, { useContext } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Zcashd.module.css";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine"; 
 import { ContextApp } from "../../context/ContextAppState";
+import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
+import Utils from "../../utils/utils";
 
 type ZcashdProps = {
   refresh: () => void;
@@ -21,14 +23,14 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
   const context = useContext(ContextApp);
 
   const { info, rpcConfig } = context;
-  const { url, chain }: {url: string, chain: '' | 'main' | 'test' | 'regtest'} = rpcConfig;
+  const { url, chain_name }: {url: string, chain_name: '' | ChainNameEnum} = rpcConfig;
 
   if (!info || !info.latestBlock) {
     return (
       <div>
         <div className={[cstyles.verticalflex, cstyles.center].join(" ")}>
           <div style={{ marginTop: "100px" }}>
-            <i className={["fas", "fa-times-circle"].join(" ")} style={{ fontSize: "96px", color: "red" }} />
+            <i className={["fas", "fa-times-circle"].join(" ")} style={{ fontSize: "96px", color: Utils.getCssVariable('--color-error') }} />
           </div>
           <div className={cstyles.margintoplarge}>Not Connected</div>
         </div>
@@ -38,7 +40,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
     return (
       <div>
         <div className={styles.container}>
-          <ScrollPane offsetHeight={0}>
+          <ScrollPaneTop offsetHeight={0}>
             <div className={styles.imgcontainer}>
               <img src={Heart} alt="heart" />
             </div>
@@ -49,8 +51,8 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
                 <DetailLine label="Zingolib Version" value={info.zingolib} />
                 <DetailLine label="Node" value={info.zcashdVersion} />
                 <DetailLine label="Lightwallet Server URI" value={url} />
-                <DetailLine label="Chain Name" value={chain ? chains[chain] : ''} />
-                <DetailLine label="Server Network" value={info.testnet ? "Testnet" : "Mainnet"} />
+                <DetailLine label="Chain Name" value={chain_name ? chains[chain_name] : ''} />
+                <DetailLine label="Server Network" value={chains[info.chainName]} />
                 <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                 <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
               </div>
@@ -66,7 +68,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
             </div>
 
             <div className={cstyles.margintoplarge} />
-          </ScrollPane>
+          </ScrollPaneTop>
         </div>
       </div>
     );

@@ -21,11 +21,11 @@
   right: auto;
   opacity: 1;
   transform: translate(-12.5%, -5%);
-  background: #011401;
+  background: var(--color-background);
   position: absolute;
   padding: 16px;
   min-width: 800px;
-  border: #18bd18 4px solid;
+  border: var(--color-primary) 4px solid;
 }
 
 .confirmModalAddress {

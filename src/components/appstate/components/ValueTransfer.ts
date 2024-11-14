@@ -1,7 +1,8 @@
 export default class ValueTransfer {
-  type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield';
+  type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | 'rejection';
   fee?: number;
   confirmations: number;
+  status: 'calculated' | 'transmitted' | 'mempool' |'confirmed';
   txid: string;
   time: number;
   zec_price?: number;
@@ -12,8 +13,9 @@ export default class ValueTransfer {
 
 
   constructor(
-    type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield', 
+    type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | 'rejection',
     confirmations: number, 
+    status: 'calculated' | 'transmitted' | 'mempool' |'confirmed',
     txid: string, 
     time: number, 
     address: string,
@@ -21,6 +23,7 @@ export default class ValueTransfer {
    ) {
     this.type = type;
     this.confirmations = confirmations;
+    this.status = status;
     this.txid = txid;
     this.time = time;
     this.address = address;

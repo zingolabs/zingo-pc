@@ -1,11 +1,9 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
-import {
-  Accordion,
-} from "react-accessible-accordion";
+import { Accordion } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
 import { AddressBookEntry, Address, AddressType } from "../appstate";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
 
@@ -98,14 +96,14 @@ const Receive: React.FC<ReceiveProps> = ({
       <div className={styles.receivecontainer}>
         <Tabs>
           <TabList>
-            <Tab>Unified</Tab>
-            <Tab>Sapling</Tab>
-            <Tab>Transparent</Tab>
+            {uaddrs && uaddrs.length > 0 && <Tab>Unified</Tab>}
+            {zaddrs && zaddrs.length > 0 && <Tab>Sapling</Tab>}
+            {taddrs && taddrs.length > 0 && <Tab>Transparent</Tab>}
           </TabList>
 
-          <TabPanel key={`ua${rerenderKey}`}>
-            <ScrollPane offsetHeight={100}>
-              {uaddrs && uaddrs.length > 0 && (
+          {uaddrs && uaddrs.length > 0 && (
+            <TabPanel key={`ua${rerenderKey}`}>
+              <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultUaddr]}>
                   {uaddrs.map((a: Address) => (
                     <AddressBlock
@@ -118,14 +116,13 @@ const Receive: React.FC<ReceiveProps> = ({
                     />
                   ))}
                 </Accordion>
-              )}
-              
-            </ScrollPane>
-          </TabPanel>
+              </ScrollPaneTop>
+            </TabPanel>
+          )}
 
-          <TabPanel key={`z${rerenderKey}`}>
-            <ScrollPane offsetHeight={100}>
-              {zaddrs && zaddrs.length > 0 && (
+          {zaddrs && zaddrs.length > 0 && (
+            <TabPanel key={`z${rerenderKey}`}>
+              <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultZaddr]}>
                   {zaddrs.map((a: Address) => (
                     <AddressBlock
@@ -138,14 +135,13 @@ const Receive: React.FC<ReceiveProps> = ({
                     />
                   ))}
                 </Accordion>
-              )}
-              
-            </ScrollPane>
-          </TabPanel>
+              </ScrollPaneTop>
+            </TabPanel>
+          )}
 
-          <TabPanel key={`t${rerenderKey}`}>
-            <ScrollPane offsetHeight={100}>
-              {taddrs && taddrs.length > 0 && (
+          {taddrs && taddrs.length > 0 && (
+            <TabPanel key={`t${rerenderKey}`}>
+              <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultTaddr]}>
                   {taddrs.map((a: Address) => (
                     <AddressBlock
@@ -159,10 +155,9 @@ const Receive: React.FC<ReceiveProps> = ({
                     />
                   ))}
                 </Accordion>
-              )}
-              
-            </ScrollPane>
-          </TabPanel>
+              </ScrollPaneTop>
+            </TabPanel>
+          )}
         </Tabs>
       </div>
     </div>

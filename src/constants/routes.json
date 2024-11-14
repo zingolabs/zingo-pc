@@ -6,6 +6,7 @@
   "RECEIVE": "/receive",
   "ADDRESSBOOK": "/addressbook",
   "HISTORY": "/history",
+  "MESSAGES": "/messages",
   "SETTINGS": "/settings",
   "ZCASHD": "/zcashd",
   "CONNECTMOBILE": "/connectmobile",

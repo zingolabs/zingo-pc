@@ -63,7 +63,7 @@ const AddressBalanceItem: React.FC<AddressBalanceItemProps> = ({ currencyName, z
                 <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
                   Address type: Transparent
                 </div>
-              )}              
+              )}
               {item.containsPending && (
                 <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
                   Some transactions are pending. Balances may change.

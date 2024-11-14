@@ -9,9 +9,11 @@ import {
   WalletSettings,
   ReceiverType,
 } from "../components/appstate";
+import { ChainNameEnum } from "../components/appstate/components/ChainNameEnum";
 import { SendManyJsonType } from "../components/send";
 
 import native from "../native.node";
+import { RPCInfoType } from "./components/RPCInfoType";
 
 export default class RPC {
   rpcConfig?: RPCConfig;
@@ -21,6 +23,7 @@ export default class RPC {
   fnSetTotalBalance: (tb: TotalBalance) => void;
   fnSetAddresses: (abs: Address[]) => void;
   fnSetValueTransfersList: (t: ValueTransfer[]) => void;
+  fnSetMessagesList: (t: ValueTransfer[]) => void;
   fnSetZecPrice: (p?: number) => void;
   fnSetWalletSettings: (settings: WalletSettings) => void;
 
@@ -39,6 +42,7 @@ export default class RPC {
     fnSetTotalBalance: (tb: TotalBalance) => void,
     fnSetAddresses: (abs: Address[]) => void,
     fnSetValueTransfersList: (t: ValueTransfer[]) => void,
+    fnSetMessagesList: (t: ValueTransfer[]) => void,
     fnSetInfo: (info: Info) => void,
     fnSetZecPrice: (p?: number) => void,
     fnSetWalletSettings: (settings: WalletSettings) => void,
@@ -48,6 +52,7 @@ export default class RPC {
     this.fnSetTotalBalance = fnSetTotalBalance;
     this.fnSetAddresses = fnSetAddresses;
     this.fnSetValueTransfersList = fnSetValueTransfersList;
+    this.fnSetMessagesList = fnSetMessagesList;
     this.fnSetInfo = fnSetInfo;
     this.fnSetZecPrice = fnSetZecPrice;
     this.fnSetWalletSettings = fnSetWalletSettings;
@@ -289,22 +294,21 @@ export default class RPC {
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
   static async getInfoObject(): Promise<Info> {
-    const infostr: string = await native.zingolib_execute_async("info", "");
-    //console.log(`INFO INFO INFO: ${infostr}`);
     try {
+      const infostr: string = await native.zingolib_execute_async("info", "");
       if (infostr.toLowerCase().startsWith("error")) {
         console.log("server info Failed", infostr);
         return new Info(infostr);
       }
-      const infoJSON = JSON.parse(infostr);
+      const infoJSON: RPCInfoType = JSON.parse(infostr);
 
       const info = new Info();
-      info.testnet = infoJSON.chain_name === "test";
+      info.chainName = infoJSON.chain_name;
       info.latestBlock = infoJSON.latest_block_height;
       info.connections = 1;
-      info.version = `${infoJSON.vendor}/${infoJSON.git_commit.substring(0, 6)}/${infoJSON.version}`;
+      info.version = `${infoJSON.vendor}/${infoJSON.git_commit ? infoJSON.git_commit.substring(0, 6) : ""}/${infoJSON.version}`;
       info.zcashdVersion = "Not Available";
-      info.currencyName = info.testnet ? "TAZ" : "ZEC";
+      info.currencyName = info.chainName === ChainNameEnum.mainChainName ? "ZEC" : "TAZ";
       info.solps = 0;
 
       // Also set `zecPrice` manually
@@ -818,19 +822,22 @@ export default class RPC {
     const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
     const walletKindJSON = JSON.parse(walletKindStr);
 
-    if (walletKindJSON.kind === "Seeded") {
-      // seed
-      const seedStr: string = await native.zingolib_execute_async("seed", ""); 
-      const seedJSON = JSON.parse(seedStr);
-
-      return seedJSON.birthday;
-    } else {
+    if (
+      walletKindJSON.kind === "Loaded from unified full viewing key" ||
+      walletKindJSON.kind === "No keys found"
+    ) {
       // ufvk
       const ufvkStr: string = await native.zingolib_execute_async("exportufvk", "");
       const ufvkJSON = JSON.parse(ufvkStr);
 
       return ufvkJSON.birthday;
-    } 
+    } else {
+      // seed
+      const seedStr: string = await native.zingolib_execute_async("seed", ""); 
+      const seedJSON = JSON.parse(seedStr);
+
+      return seedJSON.birthday;
+    }
   }
 
   static async fetchWalletHeight(): Promise<number> {
@@ -846,51 +853,136 @@ export default class RPC {
 
     //console.log('value transfers antes ', valueTransfersJSON);
 
-    let txList: ValueTransfer[] = [];
+    let vtList: ValueTransfer[] = [];
 
     const walletHeight: number = await RPC.fetchWalletHeight();
 
     valueTransfersJSON
       .forEach((tx: any) => {
-        let currentTxList: ValueTransfer = {} as ValueTransfer;
+        let currentVtList: ValueTransfer = {} as ValueTransfer;
 
-        currentTxList.txid = tx.txid;
-        currentTxList.time = tx.datetime;
-        currentTxList.type = tx.kind;
-        currentTxList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
-        currentTxList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
+        currentVtList.txid = tx.txid;
+        currentVtList.time = tx.datetime;
+        // basic in zingolib is the same as send-to-self in zingo.
+        currentVtList.type = tx.kind === 'basic' ? 'send-to-self' : tx.kind;
+        currentVtList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
+        currentVtList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
         // unconfirmed means 0 confirmations, the tx is mining already.
-        if (tx.status === 'pending') {
-          currentTxList.confirmations = 0;
+        // 'pending' is obsolete
+        if (
+          tx.status === 'calculated' ||
+          tx.status === 'transmitted' ||
+          tx.status === 'mempool'
+        ) {
+          currentVtList.confirmations = 0;
         } else  if (tx.status === 'confirmed') {
-          currentTxList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
+          currentVtList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
             ? latestBlockHeight - tx.blockheight + 1
             : walletHeight - tx.blockheight + 1;
         } else {
           // impossible case... I guess.
-          currentTxList.confirmations = 0;
+          currentVtList.confirmations = 0;
         }
-        if (currentTxList.confirmations < 0) {
+
+        currentVtList.status = tx.status;
+        currentVtList.address = !tx.recipient_address ? undefined : tx.recipient_address;
+        currentVtList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
+        currentVtList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
+        currentVtList.pool = !tx.pool_received ? undefined : tx.pool_received;
+
+        if (currentVtList.confirmations < 0) {
           console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
         }
-        
-        currentTxList.address = !tx.recipient_address ? undefined : tx.recipient_address;
-        currentTxList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
-        currentTxList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
-        currentTxList.pool = !tx.pool_received ? undefined : tx.pool_received;
-
         //if (tx.txid.startsWith('426e')) {
         //  console.log('valuetranfer: ', tx);
         //  console.log('--------------------------------------------------');
         //}
 
-        txList.push(currentTxList);
+        vtList.push(currentVtList);
       });
 
     //console.log(TxList);
 
-    this.fnSetValueTransfersList(txList);
+    // we need to sort this list for history...
+    // to sort the data here can be better
+    // we need to sort the array properly.
+    // by:
+    // - time
+    // - txid
+    // - address
+    // - pool
+    const vtListSorted = [...vtList].sort((a: any, b: any) => {
+      const timeComparison = b.time - a.time;
+      if (timeComparison === 0) {
+        // same time
+        const txidComparison = a.txid.localeCompare(b.txid);
+        if (txidComparison === 0) {
+          // same txid
+          const aAddress = a.address?.toString() || '';
+          const bAddress = b.address?.toString() || '';
+          const addressComparison = aAddress.localeCompare(bAddress);
+          if (addressComparison === 0) {
+            // same address
+            const aPoolType = a.poolType?.toString() || '';
+            const bPoolType = b.poolType?.toString() || '';
+            // last one sort criteria - poolType.
+            return aPoolType.localeCompare(bPoolType);
+          } else {
+            // different address
+            return addressComparison;
+          }
+        } else {
+          // different txid
+          return txidComparison;
+        }
+      } else {
+        // different time
+        return timeComparison;
+      }
+    })
+
+    this.fnSetValueTransfersList(vtListSorted);
+
+    // we need to sort this list for messages...
+    // to sort the data here can be better
+    // we need to sort the array properly.
+    // by:
+    // - time (reverse)
+    // - txid
+    // - address
+    // - pool
+    const mListSorted = [...vtList].sort((a: ValueTransfer, b: ValueTransfer) => {
+      const timeComparison = a.time - b.time; // reverse
+      if (timeComparison === 0) {
+        // same time
+        const txidComparison = a.txid.localeCompare(b.txid);
+        if (txidComparison === 0) {
+          // same txid
+          const aAddress = a.address?.toString() || '';
+          const bAddress = b.address?.toString() || '';
+          const addressComparison = aAddress.localeCompare(bAddress);
+          if (addressComparison === 0) {
+            // same address
+            const aPoolType = a.pool?.toString() || '';
+            const bPoolType = b.pool?.toString() || '';
+            // last one sort criteria - poolType.
+            return aPoolType.localeCompare(bPoolType);
+          } else {
+            // different address
+            return addressComparison;
+          }
+        } else {
+          // different txid
+          return txidComparison;
+        }
+      } else {
+        // different time
+        return timeComparison;
+      }
+    });
+
+    this.fnSetMessagesList(mListSorted);
   }
 
   // Send a transaction using the already constructed sendJson structure
@@ -991,7 +1083,8 @@ export default class RPC {
           // And refresh data (full refresh)
           this.refresh(true);
 
-          resolve(progressJSON.txid as string);
+          const progressTxids = progressJSON.txid.replaceAll('created txid: ', '').split(' & ').join(', ');
+          resolve(progressTxids as string);
         }
 
         if (progressJSON.error) {

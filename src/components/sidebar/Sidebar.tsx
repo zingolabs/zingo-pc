@@ -14,6 +14,7 @@ import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
 import native from "../../native.node";
+import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
@@ -89,7 +90,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zingo PC v1.4.3</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v1.8.1</div>
           <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2024, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
             The MIT License (MIT) Copyright (c) 2024 ZingoLabs
@@ -121,9 +122,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       const i = info;
       setSendTo(
         new ZcashURITarget(
-          Utils.getDonationAddress(i.testnet),
-          Utils.getDefaultDonationAmount(i.testnet),
-          Utils.getDefaultDonationMemo(i.testnet)
+          Utils.getDonationAddress(i.chainName !== ChainNameEnum.mainChainName),
+          Utils.getDefaultDonationAmount(i.chainName !== ChainNameEnum.mainChainName),
+          Utils.getDefaultDonationMemo(i.chainName !== ChainNameEnum.mainChainName)
         )
       );
 
@@ -458,6 +459,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           routeName={routes.HISTORY}
           currentRoute={location.pathname}
           iconname="fa-list"
+        />
+        <SidebarMenuItem
+          name="Messages"
+          routeName={routes.MESSAGES}
+          currentRoute={location.pathname}
+          iconname="fa-comments"
         />
         <SidebarMenuItem
           name="Address Book"

@@ -1,21 +1,21 @@
 .sidebar {
-  background-color: #000;
+  background-color: var(--color-background-dark);
   height: calc(100vh - 190px);
 }
 
 .sidebarmenuitem {
   height: 40px;
-  padding: 10px;
+  padding: 5px;
   margin-left: 16px;
   font-size: 20px;
 }
 
 .sidebarmenuitemactive {
-  color: #18bd18;
+  color: var(--color-primary);
 }
 
 .sidebarlogobg {
-  background: #011401; 
+  background: var(--color-background); 
   margin-bottom: 8px; 
   padding: 8px; 
 }

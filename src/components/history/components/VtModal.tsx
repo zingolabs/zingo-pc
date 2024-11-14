@@ -78,10 +78,11 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   }, [index]);
   
   let txid: string = "";
-  let type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | "" = ""; 
+  let typeText: string = "";
   let typeIcon: string = "";
   let typeColor: string = "";
   let confirmations: number = 0;
+  let status: 'calculated' | 'transmitted' | 'mempool' |'confirmed' | "" = "";
   let address: string = "";
   let memos: string[] = [];
   let pool: 'Orchard' | 'Sapling' | 'Transparent' | "" = "";
@@ -104,19 +105,20 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
   if (vt) {
     txid = vt.txid;
-    type = vt.type;
+    typeText = Utils.VTTypeWithConfirmations(vt.type, vt.confirmations);
     if (vt.type === "received" || vt.type === "shield") {
       typeIcon = "fa-arrow-circle-down";
-      typeColor = "green";
+      typeColor = Utils.getCssVariable('--color-primary');
     } else {
       typeIcon = "fa-arrow-circle-up";
-      typeColor = "white";
+      typeColor = Utils.getCssVariable('--color-text');
     }
 
     datePart = dateformat(vt.time * 1000, "mmm dd, yyyy");
     timePart = dateformat(vt.time * 1000, "hh:MM tt");
 
     confirmations = vt.confirmations;
+    status = vt.status;
     amount = vt.amount;
     fees = vt.fee ? vt.fee : 0;
     address = vt.address;
@@ -197,7 +199,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
              style={{ width: "100%", alignItems: "center", justifyContent: "center" }}>
           <div className={[cstyles.center, cstyles.verticalflex].join(" ")}>
             <i className={["fas", typeIcon].join(" ")} style={{ fontSize: "35px", color: typeColor }} />
-            {type}
+            {typeText}
           </div>
 
           <div className={[cstyles.center].join(" ")} style={{ marginLeft: 20 }}>
@@ -226,8 +228,14 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
           <div>
             <div className={[cstyles.sublight].join(" ")}>Confirmations</div>
-            <div>{confirmations === null ? '-' : confirmations}</div>
+            <div>{confirmations}</div>
           </div>
+          {(status === 'calculated' || status === 'transmitted' || status === 'mempool') && (
+            <div>
+              <div className={[cstyles.sublight].join(" ")}>Status</div>
+              <div style={{ color: status === 'calculated' || status === 'transmitted' ? 'red' : 'yellow' }}>{status}</div>
+            </div>
+          )}
         </div>
 
         <div className={cstyles.margintoplarge} />

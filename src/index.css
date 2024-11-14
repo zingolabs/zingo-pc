@@ -11,9 +11,9 @@ html {
 
 body {
   position: relative;
-  color: #c3c3c3;
+  color: var(--color-text);
   height: 100vh;
-  background-color: #011401;
+  background-color: var(--color-background);
   font-family: Roboto, Arial, Helvetica, Helvetica Neue, serif;
 }
 
@@ -23,12 +23,12 @@ body {
 
 ::-webkit-scrollbar-track {
   box-shadow: inset 0 0 6px grey;
-  background-color: rgb(1, 1, 1);
+  background-color: var(--color-background);
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: white;
-  outline: 1px solid slategrey;
+  background-color: var(--color-text);
+  outline: 1px solid var(--color-zingo);
 }
 
 h2 {
@@ -36,7 +36,7 @@ h2 {
   font-size: 2.25rem;
   font-weight: bold;
   letter-spacing: -0.025em;
-  color: #c3c3c3;
+  color: var(--color-text);
 }
 
 p {
@@ -48,12 +48,12 @@ li {
 }
 
 a {
-  color: white;
+  color: var(--color-text);
   text-decoration: none;
 }
 
 input[disabled] {
-  color: grey;
+  color: var(--color-text);
 }
 
 .react-tabs {
@@ -85,11 +85,11 @@ input[disabled] {
   left: -4px;
   right: -4px;
   bottom: 5px;
-  background: #18bd18;
+  background: var(--color-primary);
 }
 
 .react-tabs__tab--disabled {
-  color: grey;
+  color: var(--color-text);
   cursor: default;
 }
 

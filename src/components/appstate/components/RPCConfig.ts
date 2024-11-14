@@ -1,10 +1,12 @@
+import { ChainNameEnum } from "./ChainNameEnum";
+
 export default class RPCConfig {
     url: string;
-    chain: 'main' | 'test' | 'regtest' | "";
+    chain_name: ChainNameEnum | "";
   
     constructor() {
       this.url = "";
-      this.chain = "";
+      this.chain_name = "";
     }
   }
   

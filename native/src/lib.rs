@@ -1,17 +1,13 @@
 #[macro_use]
 extern crate lazy_static;
 
-use neon::prelude::Context;
-use neon::prelude::FunctionContext;
-use neon::prelude::JsBoolean;
-use neon::prelude::JsNumber;
-use neon::prelude::JsPromise;
-use neon::prelude::JsResult;
-use neon::prelude::JsString;
-
-use neon::register_module;
+use neon::prelude::*;
 
 use tokio::runtime::Runtime;
+
+use rustls::crypto::ring::default_provider;
+use rustls::crypto::CryptoProvider;
+
 use std::thread;
 
 use std::cell::RefCell;
@@ -27,27 +23,29 @@ lazy_static! {
         Mutex::new(RefCell::new(None));
 }
 
-register_module!(mut m, {
-    m.export_function("zingolib_wallet_exists", zingolib_wallet_exists)?;
-    m.export_function("zingolib_init_new", zingolib_init_new)?;
-    m.export_function("zingolib_init_from_b64", zingolib_init_from_b64)?;
-    m.export_function(
+#[neon::main]
+fn main(mut cx: ModuleContext) -> NeonResult<()> {
+    cx.export_function("zingolib_wallet_exists", zingolib_wallet_exists)?;
+    cx.export_function("zingolib_init_new", zingolib_init_new)?;
+    cx.export_function("zingolib_init_from_b64", zingolib_init_from_b64)?;
+    cx.export_function(
         "zingolib_init_from_seed",
         zingolib_init_from_seed,
     )?;
-    m.export_function(
+    cx.export_function(
         "zingolib_init_from_ufvk",
         zingolib_init_from_ufvk,
     )?;
-    m.export_function("zingolib_deinitialize", zingolib_deinitialize)?;
-    m.export_function("zingolib_execute_spawn", zingolib_execute_spawn)?;
-    m.export_function("zingolib_execute_async", zingolib_execute_async)?;
-    m.export_function("zingolib_get_latest_block_server", zingolib_get_latest_block_server)?;
-    m.export_function("zingolib_get_transaction_summaries", zingolib_get_transaction_summaries)?;
-    m.export_function("zingolib_get_value_transfers", zingolib_get_value_transfers)?;
+    cx.export_function("zingolib_deinitialize", zingolib_deinitialize)?;
+    cx.export_function("zingolib_execute_spawn", zingolib_execute_spawn)?;
+    cx.export_function("zingolib_execute_async", zingolib_execute_async)?;
+    cx.export_function("zingolib_get_latest_block_server", zingolib_get_latest_block_server)?;
+    cx.export_function("zingolib_get_transaction_summaries", zingolib_get_transaction_summaries)?;
+    cx.export_function("zingolib_get_value_transfers", zingolib_get_value_transfers)?;
+    cx.export_function("zingolib_set_crypto_default_provider_to_ring", zingolib_set_crypto_default_provider_to_ring)?;
 
     Ok(())
-});
+}
 
 fn lock_client(lightclient: LightClient) {
     let lc = Arc::new(lightclient);
@@ -85,14 +83,23 @@ fn construct_uri_load_config(
 }
 
 // check the latency of a server
-fn zingolib_get_latest_block_server(mut cx: FunctionContext) -> JsResult<JsString> {
+fn zingolib_get_latest_block_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
 
-    let lightwalletd_uri: http::Uri = server_uri.parse().expect("To be able to represent a Uri.");
-    match zingolib::get_latest_block_height(lightwalletd_uri).map_err(|e| format! {"Error: {e}"}) {
-        Ok(height) => Ok(cx.string(height.to_string())),
-        Err(e) => Ok(cx.string(e)),
-    }
+    let promise = cx
+        .task(move || {
+            let lightwalletd_uri: http::Uri = server_uri.parse().expect("To be able to represent a Uri.");
+            match zingolib::get_latest_block_height(lightwalletd_uri).map_err(|e| format! {"Error: {e}"}) {
+                Ok(height) => height.to_string(),
+                Err(e) => format!("{}", e),
+            }
+        })
+        .promise(move |mut cx, resp| {
+            Ok(cx.string(resp))
+        });
+
+    // Return the promise back to JavaScript
+    Ok(promise)
 }
 
 // Check if there is an existing wallet
@@ -270,20 +277,10 @@ fn zingolib_execute_spawn(mut cx: FunctionContext) -> JsResult<JsString> {
 fn zingolib_execute_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let cmd = cx.argument::<JsString>(0)?.value(&mut cx);
     let args_list = cx.argument::<JsString>(1)?.value(&mut cx);
-    let channel = cx.channel();
 
-    // Create a JavaScript promise and a `deferred` handle for resolving it.
-    // It is important to be careful not to perform failable actions after
-    // creating the promise to avoid an unhandled rejection.
-    let (deferred, promise) = cx.promise();
-
-    // Spawn an `async` task on a separate thread.
-    thread::spawn(move || {
-        // Inside this closure, you can perform asynchronous operations
-
-        let resp = {
+    let promise = cx
+        .task(move || {
             let lc = LIGHTCLIENT.lock().unwrap();
-
             if lc.borrow().is_none() {
                 format!("Error: Light Client is not initialized")
             } else {
@@ -295,11 +292,10 @@ fn zingolib_execute_async(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 };
                 commands::do_user_command(&cmd, &args, lightclient.as_ref()).clone()
             }
-        };
-
-        deferred.settle_with(&channel, move |mut cx| Ok(cx.string(resp)));
-
-    });
+        })
+        .promise(move |mut cx, resp| {
+            Ok(cx.string(resp))
+        });
 
     // Return the promise back to JavaScript
     Ok(promise)
@@ -347,6 +343,25 @@ fn zingolib_get_value_transfers(mut cx: FunctionContext) -> JsResult<JsString> {
             lightclient.value_transfers_json_string().await
         })
     };
+
+    Ok(cx.string(resp))
+}
+
+pub fn zingolib_set_crypto_default_provider_to_ring(mut cx: FunctionContext) -> JsResult<JsString> {
+    let resp: String;
+    {
+        if CryptoProvider::get_default().is_none() {
+            resp = match default_provider()
+                .install_default()
+                .map_err(|_| "Error: Failed to install crypto provider".to_string())
+            {
+                Ok(_) => "true".to_string(),
+                Err(e) => e,
+            };
+        } else {
+            resp = "true".to_string();
+        };
+    }
 
     Ok(cx.string(resp))
 }

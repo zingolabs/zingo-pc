@@ -5,11 +5,13 @@ import {
 import styles from "./Dashboard.module.css";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
 import AddressBalanceItem from "./components/AddressBalanceItem"; 
 import { ContextApp } from "../../context/ContextAppState";
 import { Address } from "../appstate";
+
+import native from "../../native.node";
 
 type DashboardProps = {
   calculateShieldFee: () => Promise<number>;
@@ -22,6 +24,9 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
+  const [transparent, setTransparent] = useState<boolean>(true);
+  const [sapling, setSapling] = useState<boolean>(true);
+  const [orchard, setOrchard] = useState<boolean>(true);
 
   useEffect(() => {
     const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
@@ -29,13 +34,30 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
   }, [addresses]);
     
   useEffect(() => {
-    if (totalBalance.transparent > 0) {
+    // with transparent funds & no readonly wallet
+    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalBalance.transparent, anyPending]); 
+  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
+
+  useEffect(() => {
+    (async () => {
+      const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+      const walletKindJSON = JSON.parse(walletKindStr);
+
+      if (!walletKindJSON.transparent) {
+        setTransparent(false);
+      }
+      if (!walletKindJSON.sapling) {
+        setSapling(false);
+      }
+      if (!walletKindJSON.orchard) {
+        setOrchard(false);
+      }
+    })();
+  }, []);
 
   console.log('shield fee', shieldFee);
 
@@ -49,24 +71,30 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
             usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
             currencyName={info.currencyName}
           />
-          <BalanceBlock
-            topLabel="Orchard"
-            zecValue={totalBalance.obalance}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
-            currencyName={info.currencyName}
-          />
-          <BalanceBlock
-            topLabel="Sapling"
-            zecValue={totalBalance.zbalance}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.zbalance)}
-            currencyName={info.currencyName}
-          />
-          <BalanceBlock
-            topLabel="Transparent"
-            zecValue={totalBalance.transparent}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.transparent)}
-            currencyName={info.currencyName}
-          />
+          {orchard && (
+            <BalanceBlock
+              topLabel="Orchard"
+              zecValue={totalBalance.obalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
+              currencyName={info.currencyName}
+            />
+          )}
+          {sapling && (
+            <BalanceBlock
+              topLabel="Sapling"
+              zecValue={totalBalance.zbalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.zbalance)}
+              currencyName={info.currencyName}
+            />
+          )}
+          {transparent && (
+            <BalanceBlock
+              topLabel="Transparent"
+              zecValue={totalBalance.transparent}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.transparent)}
+              currencyName={info.currencyName}
+            />
+          )}
         </div>
         <div className={cstyles.balancebox}>
           {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
@@ -85,7 +113,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: 'red' }}>
+            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
               {fetchError.command + ': ' + fetchError.error}
             </div>
           </>
@@ -98,7 +126,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
       </div>
 
       <div className={styles.addressbalancecontainer}>
-        <ScrollPane offsetHeight={190}>
+        <ScrollPaneTop offsetHeight={190}>
           <div className={styles.addressbooklist}>
             {addresses &&
               (addresses.length === 0 ? (
@@ -118,7 +146,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
                 </Accordion>
               ))}
           </div>
-        </ScrollPane>
+        </ScrollPaneTop>
       </div>
     </div>
   );

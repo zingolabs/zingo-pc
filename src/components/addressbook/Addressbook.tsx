@@ -3,7 +3,7 @@ import { Accordion } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
 import cstyles from "../common/Common.module.css";
 import { AddressBookEntry, AddressType } from "../appstate";
-import ScrollPane from "../scrollPane/ScrollPane";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ZcashURITarget } from "../../utils/uris";
 import AddressBookItem from './components/AddressbookItem';
@@ -116,8 +116,9 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           <div className={[cstyles.flexspacebetween].join(" ")}>
             <div className={cstyles.sublight}>Address</div>
             <div className={[cstyles.sublight, cstyles.green].join(" ")}>
-              {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
+              {addressType !== undefined && addressType === AddressType.tex && 'TEX'}
               {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
+              {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
               {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
             </div>
             <div className={cstyles.validationerror}>
@@ -130,7 +131,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </div>
           <input
             type="text"
-            placeholder="Unified | Sapling | Transparent address"
+            placeholder="Unified | Sapling | Transparent | TEX address"
             value={currentAddress}
             className={[cstyles.inputbox, cstyles.margintopsmall].join(" ")}
             onChange={(e) => updateAddress(e.target.value)}
@@ -160,7 +161,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </div>
         )}
 
-        <ScrollPane offsetHeight={330}>
+        <ScrollPaneTop offsetHeight={330}>
           <div className={styles.addressbooklist}>
             {addressBookSorted && addressBookSorted.length > 0 && (
               <Accordion>
@@ -175,7 +176,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               </Accordion>
             )}
           </div>
-        </ScrollPane>
+        </ScrollPaneTop>
       </div>
     </div>
   );

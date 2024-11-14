@@ -1,4 +1,5 @@
 import { Server } from "../components/appstate";
+import { ChainNameEnum } from "../components/appstate/components/ChainNameEnum";
 
 const serverUrisList = (): Server[] => {
   return [
@@ -6,7 +7,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://zec.rocks:443', // this will be the default server.
       region: 'USA' as string,
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: true,
       latency: null,
       obsolete: false,
@@ -14,7 +15,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://lwd1.zcash-infra.com:9067',
       region: 'USA' as string,
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: true,
       latency: null,
       obsolete: false,
@@ -23,7 +24,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://na.zec.rocks:443',
       region: 'North America',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -31,7 +32,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://sa.zec.rocks:443',
       region: 'South America',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -39,7 +40,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://eu.zec.rocks:443',
       region: 'Europe & Africa',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -47,7 +48,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://ap.zec.rocks:443',
       region: 'Asia & Oceania',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -55,7 +56,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://lwd2.zcash-infra.com:9067',
       region: 'Hong Kong',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -63,7 +64,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://lwd3.zcash-infra.com:9067',
       region: 'USA',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -71,7 +72,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://lwd4.zcash-infra.com:9067',
       region: 'Canada',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -79,7 +80,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://lwd5.zcash-infra.com:9067',
       region: 'France',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -87,7 +88,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://lwd6.zcash-infra.com:9067',
       region: 'USA',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -95,7 +96,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://lwd7.zcash-infra.com:9067',
       region: 'Netherlands',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -103,7 +104,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://lwd8.zcash-infra.com:9067',
       region: 'UK',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: false,
@@ -112,7 +113,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://mainnet.lightwalletd.com:9067',
       region: 'North America',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: true,
       latency: null,
       obsolete: true,
@@ -120,7 +121,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://na.lightwalletd.com:443',
       region: 'North America',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: true,
@@ -128,7 +129,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://sa.lightwalletd.com:443',
       region: 'South America',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: true,
@@ -136,7 +137,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://eu.lightwalletd.com:443',
       region: 'Europe & Africa',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: true,
@@ -144,7 +145,7 @@ const serverUrisList = (): Server[] => {
     {
       uri: 'https://ai.lightwalletd.com:443',
       region: 'Asia & Oceania',
-      chain_name: 'main',
+      chain_name: ChainNameEnum.mainChainName,
       default: false,
       latency: null,
       obsolete: true,
