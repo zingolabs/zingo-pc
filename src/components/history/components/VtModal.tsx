@@ -233,7 +233,9 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
           {(status === 'calculated' || status === 'transmitted' || status === 'mempool') && (
             <div>
               <div className={[cstyles.sublight].join(" ")}>Status</div>
-              <div style={{ color: status === 'calculated' || status === 'transmitted' ? 'red' : 'yellow' }}>{status}</div>
+              <div style={{ color: status === 'calculated' || status === 'transmitted' ? Utils.getCssVariable('--color-warning') : Utils.getCssVariable('--color-primary-disable') }}>
+                {status === 'calculated' ? 'Calculated' : status === 'transmitted' ? 'Transmitted' : status === 'mempool' ? 'In Mempool': ''}
+              </div>
             </div>
           )}
         </div>
