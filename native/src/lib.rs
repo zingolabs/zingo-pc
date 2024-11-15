@@ -49,7 +49,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
 
 fn lock_client(lightclient: LightClient) {
     let lc = Arc::new(lightclient);
-    LightClient::start_mempool_monitor(lc.clone());
+    let _ = LightClient::start_mempool_monitor(lc.clone());
 
     LIGHTCLIENT.lock().unwrap().replace(Some(lc));
 }
