@@ -90,7 +90,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zingo PC v1.8.1</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v1.9.0</div>
           <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2024, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
             The MIT License (MIT) Copyright (c) 2024 ZingoLabs

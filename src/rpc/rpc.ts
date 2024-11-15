@@ -193,6 +193,7 @@ export default class RPC {
     // And fetch the rest of the data.
     await this.fetchTotalBalance();
     await this.fetchTandZandOValueTransfers(latestBlockHeight);
+    await this.fetchTandZandOMessages(latestBlockHeight);
     await this.fetchWalletSettings();
 
     console.log(`Finished update data at ${latestBlockHeight}`);
@@ -236,6 +237,7 @@ export default class RPC {
           // And fetch the rest of the data.
           this.fetchTotalBalance();
           this.fetchTandZandOValueTransfers(latestBlockHeight);
+          this.fetchTandZandOMessages(latestBlockHeight);
       
           this.lastBlockHeight = latestBlockHeight;
 
@@ -256,6 +258,7 @@ export default class RPC {
             // And fetch the rest of the data.
             this.fetchTotalBalance();
             this.fetchTandZandOValueTransfers(latestBlockHeight);
+            this.fetchTandZandOMessages(latestBlockHeight);
       
             this.lastBlockHeight = latestBlockHeight;
 
@@ -680,6 +683,25 @@ export default class RPC {
     return txValueTransfersJSON.value_transfers;
   }
 
+  async zingolibMessages() {
+    // fetch value transfers
+    const txMessagesStr: string = await native.zingolib_execute_async("messages", "");
+    if (txMessagesStr) {
+      if (txMessagesStr.toLowerCase().startsWith('error')) {
+        console.log(`Error txs ValueTransfers ${txMessagesStr}`);
+        this.fnSetFetchError('ValueTransfers', txMessagesStr);
+        return {};
+      }
+    } else {
+      console.log('Internal Error txs ValueTransfers');
+      this.fnSetFetchError('ValueTransfers', 'Error: Internal RPC Error');
+      return {};
+    }
+    const txMessagesJSON = JSON.parse(txMessagesStr);
+
+    return txMessagesJSON.value_transfers;
+  }
+
   // This method will get the total balances
   async fetchTotalBalance() {
 
@@ -902,7 +924,7 @@ export default class RPC {
         vtList.push(currentVtList);
       });
 
-    //console.log(TxList);
+    //console.log(vtList);
 
     // we need to sort this list for history...
     // to sort the data here can be better
@@ -943,6 +965,64 @@ export default class RPC {
     })
 
     this.fnSetValueTransfersList(vtListSorted);
+  }
+
+  // Fetch all T and Z and O value transfers
+  async fetchTandZandOMessages(latestBlockHeight: number) {
+    const MessagesJSON: any = await this.zingolibValueTransfers();
+
+    //console.log('value transfers antes ', valueTransfersJSON);
+
+    let mList: ValueTransfer[] = [];
+
+    const walletHeight: number = await RPC.fetchWalletHeight();
+
+    MessagesJSON
+      .forEach((tx: any) => {
+        let currentMList: ValueTransfer = {} as ValueTransfer;
+
+        currentMList.txid = tx.txid;
+        currentMList.time = tx.datetime;
+        // basic in zingolib is the same as send-to-self in zingo.
+        currentMList.type = tx.kind === 'basic' ? 'send-to-self' : tx.kind;
+        currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
+        currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
+
+        // unconfirmed means 0 confirmations, the tx is mining already.
+        // 'pending' is obsolete
+        if (
+          tx.status === 'calculated' ||
+          tx.status === 'transmitted' ||
+          tx.status === 'mempool'
+        ) {
+          currentMList.confirmations = 0;
+        } else  if (tx.status === 'confirmed') {
+          currentMList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
+            ? latestBlockHeight - tx.blockheight + 1
+            : walletHeight - tx.blockheight + 1;
+        } else {
+          // impossible case... I guess.
+          currentMList.confirmations = 0;
+        }
+
+        currentMList.status = tx.status;
+        currentMList.address = !tx.recipient_address ? undefined : tx.recipient_address;
+        currentMList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
+        currentMList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
+        currentMList.pool = !tx.pool_received ? undefined : tx.pool_received;
+
+        if (currentMList.confirmations < 0) {
+          console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
+        }
+        //if (tx.txid.startsWith('426e')) {
+        //  console.log('valuetranfer: ', tx);
+        //  console.log('--------------------------------------------------');
+        //}
+
+        mList.push(currentMList);
+      });
+
+    //console.log(mList);
 
     // we need to sort this list for messages...
     // to sort the data here can be better
@@ -952,7 +1032,7 @@ export default class RPC {
     // - txid
     // - address
     // - pool
-    const mListSorted = [...vtList].sort((a: ValueTransfer, b: ValueTransfer) => {
+    const mListSorted = [...mList].sort((a: ValueTransfer, b: ValueTransfer) => {
       const timeComparison = a.time - b.time; // reverse
       if (timeComparison === 0) {
         // same time
@@ -984,7 +1064,7 @@ export default class RPC {
 
     this.fnSetMessagesList(mListSorted);
   }
-
+  
   // Send a transaction using the already constructed sendJson structure
   async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> {
     // First, get the previous send progress id, so we know which ID to track
