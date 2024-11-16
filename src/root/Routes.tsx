@@ -407,11 +407,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> => {
+  sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string | string[]> => {
     try {
-      const result: string = await this.rpc.sendTransaction(sendJson, setSendProgress);
+      const result: string | string[] = await this.rpc.sendTransaction(sendJson, setSendProgress);
 
-      if (result.toLowerCase().startsWith("error")) {
+      if (typeof result === "string" && result.toLowerCase().startsWith("error")) {
         throw result;
       }
 

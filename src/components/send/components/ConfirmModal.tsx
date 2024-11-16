@@ -27,7 +27,7 @@ type ConfirmModalProps = {
     sendPageState: SendPageState;
     totalBalance: TotalBalance;
     info: Info;
-    sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string>;
+    sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string | string[]>;
     clearToAddrs: () => void;
     closeModal: () => void;
     modalIsOpen: boolean;
@@ -212,21 +212,43 @@ type ConfirmModalProps = {
           (async () => {
             try {
               const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
-              const txid: string = await sendTransaction(sendJson, setSendProgress);
+              const txids: string | string[] = await sendTransaction(sendJson, setSendProgress);
   
-              openErrorModal(
-                "Successfully Broadcast Transaction",
-                <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                    <div>{'Transaction was successfully broadcast.'}</div>
-                    <div>{`TXID: ${txid}`}</div>
+              if (typeof txids === "string") {
+                openErrorModal("Error Sending Transaction", `${txids}`);
+              } else {
+                openErrorModal(
+                  "Successfully Broadcast Transaction",
+                  <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                      <div>{(txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
+                      <div>{`TXID: ${txids[0]}`}</div>
+                      {txids.length > 1 && (
+                        <div>{`TXID: ${txids[1]}`}</div>
+                      )}
+                      {txids.length > 2 && (
+                        <div>{`TXID: ${txids[2]}`}</div>
+                      )}
+                    </div>
+                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], info.currencyName)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                    {txids.length > 1 && (
+                      <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], info.currencyName)}>
+                        View TXID &nbsp;
+                        <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                      </div>
+                    )}
+                    {txids.length > 2 && (
+                      <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], info.currencyName)}>
+                        View TXID &nbsp;
+                        <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                      </div>
+                    )}
                   </div>
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txid, currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                </div>
-              );
+                );  
+              }
   
               clearToAddrs();
   

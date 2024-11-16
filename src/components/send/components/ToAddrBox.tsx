@@ -241,7 +241,7 @@ const ToAddrBox = ({
               </div>
             </div>
             <TextareaAutosize
-              className={[toaddr.memoReplyTo ? cstyles.inputboxmemo : cstyles.inputbox].join(" ")}
+              className={[cstyles.inputbox].join(" ")}
               value={toaddr.memo}
               disabled={isMemoDisabled}
               onChange={(e) => updateToField(toaddr.id as number, null, null, e.target.value, null)}
@@ -257,8 +257,10 @@ const ToAddrBox = ({
                 maxRows={5}
               />
             )}
-            <input style={{ marginTop: 5 }} type="checkbox" onChange={(e) => addReplyTo(e.target.checked)} />
-            Include Reply to Unified address
+            <div className={cstyles.horizontalflex} style={{ marginTop: 5, alignItems: 'center'}}>
+              <input style={{ marginTop: 5 }} type="checkbox" onChange={(e) => addReplyTo(e.target.checked)} />
+              Include Reply to Unified address
+            </div>
           </div>
         )}
       </div>
