@@ -3,7 +3,6 @@ import AddressBookEntry from "./components/AddressbookEntry";
 import ValueTransfer from "./components/ValueTransfer";
 import SendPageState from "./components/SendPageState";
 import ReceivePageState from "./components/ReceivePageState";
-import RPCConfig from "./components/RPCConfig";
 import Info from "./components/Info";
 import ServerSelectState from "./components/ServerSelectState";
 import PasswordState from "./components/PasswordState";
@@ -27,7 +26,6 @@ export {
   SendPageState, 
   SendProgress,
   ReceivePageState, 
-  RPCConfig, 
   Info, 
   ServerSelectState, 
   PasswordState, 

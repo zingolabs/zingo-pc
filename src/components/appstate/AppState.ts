@@ -4,7 +4,6 @@ import AddressBookEntry from "./components/AddressbookEntry";
 import ValueTransfer from "./components/ValueTransfer";
 import SendPageState from "./components/SendPageState";
 import ReceivePageState from "./components/ReceivePageState";
-import RPCConfig from "./components/RPCConfig";
 import Info from "./components/Info";
 import ServerSelectState from "./components/ServerSelectState";
 import PasswordState from "./components/PasswordState";
@@ -41,9 +40,6 @@ export default class AppState {
 
   // Any state for the receive page
   receivePageState: ReceivePageState;
-
-  // The Current configuration of the RPC params
-  rpcConfig: RPCConfig;
 
   // getinfo result
   info: Info;
@@ -88,7 +84,6 @@ export default class AppState {
     this.serverSelectState = new ServerSelectState();
     this.sendPageState = new SendPageState();
     this.receivePageState = {} as ReceivePageState;
-    this.rpcConfig = new RPCConfig();
     this.info = new Info();
     this.verificationProgress = 100;
     this.rescanning = false;

@@ -16,7 +16,6 @@ import {
   ValueTransfer,
   SendPageState,
   ToAddr,
-  RPCConfig,
   Info,
   ReceivePageState,
   AddressBookEntry,
@@ -353,11 +352,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ sendPageState: newSendPageState });
   };
 
-  setRPCConfig = (rpcConfig: RPCConfig) => {
-    console.log('=============== rpc config', rpcConfig);
-    this.setState({ rpcConfig });
-  
-    this.rpc.configure(rpcConfig);
+  runRPCConfiigure = () => {
+    console.log('=============== rpc configure');
+    
+    this.rpc.configure();
   };
 
   setZecPrice = (price?: number) => {
@@ -721,7 +719,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.LOADING}
                 render={() => (
                   <LoadingScreen
-                    setRPCConfig={this.setRPCConfig}
+                    runRPCConfiigure={this.runRPCConfiigure}
                     setRescanning={this.setRescanning}
                     setInfo={this.setInfo}
                     openServerSelectModal={this.openServerSelectModal}

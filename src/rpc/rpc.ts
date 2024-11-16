@@ -1,7 +1,6 @@
 import {
   TotalBalance,
   ValueTransfer,
-  RPCConfig,
   Info,
   SendProgress,
   AddressType,
@@ -16,8 +15,6 @@ import native from "../native.node";
 import { RPCInfoType } from "./components/RPCInfoType";
 
 export default class RPC {
-  rpcConfig?: RPCConfig;
-
   fnSetInfo: (info: Info) => void;
   fnSetVerificationProgress: (verificationProgress: number) => void;
   fnSetTotalBalance: (tb: TotalBalance) => void;
@@ -67,9 +64,7 @@ export default class RPC {
     this.fnSetFetchError = fnSetFetchError;
   }
 
-  async configure(rpcConfig: RPCConfig) {
-    this.rpcConfig = rpcConfig;
-
+  async configure() {
     if (!this.refreshTimerID) {
       this.refreshTimerID = setInterval(() => {
         console.log('refresh - 30 sec');
