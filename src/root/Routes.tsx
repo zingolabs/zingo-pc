@@ -547,22 +547,24 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     <div>{`TXID: ${resultJSON.txids[2]}`}</div>
                   )}
                 </div>
-                <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], this.state.info.currencyName)}>
-                  View TXID &nbsp;
-                  <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], this.state.info.currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                  {resultJSON.txids.length > 1 && (
+                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], this.state.info.currencyName)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
+                  {resultJSON.txids.length > 2 && (
+                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], this.state.info.currencyName)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
                 </div>
-                {resultJSON.txids.length > 1 && (
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], this.state.info.currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
-                {resultJSON.txids.length > 2 && (
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], this.state.info.currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
               </div>
             );
           }

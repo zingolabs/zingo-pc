@@ -230,22 +230,24 @@ type ConfirmModalProps = {
                         <div>{`TXID: ${txids[2]}`}</div>
                       )}
                     </div>
-                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], info.currencyName)}>
-                      View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                      <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], info.currencyName)}>
+                        View TXID &nbsp;
+                        <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                      </div>
+                      {txids.length > 1 && (
+                        <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], info.currencyName)}>
+                          View TXID &nbsp;
+                          <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                        </div>
+                      )}
+                      {txids.length > 2 && (
+                        <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], info.currencyName)}>
+                          View TXID &nbsp;
+                          <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                        </div>
+                      )}
                     </div>
-                    {txids.length > 1 && (
-                      <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], info.currencyName)}>
-                        View TXID &nbsp;
-                        <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                      </div>
-                    )}
-                    {txids.length > 2 && (
-                      <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], info.currencyName)}>
-                        View TXID &nbsp;
-                        <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                      </div>
-                    )}
                   </div>
                 );  
               }
