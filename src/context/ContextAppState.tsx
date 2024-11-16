@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { Address, AddressBookEntry, AppState, Info, PasswordState, RPCConfig, ReceivePageState, SendPageState, ServerSelectState, TotalBalance, ValueTransfer, WalletSettings, Server, FetchErrorType } from "../components/appstate";
+import { Address, AddressBookEntry, AppState, Info, PasswordState, ReceivePageState, SendPageState, ServerSelectState, TotalBalance, ValueTransfer, WalletSettings, Server, FetchErrorType } from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
 
 export const defaultAppState: AppState = {
@@ -14,7 +14,6 @@ export const defaultAppState: AppState = {
   serverSelectState: new ServerSelectState(),
   sendPageState: new SendPageState(),
   receivePageState: {} as ReceivePageState,
-  rpcConfig: new RPCConfig(),
   info: new Info(),
   verificationProgress: 100,
   rescanning: false,

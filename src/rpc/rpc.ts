@@ -1,7 +1,6 @@
 import {
   TotalBalance,
   ValueTransfer,
-  RPCConfig,
   Info,
   SendProgress,
   AddressType,
@@ -16,8 +15,6 @@ import native from "../native.node";
 import { RPCInfoType } from "./components/RPCInfoType";
 
 export default class RPC {
-  rpcConfig?: RPCConfig;
-
   fnSetInfo: (info: Info) => void;
   fnSetVerificationProgress: (verificationProgress: number) => void;
   fnSetTotalBalance: (tb: TotalBalance) => void;
@@ -67,9 +64,7 @@ export default class RPC {
     this.fnSetFetchError = fnSetFetchError;
   }
 
-  async configure(rpcConfig: RPCConfig) {
-    this.rpcConfig = rpcConfig;
-
+  async configure() {
     if (!this.refreshTimerID) {
       this.refreshTimerID = setInterval(() => {
         console.log('refresh - 30 sec');
@@ -1066,12 +1061,12 @@ export default class RPC {
   }
   
   // Send a transaction using the already constructed sendJson structure
-  async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> {
+  async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string | string[]> {
     // First, get the previous send progress id, so we know which ID to track
     const prevProgressStr: string = await native.zingolib_execute_async("sendprogress", "");
     const prevProgressJSON = JSON.parse(prevProgressStr);
     const prevSendId: number = prevProgressJSON.id;
-    let sendTxids: string = '';
+    let sendTxids: string[] = [];
 
     // proposing...
     try {
@@ -1097,7 +1092,7 @@ export default class RPC {
           console.log(`Error confirming Tx: ${respJSON.error}`);
           throw Error(respJSON.error);
         } else if (respJSON.txids) {
-          sendTxids = respJSON.txids.join(', ');
+          sendTxids = respJSON.txids as string[];
         } else {
           console.log(`Error confirming: no error, no txids `);
           throw Error('Error confirming: no error, no txids');
@@ -1111,7 +1106,7 @@ export default class RPC {
     const startTimeSeconds: number = new Date().getTime() / 1000;
 
     // The send command is async, so we need to poll to get the status
-    const sendTxPromise: Promise<string> = new Promise((resolve, reject) => {
+    const sendTxPromise: Promise<string | string[]> = new Promise((resolve, reject) => {
       const intervalID = setInterval(async () => {
         const progressStr: string = await native.zingolib_execute_async("sendprogress", "");
         const progressJSON = JSON.parse(progressStr);
@@ -1163,8 +1158,8 @@ export default class RPC {
           // And refresh data (full refresh)
           this.refresh(true);
 
-          const progressTxids = progressJSON.txid.replaceAll('created txid: ', '').split(' & ').join(', ');
-          resolve(progressTxids as string);
+          const progressTxids: string[] = progressJSON.txids;
+          resolve(progressTxids as string[]);
         }
 
         if (progressJSON.error) {
@@ -1175,7 +1170,7 @@ export default class RPC {
           // And refresh data (full refresh)
           this.refresh(true);
 
-          resolve(sendTxids as string);
+          resolve(sendTxids as string[]);
         }
       }, 2 * 1000); // Every 2 seconds
     });

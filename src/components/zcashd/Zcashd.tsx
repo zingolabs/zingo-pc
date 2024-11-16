@@ -1,12 +1,13 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Zcashd.module.css";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine"; 
 import { ContextApp } from "../../context/ContextAppState";
-import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
 import Utils from "../../utils/utils";
+import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
+const { ipcRenderer } = window.require("electron");
 
 type ZcashdProps = {
   refresh: () => void;
@@ -16,14 +17,25 @@ type ZcashdProps = {
 const chains = {
   "main": "Mainnet",
   "test": "Testnet",
-  "regtest": "Regtest"
+  "regtest": "Regtest",
+  "": "" 
 }; 
 
 const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
   const context = useContext(ContextApp);
 
-  const { info, rpcConfig } = context;
-  const { url, chain_name }: {url: string, chain_name: '' | ChainNameEnum} = rpcConfig;
+  const { info } = context;
+
+  const [url, setUrl] = useState<string>("");
+  const [chain_name, setChain_name] = useState<ChainNameEnum | "">("");
+
+  useEffect(() => {
+    ( async () => {
+      const settings = await ipcRenderer.invoke("loadSettings");
+      setUrl(settings?.serveruri || ''); 
+      setChain_name(settings?.serverchain_name || '');
+    })();
+  }, []);
 
   if (!info || !info.latestBlock) {
     return (

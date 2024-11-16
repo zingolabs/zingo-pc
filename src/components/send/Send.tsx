@@ -23,7 +23,7 @@ import getSendManyJSON from "./components/getSendManyJSON";
 
 type SendProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
-  sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string>;
+  sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string | string[]>;
   setSendPageState: (sendPageState: SendPageState) => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
   openPasswordAndUnlockIfNeeded: (successCallback: () => void) => void;

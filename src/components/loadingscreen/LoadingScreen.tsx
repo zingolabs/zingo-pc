@@ -4,7 +4,7 @@ import TextareaAutosize from "react-textarea-autosize";
 import request from "request";
 import progress from "progress-stream";
 import native from "../../native.node";
-import { RPCConfig, Info, Server } from "../appstate";
+import { Info, Server } from "../appstate";
 import RPC from "../../rpc/rpc";
 import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
@@ -22,8 +22,6 @@ class LoadingScreenState {
   currentStatusIsError: boolean;
 
   loadingDone: boolean;
-
-  rpcConfig: RPCConfig | null;
 
   url: string;
 
@@ -59,7 +57,6 @@ class LoadingScreenState {
     this.currentStatus = currentStatus;
     this.currentStatusIsError = currentStatusIsError;
     this.loadingDone = false;
-    this.rpcConfig = null;
     this.url = "";
     this.chain_name = "";
     this.selection = '';
@@ -75,7 +72,7 @@ class LoadingScreenState {
 }
 
 type LoadingScreenProps = {
-  setRPCConfig: (rpcConfig: RPCConfig) => void;
+  runRPCConfiigure: () => void;
   setRescanning: (rescan: boolean, prevSyncId: number) => void;
   setInfo: (info: Info) => void;
   openServerSelectModal: () => void;
@@ -433,8 +430,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   runSyncStatusPoller = async (prevSyncId: number) => {
     console.log('start runSyncStatusPoller');
 
-    const { setRPCConfig, setInfo, setRescanning } = this.props;
-    const { url, chain_name } = this.state;
+    const { runRPCConfiigure, setInfo, setRescanning } = this.props;
 
     const info: Info = await RPC.getInfoObject();
     console.log(info);
@@ -478,11 +474,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
           setRescanning(false, prevSyncId);
 
-          // Configure the RPC, which will setup the refresh
-          const rpcConfig = new RPCConfig();
-          rpcConfig.url = url;
-          rpcConfig.chain_name = chain_name;
-          setRPCConfig(rpcConfig);
+          runRPCConfiigure();
 
           // And cancel the updater
           clearInterval(poller);

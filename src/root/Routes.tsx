@@ -16,7 +16,6 @@ import {
   ValueTransfer,
   SendPageState,
   ToAddr,
-  RPCConfig,
   Info,
   ReceivePageState,
   AddressBookEntry,
@@ -353,11 +352,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ sendPageState: newSendPageState });
   };
 
-  setRPCConfig = (rpcConfig: RPCConfig) => {
-    console.log('=============== rpc config', rpcConfig);
-    this.setState({ rpcConfig });
-  
-    this.rpc.configure(rpcConfig);
+  runRPCConfiigure = () => {
+    console.log('=============== rpc configure');
+    
+    this.rpc.configure();
   };
 
   setZecPrice = (price?: number) => {
@@ -409,11 +407,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string> => {
+  sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string | string[]> => {
     try {
-      const result: string = await this.rpc.sendTransaction(sendJson, setSendProgress);
+      const result: string | string[] = await this.rpc.sendTransaction(sendJson, setSendProgress);
 
-      if (result.toLowerCase().startsWith("error")) {
+      if (typeof result === "string" && result.toLowerCase().startsWith("error")) {
         throw result;
       }
 
@@ -549,22 +547,24 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     <div>{`TXID: ${resultJSON.txids[2]}`}</div>
                   )}
                 </div>
-                <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], this.state.info.currencyName)}>
-                  View TXID &nbsp;
-                  <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], this.state.info.currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                  {resultJSON.txids.length > 1 && (
+                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], this.state.info.currencyName)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
+                  {resultJSON.txids.length > 2 && (
+                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], this.state.info.currencyName)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
                 </div>
-                {resultJSON.txids.length > 1 && (
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], this.state.info.currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
-                {resultJSON.txids.length > 2 && (
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], this.state.info.currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
               </div>
             );
           }
@@ -721,7 +721,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.LOADING}
                 render={() => (
                   <LoadingScreen
-                    setRPCConfig={this.setRPCConfig}
+                    runRPCConfiigure={this.runRPCConfiigure}
                     setRescanning={this.setRescanning}
                     setInfo={this.setInfo}
                     openServerSelectModal={this.openServerSelectModal}
