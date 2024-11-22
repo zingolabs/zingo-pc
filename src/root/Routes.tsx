@@ -41,7 +41,6 @@ import ServerSelectModal from "../components/serverselectmodal/ServerSelectModal
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
 import native from "../native.node";
-import deepDiff from "deep-diff";
 import { Messages } from "../components/messages";
 
 type Props = {};
@@ -210,7 +209,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setTotalBalance = (totalBalance: TotalBalance) => {
-    if (deepDiff(totalBalance, this.state.totalBalance)) {
+    if (!isEqual(totalBalance, this.state.totalBalance)) {
       console.log('=============== total balance', totalBalance);
       this.setState({ totalBalance });
     }
@@ -275,14 +274,14 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setValueTransferList = (valueTransfers: ValueTransfer[]) => {
-    if (deepDiff(valueTransfers, this.state.valueTransfers)) {
+    if (!isEqual(valueTransfers, this.state.valueTransfers)) {
       console.log('=============== ValueTransfer list', valueTransfers);
       this.setState({ valueTransfers });
     }
   };
 
   setMessagesList = (messages: ValueTransfer[]) => {
-    if (deepDiff(messages, this.state.messages)) {
+    if (!isEqual(messages, this.state.messages)) {
       console.log('=============== ValueTransfer Messages list', messages);
       this.setState({ messages });
     }
@@ -553,13 +552,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                   </div>
                   {resultJSON.txids.length > 1 && (
-                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], this.state.info.currencyName)}>
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], this.state.info.currencyName)}>
                       View TXID &nbsp;
                       <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                     </div>
                   )}
                   {resultJSON.txids.length > 2 && (
-                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], this.state.info.currencyName)}>
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], this.state.info.currencyName)}>
                       View TXID &nbsp;
                       <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                     </div>
