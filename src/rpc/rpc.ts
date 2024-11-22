@@ -921,50 +921,12 @@ export default class RPC {
 
     //console.log(vtList);
 
-    // we need to sort this list for history...
-    // to sort the data here can be better
-    // we need to sort the array properly.
-    // by:
-    // - time
-    // - txid
-    // - address
-    // - pool
-    const vtListSorted = [...vtList].sort((a: any, b: any) => {
-      const timeComparison = b.time - a.time;
-      if (timeComparison === 0) {
-        // same time
-        const txidComparison = a.txid.localeCompare(b.txid);
-        if (txidComparison === 0) {
-          // same txid
-          const aAddress = a.address?.toString() || '';
-          const bAddress = b.address?.toString() || '';
-          const addressComparison = aAddress.localeCompare(bAddress);
-          if (addressComparison === 0) {
-            // same address
-            const aPoolType = a.poolType?.toString() || '';
-            const bPoolType = b.poolType?.toString() || '';
-            // last one sort criteria - poolType.
-            return aPoolType.localeCompare(bPoolType);
-          } else {
-            // different address
-            return addressComparison;
-          }
-        } else {
-          // different txid
-          return txidComparison;
-        }
-      } else {
-        // different time
-        return timeComparison;
-      }
-    })
-
-    this.fnSetValueTransfersList(vtListSorted);
+    this.fnSetValueTransfersList(vtList);
   }
 
   // Fetch all T and Z and O value transfers
   async fetchTandZandOMessages(latestBlockHeight: number) {
-    const MessagesJSON: any = await this.zingolibValueTransfers();
+    const MessagesJSON: any = await this.zingolibMessages();
 
     //console.log('value transfers antes ', valueTransfersJSON);
 
@@ -1019,45 +981,7 @@ export default class RPC {
 
     //console.log(mList);
 
-    // we need to sort this list for messages...
-    // to sort the data here can be better
-    // we need to sort the array properly.
-    // by:
-    // - time (reverse)
-    // - txid
-    // - address
-    // - pool
-    const mListSorted = [...mList].sort((a: ValueTransfer, b: ValueTransfer) => {
-      const timeComparison = a.time - b.time; // reverse
-      if (timeComparison === 0) {
-        // same time
-        const txidComparison = a.txid.localeCompare(b.txid);
-        if (txidComparison === 0) {
-          // same txid
-          const aAddress = a.address?.toString() || '';
-          const bAddress = b.address?.toString() || '';
-          const addressComparison = aAddress.localeCompare(bAddress);
-          if (addressComparison === 0) {
-            // same address
-            const aPoolType = a.pool?.toString() || '';
-            const bPoolType = b.pool?.toString() || '';
-            // last one sort criteria - poolType.
-            return aPoolType.localeCompare(bPoolType);
-          } else {
-            // different address
-            return addressComparison;
-          }
-        } else {
-          // different txid
-          return txidComparison;
-        }
-      } else {
-        // different time
-        return timeComparison;
-      }
-    });
-
-    this.fnSetMessagesList(mListSorted);
+    this.fnSetMessagesList(mList);
   }
   
   // Send a transaction using the already constructed sendJson structure
@@ -1091,7 +1015,7 @@ export default class RPC {
         if (respJSON.error) {
           console.log(`Error confirming Tx: ${respJSON.error}`);
           throw Error(respJSON.error);
-        } else if (respJSON.txids) {
+        } else if (respJSON.txids && respJSON.txids.length > 0) {
           sendTxids = respJSON.txids as string[];
         } else {
           console.log(`Error confirming: no error, no txids `);
@@ -1144,7 +1068,7 @@ export default class RPC {
           return;
         }
 
-        if (!progressJSON.txid && !progressJSON.error && !sendTxids) {
+        if ((!progressJSON.txids || progressJSON.txids.length === 0) && !progressJSON.error && !sendTxids) {
           // Still processing
           setSendProgress(updatedProgress);
           return;
@@ -1154,12 +1078,11 @@ export default class RPC {
         clearInterval(intervalID);
         setSendProgress(undefined);
 
-        if (progressJSON.txid) {
+        if (progressJSON.txids && progressJSON.txids.length > 0) {
           // And refresh data (full refresh)
           this.refresh(true);
 
-          const progressTxids: string[] = progressJSON.txids;
-          resolve(progressTxids as string[]);
+          resolve(progressJSON.txids as string[]);
         }
 
         if (progressJSON.error) {
