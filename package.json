@@ -122,10 +122,8 @@
     "webpack-manifest-plugin": "2.2.0",
     "workbox-webpack-plugin": "5.1.4"
   },
-  "resolutions": {
-  },
   "scripts": {
-    "postinstall": "node set-resolutions-ios.js",
+    "postinstall": "node set-resolutions-macos.js",
     "lint": "eslint . --fix --ext .js,.jsx,.ts,.tsx",
     "start": "concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
     "script:build": "cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
@@ -302,5 +300,8 @@
     "presets": [
       "react-app"
     ]
+  },
+  "resolutions": {
+    "fsevents": "2.3.2"
   }
 }
