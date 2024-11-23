@@ -117,12 +117,15 @@
     "url-loader": "4.1.1",
     "url-parse": "^1.5.10",
     "web-vitals": "^1.0.1",
-    "webpack": "4.44.2",
+    "webpack": "4.47.0",
     "webpack-dev-server": "3.11.1",
     "webpack-manifest-plugin": "2.2.0",
     "workbox-webpack-plugin": "5.1.4"
   },
+  "resolutions": {
+  },
   "scripts": {
+    "postinstall": "node set-resolutions-ios.js",
     "lint": "eslint . --fix --ext .js,.jsx,.ts,.tsx",
     "start": "concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
     "script:build": "cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
