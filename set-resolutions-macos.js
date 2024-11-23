@@ -14,6 +14,9 @@ if (os.platform() === 'darwin') {
     fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
     console.log('Resolutions updated only for macOS, re-running yarn again.');
     execSync('yarn install', { stdio: 'inherit' });
+    delete packageJson.resolutions.fsevents;
+    delete packageJson.resolutions;
+    fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2));
   }
 } else {
   console.log('Resolutions NOT updated, this is only for macOS.');
