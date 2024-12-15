@@ -43,6 +43,12 @@ jobs:
       - name: yarn install
         run: |
           yarn install
+      - name: yarn lint
+        run: |
+          yarn lint
+      - name: yarn tsc
+        run: |
+          yarn tsc
       - name: Build and Package@Linux
         if: contains(matrix.os, 'ubuntu')
         run: |
