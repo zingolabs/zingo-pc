@@ -73,7 +73,6 @@ class LoadingScreenState {
 
 type LoadingScreenProps = {
   runRPCConfiigure: () => void;
-  setRescanning: (rescan: boolean, prevSyncId: number) => void;
   setInfo: (info: Info) => void;
   openServerSelectModal: () => void;
   setReadOnly: (readOnly: boolean) => void;
@@ -120,15 +119,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     })
     console.log('did mount, disable TRUE');
 
-    const r = native.zingolib_set_crypto_default_provider_to_ring();
+    const r = native.set_crypto_default_provider_to_ring();
     console.log('crypto provider result', r);
 
-    const { rescanning, prevSyncId } = this.context;
-    if (rescanning) {
-      await this.runSyncStatusPoller(prevSyncId);
-    } else {
-      await this.doFirstTimeSetup();
-    }
+    await this.doFirstTimeSetup();
+    await this.runSyncStatusPoller();
 
     this.setState({
       buttonsDisable: false,
@@ -297,11 +292,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     
     try {
       // Test to see if the wallet exists 
-      if (!native.zingolib_wallet_exists(url, chain_name)) {
+      if (!native.wallet_exists(url, chain_name, "High", "3")) {
         // Show the wallet creation screen
         this.setState({ walletScreen: 1 });
       } else {
-        const result: string = native.zingolib_init_from_b64(url, chain_name);
+        const result: string = native.init_from_b64(url, chain_name, "High", "3");
         console.log(`Initialization: ${result}`);
         if (result !== "OK") {
           this.setState({
@@ -320,7 +315,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
         this.getInfo();
         // seed or ufvk
-        const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+        const walletKindStr: string = await native.wallet_kind();
         const walletKindJSON = JSON.parse(walletKindStr);
 
         if (
@@ -363,7 +358,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   calculateLatency = async (server: Server, _index: number) => {
     const start: number = Date.now();
-    const resp: string = await native.zingolib_get_latest_block_server(server.uri);
+    const resp: string = await native.get_latest_block_server(server.uri);
   
     const end: number = Date.now();
     let latency = null;
@@ -403,15 +398,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       // Do a sync at start
       this.setState({ currentStatus: "Setting things up..." });
 
-      // Grab the previous sync ID.
-      const syncStatus: string = await RPC.doSyncStatus();
-      const prevSyncId: number = JSON.parse(syncStatus).sync_id;
-
       // This will do the sync in another thread, so we have to check for sync status
       RPC.doSync();
       console.log('after dosync');
 
-      this.runSyncStatusPoller(prevSyncId);
+      this.runSyncStatusPoller();
     } catch (err) {
       console.log("Error initializing", err);
       this.setState({
@@ -427,10 +418,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   }
 
-  runSyncStatusPoller = async (prevSyncId: number) => {
+  runSyncStatusPoller = async () => {
     console.log('start runSyncStatusPoller');
 
-    const { runRPCConfiigure, setInfo, setRescanning } = this.props;
+    const { runRPCConfiigure, setInfo } = this.props;
 
     const info: Info = await RPC.getInfoObject();
     console.log(info);
@@ -466,13 +457,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       } else {
         const ss = JSON.parse(syncstatus);
         console.log('sync status', ss);
-        console.log(`Prev SyncID: ${prevSyncId} - Current SyncID: ${ss.sync_id} - progress: ${ss.in_progress} - Current Batch: ${ss.batch_num}`);
+        console.log(`Current SyncID: ${ss.sync_id} - progress: ${ss.in_progress} - Current Batch: ${ss.batch_num}`);
 
         // if this process synced already 25 batches (2.500 blocks) -> let's go to dashboard 
-        if (ss.sync_id > prevSyncId || !ss.in_progress || ss.batch_num >= 25) {
+        if (!ss.in_progress || ss.batch_num >= 25) {
           setInfo(info);
-
-          setRescanning(false, prevSyncId);
 
           runRPCConfiigure();
 
@@ -524,7 +513,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   createNewWallet = async () => {
     const { url, chain_name } = this.state;
-    const result: string = native.zingolib_init_new(url, chain_name);
+    const result: string = native.init_new(url, chain_name, "High", "3");
 
     if (result.toLowerCase().startsWith("error")) {
       console.log('creating new wallet', result);
@@ -588,7 +577,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { seed, birthday, url, chain_name } = this.state;
     console.log(`Restoring ${seed} with ${birthday}`);
 
-    const result: string = native.zingolib_init_from_seed(url, seed, birthday, chain_name);
+    const result: string = native.init_from_seed(seed, birthday, url, chain_name, "High", "3");
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
@@ -602,7 +591,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { ufvk, birthday, url, chain_name } = this.state;
     console.log(`Restoring ${ufvk} with ${birthday}`);
 
-    const result: string = native.zingolib_init_from_ufvk(url, ufvk, birthday, chain_name);
+    const result: string = native.init_from_ufvk(ufvk, birthday, url, chain_name, "High", "3");
     if (result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
@@ -614,14 +603,14 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   deleteWallet = async () => { 
     const { url, chain_name } = this.state;
-    if (native.zingolib_wallet_exists(url, chain_name)) {
+    if (native.wallet_exists(url, chain_name, "High", "3")) {
       // interrupt syncing, just in case.
-      const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
+      const resultInterrupt: string = await native.stop_sync();
       console.log("Interrupting sync ...", resultInterrupt);
       setTimeout(async () => {
-        const resultDelete: string = await native.zingolib_execute_async("delete", "");
+        const resultDelete: string = await native.delete_wallet();
         console.log("deleting ...", resultDelete);
-        native.zingolib_deinitialize();
+        native.deinitialize();
   
         // restart the App now.
         ipcRenderer.send("apprestart");

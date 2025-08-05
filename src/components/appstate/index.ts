@@ -2,10 +2,8 @@ import TotalBalance from "./components/TotalBalance";
 import AddressBookEntry from "./components/AddressbookEntry";
 import ValueTransfer from "./components/ValueTransfer";
 import SendPageState from "./components/SendPageState";
-import ReceivePageState from "./components/ReceivePageState";
 import Info from "./components/Info";
 import ServerSelectState from "./components/ServerSelectState";
-import PasswordState from "./components/PasswordState";
 import WalletSettings from "./components/WalletSettings";
 import AddressType from "./components/AddressType";
 import SendProgress from "./components/SendProgress";
@@ -25,10 +23,8 @@ export {
   ValueTransfer, 
   SendPageState, 
   SendProgress,
-  ReceivePageState, 
   Info, 
   ServerSelectState, 
-  PasswordState, 
   WalletSettings, 
   AppState,
   ToAddr,

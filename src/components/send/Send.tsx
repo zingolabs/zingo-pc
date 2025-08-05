@@ -26,7 +26,6 @@ type SendProps = {
   sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string | string[]>;
   setSendPageState: (sendPageState: SendPageState) => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
-  openPasswordAndUnlockIfNeeded: (successCallback: () => void) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
 };
@@ -36,7 +35,6 @@ const Send: React.FC<SendProps> = ({
   sendTransaction,
   setSendPageState,
   openErrorModal,
-  openPasswordAndUnlockIfNeeded,
   calculateShieldFee,
   handleShieldButton,
 }) => {
@@ -236,27 +234,34 @@ const Send: React.FC<SendProps> = ({
     // transparent funds are not spendable.
     let _spendable: number = totalBalance.spendableZ + totalBalance.spendableO;
     if (sendPageState.toaddrs[0].to) {
-      const spendableBalanceJSON = { address: sendPageState.toaddrs[0].to, zennies_for_zingo: false };
-      const result: string = await native.zingolib_execute_async("spendablebalance", JSON.stringify(spendableBalanceJSON));
+      const result: string = await native.get_spendable_balance_with_address(sendPageState.toaddrs[0].to, "false");
       console.log('SPENDABLEBALANCE', result);
-      const resultJSON = JSON.parse(result);
-      if (resultJSON.error) {
-        _error = resultJSON.error;
+      if (result.toLowerCase().startsWith('error')) {
+        _error = result;
         _spendable = 0;
-      } else if (resultJSON.balance) {
-        _spendable = resultJSON.balance / 10 ** 8;
+      } else {
+        const resultJSON = JSON.parse(result);
+        if (resultJSON.spendable_balance) {
+          _spendable = resultJSON.spendable_balance / 10 ** 8;
+        } else {
+          _spendable = 0;
+        }
       }
     }
     if (sendPageState.toaddrs[0].amount >= 0 && sendPageState.toaddrs[0].to && !_error) {
       const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
       console.log(sendJson);
-      const result: string = await native.zingolib_execute_async("send", JSON.stringify(sendJson));
+      const result: string = await native.send(JSON.stringify(sendJson));
       console.log('SEND', result);
-      const resultJSON = JSON.parse(result);
-      if (resultJSON.error) {
-        _error = resultJSON.error;
-      } else if (resultJSON.fee) {
-        _fee = resultJSON.fee / 10 ** 8;
+      if (result.toLowerCase().startsWith('error')) {
+        _error = result;
+      } else {
+        const resultJSON = JSON.parse(result);
+        if (resultJSON.error) {
+          _error = resultJSON.error;
+        } else if (resultJSON.fee) {
+          _fee = resultJSON.fee / 10 ** 8;
+        }
       }
     }
     _spendable = Number(Utils.maxPrecisionTrimmed(_spendable));
@@ -289,7 +294,6 @@ const Send: React.FC<SendProps> = ({
           closeModal={closeModal}
           modalIsOpen={modalIsOpen}
           clearToAddrs={clearToAddrs}
-          openPasswordAndUnlockIfNeeded={openPasswordAndUnlockIfNeeded}
           sendFee={sendFee}
           currencyName={info.currencyName}
       />

@@ -58,7 +58,7 @@ export default class Utils {
 
   static async getAddressType(addr: string): Promise<AddressType | undefined> {
     if (!addr) return;
-    const resultParse: string = await native.zingolib_execute_async('parse_address', addr);
+    const resultParse: string = await native.parse_address(addr);
     if (resultParse) {
       if (resultParse.toLowerCase().startsWith('error')) {
         return;

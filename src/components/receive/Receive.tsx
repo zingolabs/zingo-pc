@@ -21,9 +21,7 @@ const Receive: React.FC<ReceiveProps> = ({
     addresses,
     addressBook,
     info,
-    receivePageState,
   } = context;
-  const { rerenderKey } = receivePageState;
 
   const [uaddrs, setUaddrs] = useState<Address[]>([]);
   const [defaultUaddr, setDefaultUaddr] = useState<string>('')
@@ -37,49 +35,25 @@ const Receive: React.FC<ReceiveProps> = ({
     const _uaddrs: Address[] = addresses
       .filter((a: Address) => a.type === AddressType.unified);
     let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[0].address : "";
-    if (receivePageState && receivePageState.newType === AddressType.unified) {
-      _defaultUaddr = receivePageState.newAddress;
-
-      // move this address to the front, since the scrollbar will reset when we re-render
-      _uaddrs.sort((x: Address, y: Address) => {
-        return x.address === _defaultUaddr ? -1 : y.address === _defaultUaddr ? 1 : 0;
-      });
-    }
     setUaddrs(_uaddrs);
     setDefaultUaddr(_defaultUaddr);
-  }, [addresses, receivePageState]);
+  }, [addresses]);
   
   useEffect(() => {
     const _zaddrs: Address[] = addresses
       .filter((a: Address) => a.type === AddressType.sapling);
     let _defaultZaddr: string = _zaddrs.length > 0 ? _zaddrs[0].address : "";
-    if (receivePageState && receivePageState.newType === AddressType.sapling) {
-      _defaultZaddr = receivePageState.newAddress;
-
-      // move this address to the front, since the scrollbar will reset when we re-render
-      _zaddrs.sort((x: Address, y: Address) => {
-        return x.address === _defaultZaddr ? -1 : y.address === _defaultZaddr ? 1 : 0;
-      });
-    }
     setZaddrs(_zaddrs);
     setDefaultZaddr(_defaultZaddr);
-  }, [addresses, receivePageState]);
+  }, [addresses]);
 
   useEffect(() => {
     const _taddrs: Address[] = addresses
       .filter((a: Address) => a.type === AddressType.transparent);
     let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[0].address : "";
-    if (receivePageState && receivePageState.newType === AddressType.transparent) {
-      _defaultTaddr = receivePageState.newAddress;
-
-      // move this address to the front, since the scrollbar will reset when we re-render
-      _taddrs.sort((x: Address, y: Address) => {
-        return x.address === _defaultTaddr ? -1 : y.address === _defaultTaddr ? 1 : 0;
-      });
-    }
     setTaddrs(_taddrs);
     setDefaultTaddr(_defaultTaddr);
-  }, [addresses, receivePageState]);
+  }, [addresses]);
 
   useEffect(() => {
     const _addressBookMap = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
@@ -102,7 +76,7 @@ const Receive: React.FC<ReceiveProps> = ({
           </TabList>
 
           {uaddrs && uaddrs.length > 0 && (
-            <TabPanel key={`ua${rerenderKey}`}>
+            <TabPanel key={'ua'}>
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultUaddr]}>
                   {uaddrs.map((a: Address) => (
@@ -121,7 +95,7 @@ const Receive: React.FC<ReceiveProps> = ({
           )}
 
           {zaddrs && zaddrs.length > 0 && (
-            <TabPanel key={`z${rerenderKey}`}>
+            <TabPanel key={'z'}>
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultZaddr]}>
                   {zaddrs.map((a: Address) => (
@@ -140,7 +114,7 @@ const Receive: React.FC<ReceiveProps> = ({
           )}
 
           {taddrs && taddrs.length > 0 && (
-            <TabPanel key={`t${rerenderKey}`}>
+            <TabPanel key={'t'}>
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultTaddr]}>
                   {taddrs.map((a: Address) => (

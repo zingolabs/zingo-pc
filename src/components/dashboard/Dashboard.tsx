@@ -44,7 +44,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
 
   useEffect(() => {
     (async () => {
-      const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+      const walletKindStr: string = await native.wallet_kind();
       const walletKindJSON = JSON.parse(walletKindStr);
 
       if (!walletKindJSON.transparent) {

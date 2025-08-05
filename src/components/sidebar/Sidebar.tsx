@@ -20,40 +20,19 @@ const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
 
 type SidebarProps = {
-  setRescanning: (rescan: boolean, prevSyncId: number) => void;
   setInfo: (info: Info) => void;
   clearTimers: () => void;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
-  getPrivKeyAsString: (address: string) => Promise<string>;
-  importPrivKeys: (keys: string[], birthday: string) => boolean;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
-  openPassword: (
-    confirmNeeded: boolean,
-    passwordCallback: (p: string) => void,
-    closeCallback: () => void,
-    helpText?: string | JSX.Element
-  ) => void;
-  openPasswordAndUnlockIfNeeded: (successCallback: () => void | Promise<void>) => void;
-  lockWallet: () => Promise<boolean>;
-  encryptWallet: (p: string) => Promise<boolean>;
-  decryptWallet: (p: string) => Promise<boolean>;
   updateWalletSettings: () => Promise<void>;
   navigateToLoadingScreen: (b: boolean, c: string, s: Server[]) => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
-  setRescanning, 
   setInfo, 
   clearTimers,
   setSendTo,
-  getPrivKeyAsString,
-  importPrivKeys,
   openErrorModal,
-  openPassword,
-  openPasswordAndUnlockIfNeeded,
-  lockWallet,
-  encryptWallet,
-  decryptWallet,
   updateWalletSettings,
   navigateToLoadingScreen,
   history,
@@ -138,66 +117,64 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     });
 
     // Export Seed
-    ipcRenderer.on("seed", () => {
-      openPasswordAndUnlockIfNeeded(async () => {
-        const seed: string = await RPC.fetchSeed();
-        const ufvk: string = await RPC.fetchUfvk();
-        const birthday: number = await RPC.fetchBirthday();
+    ipcRenderer.on("seed", async () => {
+      const seed: string = await RPC.fetchSeed();
+      const ufvk: string = await RPC.fetchUfvk();
+      const birthday: number = await RPC.fetchBirthday();
 
-        console.log('data for seed/ufvk', seed, ufvk, birthday);
+      console.log('data for seed/ufvk', seed, ufvk, birthday);
 
-        openErrorModal(
-          "Wallet Seed",
-          <div className={cstyles.verticalflex}>
-            {!!seed && (
-              <>
-                <div>
-                  This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet. 
-                  <br />
-                  PLEASE KEEP IT SAFE!
-                </div>
-                <hr style={{ width: "100%" }} />
-                <div
-                  style={{
-                    wordBreak: "break-word",
-                    fontFamily: "monospace, Roboto",
-                    fontWeight: 'bolder',
-                  }}
-                >
-                  {seed}
-                </div>
-                <hr style={{ width: "100%" }} />
-              </>
-            )}
-            {!!ufvk && (
-              <>
-                <div>
-                  This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
-                  <br />
-                  PLEASE KEEP IT SAFE!
-                </div>
-                <hr style={{ width: "100%" }} />
-                <div
-                  style={{
-                    fontFamily: "monospace, Roboto",
-                    fontWeight: 'bolder',
-                  }}
-                >
-                  {ufvk}
-                </div>
-                <hr style={{ width: "100%" }} />
-              </>
-            )}
-            <div
-              style={{
-                fontFamily: "monospace, Roboto",
-              }}
-            >
-              {'Birthday: ' + birthday}
-            </div>
+      openErrorModal(
+        "Wallet Seed",
+        <div className={cstyles.verticalflex}>
+          {!!seed && (
+            <>
+              <div>
+                This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet. 
+                <br />
+                PLEASE KEEP IT SAFE!
+              </div>
+              <hr style={{ width: "100%" }} />
+              <div
+                style={{
+                  wordBreak: "break-word",
+                  fontFamily: "monospace, Roboto",
+                  fontWeight: 'bolder',
+                }}
+              >
+                {seed}
+              </div>
+              <hr style={{ width: "100%" }} />
+            </>
+          )}
+          {!!ufvk && (
+            <>
+              <div>
+                This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
+                <br />
+                PLEASE KEEP IT SAFE!
+              </div>
+              <hr style={{ width: "100%" }} />
+              <div
+                style={{
+                  fontFamily: "monospace, Roboto",
+                  fontWeight: 'bolder',
+                }}
+              >
+                {ufvk}
+              </div>
+              <hr style={{ width: "100%" }} />
+            </>
+          )}
+          <div
+            style={{
+              fontFamily: "monospace, Roboto",
+            }}
+          >
+            {'Birthday: ' + birthday}
           </div>
-        );        
-      });
+        </div>
+      );        
     });
 
     // Rescan
@@ -210,7 +187,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       setInfo(new Info());
 
       // interrupt syncing
-      const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
+      const resultInterrupt: string = await native.pause_sync();
       console.log("Interrupting sync ....", resultInterrupt);
 
       navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
@@ -250,84 +227,13 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       }
     });
 
-    // Encrypt wallet
-    ipcRenderer.on("encrypt", async (info: any) => { // Obsolete: type Info - check fields
-      if (info.encrypted && info.locked) {
-        openErrorModal("Already Encrypted", "Your wallet is already encrypted and locked.");
-      } else if (info.encrypted && !info.locked) {
-        await lockWallet();
-        openErrorModal("Locked", "Your wallet has been locked. A password will be needed to spend funds.");
-      } else {
-        // Encrypt the wallet
-        openPassword(
-          true,
-          async (password) => {
-            await encryptWallet(password);
-            openErrorModal("Encrypted", "Your wallet has been encrypted. The password will be needed to spend funds.");
-          },
-          () => {
-            openErrorModal("Cancelled", "Your wallet was not encrypted.");
-          },
-          <div>
-            Please enter a password to encrypt your wallet. <br />
-            WARNING: If you forget this password, the only way to recover your wallet is from the seed phrase.
-          </div>
-        );
-      }
-    });
-
-    // Remove wallet encryption
-    ipcRenderer.on("decrypt", async (info: any) => { // Obsolete: type Info - check fields
-      if (!info.encrypted) {
-        openErrorModal("Not Encrypted", "Your wallet is not encrypted and ready for spending.");
-      } else {
-        // Remove the wallet remove the wallet encryption
-        openPassword(
-          false,
-          async (password) => {
-            const success: boolean = await decryptWallet(password);
-            if (success) {
-              openErrorModal(
-                "Decrypted",
-                `Your wallet's encryption has been removed. A password will no longer be needed to spend funds.`
-              );
-            } else {
-              openErrorModal("Decryption Failed", "Wallet decryption failed. Do you have the right password?");
-            }
-          },
-          () => {
-            openErrorModal("Cancelled", "Your wallet is still encrypted.");
-          },
-          ""
-        );
-      }
-    });
-
-    // Unlock wallet
-    ipcRenderer.on("unlock", (info: any) => { // Obsolete: type Info - check fields
-      if (!info.encrypted || !info.locked) {
-        openErrorModal("Already Unlocked", "Your wallet is already unlocked for spending");
-      } else {
-        openPasswordAndUnlockIfNeeded(() => {
-          openErrorModal("Unlocked", "Your wallet is unlocked for spending");
-        });
-      }
-    });
-
     // Rescan
     ipcRenderer.on("rescan", async () => {
       // To rescan, we reset the wallet loading
       // So set info the default, and redirect to the loading screen
       clearTimers();
 
-      // Grab the previous sync ID.
-      const syncStatus: string = await RPC.doSyncStatus();
-      const prevSyncId: number = JSON.parse(syncStatus).sync_id;
-
       RPC.doRescan();
-
-      // Set the rescanning global state to true
-      setRescanning(true, prevSyncId);
 
       // Reset the info object, it will be refetched
       setInfo(new Info());

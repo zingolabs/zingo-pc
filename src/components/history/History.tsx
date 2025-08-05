@@ -55,7 +55,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
 
   useEffect(() => {
     (async () => {
-      const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+      const walletKindStr: string = await native.wallet_kind();
       const walletKindJSON = JSON.parse(walletKindStr);
 
       if (!walletKindJSON.transparent) {

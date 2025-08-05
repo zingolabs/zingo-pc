@@ -17,9 +17,7 @@ import {
   SendPageState,
   ToAddr,
   Info,
-  ReceivePageState,
   AddressBookEntry,
-  PasswordState,
   ServerSelectState,
   SendProgress,
   AddressType,
@@ -36,7 +34,6 @@ import AddressBook from "../components/addressbook/Addressbook";
 import AddressbookImpl from "../components/addressbook/AddressbookImpl";
 import Sidebar from "../components/sidebar/Sidebar";
 import History from "../components/history/History";
-import PasswordModal from "../components/passwordmodal/PasswordModal";
 import ServerSelectModal from "../components/serverselectmodal/ServerSelectModal";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
@@ -116,96 +113,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     serverSelectState.modalIsOpen = false;
 
     this.setState({ serverSelectState });
-  };
-
-  openPassword = (
-    confirmNeeded: boolean,
-    passwordCallback: (p: string) => void,
-    closeCallback: () => void,
-    helpText?: string | JSX.Element
-  ) => {
-    const passwordState = new PasswordState();
-
-    passwordState.showPassword = true;
-    passwordState.confirmNeeded = confirmNeeded;
-    passwordState.helpText = helpText || "";
-
-    // Set the callbacks, but before calling them back, we close the modals
-    passwordState.passwordCallback = (password: string) => {
-      this.setState({ passwordState: new PasswordState() });
-
-      // Call the callback after a bit, so as to give time to the modal to close
-      setTimeout(() => passwordCallback(password), 10);
-    };
-    passwordState.closeCallback = () => {
-      this.setState({ passwordState: new PasswordState() });
-
-      // Call the callback after a bit, so as to give time to the modal to close
-      setTimeout(() => closeCallback(), 10);
-    };
-
-    this.setState({ passwordState });
-  };
-
-  // This will:
-  //  1. Check if the wallet is encrypted and locked
-  //  2. If it is, open the password dialog
-  //  3. Attempt to unlock wallet.
-  //    a. If unlock succeeds, do the callback
-  //    b. If the unlock fails, show an error
-  //  4. If wallet is not encrypted or already unlocked, just call the successcallback.
-  openPasswordAndUnlockIfNeeded = (successCallback: () => void) => {
-    // always is a success
-    // TODO: I need to change this or removed.
-    successCallback();
-
-    // Check if it is locked
-    /*
-    const { info } = this.state;
-
-    if (info.encrypted && info.locked) {
-      this.openPassword(
-        false,
-        (password: string) => {
-          (async () => {
-            const success: boolean = await this.unlockWallet(password);
-
-            if (success) {
-              // If the unlock succeeded, do the submit
-              successCallback();
-            } else {
-              this.openErrorModal("Wallet unlock failed", "Could not unlock the wallet with the password.");
-            }
-          })();
-        },
-        // Close callback is a no-op
-        () => {}
-      );
-    } else {
-      successCallback();
-    }
-    */
-  };
-
-  unlockWallet = async (password: string): Promise<boolean> => {
-    const success: boolean = await this.rpc.unlockWallet(password);
-
-    return success;
-  };
-
-  lockWallet = async (): Promise<boolean> => {
-    const success: boolean = await this.rpc.lockWallet();
-    return success;
-  };
-
-  encryptWallet = async (password: string): Promise<boolean> => {
-    const success: boolean = await this.rpc.encryptWallet(password);
-    return success;
-  };
-
-  decryptWallet = async (password: string): Promise<boolean> => {
-    const success: boolean = await this.rpc.decryptWallet(password);
-    return success;
   };
 
   setTotalBalance = (totalBalance: TotalBalance) => {
@@ -292,32 +199,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ sendPageState });
   };
 
-  importPrivKeys = (keys: string[], birthday: string): boolean => {
-    console.log('=============== keys', keys);
-
-    for (let i: number = 0; i < keys.length; i++) {
-      const result: string = RPC.doImportPrivKey(keys[i], birthday);
-      if (result === "OK") {
-        return true;
-      } else {
-        this.openErrorModal(
-          "Failed to import key",
-          <span>
-            A private key failed to import.
-            <br />
-            The error was:
-            <br />
-            {result}
-          </span>
-        );
-
-        return false;
-      }
-    }
-
-    return true;
-  };
-
   setSendTo = (targets: ZcashURITarget[] | ZcashURITarget): void => {
     console.log('=============== send to', targets);
     // Clear the existing send page state and set up the new one
@@ -370,15 +251,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  setRescanning = (rescanning: boolean, prevSyncId: number) => {
-    if (rescanning !== this.state.rescanning) {
-      this.setState({ rescanning });
-    }
-    if (prevSyncId !== this.state.prevSyncId) {
-      this.setState({ prevSyncId });
-    }
-  };
-
   setReadOnly = (readOnly: boolean) => {
     this.setState({ readOnly });
   };
@@ -421,37 +293,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  // Get a single private key for this address, and return it as a string.
-  // Wallet needs to be unlocked
-  getPrivKeyAsString = async (address: string): Promise<string> => {
-    const pk: string = await RPC.getPrivKeyAsString(address);
-    return pk;
-  };
-
-  // Getter methods, which are called by the components to update the state
-  fetchAndSetSinglePrivKey = async (address: string) => {
-    this.openPasswordAndUnlockIfNeeded(async () => {
-      let key: string = await RPC.getPrivKeyAsString(address);
-      if (key === "") {
-        key = "<No Key Available>";
-      }
-      const addressPrivateKeys = new Map();
-      addressPrivateKeys.set(address, key);
-
-      this.setState({ addressPrivateKeys });
-    });
-  };
-
-  fetchAndSetSingleViewKey = async (address: string) => {
-    this.openPasswordAndUnlockIfNeeded(async () => {
-      const key: string = await RPC.getViewKeyAsString(address);
-      const addressViewKeys = new Map();
-      addressViewKeys.set(address, key);
-
-      this.setState({ addressViewKeys });
-    });
-  };
-
   addAddressBookEntry = (label: string, address: string): void => {
     // Add an entry into the address book
     const { addressBook } = this.state;
@@ -474,22 +315,12 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   createNewAddress = async (newType: AddressType) => {
-    this.openPasswordAndUnlockIfNeeded(async () => {
-      // Create a new address
-      const newAddress: any = await RPC.createNewAddress(newType);
-      console.log(`Created new Address ${newAddress}`);
+    // Create a new address
+    const newAddress: any = await RPC.createNewAddress(newType);
+    console.log(`Created new Address ${newAddress}`);
 
-      // And then fetch the list of addresses again to refresh (totalBalance gets all addresses) 
-      this.rpc.fetchTotalBalance();
-
-      const { receivePageState } = this.state;
-      const newRerenderKey: number = receivePageState.rerenderKey + 1;
-
-      const newReceivePageState = new ReceivePageState(newAddress, newType);
-      newReceivePageState.rerenderKey = newRerenderKey;
-
-      this.setState({ receivePageState: newReceivePageState });
-    });
+    // And then fetch the list of addresses again to refresh (totalBalance gets all addresses) 
+    this.rpc.fetchTotalBalance();
   };
 
   doRefresh = () => {
@@ -501,15 +332,19 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   calculateShieldFee = async (): Promise<number> => {
-    const result: string = await native.zingolib_execute_async("shield", '');
+    const result: string = await native.shield();
     console.log(result);
-    const resultJSON = JSON.parse(result);
-    if (resultJSON.error) {
+    if (result.toLowerCase().startsWith('error')) {
       return 0;
-    } else if (resultJSON.fee) {
-      return resultJSON.fee / 10 ** 8;
     } else {
-      return 0;
+      const resultJSON = JSON.parse(result);
+      if (resultJSON.error) {
+        return 0;
+      } else if (resultJSON.fee) {
+        return resultJSON.fee / 10 ** 8;
+      } else {
+        return 0;
+      }
     }
   }
 
@@ -602,14 +437,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       openErrorModal: this.openErrorModal,
       closeErrorModal: this.closeErrorModal,
       setSendTo: this.setSendTo,
-      openPasswordAndUnlockIfNeeded: this.openPasswordAndUnlockIfNeeded,
     };
 
     return (
       <ContextAppProvider value={this.state}>
         <ErrorModal closeModal={this.closeErrorModal} />
-
-        <PasswordModal />
 
         <ServerSelectModal
           closeModal={this.closeServerSelectModal}
@@ -621,13 +453,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
             <div className={cstyles.sidebarcontainer}>
               <Sidebar
                 setInfo={this.setInfo}
-                setRescanning={this.setRescanning}
-                getPrivKeyAsString={this.getPrivKeyAsString}
-                importPrivKeys={this.importPrivKeys}
-                lockWallet={this.lockWallet}
-                encryptWallet={this.encryptWallet}
-                decryptWallet={this.decryptWallet}
-                openPassword={this.openPassword}
                 clearTimers={this.clearTimers}
                 updateWalletSettings={this.updateWalletSettings}
                 navigateToLoadingScreen={this.navigateToLoadingScreen}
@@ -721,7 +546,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 render={() => (
                   <LoadingScreen
                     runRPCConfiigure={this.runRPCConfiigure}
-                    setRescanning={this.setRescanning}
                     setInfo={this.setInfo}
                     openServerSelectModal={this.openServerSelectModal}
                     setReadOnly={this.setReadOnly}

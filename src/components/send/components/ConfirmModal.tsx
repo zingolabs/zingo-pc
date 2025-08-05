@@ -32,7 +32,6 @@ type ConfirmModalProps = {
     closeModal: () => void;
     modalIsOpen: boolean;
     openErrorModal: (title: string, body: string | JSX.Element) => void;
-    openPasswordAndUnlockIfNeeded: (successCallback: () => void | Promise<void>) => void;
     sendFee: number;
     currencyName: string;
   };
@@ -46,7 +45,6 @@ type ConfirmModalProps = {
     closeModal,
     modalIsOpen,
     openErrorModal,
-    openPasswordAndUnlockIfNeeded,
     history,
     sendFee,
     currencyName,
@@ -78,7 +76,7 @@ type ConfirmModalProps = {
         return '-';
       }
   
-      const result: string = await native.zingolib_execute_async('parse_address', toaddr.to);
+      const result: string = await native.parse_address(toaddr.to);
       if (result) {
         if (result.toLowerCase().startsWith('error')) {
           return '-';
@@ -206,62 +204,58 @@ type ConfirmModalProps = {
       };
   
       // Now, send the Tx in a timeout, so that the error modal above has a chance to display 
-      setTimeout(() => {
-        openPasswordAndUnlockIfNeeded(() => {
-          // Then send the Tx async
-          (async () => {
-            try {
-              const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
-              const txids: string | string[] = await sendTransaction(sendJson, setSendProgress);
-  
-              if (typeof txids === "string") {
-                openErrorModal("Error Sending Transaction", `${txids}`);
-              } else {
-                openErrorModal(
-                  "Successfully Broadcast Transaction",
-                  <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                      <div>{(txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
-                      <div>{`TXID: ${txids[0]}`}</div>
-                      {txids.length > 1 && (
-                        <div>{`TXID: ${txids[1]}`}</div>
-                      )}
-                      {txids.length > 2 && (
-                        <div>{`TXID: ${txids[2]}`}</div>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                      <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], info.currencyName)}>
-                        View TXID &nbsp;
-                        <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                      </div>
-                      {txids.length > 1 && (
-                        <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], info.currencyName)}>
-                          View TXID &nbsp;
-                          <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                        </div>
-                      )}
-                      {txids.length > 2 && (
-                        <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], info.currencyName)}>
-                          View TXID &nbsp;
-                          <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                        </div>
-                      )}
-                    </div>
+      setTimeout(async () => {
+        // Then send the Tx async
+        try {
+          const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
+          const txids: string | string[] = await sendTransaction(sendJson, setSendProgress);
+
+          if (typeof txids === "string") {
+            openErrorModal("Error Sending Transaction", `${txids}`);
+          } else {
+            openErrorModal(
+              "Successfully Broadcast Transaction",
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                  <div>{(txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
+                  <div>{`TXID: ${txids[0]}`}</div>
+                  {txids.length > 1 && (
+                    <div>{`TXID: ${txids[1]}`}</div>
+                  )}
+                  {txids.length > 2 && (
+                    <div>{`TXID: ${txids[2]}`}</div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], info.currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                   </div>
-                );  
-              }
-  
-              clearToAddrs();
-  
-              // Redirect to dashboard after
-              history.push(routes.DASHBOARD);
-            } catch (err) {
-              // If there was an error, show the error modal
-              openErrorModal("Error Sending Transaction", `${err}`);
-            }
-          })();
-        });
+                  {txids.length > 1 && (
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], info.currencyName)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
+                  {txids.length > 2 && (
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], info.currencyName)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );  
+          }
+
+          clearToAddrs();
+
+          // Redirect to dashboard after
+          history.push(routes.DASHBOARD);
+        } catch (err) {
+          // If there was an error, show the error modal
+          openErrorModal("Error Sending Transaction", `${err}`);
+        }
       }, 10);
     };
   
