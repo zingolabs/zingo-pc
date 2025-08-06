@@ -1,28 +1,30 @@
 import {
-  TotalBalance,
-  ValueTransfer,
-  Info,
-  SendProgress,
-  AddressType,
-  Address,
-  WalletSettings,
-  ReceiverType,
+  TotalBalanceClass,
+  ValueTransferClass,
+  InfoClass,
+  SendProgressClass,
+  WalletSettingsClass,
+  AddressUnifiedClass,
+  AddressTransparentClass,
+  AddressKindEnum,
+  AddressReceiverEnum,
 } from "../components/appstate";
-import { ChainNameEnum } from "../components/appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 import { SendManyJsonType } from "../components/send";
 
 import native from "../native.node";
 import { RPCInfoType } from "./components/RPCInfoType";
 
 export default class RPC {
-  fnSetInfo: (info: Info) => void;
+  fnSetInfo: (info: InfoClass) => void;
   fnSetVerificationProgress: (verificationProgress: number) => void;
-  fnSetTotalBalance: (tb: TotalBalance) => void;
-  fnSetAddresses: (abs: Address[]) => void;
-  fnSetValueTransfersList: (t: ValueTransfer[]) => void;
-  fnSetMessagesList: (t: ValueTransfer[]) => void;
+  fnSetTotalBalance: (tb: TotalBalanceClass) => void;
+  fnSetAddressesUnified: (abs: AddressUnifiedClass[]) => void;
+  fnSetAddressesTransparent: (abs: AddressTransparentClass[]) => void;
+  fnSetValueTransfersList: (t: ValueTransferClass[]) => void;
+  fnSetMessagesList: (t: ValueTransferClass[]) => void;
   fnSetZecPrice: (p?: number) => void;
-  fnSetWalletSettings: (settings: WalletSettings) => void;
+  fnSetWalletSettings: (settings: WalletSettingsClass) => void;
 
   refreshTimerID?: NodeJS.Timeout;
   updateTimerID?: NodeJS.Timeout;
@@ -34,20 +36,24 @@ export default class RPC {
   lastTxId?: string;
 
   fnSetFetchError: (command: string, error: string) => void;
+  
+  fetchAddressesLock: boolean;
 
   constructor(
-    fnSetTotalBalance: (tb: TotalBalance) => void,
-    fnSetAddresses: (abs: Address[]) => void,
-    fnSetValueTransfersList: (t: ValueTransfer[]) => void,
-    fnSetMessagesList: (t: ValueTransfer[]) => void,
-    fnSetInfo: (info: Info) => void,
+    fnSetTotalBalance: (tb: TotalBalanceClass) => void,
+    fnSetAddressesUnified: (abs: AddressUnifiedClass[]) => void,
+    fnSetAddressesTransparent: (abs: AddressTransparentClass[]) => void,
+    fnSetValueTransfersList: (t: ValueTransferClass[]) => void,
+    fnSetMessagesList: (t: ValueTransferClass[]) => void,
+    fnSetInfo: (info: InfoClass) => void,
     fnSetZecPrice: (p?: number) => void,
-    fnSetWalletSettings: (settings: WalletSettings) => void,
+    fnSetWalletSettings: (settings: WalletSettingsClass) => void,
     fnSetVerificationProgress: (verificationProgress: number) => void,
     fnSetFetchError: (command: string, error: string) => void,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
-    this.fnSetAddresses = fnSetAddresses;
+    this.fnSetAddressesUnified = fnSetAddressesUnified;
+    this.fnSetAddressesTransparent = fnSetAddressesTransparent;
     this.fnSetValueTransfersList = fnSetValueTransfersList;
     this.fnSetMessagesList = fnSetMessagesList;
     this.fnSetInfo = fnSetInfo;
@@ -62,6 +68,8 @@ export default class RPC {
     this.updateDataLock = false;
 
     this.fnSetFetchError = fnSetFetchError;
+
+    this.fetchAddressesLock = false;
   }
 
   async configure() {
@@ -187,6 +195,7 @@ export default class RPC {
 
     // And fetch the rest of the data.
     await this.fetchTotalBalance();
+    await this.fetchAddresses();
     await this.fetchTandZandOValueTransfers(latestBlockHeight);
     await this.fetchTandZandOMessages(latestBlockHeight);
     await this.fetchWalletSettings();
@@ -291,22 +300,22 @@ export default class RPC {
   }
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
-  static async getInfoObject(): Promise<Info> {
+  static async getInfoObject(): Promise<InfoClass> {
     try {
       const infostr: string = await native.info_server();
       if (infostr.toLowerCase().startsWith("error")) {
         console.log("server info Failed", infostr);
-        return new Info(infostr);
+        return new InfoClass(infostr);
       }
       const infoJSON: RPCInfoType = JSON.parse(infostr);
 
-      const info = new Info();
+      const info = new InfoClass();
       info.chainName = infoJSON.chain_name;
       info.latestBlock = infoJSON.latest_block_height;
       info.connections = 1;
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit ? infoJSON.git_commit.substring(0, 6) : ""}/${infoJSON.version}`;
       info.zcashdVersion = "Not Available";
-      info.currencyName = info.chainName === ChainNameEnum.mainChainName ? "ZEC" : "TAZ";
+      info.currencyName = info.chainName === ServerChainNameEnum.mainChainName ? "ZEC" : "TAZ";
       info.solps = 0;
 
       // Also set `zecPrice` manually
@@ -341,7 +350,7 @@ export default class RPC {
       return info;
     } catch (err) {
       console.log("Error: to parse info", err);
-      return new Info("Error: to parse info" + err);
+      return new InfoClass("Error: to parse info" + err);
     }
   }
 
@@ -382,7 +391,7 @@ export default class RPC {
         await RPC.setWalletSettingOption("transaction_filter_threshold", "500");
       }
 
-      const wallet_settings = new WalletSettings();
+      const wallet_settings = new WalletSettingsClass();
       wallet_settings.download_memos = download_memos;
       wallet_settings.transaction_filter_threshold = transaction_filter_threshold;
 
@@ -402,11 +411,49 @@ export default class RPC {
   }
 
   async fetchInfo(): Promise<number> {
-    const info: Info = await RPC.getInfoObject();
+    const info: InfoClass = await RPC.getInfoObject();
 
     this.fnSetInfo(info);
 
     return info.latestBlock;
+  }
+
+  async zingolibAddressesUnified(): Promise<any> {
+    // fetch all Unified addresses
+    const addressesStr: string = await native.get_unified_addresses();
+    if (addressesStr) {
+      if (addressesStr.toLowerCase().startsWith('error')) {
+        console.log(`Error Unified addresses ${addressesStr}`);
+        this.fnSetFetchError('Unified addresses', addressesStr);
+        return;
+      }
+    } else {
+      console.log('Internal Error Unified addresses');
+      this.fnSetFetchError('Unified addresses', 'Error: Internal RPC Error');
+      return;
+    }
+    const addressesJSON = JSON.parse(addressesStr);
+
+    return addressesJSON;
+  }
+
+  async zingolibAddressesTransparent(): Promise<any> {
+    // fetch all Transparent addresses
+    const addressesStr: string = await native.get_transparent_addresses();
+    if (addressesStr) {
+      if (addressesStr.toLowerCase().startsWith('error')) {
+        console.log(`Error Transparent addresses ${addressesStr}`);
+        this.fnSetFetchError('Transparent addresses', addressesStr);
+        return;
+      }
+    } else {
+      console.log('Internal Error Transparent addresses');
+      this.fnSetFetchError('Transparent addresses', 'Error: Internal RPC Error');
+      return;
+    }
+    const addressesJSON = JSON.parse(addressesStr);
+
+    return addressesJSON;
   }
 
   async zingolibBalance(): Promise<any> {
@@ -472,7 +519,7 @@ export default class RPC {
         address: a.address,
         balance: ua_bal + ua_pend_bal,
         receivers: a.receivers,
-        address_type: AddressType.unified,
+        address_type: AddressKindEnum.unified,
       };
     });
 
@@ -501,7 +548,7 @@ export default class RPC {
           verified_zbalance: z_bal,
           spendable_zbalance: z_spendable_bal,
           unverified_zbalance: z_pend_bal,
-          address_type: AddressType.sapling,
+          address_type: AddressKindEnum.sapling,
         };
       });
 
@@ -522,7 +569,7 @@ export default class RPC {
         return {
           address: a.receivers.transparent,
           balance: t_bal + t_pend_bal,
-          address_type: AddressType.transparent,
+          address_type: AddressKindEnum.transparent,
         };
       });
 
@@ -677,7 +724,7 @@ export default class RPC {
     //console.log(balanceJSON);
 
     // Total Balance
-    const balance = new TotalBalance();
+    const balance = new TotalBalanceClass();
     balance.obalance = balanceJSON.obalance / 10 ** 8;
     balance.verifiedO = balanceJSON.verified_obalance / 10 ** 8;
     balance.unverifiedO = balanceJSON.unverified_obalance / 10 ** 8;
@@ -707,15 +754,15 @@ export default class RPC {
     // Addresses with Balance. The client reports balances in zatoshi, so divide by 10^8;
     const uaddresses = balanceJSON.ua_addresses.map((o: any) => {
       // If this has any unconfirmed txns, show that in the UI
-      const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
+      const ab = new AddressUnifiedClass(o.address, o.balance / 10 ** 8, o.address_type);
       if (pendingAddressBalances.has(ab.address)) {
         ab.containsPending = true;
       }
       // Add receivers to unified addresses
-      let receivers: ReceiverType[] = [];
-      if (o.receivers.orchard_exists) receivers.push(ReceiverType.orchard);
-      if (o.receivers.transparent) receivers.push(ReceiverType.transparent);
-      if (o.receivers.sapling) receivers.push(ReceiverType.sapling);
+      let receivers: AddressReceiverEnum[] = [];
+      if (o.receivers.orchard_exists) receivers.push(AddressReceiverEnum.orchard);
+      if (o.receivers.transparent) receivers.push(AddressReceiverEnum.transparent);
+      if (o.receivers.sapling) receivers.push(AddressReceiverEnum.sapling);
       ab.receivers = receivers;
       ab.type = o.address_type;
       return ab;
@@ -748,20 +795,65 @@ export default class RPC {
     this.fnSetAddresses(addresses);
   }
 
-  static async getLastTxid(): Promise<string> {
-    const txListStr: string = await native.get_value_transfers();
-    const txListJSON = JSON.parse(txListStr);
+  async fetchAddresses() {
+    try {
+      if (this.fetchAddressesLock) {
+        return;
+      }
+      this.fetchAddressesLock = true;
 
-    console.log('=============== get Last TX ID', txListJSON.value_transfers.length); 
+      // UNIFIED
+      const start = Date.now();
+      const unifiedAddressesStr: string = await native.get_unified_addresses();
+      if (Date.now() - start > 4000) {
+        console.log('=========================================== > addresses unified - ', Date.now() - start);
+      }
+      if (unifiedAddressesStr) {
+        if (unifiedAddressesStr.toLowerCase().startsWith('error')) {
+          console.log(`Error addresses ${unifiedAddressesStr}`);
+          this.fetchAddressesLock = false;
+          return;
+        }
+      } else {
+        console.log('Internal Error addresses');
+        this.fetchAddressesLock = false;
+        return;
+      }
+      const unifiedAddressesJSON: AddressUnifiedClass[] = await JSON.parse(unifiedAddressesStr) || [];
 
-    if (txListJSON.value_transfers && txListJSON.value_transfers.length && txListJSON.value_transfers.length > 0) {
-      return txListJSON.value_transfers[txListJSON.length - 1].txid;
-    } else {
-      return "0";
+      // TRANSPARENT
+      const start2 = Date.now();
+      const transparentAddressStr: string = await native.get_transparent_addresses();
+      if (Date.now() - start2 > 4000) {
+        console.log('=========================================== > addresses transparent - ', Date.now() - start2);
+      }
+      if (transparentAddressStr) {
+        if (transparentAddressStr.toLowerCase().startsWith('error')) {
+          console.log(`Error addresses ${transparentAddressStr}`);
+          this.fetchAddressesLock = false;
+          return;
+        }
+      } else {
+        console.log('Internal Error addresses');
+        this.fetchAddressesLock = false;
+        return;
+      }
+      const transparentAddressesJSON: AddressTransparentClass[] = await JSON.parse(transparentAddressStr) || [];
+
+      this.fnSetAddressesUnified(unifiedAddressesJSON);
+      this.fnSetAddressesTransparent(transparentAddressesJSON);
+      this.fetchAddressesLock = false;
+    } catch (error) {
+      console.log(`Critical Error addresses ${error}`);
+      // relaunch the interval tasks just in case they are aborted.
+      await this.clearTimers();
+      await this.configure();
+      this.fetchAddressesLock = false;
+      return;
     }
   }
 
-  static async createNewAddress(type: AddressType) {
+  static async createNewAddress(type: AddressKindEnum) {
     // Zingolib creates addresses like this:
     // ozt = orchard + sapling + transparent (orchard unified)
     // o = orchard only
@@ -772,7 +864,7 @@ export default class RPC {
     // it's not possible to create a transparent only address
     const addrStr: string = await native.zingolib_execute_async(
       "new",
-      type === AddressType.unified ? "ozt" : type === AddressType.sapling ? "oz" : "ot"
+      type === AddressKindEnum.unified ? "ozt" : type === AddressKindEnum.sapling ? "oz" : "ot"
     );
     const addrJSON = JSON.parse(addrStr);
 
@@ -828,13 +920,13 @@ export default class RPC {
 
     //console.log('value transfers antes ', valueTransfersJSON);
 
-    let vtList: ValueTransfer[] = [];
+    let vtList: ValueTransferClass[] = [];
 
     const walletHeight: number = await RPC.fetchWalletHeight();
 
     valueTransfersJSON
       .forEach((tx: any) => {
-        let currentVtList: ValueTransfer = {} as ValueTransfer;
+        let currentVtList: ValueTransferClass = {} as ValueTransferClass;
 
         currentVtList.txid = tx.txid;
         currentVtList.time = tx.datetime;
@@ -888,13 +980,13 @@ export default class RPC {
 
     //console.log('value transfers antes ', valueTransfersJSON);
 
-    let mList: ValueTransfer[] = [];
+    let mList: ValueTransferClass[] = [];
 
     const walletHeight: number = await RPC.fetchWalletHeight();
 
     MessagesJSON
       .forEach((tx: any) => {
-        let currentMList: ValueTransfer = {} as ValueTransfer;
+        let currentMList: ValueTransferClass = {} as ValueTransferClass;
 
         currentMList.txid = tx.txid;
         currentMList.time = tx.datetime;
@@ -943,7 +1035,7 @@ export default class RPC {
   }
   
   // Send a transaction using the already constructed sendJson structure
-  async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string | string[]> {
+  async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgressClass) => void): Promise<string | string[]> {
     // First, get the previous send progress id, so we know which ID to track
     const prevProgressStr: string = await native.zingolib_execute_async("sendprogress", "");
     const prevProgressJSON = JSON.parse(prevProgressStr);
@@ -993,7 +1085,7 @@ export default class RPC {
         const progressStr: string = await native.zingolib_execute_async("sendprogress", "");
         const progressJSON = JSON.parse(progressStr);
         
-        const updatedProgress = new SendProgress();
+        const updatedProgress = new SendProgressClass();
         if (progressJSON.id === prevSendId && !sendTxids) {
           // Still not started, so wait for more time
           setSendProgress(updatedProgress);

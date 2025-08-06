@@ -6,7 +6,7 @@ import {
 } from "react-accessible-accordion";
 import styles from "../Dashboard.module.css";
 import cstyles from "../../common/Common.module.css";
-import { Address, AddressType } from "../../appstate";
+import { AddressKindEnum, AddressTransparentClass, AddressUnifiedClass } from "../../appstate";
 import Utils from "../../../utils/utils"; 
 import { useState } from "react";
 const { clipboard } = window.require("electron");
@@ -14,7 +14,7 @@ const { clipboard } = window.require("electron");
 type AddressBalanceItemProps = {
   currencyName: string;
   zecPrice: number;
-  item: Address; 
+  item: AddressUnifiedClass | AddressTransparentClass; 
 };
 
 const AddressBalanceItem: React.FC<AddressBalanceItemProps> = ({ currencyName, zecPrice, item }) => {
@@ -49,22 +49,17 @@ const AddressBalanceItem: React.FC<AddressBalanceItemProps> = ({ currencyName, z
                   </div>
                 </div>
               </div>
-              {item.type === AddressType.unified && !!item.receivers && (
+              {item.addressKind === AddressKindEnum.unified && (
                 <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
-                  Address types: {Utils.getReceivers(item.receivers).join(" + ")}
+                  Address types: {Utils.getReceivers(item).join(" + ")}
                 </div>
               )}
-              {item.type === AddressType.sapling && (
-                <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
-                  Address type: Sapling
-                </div>
-              )}
-              {item.type === AddressType.transparent && (
+              {item.addressKind === AddressKindEnum.transparent && (
                 <div className={[cstyles.small, cstyles.padtopsmall, cstyles.sublight].join(" ")}>
                   Address type: Transparent
                 </div>
               )}
-              {item.containsPending && (
+              {/*item.containsPending*/ false && (
                 <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
                   Some transactions are pending. Balances may change.
                 </div>

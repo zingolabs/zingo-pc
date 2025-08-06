@@ -3,8 +3,8 @@ import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
 import {
-  AddressType,
-  ToAddr,
+  AddressKindEnum,
+  ToAddrClass,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
@@ -14,7 +14,7 @@ const Spacer = () => {
 };
 
 type ToAddrBoxProps = {
-  toaddr: ToAddr;
+  toaddr: ToAddrClass;
   zecPrice: number;
   updateToField: (
     id: number,
@@ -54,7 +54,7 @@ const ToAddrBox = ({
   setTotalAmountAvailable,
   label,
 }: ToAddrBoxProps) => {
-  const [addressType, setAddressType] = useState<AddressType>();
+  const [addressKind, setAddressKind] = useState<AddressKindEnum>();
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
   const [addressIsValid, setAddressIsValid] = useState<number>(0);
   const [amountError, setAmountError] = useState<string | null>(null);
@@ -63,15 +63,15 @@ const ToAddrBox = ({
   
   useEffect(() => {
     (async () => {
-      const addressType: AddressType | undefined = await Utils.getAddressType(toaddr.to);
-      setAddressType(addressType);
-      const isMemoDisabled: boolean = !(addressType === AddressType.sapling || addressType === AddressType.unified);
-      setIsMemoDisabled(isMemoDisabled);
+      const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(toaddr.to);
+      setAddressKind(_addressKind);
+      const _isMemoDisabled: boolean = !(_addressKind === AddressKindEnum.sapling || _addressKind === AddressKindEnum.unified);
+      setIsMemoDisabled(_isMemoDisabled);
     
       let _addressIsValid: number;
       if (!toaddr.to) {
         _addressIsValid = 0;
-      } else if (addressType !== undefined) {
+      } else if (_addressKind !== undefined) {
         _addressIsValid = 1;
       } else {
         _addressIsValid = -1;
@@ -152,10 +152,10 @@ const ToAddrBox = ({
             <div style={{ fontWeight: 900, marginLeft: 20 }}>{label ? label : ""}</div>
           </div>
           <div className={[cstyles.sublight, cstyles.green].join(" ")}>
-            {addressType !== undefined && addressType === AddressType.tex && 'TEX'}
-            {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
-            {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
-            {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
+            {addressKind !== undefined && addressKind === AddressKindEnum.tex && 'TEX'}
+            {addressKind !== undefined && addressKind === AddressKindEnum.transparent && 'Transparent'}
+            {addressKind !== undefined && addressKind === AddressKindEnum.sapling && 'Sapling'}
+            {addressKind !== undefined && addressKind === AddressKindEnum.unified && 'Unified'}
           </div>
           <div className={cstyles.validationerror}>
             {addressIsValid === 1 && (

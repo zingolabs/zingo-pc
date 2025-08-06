@@ -1,22 +1,36 @@
 import React, { ReactNode } from 'react';
-import { Address, AddressBookEntry, AppState, Info, SendPageState, ServerSelectState, TotalBalance, ValueTransfer, WalletSettings, Server, FetchErrorType } from "../components/appstate";
+import { 
+  AddressBookEntryClass, 
+  AppState, 
+  InfoClass, 
+  SendPageStateClass, 
+  ServerSelectStateClass, 
+  TotalBalanceClass, 
+  ValueTransferClass, 
+  WalletSettingsClass, 
+  ServerClass, 
+  FetchErrorTypeClass, 
+  AddressUnifiedClass, 
+  AddressTransparentClass 
+} from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
 
 export const defaultAppState: AppState = {
-  totalBalance: new TotalBalance(),
-  addresses: [] as Address[],
-  addressBook: [] as AddressBookEntry[],
-  valueTransfers: [] as ValueTransfer[],
-  messages: [] as ValueTransfer[],
+  totalBalance: new TotalBalanceClass(),
+  addressesUnified: [] as AddressUnifiedClass[],
+  addressesTransparent: [] as AddressTransparentClass[],
+  addressBook: [] as AddressBookEntryClass[],
+  valueTransfers: [] as ValueTransferClass[],
+  messages: [] as ValueTransferClass[],
   errorModalData: new ErrorModalData(),
-  serverSelectState: new ServerSelectState(),
-  sendPageState: new SendPageState(),
-  info: new Info(),
+  serverSelectState: new ServerSelectStateClass(),
+  sendPageState: new SendPageStateClass(),
+  info: new InfoClass(),
   verificationProgress: 100,
-  walletSettings: new WalletSettings(),
+  walletSettings: new WalletSettingsClass(),
   readOnly: false,
-  serverUris: [] as Server[],
-  fetchError: {} as FetchErrorType,
+  serverUris: [] as ServerClass[],
+  fetchError: {} as FetchErrorTypeClass,
 };
 
 export const ContextApp = React.createContext(defaultAppState);

@@ -1,4 +1,4 @@
-export default class TxDetail {
+export default class TxDetailClass {
   address: string;
   amount: number;
   memos?: string[];

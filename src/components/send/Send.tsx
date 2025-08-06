@@ -2,12 +2,10 @@ import React, { useContext, useEffect, useState } from "react";
 import styles from "./Send.module.css";
 import cstyles from "../common/Common.module.css";
 import {
-  ToAddr,
-  SendPageState,
-  AddressBookEntry,
-  SendProgress,
-  Address,
-  AddressType,
+  ToAddrClass,
+  SendPageStateClass,
+  AddressBookEntryClass,
+  SendProgressClass,
 } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
@@ -23,8 +21,8 @@ import getSendManyJSON from "./components/getSendManyJSON";
 
 type SendProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
-  sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string | string[]>;
-  setSendPageState: (sendPageState: SendPageState) => void;
+  sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgressClass) => void) => Promise<string | string[]>;
+  setSendPageState: (sendPageState: SendPageStateClass) => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
@@ -40,7 +38,7 @@ const Send: React.FC<SendProps> = ({
 }) => {
   const context = useContext(ContextApp);
   const {
-    addresses,
+    addressesUnified,
     sendPageState,
     info,
     totalBalance,
@@ -60,10 +58,10 @@ const Send: React.FC<SendProps> = ({
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
 
-  useEffect(() => {
-    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    setAnyPending(!!_anyPending);
-  }, [addresses]);
+  //useEffect(() => {
+  //  const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+  //  setAnyPending(!!_anyPending);
+  //}, [addresses]);
     
   useEffect(() => {
     if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
@@ -81,7 +79,7 @@ const Send: React.FC<SendProps> = ({
       _totalAmountAvailable = 0;
     }
     setTotalAmountAvailable(_totalAmountAvailable);
-    setFromaddr(addresses.find((a: Address) => a.type === AddressType.unified)?.address || ""); 
+    setFromaddr(addressesUnified[addressesUnified.length - 1]?.address || ""); 
 
     // If there are unverified funds, then show a tooltip
     let _tooltip: string = "";
@@ -89,13 +87,13 @@ const Send: React.FC<SendProps> = ({
       _tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ + totalBalance.unverifiedO} with 1 block (approx 2 minutes)`; 
     }
     setTooltip(_tooltip);
-  }, [addresses, totalBalance.spendableO, totalBalance.spendableZ, totalBalance.unverifiedO, totalBalance.unverifiedZ]);  
+  }, [addressesUnified, totalBalance.spendableO, totalBalance.spendableZ, totalBalance.unverifiedO, totalBalance.unverifiedZ]);  
 
   const clearToAddrs = () => {
-    const newToAddrs: ToAddr[] = [new ToAddr(Utils.getNextToAddrID())];
+    const newToAddrs: ToAddrClass[] = [new ToAddrClass(Utils.getNextToAddrID())];
 
     // Create the new state object
-    const newState = new SendPageState();
+    const newState = new SendPageStateClass();
     newState.fromaddr = sendPageState.fromaddr;
     newState.toaddrs = newToAddrs;
 
@@ -120,8 +118,8 @@ const Send: React.FC<SendProps> = ({
     memoReplyTo: string | null
   ) => {
     // Find the correct toAddr
-    const toAddr: ToAddr | undefined = sendPageState.toaddrs.find((a: ToAddr) => a.id === id);
-    const restToAddr: ToAddr[] = sendPageState.toaddrs.filter((a: ToAddr) => a.id !== id);
+    const toAddr: ToAddrClass | undefined = sendPageState.toaddrs.find((a: ToAddrClass) => a.id === id);
+    const restToAddr: ToAddrClass[] = sendPageState.toaddrs.filter((a: ToAddrClass) => a.id !== id);
     if (address !== null) {
       // First, check if this is a URI
       const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address.replace(/ /g, ""));
@@ -164,7 +162,7 @@ const Send: React.FC<SendProps> = ({
     }
 
     // Create the new state object 
-    const newState = new SendPageState();
+    const newState = new SendPageStateClass();
     newState.fromaddr = sendPageState.fromaddr;
     if (restToAddr && restToAddr.length > 0) {
       if (toAddr) {
@@ -181,13 +179,13 @@ const Send: React.FC<SendProps> = ({
 
   const setMaxAmount = async (id: number, total: number) => {
     // Find the correct toAddr
-    const toAddr: ToAddr | undefined = sendPageState.toaddrs.find((a: ToAddr) => a.id === id);
-    const restToAddr: ToAddr[] = sendPageState.toaddrs.filter((a: ToAddr) => a.id !== id);
+    const toAddr: ToAddrClass | undefined = sendPageState.toaddrs.find((a: ToAddrClass) => a.id === id);
+    const restToAddr: ToAddrClass[] = sendPageState.toaddrs.filter((a: ToAddrClass) => a.id !== id);
 
     let totalOtherAmount: number = 0;
     
     if (restToAddr && restToAddr.length > 0) {
-      totalOtherAmount = restToAddr.reduce((s: number, a: ToAddr) => s + a.amount, 0);
+      totalOtherAmount = restToAddr.reduce((s: number, a: ToAddrClass) => s + a.amount, 0);
     }
 
     if (toAddr) {
@@ -197,7 +195,7 @@ const Send: React.FC<SendProps> = ({
     }
     
     // Create the new state object 
-    const newState = new SendPageState();
+    const newState = new SendPageStateClass();
     newState.fromaddr = sendPageState.fromaddr;
     if (restToAddr && restToAddr.length > 0) {
       if (toAddr) {
@@ -222,7 +220,7 @@ const Send: React.FC<SendProps> = ({
 
   const getLabelAddressBook = (addr: string) => {
     // Find the addr in addresses
-    const label: AddressBookEntry | undefined = addressBook.find((ab: AddressBookEntry) => ab.address === addr);
+    const label: AddressBookEntryClass | undefined = addressBook.find((ab: AddressBookEntryClass) => ab.address === addr);
     const labelStr: string = label ? ` [ ${label.label} ]` : "";
 
     return labelStr; 
@@ -343,7 +341,7 @@ const Send: React.FC<SendProps> = ({
       <div className={[styles.horizontalcontainer].join(" ")}>
         <div className={cstyles.containermarginleft}>
           <ScrollPaneTop offsetHeight={260}>
-            {[sendPageState.toaddrs[0]].map((toaddr: ToAddr) => {
+            {[sendPageState.toaddrs[0]].map((toaddr: ToAddrClass) => {
               return (
                 <ToAddrBox
                   key={toaddr.id}

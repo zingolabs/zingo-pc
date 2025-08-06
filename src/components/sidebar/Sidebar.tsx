@@ -4,7 +4,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import { Info, Server, ValueTransfer } from "../appstate";
+import { InfoClass, ServerClass, ValueTransferClass } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
@@ -14,18 +14,18 @@ import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
 import native from "../../native.node";
-import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
 
 type SidebarProps = {
-  setInfo: (info: Info) => void;
+  setInfo: (info: InfoClass) => void;
   clearTimers: () => void;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
   updateWalletSettings: () => Promise<void>;
-  navigateToLoadingScreen: (b: boolean, c: string, s: Server[]) => void;
+  navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
@@ -101,9 +101,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       const i = info;
       setSendTo(
         new ZcashURITarget(
-          Utils.getDonationAddress(i.chainName !== ChainNameEnum.mainChainName),
-          Utils.getDefaultDonationAmount(i.chainName !== ChainNameEnum.mainChainName),
-          Utils.getDefaultDonationMemo(i.chainName !== ChainNameEnum.mainChainName)
+          Utils.getDonationAddress(i.chainName !== ServerChainNameEnum.mainChainName),
+          Utils.getDefaultDonationAmount(i.chainName !== ServerChainNameEnum.mainChainName),
+          Utils.getDefaultDonationMemo(i.chainName !== ServerChainNameEnum.mainChainName)
         )
       );
 
@@ -184,7 +184,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       clearTimers();
 
       // Reset the info object, it will be refetched
-      setInfo(new Info());
+      setInfo(new InfoClass());
 
       // interrupt syncing
       const resultInterrupt: string = await native.pause_sync();
@@ -206,7 +206,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
       if (save.filePath) {
         // Construct a CSV
-        const rows = vt.flatMap((t: ValueTransfer) => {
+        const rows = vt.flatMap((t: ValueTransferClass) => {
           const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
 
           // Add a single quote "'" into the memo field to force interpretation as a string, rather than as a
@@ -236,7 +236,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       RPC.doRescan();
 
       // Reset the info object, it will be refetched
-      setInfo(new Info());
+      setInfo(new InfoClass());
 
       navigateToLoadingScreen(false, "", serverUris)
     });
@@ -249,11 +249,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     // Wallet Settings
     ipcRenderer.on("walletSettings", () => {
       setWalletSettingsModalIsOpen(true);
-    });
-
-    // Connect mobile app
-    ipcRenderer.on("connectmobile", () => {
-      history.push(routes.CONNECTMOBILE);
     });
   };
 

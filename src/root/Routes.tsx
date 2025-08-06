@@ -12,19 +12,20 @@ import Receive from "../components/receive/Receive";
 import LoadingScreen from "../components/loadingscreen/LoadingScreen";
 import {
   AppState,
-  TotalBalance,
-  ValueTransfer,
-  SendPageState,
-  ToAddr,
-  Info,
-  AddressBookEntry,
-  ServerSelectState,
-  SendProgress,
-  AddressType,
-  Address,
-  WalletSettings,
-  Server,
-  FetchErrorType,
+  TotalBalanceClass,
+  ValueTransferClass,
+  SendPageStateClass,
+  ToAddrClass,
+  InfoClass,
+  AddressBookEntryClass,
+  ServerSelectStateClass,
+  SendProgressClass,
+  WalletSettingsClass,
+  ServerClass,
+  FetchErrorTypeClass,
+  AddressUnifiedClass,
+  AddressTransparentClass,
+  AddressKindEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
@@ -51,14 +52,15 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.state = defaultAppState;
 
     // Create the initial ToAddr box
-    this.state.sendPageState.toaddrs = [new ToAddr(Utils.getNextToAddrID())];
+    this.state.sendPageState.toaddrs = [new ToAddrClass(Utils.getNextToAddrID())];
 
     // Set the Modal's app element
     ReactModal.setAppElement("#root");
 
     this.rpc = new RPC(
       this.setTotalBalance,
-      this.setAddresses,
+      this.setAddressesUnified,
+      this.setAddressesTransparent,
       this.setValueTransferList,
       this.setMessagesList,
       this.setInfo,
@@ -72,7 +74,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   componentDidMount = async () => {
     // Read the address book
     (async () => {
-      const addressBook: AddressBookEntry[] = await AddressbookImpl.readAddressBook();
+      const addressBook: AddressBookEntryClass[] = await AddressbookImpl.readAddressBook();
       if (addressBook && addressBook.length > 0) {
         this.setState({ addressBook });
       }
@@ -102,27 +104,27 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   openServerSelectModal = () => {
-    const serverSelectState = new ServerSelectState();
+    const serverSelectState = new ServerSelectStateClass();
     serverSelectState.modalIsOpen = true;
 
     this.setState({ serverSelectState });
   };
 
   closeServerSelectModal = () => {
-    const serverSelectState = new ServerSelectState();
+    const serverSelectState = new ServerSelectStateClass();
     serverSelectState.modalIsOpen = false;
 
     this.setState({ serverSelectState });
   };
 
-  setTotalBalance = (totalBalance: TotalBalance) => {
+  setTotalBalance = (totalBalance: TotalBalanceClass) => {
     if (!isEqual(totalBalance, this.state.totalBalance)) {
       console.log('=============== total balance', totalBalance);
       this.setState({ totalBalance });
     }
   };
 
-  setWalletSettings = (walletSettings: WalletSettings) => {
+  setWalletSettings = (walletSettings: WalletSettingsClass) => {
     if (!isEqual(walletSettings, this.state.walletSettings)) {
       console.log('=============== wallet settings', walletSettings);
       this.setState({ walletSettings });
@@ -136,7 +138,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       error,
     } });
     setTimeout(() => {
-      this.setState({ fetchError: {} as FetchErrorType })
+      this.setState({ fetchError: {} as FetchErrorTypeClass })
     }, 5000);
   };
 
@@ -144,19 +146,18 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     await this.rpc.fetchWalletSettings();
   };
 
-  setAddresses = (addresses: Address[]) => {
-    if (!isEqual(addresses, this.state.addresses)) {
-      console.log('=============== addresses', addresses.length);
-      this.setState({ addresses });
+  setAddressesUnified = (addressesUnified: AddressUnifiedClass[]) => {
+    if (!isEqual(addressesUnified, this.state.addressesUnified)) {
+      console.log('=============== addresses UA', addressesUnified.length);
+      this.setState({ addressesUnified });
     }
 
     const { sendPageState } = this.state;
     // If there is no 'from' address, we'll set a default one
     if (!sendPageState.fromaddr) {
       // Find a u-address with the highest balance
-      const defaultAB: Address | null = addresses
-        .filter((ab) => ab.type === AddressType.unified)
-        .reduce((prev: Address | null, ab) => {
+      const defaultAB: AddressUnifiedClass | null = addressesUnified
+        .reduce((prev: AddressUnifiedClass | null, ab) => {
           // We'll start with a unified address
           if (!prev) {
             return ab;
@@ -169,32 +170,39 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         }, null);
 
       if (defaultAB) {
-        const newSendPageState = new SendPageState();
+        const newSendPageState = new SendPageStateClass();
         newSendPageState.fromaddr = defaultAB.address;
         newSendPageState.toaddrs = sendPageState.toaddrs;
 
-        console.log('=============== default fromaddr', defaultAB.address);
+        console.log('=============== default fromaddr UA', defaultAB.address);
 
         this.setState({ sendPageState: newSendPageState });
       }
     }
   };
 
-  setValueTransferList = (valueTransfers: ValueTransfer[]) => {
+  setAddressesTransparent = (addressesTransparent: AddressTransparentClass[]) => {
+    if (!isEqual(addressesTransparent, this.state.addressesTransparent)) {
+      console.log('=============== addresses T', addressesTransparent.length);
+      this.setState({ addressesTransparent });
+    }
+  };
+
+  setValueTransferList = (valueTransfers: ValueTransferClass[]) => {
     if (!isEqual(valueTransfers, this.state.valueTransfers)) {
       console.log('=============== ValueTransfer list', valueTransfers);
       this.setState({ valueTransfers });
     }
   };
 
-  setMessagesList = (messages: ValueTransfer[]) => {
+  setMessagesList = (messages: ValueTransferClass[]) => {
     if (!isEqual(messages, this.state.messages)) {
       console.log('=============== ValueTransfer Messages list', messages);
       this.setState({ messages });
     }
   };
 
-  setSendPageState = (sendPageState: SendPageState) => {
+  setSendPageState = (sendPageState: SendPageStateClass) => {
     console.log('=============== send page state', sendPageState);
     this.setState({ sendPageState });
   };
@@ -204,7 +212,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     // Clear the existing send page state and set up the new one
     const { sendPageState } = this.state;
 
-    const newSendPageState = new SendPageState();
+    const newSendPageState = new SendPageStateClass();
     newSendPageState.toaddrs = [];
     newSendPageState.fromaddr = sendPageState.fromaddr;
 
@@ -215,7 +223,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
 
     tgts.forEach((tgt) => {
-      const to = new ToAddr(Utils.getNextToAddrID());
+      const to = new ToAddrClass(Utils.getNextToAddrID());
       if (tgt.address) {
         to.to = tgt.address;
       }
@@ -243,7 +251,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     if (!!price && price !== this.state.info.zecPrice) {
       const { info } = this.state;
   
-      const newInfo = new Info();
+      const newInfo = new InfoClass();
       Object.assign(newInfo, info);
       newInfo.zecPrice = price;
   
@@ -255,11 +263,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ readOnly });
   };
 
-  setServerUris = (serverUris: Server[]) => {
+  setServerUris = (serverUris: ServerClass[]) => {
     this.setState({ serverUris });
   };
 
-  setInfo = (newInfo: Info) => {
+  setInfo = (newInfo: InfoClass) => {
     if (!isEqual(newInfo, this.state.info)) {
       console.log('=============== info', newInfo);
       // If the price is not set in this object, copy it over from the current object 
@@ -278,7 +286,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string | string[]> => {
+  sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgressClass) => void): Promise<string | string[]> => {
     try {
       const result: string | string[] = await this.rpc.sendTransaction(sendJson, setSendProgress);
 
@@ -296,7 +304,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   addAddressBookEntry = (label: string, address: string): void => {
     // Add an entry into the address book
     const { addressBook } = this.state;
-    const newAddressBook: AddressBookEntry[] = addressBook.concat(new AddressBookEntry(label, address));
+    const newAddressBook: AddressBookEntryClass[] = addressBook.concat(new AddressBookEntryClass(label, address));
 
     // Write to disk. This method is async
     AddressbookImpl.writeAddressBook(newAddressBook);
@@ -306,7 +314,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   removeAddressBookEntry = (label: string): void => {
     const { addressBook } = this.state;
-    const newAddressBook: AddressBookEntry[] = addressBook.filter((i) => i.label !== label);
+    const newAddressBook: AddressBookEntryClass[] = addressBook.filter((i) => i.label !== label);
 
     // Write to disk. This method is async
     AddressbookImpl.writeAddressBook(newAddressBook);
@@ -314,9 +322,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ addressBook: newAddressBook });
   };
 
-  createNewAddress = async (newType: AddressType) => {
+  createNewAddress = async (newKind: AddressKindEnum) => {
     // Create a new address
-    const newAddress: any = await RPC.createNewAddress(newType);
+    const newAddress: any = await RPC.createNewAddress(newKind);
     console.log(`Created new Address ${newAddress}`);
 
     // And then fetch the list of addresses again to refresh (totalBalance gets all addresses) 
@@ -421,7 +429,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     });
   };
 
-  navigateToLoadingScreen = (currentStatusIsError: boolean, currentStatus: string, serverUris: Server[]) => {
+  navigateToLoadingScreen = (currentStatusIsError: boolean, currentStatus: string, serverUris: ServerClass[]) => {
     this.props.history.replace({
       pathname: routes.LOADING, 
       state: { 

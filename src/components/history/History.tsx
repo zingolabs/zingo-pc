@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
-import { ValueTransfer, AddressBookEntry, Address } from "../appstate";
+import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
 import VtItemBlock from "./components/VtItemBlock";
@@ -20,14 +20,14 @@ type HistoryProps = {
 
 const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handleShieldButton }) => {
   const context = useContext(ContextApp);
-  const { valueTransfers, info, addressBook, totalBalance, addresses, readOnly, fetchError } = context;
+  const { valueTransfers, info, addressBook, totalBalance, readOnly, fetchError } = context;
 
-  const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransfer | undefined>(undefined);
+  const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
   const [numVtnsToShow, setNumVtnsToShow] = useState<number>(100);
   const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
-  const [valueTransfersSorted, setValueTransfersSorted] = useState<ValueTransfer[]>([]);
+  const [valueTransfersSorted, setValueTransfersSorted] = useState<ValueTransferClass[]>([]);
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
@@ -36,10 +36,10 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
   const [sapling, setSapling] = useState<boolean>(true);
   const [orchard, setOrchard] = useState<boolean>(true);
 
-  useEffect(() => {
-    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    setAnyPending(!!_anyPending);
-  }, [addresses]);
+  //useEffect(() => {
+  //  const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+  //  setAnyPending(!!_anyPending);
+  //}, [addresses]);
     
   useEffect(() => {
     if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
@@ -76,7 +76,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
   }, [numVtnsToShow, valueTransfers]);
 
   useEffect(() => {
-    setAddressBookMap(addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
+    setAddressBookMap(addressBook.reduce((m: Map<string, string>, obj: AddressBookEntryClass) => {
       m.set(obj.address, obj.label);
       return m; 
     }, new Map()));
@@ -172,13 +172,13 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
         )}
 
         {valueTransfersSorted && valueTransfersSorted.length > 0 &&
-          valueTransfersSorted.map((vt: ValueTransfer, index: number) => {
+          valueTransfersSorted.map((vt: ValueTransferClass, index: number) => {
             return (
               <VtItemBlock
                 index={index}
                 key={`${index}-${vt.type}-${vt.txid}`}
                 vt={vt}
-                setValueTransferDetail={(ttt: ValueTransfer) => setValueTransferDetail(ttt)}
+                setValueTransferDetail={(ttt: ValueTransferClass) => setValueTransferDetail(ttt)}
                 setValueTransferDetailIndex={(iii: number) => setValueTransferDetailIndex(iii)}
                 setModalIsOpen={(bbb: boolean) => setModalIsOpen(bbb)}  
                 currencyName={info.currencyName}

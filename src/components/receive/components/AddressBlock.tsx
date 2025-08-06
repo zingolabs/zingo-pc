@@ -5,17 +5,18 @@ import {
   AccordionItemButton,
   AccordionItemPanel,
 } from "react-accessible-accordion";
-import QRCode from "qrcode.react";
+import { QRCodeSVG } from "qrcode.react";
 import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
-import { Address, AddressType } from "../../appstate";
 import { ContextApp } from "../../../context/ContextAppState";
+import { AddressTransparentClass, AddressUnifiedClass } from "../../appstate";
+import { AddressKindEnum } from "../../appstate/enums/AddressKindEnum";
 
 const { clipboard } = window.require("electron");
 
 type AddressBlockProps = {
-  address: Address;
+  address: AddressUnifiedClass | AddressTransparentClass;
   label?: string;
   currencyName: string;
   zecPrice: number;
@@ -32,8 +33,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   handleShieldButton
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly, addresses } = context;
-  const { receivers, type } = address;
+  const { readOnly } = context;
   const address_address = address.address;
   const balance = address.balance || 0;
 
@@ -50,18 +50,18 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     };
   });
 
-  useEffect(() => {
-    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    setAnyPending(!!_anyPending);
-  }, [addresses]);
+  //useEffect(() => {
+  //  const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+  //  setAnyPending(!!_anyPending);
+  //}, [addresses]);
 
   useEffect(() => {
-    if (type === AddressType.transparent && calculateShieldFee && balance > 0 && !readOnly) {
+    if (address.addressKind === AddressKindEnum.transparent && calculateShieldFee && balance > 0 && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [balance, calculateShieldFee, type, anyPending, readOnly]);
+  }, [balance, calculateShieldFee, address.addressKind, anyPending, readOnly]);
 
   const handleQRCodeClick = async () => {
     console.log('____________ click processed');
@@ -73,7 +73,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     let downloadLink = document.createElement("a");
     downloadLink.href = pngUrl;
     downloadLink.download = "QR_" + 
-                            (type === AddressType.unified ? 'UA' : type === AddressType.sapling ? 'Z' : 'T') + 
+                            (address.addressKind === AddressKindEnum.unified ? 'UA' : 'T') + 
                             "_Zingo_PC.png";
     document.body.appendChild(downloadLink);
     downloadLink.click();
@@ -100,19 +100,13 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               </div>
             )}
 
-            {type === AddressType.unified && !!receivers && (
+            {address.addressKind === AddressKindEnum.unified && (
               <div className={cstyles.margintoplarge}>
-                <div className={[cstyles.sublight].join(" ")}>Address types: {Utils.getReceivers(receivers).join(" + ")}</div>
+                <div className={[cstyles.sublight].join(" ")}>Address types: {Utils.getReceivers(address).join(" + ")}</div>
               </div>
             )}
 
-            {type === AddressType.sapling && (
-              <div className={cstyles.margintoplarge}>
-                <div className={[cstyles.sublight].join(" ")}>Address type: Sapling</div>
-              </div>
-            )}
-
-            {type === AddressType.transparent && (
+            {address.addressKind === AddressKindEnum.transparent && (
               <div className={cstyles.margintoplarge}>
                 <div className={[cstyles.sublight].join(" ")}>Address type: Transparent</div>
               </div>
@@ -140,7 +134,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currencyName)}>
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </button>
-              {type === AddressType.transparent && balance >= shieldFee && shieldFee > 0 && !readOnly && (
+              {address.addressKind === AddressKindEnum.transparent && balance >= shieldFee && shieldFee > 0 && !readOnly && (
                 <>
                   <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={handleShieldButton}>
                     Shield Balance To Orchard (Fee: {shieldFee})
@@ -152,7 +146,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
           <div>
             {/*
             // @ts-ignore */}
-            <QRCode includeMargin={true} size={300} value={address_address} className={[styles.receiveQrcode].join(" ")} onClick={handleQRCodeClick} />
+            <QRCodeSVG includeMargin={true} size={300} value={address_address} className={[styles.receiveQrcode].join(" ")} onClick={handleQRCodeClick} />
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: 0.5 }}>{'Click to download'}</div>
           </div>
         </div>

@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
 import cstyles from "../common/Common.module.css";
-import { AddressBookEntry, AddressType } from "../appstate";
+import { AddressBookEntryClass, AddressKindEnum } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { ZcashURITarget } from "../../utils/uris";
@@ -24,16 +24,16 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   const [addButtonEnabled, setAddButtonEnabled] = useState<boolean>(false);
   const [labelError, setLabelError] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
-  const [addressType, setAddressType] = useState<AddressType | undefined>(undefined);
-  const [addressBookSorted, setAddressBookSorted] = useState<AddressBookEntry[]>([]);
+  const [addressKind, setAddressKind] = useState<AddressKindEnum | undefined>(undefined);
+  const [addressBookSorted, setAddressBookSorted] = useState<AddressBookEntryClass[]>([]);
 
   useEffect(() => {
     (async () => {
       const { _labelError } = await validateLabel(currentLabel);
-      const { _addressError, _addressType } = await validateAddress(currentAddress);
+      const { _addressError, _addressKind } = await validateAddress(currentAddress);
       setLabelError(_labelError);
       setAddressError(_addressError);
-      setAddressType(_addressType);
+      setAddressKind(_addressKind);
       setAddButtonEnabled(!_labelError && !_addressError && currentLabel !== "" && currentAddress !== ""); 
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -63,20 +63,20 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   };
 
   const validateLabel = async (_currentLabel: string) => {
-    let _labelError: string | null = addressBook.find((i: AddressBookEntry) => i.label === _currentLabel) ? "Duplicate Label" : null;
+    let _labelError: string | null = addressBook.find((i: AddressBookEntryClass) => i.label === _currentLabel) ? "Duplicate Label" : null;
     _labelError = _currentLabel.length > 20 ? "Label is too long" : _labelError;
 
     return { _labelError };
   };
 
   const validateAddress = async (_currentAddress: string) => {
-    const _addressType: AddressType | undefined = await Utils.getAddressType(_currentAddress);
-    let _addressError: string | null = _currentAddress === "" || _addressType !== undefined ? null : 'Invalid Address';
+    const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(_currentAddress);
+    let _addressError: string | null = _currentAddress === "" || _addressKind !== undefined ? null : 'Invalid Address';
     if (!_addressError) {
-      _addressError = addressBook.find((i: AddressBookEntry) => i.address === _currentAddress) ? 'Duplicate Address' : null;
+      _addressError = addressBook.find((i: AddressBookEntryClass) => i.address === _currentAddress) ? 'Duplicate Address' : null;
     }
 
-    return { _addressError, _addressType };
+    return { _addressError, _addressKind };
   };
 
   const clearFields = () => {
@@ -85,7 +85,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     setAddButtonEnabled(false);
     setLabelError(null);
     setAddressError(null);
-    setAddressType(undefined);
+    setAddressKind(undefined);
   };
 
   return (
@@ -116,10 +116,10 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           <div className={[cstyles.flexspacebetween].join(" ")}>
             <div className={cstyles.sublight}>Address</div>
             <div className={[cstyles.sublight, cstyles.green].join(" ")}>
-              {addressType !== undefined && addressType === AddressType.tex && 'TEX'}
-              {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
-              {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
-              {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
+              {addressKind !== undefined && addressKind === AddressKindEnum.tex && 'TEX'}
+              {addressKind !== undefined && addressKind === AddressKindEnum.transparent && 'Transparent'}
+              {addressKind !== undefined && addressKind === AddressKindEnum.sapling && 'Sapling'}
+              {addressKind !== undefined && addressKind === AddressKindEnum.unified && 'Unified'}
             </div>
             <div className={cstyles.validationerror}>
               {!addressError ? (
@@ -165,7 +165,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           <div className={styles.addressbooklist}>
             {addressBookSorted && addressBookSorted.length > 0 && (
               <Accordion>
-                {addressBook.map((item: AddressBookEntry) => (
+                {addressBook.map((item: AddressBookEntryClass) => (
                   <AddressBookItem
                     key={item.label}
                     item={item}

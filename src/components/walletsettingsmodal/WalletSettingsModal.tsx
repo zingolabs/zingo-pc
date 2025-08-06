@@ -1,10 +1,10 @@
 import Modal from "react-modal";
 import React, { useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
-import { WalletSettings } from "../appstate";
+import { WalletSettingsClass } from "../appstate";
 
 type WalletSettingsModalProps = {
-  walletSettings: WalletSettings;
+  walletSettings: WalletSettingsClass;
   modalIsOpen: boolean;
   closeModal: () => void;
   setWalletSpamFilterThreshold: (threshold: number) => void;

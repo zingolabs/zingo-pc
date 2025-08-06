@@ -1,36 +1,45 @@
-import TotalBalance from "./components/TotalBalance";
-import AddressBookEntry from "./components/AddressbookEntry";
-import ValueTransfer from "./components/ValueTransfer";
-import SendPageState from "./components/SendPageState";
-import Info from "./components/Info";
-import ServerSelectState from "./components/ServerSelectState";
-import WalletSettings from "./components/WalletSettings";
-import AddressType from "./components/AddressType";
-import SendProgress from "./components/SendProgress";
-import ToAddr from "./components/ToAddr";
-import TxDetail from "./components/TxDetail";
-import ReceiverType from "./components/ReceiverType";
-import Address from './components/Address';
-import Server from "./components/Server";
-import FetchErrorType from "./components/FetchErrorType";
+import AddressBookEntryClass from "./classes/AddressBookEntryClass";
+import AddressTransparentClass from "./classes/AddressTransparentClass";
+import AddressUnifiedClass from "./classes/AddressUnifiedClass";
+import FetchErrorTypeClass from "./classes/FetchErrorClass";
+import InfoClass from "./classes/InfoClass";
+import SendPageStateClass from "./classes/SendPageStateClass";
+import SendProgressClass from "./classes/SendProgressClass";
+import ServerClass from "./classes/ServerClass";
+import ServerSelectStateClass from "./classes/ServerSelectStateClass";
+import ToAddrClass from "./classes/ToAddrClass";
+import TotalBalanceClass from "./classes/TotalBalanceClass";
+import TxDetailClass from "./classes/TxDetailClass";
+import ValueTransferClass from "./classes/ValueTransferClass";
+import WalletSettingsClass from "./classes/WalletSettingsClass";
+
+import { AddressKindEnum } from "./enums/AddressKindEnum";
+import { AddressReceiverEnum } from "./enums/AddressReceiverEnum";
+import { AddressScopeEnum } from "./enums/AddressScopeEnum";
+import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
 
 import AppState from "./AppState";
 
 export {
-  TotalBalance, 
-  AddressBookEntry, 
-  AddressType,
-  ValueTransfer, 
-  SendPageState, 
-  SendProgress,
-  Info, 
-  ServerSelectState, 
-  WalletSettings, 
+  AddressBookEntryClass, 
+  AddressTransparentClass,
+  AddressUnifiedClass,
+  ValueTransferClass, 
+  SendPageStateClass, 
+  SendProgressClass,
+  InfoClass, 
+  ServerSelectStateClass, 
+  WalletSettingsClass, 
+  TotalBalanceClass, 
+  ToAddrClass,
+  TxDetailClass,
+  ServerClass,
+  FetchErrorTypeClass,
+
+  AddressKindEnum,
+  AddressReceiverEnum,
+  AddressScopeEnum,
+  ServerChainNameEnum,
+
   AppState,
-  ToAddr,
-  TxDetail,
-  ReceiverType,
-  Address,
-  Server,
-  FetchErrorType,
 };

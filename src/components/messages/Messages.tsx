@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Messages.module.css";
-import { ValueTransfer, AddressBookEntry, Address } from "../appstate";
+import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
 import ScrollPaneBottom from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
 import MessagesItemBlock from "./components/MessagesItemBlock";
@@ -20,14 +20,14 @@ type MessagesProps = {
 
 const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton }) => {
   const context = useContext(ContextApp);
-  const { messages, info, addressBook, totalBalance, addresses, readOnly, fetchError } = context;
+  const { messages, info, addressBook, totalBalance, readOnly, fetchError } = context;
 
-  const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransfer | undefined>(undefined);
+  const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
   const [numVtnsToShow, setNumVtnsToShow] = useState<number>(100);
   const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
-  const [messagesSorted, setMessagesSorted] = useState<ValueTransfer[]>([]);
+  const [messagesSorted, setMessagesSorted] = useState<ValueTransferClass[]>([]);
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
@@ -36,10 +36,10 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
   const [sapling, setSapling] = useState<boolean>(true);
   const [orchard, setOrchard] = useState<boolean>(true);
 
-  useEffect(() => {
-    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    setAnyPending(!!_anyPending);
-  }, [addresses]);
+  //useEffect(() => {
+  //  const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+  //  setAnyPending(!!_anyPending);
+  //}, [addresses]);
     
   useEffect(() => {
     if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
@@ -72,12 +72,12 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
 
   useEffect(() => {
     setMessagesSorted(messages
-      .filter((a: ValueTransfer) => a.memos && a.memos.length > 0 && a.memos.join(''))
+      .filter((a: ValueTransferClass) => a.memos && a.memos.length > 0 && a.memos.join(''))
       .slice(-numVtnsToShow));  
   }, [numVtnsToShow, messages]);
 
   useEffect(() => {
-    setAddressBookMap(addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
+    setAddressBookMap(addressBook.reduce((m: Map<string, string>, obj: AddressBookEntryClass) => {
       m.set(obj.address, obj.label);
       return m; 
     }, new Map()));
@@ -183,13 +183,13 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
         )}
 
         {messagesSorted && messagesSorted.length > 0 &&
-          messagesSorted.map((vt: ValueTransfer, index: number) => {
+          messagesSorted.map((vt: ValueTransferClass, index: number) => {
             return (
               <MessagesItemBlock
                 index={index}
                 key={`${index}-${vt.type}-${vt.txid}`}
                 vt={vt}
-                setValueTransferDetail={(ttt: ValueTransfer) => setValueTransferDetail(ttt)}
+                setValueTransferDetail={(ttt: ValueTransferClass) => setValueTransferDetail(ttt)}
                 setValueTransferDetailIndex={(iii: number) => setValueTransferDetailIndex(iii)}
                 setModalIsOpen={(bbb: boolean) => setModalIsOpen(bbb)}  
                 currencyName={info.currencyName}

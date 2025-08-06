@@ -1,25 +1,28 @@
 import { ErrorModalData } from "../errormodal";
-import TotalBalance from "./components/TotalBalance";
-import AddressBookEntry from "./components/AddressbookEntry";
-import ValueTransfer from "./components/ValueTransfer";
-import SendPageState from "./components/SendPageState";
-import Info from "./components/Info";
-import ServerSelectState from "./components/ServerSelectState";
-import WalletSettings from "./components/WalletSettings";
-import Address from "./components/Address";
-import Server from "./components/Server";
-import FetchErrorType from "./components/FetchErrorType";
+import TotalBalance from "./classes/TotalBalanceClass";
+import ValueTransfer from "./classes/ValueTransferClass";
+import SendPageState from "./classes/SendPageStateClass";
+import ServerSelectState from "./classes/ServerSelectStateClass";
+import WalletSettings from "./classes/WalletSettingsClass";
+import Server from "./classes/ServerClass";
+import FetchErrorType from "./classes/FetchErrorClass";
+
+import AddressUnifiedClass from "./classes/AddressUnifiedClass";
+import AddressTransparentClass from "./classes/AddressTransparentClass";
+import AddressBookEntryClass from "./classes/AddressBookEntryClass";
+import InfoClass from "./classes/InfoClass";
+
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
   totalBalance: TotalBalance;
 
-  // List of all addresses in the wallet, including change addresses and addresses
-  // that don't have any balance or are unused
-  addresses: Address[];
+  // List of all addresses in the wallet
+  addressesUnified: AddressUnifiedClass[];
+  addressesTransparent: AddressTransparentClass[];
 
   // List of Address / Label pairs
-  addressBook: AddressBookEntry[];
+  addressBook: AddressBookEntryClass[];
 
   // List of all T and Z ValueTransfer
   valueTransfers: ValueTransfer[];
@@ -31,7 +34,7 @@ export default class AppState {
   sendPageState: SendPageState;
 
   // getinfo result
-  info: Info;
+  info: InfoClass;
 
   // internal wallet settings in the blockchain
   walletSettings: WalletSettings;
@@ -56,14 +59,15 @@ export default class AppState {
 
   constructor() {
     this.totalBalance = new TotalBalance();
-    this.addresses = [] as Address[];
-    this.addressBook = [] as AddressBookEntry[];
+    this.addressesUnified = [] as AddressUnifiedClass[];
+    this.addressesTransparent = [] as AddressTransparentClass[];
+    this.addressBook = [] as AddressBookEntryClass[];
     this.valueTransfers = [] as ValueTransfer[];
     this.messages = [] as ValueTransfer[];
     this.errorModalData = new ErrorModalData();
     this.serverSelectState = new ServerSelectState();
     this.sendPageState = new SendPageState();
-    this.info = new Info();
+    this.info = new InfoClass();
     this.verificationProgress = 100;
     this.walletSettings = new WalletSettings();
     this.readOnly = false;

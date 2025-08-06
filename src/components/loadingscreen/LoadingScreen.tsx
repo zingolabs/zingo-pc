@@ -4,14 +4,14 @@ import TextareaAutosize from "react-textarea-autosize";
 import request from "request";
 import progress from "progress-stream";
 import native from "../../native.node";
-import { Info, Server } from "../appstate";
+import { InfoClass, ServerClass } from "../appstate";
 import RPC from "../../rpc/rpc";
 import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
 import { Logo } from "../logo";
-import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
@@ -25,7 +25,7 @@ class LoadingScreenState {
 
   url: string;
 
-  chain_name: '' | ChainNameEnum;
+  chain_name: '' | ServerChainNameEnum;
 
   selection: '' | 'auto' | 'list' | 'custom';
 
@@ -46,14 +46,14 @@ class LoadingScreenState {
 
   changeAnotherWallet: boolean;
 
-  serverUris: Server[];
+  serverUris: ServerClass[];
 
   buttonsDisable: boolean;
 
   constructor(currentStatus: string | JSX.Element, 
               currentStatusIsError: boolean, 
               changeAnotherWallet: boolean, 
-              serverUris: Server[]) {
+              serverUris: ServerClass[]) {
     this.currentStatus = currentStatus;
     this.currentStatusIsError = currentStatusIsError;
     this.loadingDone = false;
@@ -73,10 +73,10 @@ class LoadingScreenState {
 
 type LoadingScreenProps = {
   runRPCConfiigure: () => void;
-  setInfo: (info: Info) => void;
+  setInfo: (info: InfoClass) => void;
   openServerSelectModal: () => void;
   setReadOnly: (readOnly: boolean) => void;
-  setServerUris: (serverUris: Server[]) => void;
+  setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
 };
 
@@ -94,12 +94,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         ),
         currentStatusIsError: boolean = false, 
         changeAnotherWallet: boolean = false,
-        serverUris: Server[] = [];
+        serverUris: ServerClass[] = [];
     if (props.location.state) {
       const locationState = props.location.state as { 
         currentStatus: string, 
         currentStatusIsError: boolean, 
-        serverUris: Server[],
+        serverUris: ServerClass[],
       };
       currentStatus = locationState.currentStatus;
       currentStatusIsError = locationState.currentStatusIsError;
@@ -176,7 +176,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const settings = await ipcRenderer.invoke("loadSettings");
     console.log('SETTINGS;;;;;;;;;', settings);
     let server: string, 
-        chain_name: ChainNameEnum, 
+        chain_name: ServerChainNameEnum, 
         selection: 'auto' | 'list' | 'custom';
     if (!settings) {
       // no settings stored, asumming `list` by default.
@@ -198,9 +198,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       } else {
         // the server is in settings, asking for the others fields.
         server = settings.serveruri;
-        const serverInList = serverUrisList().filter((s: Server) => s.uri === server)
+        const serverInList = serverUrisList().filter((s: ServerClass) => s.uri === server)
         if (!settings.serverchain_name) {
-          chain_name = ChainNameEnum.mainChainName;
+          chain_name = ServerChainNameEnum.mainChainName;
           if (serverInList && serverInList.length === 1) {
             // if the server is in the list, then selection is `list`
             if (serverInList[0].obsolete) {
@@ -223,7 +223,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           if (!settings.serverselection) {
             if (serverInList && serverInList.length === 1) {
               // if the server is in the list, then selection is `list`
-              chain_name = ChainNameEnum.mainChainName;
+              chain_name = ServerChainNameEnum.mainChainName;
               selection = 'list';
             } else {
               selection = 'custom';
@@ -237,7 +237,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     }
     // if the server selected is now obsolete, change it for the first one
-    const serverInList: Server[] = serverUrisList().filter((s: Server) => s.uri === server)
+    const serverInList: ServerClass[] = serverUrisList().filter((s: ServerClass) => s.uri === server)
     if (serverInList && serverInList.length > 0 && serverInList[0].obsolete) {
       console.log('server obsolete', server, '=>', serverUrisList()[0].uri);
       server = serverUrisList()[0].uri;
@@ -250,7 +250,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     // if empty is the first time and if auto => App needs to check the servers.
     if (selection === 'auto') {
-      const serverFaster = await this.selectingServer(serverUrisList().filter((s: Server) => !s.obsolete));
+      const serverFaster = await this.selectingServer(serverUrisList().filter((s: ServerClass) => !s.obsolete));
       if (serverFaster) {
         server = serverFaster.uri;
         chain_name = serverFaster.chain_name;  
@@ -356,7 +356,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     });
   };
 
-  calculateLatency = async (server: Server, _index: number) => {
+  calculateLatency = async (server: ServerClass, _index: number) => {
     const start: number = Date.now();
     const resp: string = await native.get_latest_block_server(server.uri);
   
@@ -371,15 +371,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     return latency;
   };
   
-  selectingServer = async (serverUris: Server[]): Promise<Server | null> => {
-    const servers: Server[] = serverUris;
+  selectingServer = async (serverUris: ServerClass[]): Promise<ServerClass | null> => {
+    const servers: ServerClass[] = serverUris;
   
     // 30 seconds max.
     const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 30 * 1000));
   
     const validServersPromises = servers.map(
-      (server: Server) =>
-        new Promise<Server>(async resolve => {
+      (server: ServerClass) =>
+        new Promise<ServerClass>(async resolve => {
           const latency = await this.calculateLatency(server, servers.indexOf(server));
           if (latency !== null) {
             resolve({ ...server, latency });
@@ -423,7 +423,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     const { runRPCConfiigure, setInfo } = this.props;
 
-    const info: Info = await RPC.getInfoObject();
+    const info: InfoClass = await RPC.getInfoObject();
     console.log(info);
 
     if (info.error) {

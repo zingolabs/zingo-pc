@@ -5,7 +5,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceblock";
 import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
-import { Address, AddressBookEntry, ValueTransfer } from "../../appstate";
+import { AddressBookEntryClass, AddressTransparentClass, AddressUnifiedClass, ValueTransferClass } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
@@ -16,7 +16,7 @@ type VtModalInternalProps = {
   index: number;
   length: number;
   totalLength: number;
-  vt?: ValueTransfer;
+  vt?: ValueTransferClass;
   modalIsOpen: boolean;
   closeModal: () => void;
   currencyName: string;
@@ -39,7 +39,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   moveValueTransferDetail,
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly, addressBook, addresses } = context;
+  const { readOnly, addressBook, addressesUnified, addressesTransparent } = context;
   const [expandAddress, setExpandAddress] = useState(false); 
   const [expandTxid, setExpandTxid] = useState(false);
   const [showNavigator, setShowNavigator] = useState<boolean>(true);
@@ -97,7 +97,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
   const getLabelAddressBook = (addr: string) => {
     // Find the addr in addresses
-    const label: AddressBookEntry | undefined = addressBook.find((ab: AddressBookEntry) => ab.address === addr);
+    const label: AddressBookEntryClass | undefined = addressBook.find((ab: AddressBookEntryClass) => ab.address === addr);
     const labelStr: string = label ? `[ ${label.label} ]` : "";
 
     return labelStr; 
@@ -141,7 +141,9 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     replyTo = memoPoped ? memoPoped.toString() : '';
     labelReplyTo = getLabelAddressBook(replyTo);
     if (!labelReplyTo) {
-      labelReplyTo = addresses.find((a: Address) => a.address === replyTo) ? "[ This Wallet's Address ]" : "";
+      const u: boolean = !!addressesUnified.find((a: AddressUnifiedClass) => a.address === replyTo)
+      const t: boolean = !!addressesTransparent.find((a: AddressTransparentClass) => a.address === replyTo)
+      labelReplyTo = u || t ? "[ This Wallet's Address ]" : "";
     }
   }
 

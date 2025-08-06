@@ -8,7 +8,7 @@ import {
 } from "react-accessible-accordion";
 import styles from "../Addressbook.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressBookEntry } from "../../appstate";
+import { AddressBookEntryClass } from "../../appstate";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
 import Utils from "../../../utils/utils";
@@ -16,7 +16,7 @@ import { ContextApp } from "../../../context/ContextAppState";
 const { clipboard } = window.require("electron");
 
 type AddressBookItemProps = {
-  item: AddressBookEntry;
+  item: AddressBookEntryClass;
   removeAddressBookEntry: (label: string) => void;
   setSendTo: (targets: ZcashURITarget | ZcashURITarget[]) => void;
 };

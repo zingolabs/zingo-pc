@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
-import { AddressBookEntry, Address, AddressType } from "../appstate";
+import { AddressBookEntryClass, AddressTransparentClass, AddressUnifiedClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
@@ -18,45 +18,34 @@ const Receive: React.FC<ReceiveProps> = ({
 }) => {
   const context = useContext(ContextApp);
   const {
-    addresses,
+    addressesUnified,
+    addressesTransparent,
     addressBook,
     info,
   } = context;
 
-  const [uaddrs, setUaddrs] = useState<Address[]>([]);
+  const [uaddrs, setUaddrs] = useState<AddressUnifiedClass[]>([]);
   const [defaultUaddr, setDefaultUaddr] = useState<string>('')
-  const [zaddrs, setZaddrs] = useState<Address[]>([]);
-  const [defaultZaddr, setDefaultZaddr] = useState<string>('')
-  const [taddrs, setTaddrs] = useState<Address[]>([]);
+  const [taddrs, setTaddrs] = useState<AddressTransparentClass[]>([]);
   const [defaultTaddr, setDefaultTaddr] = useState<string>('')
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
-    const _uaddrs: Address[] = addresses
-      .filter((a: Address) => a.type === AddressType.unified);
+    const _uaddrs: AddressUnifiedClass[] = addressesUnified;
     let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[0].address : "";
     setUaddrs(_uaddrs);
     setDefaultUaddr(_defaultUaddr);
-  }, [addresses]);
+  }, [addressesUnified]);
   
   useEffect(() => {
-    const _zaddrs: Address[] = addresses
-      .filter((a: Address) => a.type === AddressType.sapling);
-    let _defaultZaddr: string = _zaddrs.length > 0 ? _zaddrs[0].address : "";
-    setZaddrs(_zaddrs);
-    setDefaultZaddr(_defaultZaddr);
-  }, [addresses]);
-
-  useEffect(() => {
-    const _taddrs: Address[] = addresses
-      .filter((a: Address) => a.type === AddressType.transparent);
+    const _taddrs: AddressTransparentClass[] = addressesTransparent;
     let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[0].address : "";
     setTaddrs(_taddrs);
     setDefaultTaddr(_defaultTaddr);
-  }, [addresses]);
+  }, [addressesTransparent]);
 
   useEffect(() => {
-    const _addressBookMap = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
+    const _addressBookMap = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntryClass) => {
       m.set(obj.address, obj.label);
       return m;
     }, new Map());
@@ -71,7 +60,6 @@ const Receive: React.FC<ReceiveProps> = ({
         <Tabs>
           <TabList>
             {uaddrs && uaddrs.length > 0 && <Tab>Unified</Tab>}
-            {zaddrs && zaddrs.length > 0 && <Tab>Sapling</Tab>}
             {taddrs && taddrs.length > 0 && <Tab>Transparent</Tab>}
           </TabList>
 
@@ -79,26 +67,7 @@ const Receive: React.FC<ReceiveProps> = ({
             <TabPanel key={'ua'}>
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultUaddr]}>
-                  {uaddrs.map((a: Address) => (
-                    <AddressBlock
-                      key={a.address}
-                      address={a}
-                      currencyName={info.currencyName}
-                      label={addressBookMap.get(a.address)}
-                      zecPrice={info.zecPrice}
-                      handleShieldButton={handleShieldButton}
-                    />
-                  ))}
-                </Accordion>
-              </ScrollPaneTop>
-            </TabPanel>
-          )}
-
-          {zaddrs && zaddrs.length > 0 && (
-            <TabPanel key={'z'}>
-              <ScrollPaneTop offsetHeight={100}>
-                <Accordion preExpanded={[defaultZaddr]}>
-                  {zaddrs.map((a: Address) => (
+                  {uaddrs.map((a: AddressUnifiedClass) => (
                     <AddressBlock
                       key={a.address}
                       address={a}
@@ -117,7 +86,7 @@ const Receive: React.FC<ReceiveProps> = ({
             <TabPanel key={'t'}>
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultTaddr]}>
-                  {taddrs.map((a: Address) => (
+                  {taddrs.map((a: AddressTransparentClass) => (
                     <AddressBlock
                       key={a.address}
                       address={a}

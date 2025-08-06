@@ -1,9 +1,9 @@
 import Utils from "../../../utils/utils";
-import { SendPageState, ToAddr } from "../../appstate";
+import { SendPageStateClass, ToAddrClass } from "../../appstate";
 import SendManyJsonType from "./SendManyJSONType";
   
-function getSendManyJSON(sendPageState: SendPageState): SendManyJsonType[] {
-  const json: SendManyJsonType[] = sendPageState.toaddrs.flatMap((to: ToAddr) => {
+function getSendManyJSON(sendPageState: SendPageStateClass): SendManyJsonType[] {
+  const json: SendManyJsonType[] = sendPageState.toaddrs.flatMap((to: ToAddrClass) => {
     const memo: string = (to.memo || "") + (to.memoReplyTo || "");
     const amount: number = parseInt((to.amount * 10 ** 8).toFixed(0));
 

@@ -9,9 +9,9 @@ import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
 import AddressBalanceItem from "./components/AddressBalanceItem"; 
 import { ContextApp } from "../../context/ContextAppState";
-import { Address } from "../appstate";
 
 import native from "../../native.node";
+import { AddressTransparentClass, AddressUnifiedClass } from "../appstate";
 
 type DashboardProps = {
   calculateShieldFee: () => Promise<number>;
@@ -20,7 +20,7 @@ type DashboardProps = {
 
 const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldButton}) => {
   const context = useContext(ContextApp);
-  const { totalBalance, info, addresses, readOnly, fetchError } = context;
+  const { totalBalance, info, readOnly, fetchError, addressesUnified, addressesTransparent } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -28,10 +28,10 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
   const [sapling, setSapling] = useState<boolean>(true);
   const [orchard, setOrchard] = useState<boolean>(true);
 
-  useEffect(() => {
-    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    setAnyPending(!!_anyPending);
-  }, [addresses]);
+  //useEffect(() => {
+  //  const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+  //  setAnyPending(!!_anyPending);
+  //}, [addresses]);
     
   useEffect(() => {
     // with transparent funds & no readonly wallet
@@ -128,14 +128,15 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
       <div className={styles.addressbalancecontainer}>
         <ScrollPaneTop offsetHeight={190}>
           <div className={styles.addressbooklist}>
-            {addresses &&
-              (addresses.length === 0 ? (
-                <div className={[cstyles.center, cstyles.sublight, cstyles.margintoplarge].join(" ")}>No Addresses with a balance</div>
-              ) : (
+            {(!addressesUnified || addressesUnified.length === 0) && 
+             (!addressesTransparent || addressesTransparent.length === 0) ? (
+              <div className={[cstyles.center, cstyles.sublight, cstyles.margintoplarge].join(" ")}>No Addresses with a balance</div>
+            ) : (
+              <>
                 <Accordion>
-                  {addresses
-                    .filter((ab: Address) => ab.balance > 0)
-                    .map((ab: Address) => (
+                  {addressesUnified
+                    .filter((ab: AddressUnifiedClass) => ab.balance > 0)
+                    .map((ab: AddressUnifiedClass) => (
                       <AddressBalanceItem
                         key={ab.address}
                         item={ab}
@@ -144,7 +145,20 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
                       />
                     ))}
                 </Accordion>
-              ))}
+                <Accordion>
+                  {addressesTransparent
+                    .filter((ab: AddressTransparentClass) => ab.balance > 0)
+                    .map((ab: AddressTransparentClass) => (
+                      <AddressBalanceItem
+                        key={ab.address}
+                        item={ab}
+                        currencyName={info.currencyName}
+                        zecPrice={info.zecPrice}
+                      />
+                    ))}
+                </Accordion>
+              </>
+            )}
           </div>
         </ScrollPaneTop>
       </div>
