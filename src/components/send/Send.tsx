@@ -64,16 +64,16 @@ const Send: React.FC<SendProps> = ({
   //}, [addresses]);
     
   useEffect(() => {
-    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
+    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
+  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
     // transparent funds are not spendable.
-    let _totalAmountAvailable: number = totalBalance.spendableZ + totalBalance.spendableO;
+    let _totalAmountAvailable: number = totalBalance.totalSpendableBalance;
     _totalAmountAvailable = Number(Utils.maxPrecisionTrimmed(_totalAmountAvailable));
     if (_totalAmountAvailable < 0) {
       _totalAmountAvailable = 0;
@@ -83,11 +83,23 @@ const Send: React.FC<SendProps> = ({
 
     // If there are unverified funds, then show a tooltip
     let _tooltip: string = "";
-    if (totalBalance.unverifiedZ + totalBalance.unverifiedO > 0) {
-      _tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ + totalBalance.unverifiedO} with 1 block (approx 2 minutes)`; 
+    const unconfirmed: number = 
+      (totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance) -
+      (totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance);
+    if (unconfirmed > 0) {
+      _tooltip = `Waiting for confirmation of ZEC ${unconfirmed} with 3 block (approx 5 minutes)`; 
     }
     setTooltip(_tooltip);
-  }, [addressesUnified, totalBalance.spendableO, totalBalance.spendableZ, totalBalance.unverifiedO, totalBalance.unverifiedZ]);  
+  }, [
+    addressesUnified, 
+    totalBalance.totalOrchardBalance, 
+    totalBalance.totalSaplingBalance, 
+    totalBalance.totalTransparentBalance, 
+    totalBalance.confirmedOrchardBalance,
+    totalBalance.confirmedSaplingBalance,
+    totalBalance.confirmedTransparentBalance,
+    totalBalance.totalSpendableBalance,
+  ]);  
 
   const clearToAddrs = () => {
     const newToAddrs: ToAddrClass[] = [new ToAddrClass(Utils.getNextToAddrID())];
@@ -102,7 +114,7 @@ const Send: React.FC<SendProps> = ({
     setSendFeeError('');
 
     // transparent funds are not spendable.
-    let _totalAmountAvailable: number = totalBalance.spendableZ + totalBalance.spendableO;
+    let _totalAmountAvailable: number = totalBalance.totalSpendableBalance;
     _totalAmountAvailable = Number(Utils.maxPrecisionTrimmed(_totalAmountAvailable));
     if (_totalAmountAvailable < 0) {
       _totalAmountAvailable = 0;
@@ -124,7 +136,7 @@ const Send: React.FC<SendProps> = ({
       // First, check if this is a URI
       const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address.replace(/ /g, ""));
       if (typeof parsedUri === "string") {
-        if (parsedUri.toLowerCase().startsWith('error')) {
+        if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
           // with error leave the same value
           if (toAddr) {
             toAddr.to = address.replace(/ /g, ""); // Remove spaces 
@@ -230,11 +242,11 @@ const Send: React.FC<SendProps> = ({
     let _fee: number = 0;
     let _error: string = '';
     // transparent funds are not spendable.
-    let _spendable: number = totalBalance.spendableZ + totalBalance.spendableO;
+    let _spendable: number = totalBalance.totalSpendableBalance;
     if (sendPageState.toaddrs[0].to) {
       const result: string = await native.get_spendable_balance_with_address(sendPageState.toaddrs[0].to, "false");
       console.log('SPENDABLEBALANCE', result);
-      if (result.toLowerCase().startsWith('error')) {
+      if (!result || result.toLowerCase().startsWith('error')) {
         _error = result;
         _spendable = 0;
       } else {
@@ -251,7 +263,7 @@ const Send: React.FC<SendProps> = ({
       console.log(sendJson);
       const result: string = await native.send(JSON.stringify(sendJson));
       console.log('SEND', result);
-      if (result.toLowerCase().startsWith('error')) {
+      if (!result || result.toLowerCase().startsWith('error')) {
         _error = result;
       } else {
         const resultJSON = JSON.parse(result);
@@ -300,8 +312,8 @@ const Send: React.FC<SendProps> = ({
         <div className={[cstyles.balancebox].join(" ")}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={totalBalance.total}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
+            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
             currencyName={info.currencyName}
           />
           <BalanceBlockHighlight
@@ -313,7 +325,7 @@ const Send: React.FC<SendProps> = ({
           />
         </div>
         <div className={cstyles.balancebox}>
-          {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
             <>
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
@@ -350,7 +362,7 @@ const Send: React.FC<SendProps> = ({
                   updateToField={updateToField}
                   fromAddress={fromaddr}
                   fromAmount={totalAmountAvailable}
-                  fromAmountDefault={totalBalance.spendableZ + totalBalance.spendableO}
+                  fromAmountDefault={totalBalance.totalSpendableBalance}
                   setMaxAmount={setMaxAmount}
                   setSendButtonEnabled={setSendButtonEnabled}
                   sendFee={sendFee}

@@ -3,13 +3,13 @@ export function wallet_exists(
   server_uri: string, 
   chain_hint: string,
   performance_level: string,
-  min_confirmations: string
+  min_confirmations: number
 ): boolean;
 export function init_new(
   server_uri: string, 
   chain_hint: string,
   performance_level: string,
-  min_confirmations: string
+  min_confirmations: number
 ): string;
 export function init_from_seed(
   seed: string,
@@ -17,7 +17,7 @@ export function init_from_seed(
   server_uri: string,
   chain_hint: string,
   performance_level: string,
-  min_confirmations: string
+  min_confirmations: number
 ): string;
 export function init_from_ufvk(
   ufvk: string,
@@ -25,13 +25,13 @@ export function init_from_ufvk(
   server_uri: string,
   chain_hint: string,
   performance_level: string,
-  min_confirmations: string
+  min_confirmations: number
 ): string;
 export function init_from_b64(
   server_uri: string, 
   chain_hint: string,
   performance_level: string,
-  min_confirmations: string
+  min_confirmations: number
 ): string;
 export function get_developer_donation_address(): string;
 export function get_zennies_for_zingo_donation_address(): string;
@@ -99,7 +99,7 @@ export function get_wallet_save_required(): Promise<string>;
 export function set_config_wallet_to_test(): Promise<string>;
 export function set_config_wallet_to_prod(
   performance_level: string,
-  min_confirmations: string
+  min_confirmations: number
 ): Promise<string>;
 export function get_config_wallet_performance(): Promise<string>;
 export function get_wallet_version(): Promise<string>;

@@ -1,44 +1,32 @@
 export default class TotalBalanceClass {
-    // Total t address, confirmed and spendable
-    transparent: number;
-  
-    // Total orchard balance
-    obalance: number;
+  // Total transparent, confirmed and unconfirmed
+  totalTransparentBalance: number;
 
-    // Total orchard, confirmed funds that have been verified
-    verifiedO: number;
-  
-    // Total orchard that are waiting for confirmation
-    unverifiedO: number;
-  
-    // Total orchard funds that are spendable
-    spendableO: number;
-  
-    // Total private, confirmed + unconfirmed
-    zbalance: number;
-  
-    // Total private, confirmed funds that have been verified
-    verifiedZ: number;
-  
-    // Total private that are waiting for confirmation
-    unverifiedZ: number;
-  
-    // Total private funds that are spendable
-    spendableZ: number;
-  
-    // Total unconfirmed + spendable
-    total: number;
-  
-    constructor() {
-      this.obalance = 0;
-      this.zbalance = 0;
-      this.transparent = 0;
-      this.verifiedO = 0;
-      this.unverifiedO = 0;
-      this.spendableO = 0;
-      this.verifiedZ = 0;
-      this.unverifiedZ = 0;
-      this.spendableZ = 0;
-      this.total = 0;
-    }
+  // Total private, confirmed + pending
+  totalSaplingBalance: number;
+
+  // Total orchard, confirmed + pending
+  totalOrchardBalance: number;
+
+  // Total transparent, only confirmed
+  confirmedTransparentBalance: number;
+
+  // Total private, confirmed funds
+  confirmedSaplingBalance: number;
+
+  // Total orchard, confirmed funds
+  confirmedOrchardBalance: number;
+
+  // Total spendable
+  totalSpendableBalance: number;
+
+  constructor() {
+    this.totalTransparentBalance = 0;
+    this.totalSaplingBalance = 0;
+    this.totalOrchardBalance = 0;
+    this.confirmedTransparentBalance = 0;
+    this.confirmedSaplingBalance = 0;
+    this.confirmedOrchardBalance = 0;
+    this.totalSpendableBalance = 0;
   }
+}

@@ -290,7 +290,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     try {
       const result: string | string[] = await this.rpc.sendTransaction(sendJson, setSendProgress);
 
-      if (typeof result === "string" && result.toLowerCase().startsWith("error")) {
+      if (typeof result === "string" && (!result || result.toLowerCase().startsWith("error"))) {
         throw result;
       }
 
@@ -322,9 +322,18 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ addressBook: newAddressBook });
   };
 
-  createNewAddress = async (newKind: AddressKindEnum) => {
+  createNewAddressUnified = async (newKind: AddressKindEnum) => {
     // Create a new address
-    const newAddress: any = await RPC.createNewAddress(newKind);
+    const newAddress: any = await RPC.createNewAddressUnified(newKind);
+    console.log(`Created new Address ${newAddress}`);
+
+    // And then fetch the list of addresses again to refresh (totalBalance gets all addresses) 
+    this.rpc.fetchTotalBalance();
+  };
+
+  createNewAddressTransparent = async (newKind: AddressKindEnum) => {
+    // Create a new address
+    const newAddress: any = await RPC.createNewAddressTransparent(newKind);
     console.log(`Created new Address ${newAddress}`);
 
     // And then fetch the list of addresses again to refresh (totalBalance gets all addresses) 
@@ -342,7 +351,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   calculateShieldFee = async (): Promise<number> => {
     const result: string = await native.shield();
     console.log(result);
-    if (result.toLowerCase().startsWith('error')) {
+    if (!result || result.toLowerCase().startsWith('error')) {
       return 0;
     } else {
       const resultJSON = JSON.parse(result);
@@ -370,7 +379,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
           const result: string = await this.shieldTransparentBalanceToOrchard();
           console.log('shielding balance', result);
 
-          if (result.toLocaleLowerCase().startsWith('error')) {
+          if (!result || result.toLocaleLowerCase().startsWith('error')) {
             this.openErrorModal("Error Shielding Transaction", `${result}`);
             return;  
           }

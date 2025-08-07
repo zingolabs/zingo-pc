@@ -298,7 +298,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
     const parsedUri: string | ZcashURITarget[] = await parseZcashURI(uri);
     if (typeof parsedUri === "string") {
-      if (parsedUri.toLowerCase().startsWith('error')) {
+      if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
         openErrorModal(errTitle, getErrorBody(parsedUri));
         return;
       } else {

@@ -61,14 +61,14 @@ type ConfirmModalProps = {
   
       let from: 'orchard' | 'orchard+sapling' | 'sapling' | '' = '';
       // amount + fee
-      if (Number(toaddr.amount) + sendFee <= totalBalance.spendableO) {
+      if (Number(toaddr.amount) + sendFee <= totalBalance.confirmedOrchardBalance) {
         from = 'orchard';
       } else if (
-        totalBalance.spendableO > 0 &&
-        Number(toaddr.amount) + sendFee <= totalBalance.spendableO + totalBalance.spendableZ
+        totalBalance.confirmedOrchardBalance > 0 &&
+        Number(toaddr.amount) + sendFee <= totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance
       ) {
         from = 'orchard+sapling';
-      } else if (Number(toaddr.amount) + sendFee <= totalBalance.spendableZ) {
+      } else if (Number(toaddr.amount) + sendFee <= totalBalance.confirmedSaplingBalance) {
         from = 'sapling';
       }
   
@@ -77,11 +77,7 @@ type ConfirmModalProps = {
       }
   
       const result: string = await native.parse_address(toaddr.to);
-      if (result) {
-        if (result.toLowerCase().startsWith('error')) {
-          return '-';
-        }
-      } else {
+      if (!result || result.toLowerCase().startsWith('error')) {
         return '-';
       }
       
@@ -173,7 +169,7 @@ type ConfirmModalProps = {
   
       // whatever else
       return '-';
-    }, [sendFee, totalBalance.spendableZ, totalBalance.spendableO]);
+    }, [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance]);
 
     useEffect(() => {
       (async () => {

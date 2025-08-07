@@ -34,13 +34,13 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
   //}, [addresses]);
     
   useEffect(() => {
-    // with transparent funds & no readonly wallet
-    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
+    // with confirmed transparent funds & no readonly wallet
+    if (totalBalance.confirmedTransparentBalance > 0 && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
+  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
     (async () => {
@@ -67,37 +67,45 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={totalBalance.total}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
+            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
             currencyName={info.currencyName}
+            zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
+            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
           />
           {orchard && (
             <BalanceBlock
               topLabel="Orchard"
-              zecValue={totalBalance.obalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
+              zecValue={totalBalance.totalOrchardBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
               currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedOrchardBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
             />
           )}
           {sapling && (
             <BalanceBlock
               topLabel="Sapling"
-              zecValue={totalBalance.zbalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.zbalance)}
+              zecValue={totalBalance.totalSaplingBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
               currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedSaplingBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
             />
           )}
           {transparent && (
             <BalanceBlock
               topLabel="Transparent"
-              zecValue={totalBalance.transparent}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.transparent)}
+              zecValue={totalBalance.totalTransparentBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
               currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedTransparentBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
             />
           )}
         </div>
         <div className={cstyles.balancebox}>
-          {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
             <>
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})

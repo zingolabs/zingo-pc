@@ -59,11 +59,7 @@ export default class Utils {
   static async getAddressKind(addr: string): Promise<AddressKindEnum | undefined> {
     if (!addr) return;
     const resultParse: string = await native.parse_address(addr);
-    if (resultParse) {
-      if (resultParse.toLowerCase().startsWith('error')) {
-        return;
-      }
-    } else {
+    if (!resultParse || resultParse.toLowerCase().startsWith('error')) {
       return;
     }
 

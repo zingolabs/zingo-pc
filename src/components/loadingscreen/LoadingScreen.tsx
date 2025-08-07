@@ -291,14 +291,14 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
     
     try {
-      // Test to see if the wallet exists 
-      if (!native.wallet_exists(url, chain_name, "High", "3")) {
+      // Test to see if the wallet exists
+      if (!native.wallet_exists(url, chain_name, "High", 3)) {
         // Show the wallet creation screen
         this.setState({ walletScreen: 1 });
       } else {
-        const result: string = native.init_from_b64(url, chain_name, "High", "3");
+        const result: string = native.init_from_b64(url, chain_name, "High", 3);
         console.log(`Initialization: ${result}`);
-        if (result !== "OK") {
+        if (!result || result.toLowerCase().startsWith('error')) {
           this.setState({
             currentStatus: (
               <span>
@@ -445,7 +445,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const poller = setInterval(async () => {
       const syncstatus: string = await RPC.doSyncStatus();
 
-      if (syncstatus.toLowerCase().startsWith("error")) {
+      if (!syncstatus || syncstatus.toLowerCase().startsWith("error")) {
         // Something went wrong
         myThis.setState({
           currentStatus: syncstatus,
@@ -513,14 +513,16 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   createNewWallet = async () => {
     const { url, chain_name } = this.state;
-    const result: string = native.init_new(url, chain_name, "High", "3");
+    const result: string = native.init_new(url, chain_name, "High", 3);
 
-    if (result.toLowerCase().startsWith("error")) {
+    if (!result || result.toLowerCase().startsWith("error")) {
       console.log('creating new wallet', result);
       this.setState({ walletScreen: 2, newWalletError: result });
     } else {
-      const seed: string = await RPC.fetchSeed();
-      this.setState({ walletScreen: 2, seed });
+      const resultJSON = await JSON.parse(result);
+      const seed: string = resultJSON.seed;
+      const birthday: number = resultJSON.birthday;
+      this.setState({ walletScreen: 2, seed, birthday });
       this.props.setReadOnly(false);
     }
   };
@@ -577,8 +579,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { seed, birthday, url, chain_name } = this.state;
     console.log(`Restoring ${seed} with ${birthday}`);
 
-    const result: string = native.init_from_seed(seed, birthday, url, chain_name, "High", "3");
-    if (result.toLowerCase().startsWith("error")) {
+    const result: string = native.init_from_seed(seed, birthday, url, chain_name, "High", 3);
+    if (!result || result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
       this.setState({ walletScreen: 0 });
@@ -591,8 +593,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { ufvk, birthday, url, chain_name } = this.state;
     console.log(`Restoring ${ufvk} with ${birthday}`);
 
-    const result: string = native.init_from_ufvk(ufvk, birthday, url, chain_name, "High", "3");
-    if (result.toLowerCase().startsWith("error")) {
+    const result: string = native.init_from_ufvk(ufvk, birthday, url, chain_name, "High", 3);
+    if (!result || result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
       this.setState({ walletScreen: 0 });
@@ -603,7 +605,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   deleteWallet = async () => { 
     const { url, chain_name } = this.state;
-    if (native.wallet_exists(url, chain_name, "High", "3")) {
+    if (native.wallet_exists(url, chain_name, "High", 3)) {
       // interrupt syncing, just in case.
       const resultInterrupt: string = await native.stop_sync();
       console.log("Interrupting sync ...", resultInterrupt);
