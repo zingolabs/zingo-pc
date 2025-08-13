@@ -1,4 +1,4 @@
-import { AddressKindEnum, AddressUnifiedClass } from "../components/appstate";
+import { AddressKindEnum, UnifiedAddressClass } from "../components/appstate";
 import randomColor from 'randomcolor';
 
 import native from "../native.node";
@@ -150,7 +150,7 @@ export default class Utils {
     return { bigPart, smallPart };
   }
 
-  static getReceivers(addr: AddressUnifiedClass): string[] {
+  static getReceivers(addr: UnifiedAddressClass): string[] {
     let receivers: string[] = [];
 
     if(addr.has_orchard) receivers.push("Orchard");

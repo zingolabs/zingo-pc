@@ -7,18 +7,17 @@ import {
   ServerSelectStateClass, 
   TotalBalanceClass, 
   ValueTransferClass, 
-  WalletSettingsClass, 
   ServerClass, 
   FetchErrorTypeClass, 
-  AddressUnifiedClass, 
-  AddressTransparentClass 
+  UnifiedAddressClass, 
+  TransparentAddressClass 
 } from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
 
 export const defaultAppState: AppState = {
   totalBalance: new TotalBalanceClass(),
-  addressesUnified: [] as AddressUnifiedClass[],
-  addressesTransparent: [] as AddressTransparentClass[],
+  addressesUnified: [] as UnifiedAddressClass[],
+  addressesTransparent: [] as TransparentAddressClass[],
   addressBook: [] as AddressBookEntryClass[],
   valueTransfers: [] as ValueTransferClass[],
   messages: [] as ValueTransferClass[],
@@ -27,7 +26,6 @@ export const defaultAppState: AppState = {
   sendPageState: new SendPageStateClass(),
   info: new InfoClass(),
   verificationProgress: 100,
-  walletSettings: new WalletSettingsClass(),
   readOnly: false,
   serverUris: [] as ServerClass[],
   fetchError: {} as FetchErrorTypeClass,

@@ -5,7 +5,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceblock";
 import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressBookEntryClass, AddressTransparentClass, AddressUnifiedClass, ValueTransferClass } from "../../appstate";
+import { AddressBookEntryClass, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
@@ -141,8 +141,8 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     replyTo = memoPoped ? memoPoped.toString() : '';
     labelReplyTo = getLabelAddressBook(replyTo);
     if (!labelReplyTo) {
-      const u: boolean = !!addressesUnified.find((a: AddressUnifiedClass) => a.address === replyTo)
-      const t: boolean = !!addressesTransparent.find((a: AddressTransparentClass) => a.address === replyTo)
+      const u: boolean = !!addressesUnified.find((a: UnifiedAddressClass) => a.address === replyTo)
+      const t: boolean = !!addressesTransparent.find((a: TransparentAddressClass) => a.address === replyTo)
       labelReplyTo = u || t ? "[ This Wallet's Address ]" : "";
     }
   }

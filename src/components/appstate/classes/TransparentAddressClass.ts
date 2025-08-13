@@ -1,7 +1,7 @@
 import { AddressScopeEnum } from '../enums/AddressScopeEnum';
 import { AddressKindEnum } from '../enums/AddressKindEnum';
 
-export default class AddressTransparentClass {
+export default class TransparentAddressClass {
   index: number;
   address: string;
   addressKind: AddressKindEnum.transparent;

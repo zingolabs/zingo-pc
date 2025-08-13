@@ -5,11 +5,11 @@ import { isEqual } from 'lodash';
 import { ErrorModal, ErrorModalData } from "../components/errormodal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json"; 
-import Dashboard from "../components/dashboard/Dashboard";
-import Insight from "../components/insight/Insight";
+import { Dashboard } from "../components/dashboard";
+import { Insight } from "../components/insight";
 import { Send, SendManyJsonType } from "../components/send";
-import Receive from "../components/receive/Receive";
-import LoadingScreen from "../components/loadingscreen/LoadingScreen";
+import { Receive } from "../components/receive";
+import { LoadingScreen } from "../components/loadingscreen";
 import {
   AppState,
   TotalBalanceClass,
@@ -20,26 +20,26 @@ import {
   AddressBookEntryClass,
   ServerSelectStateClass,
   SendProgressClass,
-  WalletSettingsClass,
   ServerClass,
   FetchErrorTypeClass,
-  AddressUnifiedClass,
-  AddressTransparentClass,
+  UnifiedAddressClass,
+  TransparentAddressClass,
   AddressKindEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
 import { ZcashURITarget } from "../utils/uris";
-import Zcashd from "../components/zcashd/Zcashd";
-import AddressBook from "../components/addressbook/Addressbook";
-import AddressbookImpl from "../components/addressbook/AddressbookImpl";
-import Sidebar from "../components/sidebar/Sidebar";
-import History from "../components/history/History";
-import ServerSelectModal from "../components/serverselectmodal/ServerSelectModal";
+import { Zcashd } from "../components/zcashd";
+import { AddressBook, AddressbookImpl } from "../components/addressbook";
+import { Sidebar } from "../components/sidebar";
+import { History } from "../components/history";
+import { ServerSelectModal } from "../components/serverselectmodal";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
 import native from "../native.node";
 import { Messages } from "../components/messages";
+import serverUrisList from "../utils/serverUrisList";
+const { ipcRenderer } = window.require("electron");
 
 type Props = {};
 
@@ -57,6 +57,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     // Set the Modal's app element
     ReactModal.setAppElement("#root");
 
+    const servers: ServerClass[] = this.state.serverUris.length > 0 ? this.state.serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false);
+    const settings = ipcRenderer.invoke("loadSettings");
+    const server: ServerClass = {uri: settings?.serveruri || servers[0].uri, chain_name: settings?.chain_name || servers[0].chain_name} as ServerClass;
+
     this.rpc = new RPC(
       this.setTotalBalance,
       this.setAddressesUnified,
@@ -65,9 +69,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       this.setMessagesList,
       this.setInfo,
       this.setZecPrice,
-      this.setWalletSettings,
       this.setVerificationProgress,
       this.setFetchError,
+      server,
     );
   };
 
@@ -124,13 +128,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  setWalletSettings = (walletSettings: WalletSettingsClass) => {
-    if (!isEqual(walletSettings, this.state.walletSettings)) {
-      console.log('=============== wallet settings', walletSettings);
-      this.setState({ walletSettings });
-    }
-  };
-
   setFetchError = (command: string, error: string) => {
     console.log('=============== fetch error', command, error);
     this.setState({ fetchError: {
@@ -142,11 +139,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }, 5000);
   };
 
-  updateWalletSettings = async () => {
-    await this.rpc.fetchWalletSettings();
-  };
-
-  setAddressesUnified = (addressesUnified: AddressUnifiedClass[]) => {
+  setAddressesUnified = (addressesUnified: UnifiedAddressClass[]) => {
     if (!isEqual(addressesUnified, this.state.addressesUnified)) {
       console.log('=============== addresses UA', addressesUnified.length);
       this.setState({ addressesUnified });
@@ -156,8 +149,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     // If there is no 'from' address, we'll set a default one
     if (!sendPageState.fromaddr) {
       // Find a u-address with the highest balance
-      const defaultAB: AddressUnifiedClass | null = addressesUnified
-        .reduce((prev: AddressUnifiedClass | null, ab) => {
+      const defaultAB: UnifiedAddressClass | null = addressesUnified
+        .reduce((prev: UnifiedAddressClass | null, ab) => {
           // We'll start with a unified address
           if (!prev) {
             return ab;
@@ -181,7 +174,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  setAddressesTransparent = (addressesTransparent: AddressTransparentClass[]) => {
+  setAddressesTransparent = (addressesTransparent: TransparentAddressClass[]) => {
     if (!isEqual(addressesTransparent, this.state.addressesTransparent)) {
       console.log('=============== addresses T', addressesTransparent.length);
       this.setState({ addressesTransparent });
@@ -240,7 +233,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ sendPageState: newSendPageState });
   };
 
-  runRPCConfiigure = () => {
+  runRPCConfigure = () => {
     console.log('=============== rpc configure');
     
     this.rpc.configure();
@@ -341,7 +334,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   doRefresh = () => {
-    this.rpc.refresh(false);
+    this.rpc.refreshSync(false);
   };
 
   clearTimers = () => {
@@ -471,7 +464,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
               <Sidebar
                 setInfo={this.setInfo}
                 clearTimers={this.clearTimers}
-                updateWalletSettings={this.updateWalletSettings}
                 navigateToLoadingScreen={this.navigateToLoadingScreen}
                 {...standardProps}
               />
@@ -562,7 +554,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.LOADING}
                 render={() => (
                   <LoadingScreen
-                    runRPCConfiigure={this.runRPCConfiigure}
+                    runRPCConfigure={this.runRPCConfigure}
                     setInfo={this.setInfo}
                     openServerSelectModal={this.openServerSelectModal}
                     setReadOnly={this.setReadOnly}

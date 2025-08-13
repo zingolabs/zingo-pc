@@ -8,7 +8,6 @@ import { InfoClass, ServerClass, ValueTransferClass } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
-import WalletSettingsModal from "../walletsettingsmodal/WalletSettingsModal";
 import PayURIModal from "./components/PayURIModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
@@ -24,7 +23,6 @@ type SidebarProps = {
   clearTimers: () => void;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
-  updateWalletSettings: () => Promise<void>;
   navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
 };
 
@@ -33,17 +31,15 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   clearTimers,
   setSendTo,
   openErrorModal,
-  updateWalletSettings,
   navigateToLoadingScreen,
   history,
   location,
 }) => {
   const context = useContext(ContextApp);
-  const { info, serverUris, valueTransfers, verificationProgress, walletSettings, readOnly } = context;
+  const { info, serverUris, valueTransfers, verificationProgress, readOnly } = context;
 
   const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
   const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
-  const [walletSettingsModalIsOpen, setWalletSettingsModalIsOpen] = useState<boolean>(false);
 
   let stateSync: string = "DISCONNECTED";
   let progress: string = "100";
@@ -245,11 +241,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     ipcRenderer.on("zcashd", () => {
       history.push(routes.ZCASHD);
     });
-
-    // Wallet Settings
-    ipcRenderer.on("walletSettings", () => {
-      setWalletSettingsModalIsOpen(true);
-    });
   };
 
   const openURIModal = (defaultValue: string | null) => {
@@ -264,18 +255,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
   const closeURIModal = () => {
     setUriModalIsOpen(false);
-  };
-
-  const closeWalletSettingsModal = () => {
-    setWalletSettingsModalIsOpen(false);
-  };
-
-  const setWalletSpamFilterThreshold = async (threshold: number) => {
-    // Call the RPC to set the threshold as an option
-    await RPC.setWalletSettingOption("transaction_filter_threshold", threshold.toString());
-
-    // Refresh the wallet settings
-    await updateWalletSettings();
   };
 
   const payURI = async (uri: string) => {
@@ -321,13 +300,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         modalTitle="Pay URI"
         actionButtonName="Pay URI"
         actionCallback={payURI}
-      />
-
-      <WalletSettingsModal
-        modalIsOpen={walletSettingsModalIsOpen}
-        closeModal={closeWalletSettingsModal}
-        walletSettings={walletSettings}
-        setWalletSpamFilterThreshold={setWalletSpamFilterThreshold}
       />
 
       <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>

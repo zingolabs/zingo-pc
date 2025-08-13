@@ -47,6 +47,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("init_from_seed", init_from_seed)?;
     cx.export_function("init_from_ufvk", init_from_ufvk)?;
     cx.export_function("init_from_b64", init_from_b64)?;
+    cx.export_function("save_wallet_file", save_wallet_file)?;
     cx.export_function("get_developer_donation_address", get_developer_donation_address)?;
     cx.export_function("get_zennies_for_zingo_donation_address", get_zennies_for_zingo_donation_address)?;
     cx.export_function("set_crypto_default_provider_to_ring", set_crypto_default_provider_to_ring)?;
@@ -302,6 +303,29 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
     store_client(lightclient);
 
     Ok(cx.string(if has_seed { get_seed_string() } else { get_ufvk_string() }))
+}
+
+fn save_wallet_file(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || {
+            if let Some(lightclient) = &mut *LIGHTCLIENT.write().unwrap() {
+                RT.block_on(async move {
+                    let mut wallet = lightclient.wallet.write().await;
+                    match wallet.save() {
+                        Ok(Some(_wallet_bytes)) => "Wallet saved successfully.".to_string(),
+                        Ok(None) => "Error: No need to save the wallet file".to_string(),
+                        Err(e) => format!("Error: {e}"),
+                    }
+                })
+            } else {
+                "Error: Lightclient is not initialized".to_string()
+            }
+        })
+        .promise(move |mut cx, resp| {
+            Ok(cx.string(resp))
+        });
+
+    Ok(promise)
 }
 
 fn get_developer_donation_address(mut cx: FunctionContext) -> JsResult<JsString> {

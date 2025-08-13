@@ -10,13 +10,13 @@ import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
-import { AddressTransparentClass, AddressUnifiedClass } from "../../appstate";
+import { TransparentAddressClass, UnifiedAddressClass } from "../../appstate";
 import { AddressKindEnum } from "../../appstate/enums/AddressKindEnum";
 
 const { clipboard } = window.require("electron");
 
 type AddressBlockProps = {
-  address: AddressUnifiedClass | AddressTransparentClass;
+  address: UnifiedAddressClass | TransparentAddressClass;
   label?: string;
   currencyName: string;
   zecPrice: number;

@@ -11,7 +11,7 @@ import AddressBalanceItem from "./components/AddressBalanceItem";
 import { ContextApp } from "../../context/ContextAppState";
 
 import native from "../../native.node";
-import { AddressTransparentClass, AddressUnifiedClass } from "../appstate";
+import { TransparentAddressClass, UnifiedAddressClass } from "../appstate";
 
 type DashboardProps = {
   calculateShieldFee: () => Promise<number>;
@@ -143,8 +143,8 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
               <>
                 <Accordion>
                   {addressesUnified
-                    .filter((ab: AddressUnifiedClass) => ab.balance > 0)
-                    .map((ab: AddressUnifiedClass) => (
+                    .filter((ab: UnifiedAddressClass) => ab.balance > 0)
+                    .map((ab: UnifiedAddressClass) => (
                       <AddressBalanceItem
                         key={ab.address}
                         item={ab}
@@ -155,8 +155,8 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
                 </Accordion>
                 <Accordion>
                   {addressesTransparent
-                    .filter((ab: AddressTransparentClass) => ab.balance > 0)
-                    .map((ab: AddressTransparentClass) => (
+                    .filter((ab: TransparentAddressClass) => ab.balance > 0)
+                    .map((ab: TransparentAddressClass) => (
                       <AddressBalanceItem
                         key={ab.address}
                         item={ab}

@@ -1,6 +1,6 @@
 import { AddressKindEnum } from '../enums/AddressKindEnum';
 
-export default class AddressUnifiedClass {
+export default class UnifiedAddressClass {
   index: number;
   address: string;
   addressKind: AddressKindEnum.unified;

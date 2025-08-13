@@ -3,10 +3,11 @@ import {
   ValueTransferClass,
   InfoClass,
   SendProgressClass,
-  WalletSettingsClass,
-  AddressUnifiedClass,
-  AddressTransparentClass,
+  UnifiedAddressClass,
+  TransparentAddressClass,
   AddressKindEnum,
+  SyncStatusType,
+  ServerClass,
 } from "../components/appstate";
 import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 import { SendManyJsonType } from "../components/send";
@@ -15,40 +16,38 @@ import native from "../native.node";
 import { RPCInfoType } from "./components/RPCInfoType";
 
 export default class RPC {
-  fnSetInfo: (info: InfoClass) => void;
-  fnSetVerificationProgress: (verificationProgress: number) => void;
   fnSetTotalBalance: (tb: TotalBalanceClass) => void;
-  fnSetAddressesUnified: (abs: AddressUnifiedClass[]) => void;
-  fnSetAddressesTransparent: (abs: AddressTransparentClass[]) => void;
+  fnSetAddressesUnified: (abs: UnifiedAddressClass[]) => void;
+  fnSetAddressesTransparent: (abs: TransparentAddressClass[]) => void;
   fnSetValueTransfersList: (t: ValueTransferClass[]) => void;
   fnSetMessagesList: (t: ValueTransferClass[]) => void;
+  fnSetInfo: (info: InfoClass) => void;
   fnSetZecPrice: (p?: number) => void;
-  fnSetWalletSettings: (settings: WalletSettingsClass) => void;
+  fnSetVerificationProgress: (verificationProgress: number) => void;
+  fnSetFetchError: (command: string, error: string) => void;
 
-  refreshTimerID?: NodeJS.Timeout;
+  server: ServerClass;
+  
   updateTimerID?: NodeJS.Timeout;
-  syncTimerID?: NodeJS.Timeout;
-
-  updateDataLock: boolean;
+  timers: NodeJS.Timeout[];
 
   lastBlockHeight: number;
   lastTxId?: string;
-
-  fnSetFetchError: (command: string, error: string) => void;
   
   fetchAddressesLock: boolean;
+  lastPollSyncError: string;
 
   constructor(
     fnSetTotalBalance: (tb: TotalBalanceClass) => void,
-    fnSetAddressesUnified: (abs: AddressUnifiedClass[]) => void,
-    fnSetAddressesTransparent: (abs: AddressTransparentClass[]) => void,
+    fnSetAddressesUnified: (abs: UnifiedAddressClass[]) => void,
+    fnSetAddressesTransparent: (abs: TransparentAddressClass[]) => void,
     fnSetValueTransfersList: (t: ValueTransferClass[]) => void,
     fnSetMessagesList: (t: ValueTransferClass[]) => void,
     fnSetInfo: (info: InfoClass) => void,
     fnSetZecPrice: (p?: number) => void,
-    fnSetWalletSettings: (settings: WalletSettingsClass) => void,
     fnSetVerificationProgress: (verificationProgress: number) => void,
     fnSetFetchError: (command: string, error: string) => void,
+    server: ServerClass,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
     this.fnSetAddressesUnified = fnSetAddressesUnified;
@@ -57,57 +56,158 @@ export default class RPC {
     this.fnSetMessagesList = fnSetMessagesList;
     this.fnSetInfo = fnSetInfo;
     this.fnSetZecPrice = fnSetZecPrice;
-    this.fnSetWalletSettings = fnSetWalletSettings;
     this.fnSetVerificationProgress = fnSetVerificationProgress;
-    this.lastBlockHeight = 0;
-
-    this.refreshTimerID = undefined;
-    this.updateTimerID = undefined;
-    this.syncTimerID = undefined;
-    this.updateDataLock = false;
-
     this.fnSetFetchError = fnSetFetchError;
 
+    this.server = server;
+
+    this.lastBlockHeight = 0;
+
+    this.updateTimerID = undefined;
+    this.timers = [];
+
     this.fetchAddressesLock = false;
+    this.lastPollSyncError = '';
   }
 
-  async configure() {
-    if (!this.refreshTimerID) {
-      this.refreshTimerID = setInterval(() => {
-        console.log('refresh - 30 sec');
-        // trying to sync
-        this.refresh(false);
-        // I need to fetch the ZEC price in USD.
-        this.getZecPrice();
-      }, 30 * 1000); // 30 sec
+  async runTaskPromises(): Promise<void> {
+
+    const taskPromises: Promise<void>[] = [];
+
+    // if the wallet needs to save, means the App needs to fetch all the new data
+    if (!(await this.getWalletSaveRequired())) {
+      console.log('NOT SAVE REQUIRED: No fetching data');
+      // do need this because of the sync process
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          await this.fetchSyncPoll();
+          //console.log('INTERVAL poll sync');
+          resolve();
+        }),
+      );
+    } else {
+      // do need this because of the sync process
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          await this.fetchSyncPoll();
+          //console.log('INTERVAL poll sync');
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await RPC.fetchWalletHeight();
+          //console.log('wallet height - ', Date.now() - s);
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchInfo();
+          //console.log('info & server height - ', Date.now() - s);
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchAddresses();
+          //console.log('addresses - ', Date.now() - s);
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchTotalBalance();
+          //console.log('balance - ', Date.now() - s);
+          resolve();
+        }),
+      );
+      // save the wallet as required.
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          const s = Date.now();
+          await RPC.doSave();
+          if (Date.now() - s > 4000) {
+            console.log('=========================================== > save wallet - ', Date.now() - s);
+          }
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchTandZandOValueTransfers();
+          //console.log('value transfers - ', Date.now() - s);
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchTandZandOMessages();
+          //console.log('messages - ', Date.now() - s);
+          resolve();
+        }),
+      );
     }
 
+    Promise.allSettled(taskPromises);
+  }
+
+  async configure(): Promise<void> {
+    // takes a while to start
+    await this.fetchTandZandOValueTransfers();
+    await this.fetchAddresses();
+    await this.fetchTotalBalance();
+    await this.fetchInfo();
+
+    await this.fetchTandZandOMessages();
+    await RPC.fetchWalletHeight();
+
+    //await this.fetchWalletSettings();
+
+    // every 5 seconds the App update part of the data
     if (!this.updateTimerID) {
-      this.updateTimerID = setInterval(() => {
-        console.log('update data - 5 sec');
-        this.updateData();
-      }, 5 * 1000); // 3 secs
+      this.updateTimerID = setInterval(() => this.runTaskPromises(), 5 * 1000); // 5 secs
     }
 
-    // Immediately call the refresh after configure to update the UI
-    this.refresh(true);
-    this.updateData();
+    await this.sanitizeTimers();
   }
 
-  clearTimers() {
-    if (this.refreshTimerID) {
-      clearInterval(this.refreshTimerID);
-      this.refreshTimerID = undefined;
-    }
-
+  async clearTimers(): Promise<void> {
     if (this.updateTimerID) {
       clearInterval(this.updateTimerID);
       this.updateTimerID = undefined;
+      //console.log('kill update timer', this.updateVTTimerID);
     }
 
-    if (this.syncTimerID) {
-      clearInterval(this.syncTimerID);
-      this.syncTimerID = undefined;
+    // and now the array of timers...
+    while (this.timers.length > 0) {
+      const inter = this.timers.pop();
+      clearInterval(inter);
+      //console.log('kill item array timers', inter);
+    }
+  }
+
+  async sanitizeTimers(): Promise<void> {
+    // and now the array of timers...
+    let deleted: number[] = [];
+    for (var i = 0; i < this.timers.length; i++) {
+      if (this.updateTimerID && this.timers[i] === this.updateTimerID) {
+        // do nothing
+      } else {
+        clearInterval(this.timers[i]);
+        deleted.push(i);
+        //console.log('sanitize - kill item array timers', this.timers[i]);
+      }
+    }
+    // remove the cleared timers.
+    for (var ii = 0; ii < deleted.length; i++) {
+      this.timers.splice(deleted[ii], 1);
     }
   }
 
@@ -124,6 +224,18 @@ export default class RPC {
   static async doSyncStatus(): Promise<string> {
     const syncstr: string = await native.status_sync();
     console.log(`sync status: ${syncstr}`);
+    return syncstr;
+  }
+
+  static async doSyncPoll(): Promise<string> {
+    const syncstr: string = await native.poll_sync();
+    console.log(`sync poll: ${syncstr}`);
+    return syncstr;
+  }
+
+  static async doSave() {
+    const syncstr: string = await native.save_wallet_file();
+    console.log(`wallet saved: ${syncstr}`);
     return syncstr;
   }
 
@@ -178,124 +290,7 @@ export default class RPC {
     }
     console.log(confirmResult);
 
-    this.updateData();
     return confirmResult;
-  }
-
-  async updateData() {
-    if (this.updateDataLock) {
-      //console.log("Update lock, returning");
-      return;
-    }
-
-    this.updateDataLock = true;
-
-    const latestBlockHeight: number = await this.fetchInfo();
-
-    // And fetch the rest of the data.
-    await this.fetchTotalBalance();
-    await this.fetchAddresses();
-    await this.fetchTandZandOValueTransfers(latestBlockHeight);
-    await this.fetchTandZandOMessages(latestBlockHeight);
-    await this.fetchWalletSettings();
-
-    console.log(`Finished update data at ${latestBlockHeight}`);
-
-    this.updateDataLock = false;
-  }
-
-  async refresh(fullRefresh: boolean) {
-    if (this.syncTimerID) {
-      console.log("Already have a sync process launched", this.syncTimerID);
-      return;
-    }
-    const latestBlockHeight: number = await this.fetchInfo();
-    const walletHeight: number = await RPC.fetchWalletHeight();
-
-    if (
-      fullRefresh ||
-      !this.lastBlockHeight ||
-      this.lastBlockHeight < latestBlockHeight ||
-      walletHeight < latestBlockHeight
-    ) {
-
-      // If the latest block height has changed, make sure to sync. This will happen in a new thread
-      RPC.doSync();
-
-      // We need to wait for the sync to finish. The way we know the sync is done is
-      // if the height matches the latestBlockHeight
-      this.syncTimerID = setInterval(async () => {
-        console.log('sync status - 2 sec'); 
-        const walletHeight: number = await RPC.fetchWalletHeight();
-        const walletBirthday: number = await RPC.fetchBirthday();
-
-        let verificationProgress: number = 100;
-
-        if (walletHeight >= latestBlockHeight) {
-          // We are synced. Cancel the poll timer
-          clearInterval(this.syncTimerID);
-          this.syncTimerID = undefined;
-          // the sync is finished
-          verificationProgress = 100;
-          // And fetch the rest of the data.
-          this.fetchTotalBalance();
-          this.fetchTandZandOValueTransfers(latestBlockHeight);
-          this.fetchTandZandOMessages(latestBlockHeight);
-      
-          this.lastBlockHeight = latestBlockHeight;
-
-          // All done
-          console.log(`Finished (blocks) full refresh at server: ${latestBlockHeight} & wallet: ${walletHeight}`);
-        } else {
-          // if the progress is still running we need to update the UI
-          // we want to update the progress of the current syncing
-          const ssStr: string = await RPC.doSyncStatus();
-          const ss = JSON.parse(ssStr);
-          if (!ss.in_progress) {
-            // We are synced. Cancel the poll timer
-            clearInterval(this.syncTimerID);
-            this.syncTimerID = undefined;
-            // the sync is finished
-            // the sync process in zingolib finish fakely & if you try again
-            // the sync continue with a NEW ID
-            // And fetch the rest of the data.
-            this.fetchTotalBalance();
-            this.fetchTandZandOValueTransfers(latestBlockHeight);
-            this.fetchTandZandOMessages(latestBlockHeight);
-      
-            this.lastBlockHeight = latestBlockHeight;
-
-            // All done
-            console.log(`Finished (in_progress) full refresh at ${latestBlockHeight} & wallet: ${walletHeight}`);
-          } else {
-            // the sync is running
-            const progress_blocks: number = (ss.synced_blocks + ss.trial_decryptions_blocks + ss.witnesses_updated) / 3;
-
-            // this calculation is for the total of blocks, nothing to do with batches
-            // because batches are calculated only for the current sync process
-            // which in most of the times is partial, not total. 
-            // edge case: in a rescan sometimes the process can start from sapling age, but the
-            // wallet birthday doesn't change...
-            const firstBlockProcess: number = ss.end_block - (ss.batch_num * 100);
-            let firstBlockProcessFixed: number;
-            if (firstBlockProcess < walletBirthday) {
-              firstBlockProcessFixed = firstBlockProcess;
-            } else {
-              firstBlockProcessFixed = walletBirthday;
-            }
-            const sync_blocks: number = ss.end_block + progress_blocks - firstBlockProcessFixed;
-            const total_blocks: number = latestBlockHeight - firstBlockProcessFixed;
-
-            verificationProgress = (sync_blocks * 100) / total_blocks;
-          }
-        }
-
-        this.fnSetVerificationProgress(verificationProgress);
-      }, 2 * 1000); // two seconds is ok for the UI.
-    } else {
-      // Already at the latest block
-      console.log("Already have latest block, waiting for next refresh");
-    }
   }
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
@@ -320,11 +315,12 @@ export default class RPC {
       // Also set `zecPrice` manually
       const resultStr: string = await native.zec_price("false");
       if (resultStr) {
-        if (resultStr.toLowerCase().startsWith("error") || isNaN(parseFloat(resultStr))) {
+        if (resultStr.toLowerCase().startsWith("error")) {
           console.log(`Error fetching price Info ${resultStr}`);
           info.zecPrice = 0;
         } else {
-          info.zecPrice = parseFloat(resultStr);
+          const resultJSON = JSON.parse(resultStr);
+          info.zecPrice = resultJSON.current_price;
         }
       } else {
         console.log(`Error fetching price Info ${resultStr}`);
@@ -353,55 +349,6 @@ export default class RPC {
     }
   }
 
-  async fetchWalletSettings() {
-    const cmd = 'getoption';
-    try {
-      const download_memos_str: string = await native.get_option_wallet();
-      if (download_memos_str) {
-        if (download_memos_str.toLowerCase().startsWith('error')) {
-          console.log(`Error download memos ${download_memos_str}`);
-          this.fnSetFetchError(cmd, download_memos_str);
-          return;
-        }
-      } else {
-        console.log('Internal Error download memos');
-        this.fnSetFetchError(cmd, 'Error: Internal RPC Error download memos');
-        return;
-      }
-      const download_memos = JSON.parse(download_memos_str).download_memos;
-
-      let transaction_filter_threshold = 0;
-      const spam_filter_str: string = await native.get_option_wallet();
-      if (spam_filter_str) {
-        if (spam_filter_str.toLowerCase().startsWith('error')) {
-          console.log(`Error transaction filter threshold ${spam_filter_str}`);
-          this.fnSetFetchError(cmd, spam_filter_str);
-          return;
-        }
-      } else {
-        console.log('Internal Error transaction filter threshold');
-        this.fnSetFetchError(cmd, 'Error: Internal RPC Error transaction filter threshold');
-        return;
-      }
-      transaction_filter_threshold = JSON.parse(spam_filter_str).transaction_filter_threshold;
-
-      // If it is -1, i.e., it was not set, then set it to 500
-      if (transaction_filter_threshold < 0) {
-        await RPC.setWalletSettingOption("transaction_filter_threshold", "500");
-      }
-
-      const wallet_settings = new WalletSettingsClass();
-      wallet_settings.download_memos = download_memos;
-      wallet_settings.transaction_filter_threshold = transaction_filter_threshold;
-
-      this.fnSetWalletSettings(wallet_settings);
-    } catch (e) {
-      console.log(`Error getting spam filter threshold: ${e}`);
-      this.fnSetFetchError(cmd, `${e}`);
-      return;
-    }
-  }
-
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
     //const r: string = await native.("setoption", `${name}=${value}`);
     const r: string = await native.set_option_wallet();
@@ -409,12 +356,144 @@ export default class RPC {
     return r;
   }
 
-  async fetchInfo(): Promise<number> {
+  async fetchInfo(): Promise<void> {
     const info: InfoClass = await RPC.getInfoObject();
 
     this.fnSetInfo(info);
+  }
 
-    return info.latestBlock;
+  async getWalletSaveRequired(): Promise<boolean> {
+    try {
+      const start = Date.now();
+      const walletSaveRequiredStr: string = await native.get_wallet_save_required();
+      if (Date.now() - start > 4000) {
+        console.log('=========================================== > wallet save required - ', Date.now() - start);
+      }
+      if (walletSaveRequiredStr) {
+        if (walletSaveRequiredStr.toLowerCase().startsWith('error')) {
+          console.log(`Error wallet save required ${walletSaveRequiredStr}`);
+          return false;
+        }
+      } else {
+        console.log('Internal Error wallet save required');
+        return false;
+      }
+      const walletSaveRequiredJSON = await JSON.parse(walletSaveRequiredStr);
+
+      return walletSaveRequiredJSON.save_required;
+    } catch (error) {
+      console.log(`Critical Error wallet save required ${error}`);
+      return false;
+    }
+  }
+
+  async fetchSyncPoll(): Promise<void> {
+    const s = Date.now();
+    const returnPoll: string = await native.poll_sync();
+    if (Date.now() - s > 4000) {
+      console.log('=========================================== > sync poll command - ', Date.now() - s);
+    }
+    if (!returnPoll || returnPoll.toLowerCase().startsWith('error')) {
+      console.log('SYNC POLL ERROR', returnPoll);
+      this.lastPollSyncError = returnPoll;
+      return;
+    }
+
+    if (returnPoll.toLowerCase().startsWith('sync task has not been launched')) {
+      console.log('SYNC POLL -> RUN SYNC', returnPoll);
+      setTimeout(async () => {
+        await this.refreshSync();
+      }, 0);
+      return;
+    }
+
+    if (returnPoll.toLowerCase().startsWith('sync task is not complete')) {
+      console.log('SYNC POLL -> FETCH STATUS', returnPoll);
+      setTimeout(async () => {
+        await this.fetchSyncStatus();
+      }, 0);
+      return;
+    }
+
+    let sp;
+    try {
+      sp = await JSON.parse(returnPoll);
+    } catch (error) {
+      console.log('SYNC POLL ERROR - PARSE JSON', returnPoll, error);
+      return;
+    }
+
+    console.log('SYNC POLL', sp);
+
+    console.log('SYNC POLL -> FETCH STATUS');
+    setTimeout(async () => {
+      await this.fetchSyncStatus();
+    }, 0);
+
+  }
+
+  async refreshSync(fullRescan?: boolean) {
+    // This is async, so when it is done, we finish the refresh.
+    if (fullRescan) {
+      await this.clearTimers();
+      // clean the ValueTransfer list before.
+      this.fnSetValueTransfersList([]);
+      this.fnSetMessagesList([]);
+      this.fnSetTotalBalance({
+        totalOrchardBalance: 0,
+        totalSaplingBalance: 0,
+        totalTransparentBalance: 0,
+        confirmedTransparentBalance: 0,
+        confirmedOrchardBalance: 0,
+        confirmedSaplingBalance: 0,
+        totalSpendableBalance: 0,
+      } as TotalBalanceClass);
+      this.fnSetVerificationProgress(0);
+
+      // the rescan in zingolib do two tasks:
+      // 1. stop the sync.
+      // 2. launch the rescan.
+      const rescanStr: string = await native.run_rescan();
+      //console.log('rescan RUN', rescanStr);
+      if (!rescanStr || rescanStr.toLowerCase().startsWith('error')) {
+        console.log(`Error rescan ${rescanStr}`);
+      }
+      await this.configure();
+    } else {
+      const syncStr: string = await native.run_sync();
+      //console.log('sync RUN', syncStr);
+      if (!syncStr || syncStr.toLowerCase().startsWith('error')) {
+        console.log(`Error sync ${syncStr}`);
+      }
+    }
+  }
+
+  async fetchSyncStatus(): Promise<void> {
+    const s = Date.now();
+    const returnStatus: string = await native.status_sync();
+    if (Date.now() - s > 4000) {
+      console.log('=========================================== > sync status command - ', Date.now() - s);
+    }
+    if (!returnStatus || returnStatus.toLowerCase().startsWith('error')) {
+      console.log('SYNC STATUS ERROR', returnStatus);
+      return;
+    }
+    let ss = {} as SyncStatusType;
+    try {
+      ss = await JSON.parse(returnStatus);
+      ss.lastError = this.lastPollSyncError;
+    } catch (error) {
+      console.log('SYNC STATUS ERROR - PARSE JSON', returnStatus, error);
+      return;
+    }
+
+    //console.log('SYNC STATUS', ss);
+    console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned);
+
+    //console.log('interval sync/rescan, secs', this.secondsBatch, 'timer', this.syncStatusTimerID);
+
+    // store SyncStatus object for a new screen
+    this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ? ss.percentage_total_outputs_scanned : 0);
   }
 
   async zingolibAddressesUnified(): Promise<any> {
@@ -558,7 +637,7 @@ export default class RPC {
         this.fetchAddressesLock = false;
         return;
       }
-      const unifiedAddressesJSON: AddressUnifiedClass[] = await JSON.parse(unifiedAddressesStr) || [];
+      const unifiedAddressesJSON: UnifiedAddressClass[] = await JSON.parse(unifiedAddressesStr) || [];
 
       // TRANSPARENT
       const transparentAddressStr: string = await native.get_transparent_addresses();
@@ -573,7 +652,7 @@ export default class RPC {
         this.fetchAddressesLock = false;
         return;
       }
-      const transparentAddressesJSON: AddressTransparentClass[] = await JSON.parse(transparentAddressStr) || [];
+      const transparentAddressesJSON: TransparentAddressClass[] = await JSON.parse(transparentAddressStr) || [];
 
       this.fnSetAddressesUnified(unifiedAddressesJSON);
       this.fnSetAddressesTransparent(transparentAddressesJSON);
@@ -652,7 +731,23 @@ export default class RPC {
   }
 
   // Fetch all T and Z and O value transfers
-  async fetchTandZandOValueTransfers(latestBlockHeight: number) {
+  async fetchTandZandOValueTransfers() {
+    // first to get the last server block.
+    let latestBlockHeight: number = 0;
+    console.log(this.server);
+    const heightStr: string = await native.get_latest_block_server(this.server.uri);
+    if (heightStr) {
+      if (heightStr.toLowerCase().startsWith('error')) {
+        console.log(`Error server height ${heightStr}`);
+      } else {
+        latestBlockHeight = Number(heightStr);
+      }
+    } else {
+      console.log('Internal Error server height');
+    }
+
+    console.log('SERVER HEIGHT', latestBlockHeight);
+
     const valueTransfersJSON: any = await this.zingolibValueTransfers();
 
     //console.log('value transfers antes ', valueTransfersJSON);
@@ -712,7 +807,22 @@ export default class RPC {
   }
 
   // Fetch all T and Z and O value transfers
-  async fetchTandZandOMessages(latestBlockHeight: number) {
+  async fetchTandZandOMessages() {
+    // first to get the last server block.
+    let latestBlockHeight: number = 0;
+    const heightStr: string = await native.get_latest_block_server(this.server.uri);
+    if (heightStr) {
+      if (heightStr.toLowerCase().startsWith('error')) {
+        console.log(`Error server height ${heightStr}`);
+      } else {
+        latestBlockHeight = Number(heightStr);
+      }
+    } else {
+      console.log('Internal Error server height');
+    }
+
+    console.log('SERVER HEIGHT', latestBlockHeight);
+
     const MessagesJSON: any = await this.zingolibMessages();
 
     //console.log('value transfers antes ', valueTransfersJSON);
@@ -866,9 +976,6 @@ export default class RPC {
         setSendProgress(undefined);
 
         if (progressJSON.txids && progressJSON.txids.length > 0) {
-          // And refresh data (full refresh)
-          this.refresh(true);
-
           resolve(progressJSON.txids as string[]);
         }
 
@@ -877,9 +984,6 @@ export default class RPC {
         }
 
         if (sendTxids) {
-          // And refresh data (full refresh)
-          this.refresh(true);
-
           resolve(sendTxids as string[]);
         }
       }, 2 * 1000); // Every 2 seconds
@@ -892,11 +996,12 @@ export default class RPC {
     const resultStr: string = await native.zec_price("false");
 
     if (resultStr) {
-      if (resultStr.toLowerCase().startsWith("error") || isNaN(parseFloat(resultStr))) {
+      if (resultStr.toLowerCase().startsWith("error")) {
         console.log(`Error fetching price ${resultStr}`);
         this.fnSetZecPrice(0);
       } else {
-        this.fnSetZecPrice(parseFloat(resultStr));
+        const resultJSON = JSON.parse(resultStr);
+        this.fnSetZecPrice(resultJSON.current_price);
       }
     } else {
       console.log(`Error fetching price ${resultStr}`);

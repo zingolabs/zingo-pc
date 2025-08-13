@@ -33,12 +33,12 @@ class LoadingScreenState {
   // 0 -> no wallet, load existing wallet 
   // 1 -> show options
   // 2 -> create new 
-  // 3 -> restore existing seed
+  // 3 -> restore existing seed phrase
   // 4 -> restore existing ufvk 
 
   newWalletError: null | string; // Any errors when creating/restoring wallet
 
-  seed: string; // The new seed phrase for a newly created wallet or the seed phrase to restore from
+  seed_phrase: string; // The new seed phrase for a newly created wallet or the seed phrase to restore from
 
   ufvk: string; // The UFVK to restore from
 
@@ -62,7 +62,7 @@ class LoadingScreenState {
     this.selection = '';
     this.walletScreen = 0;
     this.newWalletError = null;
-    this.seed = "";
+    this.seed_phrase = "";
     this.ufvk = "";
     this.birthday = 0;
     this.changeAnotherWallet = changeAnotherWallet;
@@ -72,7 +72,7 @@ class LoadingScreenState {
 }
 
 type LoadingScreenProps = {
-  runRPCConfiigure: () => void;
+  runRPCConfigure: () => void;
   setInfo: (info: InfoClass) => void;
   openServerSelectModal: () => void;
   setReadOnly: (readOnly: boolean) => void;
@@ -123,7 +123,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     console.log('crypto provider result', r);
 
     await this.doFirstTimeSetup();
-    await this.runSyncStatusPoller();
 
     this.setState({
       buttonsDisable: false,
@@ -314,7 +313,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }
 
         this.getInfo();
-        // seed or ufvk
+        // seed phrase or ufvk
         const walletKindStr: string = await native.wallet_kind();
         const walletKindJSON = JSON.parse(walletKindStr);
 
@@ -325,7 +324,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           // ufvk
           this.props.setReadOnly(true);
         } else {
-          // seed
+          // seed phrase
           this.props.setReadOnly(false);
         }
       }
@@ -397,12 +396,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     try {
       // Do a sync at start
       this.setState({ currentStatus: "Setting things up..." });
-
-      // This will do the sync in another thread, so we have to check for sync status
-      RPC.doSync();
-      console.log('after dosync');
-
-      this.runSyncStatusPoller();
+      await RPC.doSync();
+      await this.runSyncStatusPoller();
     } catch (err) {
       console.log("Error initializing", err);
       this.setState({
@@ -421,7 +416,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   runSyncStatusPoller = async () => {
     console.log('start runSyncStatusPoller');
 
-    const { runRPCConfiigure, setInfo } = this.props;
+    const { runRPCConfigure, setInfo } = this.props;
 
     const info: InfoClass = await RPC.getInfoObject();
     console.log(info);
@@ -440,75 +435,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       return;
     }
 
-    // And after a while, check the sync status.
-    const myThis = this;
-    const poller = setInterval(async () => {
-      const syncstatus: string = await RPC.doSyncStatus();
+    setInfo(info);
 
-      if (!syncstatus || syncstatus.toLowerCase().startsWith("error")) {
-        // Something went wrong
-        myThis.setState({
-          currentStatus: syncstatus,
-          currentStatusIsError: true,
-        });
+    runRPCConfigure();
 
-        // And cancel the updater
-        clearInterval(poller);
-      } else {
-        const ss = JSON.parse(syncstatus);
-        console.log('sync status', ss);
-        console.log(`Current SyncID: ${ss.sync_id} - progress: ${ss.in_progress} - Current Batch: ${ss.batch_num}`);
-
-        // if this process synced already 25 batches (2.500 blocks) -> let's go to dashboard 
-        if (!ss.in_progress || ss.batch_num >= 25) {
-          setInfo(info);
-
-          runRPCConfiigure();
-
-          // And cancel the updater
-          clearInterval(poller);
-
-          // This will cause a redirect to the dashboard screen
-          myThis.setState({ loadingDone: true });
-        } else {
-          // Still syncing, grab the status and update the status
-          let progress_blocks = (ss.synced_blocks + ss.trial_decryptions_blocks + ss.witnesses_updated) / 3;
-
-          let progress = progress_blocks;
-          if (ss.total_blocks) {
-            progress = (progress_blocks * 100) / ss.total_blocks;
-          }
-
-          let base = 0;
-          if (ss.batch_total) {
-            base = (ss.batch_num * 100) / ss.batch_total;
-            progress = base + progress / ss.batch_total;
-          }
-
-          if (!isNaN(progress_blocks)) {
-            let batch_progress = (progress_blocks * 100) / ss.total_blocks;
-            if (isNaN(batch_progress)) {
-              batch_progress = 0;
-            }
-            const currentStatus = (
-              <div>
-                Syncing batch {ss.batch_num} of {ss.batch_total}
-                <br />
-                <br />
-                Batch Progress: {batch_progress.toFixed(2)}%. Total progress: {progress.toFixed(2)}%.
-                <br />
-                <br />
-                <br />
-                Please wait...
-                <br />
-                This could take several minutes or hours
-              </div>
-            );
-            myThis.setState({ currentStatus });
-          }
-        }
-      }
-    }, 2 * 1000);
+    // This will cause a redirect to the dashboard screen
+    this.setState({ loadingDone: true });
   };
 
   createNewWallet = async () => {
@@ -520,9 +452,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       this.setState({ walletScreen: 2, newWalletError: result });
     } else {
       const resultJSON = await JSON.parse(result);
-      const seed: string = resultJSON.seed;
+      const seed_phrase: string = resultJSON.seed_phrase;
       const birthday: number = resultJSON.birthday;
-      this.setState({ walletScreen: 2, seed, birthday });
+      this.setState({ walletScreen: 2, seed_phrase, birthday });
       this.props.setReadOnly(false);
     }
   };
@@ -542,7 +474,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   updateSeed = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    this.setState({ seed: e.target.value });
+    this.setState({ seed_phrase: e.target.value });
   };
 
   updateUfvk = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -556,7 +488,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   restoreSeedWalletBack = () => {
     // Reset the seed and birthday and try again 
     this.setState({
-      seed: "",
+      seed_phrase: "",
       birthday: 0,
       newWalletError: null,
       walletScreen: 3,
@@ -576,10 +508,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreSeedWallet = async () => {
-    const { seed, birthday, url, chain_name } = this.state;
-    console.log(`Restoring ${seed} with ${birthday}`);
+    const { seed_phrase, birthday, url, chain_name } = this.state;
+    console.log(`Restoring ${seed_phrase} with ${birthday}`);
 
-    const result: string = native.init_from_seed(seed, birthday, url, chain_name, "High", 3);
+    const result: string = native.init_from_seed(seed_phrase, birthday, url, chain_name, "High", 3);
     if (!result || result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
@@ -621,7 +553,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   render() {
-    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed, ufvk, birthday } =
+    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed_phrase, ufvk, birthday } =
       this.state;
 
     const { openServerSelectModal } = this.props;
@@ -811,7 +743,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       is the only way to recover your funds and transactions.
                     </div>
                     <hr style={{ width: "100%" }} />
-                    <div className={cstyles.padtopsmall}>{seed}</div>
+                    <div className={cstyles.padtopsmall}>{seed_phrase}</div>
                     <hr style={{ width: "100%" }} />
                     <div className={cstyles.margintoplarge}>
                       <button 
@@ -859,7 +791,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     <div className={[cstyles.large].join(" ")}>Please enter your seed phrase</div>
                     <TextareaAutosize
                       className={cstyles.inputbox}
-                      value={seed}
+                      value={seed_phrase}
                       onChange={(e) => this.updateSeed(e)}
                     />
 

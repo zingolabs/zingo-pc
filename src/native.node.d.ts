@@ -33,6 +33,7 @@ export function init_from_b64(
   performance_level: string,
   min_confirmations: number
 ): string;
+export function save_wallet_file(): Promise<string>;
 export function get_developer_donation_address(): string;
 export function get_zennies_for_zingo_donation_address(): string;
 export function set_crypto_default_provider_to_ring(): string;

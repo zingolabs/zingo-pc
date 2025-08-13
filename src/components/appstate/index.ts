@@ -1,6 +1,6 @@
 import AddressBookEntryClass from "./classes/AddressBookEntryClass";
-import AddressTransparentClass from "./classes/AddressTransparentClass";
-import AddressUnifiedClass from "./classes/AddressUnifiedClass";
+import TransparentAddressClass from "./classes/TransparentAddressClass";
+import UnifiedAddressClass from "./classes/UnifiedAddressClass";
 import FetchErrorTypeClass from "./classes/FetchErrorClass";
 import InfoClass from "./classes/InfoClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
@@ -11,26 +11,28 @@ import ToAddrClass from "./classes/ToAddrClass";
 import TotalBalanceClass from "./classes/TotalBalanceClass";
 import TxDetailClass from "./classes/TxDetailClass";
 import ValueTransferClass from "./classes/ValueTransferClass";
-import WalletSettingsClass from "./classes/WalletSettingsClass";
 
 import { AddressKindEnum } from "./enums/AddressKindEnum";
 import { AddressReceiverEnum } from "./enums/AddressReceiverEnum";
 import { AddressScopeEnum } from "./enums/AddressScopeEnum";
 import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
+import { SyncStatusScanRangePriorityEnum } from "./enums/SyncStatusScanRangePriorityEnum";
+
+import { SyncStatusScanRangeType } from "./types/SyncStatusScanRangeType";
+import { SyncStatusType } from "./types/SyncStatusType";
 
 import AppState from "./AppState";
 
 export {
-  AddressBookEntryClass, 
-  AddressTransparentClass,
-  AddressUnifiedClass,
-  ValueTransferClass, 
-  SendPageStateClass, 
+  AddressBookEntryClass,
+  TransparentAddressClass,
+  UnifiedAddressClass,
+  ValueTransferClass,
+  SendPageStateClass,
   SendProgressClass,
-  InfoClass, 
-  ServerSelectStateClass, 
-  WalletSettingsClass, 
-  TotalBalanceClass, 
+  InfoClass,
+  ServerSelectStateClass,
+  TotalBalanceClass,
   ToAddrClass,
   TxDetailClass,
   ServerClass,
@@ -40,6 +42,11 @@ export {
   AddressReceiverEnum,
   AddressScopeEnum,
   ServerChainNameEnum,
-
-  AppState,
+  SyncStatusScanRangePriorityEnum,
+  
+  AppState
 };
+export type {
+    SyncStatusScanRangeType,
+    SyncStatusType
+  };

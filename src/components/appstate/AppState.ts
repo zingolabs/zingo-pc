@@ -3,12 +3,11 @@ import TotalBalance from "./classes/TotalBalanceClass";
 import ValueTransfer from "./classes/ValueTransferClass";
 import SendPageState from "./classes/SendPageStateClass";
 import ServerSelectState from "./classes/ServerSelectStateClass";
-import WalletSettings from "./classes/WalletSettingsClass";
 import Server from "./classes/ServerClass";
 import FetchErrorType from "./classes/FetchErrorClass";
 
-import AddressUnifiedClass from "./classes/AddressUnifiedClass";
-import AddressTransparentClass from "./classes/AddressTransparentClass";
+import AddressUnifiedClass from "./classes/UnifiedAddressClass";
+import AddressTransparentClass from "./classes/TransparentAddressClass";
 import AddressBookEntryClass from "./classes/AddressBookEntryClass";
 import InfoClass from "./classes/InfoClass";
 
@@ -35,9 +34,6 @@ export default class AppState {
 
   // getinfo result
   info: InfoClass;
-
-  // internal wallet settings in the blockchain
-  walletSettings: WalletSettings;
 
   // Error modal data
   errorModalData: ErrorModalData;
@@ -69,7 +65,6 @@ export default class AppState {
     this.sendPageState = new SendPageState();
     this.info = new InfoClass();
     this.verificationProgress = 100;
-    this.walletSettings = new WalletSettings();
     this.readOnly = false;
     this.serverUris = [] as Server[];
     this.fetchError = {} as FetchErrorType;

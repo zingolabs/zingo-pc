@@ -6,7 +6,7 @@ import {
 } from "react-accessible-accordion";
 import styles from "../Dashboard.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressKindEnum, AddressTransparentClass, AddressUnifiedClass } from "../../appstate";
+import { AddressKindEnum, TransparentAddressClass, UnifiedAddressClass } from "../../appstate";
 import Utils from "../../../utils/utils"; 
 import { useState } from "react";
 const { clipboard } = window.require("electron");
@@ -14,7 +14,7 @@ const { clipboard } = window.require("electron");
 type AddressBalanceItemProps = {
   currencyName: string;
   zecPrice: number;
-  item: AddressUnifiedClass | AddressTransparentClass; 
+  item: UnifiedAddressClass | TransparentAddressClass; 
 };
 
 const AddressBalanceItem: React.FC<AddressBalanceItemProps> = ({ currencyName, zecPrice, item }) => {

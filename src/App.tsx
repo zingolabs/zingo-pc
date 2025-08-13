@@ -12,7 +12,6 @@ function App() {
         <p>
           Edit <code>public/electron.js</code> or <code>src/App.js</code> and save to reload.
         </p>
-        d
       </header>
     </div>
   );
