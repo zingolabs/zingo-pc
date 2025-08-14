@@ -41,15 +41,24 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
   const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
 
-  let stateSync: string = "DISCONNECTED";
-  let progress: string = "100";
+  let stateSync: string = "";
+  let progress: string = "";
   if (info.latestBlock) {
-    if (verificationProgress < 99.9999) {
-      stateSync = "SYNCING";
-      progress = (verificationProgress).toFixed(2);
+    if (verificationProgress) {
+      if (verificationProgress === 100) {
+        stateSync = "CONNECTED";
+        progress = "100";
+      } else {
+        stateSync = "SYNCING";
+        progress = (verificationProgress).toFixed(2);
+      }
     } else {
-      stateSync = "CONNECTED";
+      // no verification progress fetched
+      stateSync = "CONNECTING"
     }
+  } else {
+    // no server latest block
+    stateSync = "DISCONNECTED"
   }
 
   useEffect(() => {
@@ -354,7 +363,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       </div>
 
       <div className={cstyles.center}>
-        {stateSync === "CONNECTED" && (
+        {stateSync === "CONNECTED" && ( 
           <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
             <div>
               {info.latestBlock === info.walletHeight ? (
@@ -380,6 +389,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
             <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
             &nbsp; Not Connected
+          </div>
+        )}
+        {stateSync === "CONNECTING" && (
+          <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
+            <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
+            &nbsp; Connecting... 
           </div>
         )}
       </div>

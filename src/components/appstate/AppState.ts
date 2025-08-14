@@ -51,7 +51,7 @@ export default class AppState {
   fetchError: FetchErrorType;
 
   // syncing general progress
-  verificationProgress: number;
+  verificationProgress: number | null;
 
   constructor() {
     this.totalBalance = new TotalBalance();
@@ -64,7 +64,7 @@ export default class AppState {
     this.serverSelectState = new ServerSelectState();
     this.sendPageState = new SendPageState();
     this.info = new InfoClass();
-    this.verificationProgress = 100;
+    this.verificationProgress = null;
     this.readOnly = false;
     this.serverUris = [] as Server[];
     this.fetchError = {} as FetchErrorType;

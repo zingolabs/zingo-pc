@@ -1,8 +1,6 @@
 import React, { Component } from "react";
 import { RouteComponentProps, withRouter } from "react-router";
 import TextareaAutosize from "react-textarea-autosize";
-import request from "request";
-import progress from "progress-stream";
 import native from "../../native.node";
 import { InfoClass, ServerClass } from "../appstate";
 import RPC from "../../rpc/rpc";
@@ -14,7 +12,6 @@ import { Logo } from "../logo";
 import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
-const fs = window.require("fs");
 
 class LoadingScreenState {
   currentStatus: string | JSX.Element;
@@ -129,46 +126,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     })
     console.log('did mount, disable FALSE');
   }
-
-  download = (url: string, dest: string, name: string, cb: (msg: string) => void) => {
-    const file = fs.createWriteStream(dest);
-    const sendReq = request.get(url);
-
-    // verify response code
-    sendReq.on("response", (response) => {
-      if (response.statusCode !== 200) {
-        return cb(`Response status was ${response.statusCode}`);
-      }
-
-      const len = response.headers["content-length"] || "";
-      const totalSize = (parseInt(len, 10) / 1024 / 1024).toFixed(0);
-
-      const str = progress({ time: 1000 }, (pgrs) => {
-        this.setState({
-          currentStatus: `Downloading ${name}... (${(pgrs.transferred / 1024 / 1024).toFixed(0)} MB / ${totalSize} MB)`,
-        });
-      });
-
-      sendReq.pipe(str).pipe(file);
-    });
-
-    // close() is async, call cb after close completes
-    file.on("finish", () => file.close());
-
-    // check for request errors
-    sendReq.on("error", (err) => {
-      fs.unlink(dest, () => {
-        cb(err.message);
-      });
-    });
-
-    file.on("error", (err: any) => {
-      // Handle errors
-      fs.unlink(dest, () => {
-        cb(err.message);
-      }); // Delete the file async. (But we don't check the result) 
-    });
-  };
 
   loadServer = async () => {    
     // Try to read the default server
@@ -535,20 +492,18 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   };
 
-  deleteWallet = async () => { 
+  deleteWallet = async () => {
     const { url, chain_name } = this.state;
     if (native.wallet_exists(url, chain_name, "High", 3)) {
       // interrupt syncing, just in case.
       const resultInterrupt: string = await native.stop_sync();
       console.log("Interrupting sync ...", resultInterrupt);
-      setTimeout(async () => {
-        const resultDelete: string = await native.delete_wallet();
-        console.log("deleting ...", resultDelete);
-        native.deinitialize();
-  
-        // restart the App now.
-        ipcRenderer.send("apprestart");
-      }, 1000);
+      const resultDelete: string = await native.delete_wallet(url, chain_name, "High", 3);
+      console.log("deleting ...", resultDelete);
+      native.deinitialize();
+
+      // restart the App now.
+      ipcRenderer.send("apprestart");
     }
   };
 

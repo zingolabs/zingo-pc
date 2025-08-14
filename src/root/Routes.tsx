@@ -19,7 +19,6 @@ import {
   InfoClass,
   AddressBookEntryClass,
   ServerSelectStateClass,
-  SendProgressClass,
   ServerClass,
   FetchErrorTypeClass,
   UnifiedAddressClass,
@@ -273,17 +272,17 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  setVerificationProgress = (verificationProgress: number) => {
+  setVerificationProgress = (verificationProgress: number | null) => {
     if (verificationProgress !== this.state.verificationProgress) {
       this.setState({ verificationProgress });
     }
   };
 
-  sendTransaction = async (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgressClass) => void): Promise<string | string[]> => {
+  sendTransaction = async (sendJson: SendManyJsonType[]): Promise<string | string[]> => {
     try {
-      const result: string | string[] = await this.rpc.sendTransaction(sendJson, setSendProgress);
+      const result: string = await this.rpc.sendTransaction(sendJson);
 
-      if (typeof result === "string" && (!result || result.toLowerCase().startsWith("error"))) {
+      if (!result || result.toLowerCase().startsWith("error")) {
         throw result;
       }
 

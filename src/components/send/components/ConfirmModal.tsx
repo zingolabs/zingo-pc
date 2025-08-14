@@ -7,8 +7,8 @@ import {
   SendPageStateClass,
   InfoClass,
   TotalBalanceClass,
-  SendProgressClass,
   AddressKindEnum,
+  ToAddrClass,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ScrollPaneTop from "../../scrollPane/ScrollPane";
@@ -27,7 +27,7 @@ type ConfirmModalProps = {
     sendPageState: SendPageStateClass;
     totalBalance: TotalBalanceClass;
     info: InfoClass;
-    sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgressClass) => void) => Promise<string | string[]>;
+    sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string | string[]>;
     clearToAddrs: () => void;
     closeModal: () => void;
     modalIsOpen: boolean;
@@ -54,7 +54,7 @@ type ConfirmModalProps = {
     const [smallPart, setSmallPart] = useState<string>('');
     const [privacyLevel, setPrivacyLevel] = useState<string>('');
 
-    const getPrivacyLevel = useCallback(async (toaddr) => {
+    const getPrivacyLevel = useCallback(async (toaddr: ToAddrClass) => {
       if (!toaddr.to) {
         return '-'; 
       }
@@ -190,21 +190,13 @@ type ConfirmModalProps = {
       // This will be replaced by either a success TXID or error message that the user
       // has to close manually.
       openErrorModal("Computing Transaction", "Please wait...This could take a while");
-      const setSendProgress = (progress?: SendProgressClass) => {
-        if (progress && progress.sendInProgress) {
-          openErrorModal(
-            `Computing Transaction`,
-            `Step ${progress.progress} of ${progress.total}. ETA ${progress.etaSeconds}s`
-          );
-        }
-      };
   
       // Now, send the Tx in a timeout, so that the error modal above has a chance to display 
       setTimeout(async () => {
         // Then send the Tx async
         try {
           const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
-          const txids: string | string[] = await sendTransaction(sendJson, setSendProgress);
+          const txids: string | string[] = await sendTransaction(sendJson);
 
           if (typeof txids === "string") {
             openErrorModal("Error Sending Transaction", `${txids}`);

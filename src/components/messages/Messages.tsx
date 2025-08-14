@@ -36,10 +36,11 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
   const [sapling, setSapling] = useState<boolean>(true);
   const [orchard, setOrchard] = useState<boolean>(true);
 
-  //useEffect(() => {
-  //  const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-  //  setAnyPending(!!_anyPending);
-  //}, [addresses]);
+  useEffect(() => {
+    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+    //setAnyPending(!!_anyPending);
+    setAnyPending(false);
+  }, []);
     
   useEffect(() => {
     if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly) {

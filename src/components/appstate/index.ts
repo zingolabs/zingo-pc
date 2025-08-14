@@ -20,6 +20,9 @@ import { SyncStatusScanRangePriorityEnum } from "./enums/SyncStatusScanRangePrio
 
 import { SyncStatusScanRangeType } from "./types/SyncStatusScanRangeType";
 import { SyncStatusType } from "./types/SyncStatusType";
+import { SendJsonToTypeType } from "./types/SendJsonToTypeType";
+import { SendProposeType } from "./types/SendProposeType";
+import { SendType } from "./types/SendType";
 
 import AppState from "./AppState";
 
@@ -48,5 +51,8 @@ export {
 };
 export type {
     SyncStatusScanRangeType,
-    SyncStatusType
+    SyncStatusType,
+    SendJsonToTypeType,
+    SendProposeType,
+    SendType,
   };

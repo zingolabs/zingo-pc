@@ -6,6 +6,7 @@ use neon::prelude::*;
 use std::num::NonZeroU32;
 use std::str::FromStr;
 use std::sync::RwLock;
+use std::fs::remove_file;
 
 use bip0039::Mnemonic;
 use json::object;
@@ -309,14 +310,8 @@ fn save_wallet_file(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || {
             if let Some(lightclient) = &mut *LIGHTCLIENT.write().unwrap() {
-                RT.block_on(async move {
-                    let mut wallet = lightclient.wallet.write().await;
-                    match wallet.save() {
-                        Ok(Some(_wallet_bytes)) => "Wallet saved successfully.".to_string(),
-                        Ok(None) => "Error: No need to save the wallet file".to_string(),
-                        Err(e) => format!("Error: {e}"),
-                    }
-                })
+                RT.block_on(async move { lightclient.save_task().await });
+                "Launching save task...".to_string()
             } else {
                 "Error: Lightclient is not initialized".to_string()
             }
@@ -1705,28 +1700,27 @@ fn confirm(mut cx: FunctionContext) -> JsResult<JsPromise> {
 }
 
 fn delete_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
+    let chain_hint = cx.argument::<JsString>(1)?.value(&mut cx);
+    let performance_level = cx.argument::<JsString>(2)?.value(&mut cx);
+    let min_confirmations = cx.argument::<JsNumber>(3)?.value(&mut cx);
+
     let promise = cx
         .task(move || {
-            if let Some(lightclient) = &mut *LIGHTCLIENT.write().unwrap() {
-                RT.block_on(async move {
-                    match lightclient.do_delete().await {
-                        Ok(_) => {
-                            let r = object! { 
-                                "result" => "success",
-                                "wallet_path" => lightclient.config.get_wallet_path().to_str().expect("should be valid UTF-8") };
-                            r.pretty(2)
-                        }
-                        Err(e) => {
-                            let r = object! {
-                                "result" => "error",
-                                "error" => e
-                            };
-                            r.pretty(2)
-                        }
-                    }
-                })
+            let (config, _lightwalletd_uri);
+            match construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations) {
+                Ok((c, h)) => (config, _lightwalletd_uri) = (c, h),
+                Err(_) => return "Error: Config issue, delete failed.".to_string(),
+            };
+
+            // Check if the file exists before attempting to delete
+            if config.wallet_path_exists() {
+                match remove_file(config.get_wallet_path()) {
+                    Ok(_) => "File deleted successfully!".to_string(),
+                    Err(e) => format!("Error: {e}"),
+                }
             } else {
-                "Error: Lightclient is not initialized".to_string()
+                "Error: File does not exist, nothing to delete.".to_string()
             }
         })
         .promise(move |mut cx, resp| {

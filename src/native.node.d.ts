@@ -109,4 +109,9 @@ export function send(
 ): Promise<string>;
 export function shield(): Promise<string>;
 export function confirm(): Promise<string>;
-export function delete_wallet(): Promise<string>;
+export function delete_wallet(
+  server_uri: string, 
+  chain_hint: string,
+  performance_level: string,
+  min_confirmations: number
+): Promise<string>;

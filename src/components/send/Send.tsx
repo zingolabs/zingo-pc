@@ -5,7 +5,6 @@ import {
   ToAddrClass,
   SendPageStateClass,
   AddressBookEntryClass,
-  SendProgressClass,
 } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
@@ -21,7 +20,7 @@ import getSendManyJSON from "./components/getSendManyJSON";
 
 type SendProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
-  sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgressClass) => void) => Promise<string | string[]>;
+  sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string | string[]>;
   setSendPageState: (sendPageState: SendPageStateClass) => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
   calculateShieldFee: () => Promise<number>;
@@ -58,10 +57,11 @@ const Send: React.FC<SendProps> = ({
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
 
-  //useEffect(() => {
-  //  const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-  //  setAnyPending(!!_anyPending);
-  //}, [addresses]);
+  useEffect(() => {
+    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+    //setAnyPending(!!_anyPending);
+    setAnyPending(false);
+  }, []);
     
   useEffect(() => {
     if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly) {

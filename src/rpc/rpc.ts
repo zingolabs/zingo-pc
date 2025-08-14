@@ -2,15 +2,16 @@ import {
   TotalBalanceClass,
   ValueTransferClass,
   InfoClass,
-  SendProgressClass,
   UnifiedAddressClass,
   TransparentAddressClass,
   AddressKindEnum,
   SyncStatusType,
   ServerClass,
+  SendJsonToTypeType,
+  SendProposeType,
+  SendType,
 } from "../components/appstate";
 import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
-import { SendManyJsonType } from "../components/send";
 
 import native from "../native.node";
 import { RPCInfoType } from "./components/RPCInfoType";
@@ -23,7 +24,7 @@ export default class RPC {
   fnSetMessagesList: (t: ValueTransferClass[]) => void;
   fnSetInfo: (info: InfoClass) => void;
   fnSetZecPrice: (p?: number) => void;
-  fnSetVerificationProgress: (verificationProgress: number) => void;
+  fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
 
   server: ServerClass;
@@ -34,7 +35,6 @@ export default class RPC {
   lastBlockHeight: number;
   lastTxId?: string;
   
-  fetchAddressesLock: boolean;
   lastPollSyncError: string;
 
   constructor(
@@ -45,7 +45,7 @@ export default class RPC {
     fnSetMessagesList: (t: ValueTransferClass[]) => void,
     fnSetInfo: (info: InfoClass) => void,
     fnSetZecPrice: (p?: number) => void,
-    fnSetVerificationProgress: (verificationProgress: number) => void,
+    fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
     server: ServerClass,
   ) {
@@ -66,7 +66,6 @@ export default class RPC {
     this.updateTimerID = undefined;
     this.timers = [];
 
-    this.fetchAddressesLock = false;
     this.lastPollSyncError = '';
   }
 
@@ -85,20 +84,21 @@ export default class RPC {
           resolve();
         }),
       );
+      // need to read block heights (server & wallet)
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchInfo();
+          //console.log('info & server height - ', Date.now() - s);
+          resolve();
+        }),
+      );
     } else {
       // do need this because of the sync process
       taskPromises.push(
         new Promise<void>(async resolve => {
           await this.fetchSyncPoll();
           //console.log('INTERVAL poll sync');
-          resolve();
-        }),
-      );
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          //const s = Date.now();
-          await RPC.fetchWalletHeight();
-          //console.log('wallet height - ', Date.now() - s);
           resolve();
         }),
       );
@@ -164,9 +164,7 @@ export default class RPC {
     await this.fetchAddresses();
     await this.fetchTotalBalance();
     await this.fetchInfo();
-
     await this.fetchTandZandOMessages();
-    await RPC.fetchWalletHeight();
 
     //await this.fetchWalletSettings();
 
@@ -448,7 +446,7 @@ export default class RPC {
         confirmedSaplingBalance: 0,
         totalSpendableBalance: 0,
       } as TotalBalanceClass);
-      this.fnSetVerificationProgress(0);
+      this.fnSetVerificationProgress(null);
 
       // the rescan in zingolib do two tasks:
       // 1. stop the sync.
@@ -619,50 +617,41 @@ export default class RPC {
 
   async fetchAddresses() {
     try {
-      if (this.fetchAddressesLock) {
-        return;
-      }
-      this.fetchAddressesLock = true;
-
       // UNIFIED
       const unifiedAddressesStr: string = await native.get_unified_addresses();
       if (unifiedAddressesStr) {
         if (unifiedAddressesStr.toLowerCase().startsWith('error')) {
           console.log(`Error addresses ${unifiedAddressesStr}`);
-          this.fetchAddressesLock = false;
           return;
         }
       } else {
         console.log('Internal Error addresses');
-        this.fetchAddressesLock = false;
         return;
       }
       const unifiedAddressesJSON: UnifiedAddressClass[] = await JSON.parse(unifiedAddressesStr) || [];
+      console.log(unifiedAddressesStr, unifiedAddressesJSON);
 
       // TRANSPARENT
       const transparentAddressStr: string = await native.get_transparent_addresses();
       if (transparentAddressStr) {
         if (transparentAddressStr.toLowerCase().startsWith('error')) {
           console.log(`Error addresses ${transparentAddressStr}`);
-          this.fetchAddressesLock = false;
           return;
         }
       } else {
         console.log('Internal Error addresses');
-        this.fetchAddressesLock = false;
         return;
       }
       const transparentAddressesJSON: TransparentAddressClass[] = await JSON.parse(transparentAddressStr) || [];
+      console.log(transparentAddressStr, transparentAddressesJSON);
 
       this.fnSetAddressesUnified(unifiedAddressesJSON);
       this.fnSetAddressesTransparent(transparentAddressesJSON);
-      this.fetchAddressesLock = false;
     } catch (error) {
       console.log(`Critical Error addresses ${error}`);
       // relaunch the interval tasks just in case they are aborted.
       await this.clearTimers();
       await this.configure();
-      this.fetchAddressesLock = false;
       return;
     }
   }
@@ -755,6 +744,7 @@ export default class RPC {
     let vtList: ValueTransferClass[] = [];
 
     const walletHeight: number = await RPC.fetchWalletHeight();
+    console.log('WALLET HEIGHT', walletHeight);
 
     valueTransfersJSON
       .forEach((tx: any) => {
@@ -830,6 +820,7 @@ export default class RPC {
     let mList: ValueTransferClass[] = [];
 
     const walletHeight: number = await RPC.fetchWalletHeight();
+    console.log('WALLET HEIGHT', walletHeight);
 
     MessagesJSON
       .forEach((tx: any) => {
@@ -882,111 +873,73 @@ export default class RPC {
   }
   
   // Send a transaction using the already constructed sendJson structure
-  async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgressClass) => void): Promise<string | string[]> {
-    // First, get the previous send progress id, so we know which ID to track
-    const prevProgressStr: string = "";
-    const prevProgressJSON = JSON.parse(prevProgressStr);
-    const prevSendId: number = prevProgressJSON.id;
-    let sendTxids: string[] = [];
-
-    // proposing...
-    try {
-      console.log(`Sending ${JSON.stringify(sendJson)}`);
-      const resp: string = await native.send(JSON.stringify(sendJson));
-      console.log(`End Sending, response: ${resp}`); 
-    } catch (err) {
-      console.log(`Error sending Tx: ${err}`);
-      throw err;
-    }
-
-    // sending...
-    try {
-      console.log('Confirming');
-      const resp: string = await native.confirm();
-      console.log(`End Confirming, response: ${resp}`);
-      if (!resp || resp.toLowerCase().startsWith('error')) {
-        console.log(`Error confirming Tx: ${resp}`);
-        throw Error(resp);  
-      } else {
-        const respJSON = JSON.parse(resp);
-        if (respJSON.error) {
-          console.log(`Error confirming Tx: ${respJSON.error}`);
-          throw Error(respJSON.error);
-        } else if (respJSON.txids && respJSON.txids.length > 0) {
-          sendTxids = respJSON.txids as string[];
+  async sendTransaction(sendJson: Array<SendJsonToTypeType>): Promise<string> {
+    const sendTxPromise = new Promise<string>(async (resolve, reject) => {
+      // clear the timers - Tasks.
+      await this.clearTimers();
+      // sending
+      let sendError: string = '';
+      let sendTxids: string = '';
+      try {
+        console.log('send JSON', sendJson);
+        // creating the propose
+        const proposeStr: string = await native.send(JSON.stringify(sendJson));
+        if (proposeStr) {
+          if (proposeStr.toLowerCase().startsWith('error')) {
+            console.log(`Error propose ${proposeStr}`);
+            sendError = proposeStr;
+          }
         } else {
-          console.log(`Error confirming: no error, no txids `);
-          throw Error('Error confirming: no error, no txids');
+          console.log('Internal Error propose');
+          sendError = 'Error: Internal RPC Error: propose';
         }
+        if (!sendError) {
+          const proposeJSON: SendProposeType = await JSON.parse(proposeStr);
+          if (proposeJSON.error) {
+            console.log(`Error propose ${proposeJSON.error}`);
+            sendError = proposeJSON.error;
+          }
+          if (!sendError) {
+            // creating the transaction
+            const sendStr: string = await native.confirm();
+            if (sendStr) {
+              if (sendStr.toLowerCase().startsWith('error')) {
+                console.log(`Error confirm ${sendStr}`);
+                sendError = sendStr;
+              }
+            } else {
+              console.log('Internal Error confirm');
+              sendError = 'Error: Internal RPC Error: confirm';
+            }
+            if (!sendError) {
+              const sendJSON: SendType = await JSON.parse(sendStr);
+              if (sendJSON.error) {
+                console.log(`Error confirm ${sendJSON.error}`);
+                sendError = sendJSON.error;
+              } else if (sendJSON.txids && sendJSON.txids.length > 0) {
+                sendTxids = sendJSON.txids.join(', ');
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log(`Critical Error send ${error}`);
+        sendError = `Error: send ${error}`;
       }
-    } catch (err) {
-      console.log(`Error confirming Tx: ${err}`);
-      throw err;
-    }
 
-    const startTimeSeconds: number = new Date().getTime() / 1000;
+      // create the tasks
+      await this.configure();
 
-    // The send command is async, so we need to poll to get the status
-    const sendTxPromise: Promise<string | string[]> = new Promise((resolve, reject) => {
-      const intervalID = setInterval(async () => {
-        const progressStr: string = "";
-        const progressJSON = JSON.parse(progressStr);
-        
-        const updatedProgress = new SendProgressClass();
-        if (progressJSON.id === prevSendId && !sendTxids) {
-          // Still not started, so wait for more time
-          setSendProgress(updatedProgress);
-          return;
-        }
-
-        console.log(progressJSON);
-
-        // Calculate ETA.
-        let secondsPerComputation: number = 3; // default
-        if (progressJSON.progress > 0) {
-          const currentTimeSeconds: number = new Date().getTime() / 1000;
-          secondsPerComputation = (currentTimeSeconds - startTimeSeconds) / progressJSON.progress;
-        }
-        //console.log(`Seconds Per compute = ${secondsPerComputation}`);
-
-        let eta: number = Math.round((progressJSON.total - progressJSON.progress) * secondsPerComputation);
-        if (eta <= 0) {
-          eta = 1;
-        }
-
-        updatedProgress.progress = progressJSON.progress;
-        updatedProgress.total = Math.max(progressJSON.total, progressJSON.progress); // sometimes, due to change, the total can be off by 1
-        updatedProgress.sendInProgress = true;
-        updatedProgress.etaSeconds = eta;
-
-        if (progressJSON.id === prevSendId && !sendTxids) {
-          // Still not started, so wait for more time
-          setSendProgress(updatedProgress);
-          return;
-        }
-
-        if ((!progressJSON.txids || progressJSON.txids.length === 0) && !progressJSON.error && !sendTxids) {
-          // Still processing
-          setSendProgress(updatedProgress);
-          return;
-        }
-
-        // Finished processing
-        clearInterval(intervalID);
-        setSendProgress(undefined);
-
-        if (progressJSON.txids && progressJSON.txids.length > 0) {
-          resolve(progressJSON.txids as string[]);
-        }
-
-        if (progressJSON.error) {
-          reject(progressJSON.error as string);
-        }
-
-        if (sendTxids) {
-          resolve(sendTxids as string[]);
-        }
-      }, 2 * 1000); // Every 2 seconds
+      if (sendTxids) {
+        //console.log('00000000 RESOLVE send');
+        resolve(sendTxids);
+        return;
+      }
+      if (sendError) {
+        //console.log('00000000 REJECT send');
+        reject(sendError);
+        return;
+      }
     });
 
     return sendTxPromise;

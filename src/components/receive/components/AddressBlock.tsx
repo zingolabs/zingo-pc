@@ -21,7 +21,7 @@ type AddressBlockProps = {
   currencyName: string;
   zecPrice: number;
   calculateShieldFee?: () => Promise<number>;
-  handleShieldButton: () => void;
+  handleShieldButton?: () => void;
 };
 
 const AddressBlock: React.FC<AddressBlockProps> = ({
@@ -50,10 +50,11 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     };
   });
 
-  //useEffect(() => {
-  //  const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-  //  setAnyPending(!!_anyPending);
-  //}, [addresses]);
+  useEffect(() => {
+    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+    //setAnyPending(!!_anyPending);
+    setAnyPending(false);
+  }, []);
 
   useEffect(() => {
     if (address.addressKind === AddressKindEnum.transparent && calculateShieldFee && balance > 0 && !readOnly) {

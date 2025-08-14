@@ -59,12 +59,12 @@ const Receive: React.FC<ReceiveProps> = ({
       <div className={styles.receivecontainer}>
         <Tabs>
           <TabList>
-            {uaddrs && uaddrs.length > 0 && <Tab>Unified</Tab>}
-            {taddrs && taddrs.length > 0 && <Tab>Transparent</Tab>}
+            <Tab>Unified</Tab>
+            <Tab>Transparent</Tab>
           </TabList>
 
-          {uaddrs && uaddrs.length > 0 && (
-            <TabPanel key={'ua'}>
+          <TabPanel>
+            {uaddrs.length > 0 ? (
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultUaddr]}>
                   {uaddrs.map((a: UnifiedAddressClass) => (
@@ -74,16 +74,17 @@ const Receive: React.FC<ReceiveProps> = ({
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.address)}
                       zecPrice={info.zecPrice}
-                      handleShieldButton={handleShieldButton}
                     />
                   ))}
                 </Accordion>
               </ScrollPaneTop>
-            </TabPanel>
-          )}
-
-          {taddrs && taddrs.length > 0 && (
-            <TabPanel key={'t'}>
+            ) : (
+              <div>No unified addresses</div>
+            )}
+          </TabPanel>
+  
+          <TabPanel>
+            {taddrs.length > 0 ? (
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultTaddr]}>
                   {taddrs.map((a: TransparentAddressClass) => (
@@ -99,8 +100,10 @@ const Receive: React.FC<ReceiveProps> = ({
                   ))}
                 </Accordion>
               </ScrollPaneTop>
-            </TabPanel>
-          )}
+            ) : (
+              <div>No transparent addresses</div>
+            )}
+          </TabPanel>
         </Tabs>
       </div>
     </div>

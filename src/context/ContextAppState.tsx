@@ -25,7 +25,7 @@ export const defaultAppState: AppState = {
   serverSelectState: new ServerSelectStateClass(),
   sendPageState: new SendPageStateClass(),
   info: new InfoClass(),
-  verificationProgress: 100,
+  verificationProgress: null,
   readOnly: false,
   serverUris: [] as ServerClass[],
   fetchError: {} as FetchErrorTypeClass,
