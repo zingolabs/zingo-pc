@@ -225,21 +225,25 @@
     },
     "linux": {
       "category": "Development",
-      "icon": "./resources/icon.icns",
+      "icon": "./resources/icons",
       "target": [
         "AppImage",
         "deb"
       ],
+      "mimeTypes": [
+        "x-scheme-handler/zcash"
+      ],
       "desktop": {
-        "Name": "Zingo PC",
-        "Comment": "Shielded Lightclient for Zcash",
-        "GenericName": "Wallet",
-        "Type": "Application",
-        "StartupNotify": true,
-        "StartupWMClass": "zingopc",
-        "Categories": "Utility;",
-        "MimeType": "x-scheme-handler/zcash;",
-        "Keywords": "zingo;"
+        "entry": {
+          "Name": "Zingo PC",
+          "Comment": "Shielded Lightclient for Zcash",
+          "GenericName": "Wallet",
+          "Type": "Application",
+          "StartupNotify": true,
+          "StartupWMClass": "zingopc",
+          "Categories": "Utility;",
+          "Keywords": "zingo;"
+        }
       }
     }
   },
