@@ -186,12 +186,6 @@ class MenuBuilder {
           },
         },
         {
-          label: "Wallet Settings",
-          click: () => {
-            this.mainWindow.webContents.send("walletSettings");
-          },
-        },
-        {
           label: "Server info",
           click: () => {
             this.mainWindow.webContents.send("zcashd");
@@ -285,12 +279,6 @@ class MenuBuilder {
             label: "&Rescan",
             click: () => {
               mainWindow.webContents.send("rescan");
-            },
-          },
-          {
-            label: "Wallet Settings",
-            click: () => {
-              this.mainWindow.webContents.send("walletSettings");
             },
           },
           {

@@ -1,4 +1,4 @@
-export default class ValueTransfer {
+export default class ValueTransferClass {
   type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | 'rejection';
   fee?: number;
   confirmations: number;

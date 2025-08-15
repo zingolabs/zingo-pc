@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
-import { AddressBookEntry, Address, AddressType } from "../appstate";
+import { AddressBookEntryClass, TransparentAddressClass, UnifiedAddressClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
@@ -18,71 +18,34 @@ const Receive: React.FC<ReceiveProps> = ({
 }) => {
   const context = useContext(ContextApp);
   const {
-    addresses,
+    addressesUnified,
+    addressesTransparent,
     addressBook,
     info,
-    receivePageState,
   } = context;
-  const { rerenderKey } = receivePageState;
 
-  const [uaddrs, setUaddrs] = useState<Address[]>([]);
+  const [uaddrs, setUaddrs] = useState<UnifiedAddressClass[]>([]);
   const [defaultUaddr, setDefaultUaddr] = useState<string>('')
-  const [zaddrs, setZaddrs] = useState<Address[]>([]);
-  const [defaultZaddr, setDefaultZaddr] = useState<string>('')
-  const [taddrs, setTaddrs] = useState<Address[]>([]);
+  const [taddrs, setTaddrs] = useState<TransparentAddressClass[]>([]);
   const [defaultTaddr, setDefaultTaddr] = useState<string>('')
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
-    const _uaddrs: Address[] = addresses
-      .filter((a: Address) => a.type === AddressType.unified);
-    let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[0].address : "";
-    if (receivePageState && receivePageState.newType === AddressType.unified) {
-      _defaultUaddr = receivePageState.newAddress;
-
-      // move this address to the front, since the scrollbar will reset when we re-render
-      _uaddrs.sort((x: Address, y: Address) => {
-        return x.address === _defaultUaddr ? -1 : y.address === _defaultUaddr ? 1 : 0;
-      });
-    }
+    const _uaddrs: UnifiedAddressClass[] = addressesUnified;
+    let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[_uaddrs.length - 1].encoded_address : "";
     setUaddrs(_uaddrs);
     setDefaultUaddr(_defaultUaddr);
-  }, [addresses, receivePageState]);
+  }, [addressesUnified]);
   
   useEffect(() => {
-    const _zaddrs: Address[] = addresses
-      .filter((a: Address) => a.type === AddressType.sapling);
-    let _defaultZaddr: string = _zaddrs.length > 0 ? _zaddrs[0].address : "";
-    if (receivePageState && receivePageState.newType === AddressType.sapling) {
-      _defaultZaddr = receivePageState.newAddress;
-
-      // move this address to the front, since the scrollbar will reset when we re-render
-      _zaddrs.sort((x: Address, y: Address) => {
-        return x.address === _defaultZaddr ? -1 : y.address === _defaultZaddr ? 1 : 0;
-      });
-    }
-    setZaddrs(_zaddrs);
-    setDefaultZaddr(_defaultZaddr);
-  }, [addresses, receivePageState]);
-
-  useEffect(() => {
-    const _taddrs: Address[] = addresses
-      .filter((a: Address) => a.type === AddressType.transparent);
-    let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[0].address : "";
-    if (receivePageState && receivePageState.newType === AddressType.transparent) {
-      _defaultTaddr = receivePageState.newAddress;
-
-      // move this address to the front, since the scrollbar will reset when we re-render
-      _taddrs.sort((x: Address, y: Address) => {
-        return x.address === _defaultTaddr ? -1 : y.address === _defaultTaddr ? 1 : 0;
-      });
-    }
+    const _taddrs: TransparentAddressClass[] = addressesTransparent;
+    let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[_taddrs.length - 1].encoded_address : "";
     setTaddrs(_taddrs);
     setDefaultTaddr(_defaultTaddr);
-  }, [addresses, receivePageState]);
+  }, [addressesTransparent]);
 
   useEffect(() => {
-    const _addressBookMap = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
+    const _addressBookMap = addressBook.reduce((m: Map<string, string>, obj: AddressBookEntryClass) => {
       m.set(obj.address, obj.label);
       return m;
     }, new Map());
@@ -96,59 +59,40 @@ const Receive: React.FC<ReceiveProps> = ({
       <div className={styles.receivecontainer}>
         <Tabs>
           <TabList>
-            {uaddrs && uaddrs.length > 0 && <Tab>Unified</Tab>}
-            {zaddrs && zaddrs.length > 0 && <Tab>Sapling</Tab>}
-            {taddrs && taddrs.length > 0 && <Tab>Transparent</Tab>}
+            <Tab>Unified</Tab>
+            <Tab>Transparent</Tab>
           </TabList>
 
-          {uaddrs && uaddrs.length > 0 && (
-            <TabPanel key={`ua${rerenderKey}`}>
+          <TabPanel>
+            {uaddrs && uaddrs.length > 0 ? (
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultUaddr]}>
-                  {uaddrs.map((a: Address) => (
+                  {uaddrs.map((a: UnifiedAddressClass) => (
                     <AddressBlock
-                      key={a.address}
+                      key={`u-${a.encoded_address}`}
                       address={a}
                       currencyName={info.currencyName}
-                      label={addressBookMap.get(a.address)}
+                      label={addressBookMap.get(a.encoded_address)}
                       zecPrice={info.zecPrice}
-                      handleShieldButton={handleShieldButton}
                     />
                   ))}
                 </Accordion>
               </ScrollPaneTop>
-            </TabPanel>
-          )}
-
-          {zaddrs && zaddrs.length > 0 && (
-            <TabPanel key={`z${rerenderKey}`}>
-              <ScrollPaneTop offsetHeight={100}>
-                <Accordion preExpanded={[defaultZaddr]}>
-                  {zaddrs.map((a: Address) => (
-                    <AddressBlock
-                      key={a.address}
-                      address={a}
-                      currencyName={info.currencyName}
-                      label={addressBookMap.get(a.address)}
-                      zecPrice={info.zecPrice}
-                      handleShieldButton={handleShieldButton}
-                    />
-                  ))}
-                </Accordion>
-              </ScrollPaneTop>
-            </TabPanel>
-          )}
-
-          {taddrs && taddrs.length > 0 && (
-            <TabPanel key={`t${rerenderKey}`}>
+            ) : (
+              <div>No unified addresses</div>
+            )}
+          </TabPanel>
+  
+          <TabPanel>
+            {taddrs && taddrs.length > 0 ? (
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultTaddr]}>
-                  {taddrs.map((a: Address) => (
+                  {taddrs.map((a: TransparentAddressClass) => (
                     <AddressBlock
-                      key={a.address}
+                      key={`t-${a.encoded_address}`}
                       address={a}
                       currencyName={info.currencyName}
-                      label={addressBookMap.get(a.address)}
+                      label={addressBookMap.get(a.encoded_address)}
                       zecPrice={info.zecPrice}
                       calculateShieldFee={calculateShieldFee}
                       handleShieldButton={handleShieldButton}
@@ -156,8 +100,10 @@ const Receive: React.FC<ReceiveProps> = ({
                   ))}
                 </Accordion>
               </ScrollPaneTop>
-            </TabPanel>
-          )}
+            ) : (
+              <div>No transparent addresses</div>
+            )}
+          </TabPanel>
         </Tabs>
       </div>
     </div>

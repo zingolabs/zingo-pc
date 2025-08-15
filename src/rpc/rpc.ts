@@ -1,133 +1,250 @@
 import {
-  TotalBalance,
-  ValueTransfer,
-  Info,
-  SendProgress,
-  AddressType,
-  Address,
-  WalletSettings,
-  ReceiverType,
+  TotalBalanceClass,
+  ValueTransferClass,
+  InfoClass,
+  UnifiedAddressClass,
+  TransparentAddressClass,
+  AddressKindEnum,
+  SyncStatusType,
+  ServerClass,
+  SendJsonToTypeType,
+  SendProposeType,
+  SendType,
 } from "../components/appstate";
-import { ChainNameEnum } from "../components/appstate/components/ChainNameEnum";
-import { SendManyJsonType } from "../components/send";
+import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 
 import native from "../native.node";
 import { RPCInfoType } from "./components/RPCInfoType";
 
 export default class RPC {
-  fnSetInfo: (info: Info) => void;
-  fnSetVerificationProgress: (verificationProgress: number) => void;
-  fnSetTotalBalance: (tb: TotalBalance) => void;
-  fnSetAddresses: (abs: Address[]) => void;
-  fnSetValueTransfersList: (t: ValueTransfer[]) => void;
-  fnSetMessagesList: (t: ValueTransfer[]) => void;
+  fnSetTotalBalance: (tb: TotalBalanceClass) => void;
+  fnSetAddressesUnified: (abs: UnifiedAddressClass[]) => void;
+  fnSetAddressesTransparent: (abs: TransparentAddressClass[]) => void;
+  fnSetValueTransfersList: (t: ValueTransferClass[]) => void;
+  fnSetMessagesList: (t: ValueTransferClass[]) => void;
+  fnSetInfo: (info: InfoClass) => void;
   fnSetZecPrice: (p?: number) => void;
-  fnSetWalletSettings: (settings: WalletSettings) => void;
+  fnSetVerificationProgress: (verificationProgress: number | null) => void;
+  fnSetFetchError: (command: string, error: string) => void;
 
-  refreshTimerID?: NodeJS.Timeout;
+  server: ServerClass;
+  
   updateTimerID?: NodeJS.Timeout;
-  syncTimerID?: NodeJS.Timeout;
-
-  updateDataLock: boolean;
+  timers: NodeJS.Timeout[];
 
   lastBlockHeight: number;
   lastTxId?: string;
-
-  fnSetFetchError: (command: string, error: string) => void;
+  
+  lastPollSyncError: string;
 
   constructor(
-    fnSetTotalBalance: (tb: TotalBalance) => void,
-    fnSetAddresses: (abs: Address[]) => void,
-    fnSetValueTransfersList: (t: ValueTransfer[]) => void,
-    fnSetMessagesList: (t: ValueTransfer[]) => void,
-    fnSetInfo: (info: Info) => void,
+    fnSetTotalBalance: (tb: TotalBalanceClass) => void,
+    fnSetAddressesUnified: (abs: UnifiedAddressClass[]) => void,
+    fnSetAddressesTransparent: (abs: TransparentAddressClass[]) => void,
+    fnSetValueTransfersList: (t: ValueTransferClass[]) => void,
+    fnSetMessagesList: (t: ValueTransferClass[]) => void,
+    fnSetInfo: (info: InfoClass) => void,
     fnSetZecPrice: (p?: number) => void,
-    fnSetWalletSettings: (settings: WalletSettings) => void,
-    fnSetVerificationProgress: (verificationProgress: number) => void,
+    fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
+    server: ServerClass,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
-    this.fnSetAddresses = fnSetAddresses;
+    this.fnSetAddressesUnified = fnSetAddressesUnified;
+    this.fnSetAddressesTransparent = fnSetAddressesTransparent;
     this.fnSetValueTransfersList = fnSetValueTransfersList;
     this.fnSetMessagesList = fnSetMessagesList;
     this.fnSetInfo = fnSetInfo;
     this.fnSetZecPrice = fnSetZecPrice;
-    this.fnSetWalletSettings = fnSetWalletSettings;
     this.fnSetVerificationProgress = fnSetVerificationProgress;
+    this.fnSetFetchError = fnSetFetchError;
+
+    this.server = server;
+
     this.lastBlockHeight = 0;
 
-    this.refreshTimerID = undefined;
     this.updateTimerID = undefined;
-    this.syncTimerID = undefined;
-    this.updateDataLock = false;
+    this.timers = [];
 
-    this.fnSetFetchError = fnSetFetchError;
+    this.lastPollSyncError = '';
   }
 
-  async configure() {
-    if (!this.refreshTimerID) {
-      this.refreshTimerID = setInterval(() => {
-        console.log('refresh - 30 sec');
-        // trying to sync
-        this.refresh(false);
-        // I need to fetch the ZEC price in USD.
-        this.getZecPrice();
-      }, 30 * 1000); // 30 sec
+  async runTaskPromises(): Promise<void> {
+
+    const taskPromises: Promise<void>[] = [];
+
+    // if the wallet needs to save, means the App needs to fetch all the new data
+    if (!(await this.getWalletSaveRequired())) {
+      console.log('NOT SAVE REQUIRED: No fetching data');
+      // do need this because of the sync process
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          await this.fetchSyncPoll();
+          //console.log('INTERVAL poll sync');
+          resolve();
+        }),
+      );
+      // need to read block heights (server & wallet)
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchInfo();
+          //console.log('info & server height - ', Date.now() - s);
+          resolve();
+        }),
+      );
+    } else {
+      // do need this because of the sync process
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          await this.fetchSyncPoll();
+          //console.log('INTERVAL poll sync');
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchInfo();
+          //console.log('info & server height - ', Date.now() - s);
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchAddresses();
+          //console.log('addresses - ', Date.now() - s);
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchTotalBalance();
+          //console.log('balance - ', Date.now() - s);
+          resolve();
+        }),
+      );
+      // save the wallet as required.
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          const s = Date.now();
+          await RPC.doSave();
+          if (Date.now() - s > 4000) {
+            console.log('=========================================== > save wallet - ', Date.now() - s);
+          }
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchTandZandOValueTransfers();
+          //console.log('value transfers - ', Date.now() - s);
+          resolve();
+        }),
+      );
+      taskPromises.push(
+        new Promise<void>(async resolve => {
+          //const s = Date.now();
+          await this.fetchTandZandOMessages();
+          //console.log('messages - ', Date.now() - s);
+          resolve();
+        }),
+      );
     }
 
+    Promise.allSettled(taskPromises);
+  }
+
+  async configure(): Promise<void> {
+    // takes a while to start
+    await this.fetchTandZandOValueTransfers();
+    await this.fetchAddresses();
+    await this.fetchTotalBalance();
+    await this.fetchInfo();
+    await this.fetchTandZandOMessages();
+
+    //await this.fetchWalletSettings();
+
+    // every 5 seconds the App update part of the data
     if (!this.updateTimerID) {
-      this.updateTimerID = setInterval(() => {
-        console.log('update data - 5 sec');
-        this.updateData();
-      }, 5 * 1000); // 3 secs
+      this.updateTimerID = setInterval(() => this.runTaskPromises(), 5 * 1000); // 5 secs
     }
 
-    // Immediately call the refresh after configure to update the UI
-    this.refresh(true);
-    this.updateData();
+    await this.sanitizeTimers();
   }
 
-  clearTimers() {
-    if (this.refreshTimerID) {
-      clearInterval(this.refreshTimerID);
-      this.refreshTimerID = undefined;
-    }
-
+  async clearTimers(): Promise<void> {
     if (this.updateTimerID) {
       clearInterval(this.updateTimerID);
       this.updateTimerID = undefined;
+      //console.log('kill update timer', this.updateVTTimerID);
     }
 
-    if (this.syncTimerID) {
-      clearInterval(this.syncTimerID);
-      this.syncTimerID = undefined;
+    // and now the array of timers...
+    while (this.timers.length > 0) {
+      const inter = this.timers.pop();
+      clearInterval(inter);
+      //console.log('kill item array timers', inter);
     }
   }
 
-  static doSync() {
-    const syncstr: string = native.zingolib_execute_spawn("sync", "");
+  async sanitizeTimers(): Promise<void> {
+    // and now the array of timers...
+    let deleted: number[] = [];
+    for (var i = 0; i < this.timers.length; i++) {
+      if (this.updateTimerID && this.timers[i] === this.updateTimerID) {
+        // do nothing
+      } else {
+        clearInterval(this.timers[i]);
+        deleted.push(i);
+        //console.log('sanitize - kill item array timers', this.timers[i]);
+      }
+    }
+    // remove the cleared timers.
+    for (var ii = 0; ii < deleted.length; i++) {
+      this.timers.splice(deleted[ii], 1);
+    }
+  }
+
+  static async doSync() {
+    const syncstr: string = await native.run_sync();
     console.log(`Sync exec result: ${syncstr}`);
   }
 
-  static doRescan() {
-    const syncstr: string = native.zingolib_execute_spawn("rescan", "");
+  static async doRescan() {
+    const syncstr: string = await native.run_rescan();
     console.log(`rescan exec result: ${syncstr}`);
   }
 
   static async doSyncStatus(): Promise<string> {
-    const syncstr: string = await native.zingolib_execute_async("syncstatus", "");
+    const syncstr: string = await native.status_sync();
     console.log(`sync status: ${syncstr}`);
     return syncstr;
   }
 
+  static async doSyncPoll(): Promise<string> {
+    const syncstr: string = await native.poll_sync();
+    console.log(`sync poll: ${syncstr}`);
+    return syncstr;
+  }
+
+  static async doSave() {
+    const syncstr: string = await native.save_wallet_file();
+    console.log(`wallet saved: ${syncstr}`);
+    return syncstr;
+  }
+
   static deinitialize() {
-    const str: string = native.zingolib_deinitialize();
+    const str: string = native.deinitialize();
     console.log(`Deinitialize status: ${str}`);
   }
   
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
-    const shieldResult: string = await native.zingolib_execute_async("shield", '');
+    const shieldResult: string = await native.shield();
     console.log('shield proposal', shieldResult);
     if (shieldResult) {
       if (shieldResult.toLowerCase().startsWith("error")) {
@@ -156,7 +273,7 @@ export default class RPC {
     }
     console.log(shieldJSON);
 
-    const confirmResult: string = await native.zingolib_execute_async("confirm", '');
+    const confirmResult: string = await native.confirm();
     if (confirmResult) {
       if (confirmResult.toLowerCase().startsWith("error")) {
         // error
@@ -171,152 +288,37 @@ export default class RPC {
     }
     console.log(confirmResult);
 
-    this.updateData();
     return confirmResult;
   }
 
-  async updateData() {
-    if (this.updateDataLock) {
-      //console.log("Update lock, returning");
-      return;
-    }
-
-    this.updateDataLock = true;
-
-    const latestBlockHeight: number = await this.fetchInfo();
-
-    // And fetch the rest of the data.
-    await this.fetchTotalBalance();
-    await this.fetchTandZandOValueTransfers(latestBlockHeight);
-    await this.fetchTandZandOMessages(latestBlockHeight);
-    await this.fetchWalletSettings();
-
-    console.log(`Finished update data at ${latestBlockHeight}`);
-
-    this.updateDataLock = false;
-  }
-
-  async refresh(fullRefresh: boolean) {
-    if (this.syncTimerID) {
-      console.log("Already have a sync process launched", this.syncTimerID);
-      return;
-    }
-    const latestBlockHeight: number = await this.fetchInfo();
-    const walletHeight: number = await RPC.fetchWalletHeight();
-
-    if (
-      fullRefresh ||
-      !this.lastBlockHeight ||
-      this.lastBlockHeight < latestBlockHeight ||
-      walletHeight < latestBlockHeight
-    ) {
-
-      // If the latest block height has changed, make sure to sync. This will happen in a new thread
-      RPC.doSync();
-
-      // We need to wait for the sync to finish. The way we know the sync is done is
-      // if the height matches the latestBlockHeight
-      this.syncTimerID = setInterval(async () => {
-        console.log('sync status - 2 sec'); 
-        const walletHeight: number = await RPC.fetchWalletHeight();
-        const walletBirthday: number = await RPC.fetchBirthday();
-
-        let verificationProgress: number = 100;
-
-        if (walletHeight >= latestBlockHeight) {
-          // We are synced. Cancel the poll timer
-          clearInterval(this.syncTimerID);
-          this.syncTimerID = undefined;
-          // the sync is finished
-          verificationProgress = 100;
-          // And fetch the rest of the data.
-          this.fetchTotalBalance();
-          this.fetchTandZandOValueTransfers(latestBlockHeight);
-          this.fetchTandZandOMessages(latestBlockHeight);
-      
-          this.lastBlockHeight = latestBlockHeight;
-
-          // All done
-          console.log(`Finished (blocks) full refresh at server: ${latestBlockHeight} & wallet: ${walletHeight}`);
-        } else {
-          // if the progress is still running we need to update the UI
-          // we want to update the progress of the current syncing
-          const ssStr: string = await RPC.doSyncStatus();
-          const ss = JSON.parse(ssStr);
-          if (!ss.in_progress) {
-            // We are synced. Cancel the poll timer
-            clearInterval(this.syncTimerID);
-            this.syncTimerID = undefined;
-            // the sync is finished
-            // the sync process in zingolib finish fakely & if you try again
-            // the sync continue with a NEW ID
-            // And fetch the rest of the data.
-            this.fetchTotalBalance();
-            this.fetchTandZandOValueTransfers(latestBlockHeight);
-            this.fetchTandZandOMessages(latestBlockHeight);
-      
-            this.lastBlockHeight = latestBlockHeight;
-
-            // All done
-            console.log(`Finished (in_progress) full refresh at ${latestBlockHeight} & wallet: ${walletHeight}`);
-          } else {
-            // the sync is running
-            const progress_blocks: number = (ss.synced_blocks + ss.trial_decryptions_blocks + ss.witnesses_updated) / 3;
-
-            // this calculation is for the total of blocks, nothing to do with batches
-            // because batches are calculated only for the current sync process
-            // which in most of the times is partial, not total. 
-            // edge case: in a rescan sometimes the process can start from sapling age, but the
-            // wallet birthday doesn't change...
-            const firstBlockProcess: number = ss.end_block - (ss.batch_num * 100);
-            let firstBlockProcessFixed: number;
-            if (firstBlockProcess < walletBirthday) {
-              firstBlockProcessFixed = firstBlockProcess;
-            } else {
-              firstBlockProcessFixed = walletBirthday;
-            }
-            const sync_blocks: number = ss.end_block + progress_blocks - firstBlockProcessFixed;
-            const total_blocks: number = latestBlockHeight - firstBlockProcessFixed;
-
-            verificationProgress = (sync_blocks * 100) / total_blocks;
-          }
-        }
-
-        this.fnSetVerificationProgress(verificationProgress);
-      }, 2 * 1000); // two seconds is ok for the UI.
-    } else {
-      // Already at the latest block
-      console.log("Already have latest block, waiting for next refresh");
-    }
-  }
-
   // Special method to get the Info object. This is used both internally and by the Loading screen
-  static async getInfoObject(): Promise<Info> {
+  static async getInfoObject(): Promise<InfoClass> {
     try {
-      const infostr: string = await native.zingolib_execute_async("info", "");
-      if (infostr.toLowerCase().startsWith("error")) {
+      const infostr: string = await native.info_server();
+      if (!infostr || infostr.toLowerCase().startsWith("error")) {
         console.log("server info Failed", infostr);
-        return new Info(infostr);
+        return new InfoClass(infostr);
       }
       const infoJSON: RPCInfoType = JSON.parse(infostr);
 
-      const info = new Info();
+      const info = new InfoClass();
       info.chainName = infoJSON.chain_name;
       info.latestBlock = infoJSON.latest_block_height;
       info.connections = 1;
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit ? infoJSON.git_commit.substring(0, 6) : ""}/${infoJSON.version}`;
       info.zcashdVersion = "Not Available";
-      info.currencyName = info.chainName === ChainNameEnum.mainChainName ? "ZEC" : "TAZ";
+      info.currencyName = info.chainName === ServerChainNameEnum.mainChainName ? "ZEC" : "TAZ";
       info.solps = 0;
 
       // Also set `zecPrice` manually
-      const resultStr: string = await native.zingolib_execute_async("updatecurrentprice", "");
+      const resultStr: string = await native.zec_price("false");
       if (resultStr) {
-        if (resultStr.toLowerCase().startsWith("error") || isNaN(parseFloat(resultStr))) {
+        if (resultStr.toLowerCase().startsWith("error")) {
           console.log(`Error fetching price Info ${resultStr}`);
           info.zecPrice = 0;
         } else {
-          info.zecPrice = parseFloat(resultStr);
+          const resultJSON = JSON.parse(resultStr);
+          info.zecPrice = resultJSON.current_price;
         }
       } else {
         console.log(`Error fetching price Info ${resultStr}`);
@@ -324,7 +326,7 @@ export default class RPC {
       }
 
       // zingolib version
-      let zingolibStr: string = await native.zingolib_execute_async("version", "");
+      let zingolibStr: string = await native.get_version();
       if (zingolibStr) {
         if (zingolibStr.toLowerCase().startsWith('error')) {
           zingolibStr = '<error>';
@@ -341,327 +343,198 @@ export default class RPC {
       return info;
     } catch (err) {
       console.log("Error: to parse info", err);
-      return new Info("Error: to parse info" + err);
-    }
-  }
-
-  static doImportPrivKey(key: string, birthday: string): string {
-    const args = { key, birthday: parseInt(birthday, 10) };
-
-    if (isNaN(parseInt(birthday, 10))) {
-      return `Error: Couldn't parse ${birthday} as a number`;
-    }
-
-    const address: string = native.zingolib_execute_spawn("import", JSON.stringify(args));
-
-    return address;
-  }
-
-  async fetchWalletSettings() {
-    const cmd = 'getoption';
-    try {
-      const download_memos_str: string = await native.zingolib_execute_async(cmd, "download_memos");
-      if (download_memos_str) {
-        if (download_memos_str.toLowerCase().startsWith('error')) {
-          console.log(`Error download memos ${download_memos_str}`);
-          this.fnSetFetchError(cmd, download_memos_str);
-          return;
-        }
-      } else {
-        console.log('Internal Error download memos');
-        this.fnSetFetchError(cmd, 'Error: Internal RPC Error download memos');
-        return;
-      }
-      const download_memos = JSON.parse(download_memos_str).download_memos;
-
-      let transaction_filter_threshold = 0;
-      const spam_filter_str: string = await native.zingolib_execute_async(cmd, "transaction_filter_threshold");
-      if (spam_filter_str) {
-        if (spam_filter_str.toLowerCase().startsWith('error')) {
-          console.log(`Error transaction filter threshold ${spam_filter_str}`);
-          this.fnSetFetchError(cmd, spam_filter_str);
-          return;
-        }
-      } else {
-        console.log('Internal Error transaction filter threshold');
-        this.fnSetFetchError(cmd, 'Error: Internal RPC Error transaction filter threshold');
-        return;
-      }
-      transaction_filter_threshold = JSON.parse(spam_filter_str).transaction_filter_threshold;
-
-      // If it is -1, i.e., it was not set, then set it to 500
-      if (transaction_filter_threshold < 0) {
-        await RPC.setWalletSettingOption("transaction_filter_threshold", "500");
-      }
-
-      const wallet_settings = new WalletSettings();
-      wallet_settings.download_memos = download_memos;
-      wallet_settings.transaction_filter_threshold = transaction_filter_threshold;
-
-      this.fnSetWalletSettings(wallet_settings);
-    } catch (e) {
-      console.log(`Error getting spam filter threshold: ${e}`);
-      this.fnSetFetchError(cmd, `${e}`);
-      return;
+      return new InfoClass("Error: to parse info" + err);
     }
   }
 
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
-    const r: string = await native.zingolib_execute_async("setoption", `${name}=${value}`);
+    //const r: string = await native.("setoption", `${name}=${value}`);
+    const r: string = await native.set_option_wallet();
 
     return r;
   }
 
-  async fetchInfo(): Promise<number> {
-    const info: Info = await RPC.getInfoObject();
+  async fetchInfo(): Promise<void> {
+    const info: InfoClass = await RPC.getInfoObject();
 
     this.fnSetInfo(info);
-
-    return info.latestBlock;
   }
 
-  async zingolibBalance(): Promise<any> {
-    const balanceStr: string = await native.zingolib_execute_async("balance", "");
-    if (balanceStr) {
-      if (balanceStr.toLowerCase().startsWith('error')) {
-        console.log(`Error balance ${balanceStr}`);
-        this.fnSetFetchError('balance', balanceStr);
-        return;
+  async getWalletSaveRequired(): Promise<boolean> {
+    try {
+      const start = Date.now();
+      const walletSaveRequiredStr: string = await native.get_wallet_save_required();
+      if (Date.now() - start > 4000) {
+        console.log('=========================================== > wallet save required - ', Date.now() - start);
       }
-    } else {
-      console.log('Internal Error balance');
-      this.fnSetFetchError('balance', 'Error: Internal RPC Error');
+      if (walletSaveRequiredStr) {
+        if (walletSaveRequiredStr.toLowerCase().startsWith('error')) {
+          console.log(`Error wallet save required ${walletSaveRequiredStr}`);
+          return false;
+        }
+      } else {
+        console.log('Internal Error wallet save required');
+        return false;
+      }
+      const walletSaveRequiredJSON = await JSON.parse(walletSaveRequiredStr);
+
+      return walletSaveRequiredJSON.save_required;
+    } catch (error) {
+      console.log(`Critical Error wallet save required ${error}`);
+      return false;
+    }
+  }
+
+  async fetchSyncPoll(): Promise<void> {
+    const s = Date.now();
+    const returnPoll: string = await native.poll_sync();
+    if (Date.now() - s > 4000) {
+      console.log('=========================================== > sync poll command - ', Date.now() - s);
+    }
+    if (!returnPoll || returnPoll.toLowerCase().startsWith('error')) {
+      console.log('SYNC POLL ERROR', returnPoll);
+      this.lastPollSyncError = returnPoll;
       return;
     }
-    const balanceJSON = JSON.parse(balanceStr);
 
-    //console.log(balanceJSON);
+    if (returnPoll.toLowerCase().startsWith('sync task has not been launched')) {
+      console.log('SYNC POLL -> RUN SYNC', returnPoll);
+      setTimeout(async () => {
+        await this.refreshSync();
+      }, 0);
+      return;
+    }
 
-    let formattedJSON = {
-      obalance: balanceJSON.orchard_balance,
-      verified_obalance: balanceJSON.verified_orchard_balance,
-      spendable_obalance: balanceJSON.spendable_orchard_balance,
-      unverified_obalance: balanceJSON.unverified_orchard_balance,
-      zbalance: balanceJSON.sapling_balance,
-      verified_zbalance: balanceJSON.verified_sapling_balance,
-      spendable_zbalance: balanceJSON.spendable_sapling_balance,
-      unverified_zbalance: balanceJSON.unverified_sapling_balance,
-      tbalance: balanceJSON.transparent_balance,
-      ua_addresses: [],
-      z_addresses: [],
-      t_addresses: [],
-    };
+    if (returnPoll.toLowerCase().startsWith('sync task is not complete')) {
+      console.log('SYNC POLL -> FETCH STATUS', returnPoll);
+      setTimeout(async () => {
+        await this.fetchSyncStatus();
+      }, 0);
+      return;
+    }
 
-    // fetch all addresses
-    const addressesStr: string = await native.zingolib_execute_async("addresses", "");
+    let sp;
+    try {
+      sp = await JSON.parse(returnPoll);
+    } catch (error) {
+      console.log('SYNC POLL ERROR - PARSE JSON', returnPoll, error);
+      return;
+    }
+
+    console.log('SYNC POLL', sp);
+
+    console.log('SYNC POLL -> FETCH STATUS');
+    setTimeout(async () => {
+      await this.fetchSyncStatus();
+    }, 0);
+
+  }
+
+  async refreshSync(fullRescan?: boolean) {
+    // This is async, so when it is done, we finish the refresh.
+    if (fullRescan) {
+      await this.clearTimers();
+      // clean the ValueTransfer list before.
+      this.fnSetValueTransfersList([]);
+      this.fnSetMessagesList([]);
+      this.fnSetTotalBalance({
+        totalOrchardBalance: 0,
+        totalSaplingBalance: 0,
+        totalTransparentBalance: 0,
+        confirmedTransparentBalance: 0,
+        confirmedOrchardBalance: 0,
+        confirmedSaplingBalance: 0,
+        totalSpendableBalance: 0,
+      } as TotalBalanceClass);
+      this.fnSetVerificationProgress(null);
+
+      // the rescan in zingolib do two tasks:
+      // 1. stop the sync.
+      // 2. launch the rescan.
+      const rescanStr: string = await native.run_rescan();
+      //console.log('rescan RUN', rescanStr);
+      if (!rescanStr || rescanStr.toLowerCase().startsWith('error')) {
+        console.log(`Error rescan ${rescanStr}`);
+      }
+      await this.configure();
+    } else {
+      const syncStr: string = await native.run_sync();
+      //console.log('sync RUN', syncStr);
+      if (!syncStr || syncStr.toLowerCase().startsWith('error')) {
+        console.log(`Error sync ${syncStr}`);
+      }
+    }
+  }
+
+  async fetchSyncStatus(): Promise<void> {
+    const s = Date.now();
+    const returnStatus: string = await native.status_sync();
+    if (Date.now() - s > 4000) {
+      console.log('=========================================== > sync status command - ', Date.now() - s);
+    }
+    if (!returnStatus || returnStatus.toLowerCase().startsWith('error')) {
+      console.log('SYNC STATUS ERROR', returnStatus);
+      return;
+    }
+    let ss = {} as SyncStatusType;
+    try {
+      ss = await JSON.parse(returnStatus);
+      ss.lastError = this.lastPollSyncError;
+    } catch (error) {
+      console.log('SYNC STATUS ERROR - PARSE JSON', returnStatus, error);
+      return;
+    }
+
+    //console.log('SYNC STATUS', ss);
+    console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned);
+
+    //console.log('interval sync/rescan, secs', this.secondsBatch, 'timer', this.syncStatusTimerID);
+
+    // store SyncStatus object for a new screen
+    this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ? ss.percentage_total_outputs_scanned : 0);
+  }
+
+  async zingolibAddressesUnified(): Promise<any> {
+    // fetch all Unified addresses
+    const addressesStr: string = await native.get_unified_addresses();
     if (addressesStr) {
       if (addressesStr.toLowerCase().startsWith('error')) {
-        console.log(`Error addresses ${addressesStr}`);
-        this.fnSetFetchError('addresses', addressesStr);
+        console.log(`Error Unified addresses ${addressesStr}`);
+        this.fnSetFetchError('Unified addresses', addressesStr);
         return;
       }
     } else {
-      console.log('Internal Error addresses');
-      this.fnSetFetchError('addresses', 'Error: Internal RPC Error');
+      console.log('Internal Error Unified addresses');
+      this.fnSetFetchError('Unified addresses', 'Error: Internal RPC Error');
       return;
     }
     const addressesJSON = JSON.parse(addressesStr);
 
-    // fetch all notes
-    const notesStr: string = await native.zingolib_execute_async("notes", "");
-    if (notesStr) {
-      if (notesStr.toLowerCase().startsWith('error')) {
-        console.log(`Error notes ${notesStr}`);
-        this.fnSetFetchError('notes', notesStr);
-        return;
-      }
-    } else {
-      console.log('Internal Error notes');
-      this.fnSetFetchError('notes', 'Error: Internal RPC Error');
-      return;
-    }
-    const notesJSON = JSON.parse(notesStr);
-
-    //console.log(notesJSON);
-
-    // construct ua_addresses with their respective balance
-    const ua_addr = addressesJSON.map((a: any) => {
-      // To get the balance, sum all notes related to this address
-      const ua_bal = notesJSON.unspent_orchard_notes
-        .filter((o: any) => o.address === a.address)
-        .reduce((acc: any, ua_unsp_note: any) => acc + ua_unsp_note.value, 0);
-
-      // Also add pending notes
-      const ua_pend_bal = notesJSON.pending_orchard_notes
-        .filter((o: any) => o.address === a.address)
-        .reduce((acc: any, ua_pend_note: any) => acc + ua_pend_note.value, 0);
-
-      return {
-        address: a.address,
-        balance: ua_bal + ua_pend_bal,
-        receivers: a.receivers,
-        address_type: AddressType.unified,
-      };
-    });
-
-    // construct z_addresses with their respective balance
-    const z_addr = addressesJSON
-      .filter((a: any) => a.receivers.sapling)
-      .map((a: any) => {
-        // To get the balance, sum all notes related to this address
-        const z_bal = notesJSON.unspent_sapling_notes
-          .filter((o: any) => o.address === a.address)
-          .reduce((acc: any, z_unsp_note: any) => acc + z_unsp_note.value, 0);
-
-        // Also add pending notes
-        const z_pend_bal = notesJSON.pending_sapling_notes
-          .filter((o: any) => o.address === a.address)
-          .reduce((acc: any, z_pend_note: any) => acc + z_pend_note, 0);
-
-        // To get spendable balance, filter the unspent_sapling_notes where spendable = true
-        const z_spendable_bal = notesJSON.unspent_sapling_notes
-          .filter((o: any) => o.address === a.address && o.spendable)
-          .reduce((acc: any, z_spendable_note: any) => acc + z_spendable_note.value, 0);
-
-        return {
-          address: a.receivers.sapling,
-          zbalance: z_bal + z_pend_bal,
-          verified_zbalance: z_bal,
-          spendable_zbalance: z_spendable_bal,
-          unverified_zbalance: z_pend_bal,
-          address_type: AddressType.sapling,
-        };
-      });
-
-    // construct t_addresses with their respective balance
-    const t_addr = addressesJSON
-      .filter((a: any) => a.receivers.transparent)
-      .map((a: any) => {
-        // To get the balance, sum all UTXOs related to this address
-        const t_bal = notesJSON.utxos
-          .filter((o: any) => o.address === a.address)
-          .reduce((acc: any, t_utxo: any) => acc + t_utxo.value, 0);
-
-        // Also add pending UTXOs
-        const t_pend_bal = notesJSON.pending_utxos
-          .filter((o: any) => o.address === a.address)
-          .reduce((acc: any, t_pend_utxo: any) => acc + t_pend_utxo, 0);
-
-        return {
-          address: a.receivers.transparent,
-          balance: t_bal + t_pend_bal,
-          address_type: AddressType.transparent,
-        };
-      });
-
-    // set corresponding addresses in the formatted Json
-    formattedJSON.ua_addresses = ua_addr;
-    formattedJSON.z_addresses = z_addr;
-    formattedJSON.t_addresses = t_addr;
-
-    return formattedJSON;
+    return addressesJSON;
   }
 
-  async zingolibNotes(): Promise<any> {
-    // fetch all notes
-    const notesStr: string = await native.zingolib_execute_async("notes", "");
-    if (notesStr) {
-      if (notesStr.toLowerCase().startsWith('error')) {
-        console.log(`Error notes ${notesStr}`);
-        this.fnSetFetchError('notes', notesStr);
-        return;
-      }
-    } else {
-      console.log('Internal Error notes');
-      this.fnSetFetchError('notes', 'Error: Internal RPC Error');
-      return;
-    }
-    const notesJSON = JSON.parse(notesStr);
-
-    // fetch all addresses
-    const addressesStr: string = await native.zingolib_execute_async("addresses", "");
+  async zingolibAddressesTransparent(): Promise<any> {
+    // fetch all Transparent addresses
+    const addressesStr: string = await native.get_transparent_addresses();
     if (addressesStr) {
       if (addressesStr.toLowerCase().startsWith('error')) {
-        console.log(`Error addresses ${addressesStr}`);
-        this.fnSetFetchError('addresses', addressesStr);
+        console.log(`Error Transparent addresses ${addressesStr}`);
+        this.fnSetFetchError('Transparent addresses', addressesStr);
         return;
       }
     } else {
-      console.log('Internal Error addresses');
-      this.fnSetFetchError('addresses', 'Error: Internal RPC Error');
+      console.log('Internal Error Transparent addresses');
+      this.fnSetFetchError('Transparent addresses', 'Error: Internal RPC Error');
       return;
     }
     const addressesJSON = JSON.parse(addressesStr);
 
-    let formattedJSON = {
-      unspent_notes: [],
-      pending_notes: [],
-      utxos: [],
-      pending_utxos: [],
-    };
-
-    // Construct unspent_notes concatenating unspent_orchard_notes and unspent_sapling_notes
-    const ua_unsp_notes = notesJSON.unspent_orchard_notes;
-    const z_unsp_notes = notesJSON.unspent_sapling_notes.map((z_unsp_note: any) => {
-      // need to get the sapling address, instead of ua address
-      const z_addr = addressesJSON.find((a: any) => a.address === z_unsp_note.address);
-      if (z_addr) {
-        z_unsp_note.address = z_addr.receivers.sapling;
-      }
-
-      return z_unsp_note;
-    });
-
-    const unsp_notes = ua_unsp_notes.concat(z_unsp_notes);
-
-    // Construct pending_notes concatenating pending_orchard_notes and pending_sapling_notes
-    const ua_pend_notes = notesJSON.pending_orchard_notes;
-    const z_pend_notes = notesJSON.pending_sapling_notes.map((z_pend_note: any) => {
-      // need to get the sapling address, instead of ua address
-      const z_addr = addressesJSON.find((a: any) => a.address === z_pend_note.address);
-      if (z_addr) {
-        z_pend_note.address = z_addr.receivers.sapling;
-      }
-
-      return z_pend_note;
-    });
-
-    const pend_notes = ua_pend_notes.concat(z_pend_notes);
-
-    // construct utxos, replacing the addresses accordingly
-    const utxos = notesJSON.utxos.map((utxo: any) => {
-      // need to get the transparent address, instead of ua address
-      const t_addr = addressesJSON.find((a: any) => a.address === utxo.address);
-      if (t_addr) {
-        utxo.address = t_addr.receivers.transparent;
-      }
-
-      return utxo;
-    });
-
-    // construct pending_utxos, replacing the addresses accordingly
-    const pending_utxos = notesJSON.pending_utxos.map((pend_utxo: any) => {
-      // need to get the transparent address, instead of ua address
-      const t_addr = addressesJSON.find((a: any) => a.address === pend_utxo.address);
-      if (t_addr) {
-        pend_utxo.address = t_addr.receivers.transparent;
-      }
-
-      return pend_utxo;
-    });
-
-    // Set corresponding fields
-    formattedJSON.unspent_notes = unsp_notes;
-    formattedJSON.pending_notes = pend_notes;
-    formattedJSON.utxos = utxos;
-    formattedJSON.pending_utxos = pending_utxos;
-
-    return formattedJSON;
+    return addressesJSON;
   }
 
   async zingolibValueTransfers() {
     // fetch value transfers
-    const txValueTransfersStr: string = native.zingolib_get_value_transfers();
+    const txValueTransfersStr: string = await native.get_value_transfers();
     if (txValueTransfersStr) {
       if (txValueTransfersStr.toLowerCase().startsWith('error')) {
         console.log(`Error txs ValueTransfers ${txValueTransfersStr}`);
@@ -680,7 +553,7 @@ export default class RPC {
 
   async zingolibMessages() {
     // fetch value transfers
-    const txMessagesStr: string = await native.zingolib_execute_async("messages", "");
+    const txMessagesStr: string = await native.get_messages("");
     if (txMessagesStr) {
       if (txMessagesStr.toLowerCase().startsWith('error')) {
         console.log(`Error txs ValueTransfers ${txMessagesStr}`);
@@ -699,144 +572,126 @@ export default class RPC {
 
   // This method will get the total balances
   async fetchTotalBalance() {
+    const spendableStr: string = await native.get_spendable_balance_total();
+    console.log(spendableStr);
+    let spendableJSON;
+    if (spendableStr) {
+      if (spendableStr.toLowerCase().startsWith('error')) {
+        console.log(`Error spendable balance ${spendableStr}`);
+      } else {
+        spendableJSON = await JSON.parse(spendableStr);
+      }
+    } else {
+      console.log('Internal Error spendable balance');
+    }
 
-    const balanceJSON: any = await this.zingolibBalance();
+    const balanceStr: string = await native.get_balance();
+    if (balanceStr) {
+      if (balanceStr.toLowerCase().startsWith('error')) {
+        console.log(`Error balance ${balanceStr}`);
+        this.fnSetFetchError('balance', balanceStr);
+      }
+    } else {
+      console.log('Internal Error balance');
+      this.fnSetFetchError('balance', 'Error: Internal RPC Error');
+    }
+    const balanceJSON = JSON.parse(balanceStr);
 
     //console.log(balanceJSON);
 
     // Total Balance
-    const balance = new TotalBalance();
-    balance.obalance = balanceJSON.obalance / 10 ** 8;
-    balance.verifiedO = balanceJSON.verified_obalance / 10 ** 8;
-    balance.unverifiedO = balanceJSON.unverified_obalance / 10 ** 8;
-    balance.spendableO = balanceJSON.spendable_obalance / 10 ** 8;
-    balance.zbalance = balanceJSON.zbalance / 10 ** 8;
-    balance.transparent = balanceJSON.tbalance / 10 ** 8;
-    balance.verifiedZ = balanceJSON.verified_zbalance / 10 ** 8;
-    balance.unverifiedZ = balanceJSON.unverified_zbalance / 10 ** 8;
-    balance.spendableZ = balanceJSON.spendable_zbalance / 10 ** 8;
-    balance.total = balance.obalance + balance.zbalance + balance.transparent;
+    const balance: TotalBalanceClass = {
+      totalOrchardBalance: (balanceJSON.total_orchard_balance || 0) / 10 ** 8,
+      totalSaplingBalance: (balanceJSON.total_sapling_balance || 0) / 10 ** 8,
+      totalTransparentBalance: (balanceJSON.total_transparent_balance || 0) / 10 ** 8,
+      confirmedOrchardBalance: (balanceJSON.confirmed_orchard_balance || 0) / 10 ** 8,
+      confirmedSaplingBalance: (balanceJSON.confirmed_sapling_balance || 0) / 10 ** 8,
+      confirmedTransparentBalance: (balanceJSON.confirmed_transparent_balance || 0) / 10 ** 8,
+      // header total balance
+      totalSpendableBalance: (spendableJSON.spendable_balance || 0) / 10 ** 8,
+      //totalSpendableBalance: ((balanceJSON.confirmed_orchard_balance + balanceJSON.confirmed_sapling_balance) || 0) / 10 ** 8,
+    };
+
     this.fnSetTotalBalance(balance);
-
-    const pendingJSON: any = await this.zingolibNotes();
-
-    const pendingAddressBalances = new Map();
-
-    // Process orchard + sapling notes
-    pendingJSON.pending_notes.forEach((s: any) => {
-      pendingAddressBalances.set(s.address, s.value);
-    });
-
-    // Process UTXOs
-    pendingJSON.pending_utxos.forEach((s: any) => {
-      pendingAddressBalances.set(s.address, s.value);
-    });
-
-    // Addresses with Balance. The client reports balances in zatoshi, so divide by 10^8;
-    const uaddresses = balanceJSON.ua_addresses.map((o: any) => {
-      // If this has any unconfirmed txns, show that in the UI
-      const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
-      if (pendingAddressBalances.has(ab.address)) {
-        ab.containsPending = true;
-      }
-      // Add receivers to unified addresses
-      let receivers: ReceiverType[] = [];
-      if (o.receivers.orchard_exists) receivers.push(ReceiverType.orchard);
-      if (o.receivers.transparent) receivers.push(ReceiverType.transparent);
-      if (o.receivers.sapling) receivers.push(ReceiverType.sapling);
-      ab.receivers = receivers;
-      ab.type = o.address_type;
-      return ab;
-    });
-
-    const zaddresses = balanceJSON.z_addresses.map((o: any) => {
-      // If this has any unconfirmed txns, show that in the UI
-      const ab = new Address(o.address, o.zbalance / 10 ** 8, o.address_type);
-      if (pendingAddressBalances.has(ab.address)) {
-        ab.containsPending = true;
-      }
-      ab.type = o.address_type;
-      return ab;
-    });
-
-    //console.log(zaddresses);
-
-    const taddresses = balanceJSON.t_addresses.map((o: any) => {
-      // If this has any unconfirmed txns, show that in the UI
-      const ab = new Address(o.address, o.balance / 10 ** 8, o.address_type);
-      if (pendingAddressBalances.has(ab.address)) {
-        ab.containsPending = true;
-      }
-      ab.type = o.address_type;
-      return ab;
-    });
-
-    const addresses = uaddresses.concat(zaddresses.concat(taddresses));
-
-    this.fnSetAddresses(addresses);
   }
 
-  static getLastTxid(): string {
-    const txListStr: string = native.zingolib_get_value_transfers();
-    const txListJSON = JSON.parse(txListStr);
+  async fetchAddresses() {
+    try {
+      // UNIFIED
+      const unifiedAddressesStr: string = await native.get_unified_addresses();
+      if (unifiedAddressesStr) {
+        if (unifiedAddressesStr.toLowerCase().startsWith('error')) {
+          console.log(`Error addresses ${unifiedAddressesStr}`);
+          return;
+        }
+      } else {
+        console.log('Internal Error addresses');
+        return;
+      }
+      const unifiedAddressesJSON: UnifiedAddressClass[] = await JSON.parse(unifiedAddressesStr) || [];
+      console.log(unifiedAddressesStr, unifiedAddressesJSON);
 
-    console.log('=============== get Last TX ID', txListJSON.value_transfers.length); 
+      // TRANSPARENT
+      const transparentAddressStr: string = await native.get_transparent_addresses();
+      if (transparentAddressStr) {
+        if (transparentAddressStr.toLowerCase().startsWith('error')) {
+          console.log(`Error addresses ${transparentAddressStr}`);
+          return;
+        }
+      } else {
+        console.log('Internal Error addresses');
+        return;
+      }
+      const transparentAddressesJSON: TransparentAddressClass[] = await JSON.parse(transparentAddressStr) || [];
+      console.log(transparentAddressStr, transparentAddressesJSON);
 
-    if (txListJSON.value_transfers && txListJSON.value_transfers.length && txListJSON.value_transfers.length > 0) {
-      return txListJSON.value_transfers[txListJSON.length - 1].txid;
-    } else {
-      return "0";
+      this.fnSetAddressesUnified(unifiedAddressesJSON);
+      this.fnSetAddressesTransparent(transparentAddressesJSON);
+    } catch (error) {
+      console.log(`Critical Error addresses ${error}`);
+      // relaunch the interval tasks just in case they are aborted.
+      await this.clearTimers();
+      await this.configure();
+      return;
     }
   }
 
-  static async getPrivKeyAsString(address: string): Promise<string> {
-    const privKeyStr: string = await native.zingolib_execute_async("export", address);
-    const privKeyJSON = JSON.parse(privKeyStr);
-
-    return privKeyJSON[0].private_key;
-  }
-
-  static async getViewKeyAsString(address: string): Promise<string> {
-    const privKeyStr: string = await native.zingolib_execute_async("export", address);
-    const privKeyJSON = JSON.parse(privKeyStr);
-
-    return privKeyJSON[0].viewing_key;
-  }
-
-  static async createNewAddress(type: AddressType) {
+  static async createNewAddressUnified(type: AddressKindEnum) {
     // Zingolib creates addresses like this:
-    // ozt = orchard + sapling + transparent (orchard unified)
     // o = orchard only
     // oz = orchard + sapling
-    // ot = orchard + transparent
-    // zt = spling + transparent
     // z = sapling only
-    // it's not possible to create a transparent only address
-    const addrStr: string = await native.zingolib_execute_async(
-      "new",
-      type === AddressType.unified ? "ozt" : type === AddressType.sapling ? "oz" : "ot"
+    const addrStr: string = await native.create_new_unified_address(
+      type === AddressKindEnum.unified ? "oz" : type === AddressKindEnum.sapling ? "z" : "o"
     );
     const addrJSON = JSON.parse(addrStr);
 
     return addrJSON[0];
   }
 
+  static async createNewAddressTransparent(type: AddressKindEnum) {
+    const addrStr: string = await native.create_new_transparent_address();
+    const addrJSON = JSON.parse(addrStr);
+
+    return addrJSON[0];
+  }
+
   static async fetchSeed(): Promise<string> {
-    const seedStr: string = await native.zingolib_execute_async("seed", "");
+    const seedStr: string = await native.get_seed();
     const seedJSON = JSON.parse(seedStr);
 
-    return seedJSON.seed;
+    return seedJSON.seed_phrase;
   }
 
   static async fetchUfvk(): Promise<string> {
-    const ufvkStr: string = await native.zingolib_execute_async("exportufvk", "");
+    const ufvkStr: string = await native.get_ufvk();
     const ufvkJSON = JSON.parse(ufvkStr);
 
     return ufvkJSON.ufvk;
   }
 
   static async fetchBirthday(): Promise<number> {
-    const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+    const walletKindStr: string = await native.wallet_kind();
     const walletKindJSON = JSON.parse(walletKindStr);
 
     if (
@@ -844,13 +699,13 @@ export default class RPC {
       walletKindJSON.kind === "No keys found"
     ) {
       // ufvk
-      const ufvkStr: string = await native.zingolib_execute_async("exportufvk", "");
+      const ufvkStr: string = await native.get_ufvk();
       const ufvkJSON = JSON.parse(ufvkStr);
 
       return ufvkJSON.birthday;
     } else {
       // seed
-      const seedStr: string = await native.zingolib_execute_async("seed", ""); 
+      const seedStr: string = await native.get_seed(); 
       const seedJSON = JSON.parse(seedStr);
 
       return seedJSON.birthday;
@@ -858,25 +713,42 @@ export default class RPC {
   }
 
   static async fetchWalletHeight(): Promise<number> {
-    const heightStr: string = await native.zingolib_execute_async("height", "");
+    const heightStr: string = await native.get_latest_block_wallet();
     const heightJSON = JSON.parse(heightStr);
 
     return heightJSON.height;
   }
 
   // Fetch all T and Z and O value transfers
-  async fetchTandZandOValueTransfers(latestBlockHeight: number) {
+  async fetchTandZandOValueTransfers() {
+    // first to get the last server block.
+    let latestBlockHeight: number = 0;
+    console.log(this.server);
+    const heightStr: string = await native.get_latest_block_server(this.server.uri);
+    if (heightStr) {
+      if (heightStr.toLowerCase().startsWith('error')) {
+        console.log(`Error server height ${heightStr}`);
+      } else {
+        latestBlockHeight = Number(heightStr);
+      }
+    } else {
+      console.log('Internal Error server height');
+    }
+
+    console.log('SERVER HEIGHT', latestBlockHeight);
+
     const valueTransfersJSON: any = await this.zingolibValueTransfers();
 
     //console.log('value transfers antes ', valueTransfersJSON);
 
-    let vtList: ValueTransfer[] = [];
+    let vtList: ValueTransferClass[] = [];
 
     const walletHeight: number = await RPC.fetchWalletHeight();
+    console.log('WALLET HEIGHT', walletHeight);
 
     valueTransfersJSON
       .forEach((tx: any) => {
-        let currentVtList: ValueTransfer = {} as ValueTransfer;
+        let currentVtList: ValueTransferClass = {} as ValueTransferClass;
 
         currentVtList.txid = tx.txid;
         currentVtList.time = tx.datetime;
@@ -925,18 +797,34 @@ export default class RPC {
   }
 
   // Fetch all T and Z and O value transfers
-  async fetchTandZandOMessages(latestBlockHeight: number) {
+  async fetchTandZandOMessages() {
+    // first to get the last server block.
+    let latestBlockHeight: number = 0;
+    const heightStr: string = await native.get_latest_block_server(this.server.uri);
+    if (heightStr) {
+      if (heightStr.toLowerCase().startsWith('error')) {
+        console.log(`Error server height ${heightStr}`);
+      } else {
+        latestBlockHeight = Number(heightStr);
+      }
+    } else {
+      console.log('Internal Error server height');
+    }
+
+    console.log('SERVER HEIGHT', latestBlockHeight);
+
     const MessagesJSON: any = await this.zingolibMessages();
 
     //console.log('value transfers antes ', valueTransfersJSON);
 
-    let mList: ValueTransfer[] = [];
+    let mList: ValueTransferClass[] = [];
 
     const walletHeight: number = await RPC.fetchWalletHeight();
+    console.log('WALLET HEIGHT', walletHeight);
 
     MessagesJSON
       .forEach((tx: any) => {
-        let currentMList: ValueTransfer = {} as ValueTransfer;
+        let currentMList: ValueTransferClass = {} as ValueTransferClass;
 
         currentMList.txid = tx.txid;
         currentMList.time = tx.datetime;
@@ -985,171 +873,88 @@ export default class RPC {
   }
   
   // Send a transaction using the already constructed sendJson structure
-  async sendTransaction(sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void): Promise<string | string[]> {
-    // First, get the previous send progress id, so we know which ID to track
-    const prevProgressStr: string = await native.zingolib_execute_async("sendprogress", "");
-    const prevProgressJSON = JSON.parse(prevProgressStr);
-    const prevSendId: number = prevProgressJSON.id;
-    let sendTxids: string[] = [];
-
-    // proposing...
-    try {
-      console.log(`Sending ${JSON.stringify(sendJson)}`);
-      const resp: string = await native.zingolib_execute_async("send", JSON.stringify(sendJson));
-      console.log(`End Sending, response: ${resp}`); 
-    } catch (err) {
-      console.log(`Error sending Tx: ${err}`);
-      throw err;
-    }
-
-    // sending...
-    try {
-      console.log('Confirming');
-      const resp: string = await native.zingolib_execute_async("confirm", "");
-      console.log(`End Confirming, response: ${resp}`);
-      if (resp.toLowerCase().startsWith('error')) {
-        console.log(`Error confirming Tx: ${resp}`);
-        throw Error(resp);  
-      } else {
-        const respJSON = JSON.parse(resp);
-        if (respJSON.error) {
-          console.log(`Error confirming Tx: ${respJSON.error}`);
-          throw Error(respJSON.error);
-        } else if (respJSON.txids && respJSON.txids.length > 0) {
-          sendTxids = respJSON.txids as string[];
+  async sendTransaction(sendJson: Array<SendJsonToTypeType>): Promise<string> {
+    const sendTxPromise = new Promise<string>(async (resolve, reject) => {
+      // clear the timers - Tasks.
+      await this.clearTimers();
+      // sending
+      let sendError: string = '';
+      let sendTxids: string = '';
+      try {
+        console.log('send JSON', sendJson);
+        // creating the propose
+        const proposeStr: string = await native.send(JSON.stringify(sendJson));
+        if (proposeStr) {
+          if (proposeStr.toLowerCase().startsWith('error')) {
+            console.log(`Error propose ${proposeStr}`);
+            sendError = proposeStr;
+          }
         } else {
-          console.log(`Error confirming: no error, no txids `);
-          throw Error('Error confirming: no error, no txids');
+          console.log('Internal Error propose');
+          sendError = 'Error: Internal RPC Error: propose';
         }
+        if (!sendError) {
+          const proposeJSON: SendProposeType = await JSON.parse(proposeStr);
+          if (proposeJSON.error) {
+            console.log(`Error propose ${proposeJSON.error}`);
+            sendError = proposeJSON.error;
+          }
+          if (!sendError) {
+            // creating the transaction
+            const sendStr: string = await native.confirm();
+            if (sendStr) {
+              if (sendStr.toLowerCase().startsWith('error')) {
+                console.log(`Error confirm ${sendStr}`);
+                sendError = sendStr;
+              }
+            } else {
+              console.log('Internal Error confirm');
+              sendError = 'Error: Internal RPC Error: confirm';
+            }
+            if (!sendError) {
+              const sendJSON: SendType = await JSON.parse(sendStr);
+              if (sendJSON.error) {
+                console.log(`Error confirm ${sendJSON.error}`);
+                sendError = sendJSON.error;
+              } else if (sendJSON.txids && sendJSON.txids.length > 0) {
+                sendTxids = sendJSON.txids.join(', ');
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.log(`Critical Error send ${error}`);
+        sendError = `Error: send ${error}`;
       }
-    } catch (err) {
-      console.log(`Error confirming Tx: ${err}`);
-      throw err;
-    }
 
-    const startTimeSeconds: number = new Date().getTime() / 1000;
+      // create the tasks
+      await this.configure();
 
-    // The send command is async, so we need to poll to get the status
-    const sendTxPromise: Promise<string | string[]> = new Promise((resolve, reject) => {
-      const intervalID = setInterval(async () => {
-        const progressStr: string = await native.zingolib_execute_async("sendprogress", "");
-        const progressJSON = JSON.parse(progressStr);
-        
-        const updatedProgress = new SendProgress();
-        if (progressJSON.id === prevSendId && !sendTxids) {
-          // Still not started, so wait for more time
-          setSendProgress(updatedProgress);
-          return;
-        }
-
-        console.log(progressJSON);
-
-        // Calculate ETA.
-        let secondsPerComputation: number = 3; // default
-        if (progressJSON.progress > 0) {
-          const currentTimeSeconds: number = new Date().getTime() / 1000;
-          secondsPerComputation = (currentTimeSeconds - startTimeSeconds) / progressJSON.progress;
-        }
-        //console.log(`Seconds Per compute = ${secondsPerComputation}`);
-
-        let eta: number = Math.round((progressJSON.total - progressJSON.progress) * secondsPerComputation);
-        if (eta <= 0) {
-          eta = 1;
-        }
-
-        updatedProgress.progress = progressJSON.progress;
-        updatedProgress.total = Math.max(progressJSON.total, progressJSON.progress); // sometimes, due to change, the total can be off by 1
-        updatedProgress.sendInProgress = true;
-        updatedProgress.etaSeconds = eta;
-
-        if (progressJSON.id === prevSendId && !sendTxids) {
-          // Still not started, so wait for more time
-          setSendProgress(updatedProgress);
-          return;
-        }
-
-        if ((!progressJSON.txids || progressJSON.txids.length === 0) && !progressJSON.error && !sendTxids) {
-          // Still processing
-          setSendProgress(updatedProgress);
-          return;
-        }
-
-        // Finished processing
-        clearInterval(intervalID);
-        setSendProgress(undefined);
-
-        if (progressJSON.txids && progressJSON.txids.length > 0) {
-          // And refresh data (full refresh)
-          this.refresh(true);
-
-          resolve(progressJSON.txids as string[]);
-        }
-
-        if (progressJSON.error) {
-          reject(progressJSON.error as string);
-        }
-
-        if (sendTxids) {
-          // And refresh data (full refresh)
-          this.refresh(true);
-
-          resolve(sendTxids as string[]);
-        }
-      }, 2 * 1000); // Every 2 seconds
+      if (sendTxids) {
+        //console.log('00000000 RESOLVE send');
+        resolve(sendTxids);
+        return;
+      }
+      if (sendError) {
+        //console.log('00000000 REJECT send');
+        reject(sendError);
+        return;
+      }
     });
 
     return sendTxPromise;
   }
 
-  async encryptWallet(password: string): Promise<boolean> {
-    const resultStr: string = await native.zingolib_execute_async("encrypt", password);
-    const resultJSON = JSON.parse(resultStr);
-
-    // To update the wallet encryption status
-    this.fetchInfo();
-
-    return resultJSON.result === "success";
-  }
-
-  async decryptWallet(password: string): Promise<boolean> {
-    const resultStr: string = await native.zingolib_execute_async("decrypt", password);
-    const resultJSON = JSON.parse(resultStr);
-
-    // To update the wallet encryption status
-    this.fetchInfo();
-
-    return resultJSON.result === "success";
-  }
-
-  async lockWallet(): Promise<boolean> {
-    const resultStr: string = await native.zingolib_execute_async("lock", "");
-    const resultJSON = JSON.parse(resultStr);
-
-    // To update the wallet encryption status
-    this.fetchInfo();
-
-    return resultJSON.result === "success";
-  }
-
-  async unlockWallet(password: string): Promise<boolean> {
-    const resultStr: string = await native.zingolib_execute_async("unlock", password);
-    const resultJSON = JSON.parse(resultStr);
-
-    // To update the wallet encryption status
-    this.fetchInfo();
-
-    return resultJSON.result === "success";
-  }
-
   async getZecPrice() {
-    const resultStr: string = await native.zingolib_execute_async("updatecurrentprice", "");
+    const resultStr: string = await native.zec_price("false");
 
     if (resultStr) {
-      if (resultStr.toLowerCase().startsWith("error") || isNaN(parseFloat(resultStr))) {
+      if (resultStr.toLowerCase().startsWith("error")) {
         console.log(`Error fetching price ${resultStr}`);
         this.fnSetZecPrice(0);
       } else {
-        this.fnSetZecPrice(parseFloat(resultStr));
+        const resultJSON = JSON.parse(resultStr);
+        this.fnSetZecPrice(resultJSON.current_price);
       }
     } else {
       console.log(`Error fetching price ${resultStr}`);

@@ -1,33 +1,27 @@
 import { ErrorModalData } from "../errormodal";
-import TotalBalance from "./components/TotalBalance";
-import AddressBookEntry from "./components/AddressbookEntry";
-import ValueTransfer from "./components/ValueTransfer";
-import SendPageState from "./components/SendPageState";
-import ReceivePageState from "./components/ReceivePageState";
-import Info from "./components/Info";
-import ServerSelectState from "./components/ServerSelectState";
-import PasswordState from "./components/PasswordState";
-import WalletSettings from "./components/WalletSettings";
-import Address from "./components/Address";
-import Server from "./components/Server";
-import FetchErrorType from "./components/FetchErrorType";
+import TotalBalance from "./classes/TotalBalanceClass";
+import ValueTransfer from "./classes/ValueTransferClass";
+import SendPageState from "./classes/SendPageStateClass";
+import ServerSelectState from "./classes/ServerSelectStateClass";
+import Server from "./classes/ServerClass";
+import FetchErrorType from "./classes/FetchErrorClass";
+
+import AddressUnifiedClass from "./classes/UnifiedAddressClass";
+import AddressTransparentClass from "./classes/TransparentAddressClass";
+import AddressBookEntryClass from "./classes/AddressBookEntryClass";
+import InfoClass from "./classes/InfoClass";
+
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
   totalBalance: TotalBalance;
 
-  // A map type that contains address -> privatekey/viewkey mapping, for display on the receive page
-  // This mapping will disappear when the user navigates away.
-  addressPrivateKeys: Map<string, string>;
-
-  addressViewKeys: Map<string, string>;
-
-  // List of all addresses in the wallet, including change addresses and addresses
-  // that don't have any balance or are unused
-  addresses: Address[];
+  // List of all addresses in the wallet
+  addressesUnified: AddressUnifiedClass[];
+  addressesTransparent: AddressTransparentClass[];
 
   // List of Address / Label pairs
-  addressBook: AddressBookEntry[];
+  addressBook: AddressBookEntryClass[];
 
   // List of all T and Z ValueTransfer
   valueTransfers: ValueTransfer[];
@@ -38,30 +32,14 @@ export default class AppState {
   // The state of the send page, as the user constructs a transaction
   sendPageState: SendPageState;
 
-  // Any state for the receive page
-  receivePageState: ReceivePageState;
-
   // getinfo result
-  info: Info;
-
-  verificationProgress: number;
-
-  walletSettings: WalletSettings;
+  info: InfoClass;
 
   // Error modal data
   errorModalData: ErrorModalData;
 
   // Server selection
   serverSelectState: ServerSelectState;
-
-  // Is the app rescanning?
-  rescanning: boolean;
-
-  // Last sync ID
-  prevSyncId: number;
-
-  // Callbacks for the password dialog box
-  passwordState: PasswordState;
 
   // if the wallet is from seed or from VK
   readOnly: boolean;
@@ -72,24 +50,21 @@ export default class AppState {
   // general error of some fetching command
   fetchError: FetchErrorType;
 
+  // syncing general progress
+  verificationProgress: number | null;
+
   constructor() {
     this.totalBalance = new TotalBalance();
-    this.addressPrivateKeys = new Map();
-    this.addressViewKeys = new Map();
-    this.addresses = [] as Address[];
-    this.addressBook = [] as AddressBookEntry[];
+    this.addressesUnified = [] as AddressUnifiedClass[];
+    this.addressesTransparent = [] as AddressTransparentClass[];
+    this.addressBook = [] as AddressBookEntryClass[];
     this.valueTransfers = [] as ValueTransfer[];
     this.messages = [] as ValueTransfer[];
     this.errorModalData = new ErrorModalData();
     this.serverSelectState = new ServerSelectState();
     this.sendPageState = new SendPageState();
-    this.receivePageState = {} as ReceivePageState;
-    this.info = new Info();
-    this.verificationProgress = 100;
-    this.rescanning = false;
-    this.prevSyncId = -1;
-    this.passwordState = new PasswordState();
-    this.walletSettings = new WalletSettings();
+    this.info = new InfoClass();
+    this.verificationProgress = null;
     this.readOnly = false;
     this.serverUris = [] as Server[];
     this.fetchError = {} as FetchErrorType;

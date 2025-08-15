@@ -1,5 +1,5 @@
 import path from "path";
-import { AddressBookEntry } from "../appstate";
+import { AddressBookEntryClass } from "../appstate";
 
 const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
@@ -18,14 +18,14 @@ export default class AddressbookImpl {
   }
 
   // Write the address book to disk
-  static async writeAddressBook(ab: AddressBookEntry[]): Promise<void> {
+  static async writeAddressBook(ab: AddressBookEntryClass[]): Promise<void> {
     const fileName: string = await this.getFileName();
 
     await fs.promises.writeFile(fileName, JSON.stringify(ab));
   }
 
   // Read the address book
-  static async readAddressBook(): Promise<AddressBookEntry[]> {
+  static async readAddressBook(): Promise<AddressBookEntryClass[]> {
     const fileName: string = await this.getFileName();
 
     try {
@@ -33,7 +33,7 @@ export default class AddressbookImpl {
     } catch (err) {
       // File probably doesn't exist, so return nothing
       console.log('address book', err);
-      return [] as AddressBookEntry[];
+      return [] as AddressBookEntryClass[];
     }
   }
 }

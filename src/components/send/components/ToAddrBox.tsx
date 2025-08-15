@@ -3,8 +3,8 @@ import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
 import {
-  AddressType,
-  ToAddr,
+  AddressKindEnum,
+  ToAddrClass,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
@@ -14,14 +14,13 @@ const Spacer = () => {
 };
 
 type ToAddrBoxProps = {
-  toaddr: ToAddr;
+  toaddr: ToAddrClass;
   zecPrice: number;
   updateToField: (
     id: number,
     address: string | null,
     amount: string | null,
     memo: string | null,
-    memoReplyTo: string | null
   ) => void;
   fromAddress: string;
   fromAmount: number;
@@ -54,7 +53,7 @@ const ToAddrBox = ({
   setTotalAmountAvailable,
   label,
 }: ToAddrBoxProps) => {
-  const [addressType, setAddressType] = useState<AddressType>();
+  const [addressKind, setAddressKind] = useState<AddressKindEnum>();
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
   const [addressIsValid, setAddressIsValid] = useState<number>(0);
   const [amountError, setAmountError] = useState<string | null>(null);
@@ -63,15 +62,15 @@ const ToAddrBox = ({
   
   useEffect(() => {
     (async () => {
-      const addressType: AddressType | undefined = await Utils.getAddressType(toaddr.to);
-      setAddressType(addressType);
-      const isMemoDisabled: boolean = !(addressType === AddressType.sapling || addressType === AddressType.unified);
-      setIsMemoDisabled(isMemoDisabled);
+      const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(toaddr.to);
+      setAddressKind(_addressKind);
+      const _isMemoDisabled: boolean = !(_addressKind === AddressKindEnum.sapling || _addressKind === AddressKindEnum.unified);
+      setIsMemoDisabled(_isMemoDisabled);
     
       let _addressIsValid: number;
       if (!toaddr.to) {
         _addressIsValid = 0;
-      } else if (addressType !== undefined) {
+      } else if (_addressKind !== undefined) {
         _addressIsValid = 1;
       } else {
         _addressIsValid = -1;
@@ -131,16 +130,6 @@ const ToAddrBox = ({
     })();
   }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.memo, toaddr.memoReplyTo, toaddr.to, zecPrice]);
   
-  const addReplyTo = (checked: boolean) => {
-    if (toaddr.id) {
-      if (fromAddress && checked) {
-        updateToField(toaddr.id, null, null, null, `\nReply to: \n${fromAddress}`);
-      } else {
-        updateToField(toaddr.id, null, null, null, "");
-      }
-    }
-  };
-
   console.log(sendFeeError);
 
   return ( 
@@ -152,10 +141,10 @@ const ToAddrBox = ({
             <div style={{ fontWeight: 900, marginLeft: 20 }}>{label ? label : ""}</div>
           </div>
           <div className={[cstyles.sublight, cstyles.green].join(" ")}>
-            {addressType !== undefined && addressType === AddressType.tex && 'TEX'}
-            {addressType !== undefined && addressType === AddressType.transparent && 'Transparent'}
-            {addressType !== undefined && addressType === AddressType.sapling && 'Sapling'}
-            {addressType !== undefined && addressType === AddressType.unified && 'Unified'}
+            {addressKind !== undefined && addressKind === AddressKindEnum.tex && 'TEX'}
+            {addressKind !== undefined && addressKind === AddressKindEnum.transparent && 'Transparent'}
+            {addressKind !== undefined && addressKind === AddressKindEnum.sapling && 'Sapling'}
+            {addressKind !== undefined && addressKind === AddressKindEnum.unified && 'Unified'}
           </div>
           <div className={cstyles.validationerror}>
             {addressIsValid === 1 && (
@@ -171,7 +160,7 @@ const ToAddrBox = ({
           placeholder="Unified | Sapling | Transparent | TEX address"
           className={cstyles.inputbox}
           value={toaddr.to}
-          onChange={(e) => updateToField(toaddr.id as number, e.target.value, null, null, null)}
+          onChange={(e) => updateToField(toaddr.id as number, e.target.value, null, null)}
         />
 
         <Spacer />
@@ -190,7 +179,7 @@ const ToAddrBox = ({
                 step="any"
                 className={cstyles.inputbox}
                 value={isNaN(toaddr.amount) ? "" : toaddr.amount}
-                onChange={(e) => updateToField(toaddr.id as number, null, e.target.value, null, null)}
+                onChange={(e) => updateToField(toaddr.id as number, null, e.target.value, null)}
               />
               <img
                 className={styles.toaddrbutton}
@@ -244,7 +233,7 @@ const ToAddrBox = ({
               className={[cstyles.inputbox].join(" ")}
               value={toaddr.memo}
               disabled={isMemoDisabled}
-              onChange={(e) => updateToField(toaddr.id as number, null, null, e.target.value, null)}
+              onChange={(e) => updateToField(toaddr.id as number, null, null, e.target.value)}
               minRows={2}
               maxRows={5}
             />
@@ -257,10 +246,6 @@ const ToAddrBox = ({
                 maxRows={5}
               />
             )}
-            <div className={cstyles.horizontalflex} style={{ marginTop: 5, alignItems: 'center'}}>
-              <input style={{ marginTop: 5 }} type="checkbox" onChange={(e) => addReplyTo(e.target.checked)} />
-              Include Reply to Unified address
-            </div>
           </div>
         )}
       </div>

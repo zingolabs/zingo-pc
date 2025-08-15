@@ -2,14 +2,14 @@ import React, { useState } from "react";
 import dateformat from "dateformat";
 import styles from "../Messages.module.css";
 import cstyles from "../../common/Common.module.css";
-import { ValueTransfer } from "../../appstate";
+import { ValueTransferClass } from "../../appstate";
 import Utils from "../../../utils/utils";
 const { clipboard } = window.require("electron");
 
 type MessagesItemBlockProps = {
   index: number;
-  vt: ValueTransfer;
-  setValueTransferDetail: (t: ValueTransfer) => void;
+  vt: ValueTransferClass;
+  setValueTransferDetail: (t: ValueTransferClass) => void;
   setValueTransferDetailIndex: (i: number) => void;
   setModalIsOpen: (b: boolean) => void;
   currencyName: string;

@@ -6,7 +6,7 @@ import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine"; 
 import { ContextApp } from "../../context/ContextAppState";
 import Utils from "../../utils/utils";
-import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 const { ipcRenderer } = window.require("electron");
 
 type ZcashdProps = {
@@ -27,7 +27,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
   const { info } = context;
 
   const [url, setUrl] = useState<string>("");
-  const [chain_name, setChain_name] = useState<ChainNameEnum | "">("");
+  const [chain_name, setChain_name] = useState<ServerChainNameEnum | "">("");
 
   useEffect(() => {
     ( async () => {

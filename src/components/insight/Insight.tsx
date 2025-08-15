@@ -42,7 +42,7 @@ const Insight: React.FC<InsightProps> = () => {
   }, []);
 
   const fetchDataSent: () => void = async () => {
-    const resultStr: string = await native.zingolib_execute_async('value_to_address', '');
+    const resultStr: string = await native.get_total_value_to_address();
     //console.log('################# value', resultStr);
 
     const resultJSON = JSON.parse(resultStr);
@@ -81,7 +81,7 @@ const Insight: React.FC<InsightProps> = () => {
   }
 
   const fetchDataSends: () => void = async () => {
-    const resultStr = await native.zingolib_execute_async('sends_to_address', '');
+    const resultStr = await native.get_total_spends_to_address();
     //console.log('################# sends', resultStr);
         
     const resultJSON = JSON.parse(resultStr);
@@ -118,7 +118,7 @@ const Insight: React.FC<InsightProps> = () => {
   }
 
   const fetchDataMemobytes: () => void = async () => {
-    const resultStr = await native.zingolib_execute_async('memobytes_to_address', '');
+    const resultStr = await native.get_total_memobytes_to_address();
     //console.log('################# memobytes', resultStr);
 
     const resultJSON = JSON.parse(resultStr);

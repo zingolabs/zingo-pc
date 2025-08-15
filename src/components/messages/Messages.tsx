@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Messages.module.css";
-import { ValueTransfer, AddressBookEntry, Address } from "../appstate";
+import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
 import ScrollPaneBottom from "../scrollPane/ScrollPane";
 import { ZcashURITarget } from "../../utils/uris";
 import MessagesItemBlock from "./components/MessagesItemBlock";
@@ -20,14 +20,14 @@ type MessagesProps = {
 
 const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton }) => {
   const context = useContext(ContextApp);
-  const { messages, info, addressBook, totalBalance, addresses, readOnly, fetchError } = context;
+  const { messages, info, addressBook, totalBalance, readOnly, fetchError } = context;
 
-  const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransfer | undefined>(undefined);
+  const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
   const [numVtnsToShow, setNumVtnsToShow] = useState<number>(100);
   const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
-  const [messagesSorted, setMessagesSorted] = useState<ValueTransfer[]>([]);
+  const [messagesSorted, setMessagesSorted] = useState<ValueTransferClass[]>([]);
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
@@ -37,17 +37,18 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
   const [orchard, setOrchard] = useState<boolean>(true);
 
   useEffect(() => {
-    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    setAnyPending(!!_anyPending);
-  }, [addresses]);
+    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+    //setAnyPending(!!_anyPending);
+    setAnyPending(false);
+  }, []);
     
   useEffect(() => {
-    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
+    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
+  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
     setIsLoadMoreEnabled(messages && numVtnsToShow < messages.length);
@@ -55,7 +56,7 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
 
   useEffect(() => {
     (async () => {
-      const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+      const walletKindStr: string = await native.wallet_kind();
       const walletKindJSON = JSON.parse(walletKindStr);
 
       if (!walletKindJSON.transparent) {
@@ -72,12 +73,12 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
 
   useEffect(() => {
     setMessagesSorted(messages
-      .filter((a: ValueTransfer) => a.memos && a.memos.length > 0 && a.memos.join(''))
+      .filter((a: ValueTransferClass) => a.memos && a.memos.length > 0 && a.memos.join(''))
       .slice(-numVtnsToShow));  
   }, [numVtnsToShow, messages]);
 
   useEffect(() => {
-    setAddressBookMap(addressBook.reduce((m: Map<string, string>, obj: AddressBookEntry) => {
+    setAddressBookMap(addressBook.reduce((m: Map<string, string>, obj: AddressBookEntryClass) => {
       m.set(obj.address, obj.label);
       return m; 
     }, new Map()));
@@ -108,37 +109,45 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={totalBalance.total}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
+            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
             currencyName={info.currencyName}
+            zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
+            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
           />
           {orchard && (
             <BalanceBlock
               topLabel="Orchard"
-              zecValue={totalBalance.obalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
+              zecValue={totalBalance.totalOrchardBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
               currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedOrchardBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
             />
           )}
           {sapling && (
             <BalanceBlock
               topLabel="Sapling"
-              zecValue={totalBalance.zbalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.zbalance)}
+              zecValue={totalBalance.totalSaplingBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
               currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedSaplingBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
             />
           )}
           {transparent && (
             <BalanceBlock
               topLabel="Transparent"
-              zecValue={totalBalance.transparent}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.transparent)}
+              zecValue={totalBalance.totalTransparentBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
               currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedTransparentBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
             />
           )}
         </div>
         <div className={cstyles.balancebox}>
-          {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
             <>
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
@@ -183,13 +192,13 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
         )}
 
         {messagesSorted && messagesSorted.length > 0 &&
-          messagesSorted.map((vt: ValueTransfer, index: number) => {
+          messagesSorted.map((vt: ValueTransferClass, index: number) => {
             return (
               <MessagesItemBlock
                 index={index}
                 key={`${index}-${vt.type}-${vt.txid}`}
                 vt={vt}
-                setValueTransferDetail={(ttt: ValueTransfer) => setValueTransferDetail(ttt)}
+                setValueTransferDetail={(ttt: ValueTransferClass) => setValueTransferDetail(ttt)}
                 setValueTransferDetailIndex={(iii: number) => setValueTransferDetailIndex(iii)}
                 setModalIsOpen={(bbb: boolean) => setModalIsOpen(bbb)}  
                 currencyName={info.currencyName}

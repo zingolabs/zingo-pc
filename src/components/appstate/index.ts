@@ -1,40 +1,58 @@
-import TotalBalance from "./components/TotalBalance";
-import AddressBookEntry from "./components/AddressbookEntry";
-import ValueTransfer from "./components/ValueTransfer";
-import SendPageState from "./components/SendPageState";
-import ReceivePageState from "./components/ReceivePageState";
-import Info from "./components/Info";
-import ServerSelectState from "./components/ServerSelectState";
-import PasswordState from "./components/PasswordState";
-import WalletSettings from "./components/WalletSettings";
-import AddressType from "./components/AddressType";
-import SendProgress from "./components/SendProgress";
-import ToAddr from "./components/ToAddr";
-import TxDetail from "./components/TxDetail";
-import ReceiverType from "./components/ReceiverType";
-import Address from './components/Address';
-import Server from "./components/Server";
-import FetchErrorType from "./components/FetchErrorType";
+import AddressBookEntryClass from "./classes/AddressBookEntryClass";
+import TransparentAddressClass from "./classes/TransparentAddressClass";
+import UnifiedAddressClass from "./classes/UnifiedAddressClass";
+import FetchErrorTypeClass from "./classes/FetchErrorClass";
+import InfoClass from "./classes/InfoClass";
+import SendPageStateClass from "./classes/SendPageStateClass";
+import SendProgressClass from "./classes/SendProgressClass";
+import ServerClass from "./classes/ServerClass";
+import ServerSelectStateClass from "./classes/ServerSelectStateClass";
+import ToAddrClass from "./classes/ToAddrClass";
+import TotalBalanceClass from "./classes/TotalBalanceClass";
+import TxDetailClass from "./classes/TxDetailClass";
+import ValueTransferClass from "./classes/ValueTransferClass";
+
+import { AddressKindEnum } from "./enums/AddressKindEnum";
+import { AddressReceiverEnum } from "./enums/AddressReceiverEnum";
+import { AddressScopeEnum } from "./enums/AddressScopeEnum";
+import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
+import { SyncStatusScanRangePriorityEnum } from "./enums/SyncStatusScanRangePriorityEnum";
+
+import { SyncStatusScanRangeType } from "./types/SyncStatusScanRangeType";
+import { SyncStatusType } from "./types/SyncStatusType";
+import { SendJsonToTypeType } from "./types/SendJsonToTypeType";
+import { SendProposeType } from "./types/SendProposeType";
+import { SendType } from "./types/SendType";
 
 import AppState from "./AppState";
 
 export {
-  TotalBalance, 
-  AddressBookEntry, 
-  AddressType,
-  ValueTransfer, 
-  SendPageState, 
-  SendProgress,
-  ReceivePageState, 
-  Info, 
-  ServerSelectState, 
-  PasswordState, 
-  WalletSettings, 
-  AppState,
-  ToAddr,
-  TxDetail,
-  ReceiverType,
-  Address,
-  Server,
-  FetchErrorType,
+  AddressBookEntryClass,
+  TransparentAddressClass,
+  UnifiedAddressClass,
+  ValueTransferClass,
+  SendPageStateClass,
+  SendProgressClass,
+  InfoClass,
+  ServerSelectStateClass,
+  TotalBalanceClass,
+  ToAddrClass,
+  TxDetailClass,
+  ServerClass,
+  FetchErrorTypeClass,
+
+  AddressKindEnum,
+  AddressReceiverEnum,
+  AddressScopeEnum,
+  ServerChainNameEnum,
+  SyncStatusScanRangePriorityEnum,
+  
+  AppState
 };
+export type {
+    SyncStatusScanRangeType,
+    SyncStatusType,
+    SendJsonToTypeType,
+    SendProposeType,
+    SendType,
+  };

@@ -1,4 +1,4 @@
-import { ChainNameEnum } from "../../components/appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../../components/appstate/enums/ServerChainNameEnum";
 
 export type RPCInfoType = {
   version: string;
@@ -6,7 +6,7 @@ export type RPCInfoType = {
   server_uri: string;
   vendor: string;
   taddr_support: boolean;
-  chain_name: ChainNameEnum;
+  chain_name: ServerChainNameEnum;
   sapling_activation_height: number;
   consensus_branch_id: string;
   latest_block_height: number;

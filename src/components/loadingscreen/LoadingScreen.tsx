@@ -1,17 +1,17 @@
 import React, { Component } from "react";
 import { RouteComponentProps, withRouter } from "react-router";
 import TextareaAutosize from "react-textarea-autosize";
-import request from "request";
 import progress from "progress-stream";
+import axios from "axios";
 import native from "../../native.node";
-import { Info, Server } from "../appstate";
+import { InfoClass, ServerClass } from "../appstate";
 import RPC from "../../rpc/rpc";
 import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
 import { Logo } from "../logo";
-import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
@@ -25,7 +25,7 @@ class LoadingScreenState {
 
   url: string;
 
-  chain_name: '' | ChainNameEnum;
+  chain_name: '' | ServerChainNameEnum;
 
   selection: '' | 'auto' | 'list' | 'custom';
 
@@ -33,12 +33,12 @@ class LoadingScreenState {
   // 0 -> no wallet, load existing wallet 
   // 1 -> show options
   // 2 -> create new 
-  // 3 -> restore existing seed
+  // 3 -> restore existing seed phrase
   // 4 -> restore existing ufvk 
 
   newWalletError: null | string; // Any errors when creating/restoring wallet
 
-  seed: string; // The new seed phrase for a newly created wallet or the seed phrase to restore from
+  seed_phrase: string; // The new seed phrase for a newly created wallet or the seed phrase to restore from
 
   ufvk: string; // The UFVK to restore from
 
@@ -46,14 +46,14 @@ class LoadingScreenState {
 
   changeAnotherWallet: boolean;
 
-  serverUris: Server[];
+  serverUris: ServerClass[];
 
   buttonsDisable: boolean;
 
   constructor(currentStatus: string | JSX.Element, 
               currentStatusIsError: boolean, 
               changeAnotherWallet: boolean, 
-              serverUris: Server[]) {
+              serverUris: ServerClass[]) {
     this.currentStatus = currentStatus;
     this.currentStatusIsError = currentStatusIsError;
     this.loadingDone = false;
@@ -62,7 +62,7 @@ class LoadingScreenState {
     this.selection = '';
     this.walletScreen = 0;
     this.newWalletError = null;
-    this.seed = "";
+    this.seed_phrase = "";
     this.ufvk = "";
     this.birthday = 0;
     this.changeAnotherWallet = changeAnotherWallet;
@@ -72,12 +72,11 @@ class LoadingScreenState {
 }
 
 type LoadingScreenProps = {
-  runRPCConfiigure: () => void;
-  setRescanning: (rescan: boolean, prevSyncId: number) => void;
-  setInfo: (info: Info) => void;
+  runRPCConfigure: () => void;
+  setInfo: (info: InfoClass) => void;
   openServerSelectModal: () => void;
   setReadOnly: (readOnly: boolean) => void;
-  setServerUris: (serverUris: Server[]) => void;
+  setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
 };
 
@@ -95,12 +94,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         ),
         currentStatusIsError: boolean = false, 
         changeAnotherWallet: boolean = false,
-        serverUris: Server[] = [];
+        serverUris: ServerClass[] = [];
     if (props.location.state) {
       const locationState = props.location.state as { 
         currentStatus: string, 
         currentStatusIsError: boolean, 
-        serverUris: Server[],
+        serverUris: ServerClass[],
       };
       currentStatus = locationState.currentStatus;
       currentStatusIsError = locationState.currentStatusIsError;
@@ -120,15 +119,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     })
     console.log('did mount, disable TRUE');
 
-    const r = native.zingolib_set_crypto_default_provider_to_ring();
+    const r = native.set_crypto_default_provider_to_ring();
     console.log('crypto provider result', r);
 
-    const { rescanning, prevSyncId } = this.context;
-    if (rescanning) {
-      await this.runSyncStatusPoller(prevSyncId);
-    } else {
-      await this.doFirstTimeSetup();
-    }
+    await this.doFirstTimeSetup();
 
     this.setState({
       buttonsDisable: false,
@@ -136,18 +130,26 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     console.log('did mount, disable FALSE');
   }
 
-  download = (url: string, dest: string, name: string, cb: (msg: string) => void) => {
+  download = async (url: string, dest: string, name: string, cb: (msg: string) => void) => {
     const file = fs.createWriteStream(dest);
-    const sendReq = request.get(url);
 
-    // verify response code
-    sendReq.on("response", (response) => {
-      if (response.statusCode !== 200) {
-        return cb(`Response status was ${response.statusCode}`);
+    try {
+      const response = await axios.get(url, {
+        responseType: "stream",
+        // headers: { ... }
+        // timeout: 60_000,
+        // maxRedirects: 5,
+        validateStatus: (s) => s >= 200 && s < 400,
+      });
+
+      if (response.status !== 200) {
+        file.close();
+        fs.unlink(dest, () => {});
+        return cb(`Response status was ${response.status}`);
       }
 
-      const len = response.headers["content-length"] || "";
-      const totalSize = (parseInt(len, 10) / 1024 / 1024).toFixed(0);
+      const len = response.headers["content-length"] ?? "";
+      const totalSize = len ? (parseInt(len, 10) / 1024 / 1024).toFixed(0) : "??";
 
       const str = progress({ time: 1000 }, (pgrs) => {
         this.setState({
@@ -155,25 +157,30 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         });
       });
 
-      sendReq.pipe(str).pipe(file);
-    });
+      if (len) str.setLength(parseInt(len, 10));
 
-    // close() is async, call cb after close completes
-    file.on("finish", () => file.close());
+      response.data.pipe(str).pipe(file);
 
-    // check for request errors
-    sendReq.on("error", (err) => {
-      fs.unlink(dest, () => {
-        cb(err.message);
+      file.on("finish", () => file.close());
+
+      response.data.on("error", (err: any) => {
+        try { file.destroy(); } catch {}
+        fs.unlink(dest, () => cb(err.message));
       });
-    });
 
-    file.on("error", (err: any) => {
-      // Handle errors
-      fs.unlink(dest, () => {
-        cb(err.message);
-      }); // Delete the file async. (But we don't check the result) 
-    });
+      file.on("error", (err: any) => {
+        try { file.destroy(); } catch {}
+        fs.unlink(dest, () => cb(err.message));
+      });
+    } catch (err: any) {
+      try { file.destroy(); } catch {}
+      fs.unlink(dest, () => {});
+      const msg =
+        err?.response?.status
+          ? `Response status was ${err.response.status}`
+          : (err?.message || "Unknown axios error");
+      cb(msg);
+    }
   };
 
   loadServer = async () => {    
@@ -181,7 +188,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const settings = await ipcRenderer.invoke("loadSettings");
     console.log('SETTINGS;;;;;;;;;', settings);
     let server: string, 
-        chain_name: ChainNameEnum, 
+        chain_name: ServerChainNameEnum, 
         selection: 'auto' | 'list' | 'custom';
     if (!settings) {
       // no settings stored, asumming `list` by default.
@@ -203,9 +210,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       } else {
         // the server is in settings, asking for the others fields.
         server = settings.serveruri;
-        const serverInList = serverUrisList().filter((s: Server) => s.uri === server)
+        const serverInList = serverUrisList().filter((s: ServerClass) => s.uri === server)
         if (!settings.serverchain_name) {
-          chain_name = ChainNameEnum.mainChainName;
+          chain_name = ServerChainNameEnum.mainChainName;
           if (serverInList && serverInList.length === 1) {
             // if the server is in the list, then selection is `list`
             if (serverInList[0].obsolete) {
@@ -228,7 +235,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           if (!settings.serverselection) {
             if (serverInList && serverInList.length === 1) {
               // if the server is in the list, then selection is `list`
-              chain_name = ChainNameEnum.mainChainName;
+              chain_name = ServerChainNameEnum.mainChainName;
               selection = 'list';
             } else {
               selection = 'custom';
@@ -242,7 +249,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     }
     // if the server selected is now obsolete, change it for the first one
-    const serverInList: Server[] = serverUrisList().filter((s: Server) => s.uri === server)
+    const serverInList: ServerClass[] = serverUrisList().filter((s: ServerClass) => s.uri === server)
     if (serverInList && serverInList.length > 0 && serverInList[0].obsolete) {
       console.log('server obsolete', server, '=>', serverUrisList()[0].uri);
       server = serverUrisList()[0].uri;
@@ -255,7 +262,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     // if empty is the first time and if auto => App needs to check the servers.
     if (selection === 'auto') {
-      const serverFaster = await this.selectingServer(serverUrisList().filter((s: Server) => !s.obsolete));
+      const serverFaster = await this.selectingServer(serverUrisList().filter((s: ServerClass) => !s.obsolete));
       if (serverFaster) {
         server = serverFaster.uri;
         chain_name = serverFaster.chain_name;  
@@ -277,33 +284,34 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       chain_name,
       selection,
     });
+    return {
+      url: server,
+      chain_name,
+    };
   };
 
   doFirstTimeSetup = async () => {
-    await this.loadServer();
-
-    // Try to load the light client
-    const { url, chain_name, changeAnotherWallet } = this.state;
-
-    console.log(`Url: -${url}-`);
+    const { url, chain_name } = await this.loadServer();
+    console.log(`Url: -${url}-${chain_name}`);
 
     // First, set up the exit handler
     this.setupExitHandler();
 
+    const { changeAnotherWallet } = this.state;
     // if is: `change to another wallet` exit here 
     if (changeAnotherWallet) {
       return;
     }
     
     try {
-      // Test to see if the wallet exists 
-      if (!native.zingolib_wallet_exists(url, chain_name)) {
+      // Test to see if the wallet exists
+      if (!native.wallet_exists(url, chain_name, "High", 3)) {
         // Show the wallet creation screen
         this.setState({ walletScreen: 1 });
       } else {
-        const result: string = native.zingolib_init_from_b64(url, chain_name);
+        const result: string = native.init_from_b64(url, chain_name, "High", 3);
         console.log(`Initialization: ${result}`);
-        if (result !== "OK") {
+        if (!result || result.toLowerCase().startsWith('error')) {
           this.setState({
             currentStatus: (
               <span>
@@ -319,8 +327,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }
 
         this.getInfo();
-        // seed or ufvk
-        const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+        // seed phrase or ufvk
+        const walletKindStr: string = await native.wallet_kind();
         const walletKindJSON = JSON.parse(walletKindStr);
 
         if (
@@ -330,7 +338,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           // ufvk
           this.props.setReadOnly(true);
         } else {
-          // seed
+          // seed phrase
           this.props.setReadOnly(false);
         }
       }
@@ -361,9 +369,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     });
   };
 
-  calculateLatency = async (server: Server, _index: number) => {
+  calculateLatency = async (server: ServerClass, _index: number) => {
     const start: number = Date.now();
-    const resp: string = await native.zingolib_get_latest_block_server(server.uri);
+    const resp: string = await native.get_latest_block_server(server.uri);
   
     const end: number = Date.now();
     let latency = null;
@@ -376,15 +384,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     return latency;
   };
   
-  selectingServer = async (serverUris: Server[]): Promise<Server | null> => {
-    const servers: Server[] = serverUris;
+  selectingServer = async (serverUris: ServerClass[]): Promise<ServerClass | null> => {
+    const servers: ServerClass[] = serverUris;
   
     // 30 seconds max.
     const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 30 * 1000));
   
     const validServersPromises = servers.map(
-      (server: Server) =>
-        new Promise<Server>(async resolve => {
+      (server: ServerClass) =>
+        new Promise<ServerClass>(async resolve => {
           const latency = await this.calculateLatency(server, servers.indexOf(server));
           if (latency !== null) {
             resolve({ ...server, latency });
@@ -402,16 +410,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     try {
       // Do a sync at start
       this.setState({ currentStatus: "Setting things up..." });
-
-      // Grab the previous sync ID.
-      const syncStatus: string = await RPC.doSyncStatus();
-      const prevSyncId: number = JSON.parse(syncStatus).sync_id;
-
-      // This will do the sync in another thread, so we have to check for sync status
-      RPC.doSync();
-      console.log('after dosync');
-
-      this.runSyncStatusPoller(prevSyncId);
+      await RPC.doSync();
+      await this.runSyncStatusPoller();
     } catch (err) {
       console.log("Error initializing", err);
       this.setState({
@@ -427,12 +427,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   }
 
-  runSyncStatusPoller = async (prevSyncId: number) => {
+  runSyncStatusPoller = async () => {
     console.log('start runSyncStatusPoller');
 
-    const { runRPCConfiigure, setInfo, setRescanning } = this.props;
+    const { runRPCConfigure, setInfo } = this.props;
 
-    const info: Info = await RPC.getInfoObject();
+    const info: InfoClass = await RPC.getInfoObject();
     console.log(info);
 
     if (info.error) {
@@ -449,89 +449,26 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       return;
     }
 
-    // And after a while, check the sync status.
-    const myThis = this;
-    const poller = setInterval(async () => {
-      const syncstatus: string = await RPC.doSyncStatus();
+    setInfo(info);
 
-      if (syncstatus.toLowerCase().startsWith("error")) {
-        // Something went wrong
-        myThis.setState({
-          currentStatus: syncstatus,
-          currentStatusIsError: true,
-        });
+    runRPCConfigure();
 
-        // And cancel the updater
-        clearInterval(poller);
-      } else {
-        const ss = JSON.parse(syncstatus);
-        console.log('sync status', ss);
-        console.log(`Prev SyncID: ${prevSyncId} - Current SyncID: ${ss.sync_id} - progress: ${ss.in_progress} - Current Batch: ${ss.batch_num}`);
-
-        // if this process synced already 25 batches (2.500 blocks) -> let's go to dashboard 
-        if (ss.sync_id > prevSyncId || !ss.in_progress || ss.batch_num >= 25) {
-          setInfo(info);
-
-          setRescanning(false, prevSyncId);
-
-          runRPCConfiigure();
-
-          // And cancel the updater
-          clearInterval(poller);
-
-          // This will cause a redirect to the dashboard screen
-          myThis.setState({ loadingDone: true });
-        } else {
-          // Still syncing, grab the status and update the status
-          let progress_blocks = (ss.synced_blocks + ss.trial_decryptions_blocks + ss.witnesses_updated) / 3;
-
-          let progress = progress_blocks;
-          if (ss.total_blocks) {
-            progress = (progress_blocks * 100) / ss.total_blocks;
-          }
-
-          let base = 0;
-          if (ss.batch_total) {
-            base = (ss.batch_num * 100) / ss.batch_total;
-            progress = base + progress / ss.batch_total;
-          }
-
-          if (!isNaN(progress_blocks)) {
-            let batch_progress = (progress_blocks * 100) / ss.total_blocks;
-            if (isNaN(batch_progress)) {
-              batch_progress = 0;
-            }
-            const currentStatus = (
-              <div>
-                Syncing batch {ss.batch_num} of {ss.batch_total}
-                <br />
-                <br />
-                Batch Progress: {batch_progress.toFixed(2)}%. Total progress: {progress.toFixed(2)}%.
-                <br />
-                <br />
-                <br />
-                Please wait...
-                <br />
-                This could take several minutes or hours
-              </div>
-            );
-            myThis.setState({ currentStatus });
-          }
-        }
-      }
-    }, 2 * 1000);
+    // This will cause a redirect to the dashboard screen
+    this.setState({ loadingDone: true });
   };
 
   createNewWallet = async () => {
     const { url, chain_name } = this.state;
-    const result: string = native.zingolib_init_new(url, chain_name);
+    const result: string = native.init_new(url, chain_name, "High", 3);
 
-    if (result.toLowerCase().startsWith("error")) {
+    if (!result || result.toLowerCase().startsWith("error")) {
       console.log('creating new wallet', result);
       this.setState({ walletScreen: 2, newWalletError: result });
     } else {
-      const seed: string = await RPC.fetchSeed();
-      this.setState({ walletScreen: 2, seed });
+      const resultJSON = await JSON.parse(result);
+      const seed_phrase: string = resultJSON.seed_phrase;
+      const birthday: number = resultJSON.birthday;
+      this.setState({ walletScreen: 2, seed_phrase, birthday });
       this.props.setReadOnly(false);
     }
   };
@@ -551,7 +488,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   updateSeed = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    this.setState({ seed: e.target.value });
+    this.setState({ seed_phrase: e.target.value });
   };
 
   updateUfvk = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -565,7 +502,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   restoreSeedWalletBack = () => {
     // Reset the seed and birthday and try again 
     this.setState({
-      seed: "",
+      seed_phrase: "",
       birthday: 0,
       newWalletError: null,
       walletScreen: 3,
@@ -585,11 +522,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreSeedWallet = async () => {
-    const { seed, birthday, url, chain_name } = this.state;
-    console.log(`Restoring ${seed} with ${birthday}`);
+    const { seed_phrase, birthday, url, chain_name } = this.state;
+    console.log(`Restoring ${seed_phrase} with ${birthday}`);
 
-    const result: string = native.zingolib_init_from_seed(url, seed, birthday, chain_name);
-    if (result.toLowerCase().startsWith("error")) {
+    const result: string = native.init_from_seed(seed_phrase, birthday, url, chain_name, "High", 3);
+    if (!result || result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
       this.setState({ walletScreen: 0 });
@@ -602,8 +539,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { ufvk, birthday, url, chain_name } = this.state;
     console.log(`Restoring ${ufvk} with ${birthday}`);
 
-    const result: string = native.zingolib_init_from_ufvk(url, ufvk, birthday, chain_name);
-    if (result.toLowerCase().startsWith("error")) {
+    const result: string = native.init_from_ufvk(ufvk, birthday, url, chain_name, "High", 3);
+    if (!result || result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
       this.setState({ walletScreen: 0 });
@@ -612,25 +549,23 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   };
 
-  deleteWallet = async () => { 
+  deleteWallet = async () => {
     const { url, chain_name } = this.state;
-    if (native.zingolib_wallet_exists(url, chain_name)) {
+    if (native.wallet_exists(url, chain_name, "High", 3)) {
       // interrupt syncing, just in case.
-      const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
+      const resultInterrupt: string = await native.stop_sync();
       console.log("Interrupting sync ...", resultInterrupt);
-      setTimeout(async () => {
-        const resultDelete: string = await native.zingolib_execute_async("delete", "");
-        console.log("deleting ...", resultDelete);
-        native.zingolib_deinitialize();
-  
-        // restart the App now.
-        ipcRenderer.send("apprestart");
-      }, 1000);
+      const resultDelete: string = await native.delete_wallet(url, chain_name, "High", 3);
+      console.log("deleting ...", resultDelete);
+      native.deinitialize();
+
+      // restart the App now.
+      ipcRenderer.send("apprestart");
     }
   };
 
   render() {
-    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed, ufvk, birthday } =
+    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed_phrase, ufvk, birthday } =
       this.state;
 
     const { openServerSelectModal } = this.props;
@@ -820,7 +755,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                       is the only way to recover your funds and transactions.
                     </div>
                     <hr style={{ width: "100%" }} />
-                    <div className={cstyles.padtopsmall}>{seed}</div>
+                    <div className={cstyles.padtopsmall}>{seed_phrase}</div>
                     <hr style={{ width: "100%" }} />
                     <div className={cstyles.margintoplarge}>
                       <button 
@@ -868,7 +803,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     <div className={[cstyles.large].join(" ")}>Please enter your seed phrase</div>
                     <TextareaAutosize
                       className={cstyles.inputbox}
-                      value={seed}
+                      value={seed_phrase}
                       onChange={(e) => this.updateSeed(e)}
                     />
 

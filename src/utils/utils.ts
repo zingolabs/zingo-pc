@@ -1,8 +1,8 @@
-import { AddressType, ReceiverType } from "../components/appstate";
+import { AddressKindEnum, UnifiedAddressClass } from "../components/appstate";
 import randomColor from 'randomcolor';
 
 import native from "../native.node";
-import { ChainNameEnum } from "../components/appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
 
@@ -56,14 +56,10 @@ export default class Utils {
     return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
   }
 
-  static async getAddressType(addr: string): Promise<AddressType | undefined> {
+  static async getAddressKind(addr: string): Promise<AddressKindEnum | undefined> {
     if (!addr) return;
-    const resultParse: string = await native.zingolib_execute_async('parse_address', addr);
-    if (resultParse) {
-      if (resultParse.toLowerCase().startsWith('error')) {
-        return;
-      }
-    } else {
+    const resultParse: string = await native.parse_address(addr);
+    if (!resultParse || resultParse.toLowerCase().startsWith('error')) {
       return;
     }
 
@@ -76,7 +72,7 @@ export default class Utils {
     }
 
     const settings = await ipcRenderer.invoke("loadSettings");
-    const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName; 
+    const currChain: ServerChainNameEnum = settings?.serverchain_name || ServerChainNameEnum.mainChainName; 
     
     if (
       resultParseJSON && 
@@ -154,14 +150,12 @@ export default class Utils {
     return { bigPart, smallPart };
   }
 
-  static getReceivers(array: ReceiverType[]): string[] {
+  static getReceivers(addr: UnifiedAddressClass): string[] {
     let receivers: string[] = [];
 
-    array.forEach((r: ReceiverType) => {
-      if(r === ReceiverType.orchard) receivers.push("Orchard");
-      if(r === ReceiverType.transparent) receivers.push("Transparent");
-      if(r === ReceiverType.sapling) receivers.push("Sapling");
-    });
+    if(addr.has_orchard) receivers.push("Orchard");
+    if(addr.has_sapling) receivers.push("Sapling");
+    if(addr.has_transparent) receivers.push("Transparent");
     
     return receivers; 
   }

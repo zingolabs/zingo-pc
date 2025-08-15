@@ -1,4 +1,4 @@
-export default class FetchErrorType {
+export default class FetchErrorClass {
   command: string;
   error: string;
 

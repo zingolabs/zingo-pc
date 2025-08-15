@@ -1,15 +1,9 @@
 import React, { useContext, useEffect, useState } from "react";
-import {
-  Accordion,
-} from "react-accessible-accordion";
 import styles from "./Dashboard.module.css";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
-import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
-import AddressBalanceItem from "./components/AddressBalanceItem"; 
 import { ContextApp } from "../../context/ContextAppState";
-import { Address } from "../appstate";
 
 import native from "../../native.node";
 
@@ -20,7 +14,7 @@ type DashboardProps = {
 
 const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldButton}) => {
   const context = useContext(ContextApp);
-  const { totalBalance, info, addresses, readOnly, fetchError } = context;
+  const { totalBalance, info, readOnly, fetchError } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -29,22 +23,23 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
   const [orchard, setOrchard] = useState<boolean>(true);
 
   useEffect(() => {
-    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    setAnyPending(!!_anyPending);
-  }, [addresses]);
+    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true); 
+    //setAnyPending(!!_anyPending);
+    setAnyPending(false);
+  }, []);
     
   useEffect(() => {
-    // with transparent funds & no readonly wallet
-    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
+    // with confirmed transparent funds & no readonly wallet
+    if (totalBalance.confirmedTransparentBalance > 0 && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
+  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
     (async () => {
-      const walletKindStr: string = await native.zingolib_execute_async("wallet_kind", "");
+      const walletKindStr: string = await native.wallet_kind();
       const walletKindJSON = JSON.parse(walletKindStr);
 
       if (!walletKindJSON.transparent) {
@@ -67,37 +62,45 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={totalBalance.total}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
+            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
             currencyName={info.currencyName}
+            zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
+            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
           />
           {orchard && (
             <BalanceBlock
               topLabel="Orchard"
-              zecValue={totalBalance.obalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.obalance)}
+              zecValue={totalBalance.totalOrchardBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
               currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedOrchardBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
             />
           )}
           {sapling && (
             <BalanceBlock
               topLabel="Sapling"
-              zecValue={totalBalance.zbalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.zbalance)}
+              zecValue={totalBalance.totalSaplingBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
               currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedSaplingBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
             />
           )}
           {transparent && (
             <BalanceBlock
               topLabel="Transparent"
-              zecValue={totalBalance.transparent}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.transparent)}
+              zecValue={totalBalance.totalTransparentBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
               currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedTransparentBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
             />
           )}
         </div>
         <div className={cstyles.balancebox}>
-          {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
             <>
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
@@ -118,35 +121,6 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
             </div>
           </>
         )}
-      </div>
-
-      <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
-        <div style={{ marginLeft: 100 }}>Address</div>
-        <div style={{ marginRight: 40 }}>Balance</div>
-      </div>
-
-      <div className={styles.addressbalancecontainer}>
-        <ScrollPaneTop offsetHeight={190}>
-          <div className={styles.addressbooklist}>
-            {addresses &&
-              (addresses.length === 0 ? (
-                <div className={[cstyles.center, cstyles.sublight, cstyles.margintoplarge].join(" ")}>No Addresses with a balance</div>
-              ) : (
-                <Accordion>
-                  {addresses
-                    .filter((ab: Address) => ab.balance > 0)
-                    .map((ab: Address) => (
-                      <AddressBalanceItem
-                        key={ab.address}
-                        item={ab}
-                        currencyName={info.currencyName}
-                        zecPrice={info.zecPrice}
-                      />
-                    ))}
-                </Accordion>
-              ))}
-          </div>
-        </ScrollPaneTop>
       </div>
     </div>
   );

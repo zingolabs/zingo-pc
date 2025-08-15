@@ -1,28 +1,34 @@
 import React, { ReactNode } from 'react';
-import { Address, AddressBookEntry, AppState, Info, PasswordState, ReceivePageState, SendPageState, ServerSelectState, TotalBalance, ValueTransfer, WalletSettings, Server, FetchErrorType } from "../components/appstate";
+import { 
+  AddressBookEntryClass, 
+  AppState, 
+  InfoClass, 
+  SendPageStateClass, 
+  ServerSelectStateClass, 
+  TotalBalanceClass, 
+  ValueTransferClass, 
+  ServerClass, 
+  FetchErrorTypeClass, 
+  UnifiedAddressClass, 
+  TransparentAddressClass 
+} from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
 
 export const defaultAppState: AppState = {
-  totalBalance: new TotalBalance(),
-  addressPrivateKeys: new Map(),
-  addressViewKeys: new Map(),
-  addresses: [] as Address[],
-  addressBook: [] as AddressBookEntry[],
-  valueTransfers: [] as ValueTransfer[],
-  messages: [] as ValueTransfer[],
+  totalBalance: new TotalBalanceClass(),
+  addressesUnified: [] as UnifiedAddressClass[],
+  addressesTransparent: [] as TransparentAddressClass[],
+  addressBook: [] as AddressBookEntryClass[],
+  valueTransfers: [] as ValueTransferClass[],
+  messages: [] as ValueTransferClass[],
   errorModalData: new ErrorModalData(),
-  serverSelectState: new ServerSelectState(),
-  sendPageState: new SendPageState(),
-  receivePageState: {} as ReceivePageState,
-  info: new Info(),
-  verificationProgress: 100,
-  rescanning: false,
-  prevSyncId: -1,
-  passwordState: new PasswordState(),
-  walletSettings: new WalletSettings(),
+  serverSelectState: new ServerSelectStateClass(),
+  sendPageState: new SendPageStateClass(),
+  info: new InfoClass(),
+  verificationProgress: null,
   readOnly: false,
-  serverUris: [] as Server[],
-  fetchError: {} as FetchErrorType,
+  serverUris: [] as ServerClass[],
+  fetchError: {} as FetchErrorTypeClass,
 };
 
 export const ContextApp = React.createContext(defaultAppState);

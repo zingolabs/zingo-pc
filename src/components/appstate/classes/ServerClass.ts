@@ -1,14 +1,14 @@
-import { ChainNameEnum } from "./ChainNameEnum";
+import { ServerChainNameEnum } from "../enums/ServerChainNameEnum";
 
-export default class Server {
+export default class ServerClass {
   uri: string;
   region: string;
-  chain_name: ChainNameEnum;
+  chain_name: ServerChainNameEnum;
   latency: number | null;
   default: boolean;
   obsolete: boolean;
 
-  constructor(uri: string, region: string, chain_name: ChainNameEnum) {
+  constructor(uri: string, region: string, chain_name: ServerChainNameEnum) {
     this.uri = uri;
     this.region = region;
     this.chain_name = chain_name;

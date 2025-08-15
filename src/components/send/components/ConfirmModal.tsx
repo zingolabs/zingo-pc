@@ -4,11 +4,11 @@ import { RouteComponentProps, withRouter } from "react-router-dom";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
 import {
-  SendPageState,
-  Info,
-  TotalBalance,
-  SendProgress,
-  AddressType,
+  SendPageStateClass,
+  InfoClass,
+  TotalBalanceClass,
+  AddressKindEnum,
+  ToAddrClass,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ScrollPaneTop from "../../scrollPane/ScrollPane";
@@ -18,21 +18,20 @@ import SendManyJsonType from "./SendManyJSONType";
 import ConfirmModalToAddr from "./ConfirmModalToAddr";
 
 import native from "../../../native.node";
-import { ChainNameEnum } from "../../appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../../appstate/enums/ServerChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
 
 // Internal because we're using withRouter just below
 type ConfirmModalProps = {
-    sendPageState: SendPageState;
-    totalBalance: TotalBalance;
-    info: Info;
-    sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string | string[]>;
+    sendPageState: SendPageStateClass;
+    totalBalance: TotalBalanceClass;
+    info: InfoClass;
+    sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string | string[]>;
     clearToAddrs: () => void;
     closeModal: () => void;
     modalIsOpen: boolean;
     openErrorModal: (title: string, body: string | JSX.Element) => void;
-    openPasswordAndUnlockIfNeeded: (successCallback: () => void | Promise<void>) => void;
     sendFee: number;
     currencyName: string;
   };
@@ -46,7 +45,6 @@ type ConfirmModalProps = {
     closeModal,
     modalIsOpen,
     openErrorModal,
-    openPasswordAndUnlockIfNeeded,
     history,
     sendFee,
     currencyName,
@@ -56,21 +54,21 @@ type ConfirmModalProps = {
     const [smallPart, setSmallPart] = useState<string>('');
     const [privacyLevel, setPrivacyLevel] = useState<string>('');
 
-    const getPrivacyLevel = useCallback(async (toaddr) => {
+    const getPrivacyLevel = useCallback(async (toaddr: ToAddrClass) => {
       if (!toaddr.to) {
         return '-'; 
       }
   
       let from: 'orchard' | 'orchard+sapling' | 'sapling' | '' = '';
       // amount + fee
-      if (Number(toaddr.amount) + sendFee <= totalBalance.spendableO) {
+      if (Number(toaddr.amount) + sendFee <= totalBalance.confirmedOrchardBalance) {
         from = 'orchard';
       } else if (
-        totalBalance.spendableO > 0 &&
-        Number(toaddr.amount) + sendFee <= totalBalance.spendableO + totalBalance.spendableZ
+        totalBalance.confirmedOrchardBalance > 0 &&
+        Number(toaddr.amount) + sendFee <= totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance
       ) {
         from = 'orchard+sapling';
-      } else if (Number(toaddr.amount) + sendFee <= totalBalance.spendableZ) {
+      } else if (Number(toaddr.amount) + sendFee <= totalBalance.confirmedSaplingBalance) {
         from = 'sapling';
       }
   
@@ -78,12 +76,8 @@ type ConfirmModalProps = {
         return '-';
       }
   
-      const result: string = await native.zingolib_execute_async('parse_address', toaddr.to);
-      if (result) {
-        if (result.toLowerCase().startsWith('error')) {
-          return '-';
-        }
-      } else {
+      const result: string = await native.parse_address(toaddr.to);
+      if (!result || result.toLowerCase().startsWith('error')) {
         return '-';
       }
       
@@ -98,7 +92,7 @@ type ConfirmModalProps = {
       //console.log('parse-address', address, resultJSON.status === 'success');
   
       const settings = await ipcRenderer.invoke("loadSettings");
-      const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName;  
+      const currChain: ServerChainNameEnum = settings?.serverchain_name || ServerChainNameEnum.mainChainName;  
 
       if (
         !(resultJSON && 
@@ -119,7 +113,7 @@ type ConfirmModalProps = {
       // Private -> orchard to orchard (UA with orchard receiver)
       if (
         from === 'orchard' &&
-        resultJSON.address_kind === AddressType.unified &&
+        resultJSON.address_kind === AddressKindEnum.unified &&
         resultJSON.receivers_available?.includes('orchard')
       ) {
         return 'Private';
@@ -128,8 +122,8 @@ type ConfirmModalProps = {
       // Private -> sapling to sapling (ZA or UA with sapling receiver and NO orchard receiver)
       if (
         from === 'sapling' &&
-        (resultJSON.address_kind === AddressType.sapling ||
-          (resultJSON.address_kind === AddressType.unified &&
+        (resultJSON.address_kind === AddressKindEnum.sapling ||
+          (resultJSON.address_kind === AddressKindEnum.unified &&
             resultJSON.receivers_available?.includes('sapling') &&
             !resultJSON.receivers_available?.includes('orchard')))
       ) {
@@ -139,8 +133,8 @@ type ConfirmModalProps = {
       // Amount Revealed -> orchard to sapling (ZA or UA with sapling receiver)
       if (
         from === 'orchard' &&
-        (resultJSON.address_kind === AddressType.sapling ||
-          (resultJSON.address_kind === AddressType.unified && resultJSON.receivers_available?.includes('sapling')))
+        (resultJSON.address_kind === AddressKindEnum.sapling ||
+          (resultJSON.address_kind === AddressKindEnum.unified && resultJSON.receivers_available?.includes('sapling')))
       ) {
         return 'Amount Revealed';
       }
@@ -148,7 +142,7 @@ type ConfirmModalProps = {
       // Amount Revealed -> sapling to orchard (UA with orchard receiver)
       if (
         from === 'sapling' &&
-        resultJSON.address_kind === AddressType.unified &&
+        resultJSON.address_kind === AddressKindEnum.unified &&
         resultJSON.receivers_available?.includes('orchard')
       ) {
         return 'Amount Revealed';
@@ -158,8 +152,8 @@ type ConfirmModalProps = {
       // UA with sapling receiver)
       if (
         from === 'orchard+sapling' &&
-        (resultJSON.address_kind === AddressType.sapling ||
-          (resultJSON.address_kind === AddressType.unified &&
+        (resultJSON.address_kind === AddressKindEnum.sapling ||
+          (resultJSON.address_kind === AddressKindEnum.unified &&
             (resultJSON.receivers_available?.includes('orchard') || resultJSON.receivers_available?.includes('sapling'))))
       ) {
         return 'Amount Revealed';
@@ -168,14 +162,14 @@ type ConfirmModalProps = {
       // Deshielded -> orchard or sapling or orchard+sapling to transparent
       if (
         (from === 'orchard' || from === 'sapling' || from === 'orchard+sapling') &&
-        (resultJSON.address_kind === AddressType.transparent || resultJSON.address_kind === AddressType.tex)
+        (resultJSON.address_kind === AddressKindEnum.transparent || resultJSON.address_kind === AddressKindEnum.tex)
       ) {
         return 'Deshielded';
       }
   
       // whatever else
       return '-';
-    }, [sendFee, totalBalance.spendableZ, totalBalance.spendableO]);
+    }, [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance]);
 
     useEffect(() => {
       (async () => {
@@ -196,72 +190,60 @@ type ConfirmModalProps = {
       // This will be replaced by either a success TXID or error message that the user
       // has to close manually.
       openErrorModal("Computing Transaction", "Please wait...This could take a while");
-      const setSendProgress = (progress?: SendProgress) => {
-        if (progress && progress.sendInProgress) {
-          openErrorModal(
-            `Computing Transaction`,
-            `Step ${progress.progress} of ${progress.total}. ETA ${progress.etaSeconds}s`
-          );
-        }
-      };
   
       // Now, send the Tx in a timeout, so that the error modal above has a chance to display 
-      setTimeout(() => {
-        openPasswordAndUnlockIfNeeded(() => {
-          // Then send the Tx async
-          (async () => {
-            try {
-              const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
-              const txids: string | string[] = await sendTransaction(sendJson, setSendProgress);
-  
-              if (typeof txids === "string") {
-                openErrorModal("Error Sending Transaction", `${txids}`);
-              } else {
-                openErrorModal(
-                  "Successfully Broadcast Transaction",
-                  <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                      <div>{(txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
-                      <div>{`TXID: ${txids[0]}`}</div>
-                      {txids.length > 1 && (
-                        <div>{`TXID: ${txids[1]}`}</div>
-                      )}
-                      {txids.length > 2 && (
-                        <div>{`TXID: ${txids[2]}`}</div>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                      <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], info.currencyName)}>
-                        View TXID &nbsp;
-                        <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                      </div>
-                      {txids.length > 1 && (
-                        <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], info.currencyName)}>
-                          View TXID &nbsp;
-                          <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                        </div>
-                      )}
-                      {txids.length > 2 && (
-                        <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], info.currencyName)}>
-                          View TXID &nbsp;
-                          <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                        </div>
-                      )}
-                    </div>
+      setTimeout(async () => {
+        // Then send the Tx async
+        try {
+          const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
+          const txids: string | string[] = await sendTransaction(sendJson);
+
+          if (typeof txids === "string") {
+            openErrorModal("Error Sending Transaction", `${txids}`);
+          } else {
+            openErrorModal(
+              "Successfully Broadcast Transaction",
+              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                  <div>{(txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
+                  <div>{`TXID: ${txids[0]}`}</div>
+                  {txids.length > 1 && (
+                    <div>{`TXID: ${txids[1]}`}</div>
+                  )}
+                  {txids.length > 2 && (
+                    <div>{`TXID: ${txids[2]}`}</div>
+                  )}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], info.currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                   </div>
-                );  
-              }
-  
-              clearToAddrs();
-  
-              // Redirect to dashboard after
-              history.push(routes.DASHBOARD);
-            } catch (err) {
-              // If there was an error, show the error modal
-              openErrorModal("Error Sending Transaction", `${err}`);
-            }
-          })();
-        });
+                  {txids.length > 1 && (
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], info.currencyName)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
+                  {txids.length > 2 && (
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], info.currencyName)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            );  
+          }
+
+          clearToAddrs();
+
+          // Redirect to dashboard after
+          history.push(routes.DASHBOARD);
+        } catch (err) {
+          // If there was an error, show the error modal
+          openErrorModal("Error Sending Transaction", `${err}`);
+        }
       }, 10);
     };
   

@@ -1,7 +1,7 @@
-import { ChainNameEnum } from "./ChainNameEnum";
+import { ServerChainNameEnum } from "../enums/ServerChainNameEnum";
 
-export default class Info {
-    chainName: ChainNameEnum;
+export default class InfoClass {
+    chainName: ServerChainNameEnum;
     latestBlock: number;
     connections: number;
     version: string;
@@ -14,7 +14,7 @@ export default class Info {
     zingolib: string;
   
     constructor(error?: string) {
-      this.chainName = ChainNameEnum.mainChainName;
+      this.chainName = ServerChainNameEnum.mainChainName;
       this.latestBlock = 0;
       this.connections = 0;
       this.version = "";

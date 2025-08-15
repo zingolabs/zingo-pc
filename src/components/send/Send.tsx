@@ -2,12 +2,9 @@ import React, { useContext, useEffect, useState } from "react";
 import styles from "./Send.module.css";
 import cstyles from "../common/Common.module.css";
 import {
-  ToAddr,
-  SendPageState,
-  AddressBookEntry,
-  SendProgress,
-  Address,
-  AddressType,
+  ToAddrClass,
+  SendPageStateClass,
+  AddressBookEntryClass,
 } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
@@ -23,10 +20,9 @@ import getSendManyJSON from "./components/getSendManyJSON";
 
 type SendProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
-  sendTransaction: (sendJson: SendManyJsonType[], setSendProgress: (p?: SendProgress) => void) => Promise<string | string[]>;
-  setSendPageState: (sendPageState: SendPageState) => void;
+  sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string | string[]>;
+  setSendPageState: (sendPageState: SendPageStateClass) => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
-  openPasswordAndUnlockIfNeeded: (successCallback: () => void) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
 };
@@ -36,13 +32,12 @@ const Send: React.FC<SendProps> = ({
   sendTransaction,
   setSendPageState,
   openErrorModal,
-  openPasswordAndUnlockIfNeeded,
   calculateShieldFee,
   handleShieldButton,
 }) => {
   const context = useContext(ContextApp);
   const {
-    addresses,
+    addressesUnified,
     sendPageState,
     info,
     totalBalance,
@@ -63,41 +58,54 @@ const Send: React.FC<SendProps> = ({
   const [shieldFee, setShieldFee] = useState<number>(0);
 
   useEffect(() => {
-    const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    setAnyPending(!!_anyPending);
-  }, [addresses]);
+    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
+    //setAnyPending(!!_anyPending);
+    setAnyPending(false);
+  }, []);
     
   useEffect(() => {
-    if (totalBalance.transparent > 0 && calculateShieldFee && !readOnly) {
+    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [totalBalance.transparent, anyPending, calculateShieldFee, readOnly]); 
+  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]); 
 
   useEffect(() => {
     // transparent funds are not spendable.
-    let _totalAmountAvailable: number = totalBalance.spendableZ + totalBalance.spendableO;
+    let _totalAmountAvailable: number = totalBalance.totalSpendableBalance;
     _totalAmountAvailable = Number(Utils.maxPrecisionTrimmed(_totalAmountAvailable));
     if (_totalAmountAvailable < 0) {
       _totalAmountAvailable = 0;
     }
     setTotalAmountAvailable(_totalAmountAvailable);
-    setFromaddr(addresses.find((a: Address) => a.type === AddressType.unified)?.address || ""); 
+    setFromaddr(addressesUnified[addressesUnified.length - 1]?.encoded_address || ""); 
 
     // If there are unverified funds, then show a tooltip
     let _tooltip: string = "";
-    if (totalBalance.unverifiedZ + totalBalance.unverifiedO > 0) {
-      _tooltip = `Waiting for confirmation of ZEC ${totalBalance.unverifiedZ + totalBalance.unverifiedO} with 1 block (approx 2 minutes)`; 
+    const unconfirmed: number = 
+      (totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance) -
+      (totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance);
+    if (unconfirmed > 0) {
+      _tooltip = `Waiting for confirmation of ZEC ${unconfirmed} with 3 block (approx 5 minutes)`; 
     }
     setTooltip(_tooltip);
-  }, [addresses, totalBalance.spendableO, totalBalance.spendableZ, totalBalance.unverifiedO, totalBalance.unverifiedZ]);  
+  }, [
+    addressesUnified, 
+    totalBalance.totalOrchardBalance, 
+    totalBalance.totalSaplingBalance, 
+    totalBalance.totalTransparentBalance, 
+    totalBalance.confirmedOrchardBalance,
+    totalBalance.confirmedSaplingBalance,
+    totalBalance.confirmedTransparentBalance,
+    totalBalance.totalSpendableBalance,
+  ]);  
 
   const clearToAddrs = () => {
-    const newToAddrs: ToAddr[] = [new ToAddr(Utils.getNextToAddrID())];
+    const newToAddrs: ToAddrClass[] = [new ToAddrClass(Utils.getNextToAddrID())];
 
     // Create the new state object
-    const newState = new SendPageState();
+    const newState = new SendPageStateClass();
     newState.fromaddr = sendPageState.fromaddr;
     newState.toaddrs = newToAddrs;
 
@@ -106,7 +114,7 @@ const Send: React.FC<SendProps> = ({
     setSendFeeError('');
 
     // transparent funds are not spendable.
-    let _totalAmountAvailable: number = totalBalance.spendableZ + totalBalance.spendableO;
+    let _totalAmountAvailable: number = totalBalance.totalSpendableBalance;
     _totalAmountAvailable = Number(Utils.maxPrecisionTrimmed(_totalAmountAvailable));
     if (_totalAmountAvailable < 0) {
       _totalAmountAvailable = 0;
@@ -119,16 +127,15 @@ const Send: React.FC<SendProps> = ({
     address: string | null,
     amount: string | null,
     memo: string | null,
-    memoReplyTo: string | null
   ) => {
     // Find the correct toAddr
-    const toAddr: ToAddr | undefined = sendPageState.toaddrs.find((a: ToAddr) => a.id === id);
-    const restToAddr: ToAddr[] = sendPageState.toaddrs.filter((a: ToAddr) => a.id !== id);
+    const toAddr: ToAddrClass | undefined = sendPageState.toaddrs.find((a: ToAddrClass) => a.id === id);
+    const restToAddr: ToAddrClass[] = sendPageState.toaddrs.filter((a: ToAddrClass) => a.id !== id);
     if (address !== null) {
       // First, check if this is a URI
       const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address.replace(/ /g, ""));
       if (typeof parsedUri === "string") {
-        if (parsedUri.toLowerCase().startsWith('error')) {
+        if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
           // with error leave the same value
           if (toAddr) {
             toAddr.to = address.replace(/ /g, ""); // Remove spaces 
@@ -161,12 +168,8 @@ const Send: React.FC<SendProps> = ({
       toAddr.memo = memo;
     }
 
-    if (memoReplyTo != null && toAddr) {
-      toAddr.memoReplyTo = memoReplyTo;
-    }
-
     // Create the new state object 
-    const newState = new SendPageState();
+    const newState = new SendPageStateClass();
     newState.fromaddr = sendPageState.fromaddr;
     if (restToAddr && restToAddr.length > 0) {
       if (toAddr) {
@@ -183,13 +186,13 @@ const Send: React.FC<SendProps> = ({
 
   const setMaxAmount = async (id: number, total: number) => {
     // Find the correct toAddr
-    const toAddr: ToAddr | undefined = sendPageState.toaddrs.find((a: ToAddr) => a.id === id);
-    const restToAddr: ToAddr[] = sendPageState.toaddrs.filter((a: ToAddr) => a.id !== id);
+    const toAddr: ToAddrClass | undefined = sendPageState.toaddrs.find((a: ToAddrClass) => a.id === id);
+    const restToAddr: ToAddrClass[] = sendPageState.toaddrs.filter((a: ToAddrClass) => a.id !== id);
 
     let totalOtherAmount: number = 0;
     
     if (restToAddr && restToAddr.length > 0) {
-      totalOtherAmount = restToAddr.reduce((s: number, a: ToAddr) => s + a.amount, 0);
+      totalOtherAmount = restToAddr.reduce((s: number, a: ToAddrClass) => s + a.amount, 0);
     }
 
     if (toAddr) {
@@ -199,7 +202,7 @@ const Send: React.FC<SendProps> = ({
     }
     
     // Create the new state object 
-    const newState = new SendPageState();
+    const newState = new SendPageStateClass();
     newState.fromaddr = sendPageState.fromaddr;
     if (restToAddr && restToAddr.length > 0) {
       if (toAddr) {
@@ -224,7 +227,7 @@ const Send: React.FC<SendProps> = ({
 
   const getLabelAddressBook = (addr: string) => {
     // Find the addr in addresses
-    const label: AddressBookEntry | undefined = addressBook.find((ab: AddressBookEntry) => ab.address === addr);
+    const label: AddressBookEntryClass | undefined = addressBook.find((ab: AddressBookEntryClass) => ab.address === addr);
     const labelStr: string = label ? ` [ ${label.label} ]` : "";
 
     return labelStr; 
@@ -234,29 +237,36 @@ const Send: React.FC<SendProps> = ({
     let _fee: number = 0;
     let _error: string = '';
     // transparent funds are not spendable.
-    let _spendable: number = totalBalance.spendableZ + totalBalance.spendableO;
+    let _spendable: number = totalBalance.totalSpendableBalance;
     if (sendPageState.toaddrs[0].to) {
-      const spendableBalanceJSON = { address: sendPageState.toaddrs[0].to, zennies_for_zingo: false };
-      const result: string = await native.zingolib_execute_async("spendablebalance", JSON.stringify(spendableBalanceJSON));
+      const result: string = await native.get_spendable_balance_with_address(sendPageState.toaddrs[0].to, "false");
       console.log('SPENDABLEBALANCE', result);
-      const resultJSON = JSON.parse(result);
-      if (resultJSON.error) {
-        _error = resultJSON.error;
+      if (!result || result.toLowerCase().startsWith('error')) {
+        _error = result;
         _spendable = 0;
-      } else if (resultJSON.balance) {
-        _spendable = resultJSON.balance / 10 ** 8;
+      } else {
+        const resultJSON = JSON.parse(result);
+        if (resultJSON.spendable_balance) {
+          _spendable = resultJSON.spendable_balance / 10 ** 8;
+        } else {
+          _spendable = 0;
+        }
       }
     }
     if (sendPageState.toaddrs[0].amount >= 0 && sendPageState.toaddrs[0].to && !_error) {
       const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
       console.log(sendJson);
-      const result: string = await native.zingolib_execute_async("send", JSON.stringify(sendJson));
+      const result: string = await native.send(JSON.stringify(sendJson));
       console.log('SEND', result);
-      const resultJSON = JSON.parse(result);
-      if (resultJSON.error) {
-        _error = resultJSON.error;
-      } else if (resultJSON.fee) {
-        _fee = resultJSON.fee / 10 ** 8;
+      if (!result || result.toLowerCase().startsWith('error')) {
+        _error = result;
+      } else {
+        const resultJSON = JSON.parse(result);
+        if (resultJSON.error) {
+          _error = resultJSON.error;
+        } else if (resultJSON.fee) {
+          _fee = resultJSON.fee / 10 ** 8;
+        }
       }
     }
     _spendable = Number(Utils.maxPrecisionTrimmed(_spendable));
@@ -289,7 +299,6 @@ const Send: React.FC<SendProps> = ({
           closeModal={closeModal}
           modalIsOpen={modalIsOpen}
           clearToAddrs={clearToAddrs}
-          openPasswordAndUnlockIfNeeded={openPasswordAndUnlockIfNeeded}
           sendFee={sendFee}
           currencyName={info.currencyName}
       />
@@ -298,8 +307,8 @@ const Send: React.FC<SendProps> = ({
         <div className={[cstyles.balancebox].join(" ")}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={totalBalance.total}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.total)}
+            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
             currencyName={info.currencyName}
           />
           <BalanceBlockHighlight
@@ -311,7 +320,7 @@ const Send: React.FC<SendProps> = ({
           />
         </div>
         <div className={cstyles.balancebox}>
-          {totalBalance.transparent >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
             <>
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
@@ -339,7 +348,7 @@ const Send: React.FC<SendProps> = ({
       <div className={[styles.horizontalcontainer].join(" ")}>
         <div className={cstyles.containermarginleft}>
           <ScrollPaneTop offsetHeight={260}>
-            {[sendPageState.toaddrs[0]].map((toaddr: ToAddr) => {
+            {[sendPageState.toaddrs[0]].map((toaddr: ToAddrClass) => {
               return (
                 <ToAddrBox
                   key={toaddr.id}
@@ -348,7 +357,7 @@ const Send: React.FC<SendProps> = ({
                   updateToField={updateToField}
                   fromAddress={fromaddr}
                   fromAmount={totalAmountAvailable}
-                  fromAmountDefault={totalBalance.spendableZ + totalBalance.spendableO}
+                  fromAmountDefault={totalBalance.totalSpendableBalance}
                   setMaxAmount={setMaxAmount}
                   setSendButtonEnabled={setSendButtonEnabled}
                   sendFee={sendFee}

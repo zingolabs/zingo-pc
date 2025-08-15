@@ -1,6 +1,6 @@
 {
-  "HOME": "/home",
   "LOADING": "/",
+  "HOME": "/home",
   "DASHBOARD": "/dashboard",
   "SEND": "/send",
   "RECEIVE": "/receive",
@@ -9,6 +9,5 @@
   "MESSAGES": "/messages",
   "SETTINGS": "/settings",
   "ZCASHD": "/zcashd",
-  "CONNECTMOBILE": "/connectmobile",
   "INSIGHT": "/insight"
 }

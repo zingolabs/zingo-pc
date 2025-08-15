@@ -4,77 +4,61 @@ import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import { Info, Server, ValueTransfer } from "../appstate";
+import { InfoClass, ServerClass, ValueTransferClass } from "../appstate";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
-import WalletSettingsModal from "../walletsettingsmodal/WalletSettingsModal";
 import PayURIModal from "./components/PayURIModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
 import native from "../../native.node";
-import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
 
 type SidebarProps = {
-  setRescanning: (rescan: boolean, prevSyncId: number) => void;
-  setInfo: (info: Info) => void;
+  setInfo: (info: InfoClass) => void;
   clearTimers: () => void;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
-  getPrivKeyAsString: (address: string) => Promise<string>;
-  importPrivKeys: (keys: string[], birthday: string) => boolean;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
-  openPassword: (
-    confirmNeeded: boolean,
-    passwordCallback: (p: string) => void,
-    closeCallback: () => void,
-    helpText?: string | JSX.Element
-  ) => void;
-  openPasswordAndUnlockIfNeeded: (successCallback: () => void | Promise<void>) => void;
-  lockWallet: () => Promise<boolean>;
-  encryptWallet: (p: string) => Promise<boolean>;
-  decryptWallet: (p: string) => Promise<boolean>;
-  updateWalletSettings: () => Promise<void>;
-  navigateToLoadingScreen: (b: boolean, c: string, s: Server[]) => void;
+  navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
-  setRescanning, 
   setInfo, 
   clearTimers,
   setSendTo,
-  getPrivKeyAsString,
-  importPrivKeys,
   openErrorModal,
-  openPassword,
-  openPasswordAndUnlockIfNeeded,
-  lockWallet,
-  encryptWallet,
-  decryptWallet,
-  updateWalletSettings,
   navigateToLoadingScreen,
   history,
   location,
 }) => {
   const context = useContext(ContextApp);
-  const { info, serverUris, valueTransfers, verificationProgress, walletSettings, readOnly } = context;
+  const { info, serverUris, valueTransfers, verificationProgress, readOnly } = context;
 
   const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
   const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
-  const [walletSettingsModalIsOpen, setWalletSettingsModalIsOpen] = useState<boolean>(false);
 
-  let stateSync: string = "DISCONNECTED";
-  let progress: string = "100";
+  let stateSync: string = "";
+  let progress: string = "";
   if (info.latestBlock) {
-    if (verificationProgress < 99.9999) {
-      stateSync = "SYNCING";
-      progress = (verificationProgress).toFixed(2);
+    if (verificationProgress) {
+      if (verificationProgress === 100) {
+        stateSync = "CONNECTED";
+        progress = "100";
+      } else {
+        stateSync = "SYNCING";
+        progress = (verificationProgress).toFixed(2);
+      }
     } else {
-      stateSync = "CONNECTED";
+      // no verification progress fetched
+      stateSync = "CONNECTING"
     }
+  } else {
+    // no server latest block
+    stateSync = "DISCONNECTED"
   }
 
   useEffect(() => {
@@ -90,7 +74,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zingo PC v1.10.2</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v2.0.0</div>
           <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2024, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
             The MIT License (MIT) Copyright (c) 2024 ZingoLabs
@@ -122,9 +106,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       const i = info;
       setSendTo(
         new ZcashURITarget(
-          Utils.getDonationAddress(i.chainName !== ChainNameEnum.mainChainName),
-          Utils.getDefaultDonationAmount(i.chainName !== ChainNameEnum.mainChainName),
-          Utils.getDefaultDonationMemo(i.chainName !== ChainNameEnum.mainChainName)
+          Utils.getDonationAddress(i.chainName !== ServerChainNameEnum.mainChainName),
+          Utils.getDefaultDonationAmount(i.chainName !== ServerChainNameEnum.mainChainName),
+          Utils.getDefaultDonationMemo(i.chainName !== ServerChainNameEnum.mainChainName)
         )
       );
 
@@ -138,66 +122,64 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     });
 
     // Export Seed
-    ipcRenderer.on("seed", () => {
-      openPasswordAndUnlockIfNeeded(async () => {
-        const seed: string = await RPC.fetchSeed();
-        const ufvk: string = await RPC.fetchUfvk();
-        const birthday: number = await RPC.fetchBirthday();
+    ipcRenderer.on("seed", async () => {
+      const seed_phrase: string = await RPC.fetchSeed();
+      const ufvk: string = await RPC.fetchUfvk();
+      const birthday: number = await RPC.fetchBirthday();
 
-        console.log('data for seed/ufvk', seed, ufvk, birthday);
+      console.log('data for seed/ufvk', seed_phrase, ufvk, birthday);
 
-        openErrorModal(
-          "Wallet Seed",
-          <div className={cstyles.verticalflex}>
-            {!!seed && (
-              <>
-                <div>
-                  This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet. 
-                  <br />
-                  PLEASE KEEP IT SAFE!
-                </div>
-                <hr style={{ width: "100%" }} />
-                <div
-                  style={{
-                    wordBreak: "break-word",
-                    fontFamily: "monospace, Roboto",
-                    fontWeight: 'bolder',
-                  }}
-                >
-                  {seed}
-                </div>
-                <hr style={{ width: "100%" }} />
-              </>
-            )}
-            {!!ufvk && (
-              <>
-                <div>
-                  This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
-                  <br />
-                  PLEASE KEEP IT SAFE!
-                </div>
-                <hr style={{ width: "100%" }} />
-                <div
-                  style={{
-                    fontFamily: "monospace, Roboto",
-                    fontWeight: 'bolder',
-                  }}
-                >
-                  {ufvk}
-                </div>
-                <hr style={{ width: "100%" }} />
-              </>
-            )}
-            <div
-              style={{
-                fontFamily: "monospace, Roboto",
-              }}
-            >
-              {'Birthday: ' + birthday}
-            </div>
+      openErrorModal(
+        "Wallet Seed",
+        <div className={cstyles.verticalflex}>
+          {!!seed_phrase && (
+            <>
+              <div>
+                This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet. 
+                <br />
+                PLEASE KEEP IT SAFE!
+              </div>
+              <hr style={{ width: "100%" }} />
+              <div
+                style={{
+                  wordBreak: "break-word",
+                  fontFamily: "monospace, Roboto",
+                  fontWeight: 'bolder',
+                }}
+              >
+                {seed_phrase}
+              </div>
+              <hr style={{ width: "100%" }} />
+            </>
+          )}
+          {!!ufvk && (
+            <>
+              <div>
+                This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
+                <br />
+                PLEASE KEEP IT SAFE!
+              </div>
+              <hr style={{ width: "100%" }} />
+              <div
+                style={{
+                  fontFamily: "monospace, Roboto",
+                  fontWeight: 'bolder',
+                }}
+              >
+                {ufvk}
+              </div>
+              <hr style={{ width: "100%" }} />
+            </>
+          )}
+          <div
+            style={{
+              fontFamily: "monospace, Roboto",
+            }}
+          >
+            {'Birthday: ' + birthday}
           </div>
-        );        
-      });
+        </div>
+      );        
     });
 
     // Rescan
@@ -207,10 +189,10 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       clearTimers();
 
       // Reset the info object, it will be refetched
-      setInfo(new Info());
+      setInfo(new InfoClass());
 
       // interrupt syncing
-      const resultInterrupt: string = await native.zingolib_execute_async("interrupt_sync_after_batch", "true");
+      const resultInterrupt: string = await native.pause_sync();
       console.log("Interrupting sync ....", resultInterrupt);
 
       navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
@@ -229,7 +211,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
       if (save.filePath) {
         // Construct a CSV
-        const rows = vt.flatMap((t: ValueTransfer) => {
+        const rows = vt.flatMap((t: ValueTransferClass) => {
           const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
 
           // Add a single quote "'" into the memo field to force interpretation as a string, rather than as a
@@ -250,87 +232,16 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       }
     });
 
-    // Encrypt wallet
-    ipcRenderer.on("encrypt", async (info: any) => { // Obsolete: type Info - check fields
-      if (info.encrypted && info.locked) {
-        openErrorModal("Already Encrypted", "Your wallet is already encrypted and locked.");
-      } else if (info.encrypted && !info.locked) {
-        await lockWallet();
-        openErrorModal("Locked", "Your wallet has been locked. A password will be needed to spend funds.");
-      } else {
-        // Encrypt the wallet
-        openPassword(
-          true,
-          async (password) => {
-            await encryptWallet(password);
-            openErrorModal("Encrypted", "Your wallet has been encrypted. The password will be needed to spend funds.");
-          },
-          () => {
-            openErrorModal("Cancelled", "Your wallet was not encrypted.");
-          },
-          <div>
-            Please enter a password to encrypt your wallet. <br />
-            WARNING: If you forget this password, the only way to recover your wallet is from the seed phrase.
-          </div>
-        );
-      }
-    });
-
-    // Remove wallet encryption
-    ipcRenderer.on("decrypt", async (info: any) => { // Obsolete: type Info - check fields
-      if (!info.encrypted) {
-        openErrorModal("Not Encrypted", "Your wallet is not encrypted and ready for spending.");
-      } else {
-        // Remove the wallet remove the wallet encryption
-        openPassword(
-          false,
-          async (password) => {
-            const success: boolean = await decryptWallet(password);
-            if (success) {
-              openErrorModal(
-                "Decrypted",
-                `Your wallet's encryption has been removed. A password will no longer be needed to spend funds.`
-              );
-            } else {
-              openErrorModal("Decryption Failed", "Wallet decryption failed. Do you have the right password?");
-            }
-          },
-          () => {
-            openErrorModal("Cancelled", "Your wallet is still encrypted.");
-          },
-          ""
-        );
-      }
-    });
-
-    // Unlock wallet
-    ipcRenderer.on("unlock", (info: any) => { // Obsolete: type Info - check fields
-      if (!info.encrypted || !info.locked) {
-        openErrorModal("Already Unlocked", "Your wallet is already unlocked for spending");
-      } else {
-        openPasswordAndUnlockIfNeeded(() => {
-          openErrorModal("Unlocked", "Your wallet is unlocked for spending");
-        });
-      }
-    });
-
     // Rescan
     ipcRenderer.on("rescan", async () => {
       // To rescan, we reset the wallet loading
       // So set info the default, and redirect to the loading screen
       clearTimers();
 
-      // Grab the previous sync ID.
-      const syncStatus: string = await RPC.doSyncStatus();
-      const prevSyncId: number = JSON.parse(syncStatus).sync_id;
-
       RPC.doRescan();
 
-      // Set the rescanning global state to true
-      setRescanning(true, prevSyncId);
-
       // Reset the info object, it will be refetched
-      setInfo(new Info());
+      setInfo(new InfoClass());
 
       navigateToLoadingScreen(false, "", serverUris)
     });
@@ -338,16 +249,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     // View zcashd
     ipcRenderer.on("zcashd", () => {
       history.push(routes.ZCASHD);
-    });
-
-    // Wallet Settings
-    ipcRenderer.on("walletSettings", () => {
-      setWalletSettingsModalIsOpen(true);
-    });
-
-    // Connect mobile app
-    ipcRenderer.on("connectmobile", () => {
-      history.push(routes.CONNECTMOBILE);
     });
   };
 
@@ -363,18 +264,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
   const closeURIModal = () => {
     setUriModalIsOpen(false);
-  };
-
-  const closeWalletSettingsModal = () => {
-    setWalletSettingsModalIsOpen(false);
-  };
-
-  const setWalletSpamFilterThreshold = async (threshold: number) => {
-    // Call the RPC to set the threshold as an option
-    await RPC.setWalletSettingOption("transaction_filter_threshold", threshold.toString());
-
-    // Refresh the wallet settings
-    await updateWalletSettings();
   };
 
   const payURI = async (uri: string) => {
@@ -397,7 +286,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
     const parsedUri: string | ZcashURITarget[] = await parseZcashURI(uri);
     if (typeof parsedUri === "string") {
-      if (parsedUri.toLowerCase().startsWith('error')) {
+      if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
         openErrorModal(errTitle, getErrorBody(parsedUri));
         return;
       } else {
@@ -420,13 +309,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         modalTitle="Pay URI"
         actionButtonName="Pay URI"
         actionCallback={payURI}
-      />
-
-      <WalletSettingsModal
-        modalIsOpen={walletSettingsModalIsOpen}
-        closeModal={closeWalletSettingsModal}
-        walletSettings={walletSettings}
-        setWalletSpamFilterThreshold={setWalletSpamFilterThreshold}
       />
 
       <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
@@ -481,7 +363,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       </div>
 
       <div className={cstyles.center}>
-        {stateSync === "CONNECTED" && (
+        {stateSync === "CONNECTED" && ( 
           <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
             <div>
               {info.latestBlock === info.walletHeight ? (
@@ -507,6 +389,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
             <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
             &nbsp; Not Connected
+          </div>
+        )}
+        {stateSync === "CONNECTING" && (
+          <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
+            <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
+            &nbsp; Connecting... 
           </div>
         )}
       </div>

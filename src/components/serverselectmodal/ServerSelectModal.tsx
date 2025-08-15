@@ -2,9 +2,9 @@ import Modal from "react-modal";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import { ContextApp } from "../../context/ContextAppState";
-import { Server } from "../appstate";
+import { ServerClass } from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
-import { ChainNameEnum } from "../appstate/components/ChainNameEnum";
+import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 const { ipcRenderer } = window.require("electron");
 
 type ModalProps = {
@@ -18,16 +18,16 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
   const { modalIsOpen } = serverSelectState;
 
   const [selectedServer, setSelectedServer] = useState<string>("");
-  const [selectedChain, setSelectedChain] = useState<ChainNameEnum | ''>("");
+  const [selectedChain, setSelectedChain] = useState<ServerChainNameEnum | ''>("");
   const [selectedSelection, setSelectedSelection] = useState<'auto' | 'list' | 'custom' | ''>("");
 
   const [autoServer, setAutoServer] = useState<string>("");
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
   
-  const [customChain, setCustomChain] = useState<ChainNameEnum | ''>("");
+  const [customChain, setCustomChain] = useState<ServerChainNameEnum | ''>("");
 
-  const [servers, setServers] = useState<Server[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: Server) => s.obsolete === false));
+  const [servers, setServers] = useState<ServerClass[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false));
 
   const chains = {
     "main": "Mainnet",
@@ -36,7 +36,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     "": ""
   };
 
-  const initialServerValue = useCallback((servers: Server[], server: string, chain_name: ChainNameEnum | '', selection: 'auto' | 'list' | 'custom' | '') => {
+  const initialServerValue = useCallback((servers: ServerClass[], server: string, chain_name: ServerChainNameEnum | '', selection: 'auto' | 'list' | 'custom' | '') => {
     if (selection === 'custom') {
       setCustomServer(server);
       setCustomChain(chain_name);
@@ -63,12 +63,12 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
 
   useEffect(() => {
     (async () => {
-      const servers: Server[] = serverUris.length > 0 ? serverUris : serverUrisList().filter((s: Server) => s.obsolete === false);
+      const servers: ServerClass[] = serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false);
       const settings = await ipcRenderer.invoke("loadSettings");
       //console.log('modal server settings', settings);
 
       const currServer: string = settings?.serveruri || servers[0].uri; 
-      const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName;
+      const currChain: ServerChainNameEnum = settings?.serverchain_name || ServerChainNameEnum.mainChainName;
       const currSelection: 'auto' | 'list' | 'custom' = settings?.serverselection || 'list'
       initialServerValue(servers, currServer, currChain, currSelection);
       setSelectedServer(currServer);
@@ -80,7 +80,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
 
   const switchServer = async () => {
     const serveruri: string = selectedServer;
-    const serverchain_name: ChainNameEnum | '' = selectedChain;
+    const serverchain_name: ServerChainNameEnum | '' = selectedChain;
     const serverselection: 'auto' | 'list' | 'custom' | '' = selectedSelection;
 
     await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: serveruri });
@@ -101,7 +101,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
     const settings = await ipcRenderer.invoke("loadSettings");
       
     const currServer: string = settings?.serveruri || servers[0].uri; 
-    const currChain: ChainNameEnum = settings?.serverchain_name || ChainNameEnum.mainChainName;
+    const currChain: ServerChainNameEnum = settings?.serverchain_name || ServerChainNameEnum.mainChainName;
     const currSelection: 'auto' | 'list' | 'custom' = settings?.serverselection || 'list'
     initialServerValue(servers, currServer, currChain, currSelection);
     setSelectedServer(currServer);
@@ -135,23 +135,23 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                 setSelectedSelection('auto');
                 setSelectedServer(autoServer);
                 if (!!autoServer) {
-                  setSelectedChain(servers.filter((s: Server) => s.uri === autoServer)[0].chain_name);
+                  setSelectedChain(servers.filter((s: ServerClass) => s.uri === autoServer)[0].chain_name);
                 }
               }} 
               onChange={(e) => {
                 setSelectedSelection('auto');
                 setSelectedServer(autoServer);
                 if (!!autoServer) {
-                  setSelectedChain(servers.filter((s: Server) => s.uri === autoServer)[0].chain_name);
+                  setSelectedChain(servers.filter((s: ServerClass) => s.uri === autoServer)[0].chain_name);
                 }
               }}
             />
             Automatic
-            {!!autoServer && servers.filter((s: Server) => s.uri === autoServer)[0].latency !== null && selectedSelection === 'auto' && ( 
+            {!!autoServer && servers.filter((s: ServerClass) => s.uri === autoServer)[0].latency !== null && selectedSelection === 'auto' && ( 
               <div style={{ margin: "10px"}}>{autoServer + ' - ' + 
-                chains[servers.filter((s: Server) => s.uri === autoServer)[0].chain_name] + ' - ' + 
-                servers.filter((s: Server) => s.uri === autoServer)[0].region +
-                (servers.filter((s: Server) => s.uri === autoServer)[0].latency ? (' _ ' + servers.filter((s: Server) => s.uri === autoServer)[0].latency + ' ms.') : '')}
+                chains[servers.filter((s: ServerClass) => s.uri === autoServer)[0].chain_name] + ' - ' + 
+                servers.filter((s: ServerClass) => s.uri === autoServer)[0].region +
+                (servers.filter((s: ServerClass) => s.uri === autoServer)[0].latency ? (' _ ' + servers.filter((s: ServerClass) => s.uri === autoServer)[0].latency + ' ms.') : '')}
               </div>
             )}
           </div>
@@ -166,14 +166,14 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                 setSelectedSelection('list');
                 setSelectedServer(listServer);
                 if (!!listServer) {
-                  setSelectedChain(servers.filter((s: Server) => s.uri === listServer)[0].chain_name);
+                  setSelectedChain(servers.filter((s: ServerClass) => s.uri === listServer)[0].chain_name);
                 }
               }} 
               onChange={(e) => {
                 setSelectedSelection('list');
                 setSelectedServer(listServer);
                 if (!!listServer) {
-                  setSelectedChain(servers.filter((s: Server) => s.uri === listServer)[0].chain_name);
+                  setSelectedChain(servers.filter((s: ServerClass) => s.uri === listServer)[0].chain_name);
                 }
               }}
             />
@@ -186,10 +186,10 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
               onChange={(e) => {
                 setListServer(e.target.value);
                 setSelectedServer(e.target.value);
-                setSelectedChain(servers.filter((s: Server) => s.uri === e.target.value)[0].chain_name);
+                setSelectedChain(servers.filter((s: ServerClass) => s.uri === e.target.value)[0].chain_name);
               }}>
                 <option key="" value=""></option>
-                {servers.map((s: Server) => (
+                {servers.map((s: ServerClass) => (
                   <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + (s.latency ? (' _ ' + s.latency + ' ms.') : '')}</option>
                 ))}
             </select>
@@ -234,8 +234,8 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                   style={{ marginLeft: "20px" }}
                   value={customChain}
                   onChange={(e) => {
-                    setCustomChain(e.target.value as ChainNameEnum | '');
-                    setSelectedChain(e.target.value as ChainNameEnum | '');
+                    setCustomChain(e.target.value as ServerChainNameEnum | '');
+                    setSelectedChain(e.target.value as ServerChainNameEnum | '');
                   }}
                 >
                   <option value=""></option> 
