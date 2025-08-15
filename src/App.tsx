@@ -8,7 +8,7 @@ function App() {
       <header className="App-header">
         <p>Built using CRA electron-builder-typescript Template.</p>
         <img src={logo} className="App-logo" alt="logo" />
-        <p>Zingo PC v1.10.2</p>
+        <p>Zingo PC v2.0.0</p>
         <p>
           Edit <code>public/electron.js</code> or <code>src/App.js</code> and save to reload.
         </p>
