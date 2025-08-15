@@ -8,7 +8,6 @@ import cstyles from "../../common/Common.module.css";
 import { AddressBookEntryClass, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
-import routes from "../../../constants/routes.json";
 import { ContextApp } from "../../../context/ContextAppState";
 const { clipboard } = window.require("electron");
 
@@ -39,7 +38,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   moveValueTransferDetail,
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly, addressBook, addressesUnified, addressesTransparent } = context;
+  const { addressBook, addressesUnified, addressesTransparent } = context;
   const [expandAddress, setExpandAddress] = useState(false); 
   const [expandTxid, setExpandTxid] = useState(false);
   const [showNavigator, setShowNavigator] = useState<boolean>(true);
@@ -141,20 +140,11 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     replyTo = memoPoped ? memoPoped.toString() : '';
     labelReplyTo = getLabelAddressBook(replyTo);
     if (!labelReplyTo) {
-      const u: boolean = !!addressesUnified.find((a: UnifiedAddressClass) => a.address === replyTo)
-      const t: boolean = !!addressesTransparent.find((a: TransparentAddressClass) => a.address === replyTo)
+      const u: boolean = !!addressesUnified.find((a: UnifiedAddressClass) => a.encoded_address === replyTo)
+      const t: boolean = !!addressesTransparent.find((a: TransparentAddressClass) => a.encoded_address === replyTo)
       labelReplyTo = u || t ? "[ This Wallet's Address ]" : "";
     }
   }
-
-  const doReply = (address: string) => {
-    setSendTo(new ZcashURITarget(address, undefined, undefined));
-    setExpandAddress(false);
-    setExpandTxid(false);
-    closeModal();
-
-    history.push(routes.SEND);
-  };
 
   const localCloseModal = () => {
     setExpandAddress(false);
@@ -351,14 +341,6 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
                     >
                       {memos.join("\n") + "\n" + labelReplyTo}
                     </div>
-                    {!!replyTo && !readOnly && (
-                      <div>
-                        <div style={{ whiteSpace: 'nowrap' }} className={cstyles.primarybutton} onClick={() => doReply(replyTo)}>
-                          Reply to
-                        </div>
-                        <div />
-                      </div>
-                    )}
                   </div>
                 </div>
               )}

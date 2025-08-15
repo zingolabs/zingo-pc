@@ -5,13 +5,12 @@ import {
   AccordionItemButton,
   AccordionItemPanel,
 } from "react-accessible-accordion";
-import { QRCodeSVG } from "qrcode.react";
+import { QRCodeCanvas } from "qrcode.react";
 import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
 import { TransparentAddressClass, UnifiedAddressClass } from "../../appstate";
-import { AddressKindEnum } from "../../appstate/enums/AddressKindEnum";
 
 const { clipboard } = window.require("electron");
 
@@ -33,9 +32,8 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   handleShieldButton
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly } = context;
-  const address_address = address.address;
-  const balance = address.balance || 0;
+  const { readOnly, totalBalance } = context;
+  const address_address = address.encoded_address;
 
   const [copied, setCopied] = useState<boolean>(false);
   const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
@@ -57,12 +55,12 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   }, []);
 
   useEffect(() => {
-    if (address.addressKind === AddressKindEnum.transparent && calculateShieldFee && balance > 0 && !readOnly) {
+    if (address instanceof TransparentAddressClass && calculateShieldFee && totalBalance.confirmedTransparentBalance > 0 && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [balance, calculateShieldFee, address.addressKind, anyPending, readOnly]);
+  }, [calculateShieldFee, address, anyPending, readOnly, totalBalance.confirmedTransparentBalance]);
 
   const handleQRCodeClick = async () => {
     console.log('____________ click processed');
@@ -74,7 +72,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     let downloadLink = document.createElement("a");
     downloadLink.href = pngUrl;
     downloadLink.download = "QR_" + 
-                            (address.addressKind === AddressKindEnum.unified ? 'UA' : 'T') + 
+                            (address instanceof TransparentAddressClass ? 'T' : 'UA') + 
                             "_Zingo_PC.png";
     document.body.appendChild(downloadLink);
     downloadLink.click();
@@ -87,7 +85,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={[cstyles.verticalflex].join(" ")}>
-            {address_address.length < 80 ? address_address : Utils.splitStringIntoChunks(address_address, 3).map(item => <div key={item}>{item}</div>)}
+            {!!address_address && address_address.length < 80 ? address_address : Utils.splitStringIntoChunks(address_address, 3).map(item => <div key={item}>{item}</div>)}
           </div>
         </AccordionItemButton>
       </AccordionItemHeading>
@@ -101,23 +99,17 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               </div>
             )}
 
-            {address.addressKind === AddressKindEnum.unified && (
+            {address instanceof UnifiedAddressClass && (
               <div className={cstyles.margintoplarge}>
                 <div className={[cstyles.sublight].join(" ")}>Address types: {Utils.getReceivers(address).join(" + ")}</div>
               </div>
             )}
 
-            {address.addressKind === AddressKindEnum.transparent && (
+            {address instanceof TransparentAddressClass && (
               <div className={cstyles.margintoplarge}>
                 <div className={[cstyles.sublight].join(" ")}>Address type: Transparent</div>
               </div>
             )}
-
-            <div className={[cstyles.sublight, cstyles.margintoplarge].join(" ")}>Funds</div>
-            <div className={[cstyles.padtopsmall].join(" ")}>
-              {currencyName} {balance}
-            </div>
-            <div className={[cstyles.padtopsmall].join(" ")}>{Utils.getZecToUsdString(zecPrice, balance)}</div>
 
             <div>
               <button
@@ -135,7 +127,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currencyName)}>
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </button>
-              {address.addressKind === AddressKindEnum.transparent && balance >= shieldFee && shieldFee > 0 && !readOnly && (
+              {address instanceof TransparentAddressClass && totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && (
                 <>
                   <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={handleShieldButton}>
                     Shield Balance To Orchard (Fee: {shieldFee})
@@ -147,7 +139,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
           <div>
             {/*
             // @ts-ignore */}
-            <QRCodeSVG includeMargin={true} size={300} value={address_address} className={[styles.receiveQrcode].join(" ")} onClick={handleQRCodeClick} />
+            <QRCodeCanvas includeMargin={true} size={300} value={address_address} className={[styles.receiveQrcode].join(" ")} onClick={handleQRCodeClick} />
             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: 0.5 }}>{'Click to download'}</div>
           </div>
         </div>

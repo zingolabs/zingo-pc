@@ -21,7 +21,6 @@ type ToAddrBoxProps = {
     address: string | null,
     amount: string | null,
     memo: string | null,
-    memoReplyTo: string | null
   ) => void;
   fromAddress: string;
   fromAmount: number;
@@ -131,16 +130,6 @@ const ToAddrBox = ({
     })();
   }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.memo, toaddr.memoReplyTo, toaddr.to, zecPrice]);
   
-  const addReplyTo = (checked: boolean) => {
-    if (toaddr.id) {
-      if (fromAddress && checked) {
-        updateToField(toaddr.id, null, null, null, `\nReply to: \n${fromAddress}`);
-      } else {
-        updateToField(toaddr.id, null, null, null, "");
-      }
-    }
-  };
-
   console.log(sendFeeError);
 
   return ( 
@@ -171,7 +160,7 @@ const ToAddrBox = ({
           placeholder="Unified | Sapling | Transparent | TEX address"
           className={cstyles.inputbox}
           value={toaddr.to}
-          onChange={(e) => updateToField(toaddr.id as number, e.target.value, null, null, null)}
+          onChange={(e) => updateToField(toaddr.id as number, e.target.value, null, null)}
         />
 
         <Spacer />
@@ -190,7 +179,7 @@ const ToAddrBox = ({
                 step="any"
                 className={cstyles.inputbox}
                 value={isNaN(toaddr.amount) ? "" : toaddr.amount}
-                onChange={(e) => updateToField(toaddr.id as number, null, e.target.value, null, null)}
+                onChange={(e) => updateToField(toaddr.id as number, null, e.target.value, null)}
               />
               <img
                 className={styles.toaddrbutton}
@@ -244,7 +233,7 @@ const ToAddrBox = ({
               className={[cstyles.inputbox].join(" ")}
               value={toaddr.memo}
               disabled={isMemoDisabled}
-              onChange={(e) => updateToField(toaddr.id as number, null, null, e.target.value, null)}
+              onChange={(e) => updateToField(toaddr.id as number, null, null, e.target.value)}
               minRows={2}
               maxRows={5}
             />
@@ -257,10 +246,6 @@ const ToAddrBox = ({
                 maxRows={5}
               />
             )}
-            <div className={cstyles.horizontalflex} style={{ marginTop: 5, alignItems: 'center'}}>
-              <input style={{ marginTop: 5 }} type="checkbox" onChange={(e) => addReplyTo(e.target.checked)} />
-              Include Reply to Unified address
-            </div>
           </div>
         )}
       </div>

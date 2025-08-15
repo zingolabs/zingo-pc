@@ -1,25 +1,19 @@
 import { AddressScopeEnum } from '../enums/AddressScopeEnum';
-import { AddressKindEnum } from '../enums/AddressKindEnum';
 
 export default class TransparentAddressClass {
-  index: number;
-  address: string;
-  addressKind: AddressKindEnum.transparent;
+  account: number;
+  address_index: number;
   scope: AddressScopeEnum;
-
-  balance: number;
-
+  encoded_address: string;
   constructor(
-    index: number, 
-    address: string, 
-    addressKind: AddressKindEnum.transparent, 
+    account: number,
+    address_index: number,
     scope: AddressScopeEnum,
+    encoded_address: string,
   ) {
-    this.index = index;
-    this.address = address;
-    this.addressKind = addressKind;
+    this.account = account;
+    this.address_index = address_index;
     this.scope = scope;
-
-    this.balance = 0;
+    this.encoded_address = encoded_address;
   }
 }

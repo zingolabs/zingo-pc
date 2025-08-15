@@ -148,25 +148,14 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     // If there is no 'from' address, we'll set a default one
     if (!sendPageState.fromaddr) {
       // Find a u-address with the highest balance
-      const defaultAB: UnifiedAddressClass | null = addressesUnified
-        .reduce((prev: UnifiedAddressClass | null, ab) => {
-          // We'll start with a unified address
-          if (!prev) {
-            return ab;
-          } else if (prev.balance < ab.balance) {
-            // Find the unified address with the highest balance
-            return ab;
-          } else {
-            return prev;
-          }
-        }, null);
+      const defaultAB: UnifiedAddressClass | null = addressesUnified[addressesUnified.length - 1];
 
       if (defaultAB) {
         const newSendPageState = new SendPageStateClass();
-        newSendPageState.fromaddr = defaultAB.address;
+        newSendPageState.fromaddr = defaultAB.encoded_address;
         newSendPageState.toaddrs = sendPageState.toaddrs;
 
-        console.log('=============== default fromaddr UA', defaultAB.address);
+        console.log('=============== default fromaddr UA', defaultAB.encoded_address);
 
         this.setState({ sendPageState: newSendPageState });
       }

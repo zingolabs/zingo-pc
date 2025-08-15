@@ -79,7 +79,7 @@ const Send: React.FC<SendProps> = ({
       _totalAmountAvailable = 0;
     }
     setTotalAmountAvailable(_totalAmountAvailable);
-    setFromaddr(addressesUnified[addressesUnified.length - 1]?.address || ""); 
+    setFromaddr(addressesUnified[addressesUnified.length - 1]?.encoded_address || ""); 
 
     // If there are unverified funds, then show a tooltip
     let _tooltip: string = "";
@@ -127,7 +127,6 @@ const Send: React.FC<SendProps> = ({
     address: string | null,
     amount: string | null,
     memo: string | null,
-    memoReplyTo: string | null
   ) => {
     // Find the correct toAddr
     const toAddr: ToAddrClass | undefined = sendPageState.toaddrs.find((a: ToAddrClass) => a.id === id);
@@ -167,10 +166,6 @@ const Send: React.FC<SendProps> = ({
 
     if (memo !== null && toAddr) {
       toAddr.memo = memo;
-    }
-
-    if (memoReplyTo != null && toAddr) {
-      toAddr.memoReplyTo = memoReplyTo;
     }
 
     // Create the new state object 

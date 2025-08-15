@@ -32,14 +32,14 @@ const Receive: React.FC<ReceiveProps> = ({
 
   useEffect(() => {
     const _uaddrs: UnifiedAddressClass[] = addressesUnified;
-    let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[0].address : "";
+    let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[_uaddrs.length - 1].encoded_address : "";
     setUaddrs(_uaddrs);
     setDefaultUaddr(_defaultUaddr);
   }, [addressesUnified]);
   
   useEffect(() => {
     const _taddrs: TransparentAddressClass[] = addressesTransparent;
-    let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[0].address : "";
+    let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[_taddrs.length - 1].encoded_address : "";
     setTaddrs(_taddrs);
     setDefaultTaddr(_defaultTaddr);
   }, [addressesTransparent]);
@@ -64,15 +64,15 @@ const Receive: React.FC<ReceiveProps> = ({
           </TabList>
 
           <TabPanel>
-            {uaddrs.length > 0 ? (
+            {uaddrs && uaddrs.length > 0 ? (
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultUaddr]}>
                   {uaddrs.map((a: UnifiedAddressClass) => (
                     <AddressBlock
-                      key={a.address}
+                      key={`u-${a.encoded_address}`}
                       address={a}
                       currencyName={info.currencyName}
-                      label={addressBookMap.get(a.address)}
+                      label={addressBookMap.get(a.encoded_address)}
                       zecPrice={info.zecPrice}
                     />
                   ))}
@@ -84,15 +84,15 @@ const Receive: React.FC<ReceiveProps> = ({
           </TabPanel>
   
           <TabPanel>
-            {taddrs.length > 0 ? (
+            {taddrs && taddrs.length > 0 ? (
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultTaddr]}>
                   {taddrs.map((a: TransparentAddressClass) => (
                     <AddressBlock
-                      key={a.address}
+                      key={`t-${a.encoded_address}`}
                       address={a}
                       currencyName={info.currencyName}
-                      label={addressBookMap.get(a.address)}
+                      label={addressBookMap.get(a.encoded_address)}
                       zecPrice={info.zecPrice}
                       calculateShieldFee={calculateShieldFee}
                       handleShieldButton={handleShieldButton}

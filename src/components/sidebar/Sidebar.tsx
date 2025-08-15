@@ -123,16 +123,16 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
     // Export Seed
     ipcRenderer.on("seed", async () => {
-      const seed: string = await RPC.fetchSeed();
+      const seed_phrase: string = await RPC.fetchSeed();
       const ufvk: string = await RPC.fetchUfvk();
       const birthday: number = await RPC.fetchBirthday();
 
-      console.log('data for seed/ufvk', seed, ufvk, birthday);
+      console.log('data for seed/ufvk', seed_phrase, ufvk, birthday);
 
       openErrorModal(
         "Wallet Seed",
         <div className={cstyles.verticalflex}>
-          {!!seed && (
+          {!!seed_phrase && (
             <>
               <div>
                 This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet. 
@@ -147,7 +147,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
                   fontWeight: 'bolder',
                 }}
               >
-                {seed}
+                {seed_phrase}
               </div>
               <hr style={{ width: "100%" }} />
             </>

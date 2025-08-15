@@ -680,7 +680,7 @@ export default class RPC {
     const seedStr: string = await native.get_seed();
     const seedJSON = JSON.parse(seedStr);
 
-    return seedJSON.seed;
+    return seedJSON.seed_phrase;
   }
 
   static async fetchUfvk(): Promise<string> {

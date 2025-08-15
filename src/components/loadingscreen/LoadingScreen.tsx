@@ -1,6 +1,8 @@
 import React, { Component } from "react";
 import { RouteComponentProps, withRouter } from "react-router";
 import TextareaAutosize from "react-textarea-autosize";
+import progress from "progress-stream";
+import axios from "axios";
 import native from "../../native.node";
 import { InfoClass, ServerClass } from "../appstate";
 import RPC from "../../rpc/rpc";
@@ -12,6 +14,7 @@ import { Logo } from "../logo";
 import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 
 const { ipcRenderer } = window.require("electron");
+const fs = window.require("fs");
 
 class LoadingScreenState {
   currentStatus: string | JSX.Element;
@@ -127,6 +130,59 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     console.log('did mount, disable FALSE');
   }
 
+  download = async (url: string, dest: string, name: string, cb: (msg: string) => void) => {
+    const file = fs.createWriteStream(dest);
+
+    try {
+      const response = await axios.get(url, {
+        responseType: "stream",
+        // headers: { ... }
+        // timeout: 60_000,
+        // maxRedirects: 5,
+        validateStatus: (s) => s >= 200 && s < 400,
+      });
+
+      if (response.status !== 200) {
+        file.close();
+        fs.unlink(dest, () => {});
+        return cb(`Response status was ${response.status}`);
+      }
+
+      const len = response.headers["content-length"] ?? "";
+      const totalSize = len ? (parseInt(len, 10) / 1024 / 1024).toFixed(0) : "??";
+
+      const str = progress({ time: 1000 }, (pgrs) => {
+        this.setState({
+          currentStatus: `Downloading ${name}... (${(pgrs.transferred / 1024 / 1024).toFixed(0)} MB / ${totalSize} MB)`,
+        });
+      });
+
+      if (len) str.setLength(parseInt(len, 10));
+
+      response.data.pipe(str).pipe(file);
+
+      file.on("finish", () => file.close());
+
+      response.data.on("error", (err: any) => {
+        try { file.destroy(); } catch {}
+        fs.unlink(dest, () => cb(err.message));
+      });
+
+      file.on("error", (err: any) => {
+        try { file.destroy(); } catch {}
+        fs.unlink(dest, () => cb(err.message));
+      });
+    } catch (err: any) {
+      try { file.destroy(); } catch {}
+      fs.unlink(dest, () => {});
+      const msg =
+        err?.response?.status
+          ? `Response status was ${err.response.status}`
+          : (err?.message || "Unknown axios error");
+      cb(msg);
+    }
+  };
+
   loadServer = async () => {    
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
@@ -228,19 +284,20 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       chain_name,
       selection,
     });
+    return {
+      url: server,
+      chain_name,
+    };
   };
 
   doFirstTimeSetup = async () => {
-    await this.loadServer();
-
-    // Try to load the light client
-    const { url, chain_name, changeAnotherWallet } = this.state;
-
-    console.log(`Url: -${url}-`);
+    const { url, chain_name } = await this.loadServer();
+    console.log(`Url: -${url}-${chain_name}`);
 
     // First, set up the exit handler
     this.setupExitHandler();
 
+    const { changeAnotherWallet } = this.state;
     // if is: `change to another wallet` exit here 
     if (changeAnotherWallet) {
       return;
