@@ -48,7 +48,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
   // if the App is syncing, the VT list will change (new items).
   // Hide the navigator is the solution because the current index
-  // will be associated to other item.
+  // will be associated to other item. 
   useEffect(() => {
     if (isTheFirstMount.current) {
       isTheFirstMount.current = false;
@@ -78,7 +78,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       const vtNew = getValueTransferAgain(valueTransfer);
       if (vtNew.length !== 1) {
         // something really weird is happening...
-        closeModal();
+        localCloseModal();
       } else {
         setValueTransfer(vtNew[0]);
       }
@@ -94,7 +94,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       const vtNew = getValueTransferAgain(valueTransfersSliced[newIndex]);
       if (vtNew.length !== 1) {
         // something really weird is happening...
-        closeModal();
+        localCloseModal();
       } else {
         setValueTransfer(vtNew[0]);
         setValueTransferIndex(newIndex);
@@ -103,14 +103,12 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   };
 
   const handleKeyDown = (event: any) => {
-    if (showNavigator) {
-      if (event.key === 'ArrowUp') {
-        // Mover a la transacción anterior
-        moveValueTransferDetail(valueTransferIndex, -1);
-      } else if (event.key === 'ArrowDown') {
-        // Mover a la siguiente transacción
-        moveValueTransferDetail(valueTransferIndex, 1);
-      }
+    if (event.key === 'ArrowUp') {
+      // Mover a la transacción anterior
+      moveValueTransferDetail(valueTransferIndex, -1);
+    } else if (event.key === 'ArrowDown') {
+      // Mover a la siguiente transacción
+      moveValueTransferDetail(valueTransferIndex, 1);
     }
   };
 
@@ -198,7 +196,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     closeModal();
   };
 
-  //console.log('render details', valueTransfer, isTheFirstMount); 
+  console.log('render details', isTheFirstMount, showNavigator, totalLength);
 
   return (
     <Modal
@@ -209,22 +207,22 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     >
       {showNavigator && (
         <div style={{ position: "absolute", alignItems: 'center', top: 15, left: 40 }} className={[cstyles.horizontalflex].join(" ")}>
-          {index === 0 ? (
+          {valueTransferIndex === 0 ? (
             <div style={{ marginRight: 25, cursor: 'pointer', opacity: 0.5 }}>
               <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
             </div>
           ) : (
-            <div style={{ marginRight: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(index, -1)}>
+            <div style={{ marginRight: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(valueTransferIndex, -1)}>
               <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
             </div>
           )}
-          <div>{(index + 1).toString()}</div>
-          {index === length - 1 ? (
+          <div>{(valueTransferIndex + 1).toString()}</div>
+          {valueTransferIndex === length - 1 ? (
             <div style={{ marginLeft: 25, cursor: 'pointer', opacity: 0.5 }}>
               <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
             </div>
           ) : (
-            <div style={{ marginLeft: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(index, 1)}>
+            <div style={{ marginLeft: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(valueTransferIndex, 1)}>
               <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
             </div>
           )}
