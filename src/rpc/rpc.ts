@@ -244,6 +244,7 @@ export default class RPC {
   
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
+    // PROPOSING
     const shieldResult: string = await native.shield();
     console.log('shield proposal', shieldResult);
     if (shieldResult) {
@@ -273,6 +274,7 @@ export default class RPC {
     }
     console.log(shieldJSON);
 
+    // SHIELDING
     const confirmResult: string = await native.confirm();
     if (confirmResult) {
       if (confirmResult.toLowerCase().startsWith("error")) {
@@ -286,9 +288,28 @@ export default class RPC {
       console.log(err);
       return err;
     }
-    console.log(confirmResult);
+    let confirmJSON = {} as {txids: string[], error: string};
+    try {
+      confirmJSON = JSON.parse(confirmResult);
+    } catch(error: any) {
+      const err = `Error: parsing confirm result ${error.message}`;
+      console.log(err);
+      return err;
+    }
+    if (confirmJSON.error) {
+      const err = `Error: confirm ${confirmJSON.error}`;
+      console.log(err);
+      return err;
+    }
+    if (confirmJSON.txids && confirmJSON.txids.length > 0) {
+      const txids: string = confirmJSON.txids.join(', ');
+      console.log(txids);
+      return txids;
+    }
+    console.log(confirmJSON);
 
-    return confirmResult;
+    // weird case, I want to see the JSON in the error.
+    return JSON.stringify(confirmJSON);
   }
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
@@ -629,7 +650,7 @@ export default class RPC {
         return;
       }
       const unifiedAddressesJSON: UnifiedAddressClass[] = await JSON.parse(unifiedAddressesStr) || [];
-      console.log(unifiedAddressesStr, unifiedAddressesJSON);
+      //console.log(unifiedAddressesStr, unifiedAddressesJSON);
 
       // TRANSPARENT
       const transparentAddressStr: string = await native.get_transparent_addresses();
@@ -643,7 +664,7 @@ export default class RPC {
         return;
       }
       const transparentAddressesJSON: TransparentAddressClass[] = await JSON.parse(transparentAddressStr) || [];
-      console.log(transparentAddressStr, transparentAddressesJSON);
+      //console.log(transparentAddressStr, transparentAddressesJSON);
 
       this.fnSetAddressesUnified(unifiedAddressesJSON);
       this.fnSetAddressesTransparent(transparentAddressesJSON);
@@ -753,7 +774,7 @@ export default class RPC {
         currentVtList.txid = tx.txid;
         currentVtList.time = tx.datetime;
         // basic in zingolib is the same as send-to-self in zingo.
-        currentVtList.type = tx.kind === 'basic' ? 'send-to-self' : tx.kind;
+        currentVtList.type = tx.kind;
         currentVtList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
         currentVtList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
@@ -829,7 +850,7 @@ export default class RPC {
         currentMList.txid = tx.txid;
         currentMList.time = tx.datetime;
         // basic in zingolib is the same as send-to-self in zingo.
-        currentMList.type = tx.kind === 'basic' ? 'send-to-self' : tx.kind;
+        currentMList.type = tx.kind;
         currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
         currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 

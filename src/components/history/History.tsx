@@ -93,15 +93,6 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
     setNumVtnsToShow(numVtnsToShow + 100);
   };
 
-  const moveValueTransferDetail = (index: number, type: number) => {
-    // -1 -> Previous ValueTransfer
-    //  1 -> Next ValueTransfer
-    if ((index > 0 && type === -1) || (index < valueTransfersSorted.length - 1 && type === 1)) {
-      setValueTransferDetail(valueTransfersSorted[index + type]);
-      setValueTransferDetailIndex(index + type);
-    }
-  };
-
   return (
     <div>
       <div className={[cstyles.well, styles.containermargin].join(" ")}>
@@ -223,7 +214,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
           currencyName={info.currencyName}
           setSendTo={setSendTo}
           addressBookMap={addressBookMap}
-          moveValueTransferDetail={moveValueTransferDetail}
+          valueTransfersSliced={valueTransfersSorted}
         />
       )}
     </div>

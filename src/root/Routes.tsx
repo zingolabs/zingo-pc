@@ -267,7 +267,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  sendTransaction = async (sendJson: SendManyJsonType[]): Promise<string | string[]> => {
+  sendTransaction = async (sendJson: SendManyJsonType[]): Promise<string> => {
     try {
       const result: string = await this.rpc.sendTransaction(sendJson);
 
@@ -352,62 +352,57 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   }
 
   handleShieldButton = () => {
+    // This will be replaced by either a success TXID or error message that the user
+    // has to close manually.
     this.openErrorModal("Computing Transaction", "Please wait...This could take a while");
 
-    setTimeout(() => {
-      (async () => {
-        try {
-          const result: string = await this.shieldTransparentBalanceToOrchard();
-          console.log('shielding balance', result);
+    setTimeout(async () => {
+      try {
+        const txidsResult: string = await this.shieldTransparentBalanceToOrchard();
 
-          if (!result || result.toLocaleLowerCase().startsWith('error')) {
-            this.openErrorModal("Error Shielding Transaction", `${result}`);
-            return;  
-          }
-          const resultJSON = JSON.parse(result);
-          if (resultJSON.txids) {
-            this.openErrorModal(
-              "Successfully Broadcast Transaction",
-              <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                  <div>{(resultJSON.txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
-                  <div>{`TXID: ${resultJSON.txids[0]}`}</div>
-                  {resultJSON.txids.length > 1 && (
-                    <div>{`TXID: ${resultJSON.txids[1]}`}</div>
-                  )}
-                  {resultJSON.txids.length > 2 && (
-                    <div>{`TXID: ${resultJSON.txids[2]}`}</div>
-                  )}
+        if (!txidsResult || txidsResult.toLocaleLowerCase().startsWith('error')) {
+          this.openErrorModal("Error Shielding Transaction", `${txidsResult}`);
+          return;  
+        } else {
+          const txids: string[] = txidsResult.split(', ');
+          this.openErrorModal(
+            "Successfully Broadcast Transaction",
+            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                <div>{(txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
+                <div>{`TXID: ${txids[0]}`}</div>
+                {txids.length > 1 && (
+                  <div>{`TXID: ${txids[1]}`}</div>
+                )}
+                {txids.length > 2 && (
+                  <div>{`TXID: ${txids[2]}`}</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], this.state.info.currencyName)}>
+                  View TXID &nbsp;
+                  <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[0], this.state.info.currencyName)}>
+                {txids.length > 1 && (
+                  <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], this.state.info.currencyName)}>
                     View TXID &nbsp;
                     <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                   </div>
-                  {resultJSON.txids.length > 1 && (
-                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[1], this.state.info.currencyName)}>
-                      View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                    </div>
-                  )}
-                  {resultJSON.txids.length > 2 && (
-                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(resultJSON.txids[2], this.state.info.currencyName)}>
-                      View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                    </div>
-                  )}
-                </div>
+                )}
+                {txids.length > 2 && (
+                  <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], this.state.info.currencyName)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                )}
               </div>
-            );
-          }
-          if (resultJSON.error) {
-            this.openErrorModal("Error Shielding Transaction", `${resultJSON.error}`);
-          }
-        } catch (err) {
-          // If there was an error, show the error modal 
-          this.openErrorModal("Error Shielding Transaction", `${err}`);
+            </div>
+          );
         }
-      })();
+      } catch (err) {
+        // If there was an error, show the error modal 
+        this.openErrorModal("Error Shielding Transaction", `${err}`);
+      }
     }, 10);
   };
 

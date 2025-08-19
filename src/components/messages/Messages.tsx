@@ -94,15 +94,6 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
     setNumVtnsToShow(numVtnsToShow + 100);
   };
 
-  const moveValueTransferDetail = (index: number, type: number) => {
-    // -1 -> Previous ValueTransfer
-    //  1 -> Next ValueTransfer
-    if ((index > 0 && type === -1) || (index < messagesSorted.length - 1 && type === 1)) {
-      setValueTransferDetail(messagesSorted[index + type]);
-      setValueTransferDetailIndex(index + type);
-    }
-  };
-
   return (
     <div>
       <div className={[cstyles.well, styles.containermargin].join(" ")}>
@@ -224,7 +215,7 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
           currencyName={info.currencyName}
           setSendTo={setSendTo}
           addressBookMap={addressBookMap}
-          moveValueTransferDetail={moveValueTransferDetail}
+          valueTransfersSliced={messagesSorted}
         />
       )}
     </div>

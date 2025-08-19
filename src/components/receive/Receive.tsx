@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
-import { AddressBookEntryClass, TransparentAddressClass, UnifiedAddressClass } from "../appstate";
+import { AddressBookEntryClass, AddressScopeEnum, TransparentAddressClass, UnifiedAddressClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
@@ -31,15 +31,15 @@ const Receive: React.FC<ReceiveProps> = ({
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
-    const _uaddrs: UnifiedAddressClass[] = addressesUnified;
-    let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[_uaddrs.length - 1].encoded_address : "";
+    const _uaddrs: UnifiedAddressClass[] = [...addressesUnified].reverse();
+    let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[0].encoded_address : "";
     setUaddrs(_uaddrs);
     setDefaultUaddr(_defaultUaddr);
   }, [addressesUnified]);
   
   useEffect(() => {
-    const _taddrs: TransparentAddressClass[] = addressesTransparent;
-    let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[_taddrs.length - 1].encoded_address : "";
+    const _taddrs: TransparentAddressClass[] = [...addressesTransparent.filter((t: TransparentAddressClass) => t.scope === AddressScopeEnum.external)].reverse();
+    let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[0].encoded_address : "";
     setTaddrs(_taddrs);
     setDefaultTaddr(_defaultTaddr);
   }, [addressesTransparent]);

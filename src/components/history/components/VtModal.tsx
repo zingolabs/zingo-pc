@@ -21,7 +21,7 @@ type VtModalInternalProps = {
   currencyName: string;
   setSendTo: (targets: ZcashURITarget | ZcashURITarget[]) => void;
   addressBookMap: Map<string, string>;
-  moveValueTransferDetail: (index: number, type: number) => void;
+  valueTransfersSliced: ValueTransferClass[];
 };
 
 const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
@@ -35,10 +35,12 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   setSendTo,
   history,
   addressBookMap,
-  moveValueTransferDetail,
+  valueTransfersSliced,
 }) => {
   const context = useContext(ContextApp);
-  const { addressBook, addressesUnified, addressesTransparent } = context;
+  const { addressBook, addressesUnified, addressesTransparent, valueTransfers } = context;
+  const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
+  const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
   const [expandAddress, setExpandAddress] = useState(false); 
   const [expandTxid, setExpandTxid] = useState(false);
   const [showNavigator, setShowNavigator] = useState<boolean>(true);
@@ -58,13 +60,57 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalLength]);
 
+  // modals make a copy of the parameter when use `show` -> unmutable props.
+  // when this component render (probably motivate by the parent)
+  // is the moment to get again the updated values to show in this component.
+  const getValueTransferAgain = (v: ValueTransferClass) => {
+    if (!valueTransfers) {
+      return [] as ValueTransferClass[];
+    }
+    return valueTransfers.filter((vtt: ValueTransferClass) =>
+      vtt.txid === v.txid && vtt.address === v.address && vtt.pool === v.pool
+    );
+  };
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (valueTransfer) {
+      const vtNew = getValueTransferAgain(valueTransfer);
+      if (vtNew.length !== 1) {
+        // something really weird is happening...
+        closeModal();
+      } else {
+        setValueTransfer(vtNew[0]);
+      }
+    }
+  });
+
+    const moveValueTransferDetail = (indexParm: number, typeParm: number) => {
+    // -1 -> Previous ValueTransfer
+    //  1 -> Next ValueTransfer
+    if ((indexParm > 0 && typeParm === -1) ||
+        (indexParm < valueTransfersSliced.length - 1 && typeParm === 1)) {
+      const newIndex = indexParm + typeParm;
+      const vtNew = getValueTransferAgain(valueTransfersSliced[newIndex]);
+      if (vtNew.length !== 1) {
+        // something really weird is happening...
+        closeModal();
+      } else {
+        setValueTransfer(vtNew[0]);
+        setValueTransferIndex(newIndex);
+      }
+    }
+  };
+
   const handleKeyDown = (event: any) => {
-    if (event.key === 'ArrowUp') {
-      // Mover a la transacción anterior
-      moveValueTransferDetail(index, -1);
-    } else if (event.key === 'ArrowDown') {
-      // Mover a la siguiente transacción
-      moveValueTransferDetail(index, 1);
+    if (showNavigator) {
+      if (event.key === 'ArrowUp') {
+        // Mover a la transacción anterior
+        moveValueTransferDetail(valueTransferIndex, -1);
+      } else if (event.key === 'ArrowDown') {
+        // Mover a la siguiente transacción
+        moveValueTransferDetail(valueTransferIndex, 1);
+      }
     }
   };
 
@@ -74,7 +120,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index]);
+  }, [valueTransferIndex]);
   
   let txid: string = "";
   let typeText: string = "";
@@ -102,10 +148,10 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     return labelStr; 
   };
 
-  if (vt) {
-    txid = vt.txid;
-    typeText = Utils.VTTypeWithConfirmations(vt.type, vt.confirmations);
-    if (vt.type === "received" || vt.type === "shield") {
+  if (valueTransfer) {
+    txid = valueTransfer.txid;
+    typeText = Utils.VTTypeWithConfirmations(valueTransfer.type, valueTransfer.confirmations);
+    if (valueTransfer.type === "received" || valueTransfer.type === "shield") {
       typeIcon = "fa-arrow-circle-down";
       typeColor = Utils.getCssVariable('--color-primary');
     } else {
@@ -113,17 +159,17 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       typeColor = Utils.getCssVariable('--color-text');
     }
 
-    datePart = dateformat(vt.time * 1000, "mmm dd, yyyy");
-    timePart = dateformat(vt.time * 1000, "hh:MM tt");
+    datePart = dateformat(valueTransfer.time * 1000, "mmm dd, yyyy");
+    timePart = dateformat(valueTransfer.time * 1000, "hh:MM tt");
 
-    confirmations = vt.confirmations;
-    status = vt.status;
-    amount = vt.amount;
-    fees = vt.fee ? vt.fee : 0;
-    address = vt.address;
-    memos = vt.memos && vt.memos.length > 0 ? vt.memos : [];
-    pool = vt.pool ? vt.pool : '';
-    price = vt.zec_price ? vt.zec_price : 0;
+    confirmations = valueTransfer.confirmations;
+    status = valueTransfer.status;
+    amount = valueTransfer.amount;
+    fees = valueTransfer.fee ? valueTransfer.fee : 0;
+    address = valueTransfer.address;
+    memos = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos : [];
+    pool = valueTransfer.pool ? valueTransfer.pool : '';
+    price = valueTransfer.zec_price ? valueTransfer.zec_price : 0;
     if (price) {
       priceString = `USD ${price.toFixed(2)} / ZEC`;
     }
@@ -152,7 +198,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     closeModal();
   };
 
-  //console.log('render details', isTheFirstMount); 
+  //console.log('render details', valueTransfer, isTheFirstMount); 
 
   return (
     <Modal
@@ -189,7 +235,8 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         <div className={[cstyles.center, cstyles.horizontalflex].join(" ")} 
              style={{ width: "100%", alignItems: "center", justifyContent: "center" }}>
-          <div className={[cstyles.center, cstyles.verticalflex].join(" ")}>
+          <div className={[cstyles.center, cstyles.verticalflex].join(" ")}
+               style={{ alignItems: "center", justifyContent: "center" }}>
             <i className={["fas", typeIcon].join(" ")} style={{ fontSize: "35px", color: typeColor }} />
             {typeText}
           </div>
@@ -202,6 +249,8 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             />
           </div>
         </div>
+
+        <hr style={{ width: "100%" }} />
 
         <div className={[cstyles.flexspacebetween].join(" ")}>
           <div>
@@ -266,88 +315,87 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-            <div key={`${txid}-${address}-${pool}`} className={cstyles.verticalflex}>
-              {!!address && (
-                <>
-                  <div className={[cstyles.sublight].join(" ")}>Address</div>
-                  {!!label && (
-                    <div className={cstyles.highlight} style={{ marginBottom: 0 }}>{label}</div> 
-                  )}
-                  <div className={[cstyles.verticalflex].join(" ")}>
-                    <div
-                      style={{ cursor: "pointer" }}
-                      onClick={() => {
-                        if (address) {
-                          clipboard.writeText(address);
-                          setExpandAddress(true);
-                        }
-                      }}> 
-                      <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
-                        {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
-                        {expandAddress && !!address && (
-                          <>
-                            {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div className={cstyles.margintoplarge} />
-                </>
+        <div key={`${txid}-${address}-${pool}`} className={cstyles.verticalflex}>
+          {!!address && (
+            <>
+              <div className={[cstyles.sublight].join(" ")}>Address</div>
+              {!!label && (
+                <div className={cstyles.highlight} style={{ marginBottom: 0 }}>{label}</div> 
               )}
-
-              <div className={[cstyles.flexspacebetween].join(" ")}>
-                <div className={[cstyles.verticalflex].join(" ")}>
-                  <div className={[cstyles.sublight].join(" ")}>Amount</div>
-                  <div className={[cstyles.verticalflex].join(" ")}>
-                    <div className={[cstyles.verticalflex].join(" ")}>
-                      <div>
-                        <span>
-                          {currencyName} {bigPart}
-                        </span>
-                        <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
-                      </div>
-                    </div>
-                    <div className={[cstyles.verticalflex].join(" ")}>
-                      <div className={[cstyles.sublight].join(" ")}>{priceString}</div>
-                    </div>
+              <div className={[cstyles.verticalflex].join(" ")}>
+                <div
+                  style={{ cursor: "pointer" }}
+                  onClick={() => {
+                    if (address) {
+                      clipboard.writeText(address);
+                      setExpandAddress(true);
+                    }
+                  }}> 
+                  <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                    {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
+                    {expandAddress && !!address && (
+                      <>
+                        {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+                      </>
+                    )}
                   </div>
                 </div>
-
-                {pool && (
-                  <div className={[cstyles.verticalflex].join(" ")}>
-                    <div className={[cstyles.sublight].join(" ")}>Pool</div>
-                    <div className={[cstyles.flexspacebetween].join(" ")}>
-                      <div>{pool}</div>
-                    </div>
-                  </div>
-                )}
               </div>
-
               <div className={cstyles.margintoplarge} />
+            </>
+          )}
 
-              {memos && memos.length > 0 && !!memos.join("") && (
-                <div>
-                  <div className={[cstyles.sublight].join(" ")}>Memo</div>
-                  <div className={[cstyles.flexspacebetween].join(" ")}>
-                    <div
-                      className={[
-                        cstyles.small,
-                        cstyles.sublight,
-                        cstyles.padtopsmall,
-                        cstyles.memodiv,
-                        styles.txmemo,
-                      ].join(" ")}
-                    >
-                      {memos.join("\n") + "\n" + labelReplyTo}
-                    </div>
+          <div className={[cstyles.flexspacebetween].join(" ")}>
+            <div className={[cstyles.verticalflex].join(" ")}>
+              <div className={[cstyles.sublight].join(" ")}>Amount</div>
+              <div className={[cstyles.verticalflex].join(" ")}>
+                <div className={[cstyles.verticalflex].join(" ")}>
+                  <div>
+                    <span>
+                      {currencyName} {bigPart}
+                    </span>
+                    <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
                   </div>
                 </div>
-              )}
-
-              <hr style={{ width: "100%" }} />
-
+                <div className={[cstyles.verticalflex].join(" ")}>
+                  <div className={[cstyles.sublight].join(" ")}>{priceString}</div>
+                </div>
+              </div>
             </div>
+
+            {pool && (
+              <div className={[cstyles.verticalflex].join(" ")}>
+                <div className={[cstyles.sublight].join(" ")}>Pool</div>
+                <div className={[cstyles.flexspacebetween].join(" ")}>
+                  <div>{pool}</div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className={cstyles.margintoplarge} />
+
+          {memos && memos.length > 0 && !!memos.join("") && (
+            <div>
+              <div className={[cstyles.sublight].join(" ")}>Memo</div>
+              <div className={[cstyles.flexspacebetween].join(" ")}>
+                <div
+                  className={[
+                    cstyles.small,
+                    cstyles.sublight,
+                    cstyles.padtopsmall,
+                    cstyles.memodiv,
+                    styles.txmemo,
+                  ].join(" ")}
+                >
+                  {memos.join("\n") + "\n" + labelReplyTo}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <hr style={{ width: "100%" }} />
 
         <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>
           <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>
