@@ -543,6 +543,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setReadOnly={this.setReadOnly}
                     setServerUris={this.setServerUris}
                     navigateToDashboard={this.navigateToDashboard}
+                    {...standardProps}
                   />
                 )}
               />

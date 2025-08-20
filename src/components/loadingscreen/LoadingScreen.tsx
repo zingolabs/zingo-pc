@@ -78,6 +78,7 @@ type LoadingScreenProps = {
   setReadOnly: (readOnly: boolean) => void;
   setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
@@ -117,17 +118,25 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.setState({
       buttonsDisable: true,
     })
-    console.log('did mount, disable TRUE');
 
     const r = native.set_crypto_default_provider_to_ring();
     console.log('crypto provider result', r);
 
     await this.doFirstTimeSetup();
 
+    // warning with the migration from Z1 to Z2
+    const version = await RPC.getWalletVersion();
+    console.log('WALLET VERSION -------------->', version);
+    if (version && version < 32) {
+      this.props.openErrorModal(
+        "Wallet migration", 
+        "We are migrating your wallet to the new synchronization system.\n\nYour balance will change as the migration progresses. Don't worry, your funds are safe!"
+      );
+    }
+
     this.setState({
       buttonsDisable: false,
     })
-    console.log('did mount, disable FALSE');
   }
 
   download = async (url: string, dest: string, name: string, cb: (msg: string) => void) => {
