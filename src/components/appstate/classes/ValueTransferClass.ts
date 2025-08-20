@@ -1,21 +1,27 @@
+import { ValueTransferKindEnum } from "../enums/ValueTransferKindEnum";
+import { ValueTransferPoolEnum } from "../enums/ValueTransferPoolEnum";
+import { ValueTransferStatusEnum } from "../enums/ValueTransferStatusEnum";
+
 export default class ValueTransferClass {
-  type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | 'rejection';
+  type: ValueTransferKindEnum;
   fee?: number;
   confirmations: number;
-  status: 'calculated' | 'transmitted' | 'mempool' |'confirmed';
+  blockheight: number;
+  status: ValueTransferStatusEnum;
   txid: string;
   time: number;
   zec_price?: number;
   address: string;
   amount: number;
   memos?: string[];
-  pool?: 'Orchard' | 'Sapling' | 'Transparent';
+  pool?: ValueTransferPoolEnum;
 
 
   constructor(
-    type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | 'rejection',
-    confirmations: number, 
-    status: 'calculated' | 'transmitted' | 'mempool' |'confirmed',
+    type: ValueTransferKindEnum,
+    confirmations: number,
+    blockheight: number,
+    status: ValueTransferStatusEnum,
     txid: string, 
     time: number, 
     address: string,
@@ -23,6 +29,7 @@ export default class ValueTransferClass {
    ) {
     this.type = type;
     this.confirmations = confirmations;
+    this.blockheight = blockheight;
     this.status = status;
     this.txid = txid;
     this.time = time;

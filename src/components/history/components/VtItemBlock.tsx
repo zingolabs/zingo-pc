@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import dateformat from "dateformat";
 import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
-import { ValueTransferClass } from "../../appstate";
+import { ValueTransferClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../../appstate";
 import Utils from "../../../utils/utils";
 const { clipboard } = window.require("electron");
 
@@ -65,13 +65,13 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
         }}
       >
         <div className={styles.txtype} style={{ marginRight: 10 }}>
-          <div style={{ color: vt.confirmations === 0 ? Utils.getCssVariable('--color-primary-disable') : vt.type === 'received' || vt.type === 'shield' ? Utils.getCssVariable('--color-primary') : Utils.getCssVariable('--color-text') }}>
+          <div style={{ color: vt.confirmations === 0 ? Utils.getCssVariable('--color-primary-disable') : vt.type === ValueTransferKindEnum.received || vt.type === ValueTransferKindEnum.shield ? Utils.getCssVariable('--color-primary') : Utils.getCssVariable('--color-text') }}>
             {Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)}
           </div>
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
-          {(vt.status === 'calculated' || vt.status === 'transmitted' || vt.status === 'mempool') && (
-            <div style={{ color: vt.status === 'calculated' || vt.status === 'transmitted' ? Utils.getCssVariable('--color-warning') : Utils.getCssVariable('--color-primary-disable') }}>
-              {vt.status === 'calculated' ? 'Calculated' : vt.status === 'transmitted' ? 'Transmitted' : vt.status === 'mempool' ? 'In Mempool': ''}
+          {(vt.status === ValueTransferStatusEnum.calculated || vt.status === ValueTransferStatusEnum.transmitted || vt.status === ValueTransferStatusEnum.mempool) && (
+            <div style={{ color: vt.status === ValueTransferStatusEnum.calculated || vt.status === ValueTransferStatusEnum.transmitted ? Utils.getCssVariable('--color-warning') : Utils.getCssVariable('--color-primary-disable') }}>
+              {vt.status === ValueTransferStatusEnum.calculated ? 'Calculated' : vt.status === ValueTransferStatusEnum.transmitted ? 'Transmitted' : vt.status === ValueTransferStatusEnum.mempool ? 'In Mempool': ''}
             </div>
           )}
         </div>

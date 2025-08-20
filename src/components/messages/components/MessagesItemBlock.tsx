@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import dateformat from "dateformat";
 import styles from "../Messages.module.css";
 import cstyles from "../../common/Common.module.css";
-import { ValueTransferClass } from "../../appstate";
+import { ValueTransferClass, ValueTransferKindEnum } from "../../appstate";
 import Utils from "../../../utils/utils";
 const { clipboard } = window.require("electron");
 
@@ -49,13 +49,13 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           alignItems: 'flex-start',
           justifyContent: 'flex-start',
           padding: 20,
-          marginLeft: vt.type === 'received' ? 20 : 100,
-          marginRight: vt.type === 'received' ? 100 : 20,
+          marginLeft: vt.type === ValueTransferKindEnum.received ? 20 : 100,
+          marginRight: vt.type === ValueTransferKindEnum.received ? 100 : 20,
           borderRadius: 20,
-          borderBottomRightRadius: vt.type === 'received' ? 20 : 0,
-          borderBottomLeftRadius: vt.type === 'received' ? 0 : 20,
+          borderBottomRightRadius: vt.type === ValueTransferKindEnum.received ? 20 : 0,
+          borderBottomLeftRadius: vt.type === ValueTransferKindEnum.received ? 0 : 20,
           backgroundColor:
-            vt.type === 'received' ? Utils.getCssVariable('--color-primary-disable') : Utils.getCssVariable('--color-primary'),
+            vt.type === ValueTransferKindEnum.received ? Utils.getCssVariable('--color-primary-disable') : Utils.getCssVariable('--color-primary'),
 
         }}
         className={[cstyles.well, styles.txbox].join(" ")}
@@ -110,7 +110,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
       <div 
         style={{
           display: 'flex',
-          flexDirection: vt.type === 'received' ? 'row' : 'row-reverse', 
+          flexDirection: vt.type === ValueTransferKindEnum.received ? 'row' : 'row-reverse', 
           alignItems: 'baseline',
           marginBottom: 15,
           marginTop: 5,
@@ -121,10 +121,10 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           <>
             <div 
               style={{ 
-                marginLeft: vt.type === 'received' ? 20 : 10, 
-                marginRight: vt.type === 'received' ? 10 : 20, 
+                marginLeft: vt.type === ValueTransferKindEnum.received ? 20 : 10, 
+                marginRight: vt.type === ValueTransferKindEnum.received ? 10 : 20, 
               }} 
-              className={[vt.type === 'received' ? cstyles.highlight : null, styles.txamount].join(" ")}
+              className={[vt.type === ValueTransferKindEnum.received ? cstyles.highlight : null, styles.txamount].join(" ")}
             >
               <div 
                 style={{ alignItems: 'baseline' }} 

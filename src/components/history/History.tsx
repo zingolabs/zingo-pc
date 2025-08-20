@@ -16,9 +16,10 @@ type HistoryProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
 };
 
-const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handleShieldButton }) => {
+const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal }) => {
   const context = useContext(ContextApp);
   const { valueTransfers, info, addressBook, totalBalance, readOnly, fetchError } = context;
 
@@ -215,6 +216,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
           setSendTo={setSendTo}
           addressBookMap={addressBookMap}
           valueTransfersSliced={valueTransfersSorted}
+          openErrorModal={openErrorModal}
         />
       )}
     </div>

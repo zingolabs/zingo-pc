@@ -1,4 +1,4 @@
-import { AddressKindEnum, UnifiedAddressClass } from "../components/appstate";
+import { AddressKindEnum, UnifiedAddressClass, ValueTransferKindEnum } from "../components/appstate";
 import randomColor from 'randomcolor';
 
 import native from "../native.node";
@@ -18,32 +18,32 @@ export default class Utils {
   };
 
   static VTTypeWithConfirmations(
-    type: 'sent' | 'received' | 'send-to-self' | 'memo-to-self' | 'shield' | 'rejection' | "", 
+    type: ValueTransferKindEnum | "", 
     confirmations:number,
   ): string {
-    return type === 'sent' && confirmations === 0
+    return type === ValueTransferKindEnum.sent && confirmations === 0
       ? '...Sending...'
-      : type === 'sent' && confirmations > 0
+      : type === ValueTransferKindEnum.sent && confirmations > 0
       ? 'Sent'
-      : type === 'received' && confirmations === 0
+      : type === ValueTransferKindEnum.received && confirmations === 0
       ? '...Receiving...'
-      : type === 'received' && confirmations > 0
+      : type === ValueTransferKindEnum.received && confirmations > 0
       ? 'Received'
-      : type === 'memo-to-self' && confirmations === 0
+      : type === ValueTransferKindEnum.memoToSelf && confirmations === 0
       ? '...Sending to self...'
-      : type === 'memo-to-self' && confirmations > 0
+      : type === ValueTransferKindEnum.memoToSelf && confirmations > 0
       ? 'Memo to self'
-      : type === 'send-to-self' && confirmations === 0
+      : type === ValueTransferKindEnum.sendToSelf && confirmations === 0
       ? '...Sending to self...'
-      : type === 'send-to-self' && confirmations > 0
+      : type === ValueTransferKindEnum.sendToSelf && confirmations > 0
       ? 'Send to self'
-      : type === 'shield' && confirmations === 0
+      : type === ValueTransferKindEnum.shield && confirmations === 0
       ? '...Shielding...'
-      : type === 'shield' && confirmations > 0
+      : type === ValueTransferKindEnum.shield && confirmations > 0
       ? 'Shield'
-      : type === 'rejection' && confirmations === 0
+      : type === ValueTransferKindEnum.rejection && confirmations === 0
       ? '...Sending...'
-      : type === 'rejection' && confirmations > 0
+      : type === ValueTransferKindEnum.rejection && confirmations > 0
       ? 'Rejection'
       : ''; 
   }

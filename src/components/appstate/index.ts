@@ -17,6 +17,9 @@ import { AddressReceiverEnum } from "./enums/AddressReceiverEnum";
 import { AddressScopeEnum } from "./enums/AddressScopeEnum";
 import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
 import { SyncStatusScanRangePriorityEnum } from "./enums/SyncStatusScanRangePriorityEnum";
+import { ValueTransferStatusEnum } from "./enums/ValueTransferStatusEnum";
+import { ValueTransferKindEnum } from "./enums/ValueTransferKindEnum";
+import { ValueTransferPoolEnum } from "./enums/ValueTransferPoolEnum";
 
 import { SyncStatusScanRangeType } from "./types/SyncStatusScanRangeType";
 import { SyncStatusType } from "./types/SyncStatusType";
@@ -46,6 +49,9 @@ export {
   AddressScopeEnum,
   ServerChainNameEnum,
   SyncStatusScanRangePriorityEnum,
+  ValueTransferStatusEnum,
+  ValueTransferKindEnum,
+  ValueTransferPoolEnum,
   
   AppState
 };

@@ -506,9 +506,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.HISTORY}
                 render={() => (
                   <History
-                    setSendTo={this.setSendTo}
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}
+                    {...standardProps}
                   />
                 )}
               />
@@ -516,9 +516,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.MESSAGES}
                 render={() => (
                   <Messages
-                    setSendTo={this.setSendTo}
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}
+                    {...standardProps}
                   />
                 )}
               />

@@ -16,9 +16,10 @@ type MessagesProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
 };
 
-const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton }) => {
+const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal }) => {
   const context = useContext(ContextApp);
   const { messages, info, addressBook, totalBalance, readOnly, fetchError } = context;
 
@@ -216,6 +217,7 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
           setSendTo={setSendTo}
           addressBookMap={addressBookMap}
           valueTransfersSliced={messagesSorted}
+          openErrorModal={openErrorModal}
         />
       )}
     </div>
