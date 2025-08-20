@@ -220,6 +220,27 @@ export default class RPC {
     const str: string = native.deinitialize();
     console.log(`Deinitialize status: ${str}`);
   }
+
+  static async getWalletVersion(): Promise<number | undefined> {
+    try {
+      const walletVersionStr: string = await native.get_wallet_version();
+      if (walletVersionStr) {
+        if (walletVersionStr.toLowerCase().startsWith('error')) {
+          console.log(`Error wallet version ${walletVersionStr}`);
+          return;
+        }
+      } else {
+        console.log('Internal Error wallet version');
+        return;
+      }
+      const walletVersionJSON = await JSON.parse(walletVersionStr);
+
+      return walletVersionJSON.read_version;
+    } catch (error) {
+      console.log(`Critical Error wallet version ${error}`);
+      return;
+    }
+  }
   
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
