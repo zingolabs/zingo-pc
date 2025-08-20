@@ -10,6 +10,7 @@ import {
   SendJsonToTypeType,
   SendProposeType,
   SendType,
+  ValueTransferStatusEnum,
 } from "../components/appstate";
 import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 
@@ -73,87 +74,65 @@ export default class RPC {
 
     const taskPromises: Promise<void>[] = [];
 
-    // if the wallet needs to save, means the App needs to fetch all the new data
-    if (!(await this.getWalletSaveRequired())) {
-      console.log('NOT SAVE REQUIRED: No fetching data');
-      // do need this because of the sync process
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          await this.fetchSyncPoll();
-          //console.log('INTERVAL poll sync');
-          resolve();
-        }),
-      );
-      // need to read block heights (server & wallet)
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          //const s = Date.now();
-          await this.fetchInfo();
-          //console.log('info & server height - ', Date.now() - s);
-          resolve();
-        }),
-      );
-    } else {
-      // do need this because of the sync process
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          await this.fetchSyncPoll();
-          //console.log('INTERVAL poll sync');
-          resolve();
-        }),
-      );
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          //const s = Date.now();
-          await this.fetchInfo();
-          //console.log('info & server height - ', Date.now() - s);
-          resolve();
-        }),
-      );
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          //const s = Date.now();
-          await this.fetchAddresses();
-          //console.log('addresses - ', Date.now() - s);
-          resolve();
-        }),
-      );
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          //const s = Date.now();
-          await this.fetchTotalBalance();
-          //console.log('balance - ', Date.now() - s);
-          resolve();
-        }),
-      );
-      // save the wallet as required.
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          const s = Date.now();
-          await RPC.doSave();
-          if (Date.now() - s > 4000) {
-            console.log('=========================================== > save wallet - ', Date.now() - s);
-          }
-          resolve();
-        }),
-      );
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          //const s = Date.now();
-          await this.fetchTandZandOValueTransfers();
-          //console.log('value transfers - ', Date.now() - s);
-          resolve();
-        }),
-      );
-      taskPromises.push(
-        new Promise<void>(async resolve => {
-          //const s = Date.now();
-          await this.fetchTandZandOMessages();
-          //console.log('messages - ', Date.now() - s);
-          resolve();
-        }),
-      );
-    }
+    // do need this because of the sync process
+    taskPromises.push(
+      new Promise<void>(async resolve => {
+        await this.fetchSyncPoll();
+        //console.log('INTERVAL poll sync');
+        resolve();
+      }),
+    );
+    taskPromises.push(
+      new Promise<void>(async resolve => {
+        //const s = Date.now();
+        await this.fetchInfo();
+        //console.log('info & server height - ', Date.now() - s);
+        resolve();
+      }),
+    );
+    taskPromises.push(
+      new Promise<void>(async resolve => {
+        //const s = Date.now();
+        await this.fetchAddresses();
+        //console.log('addresses - ', Date.now() - s);
+        resolve();
+      }),
+    );
+    taskPromises.push(
+      new Promise<void>(async resolve => {
+        //const s = Date.now();
+        await this.fetchTotalBalance();
+        //console.log('balance - ', Date.now() - s);
+        resolve();
+      }),
+    );
+    // save the wallet as required.
+    taskPromises.push(
+      new Promise<void>(async resolve => {
+        const s = Date.now();
+        await RPC.doSave();
+        if (Date.now() - s > 4000) {
+          console.log('=========================================== > save wallet - ', Date.now() - s);
+        }
+        resolve();
+      }),
+    );
+    taskPromises.push(
+      new Promise<void>(async resolve => {
+        //const s = Date.now();
+        await this.fetchTandZandOValueTransfers();
+        //console.log('value transfers - ', Date.now() - s);
+        resolve();
+      }),
+    );
+    taskPromises.push(
+      new Promise<void>(async resolve => {
+        //const s = Date.now();
+        await this.fetchTandZandOMessages();
+        //console.log('messages - ', Date.now() - s);
+        resolve();
+      }),
+    );
 
     Promise.allSettled(taskPromises);
   }
@@ -244,6 +223,7 @@ export default class RPC {
   
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
+    // PROPOSING
     const shieldResult: string = await native.shield();
     console.log('shield proposal', shieldResult);
     if (shieldResult) {
@@ -273,6 +253,7 @@ export default class RPC {
     }
     console.log(shieldJSON);
 
+    // SHIELDING
     const confirmResult: string = await native.confirm();
     if (confirmResult) {
       if (confirmResult.toLowerCase().startsWith("error")) {
@@ -286,9 +267,28 @@ export default class RPC {
       console.log(err);
       return err;
     }
-    console.log(confirmResult);
+    let confirmJSON = {} as {txids: string[], error: string};
+    try {
+      confirmJSON = JSON.parse(confirmResult);
+    } catch(error: any) {
+      const err = `Error: parsing confirm result ${error.message}`;
+      console.log(err);
+      return err;
+    }
+    if (confirmJSON.error) {
+      const err = `Error: confirm ${confirmJSON.error}`;
+      console.log(err);
+      return err;
+    }
+    if (confirmJSON.txids && confirmJSON.txids.length > 0) {
+      const txids: string = confirmJSON.txids.join(', ');
+      console.log(txids);
+      return txids;
+    }
+    console.log(confirmJSON);
 
-    return confirmResult;
+    // weird case, I want to see the JSON in the error.
+    return JSON.stringify(confirmJSON);
   }
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
@@ -629,7 +629,7 @@ export default class RPC {
         return;
       }
       const unifiedAddressesJSON: UnifiedAddressClass[] = await JSON.parse(unifiedAddressesStr) || [];
-      console.log(unifiedAddressesStr, unifiedAddressesJSON);
+      //console.log(unifiedAddressesStr, unifiedAddressesJSON);
 
       // TRANSPARENT
       const transparentAddressStr: string = await native.get_transparent_addresses();
@@ -643,7 +643,7 @@ export default class RPC {
         return;
       }
       const transparentAddressesJSON: TransparentAddressClass[] = await JSON.parse(transparentAddressStr) || [];
-      console.log(transparentAddressStr, transparentAddressesJSON);
+      //console.log(transparentAddressStr, transparentAddressesJSON);
 
       this.fnSetAddressesUnified(unifiedAddressesJSON);
       this.fnSetAddressesTransparent(transparentAddressesJSON);
@@ -752,20 +752,19 @@ export default class RPC {
 
         currentVtList.txid = tx.txid;
         currentVtList.time = tx.datetime;
-        // basic in zingolib is the same as send-to-self in zingo.
-        currentVtList.type = tx.kind === 'basic' ? 'send-to-self' : tx.kind;
+        currentVtList.type = tx.kind;
         currentVtList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
         currentVtList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
         // unconfirmed means 0 confirmations, the tx is mining already.
         // 'pending' is obsolete
         if (
-          tx.status === 'calculated' ||
-          tx.status === 'transmitted' ||
-          tx.status === 'mempool'
+          tx.status === ValueTransferStatusEnum.calculated ||
+          tx.status === ValueTransferStatusEnum.transmitted ||
+          tx.status === ValueTransferStatusEnum.mempool
         ) {
           currentVtList.confirmations = 0;
-        } else  if (tx.status === 'confirmed') {
+        } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
           currentVtList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
             ? latestBlockHeight - tx.blockheight + 1
             : walletHeight - tx.blockheight + 1;
@@ -774,6 +773,7 @@ export default class RPC {
           currentVtList.confirmations = 0;
         }
 
+        currentVtList.blockheight = tx.blockheight;
         currentVtList.status = tx.status;
         currentVtList.address = !tx.recipient_address ? undefined : tx.recipient_address;
         currentVtList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
@@ -828,20 +828,19 @@ export default class RPC {
 
         currentMList.txid = tx.txid;
         currentMList.time = tx.datetime;
-        // basic in zingolib is the same as send-to-self in zingo.
-        currentMList.type = tx.kind === 'basic' ? 'send-to-self' : tx.kind;
+        currentMList.type = tx.kind;
         currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
         currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
         // unconfirmed means 0 confirmations, the tx is mining already.
         // 'pending' is obsolete
         if (
-          tx.status === 'calculated' ||
-          tx.status === 'transmitted' ||
-          tx.status === 'mempool'
+          tx.status === ValueTransferStatusEnum.calculated ||
+          tx.status === ValueTransferStatusEnum.transmitted ||
+          tx.status === ValueTransferStatusEnum.mempool
         ) {
           currentMList.confirmations = 0;
-        } else  if (tx.status === 'confirmed') {
+        } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
           currentMList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
             ? latestBlockHeight - tx.blockheight + 1
             : walletHeight - tx.blockheight + 1;
@@ -850,6 +849,7 @@ export default class RPC {
           currentMList.confirmations = 0;
         }
 
+        currentMList.blockheight = tx.blockheight;
         currentMList.status = tx.status;
         currentMList.address = !tx.recipient_address ? undefined : tx.recipient_address;
         currentMList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;

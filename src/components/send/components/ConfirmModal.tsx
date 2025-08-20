@@ -27,7 +27,7 @@ type ConfirmModalProps = {
     sendPageState: SendPageStateClass;
     totalBalance: TotalBalanceClass;
     info: InfoClass;
-    sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string | string[]>;
+    sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string>;
     clearToAddrs: () => void;
     closeModal: () => void;
     modalIsOpen: boolean;
@@ -196,11 +196,12 @@ type ConfirmModalProps = {
         // Then send the Tx async
         try {
           const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
-          const txids: string | string[] = await sendTransaction(sendJson);
+          const txidsResult: string = await sendTransaction(sendJson);
 
-          if (typeof txids === "string") {
-            openErrorModal("Error Sending Transaction", `${txids}`);
+          if (!txidsResult || txidsResult.toLowerCase().startsWith('error')) {
+            openErrorModal("Error Sending Transaction", `${txidsResult}`);
           } else {
+            const txids: string[] = txidsResult.split(', ');
             openErrorModal(
               "Successfully Broadcast Transaction",
               <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>

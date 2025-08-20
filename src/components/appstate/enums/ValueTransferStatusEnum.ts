@@ -1,0 +1,7 @@
+export enum ValueTransferStatusEnum {
+  //pending = 'pending', deprecated / splitted
+  calculated = 'calculated',
+  transmitted = 'transmitted',
+  mempool = 'mempool',
+  confirmed = 'confirmed',
+}

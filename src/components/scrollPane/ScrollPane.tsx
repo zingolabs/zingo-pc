@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 type ScrollPaneTopProps = {
   children: React.ReactNode;
@@ -31,8 +31,8 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
     };
   }, [updateDimensions]);
 
-  useEffect(() => {
-    if (isInitialLoad && containerRef.current) {
+  useLayoutEffect(() => {
+    if (isInitialLoad.current && containerRef.current) {
       const scrollToBottom = () => {
         if (containerRef.current) {
           containerRef.current.scrollTop = initialScrollType === 'top' ? 0 : containerRef.current.scrollHeight;
@@ -40,9 +40,13 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
         }
       };
 
-      requestAnimationFrame(scrollToBottom);
+      setTimeout(() => {
+        requestAnimationFrame(scrollToBottom);
+      }, 10);
     }
   }, [initialScrollType]);
+
+  console.log('scroll pane', isInitialLoad.current, containerRef.current);
 
   return (
     <div

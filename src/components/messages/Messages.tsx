@@ -16,9 +16,10 @@ type MessagesProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
 };
 
-const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton }) => {
+const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal }) => {
   const context = useContext(ContextApp);
   const { messages, info, addressBook, totalBalance, readOnly, fetchError } = context;
 
@@ -92,15 +93,6 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
 
   const show100MoreVtns = () => {
     setNumVtnsToShow(numVtnsToShow + 100);
-  };
-
-  const moveValueTransferDetail = (index: number, type: number) => {
-    // -1 -> Previous ValueTransfer
-    //  1 -> Next ValueTransfer
-    if ((index > 0 && type === -1) || (index < messagesSorted.length - 1 && type === 1)) {
-      setValueTransferDetail(messagesSorted[index + type]);
-      setValueTransferDetailIndex(index + type);
-    }
   };
 
   return (
@@ -224,7 +216,8 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
           currencyName={info.currencyName}
           setSendTo={setSendTo}
           addressBookMap={addressBookMap}
-          moveValueTransferDetail={moveValueTransferDetail}
+          valueTransfersSliced={messagesSorted}
+          openErrorModal={openErrorModal}
         />
       )}
     </div>
