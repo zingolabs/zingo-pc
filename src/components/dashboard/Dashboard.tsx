@@ -32,7 +32,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
     
   useEffect(() => {
     // with confirmed transparent funds & no readonly wallet
-    if (totalBalance.confirmedTransparentBalance > 0 && !readOnly) {
+    if (totalBalance.confirmedTransparentBalance > 0 && !readOnly && !anyPending) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
@@ -124,6 +124,9 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
           </>
         )}
       </div>
+
+        
+
     </div>
   );
 };

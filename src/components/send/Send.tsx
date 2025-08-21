@@ -67,7 +67,7 @@ const Send: React.FC<SendProps> = ({
   }, [valueTransfers]);
     
   useEffect(() => {
-    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly) {
+    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly && !anyPending) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
@@ -84,13 +84,22 @@ const Send: React.FC<SendProps> = ({
     setTotalAmountAvailable(_totalAmountAvailable);
     setFromaddr(addressesUnified[addressesUnified.length - 1]?.encoded_address || ""); 
 
-    // If there are unverified funds, then show a tooltip
     let _tooltip: string = "";
+    // set somePending as well here when I know there is something new in ValueTransfers
+    const pending: number =
+      valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
+    // If there are unverified funds, then show a tooltip 
     const unconfirmed: number = 
       (totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance) -
       (totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance);
+    const { bigPart, smallPart }: {bigPart: string, smallPart: string} = 
+      Utils.splitZecAmountIntoBigSmall(unconfirmed);
+    
     if (unconfirmed > 0) {
-      _tooltip = `Waiting for confirmation of ZEC ${unconfirmed} with 3 block (approx 5 minutes)`; 
+      _tooltip = `Waiting for confirmation of ZEC ${bigPart + smallPart} with 3 block (approx 5 minutes)`; 
+    }
+    if (unconfirmed === 0 && pending > 0) {
+      _tooltip = `Waiting for confirmation with 3 block (approx 5 minutes)`; 
     }
     setTooltip(_tooltip);
   }, [
@@ -102,6 +111,7 @@ const Send: React.FC<SendProps> = ({
     totalBalance.confirmedSaplingBalance,
     totalBalance.confirmedTransparentBalance,
     totalBalance.totalSpendableBalance,
+    valueTransfers,
   ]);  
 
   const clearToAddrs = () => {
