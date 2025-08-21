@@ -45,7 +45,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
   }, [valueTransfers]);
     
   useEffect(() => {
-    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly) {
+    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly && !anyPending) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();

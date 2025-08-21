@@ -53,7 +53,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   }, [valueTransfers]);
 
   useEffect(() => {
-    if (type === 't' && calculateShieldFee && totalBalance.confirmedTransparentBalance > 0 && !readOnly && !anyPending) {
+    if (type === 't' && totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly && !anyPending) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
