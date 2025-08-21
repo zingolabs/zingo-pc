@@ -214,8 +214,10 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
             />
             Custom
             <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
-              <div style={{ width: '80%', padding: 0, margin: 0 }}>
+              <div style={{ width: '75%', padding: 0, margin: 0, flexWrap: 'nowrap' }}>
+                URI 
                 <input
+                  placeholder="https://------.---:---"
                   disabled={selectedSelection !== "custom"}
                   type="text"
                   className={cstyles.inputbox} 
@@ -227,7 +229,8 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                   }}
                 />
               </div>
-              <div style={{ width: '20%', padding: 0, margin: 0 }}>
+              <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
+                Network 
                 <select
                   disabled={selectedSelection !== "custom"}
                   className={cstyles.inputbox}
