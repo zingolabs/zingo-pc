@@ -5,6 +5,7 @@ import { ContextApp } from "../../context/ContextAppState";
 import { ServerClass } from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
 import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
+import Utils from "../../utils/utils";
 const { ipcRenderer } = window.require("electron");
 
 type ModalProps = {
@@ -188,7 +189,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                 setSelectedServer(e.target.value);
                 setSelectedChain(servers.filter((s: ServerClass) => s.uri === e.target.value)[0].chain_name);
               }}>
-                <option key="" value=""></option>
+                <option key="" value="" disabled hidden></option>
                 {servers.map((s: ServerClass) => (
                   <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + (s.latency ? (' _ ' + s.latency + ' ms.') : '')}</option>
                 ))}
@@ -214,8 +215,10 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
             />
             Custom
             <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
-              <div style={{ width: '80%', padding: 0, margin: 0 }}>
+              <div style={{ width: '75%', padding: 0, margin: 0, flexWrap: 'nowrap' }}>
+                URI 
                 <input
+                  placeholder="https://------.---:---"
                   disabled={selectedSelection !== "custom"}
                   type="text"
                   className={cstyles.inputbox} 
@@ -227,18 +230,19 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                   }}
                 />
               </div>
-              <div style={{ width: '20%', padding: 0, margin: 0 }}>
+              <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
+                Network 
                 <select
                   disabled={selectedSelection !== "custom"}
                   className={cstyles.inputbox}
-                  style={{ marginLeft: "20px" }}
+                  style={{ marginLeft: "20px", color: customChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
                   value={customChain}
                   onChange={(e) => {
                     setCustomChain(e.target.value as ServerChainNameEnum | '');
                     setSelectedChain(e.target.value as ServerChainNameEnum | '');
                   }}
                 >
-                  <option value=""></option> 
+                  <option value="" disabled hidden>Select...</option> 
                   <option value="main">{chains["main"]}</option>
                   <option value="test">{chains["test"]}</option>
                   <option value="regtest">{chains["regtest"]}</option> 

@@ -62,7 +62,7 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
                 <DetailLine label="Version" value={info.version} />
                 <DetailLine label="Zingolib Version" value={info.zingolib} />
                 <DetailLine label="Node" value={info.zcashdVersion} />
-                <DetailLine label="Lightwallet Server URI" value={url} />
+                <DetailLine label="Server URI" value={url} />
                 <DetailLine label="Chain Name" value={chain_name ? chains[chain_name] : ''} />
                 <DetailLine label="Server Network" value={chains[info.chainName]} />
                 <DetailLine label="Block Height" value={`${info.latestBlock}`} />
