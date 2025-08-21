@@ -12,3 +12,25 @@
   margin-left: 5px;
   margin-right: 5px;
 }
+
+.horizontalcontainer {
+  display: flex;
+  flex-direction: column;
+  margin-left: 16px;
+  margin-right: 16px;
+  margin-top: 16px; 
+}
+
+.detailcontainer {
+  width: 90%;
+  flex-direction: column;
+  margin-top: 3%;
+  justify-content: center;
+  align-items: center;
+}
+
+.detaillines {
+  border: 1px solid grey;
+  padding: 16px;
+}
+

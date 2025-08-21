@@ -5,6 +5,7 @@ import { ContextApp } from "../../context/ContextAppState";
 import { ServerClass } from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
 import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
+import Utils from "../../utils/utils";
 const { ipcRenderer } = window.require("electron");
 
 type ModalProps = {
@@ -188,7 +189,7 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                 setSelectedServer(e.target.value);
                 setSelectedChain(servers.filter((s: ServerClass) => s.uri === e.target.value)[0].chain_name);
               }}>
-                <option key="" value=""></option>
+                <option key="" value="" disabled hidden></option>
                 {servers.map((s: ServerClass) => (
                   <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + (s.latency ? (' _ ' + s.latency + ' ms.') : '')}</option>
                 ))}
@@ -234,14 +235,14 @@ export default function ServerSelectModal({ closeModal, openErrorModal }: ModalP
                 <select
                   disabled={selectedSelection !== "custom"}
                   className={cstyles.inputbox}
-                  style={{ marginLeft: "20px" }}
+                  style={{ marginLeft: "20px", color: customChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
                   value={customChain}
                   onChange={(e) => {
                     setCustomChain(e.target.value as ServerChainNameEnum | '');
                     setSelectedChain(e.target.value as ServerChainNameEnum | '');
                   }}
                 >
-                  <option value=""></option> 
+                  <option value="" disabled hidden>Select...</option> 
                   <option value="main">{chains["main"]}</option>
                   <option value="test">{chains["test"]}</option>
                   <option value="regtest">{chains["regtest"]}</option> 
