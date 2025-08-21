@@ -23,7 +23,6 @@ import {
   FetchErrorTypeClass,
   UnifiedAddressClass,
   TransparentAddressClass,
-  AddressKindEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
@@ -301,24 +300,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     AddressbookImpl.writeAddressBook(newAddressBook);
 
     this.setState({ addressBook: newAddressBook });
-  };
-
-  createNewAddressUnified = async (newKind: AddressKindEnum) => {
-    // Create a new address
-    const newAddress: any = await RPC.createNewAddressUnified(newKind);
-    console.log(`Created new Address ${newAddress}`);
-
-    // And then fetch the list of addresses again to refresh (totalBalance gets all addresses) 
-    this.rpc.fetchTotalBalance();
-  };
-
-  createNewAddressTransparent = async (newKind: AddressKindEnum) => {
-    // Create a new address
-    const newAddress: any = await RPC.createNewAddressTransparent(newKind);
-    console.log(`Created new Address ${newAddress}`);
-
-    // And then fetch the list of addresses again to refresh (totalBalance gets all addresses) 
-    this.rpc.fetchTotalBalance();
   };
 
   doRefresh = () => {

@@ -4,7 +4,6 @@ import {
   InfoClass,
   UnifiedAddressClass,
   TransparentAddressClass,
-  AddressKindEnum,
   SyncStatusType,
   ServerClass,
   SendJsonToTypeType,
@@ -677,24 +676,20 @@ export default class RPC {
     }
   }
 
-  static async createNewAddressUnified(type: AddressKindEnum) {
+  static async createNewAddressUnified(type: string) {
     // Zingolib creates addresses like this:
     // o = orchard only
-    // oz = orchard + sapling
     // z = sapling only
-    const addrStr: string = await native.create_new_unified_address(
-      type === AddressKindEnum.unified ? "oz" : type === AddressKindEnum.sapling ? "z" : "o"
-    );
-    const addrJSON = JSON.parse(addrStr);
-
-    return addrJSON[0];
+    // oz = orchard + sapling
+    const addrStr: string = await native.create_new_unified_address(type);
+    return addrStr;
   }
 
-  static async createNewAddressTransparent(type: AddressKindEnum) {
+  static async createNewAddressTransparent() {
+    // Zingolib creates Addresses like this:
+    // t = transparent
     const addrStr: string = await native.create_new_transparent_address();
-    const addrJSON = JSON.parse(addrStr);
-
-    return addrJSON[0];
+    return addrStr;
   }
 
   static async fetchSeed(): Promise<string> {
