@@ -38,10 +38,11 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
   const [orchard, setOrchard] = useState<boolean>(true);
 
   useEffect(() => {
-    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    //setAnyPending(!!_anyPending);
-    setAnyPending(false);
-  }, []);
+    // set somePending as well here when I know there is something new in ValueTransfers
+    const pending: number =
+      valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
+    setAnyPending(pending > 0);
+  }, [valueTransfers]);
     
   useEffect(() => {
     if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly) {
@@ -147,7 +148,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
           )}
           {!!anyPending && (
             <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
-              Some transactions are pending. Balances may change.
+              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
             </div>
           )}
         </div>

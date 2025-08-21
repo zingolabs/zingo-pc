@@ -10,7 +10,7 @@ import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
-import { TransparentAddressClass, UnifiedAddressClass } from "../../appstate";
+import { TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../../appstate";
 import RPC from "../../../rpc/rpc";
 
 const { clipboard } = window.require("electron");
@@ -35,35 +35,25 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   handleShieldButton
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly, totalBalance } = context;
+  const { readOnly, totalBalance, valueTransfers } = context;
   const address_address = address.encoded_address;
 
   const [copied, setCopied] = useState<boolean>(false);
   const [creating, setCreating] = useState<boolean>(false);
-  const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
   const [shieldFee, setShieldFee] = useState<number>(0);
   const [anyPending, setAnyPending] = useState<boolean>(false);
 
   const [unifiedCreateType, setUnifiedCreateType] = useState<'o' | 'z' | 'oz'>('o');
 
   useEffect(() => {
-    return () => {
-      if (timerID) {
-        setCopied(false);
-        setCreating(false);
-        clearTimeout(timerID);
-      }
-    };
-  });
+    // set somePending as well here when I know there is something new in ValueTransfers
+    const pending: number =
+      valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
+    setAnyPending(pending > 0);
+  }, [valueTransfers]);
 
   useEffect(() => {
-    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    //setAnyPending(!!_anyPending);
-    setAnyPending(false);
-  }, []);
-
-  useEffect(() => {
-    if (type === 't' && calculateShieldFee && totalBalance.confirmedTransparentBalance > 0 && !readOnly) {
+    if (type === 't' && calculateShieldFee && totalBalance.confirmedTransparentBalance > 0 && !readOnly && !anyPending) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
@@ -127,7 +117,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 onClick={() => {
                   setCopied(true);
                   clipboard.writeText(address_address);
-                  setTimerID(setTimeout(() => setCopied(false), 5000));
+                  setTimeout(() => setCopied(false), 5000);
                 }}
               >
                 {copied ? <span>Copied!</span> : <span>Copy Address</span>}
@@ -136,7 +126,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currencyName)}>
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </button>
-              {type === 't' && totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && (
+              {type === 't' && totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
                 <>
                   <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={handleShieldButton}>
                     Shield Balance To Orchard (Fee: {shieldFee})
@@ -175,7 +165,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   if (!result || result.toLowerCase().startsWith('error')) {
                     openErrorModal("New Address", result ? result : "Error: creating a new address.")
                   }
-                  setTimerID(setTimeout(() => setCreating(false), 5000));
+                  setTimeout(() => setCreating(false), 5000);
                 }}
               >
                 {creating ? <span>Creating...</span> : <span>New Address</span>}

@@ -21,7 +21,7 @@ type MessagesProps = {
 
 const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal }) => {
   const context = useContext(ContextApp);
-  const { messages, info, addressBook, totalBalance, readOnly, fetchError } = context;
+  const { messages, info, addressBook, totalBalance, readOnly, fetchError, valueTransfers } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
@@ -38,10 +38,11 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
   const [orchard, setOrchard] = useState<boolean>(true);
 
   useEffect(() => {
-    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true);
-    //setAnyPending(!!_anyPending);
-    setAnyPending(false);
-  }, []);
+    // set somePending as well here when I know there is something new in ValueTransfers
+    const pending: number =
+      valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
+    setAnyPending(pending > 0);
+  }, [valueTransfers]);
     
   useEffect(() => {
     if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly) {
@@ -148,7 +149,7 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
           )}
           {!!anyPending && (
             <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
-              Some transactions are pending. Balances may change.
+              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
             </div>
           )}
         </div>
