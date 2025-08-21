@@ -11,6 +11,7 @@ import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
 import { TransparentAddressClass, UnifiedAddressClass } from "../../appstate";
+import RPC from "../../../rpc/rpc";
 
 const { clipboard } = window.require("electron");
 
@@ -18,7 +19,8 @@ type AddressBlockProps = {
   address: UnifiedAddressClass | TransparentAddressClass;
   label?: string;
   currencyName: string;
-  zecPrice: number;
+  type: 'u' | 't';
+  openErrorModal: (title: string, body: string | JSX.Element) => void;
   calculateShieldFee?: () => Promise<number>;
   handleShieldButton?: () => void;
 };
@@ -27,7 +29,8 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   address,
   label,
   currencyName,
-  zecPrice,
+  type,
+  openErrorModal,
   calculateShieldFee,
   handleShieldButton
 }) => {
@@ -36,13 +39,18 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   const address_address = address.encoded_address;
 
   const [copied, setCopied] = useState<boolean>(false);
+  const [creating, setCreating] = useState<boolean>(false);
   const [timerID, setTimerID] = useState<NodeJS.Timeout | null>(null);
   const [shieldFee, setShieldFee] = useState<number>(0);
   const [anyPending, setAnyPending] = useState<boolean>(false);
 
+  const [unifiedCreateType, setUnifiedCreateType] = useState<'o' | 'z' | 'oz'>('o');
+
   useEffect(() => {
     return () => {
       if (timerID) {
+        setCopied(false);
+        setCreating(false);
         clearTimeout(timerID);
       }
     };
@@ -55,12 +63,12 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   }, []);
 
   useEffect(() => {
-    if (address instanceof TransparentAddressClass && calculateShieldFee && totalBalance.confirmedTransparentBalance > 0 && !readOnly) {
+    if (type === 't' && calculateShieldFee && totalBalance.confirmedTransparentBalance > 0 && !readOnly) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [calculateShieldFee, address, anyPending, readOnly, totalBalance.confirmedTransparentBalance]);
+  }, [calculateShieldFee, address, anyPending, readOnly, totalBalance.confirmedTransparentBalance, type]);
 
   const handleQRCodeClick = async () => {
     console.log('____________ click processed');
@@ -72,7 +80,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     let downloadLink = document.createElement("a");
     downloadLink.href = pngUrl;
     downloadLink.download = "QR_" + 
-                            (address instanceof TransparentAddressClass ? 'T' : 'UA') + 
+                            type + 
                             "_Zingo_PC.png";
     document.body.appendChild(downloadLink);
     downloadLink.click();
@@ -99,25 +107,26 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               </div>
             )}
 
-            {address instanceof UnifiedAddressClass && (
-              <div className={cstyles.margintoplarge}>
-                <div className={[cstyles.sublight].join(" ")}>Address types: {Utils.getReceivers(address).join(" + ")}</div>
+            {type === 'u' && (
+              <div>
+                <div className={[cstyles.sublight].join(" ")}>Address type: {Utils.getReceivers(address as UnifiedAddressClass).join(" + ")}</div>
               </div>
             )}
 
-            {address instanceof TransparentAddressClass && (
-              <div className={cstyles.margintoplarge}>
+            {type === 't' && (
+              <div>
                 <div className={[cstyles.sublight].join(" ")}>Address type: Transparent</div>
               </div>
             )}
 
             <div>
               <button
+                disabled={copied}
                 className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
                 type="button"
                 onClick={() => {
-                  clipboard.writeText(address_address);
                   setCopied(true);
+                  clipboard.writeText(address_address);
                   setTimerID(setTimeout(() => setCopied(false), 5000));
                 }}
               >
@@ -127,13 +136,50 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currencyName)}>
                 View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </button>
-              {address instanceof TransparentAddressClass && totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && (
+              {type === 't' && totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && (
                 <>
                   <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={handleShieldButton}>
                     Shield Balance To Orchard (Fee: {shieldFee})
                   </button>
                 </>
               )}
+            </div>
+            <div 
+              className={type === 'u' ? cstyles.margintoplarge : undefined}
+              style={{ borderWidth: type === 'u' ? 1: 0, borderStyle: 'solid', borderColor: Utils.getCssVariable('--color-primary'), paddingTop: 10, paddingBottom: 10 }}>
+              {type === 'u' && ( 
+                <select
+                  className={cstyles.inputbox}
+                  style={{ marginLeft: 10 }}
+                  value={unifiedCreateType}
+                  onChange={(e) => {
+                    setUnifiedCreateType(e.target.value as 'o' | 'z' | 'oz');
+                  }}>
+                    <option key="o" value="o">Orchard</option>
+                    <option key="oz" value="oz">Orchard+Sapling</option>
+                    <option key="z" value="z">Sapling</option>
+                </select>
+              )}
+              <button
+                disabled={creating}
+                className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                type="button"
+                onClick={async () => {
+                  setCreating(true);
+                  let result: string;
+                  if (type === 't') {
+                    result = await RPC.createNewAddressTransparent();
+                  } else {
+                    result = await RPC.createNewAddressUnified(unifiedCreateType)
+                  }
+                  if (!result || result.toLowerCase().startsWith('error')) {
+                    openErrorModal("New Address", result ? result : "Error: creating a new address.")
+                  }
+                  setTimerID(setTimeout(() => setCreating(false), 5000));
+                }}
+              >
+                {creating ? <span>Creating...</span> : <span>New Address</span>}
+              </button>
             </div>
           </div>
           <div>
