@@ -6,6 +6,7 @@ import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
 import { ContextApp } from "../../context/ContextAppState";
 
 import native from "../../native.node";
+import { ValueTransferClass } from "../appstate";
 
 type DashboardProps = {
   calculateShieldFee: () => Promise<number>;
@@ -14,7 +15,7 @@ type DashboardProps = {
 
 const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldButton}) => {
   const context = useContext(ContextApp);
-  const { totalBalance, info, readOnly, fetchError } = context;
+  const { totalBalance, info, readOnly, fetchError, valueTransfers } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -23,10 +24,11 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
   const [orchard, setOrchard] = useState<boolean>(true);
 
   useEffect(() => {
-    //const _anyPending: Address | undefined = !!addresses && addresses.find((i: Address) => i.containsPending === true); 
-    //setAnyPending(!!_anyPending);
-    setAnyPending(false);
-  }, []);
+    // set somePending as well here when I know there is something new in ValueTransfers
+    const pending: number =
+      valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
+    setAnyPending(pending > 0);
+  }, [valueTransfers]);
     
   useEffect(() => {
     // with confirmed transparent funds & no readonly wallet
@@ -109,7 +111,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
           )}
           {!!anyPending && (
             <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
-              Some transactions are pending. Balances may change.
+              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
             </div>
           )}
         </div>
