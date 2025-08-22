@@ -46,7 +46,7 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
     }
   }, [initialScrollType]);
 
-  console.log('scroll pane', isInitialLoad.current, containerRef.current);
+  //console.log('scroll pane', isInitialLoad.current, containerRef.current);
 
   return (
     <div
