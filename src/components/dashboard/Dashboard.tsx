@@ -156,7 +156,11 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
                   <div>
                     <div className={styles.detailcontainer}>
                       <div className={styles.detaillines}>
-                        {valueTransfers.map((vt: ValueTransferClass) => (<DetailLine label={Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)} value={'ZEC ' + Utils.maxPrecisionTrimmed(vt.amount)} />))}
+                        {valueTransfers
+                          .filter((_, index: number) => index < 5)
+                          .map((vt: ValueTransferClass, index: number) => (
+                            <DetailLine key={index} label={Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)} value={'ZEC ' + Utils.maxPrecisionTrimmed(vt.amount)} />
+                          ))}
                       </div>
                     </div>
                   </div>
