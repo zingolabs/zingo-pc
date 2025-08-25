@@ -202,7 +202,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   loadServer = async () => {    
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
-    console.log('SETTINGS;;;;;;;;;', settings);
+    //console.log('SETTINGS;;;;;;;;;', settings);
     let server: string, 
         chain_name: ServerChainNameEnum, 
         selection: 'auto' | 'list' | 'custom';
@@ -293,7 +293,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     }
 
-    console.log('&&&&&&&&----------', server, chain_name, selection);
+    //console.log('&&&&&&&&----------', server, chain_name, selection);
 
     this.setState({
       url: server,
@@ -443,12 +443,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   }
 
   runSyncStatusPoller = async () => {
-    console.log('start runSyncStatusPoller');
+    //console.log('start runSyncStatusPoller');
 
     const { runRPCConfigure, setInfo } = this.props;
 
     const info: InfoClass = await RPC.getInfoObject();
-    console.log(info);
+    //console.log(info);
 
     if (info.error) {
       this.setState({
@@ -585,7 +585,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     const { openServerSelectModal } = this.props;
 
-    console.log('loading screen render', buttonsDisable);
+    //console.log('loading screen render', buttonsDisable);
 
     if (loadingDone) {
         setTimeout(() => this.props.navigateToDashboard(), 500);

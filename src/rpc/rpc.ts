@@ -111,11 +111,7 @@ export default class RPC {
     // save the wallet as required.
     taskPromises.push(
       new Promise<void>(async resolve => {
-        const s = Date.now();
         await RPC.doSave();
-        if (Date.now() - s > 4000) {
-          console.log('=========================================== > save wallet - ', Date.now() - s);
-        }
         resolve();
       }),
     );
@@ -367,11 +363,7 @@ export default class RPC {
 
   async getWalletSaveRequired(): Promise<boolean> {
     try {
-      const start = Date.now();
       const walletSaveRequiredStr: string = await native.get_wallet_save_required();
-      if (Date.now() - start > 4000) {
-        console.log('=========================================== > wallet save required - ', Date.now() - start);
-      }
       if (walletSaveRequiredStr) {
         if (walletSaveRequiredStr.toLowerCase().startsWith('error')) {
           console.log(`Error wallet save required ${walletSaveRequiredStr}`);
@@ -391,11 +383,7 @@ export default class RPC {
   }
 
   async fetchSyncPoll(): Promise<void> {
-    const s = Date.now();
     const returnPoll: string = await native.poll_sync();
-    if (Date.now() - s > 4000) {
-      console.log('=========================================== > sync poll command - ', Date.now() - s);
-    }
     if (!returnPoll || returnPoll.toLowerCase().startsWith('error')) {
       console.log('SYNC POLL ERROR', returnPoll);
       this.lastPollSyncError = returnPoll;
@@ -473,11 +461,7 @@ export default class RPC {
   }
 
   async fetchSyncStatus(): Promise<void> {
-    const s = Date.now();
     const returnStatus: string = await native.status_sync();
-    if (Date.now() - s > 4000) {
-      console.log('=========================================== > sync status command - ', Date.now() - s);
-    }
     if (!returnStatus || returnStatus.toLowerCase().startsWith('error')) {
       console.log('SYNC STATUS ERROR', returnStatus);
       return;

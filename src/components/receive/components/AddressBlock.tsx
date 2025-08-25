@@ -61,7 +61,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   }, [calculateShieldFee, address, anyPending, readOnly, totalBalance.confirmedTransparentBalance, type]);
 
   const handleQRCodeClick = async () => {
-    console.log('____________ click processed');
+    //console.log('____________ click processed');
     const canvas: HTMLCanvasElement | null = document.querySelector("canvas");
     if (canvas) {
       const pngUrl = canvas

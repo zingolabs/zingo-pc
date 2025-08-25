@@ -172,14 +172,14 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   setValueTransferList = (valueTransfers: ValueTransferClass[]) => {
     if (!isEqual(valueTransfers, this.state.valueTransfers)) {
-      console.log('=============== ValueTransfer list', valueTransfers);
+      console.log('=============== ValueTransfer list', valueTransfers.length);
       this.setState({ valueTransfers });
     }
   };
 
   setMessagesList = (messages: ValueTransferClass[]) => {
     if (!isEqual(messages, this.state.messages)) {
-      console.log('=============== ValueTransfer Messages list', messages);
+      console.log('=============== ValueTransfer Messages list', messages.length);
       this.setState({ messages });
     }
   };
@@ -326,7 +326,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   calculateShieldFee = async (): Promise<number> => {
     const result: string = await native.shield();
-    console.log(result);
+    //console.log(result);
     if (!result || result.toLowerCase().startsWith('error')) {
       return 0;
     } else {

@@ -130,7 +130,7 @@ const ToAddrBox = ({
     })();
   }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.memo, toaddr.memoReplyTo, toaddr.to, zecPrice]);
   
-  console.log(sendFeeError);
+  //console.log(sendFeeError);
 
   return ( 
     <div>

@@ -221,7 +221,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       actionStr = await native.remove_transaction(txid);
     }
 
-    console.log(actionStr);
+    //console.log(actionStr);
 
     if (actionStr) {
       if (actionStr.toLowerCase().startsWith('error')) {
@@ -240,7 +240,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     }
   };
 
-  console.log('render details', isTheFirstMount, showNavigator, totalLength);
+  //console.log('render details', isTheFirstMount, showNavigator, totalLength);
 
   return (
     <Modal

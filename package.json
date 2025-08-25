@@ -53,7 +53,7 @@
   "scripts": {
     "postinstall": "node set-resolutions-macos.js",
     "lint": "cross-env NODE_ENV=production eslint . --fix --ext .js,.jsx,.ts,.tsx",
-    "start": "concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
+    "start": "cross-env RUST_BACKTRACE=1 ELECTRON_ENABLE_LOGGING=1 NODE_OPTIONS=--trace-uncaught concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
     "script:build": "cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
     "cargo:clean": "cd native && cargo clean && cd ..",
     "cargo:update": "cd native && cargo update && cd ..",

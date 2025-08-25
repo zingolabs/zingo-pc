@@ -82,7 +82,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
     })();
   }, []);
 
-  console.log('shield fee', shieldFee); 
+  //console.log('shield fee', shieldFee); 
 
   return (
     <div>
