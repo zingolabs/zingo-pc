@@ -23,6 +23,7 @@ import {
   FetchErrorTypeClass,
   UnifiedAddressClass,
   TransparentAddressClass,
+  SyncStatusType,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
@@ -67,6 +68,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       this.setMessagesList,
       this.setInfo,
       this.setZecPrice,
+      this.setSyncStatus,
       this.setVerificationProgress,
       this.setFetchError,
       server,
@@ -260,6 +262,12 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
+  setSyncStatus = (syncingStatus: SyncStatusType) => {
+    if (!isEqual(this.state.syncingStatus, syncingStatus)) {
+      this.setState({ syncingStatus });
+    }
+  };
+
   setVerificationProgress = (verificationProgress: number | null) => {
     if (verificationProgress !== this.state.verificationProgress) {
       this.setState({ verificationProgress });
@@ -302,8 +310,14 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ addressBook: newAddressBook });
   };
 
-  doRefresh = () => {
-    this.rpc.refreshSync(false);
+  doRefreshServerInfo = () => {
+    this.rpc.fetchInfo();
+  };
+
+  doRescan = () => {
+    this.clearTimers();
+    this.rpc.refreshSync(true);
+    this.rpc.configure();
   };
 
   clearTimers = () => {
@@ -395,6 +409,20 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     });
   };
 
+  navigateToHistory = () => {
+    this.props.history.replace({
+      pathname: routes.HISTORY, 
+      state: {},
+    });
+  };
+
+  navigateToZcashd = () => {
+    this.props.history.replace({
+      pathname: routes.ZCASHD, 
+      state: {},
+    });
+  };
+
   navigateToLoadingScreen = (currentStatusIsError: boolean, currentStatus: string, serverUris: ServerClass[]) => {
     this.props.history.replace({
       pathname: routes.LOADING, 
@@ -429,6 +457,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 setInfo={this.setInfo}
                 clearTimers={this.clearTimers}
                 navigateToLoadingScreen={this.navigateToLoadingScreen}
+                doRescan={this.doRescan}
                 {...standardProps}
               />
             </div>
@@ -474,6 +503,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <Dashboard 
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}
+                    navigateToHistory={this.navigateToHistory}
+                    navigateToZcashd={this.navigateToZcashd}
                   />
                 )}
               />
@@ -508,7 +539,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.ZCASHD}
                 render={() => (
                   <Zcashd
-                    refresh={this.doRefresh}
+                    refresh={this.doRefreshServerInfo}
                     openServerSelectModal={this.openServerSelectModal}
                   />
                 )}

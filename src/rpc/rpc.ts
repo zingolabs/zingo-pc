@@ -24,6 +24,7 @@ export default class RPC {
   fnSetMessagesList: (t: ValueTransferClass[]) => void;
   fnSetInfo: (info: InfoClass) => void;
   fnSetZecPrice: (p?: number) => void;
+  fnSetSyncStatus: (ss: SyncStatusType) => void;
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
 
@@ -45,6 +46,7 @@ export default class RPC {
     fnSetMessagesList: (t: ValueTransferClass[]) => void,
     fnSetInfo: (info: InfoClass) => void,
     fnSetZecPrice: (p?: number) => void,
+    fnSetSyncStatus: (ss: SyncStatusType) => void,
     fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
     server: ServerClass,
@@ -56,6 +58,7 @@ export default class RPC {
     this.fnSetMessagesList = fnSetMessagesList;
     this.fnSetInfo = fnSetInfo;
     this.fnSetZecPrice = fnSetZecPrice;
+    this.fnSetSyncStatus = fnSetSyncStatus;
     this.fnSetVerificationProgress = fnSetVerificationProgress;
     this.fnSetFetchError = fnSetFetchError;
 
@@ -187,28 +190,6 @@ export default class RPC {
     }
   }
 
-  static async doSync() {
-    const syncstr: string = await native.run_sync();
-    console.log(`Sync exec result: ${syncstr}`);
-  }
-
-  static async doRescan() {
-    const syncstr: string = await native.run_rescan();
-    console.log(`rescan exec result: ${syncstr}`);
-  }
-
-  static async doSyncStatus(): Promise<string> {
-    const syncstr: string = await native.status_sync();
-    console.log(`sync status: ${syncstr}`);
-    return syncstr;
-  }
-
-  static async doSyncPoll(): Promise<string> {
-    const syncstr: string = await native.poll_sync();
-    console.log(`sync poll: ${syncstr}`);
-    return syncstr;
-  }
-
   static async doSave() {
     const syncstr: string = await native.save_wallet_file();
     console.log(`wallet saved: ${syncstr}`);
@@ -315,6 +296,7 @@ export default class RPC {
   static async getInfoObject(): Promise<InfoClass> {
     try {
       const infostr: string = await native.info_server();
+      //console.log(infostr);
       if (!infostr || infostr.toLowerCase().startsWith("error")) {
         console.log("server info Failed", infostr);
         return new InfoClass(infostr);
@@ -332,6 +314,7 @@ export default class RPC {
 
       // Also set `zecPrice` manually
       const resultStr: string = await native.zec_price("false");
+      //console.log(resultStr);
       if (resultStr) {
         if (resultStr.toLowerCase().startsWith("error")) {
           console.log(`Error fetching price Info ${resultStr}`);
@@ -347,6 +330,7 @@ export default class RPC {
 
       // zingolib version
       let zingolibStr: string = await native.get_version();
+      //console.log(zingolibStr);
       if (zingolibStr) {
         if (zingolibStr.toLowerCase().startsWith('error')) {
           zingolibStr = '<error>';
@@ -358,12 +342,13 @@ export default class RPC {
 
       // we want to update the wallet last block
       const walletHeight: number = await RPC.fetchWalletHeight();
+      //console.log(walletHeight);
       info.walletHeight = walletHeight;
 
       return info;
     } catch (err) {
-      console.log("Error: to parse info", err);
-      return new InfoClass("Error: to parse info" + err);
+      console.log("Error: to parse info ", err);
+      return new InfoClass("Error: to parse info " + err);
     }
   }
 
@@ -466,6 +451,7 @@ export default class RPC {
         confirmedSaplingBalance: 0,
         totalSpendableBalance: 0,
       } as TotalBalanceClass);
+      this.fnSetSyncStatus({});
       this.fnSetVerificationProgress(null);
 
       // the rescan in zingolib do two tasks:
@@ -511,6 +497,7 @@ export default class RPC {
     //console.log('interval sync/rescan, secs', this.secondsBatch, 'timer', this.syncStatusTimerID);
 
     // store SyncStatus object for a new screen
+    this.fnSetSyncStatus(ss);
     this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ? ss.percentage_total_outputs_scanned : 0);
   }
 
