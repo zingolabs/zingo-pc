@@ -24,6 +24,7 @@ type SidebarProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
   navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
+  doRescan: () => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
@@ -32,6 +33,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   setSendTo,
   openErrorModal,
   navigateToLoadingScreen,
+  doRescan,
   history,
   location,
 }) => {
@@ -182,7 +184,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       );        
     });
 
-    // Rescan
     ipcRenderer.on("change", async () => {
       // To change to another wallet, we reset the wallet loading
       // and redirect to the loading screen
@@ -232,18 +233,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       }
     });
 
-    // Rescan
     ipcRenderer.on("rescan", async () => {
       // To rescan, we reset the wallet loading
-      // So set info the default, and redirect to the loading screen
-      clearTimers();
-
-      RPC.doRescan();
-
-      // Reset the info object, it will be refetched
-      setInfo(new InfoClass());
-
-      navigateToLoadingScreen(false, "", serverUris)
+      doRescan();
     });
 
     // View zcashd

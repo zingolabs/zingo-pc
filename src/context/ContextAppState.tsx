@@ -10,7 +10,8 @@ import {
   ServerClass, 
   FetchErrorTypeClass, 
   UnifiedAddressClass, 
-  TransparentAddressClass 
+  TransparentAddressClass, 
+  SyncStatusType
 } from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
 
@@ -25,6 +26,7 @@ export const defaultAppState: AppState = {
   serverSelectState: new ServerSelectStateClass(),
   sendPageState: new SendPageStateClass(),
   info: new InfoClass(),
+  syncingStatus: {} as SyncStatusType,
   verificationProgress: null,
   readOnly: false,
   serverUris: [] as ServerClass[],

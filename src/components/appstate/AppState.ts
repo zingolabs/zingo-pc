@@ -1,20 +1,21 @@
 import { ErrorModalData } from "../errormodal";
-import TotalBalance from "./classes/TotalBalanceClass";
-import ValueTransfer from "./classes/ValueTransferClass";
-import SendPageState from "./classes/SendPageStateClass";
-import ServerSelectState from "./classes/ServerSelectStateClass";
-import Server from "./classes/ServerClass";
-import FetchErrorType from "./classes/FetchErrorClass";
+import TotalBalanceClass from "./classes/TotalBalanceClass";
+import ValueTransferClass from "./classes/ValueTransferClass";
+import SendPageStateClass from "./classes/SendPageStateClass";
+import ServerSelectStateClass from "./classes/ServerSelectStateClass";
+import ServerClass from "./classes/ServerClass";
+import FetchErrorClass from "./classes/FetchErrorClass";
 
 import AddressUnifiedClass from "./classes/UnifiedAddressClass";
 import AddressTransparentClass from "./classes/TransparentAddressClass";
 import AddressBookEntryClass from "./classes/AddressBookEntryClass";
 import InfoClass from "./classes/InfoClass";
+import { SyncStatusType } from "./types/SyncStatusType";
 
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
-  totalBalance: TotalBalance;
+  totalBalance: TotalBalanceClass;
 
   // List of all addresses in the wallet
   addressesUnified: AddressUnifiedClass[];
@@ -24,13 +25,13 @@ export default class AppState {
   addressBook: AddressBookEntryClass[];
 
   // List of all T and Z ValueTransfer
-  valueTransfers: ValueTransfer[];
+  valueTransfers: ValueTransferClass[];
 
   // List of all T and Z ValueTransfer for messages
-  messages: ValueTransfer[];
+  messages: ValueTransferClass[];
 
   // The state of the send page, as the user constructs a transaction
-  sendPageState: SendPageState;
+  sendPageState: SendPageStateClass;
 
   // getinfo result
   info: InfoClass;
@@ -39,34 +40,36 @@ export default class AppState {
   errorModalData: ErrorModalData;
 
   // Server selection
-  serverSelectState: ServerSelectState;
+  serverSelectState: ServerSelectStateClass;
 
   // if the wallet is from seed or from VK
   readOnly: boolean;
 
   // list of servers with the latency calculated at launch
-  serverUris: Server[];
+  serverUris: ServerClass[];
 
   // general error of some fetching command
-  fetchError: FetchErrorType;
+  fetchError: FetchErrorClass;
 
   // syncing general progress
+  syncingStatus: SyncStatusType;
   verificationProgress: number | null;
 
   constructor() {
-    this.totalBalance = new TotalBalance();
+    this.totalBalance = new TotalBalanceClass();
     this.addressesUnified = [] as AddressUnifiedClass[];
     this.addressesTransparent = [] as AddressTransparentClass[];
     this.addressBook = [] as AddressBookEntryClass[];
-    this.valueTransfers = [] as ValueTransfer[];
-    this.messages = [] as ValueTransfer[];
+    this.valueTransfers = [] as ValueTransferClass[];
+    this.messages = [] as ValueTransferClass[];
     this.errorModalData = new ErrorModalData();
-    this.serverSelectState = new ServerSelectState();
-    this.sendPageState = new SendPageState();
+    this.serverSelectState = new ServerSelectStateClass();
+    this.sendPageState = new SendPageStateClass();
     this.info = new InfoClass();
+    this.syncingStatus = {} as SyncStatusType;
     this.verificationProgress = null;
     this.readOnly = false;
-    this.serverUris = [] as Server[];
-    this.fetchError = {} as FetchErrorType;
+    this.serverUris = [] as ServerClass[];
+    this.fetchError = {} as FetchErrorClass;
   }
 }

@@ -129,8 +129,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     console.log('WALLET VERSION -------------->', version);
     if (version && version < 32) {
       this.props.openErrorModal(
-        "Wallet migration", 
-        "We are migrating your wallet to the new synchronization system.\n\nYour balance will change as the migration progresses. Don't worry, your funds are safe!"
+        "Wallet migration",
+        <div>
+          <div>
+            We are migrating your wallet to the new synchronization system.
+          </div>
+          <div>
+            Your balance will change as the migration progresses. Don't worry, your funds are safe!
+          </div>
+        </div>
       );
     }
 
@@ -419,7 +426,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     try {
       // Do a sync at start
       this.setState({ currentStatus: "Setting things up..." });
-      await RPC.doSync();
       await this.runSyncStatusPoller();
     } catch (err) {
       console.log("Error initializing", err);

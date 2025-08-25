@@ -40,8 +40,30 @@ use zingolib::data::receivers::transaction_request_from_receivers;
 use zingolib::data::proposal::total_fee;
 use zingo_infra_services::network::ActivationHeights;
 
+use std::{panic, sync::Once};
+use neon::prelude::*;
+
+fn install_panic_hook_once() {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        std::env::set_var("RUST_BACKTRACE", "1"); // opcional pero útil
+        panic::set_hook(Box::new(|info| {
+            let where_ = info.location()
+                .map(|l| format!("{}:{}:{}", l.file(), l.line(), l.column()))
+                .unwrap_or_else(|| "<unknown>".into());
+            let msg = if let Some(s) = info.payload().downcast_ref::<&str>() { *s }
+                      else if let Some(s) = info.payload().downcast_ref::<String>() { s.as_str() }
+                      else { "Box<Any>" };
+            eprintln!("\n=== RUST PANIC ===\nAt: {where_}\nMsg: {msg}\n");
+            // Con RUST_BACKTRACE=1 verás la traza después.
+        }));
+    });
+}
+
 #[neon::main]
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
+    install_panic_hook_once();
+
     cx.export_function("deinitialize", deinitialize)?;
     cx.export_function("wallet_exists", wallet_exists)?;
     cx.export_function("init_new", init_new)?;

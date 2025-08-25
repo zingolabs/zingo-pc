@@ -6,14 +6,17 @@ import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
 import { ContextApp } from "../../context/ContextAppState";
 
 import native from "../../native.node";
-import { ServerChainNameEnum, ValueTransferClass } from "../appstate";
+import { ServerChainNameEnum, SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import DetailLine from "../zcashd/components/DetailLine";
+import RPC from "../../rpc/rpc";
 const { ipcRenderer } = window.require("electron");
 
 type DashboardProps = {
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
+  navigateToHistory: () => void;
+  navigateToZcashd: () => void;
 };
 
 const chains = {
@@ -23,9 +26,9 @@ const chains = {
   "": "" 
 }; 
 
-const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldButton}) => {
+const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldButton, navigateToHistory, navigateToZcashd}) => {
   const context = useContext(ContextApp);
-  const { totalBalance, info, readOnly, fetchError, valueTransfers } = context;
+  const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -34,9 +37,12 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
   const [orchard, setOrchard] = useState<boolean>(true);
   const [url, setUrl] = useState<string>("");
   const [chain_name, setChain_name] = useState<ServerChainNameEnum | "">("");
+  const [birthday, setBirthday] = useState<number>(0);
 
   useEffect(() => {
     (async () => {
+      const birth = await RPC.fetchBirthday();
+      setBirthday(birth);
       const settings = await ipcRenderer.invoke("loadSettings");
       setUrl(settings?.serveruri || ''); 
       setChain_name(settings?.serverchain_name || '');
@@ -146,12 +152,153 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
       </div>
 
       <div className={[styles.horizontalcontainer].join(" ")}>
-        <div className={cstyles.containermarginleft}>
+        {!!birthday && !!syncingStatus.scan_ranges && (
+          <div style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+            Nonlinear Scanning Map
+          </div>
+        )}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'row',
+            justifyContent: 'flex-start',
+            width: '100%',
+            borderBottomColor: 'green',
+            borderBottomWidth: 0,
+            marginBottom: 0,
+            marginTop: 10,
+          }}>
+          {!!birthday && !!syncingStatus.scan_ranges && syncingStatus.scan_ranges.map((range: SyncStatusScanRangeType) => {
+            const percent: number = ((range.end_block - range.start_block) * 100) / (info.latestBlock - birthday);
+            return <div
+              key={`${range.start_block.toString() + '-' + range.end_block.toString()}`}
+              style={{
+                height: 25,
+                width: `${percent}%`,
+                backgroundColor:
+                  range.priority === SyncStatusScanRangePriorityEnum.Scanning
+                    ? 'orange' /* Scanning */
+                    : range.priority === SyncStatusScanRangePriorityEnum.Scanned
+                    ? 'green'  /* Scanned  */
+                    : range.priority === SyncStatusScanRangePriorityEnum.ScannedWithoutMapping
+                    ? 'green'  /* Scanned  */
+                    : range.priority === SyncStatusScanRangePriorityEnum.Historic
+                    ? 'gray'   /* Low priority */
+                    : range.priority === SyncStatusScanRangePriorityEnum.OpenAdjacent
+                    ? 'blue'   /* High priority */
+                    : range.priority === SyncStatusScanRangePriorityEnum.FoundNote
+                    ? 'blue'   /* High priority */
+                    : range.priority === SyncStatusScanRangePriorityEnum.ChainTip
+                    ? 'blue'   /* High priority */
+                    : range.priority === SyncStatusScanRangePriorityEnum.Verify
+                    ? 'blue'   /* High priority */
+                    : 'red',   /* error somehow */
+              }}
+            />;
+          }
+          )}
+        </div>
+        {!!birthday && !!syncingStatus.scan_ranges && (
+          <div
+            style={{
+              display: 'flex',
+              width: '100%',
+              justifyContent: 'flex-start',
+              alignItems: 'flex-start',
+              marginTop: 5,
+              marginLeft: 10,
+            }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                flexWrap: 'nowrap',
+                marginRight: 10,
+                }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  width: 10,
+                  height: 10,
+                  justifyContent: 'flex-start',
+                  backgroundColor: 'green',
+                  margin: 5,
+                }}
+              />
+              Scanned
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                flexWrap: 'nowrap',
+                marginRight: 10,
+                }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  width: 10,
+                  height: 10,
+                  justifyContent: 'flex-start',
+                  backgroundColor: 'orange',
+                  margin: 5,
+                }}
+              />
+              Scanning
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                flexWrap: 'nowrap',
+                marginRight: 10,
+                }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  width: 10,
+                  height: 10,
+                  justifyContent: 'flex-start',
+                  backgroundColor: 'gray',
+                  margin: 5,
+                }}
+              />
+              Low Priority
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                flexWrap: 'nowrap',
+                marginRight: 10,
+                }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  width: 10,
+                  height: 10,
+                  justifyContent: 'flex-start',
+                  backgroundColor: 'blue',
+                  margin: 5,
+                }}
+              />
+              High Priority
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className={[styles.detailcontainer].join(" ")}>
+        <div className={cstyles.containermargin}>
           <ScrollPaneTop offsetHeight={260}>
             <div className={cstyles.horizontalflex} style={{ justifyContent: 'space-between', padding: 20 }}>
 
               {!!valueTransfers && !!valueTransfers.length && (
-                <div style={{ width: '50%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                <div style={{ width: '48%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   Last transactions
                   <div>
                     <div className={styles.detailcontainer}>
@@ -162,13 +309,16 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
                             <DetailLine key={index} label={Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)} value={'ZEC ' + Utils.maxPrecisionTrimmed(vt.amount)} />
                           ))}
                       </div>
+                      <div style={{ width: '100%', textAlign: 'right', color: Utils.getCssVariable('--color-primary'), marginTop: 20, cursor: 'pointer' }} onClick={() => navigateToHistory()}>
+                        See more... 
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
               
               {!!info && (
-                <div style={{ width: '50%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
+                <div style={{ width: '48%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   Server info
                   <div>
                     <div className={styles.detailcontainer}>
@@ -178,6 +328,9 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
                         <DetailLine label="Server Network" value={chains[info.chainName]} />
                         <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                         <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
+                      </div>
+                      <div style={{ width: '100%', textAlign: 'right', color: Utils.getCssVariable('--color-primary'), marginTop: 20, cursor: 'pointer' }} onClick={() => navigateToZcashd()}>
+                        See more... 
                       </div>
                     </div>
                   </div>
