@@ -4,7 +4,7 @@ import { Base64 } from "js-base64";
 import Utils from "./utils";
 
 import native from '../native.node';
-import { AddressKindEnum } from "../components/appstate";
+import { AddressKindEnum, ServerChainNameEnum } from "../components/appstate";
 
 export class ZcashURITarget {
   address?: string;
@@ -22,13 +22,13 @@ export class ZcashURITarget {
   }
 }
 
-export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | string> => {
+export const parseZcashURI = async (uri: string, serverChainName: "" | ServerChainNameEnum): Promise<ZcashURITarget[] | string> => {
   if (!uri || uri === "") {
     return "Error: Bad URI";
   }
 
   // See if it is a straight address.
-  let addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(uri);
+  let addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(uri, serverChainName);
   if (addressKind !== undefined) {
     return uri;
   }
@@ -44,7 +44,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
   //console.log(parsedUri);
   const address: string = parsedUri.pathname;
   if (address) {
-    addressKind = await Utils.getAddressKind(address);
+    addressKind = await Utils.getAddressKind(address, serverChainName);
     if (addressKind === undefined) {
       return `Error: "${address || ""}" was not a valid zcash address`; 
     }
@@ -86,7 +86,7 @@ export const parseZcashURI = async (uri: string): Promise<ZcashURITarget[] | str
           return `Error: Duplicate param ${qName}`;
         }
 
-        const addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(value);
+        const addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(value, serverChainName);
         if (addressKind === undefined) {
           return `Error: ${value} was not a recognized zcash address`;
         }

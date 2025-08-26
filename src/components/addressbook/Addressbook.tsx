@@ -17,7 +17,7 @@ type AddressBookProps = {
 
 const AddressBook: React.FC<AddressBookProps> = (props) => { 
   const context = useContext(ContextApp);
-  const { addressBook } = context;
+  const { addressBook, serverChainName } = context;
 
   const [currentLabel, setCurrentLabel] = useState<string>('');
   const [currentAddress, setCurrentAddress] = useState<string>('');
@@ -29,7 +29,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
 
   useEffect(() => {
     (async () => {
-      const { _labelError } = await validateLabel(currentLabel);
+      const { _labelError } = validateLabel(currentLabel);
       const { _addressError, _addressKind } = await validateAddress(currentAddress);
       setLabelError(_labelError);
       setAddressError(_addressError);
@@ -47,11 +47,11 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     }))
   }, [addressBook]);
 
-  const updateLabel = async (_currentLabel: string) => {
+  const updateLabel = (_currentLabel: string) => {
     setCurrentLabel(_currentLabel);
   };
 
-  const updateAddress = async (_currentAddress: string) => {
+  const updateAddress = (_currentAddress: string) => {
     setCurrentAddress(_currentAddress);
   };
 
@@ -62,7 +62,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     clearFields();
   };
 
-  const validateLabel = async (_currentLabel: string) => {
+  const validateLabel = (_currentLabel: string) => {
     let _labelError: string | null = addressBook.find((i: AddressBookEntryClass) => i.label === _currentLabel) ? "Duplicate Label" : null;
     _labelError = _currentLabel.length > 20 ? "Label is too long" : _labelError;
 
@@ -70,7 +70,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   };
 
   const validateAddress = async (_currentAddress: string) => {
-    const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(_currentAddress);
+    const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(_currentAddress, serverChainName);
     let _addressError: string | null = _currentAddress === "" || _addressKind !== undefined ? null : 'Invalid Address';
     if (!_addressError) {
       _addressError = addressBook.find((i: AddressBookEntryClass) => i.address === _currentAddress) ? 'Duplicate Address' : null;

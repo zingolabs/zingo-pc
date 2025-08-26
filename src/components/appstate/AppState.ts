@@ -11,6 +11,7 @@ import AddressTransparentClass from "./classes/TransparentAddressClass";
 import AddressBookEntryClass from "./classes/AddressBookEntryClass";
 import InfoClass from "./classes/InfoClass";
 import { SyncStatusType } from "./types/SyncStatusType";
+import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
 
 
 export default class AppState {
@@ -55,6 +56,19 @@ export default class AppState {
   syncingStatus: SyncStatusType;
   verificationProgress: number | null;
 
+  // local data for performance
+  serverUri: string;
+  serverChainName: "" | ServerChainNameEnum;
+  serverSelection: '' | 'auto' | 'list' | 'custom';
+  seed_phrase: string;
+  ufvk: string;
+  birthday: number;
+
+  // pools
+  orchardPool: boolean;
+  saplingPool: boolean;
+  transparentPool: boolean;
+
   constructor() {
     this.totalBalance = new TotalBalanceClass();
     this.addressesUnified = [] as AddressUnifiedClass[];
@@ -71,5 +85,14 @@ export default class AppState {
     this.readOnly = false;
     this.serverUris = [] as ServerClass[];
     this.fetchError = {} as FetchErrorClass;
+    this.serverUri = "";
+    this.serverChainName = "";
+    this.serverSelection = "";
+    this.seed_phrase = "";
+    this.ufvk = "";
+    this.birthday = 0;
+    this.orchardPool = true;
+    this.saplingPool = true;
+    this.transparentPool = true;
   }
 }

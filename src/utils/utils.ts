@@ -4,8 +4,6 @@ import randomColor from 'randomcolor';
 import native from "../native.node";
 import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 
-const { ipcRenderer } = window.require("electron");
-
 export const NO_CONNECTION: string = "Could not connect to zcashd";
 
 const { shell } = window.require("electron"); 
@@ -56,7 +54,7 @@ export default class Utils {
     return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
   }
 
-  static async getAddressKind(addr: string): Promise<AddressKindEnum | undefined> {
+  static async getAddressKind(addr: string, currChain: "" | ServerChainNameEnum): Promise<AddressKindEnum | undefined> {
     if (!addr) return;
     const resultParse: string = await native.parse_address(addr);
     if (!resultParse || resultParse.toLowerCase().startsWith('error')) {
@@ -71,9 +69,6 @@ export default class Utils {
       return;
     }
 
-    const settings = await ipcRenderer.invoke("loadSettings");
-    const currChain: ServerChainNameEnum = settings?.serverchain_name || ServerChainNameEnum.mainChainName; 
-    
     if (
       resultParseJSON && 
       resultParseJSON.status && 

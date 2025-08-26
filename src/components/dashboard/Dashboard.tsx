@@ -5,12 +5,9 @@ import Utils from "../../utils/utils";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
 import { ContextApp } from "../../context/ContextAppState";
 
-import native from "../../native.node";
-import { ServerChainNameEnum, SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
+import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import DetailLine from "../zcashd/components/DetailLine";
-import RPC from "../../rpc/rpc";
-const { ipcRenderer } = window.require("electron");
 
 type DashboardProps = {
   calculateShieldFee: () => Promise<number>;
@@ -28,26 +25,10 @@ const chains = {
 
 const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldButton, navigateToHistory, navigateToZcashd}) => {
   const context = useContext(ContextApp);
-  const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus } = context;
+  const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus, serverUri, serverChainName, birthday, orchardPool, saplingPool, transparentPool } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
-  const [transparent, setTransparent] = useState<boolean>(true);
-  const [sapling, setSapling] = useState<boolean>(true);
-  const [orchard, setOrchard] = useState<boolean>(true);
-  const [url, setUrl] = useState<string>("");
-  const [chain_name, setChain_name] = useState<ServerChainNameEnum | "">("");
-  const [birthday, setBirthday] = useState<number>(0);
-
-  useEffect(() => {
-    (async () => {
-      const birth = await RPC.fetchBirthday();
-      setBirthday(birth);
-      const settings = await ipcRenderer.invoke("loadSettings");
-      setUrl(settings?.serveruri || ''); 
-      setChain_name(settings?.serverchain_name || '');
-    })();
-  }, []);
 
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
@@ -65,24 +46,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
     }
   }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]); 
 
-  useEffect(() => {
-    (async () => {
-      const walletKindStr: string = await native.wallet_kind();
-      const walletKindJSON = JSON.parse(walletKindStr);
-
-      if (!walletKindJSON.transparent) {
-        setTransparent(false);
-      }
-      if (!walletKindJSON.sapling) {
-        setSapling(false);
-      }
-      if (!walletKindJSON.orchard) {
-        setOrchard(false);
-      }
-    })();
-  }, []);
-
-  //console.log('shield fee', shieldFee); 
+  //console.log('Dashborad', birthday, syncingStatus);
 
   return (
     <div>
@@ -96,7 +60,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
             zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
             usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
           />
-          {orchard && (
+          {orchardPool && (
             <BalanceBlock
               topLabel="Orchard"
               zecValue={totalBalance.totalOrchardBalance}
@@ -106,7 +70,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
               usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
             />
           )}
-          {sapling && (
+          {saplingPool && (
             <BalanceBlock
               topLabel="Sapling"
               zecValue={totalBalance.totalSaplingBalance}
@@ -116,7 +80,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
               usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
             />
           )}
-          {transparent && (
+          {transparentPool && (
             <BalanceBlock
               topLabel="Transparent"
               zecValue={totalBalance.totalTransparentBalance}
@@ -246,7 +210,7 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
                   margin: 5,
                 }}
               />
-              Scanning
+              Scanning...
             </div>
             <div
               style={{
@@ -323,8 +287,8 @@ const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldBu
                   <div>
                     <div className={styles.detailcontainer}>
                       <div className={styles.detaillines}>
-                        <DetailLine label="Server URI" value={url} />
-                        <DetailLine label="Chain Name" value={chain_name ? chains[chain_name] : ''} />
+                        <DetailLine label="Server URI" value={serverUri} />
+                        <DetailLine label="Chain Name" value={serverChainName ? chains[serverChainName] : ''} />
                         <DetailLine label="Server Network" value={chains[info.chainName]} />
                         <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                         <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
