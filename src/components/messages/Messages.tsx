@@ -10,8 +10,6 @@ import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import VtModal from "../history/components/VtModal";
 
-import native from "../../native.node";
-
 type MessagesProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;
@@ -21,7 +19,7 @@ type MessagesProps = {
 
 const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal }) => {
   const context = useContext(ContextApp);
-  const { messages, info, addressBook, totalBalance, readOnly, fetchError, valueTransfers } = context;
+  const { messages, info, addressBook, totalBalance, readOnly, fetchError, valueTransfers, orchardPool, saplingPool, transparentPool } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
@@ -33,9 +31,6 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
-  const [transparent, setTransparent] = useState<boolean>(true);
-  const [sapling, setSapling] = useState<boolean>(true);
-  const [orchard, setOrchard] = useState<boolean>(true);
 
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
@@ -55,23 +50,6 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
   useEffect(() => {
     setIsLoadMoreEnabled(messages && numVtnsToShow < messages.length);
   }, [numVtnsToShow, messages]);
-
-  useEffect(() => {
-    (async () => {
-      const walletKindStr: string = await native.wallet_kind();
-      const walletKindJSON = JSON.parse(walletKindStr);
-
-      if (!walletKindJSON.transparent) {
-        setTransparent(false);
-      }
-      if (!walletKindJSON.sapling) {
-        setSapling(false);
-      }
-      if (!walletKindJSON.orchard) {
-        setOrchard(false);
-      }
-    })();
-  }, []);
 
   useEffect(() => {
     setMessagesSorted(messages
@@ -108,7 +86,7 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
             zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
             usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
           />
-          {orchard && (
+          {orchardPool && (
             <BalanceBlock
               topLabel="Orchard"
               zecValue={totalBalance.totalOrchardBalance}
@@ -118,7 +96,7 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
               usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
             />
           )}
-          {sapling && (
+          {saplingPool && (
             <BalanceBlock
               topLabel="Sapling"
               zecValue={totalBalance.totalSaplingBalance}
@@ -128,7 +106,7 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
               usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
             />
           )}
-          {transparent && (
+          {transparentPool && (
             <BalanceBlock
               topLabel="Transparent"
               zecValue={totalBalance.totalTransparentBalance}

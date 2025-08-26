@@ -46,6 +46,7 @@ const Send: React.FC<SendProps> = ({
     addressBook,
     fetchError,
     valueTransfers,
+    serverChainName,
   } = context;
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
@@ -146,7 +147,7 @@ const Send: React.FC<SendProps> = ({
     const restToAddr: ToAddrClass[] = sendPageState.toaddrs.filter((a: ToAddrClass) => a.id !== id);
     if (address !== null) {
       // First, check if this is a URI
-      const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address.replace(/ /g, ""));
+      const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address.replace(/ /g, ""), serverChainName);
       if (typeof parsedUri === "string") {
         if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
           // with error leave the same value
@@ -380,6 +381,7 @@ const Send: React.FC<SendProps> = ({
                   setSendFeeError={setSendFeeError}
                   setTotalAmountAvailable={setTotalAmountAvailable}
                   label={getLabelAddressBook(toaddr.to)}
+                  serverChainName={serverChainName}
                 />
               );
             })}

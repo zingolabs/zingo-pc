@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import Modal from "react-modal";
 import { RouteComponentProps, withRouter } from "react-router-dom";
 import styles from "../Send.module.css";
@@ -18,9 +18,7 @@ import SendManyJsonType from "./SendManyJSONType";
 import ConfirmModalToAddr from "./ConfirmModalToAddr";
 
 import native from "../../../native.node";
-import { ServerChainNameEnum } from "../../appstate/enums/ServerChainNameEnum";
-
-const { ipcRenderer } = window.require("electron");
+import { ContextApp } from "../../../context/ContextAppState";
 
 // Internal because we're using withRouter just below
 type ConfirmModalProps = {
@@ -49,6 +47,9 @@ type ConfirmModalProps = {
     sendFee,
     currencyName,
   }) => {
+    const context = useContext(ContextApp);
+    const { serverChainName } = context;
+    
     const [sendingTotal, setSendingTotal] = useState<number>(0);
     const [bigPart, setBigPart] = useState<string>('');
     const [smallPart, setSmallPart] = useState<string>('');
@@ -91,8 +92,7 @@ type ConfirmModalProps = {
       
       //console.log('parse-address', address, resultJSON.status === 'success');
   
-      const settings = await ipcRenderer.invoke("loadSettings");
-      const currChain: ServerChainNameEnum = settings?.serverchain_name || ServerChainNameEnum.mainChainName;  
+      const currChain = serverChainName
 
       if (
         !(resultJSON && 
@@ -169,15 +169,15 @@ type ConfirmModalProps = {
   
       // whatever else
       return '-';
-    }, [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance]);
+    }, [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance, serverChainName]);
 
     useEffect(() => {
+      const sendingTotal: number = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + sendFee;
+      setSendingTotal(sendingTotal);
+      const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(sendingTotal);
+      setBigPart(bigPart);
+      setSmallPart(smallPart);
       (async () => {
-        const sendingTotal: number = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + sendFee;
-        setSendingTotal(sendingTotal);
-        const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(sendingTotal);
-        setBigPart(bigPart);
-        setSmallPart(smallPart);
         const privacyLevel: string = await getPrivacyLevel(sendPageState.toaddrs[0]);
         setPrivacyLevel(privacyLevel);
       })();

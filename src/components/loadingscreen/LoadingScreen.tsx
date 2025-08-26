@@ -79,6 +79,9 @@ type LoadingScreenProps = {
   setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
+  setRecoveryInfo: (s: string, u: string, b: number) => void;
+  setServerInfo: (u: string, c: ServerChainNameEnum, s: 'auto' | 'list' | 'custom') => void;
+  setPools: (o: boolean, s: boolean, t: boolean) => void;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
@@ -295,20 +298,23 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     //console.log('&&&&&&&&----------', server, chain_name, selection);
 
-    this.setState({
-      url: server,
-      chain_name,
-      selection,
-    });
     return {
       url: server,
       chain_name,
+      selection,
     };
   };
 
   doFirstTimeSetup = async () => {
-    const { url, chain_name } = await this.loadServer();
-    console.log(`Url: -${url}-${chain_name}`);
+    const { url, chain_name, selection } = await this.loadServer();
+    console.log(`Url: -${url}-${chain_name}-${selection}`);
+
+    this.setState({
+      url,
+      chain_name,
+      selection,
+    });
+    this.props.setServerInfo(url, chain_name, selection);
 
     // First, set up the exit handler
     this.setupExitHandler();
@@ -342,7 +348,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           return;
         }
 
+        const resultJSON = await JSON.parse(result);
+
         this.getInfo();
+
         // seed phrase or ufvk
         const walletKindStr: string = await native.wallet_kind();
         const walletKindJSON = JSON.parse(walletKindStr);
@@ -352,9 +361,13 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           walletKindJSON.kind === "No keys found"
         ) {
           // ufvk
+          this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
+          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
           this.props.setReadOnly(true);
         } else {
           // seed phrase
+          this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
+          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
           this.props.setReadOnly(false);
         }
       }
@@ -484,6 +497,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       const seed_phrase: string = resultJSON.seed_phrase;
       const birthday: number = resultJSON.birthday;
       this.setState({ walletScreen: 2, seed_phrase, birthday });
+      this.props.setRecoveryInfo(seed_phrase, "", birthday);
+      this.props.setPools(true, true, true);
       this.props.setReadOnly(false);
     }
   };
@@ -503,25 +518,31 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   updateSeed = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    this.setState({ seed_phrase: e.target.value });
+    this.setState({ seed_phrase: e.target.value, ufvk: "" });
+    this.props.setRecoveryInfo(e.target.value, "", this.state.birthday);
   };
 
   updateUfvk = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    this.setState({ ufvk: e.target.value });
+    this.setState({ ufvk: e.target.value, seed_phrase: "" });
+    this.props.setRecoveryInfo("", e.target.value, this.state.birthday);
   };
 
   updateBirthday = (e: React.ChangeEvent<HTMLInputElement>) => {
-    this.setState({ birthday: isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value) }); 
+    this.setState({ birthday: isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value) });
+    this.props.setRecoveryInfo(this.state.seed_phrase, this.state.ufvk, isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value));
   };
 
   restoreSeedWalletBack = () => {
     // Reset the seed and birthday and try again 
     this.setState({
       seed_phrase: "",
+      ufvk: "",
       birthday: 0,
       newWalletError: null,
       walletScreen: 3,
     });
+    this.props.setRecoveryInfo("", "", 0);
+    this.props.setPools(true, true, true);
     this.props.setReadOnly(false);
   };
 
@@ -529,10 +550,13 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // Reset the ufvk and birthday and try again 
     this.setState({
       ufvk: "",
+      seed_phrase: "",
       birthday: 0,
       newWalletError: null,
       walletScreen: 4,
     });
+    this.props.setRecoveryInfo("", "", 0);
+    this.props.setPools(true, true, true);
     this.props.setReadOnly(false);
   };
 
@@ -544,8 +568,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     if (!result || result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
+      const resultJSON = await JSON.parse(result);
       this.setState({ walletScreen: 0 });
       this.getInfo();
+      
+      const walletKindStr: string = await native.wallet_kind();
+      const walletKindJSON = JSON.parse(walletKindStr);
+
+      this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
+      this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
       this.props.setReadOnly(false);
     }
   };
@@ -558,8 +589,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     if (!result || result.toLowerCase().startsWith("error")) {
       this.setState({ newWalletError: result });
     } else {
+      const resultJSON = await JSON.parse(result);
       this.setState({ walletScreen: 0 });
       this.getInfo();
+
+      const walletKindStr: string = await native.wallet_kind();
+      const walletKindJSON = JSON.parse(walletKindStr);
+
+      this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
+      this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
       this.props.setReadOnly(true);
     }
   };

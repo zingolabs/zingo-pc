@@ -24,6 +24,9 @@ const Receive: React.FC<ReceiveProps> = ({
     addressesTransparent,
     addressBook,
     info,
+    orchardPool,
+    saplingPool,
+    transparentPool,
   } = context;
 
   const [uaddrs, setUaddrs] = useState<UnifiedAddressClass[]>([]);
@@ -61,12 +64,12 @@ const Receive: React.FC<ReceiveProps> = ({
       <div className={styles.receivecontainer}>
         <Tabs>
           <TabList>
-            <Tab>Unified</Tab>
-            <Tab>Transparent</Tab>
+            {(orchardPool || saplingPool) && <Tab>Unified</Tab>}
+            {transparentPool && <Tab>Transparent</Tab>}
           </TabList>
 
           <TabPanel>
-            {uaddrs && uaddrs.length > 0 ? (
+            {(orchardPool || saplingPool) && !!uaddrs && uaddrs.length > 0 && (
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultUaddr]}>
                   {uaddrs.map((a: UnifiedAddressClass) => (
@@ -81,13 +84,11 @@ const Receive: React.FC<ReceiveProps> = ({
                   ))}
                 </Accordion>
               </ScrollPaneTop>
-            ) : (
-              <div>No unified addresses</div>
             )}
           </TabPanel>
   
           <TabPanel>
-            {taddrs && taddrs.length > 0 ? (
+            {transparentPool && !!taddrs && taddrs.length > 0 && (
               <ScrollPaneTop offsetHeight={100}>
                 <Accordion preExpanded={[defaultTaddr]}>
                   {taddrs.map((a: TransparentAddressClass) => (
@@ -104,8 +105,6 @@ const Receive: React.FC<ReceiveProps> = ({
                   ))}
                 </Accordion>
               </ScrollPaneTop>
-            ) : (
-              <div>No transparent addresses</div>
             )}
           </TabPanel>
         </Tabs>

@@ -24,6 +24,7 @@ import {
   UnifiedAddressClass,
   TransparentAddressClass,
   SyncStatusType,
+  ServerChainNameEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
@@ -38,7 +39,6 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 import native from "../native.node";
 import { Messages } from "../components/messages";
 import serverUrisList from "../utils/serverUrisList";
-const { ipcRenderer } = window.require("electron");
 
 type Props = {};
 
@@ -57,8 +57,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     ReactModal.setAppElement("#root");
 
     const servers: ServerClass[] = this.state.serverUris.length > 0 ? this.state.serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false);
-    const settings = ipcRenderer.invoke("loadSettings");
-    const server: ServerClass = {uri: settings?.serveruri || servers[0].uri, chain_name: settings?.chain_name || servers[0].chain_name} as ServerClass;
+    const server: ServerClass = {uri: this.state.serverUri || servers[0].uri, chain_name: this.state.serverChainName || servers[0].chain_name} as ServerClass;
 
     this.rpc = new RPC(
       this.setTotalBalance,
@@ -267,6 +266,30 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       this.setState({ syncingStatus });
     }
   };
+
+  setServerInfo = (serverUri: string, serverChainName: ServerChainNameEnum, serverSelection: 'auto' | 'list' | 'custom') => {
+    this.setState({
+      serverUri,
+      serverChainName,
+      serverSelection,
+    });
+  };
+
+  setRecoveryInfo = (seed_phrase: string, ufvk: string, birthday: number) => {
+    this.setState({
+      seed_phrase,
+      ufvk,
+      birthday,
+    });
+  };
+
+  setPools = (orchardPool: boolean, saplingPool: boolean, transparentPool: boolean) => {
+    this.setState({
+      orchardPool,
+      saplingPool,
+      transparentPool,
+    });
+  }
 
   setVerificationProgress = (verificationProgress: number | null) => {
     if (verificationProgress !== this.state.verificationProgress) {
@@ -555,6 +578,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setReadOnly={this.setReadOnly}
                     setServerUris={this.setServerUris}
                     navigateToDashboard={this.navigateToDashboard}
+                    setRecoveryInfo={this.setRecoveryInfo}
+                    setServerInfo={this.setServerInfo}
+                    setPools={this.setPools}
                     {...standardProps}
                   />
                 )}

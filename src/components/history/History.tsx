@@ -10,8 +10,6 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 
-import native from "../../native.node";
-
 type HistoryProps = {
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;
@@ -21,7 +19,7 @@ type HistoryProps = {
 
 const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal }) => {
   const context = useContext(ContextApp);
-  const { valueTransfers, info, addressBook, totalBalance, readOnly, fetchError } = context;
+  const { valueTransfers, info, addressBook, totalBalance, readOnly, fetchError, orchardPool, saplingPool, transparentPool } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
@@ -33,9 +31,6 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
-  const [transparent, setTransparent] = useState<boolean>(true);
-  const [sapling, setSapling] = useState<boolean>(true);
-  const [orchard, setOrchard] = useState<boolean>(true);
 
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
@@ -55,23 +50,6 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
   useEffect(() => {
     setIsLoadMoreEnabled(valueTransfers && numVtnsToShow < valueTransfers.length);
   }, [numVtnsToShow, valueTransfers]);
-
-  useEffect(() => {
-    (async () => {
-      const walletKindStr: string = await native.wallet_kind();
-      const walletKindJSON = JSON.parse(walletKindStr);
-
-      if (!walletKindJSON.transparent) {
-        setTransparent(false);
-      }
-      if (!walletKindJSON.sapling) {
-        setSapling(false);
-      }
-      if (!walletKindJSON.orchard) {
-        setOrchard(false);
-      }
-    })();
-  }, []);
 
   useEffect(() => {
     setValueTransfersSorted(valueTransfers
@@ -107,7 +85,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
             zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
             usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
           />
-          {orchard && (
+          {orchardPool && (
             <BalanceBlock
               topLabel="Orchard"
               zecValue={totalBalance.totalOrchardBalance}
@@ -117,7 +95,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
               usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
             />
           )}
-          {sapling && (
+          {saplingPool && (
             <BalanceBlock
               topLabel="Sapling"
               zecValue={totalBalance.totalSaplingBalance}
@@ -127,7 +105,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
               usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
             />
           )}
-          {transparent && (
+          {transparentPool && (
             <BalanceBlock
               topLabel="Transparent"
               zecValue={totalBalance.totalTransparentBalance}

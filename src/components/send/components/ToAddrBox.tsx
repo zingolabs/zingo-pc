@@ -4,6 +4,7 @@ import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
 import {
   AddressKindEnum,
+  ServerChainNameEnum,
   ToAddrClass,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
@@ -34,6 +35,7 @@ type ToAddrBoxProps = {
   setSendFeeError: (error: string) => void;
   setTotalAmountAvailable: (amount: number) => void;
   label: string;
+  serverChainName: "" | ServerChainNameEnum;
 };
 
 const ToAddrBox = ({
@@ -52,6 +54,7 @@ const ToAddrBox = ({
   setSendFeeError,
   setTotalAmountAvailable,
   label,
+  serverChainName
 }: ToAddrBoxProps) => {
   const [addressKind, setAddressKind] = useState<AddressKindEnum>();
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
@@ -62,7 +65,7 @@ const ToAddrBox = ({
   
   useEffect(() => {
     (async () => {
-      const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(toaddr.to);
+      const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(toaddr.to, serverChainName);
       setAddressKind(_addressKind);
       const _isMemoDisabled: boolean = !(_addressKind === AddressKindEnum.sapling || _addressKind === AddressKindEnum.unified);
       setIsMemoDisabled(_isMemoDisabled);
@@ -128,7 +131,7 @@ const ToAddrBox = ({
       const usdValue: string = Utils.getZecToUsdString(zecPrice, toaddr.amount);
       setUsdValue(usdValue);
     })();
-  }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.memo, toaddr.memoReplyTo, toaddr.to, zecPrice]);
+  }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.memo, toaddr.memoReplyTo, toaddr.to, zecPrice, serverChainName]);
   
   //console.log(sendFeeError);
 

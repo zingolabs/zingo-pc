@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Zcashd.module.css";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
@@ -6,8 +6,6 @@ import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine"; 
 import { ContextApp } from "../../context/ContextAppState";
 import Utils from "../../utils/utils";
-import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
-const { ipcRenderer } = window.require("electron");
 
 type ZcashdProps = {
   refresh: () => void;
@@ -23,19 +21,7 @@ const chains = {
 
 const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
   const context = useContext(ContextApp);
-
-  const { info } = context;
-
-  const [url, setUrl] = useState<string>("");
-  const [chain_name, setChain_name] = useState<ServerChainNameEnum | "">("");
-
-  useEffect(() => {
-    ( async () => {
-      const settings = await ipcRenderer.invoke("loadSettings");
-      setUrl(settings?.serveruri || ''); 
-      setChain_name(settings?.serverchain_name || '');
-    })();
-  }, []);
+  const { info, serverUri, serverChainName } = context;
 
   if (!info || !info.latestBlock) {
     return (
@@ -62,8 +48,8 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
                 <DetailLine label="Version" value={info.version} />
                 <DetailLine label="Zingolib Version" value={info.zingolib} />
                 <DetailLine label="Node" value={info.zcashdVersion} />
-                <DetailLine label="Server URI" value={url} />
-                <DetailLine label="Chain Name" value={chain_name ? chains[chain_name] : ''} />
+                <DetailLine label="Server URI" value={serverUri} />
+                <DetailLine label="Chain Name" value={serverChainName ? chains[serverChainName] : ''} />
                 <DetailLine label="Server Network" value={chains[info.chainName]} />
                 <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                 <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />

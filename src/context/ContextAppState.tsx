@@ -11,7 +11,7 @@ import {
   FetchErrorTypeClass, 
   UnifiedAddressClass, 
   TransparentAddressClass, 
-  SyncStatusType
+  SyncStatusType,
 } from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
 
@@ -31,6 +31,15 @@ export const defaultAppState: AppState = {
   readOnly: false,
   serverUris: [] as ServerClass[],
   fetchError: {} as FetchErrorTypeClass,
+  serverUri: "",
+  serverChainName: "",
+  serverSelection: "",
+  seed_phrase: "",
+  ufvk: "",
+  birthday: 0,
+  orchardPool: true,
+  saplingPool: true,
+  transparentPool: true,
 };
 
 export const ContextApp = React.createContext(defaultAppState);

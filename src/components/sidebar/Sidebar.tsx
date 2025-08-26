@@ -6,7 +6,6 @@ import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
 import { InfoClass, ServerClass, ValueTransferClass } from "../appstate";
 import Utils from "../../utils/utils";
-import RPC from "../../rpc/rpc";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import PayURIModal from "./components/PayURIModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
@@ -38,7 +37,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   location,
 }) => {
   const context = useContext(ContextApp);
-  const { info, serverUris, valueTransfers, verificationProgress, readOnly } = context;
+  const { info, serverUris, valueTransfers, verificationProgress, readOnly, serverChainName, seed_phrase, ufvk, birthday } = context;
 
   const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
   const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
@@ -125,11 +124,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
     // Export Seed
     ipcRenderer.on("seed", async () => {
-      const seed_phrase: string = await RPC.fetchSeed();
-      const ufvk: string = await RPC.fetchUfvk();
-      const birthday: number = await RPC.fetchBirthday();
-
-      console.log('data for seed/ufvk', seed_phrase, ufvk, birthday);
+      console.log('data for seed/ufvk & birthday', seed_phrase, ufvk, birthday);
 
       openErrorModal(
         "Wallet Seed",
@@ -276,7 +271,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       return;
     }
 
-    const parsedUri: string | ZcashURITarget[] = await parseZcashURI(uri);
+    const parsedUri: string | ZcashURITarget[] = await parseZcashURI(uri, serverChainName);
     if (typeof parsedUri === "string") {
       if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
         openErrorModal(errTitle, getErrorBody(parsedUri));

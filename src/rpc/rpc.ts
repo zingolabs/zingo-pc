@@ -663,42 +663,6 @@ export default class RPC {
     return addrStr;
   }
 
-  static async fetchSeed(): Promise<string> {
-    const seedStr: string = await native.get_seed();
-    const seedJSON = JSON.parse(seedStr);
-
-    return seedJSON.seed_phrase;
-  }
-
-  static async fetchUfvk(): Promise<string> {
-    const ufvkStr: string = await native.get_ufvk();
-    const ufvkJSON = JSON.parse(ufvkStr);
-
-    return ufvkJSON.ufvk;
-  }
-
-  static async fetchBirthday(): Promise<number> {
-    const walletKindStr: string = await native.wallet_kind();
-    const walletKindJSON = JSON.parse(walletKindStr);
-
-    if (
-      walletKindJSON.kind === "Loaded from unified full viewing key" ||
-      walletKindJSON.kind === "No keys found"
-    ) {
-      // ufvk
-      const ufvkStr: string = await native.get_ufvk();
-      const ufvkJSON = JSON.parse(ufvkStr);
-
-      return ufvkJSON.birthday;
-    } else {
-      // seed
-      const seedStr: string = await native.get_seed(); 
-      const seedJSON = JSON.parse(seedStr);
-
-      return seedJSON.birthday;
-    }
-  }
-
   static async fetchWalletHeight(): Promise<number> {
     const heightStr: string = await native.get_latest_block_wallet();
     const heightJSON = JSON.parse(heightStr);
@@ -722,7 +686,7 @@ export default class RPC {
       console.log('Internal Error server height');
     }
 
-    console.log('SERVER HEIGHT', latestBlockHeight);
+    //console.log('SERVER HEIGHT', latestBlockHeight);
 
     const valueTransfersJSON: any = await this.zingolibValueTransfers();
 
@@ -731,7 +695,7 @@ export default class RPC {
     let vtList: ValueTransferClass[] = [];
 
     const walletHeight: number = await RPC.fetchWalletHeight();
-    console.log('WALLET HEIGHT', walletHeight);
+    //console.log('WALLET HEIGHT', walletHeight);
 
     valueTransfersJSON
       .forEach((tx: any) => {
