@@ -810,6 +810,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     <hr style={{ width: "100%" }} />
                     <div className={cstyles.padtopsmall}>{seed_phrase}</div>
                     <hr style={{ width: "100%" }} />
+                    <div className={cstyles.padtopsmall}>{'Birthday: ' + birthday}</div> 
                     <div className={cstyles.margintoplarge}>
                       <button 
                         disabled={buttonsDisable} 
