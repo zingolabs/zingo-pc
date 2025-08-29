@@ -7,6 +7,7 @@ use std::num::NonZeroU32;
 use std::str::FromStr;
 use std::sync::RwLock;
 use std::fs::remove_file;
+use std::{panic, sync::Once};
 
 use bip0039::Mnemonic;
 use json::object;
@@ -39,9 +40,6 @@ use zcash_primitives::memo::MemoBytes;
 use zingolib::data::receivers::transaction_request_from_receivers;
 use zingolib::data::proposal::total_fee;
 use zingo_infra_services::network::ActivationHeights;
-
-use std::{panic, sync::Once};
-use neon::prelude::*;
 
 fn install_panic_hook_once() {
     static ONCE: Once = Once::new();
