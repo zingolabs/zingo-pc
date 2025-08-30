@@ -1,7 +1,8 @@
 const { app, BrowserWindow, Menu, shell, ipcMain } = require("electron");
-const isDev = require("electron-is-dev");
 const path = require("path");
 const settings = require("electron-settings");
+
+const isDev = !app.isPackaged;
 
 class MenuBuilder {
   mainWindow;
