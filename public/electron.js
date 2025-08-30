@@ -318,15 +318,6 @@ class MenuBuilder {
   }
 }
 
-// Conditionally include the dev tools installer to load React Dev Tools
-let installExtension, REACT_DEVELOPER_TOOLS;
-
-if (isDev) {
-  const devTools = require("electron-devtools-installer");
-  installExtension = devTools.default;
-  REACT_DEVELOPER_TOOLS = devTools.REACT_DEVELOPER_TOOLS;
-}
-
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1350,
@@ -417,11 +408,17 @@ app.commandLine.appendSwitch("in-process-gpu");
 // Create a new browser window by invoking the createWindow
 // function once the Electron application is initialized.
 // Install REACT_DEVELOPER_TOOLS as well if isDev
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   if (isDev) {
-    installExtension(REACT_DEVELOPER_TOOLS)
-      .then((name) => console.log(`Added Extension:  ${name}`))
-      .catch((error) => console.log(`An error occurred: , ${error}`));
+    try {
+      const {
+        default: installExtension,
+        REACT_DEVELOPER_TOOLS,
+      } = await import('electron-devtools-installer');
+      await installExtension(REACT_DEVELOPER_TOOLS);
+    } catch (e) {
+      console.warn('Devtools not installed (ok in prod):', e.message);
+    }
   }
 
   createWindow();
