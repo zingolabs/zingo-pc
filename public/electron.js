@@ -412,18 +412,25 @@ app.commandLine.appendSwitch("in-process-gpu");
 app.whenReady().then(async () => {
   if (isDev) {
     try {
-      const {
-        default: installExtension,
-        REACT_DEVELOPER_TOOLS,
-      } = await import('electron-devtools-installer');
-      await installExtension(REACT_DEVELOPER_TOOLS);
+      // v4: export nombrado
+      const mod = await import('electron-devtools-installer');
+      const installExtension = mod.installExtension ?? mod.default; // compat v3/v4
+      const { REACT_DEVELOPER_TOOLS } = mod;
+
+      if (typeof installExtension !== 'function') {
+        throw new TypeError('installExtension export not found');
+      }
+
+      const ext = await installExtension(REACT_DEVELOPER_TOOLS);
+      console.log(`React DevTools instalado: ${ext?.name ?? ext}`);
     } catch (e) {
-      console.warn('Devtools not installed (ok in prod):', e.message);
+      console.warn('Devtools not installed (ok in prod):', e?.message ?? e);
     }
   }
 
   createWindow();
 });
+
 
 // Add a new listener that tries to quit the application when
 // it no longer has any open windows. This listener is a no-op
