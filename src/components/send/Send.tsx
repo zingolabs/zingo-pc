@@ -13,7 +13,7 @@ import { BalanceBlockHighlight } from "../balanceblock";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
 import ToAddrBox from "./components/ToAddrBox";
-import ConfirmModal from "./components/ConfirmModal";
+import SendConfirmModal from "./components/SendConfirmModal";
 import { ContextApp } from "../../context/ContextAppState";
 
 import native from "../../native.node";
@@ -304,7 +304,7 @@ const Send: React.FC<SendProps> = ({
 
   return (
     <div>
-      <ConfirmModal
+      <SendConfirmModal
           sendPageState={sendPageState}
           totalBalance={totalBalance}
           info={info}

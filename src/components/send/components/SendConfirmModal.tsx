@@ -15,13 +15,13 @@ import ScrollPaneTop from "../../scrollPane/ScrollPane";
 import routes from "../../../constants/routes.json";
 import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
-import ConfirmModalToAddr from "./ConfirmModalToAddr";
+import ConfirmModalToAddr from "./SendConfirmModalToAddr";
 
 import native from "../../../native.node";
 import { ContextApp } from "../../../context/ContextAppState";
 
 // Internal because we're using withRouter just below
-type ConfirmModalProps = {
+type SendConfirmModalProps = {
     sendPageState: SendPageStateClass;
     totalBalance: TotalBalanceClass;
     info: InfoClass;
@@ -34,7 +34,7 @@ type ConfirmModalProps = {
     currencyName: string;
   };
   
-  const ConfirmModalInternal: React.FC<RouteComponentProps & ConfirmModalProps> = ({
+  const SendConfirmModalInternal: React.FC<RouteComponentProps & SendConfirmModalProps> = ({
     sendPageState,
     totalBalance,
     info,
@@ -318,4 +318,4 @@ type ConfirmModalProps = {
     );
   };
   
-  export default withRouter(ConfirmModalInternal);
+  export default withRouter(SendConfirmModalInternal);

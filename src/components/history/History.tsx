@@ -15,10 +15,11 @@ type HistoryProps = {
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
+  openConfirmModal: (title: string, body: string | JSX.Element, action: () => void) => void;
   setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
-const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal, setAddLabel }) => {
+const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal, openConfirmModal, setAddLabel }) => {
   const context = useContext(ContextApp);
   const { valueTransfers, info, addressBook, totalBalance, readOnly, fetchError, orchardPool, saplingPool, transparentPool } = context;
 
@@ -197,6 +198,7 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
           addressBookMap={addressBookMap}
           valueTransfersSliced={valueTransfersSorted}
           openErrorModal={openErrorModal}
+          openConfirmModal={openConfirmModal}
           setAddLabel={setAddLabel}
         />
       )}

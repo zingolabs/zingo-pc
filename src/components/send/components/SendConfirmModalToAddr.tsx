@@ -3,12 +3,12 @@ import { InfoClass, ToAddrClass } from "../../appstate";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
 
-type ConfirmModalToAddrProps = {
+type SendConfirmModalToAddrProps = {
   toaddr: ToAddrClass;
   info: InfoClass;
 };
 
-const ConfirmModalToAddr = ({ toaddr, info }: ConfirmModalToAddrProps) => {
+const SendConfirmModalToAddr = ({ toaddr, info }: SendConfirmModalToAddrProps) => {
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(toaddr.amount);
 
   const memo: string = toaddr.memo ? toaddr.memo : "";
@@ -39,4 +39,4 @@ const ConfirmModalToAddr = ({ toaddr, info }: ConfirmModalToAddrProps) => {
   );
 };
 
-export default ConfirmModalToAddr;
+export default SendConfirmModalToAddr;
