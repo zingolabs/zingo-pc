@@ -40,6 +40,7 @@ export const defaultAppState: AppState = {
   orchardPool: true,
   saplingPool: true,
   transparentPool: true,
+  addLabelState: new AddressBookEntryClass('', '')
 };
 
 export const ContextApp = React.createContext(defaultAppState);

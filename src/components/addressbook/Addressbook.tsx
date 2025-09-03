@@ -13,14 +13,15 @@ type AddressBookProps = {
   addAddressBookEntry: (label: string, address: string) => void;
   removeAddressBookEntry: (label: string) => void;
   setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
+  setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
 const AddressBook: React.FC<AddressBookProps> = (props) => { 
   const context = useContext(ContextApp);
-  const { addressBook, serverChainName } = context;
+  const { addressBook, serverChainName, addLabelState } = context;
 
-  const [currentLabel, setCurrentLabel] = useState<string>('');
-  const [currentAddress, setCurrentAddress] = useState<string>('');
+  const [currentLabel, setCurrentLabel] = useState<string>(addLabelState.label);
+  const [currentAddress, setCurrentAddress] = useState<string>(addLabelState.address);
   const [addButtonEnabled, setAddButtonEnabled] = useState<boolean>(false);
   const [labelError, setLabelError] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
@@ -86,6 +87,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     setLabelError(null);
     setAddressError(null);
     setAddressKind(undefined);
+    props.setAddLabel(new AddressBookEntryClass('', ''));
   };
 
   return (

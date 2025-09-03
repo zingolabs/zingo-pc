@@ -36,6 +36,7 @@ type ToAddrBoxProps = {
   setTotalAmountAvailable: (amount: number) => void;
   label: string;
   serverChainName: "" | ServerChainNameEnum;
+  block: number;
 };
 
 const ToAddrBox = ({
@@ -54,7 +55,8 @@ const ToAddrBox = ({
   setSendFeeError,
   setTotalAmountAvailable,
   label,
-  serverChainName
+  serverChainName,
+  block,
 }: ToAddrBoxProps) => {
   const [addressKind, setAddressKind] = useState<AddressKindEnum>();
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
@@ -131,7 +133,7 @@ const ToAddrBox = ({
       const usdValue: string = Utils.getZecToUsdString(zecPrice, toaddr.amount);
       setUsdValue(usdValue);
     })();
-  }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.memo, toaddr.memoReplyTo, toaddr.to, zecPrice, serverChainName]);
+  }, [fetchSendFeeAndErrorAndSpendable, fromAmount, fromAmountDefault, sendFee, sendFeeError, setSendButtonEnabled, setSendFee, setSendFeeError, setTotalAmountAvailable, toaddr.amount, toaddr.memo, toaddr.memoReplyTo, toaddr.to, zecPrice, serverChainName, block]);
   
   //console.log(sendFeeError);
 

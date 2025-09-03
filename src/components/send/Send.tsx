@@ -382,6 +382,7 @@ const Send: React.FC<SendProps> = ({
                   setTotalAmountAvailable={setTotalAmountAvailable}
                   label={getLabelAddressBook(toaddr.to)}
                   serverChainName={serverChainName}
+                  block={info.latestBlock >= info.walletHeight ? info.latestBlock : info.walletHeight}
                 />
               );
             })}

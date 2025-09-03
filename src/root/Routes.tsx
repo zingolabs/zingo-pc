@@ -221,6 +221,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ sendPageState: newSendPageState });
   };
 
+  setAddLabel = (ab: AddressBookEntryClass): void => {
+    console.log('=============== add label state', ab);
+    this.setState({ addLabelState: ab });
+  };
+
   runRPCConfigure = () => {
     console.log('=============== rpc configure');
     
@@ -516,6 +521,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <AddressBook
                     addAddressBookEntry={this.addAddressBookEntry}
                     removeAddressBookEntry={this.removeAddressBookEntry}
+                    setAddLabel={this.setAddLabel}
                     {...standardProps}
                   />
                 )}
@@ -543,6 +549,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <History
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}
+                    setAddLabel={this.setAddLabel}
                     {...standardProps}
                   />
                 )}
@@ -553,6 +560,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <Messages
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}
+                    setAddLabel={this.setAddLabel}
                     {...standardProps}
                   />
                 )}
