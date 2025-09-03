@@ -11,6 +11,7 @@ import { ZcashURITarget } from "../../../utils/uris";
 import { ContextApp } from "../../../context/ContextAppState";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+import routes from "../../../constants/routes.json";
 
 import native from "../../../native.node";
 
@@ -240,6 +241,14 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     }
   };
 
+  const sendMore = () => {
+    // first close the current modal
+    localCloseModal();
+
+    setSendTo(new ZcashURITarget(address, undefined, undefined));
+    history.push(routes.SEND);
+  };
+
   //console.log('render details', isTheFirstMount, showNavigator, totalLength);
 
   return (
@@ -401,6 +410,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             <div className={[cstyles.sublight].join(" ")}>Confirmations</div>
             <div>{confirmations}</div>
           </div>
+
           {(status === ValueTransferStatusEnum.calculated || status === ValueTransferStatusEnum.transmitted || status === ValueTransferStatusEnum.mempool) && (
             <div>
               <div className={[cstyles.sublight].join(" ")}>Status</div>
@@ -413,8 +423,8 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         <div className={cstyles.margintoplarge} />
 
-        <div className={[cstyles.flexspacebetween].join(" ")}>
-          {!!txid && ( 
+        {!!txid && ( 
+          <div className={[cstyles.flexspacebetween].join(" ")}>
             <div>
               <div className={[cstyles.sublight].join(" ")}>TXID</div>
               <div
@@ -435,19 +445,19 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
                 </div>
               </div>
             </div>
-          )}
 
-          <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txid, currencyName)}>
-            View TXID &nbsp;
-            <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+            <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txid, currencyName)}>
+              View TXID &nbsp;
+              <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+            </div>
           </div>
-        </div>
+        )}
 
         <hr style={{ width: "100%" }} />
-
-        <div key={`${txid}-${address}-${pool}`} className={cstyles.verticalflex}>
-          {!!address && (
-            <>
+   
+        {!!address && (
+          <div className={[cstyles.flexspacebetween].join(" ")}>
+            <div>
               <div className={[cstyles.sublight].join(" ")}>Address</div>
               {!!label && (
                 <div className={cstyles.highlight} style={{ marginBottom: 0 }}>{label}</div> 
@@ -471,59 +481,66 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
                   </div>
                 </div>
               </div>
-              <div className={cstyles.margintoplarge} />
-            </>
-          )}
-
-          <div className={[cstyles.flexspacebetween].join(" ")}>
-            <div className={[cstyles.verticalflex].join(" ")}>
-              <div className={[cstyles.sublight].join(" ")}>Amount</div>
-              <div className={[cstyles.verticalflex].join(" ")}>
-                <div className={[cstyles.verticalflex].join(" ")}>
-                  <div>
-                    <span>
-                      {currencyName} {bigPart}
-                    </span>
-                    <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
-                  </div>
-                </div>
-                <div className={[cstyles.verticalflex].join(" ")}>
-                  <div className={[cstyles.sublight].join(" ")}>{priceString}</div>
-                </div>
-              </div>
             </div>
 
-            {pool && (
-              <div className={[cstyles.verticalflex].join(" ")}>
-                <div className={[cstyles.sublight].join(" ")}>Pool</div>
-                <div className={[cstyles.flexspacebetween].join(" ")}>
-                  <div>{pool}</div>
-                </div>
+            {!readOnly && (
+              <div className={cstyles.primarybutton} onClick={() => sendMore()}>
+                Send More
               </div>
             )}
           </div>
+        )}
 
-          <div className={cstyles.margintoplarge} />
+        <div className={cstyles.margintoplarge} />
 
-          {memos && memos.length > 0 && !!memos.join("") && (
-            <div>
-              <div className={[cstyles.sublight].join(" ")}>Memo</div>
-              <div className={[cstyles.flexspacebetween].join(" ")}>
-                <div
-                  className={[
-                    cstyles.small,
-                    cstyles.sublight,
-                    cstyles.padtopsmall,
-                    cstyles.memodiv,
-                    styles.txmemo,
-                  ].join(" ")}
-                >
-                  {memos.join("\n") + "\n" + labelReplyTo}
+        <div className={[cstyles.flexspacebetween].join(" ")}>
+          <div className={[cstyles.verticalflex].join(" ")}>
+            <div className={[cstyles.sublight].join(" ")}>Amount</div>
+            <div className={[cstyles.verticalflex].join(" ")}>
+              <div className={[cstyles.verticalflex].join(" ")}>
+                <div>
+                  <span>
+                    {currencyName} {bigPart}
+                  </span>
+                  <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
                 </div>
+              </div>
+              <div className={[cstyles.verticalflex].join(" ")}>
+                <div className={[cstyles.sublight].join(" ")}>{priceString}</div>
+              </div>
+            </div>
+          </div>
+
+          {pool && (
+            <div className={[cstyles.verticalflex].join(" ")}>
+              <div className={[cstyles.sublight].join(" ")}>Pool</div>
+              <div className={[cstyles.flexspacebetween].join(" ")}>
+                <div>{pool}</div>
               </div>
             </div>
           )}
         </div>
+
+        <div className={cstyles.margintoplarge} />
+
+        {memos && memos.length > 0 && !!memos.join("") && (
+          <div>
+            <div className={[cstyles.sublight].join(" ")}>Memo</div>
+            <div className={[cstyles.flexspacebetween].join(" ")}>
+              <div
+                className={[
+                  cstyles.small,
+                  cstyles.sublight,
+                  cstyles.padtopsmall,
+                  cstyles.memodiv,
+                  styles.txmemo,
+                ].join(" ")}
+              >
+                {memos.join("\n") + "\n" + labelReplyTo}
+              </div>
+            </div>
+          </div>
+        )}
 
         <hr style={{ width: "100%" }} />
 
