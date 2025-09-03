@@ -29,6 +29,7 @@ type VtModalInternalProps = {
   addressBookMap: Map<string, string>;
   valueTransfersSliced: ValueTransferClass[];
   openErrorModal: (title: string, body: string | JSX.Element) => void;
+  setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
 const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
@@ -44,6 +45,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   addressBookMap,
   valueTransfersSliced,
   openErrorModal,
+  setAddLabel,
 }) => {
   const context = useContext(ContextApp);
   const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, info } = context; 
@@ -247,6 +249,14 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
     setSendTo(new ZcashURITarget(address, undefined, undefined));
     history.push(routes.SEND);
+  };
+
+  const addLabel = () => {
+    // first close the current modal
+    localCloseModal();
+
+    setAddLabel(new AddressBookEntryClass('', address));
+    history.push(routes.ADDRESSBOOK);
   };
 
   //console.log('render details', isTheFirstMount, showNavigator, totalLength);
@@ -483,9 +493,19 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
               </div>
             </div>
 
+            {!label && (
+              <div>
+                <div className={cstyles.primarybutton} onClick={() => addLabel()}>
+                  Add Label
+                </div>
+              </div>
+            )}
+
             {!readOnly && (
-              <div className={cstyles.primarybutton} onClick={() => sendMore()}>
-                Send More
+              <div>
+                <div className={cstyles.primarybutton} onClick={() => sendMore()}>
+                  Send More
+                </div>
               </div>
             )}
           </div>

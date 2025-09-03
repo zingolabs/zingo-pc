@@ -15,9 +15,10 @@ type MessagesProps = {
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
   openErrorModal: (title: string, body: string | JSX.Element) => void;
+  setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
-const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal }) => {
+const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal, setAddLabel }) => {
   const context = useContext(ContextApp);
   const { messages, info, addressBook, totalBalance, readOnly, fetchError, valueTransfers, orchardPool, saplingPool, transparentPool } = context;
 
@@ -197,6 +198,7 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
           addressBookMap={addressBookMap}
           valueTransfersSliced={messagesSorted}
           openErrorModal={openErrorModal}
+          setAddLabel={setAddLabel}
         />
       )}
     </div>

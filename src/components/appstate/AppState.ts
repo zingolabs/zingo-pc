@@ -69,6 +69,9 @@ export default class AppState {
   saplingPool: boolean;
   transparentPool: boolean;
 
+  // The state of the Address Book Screen, as thhe user create a new label
+  addLabelState: AddressBookEntryClass;
+
   constructor() {
     this.totalBalance = new TotalBalanceClass();
     this.addressesUnified = [] as AddressUnifiedClass[];
@@ -94,5 +97,6 @@ export default class AppState {
     this.orchardPool = true;
     this.saplingPool = true;
     this.transparentPool = true;
+    this.addLabelState = new AddressBookEntryClass('', '');
   }
 }
