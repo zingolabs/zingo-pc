@@ -10,13 +10,11 @@ import { ContextApp } from "../../context/ContextAppState";
 type ReceiveProps = {
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
 };
 
 const Receive: React.FC<ReceiveProps> = ({ 
   calculateShieldFee, 
   handleShieldButton,
-  openErrorModal,
 }) => {
   const context = useContext(ContextApp);
   const {
@@ -79,7 +77,6 @@ const Receive: React.FC<ReceiveProps> = ({
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.encoded_address)}
                       type={'u'}
-                      openErrorModal={openErrorModal}
                     />
                   ))}
                 </Accordion>
@@ -98,7 +95,6 @@ const Receive: React.FC<ReceiveProps> = ({
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.encoded_address)}
                       type={'t'}
-                      openErrorModal={openErrorModal}
                       calculateShieldFee={calculateShieldFee}
                       handleShieldButton={handleShieldButton}
                     />

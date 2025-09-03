@@ -3,7 +3,6 @@ import cstyles from "../common/Common.module.css";
 import styles from "./Messages.module.css";
 import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
 import ScrollPaneBottom from "../scrollPane/ScrollPane";
-import { ZcashURITarget } from "../../utils/uris";
 import MessagesItemBlock from "./components/MessagesItemBlock";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
 import Utils from "../../utils/utils";
@@ -11,15 +10,12 @@ import { ContextApp } from "../../context/ContextAppState";
 import VtModal from "../history/components/VtModal";
 
 type MessagesProps = {
-  setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
-  openConfirmModal: (title: string, body: string | JSX.Element, action: () => void) => void;
   setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
-const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal, openConfirmModal, setAddLabel }) => {
+const Messages: React.FC<MessagesProps> = ({ calculateShieldFee, handleShieldButton, setAddLabel }) => {
   const context = useContext(ContextApp);
   const { messages, info, addressBook, totalBalance, readOnly, fetchError, valueTransfers, orchardPool, saplingPool, transparentPool } = context;
 
@@ -195,11 +191,8 @@ const Messages: React.FC<MessagesProps> = ({ setSendTo, calculateShieldFee, hand
           modalIsOpen={modalIsOpen}
           closeModal={closeModal}
           currencyName={info.currencyName}
-          setSendTo={setSendTo}
           addressBookMap={addressBookMap}
           valueTransfersSliced={messagesSorted}
-          openErrorModal={openErrorModal}
-          openConfirmModal={openConfirmModal}
           setAddLabel={setAddLabel}
         />
       )}

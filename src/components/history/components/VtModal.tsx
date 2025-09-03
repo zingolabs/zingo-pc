@@ -25,11 +25,8 @@ type VtModalInternalProps = {
   modalIsOpen: boolean;
   closeModal: () => void;
   currencyName: string;
-  setSendTo: (targets: ZcashURITarget | ZcashURITarget[]) => void;
   addressBookMap: Map<string, string>;
   valueTransfersSliced: ValueTransferClass[];
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
-  openConfirmModal: (title: string, body: string | JSX.Element, action: () => void) => void;
   setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
@@ -41,16 +38,13 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   modalIsOpen,
   closeModal,
   currencyName,
-  setSendTo,
   history,
   addressBookMap,
   valueTransfersSliced,
-  openErrorModal,
-  openConfirmModal,
   setAddLabel,
 }) => {
   const context = useContext(ContextApp);
-  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, info } = context; 
+  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, info, setSendTo, openErrorModal, openConfirmModal } = context; 
   const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
   const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
   const [expandAddress, setExpandAddress] = useState(false); 

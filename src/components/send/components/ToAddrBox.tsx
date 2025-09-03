@@ -18,16 +18,14 @@ type ToAddrBoxProps = {
   toaddr: ToAddrClass;
   zecPrice: number;
   updateToField: (
-    id: number,
     address: string | null,
     amount: string | null,
     memo: string | null,
   ) => void;
-  fromAddress: string;
   fromAmount: number;
   fromAmountDefault: number;
   setSendButtonEnabled: (sendButtonEnabled: boolean) => void;
-  setMaxAmount: (id: number, total: number) => void;
+  setMaxAmount: (total: number) => void;
   sendFee: number;
   sendFeeError: string;
   fetchSendFeeAndErrorAndSpendable: () => Promise<void>;
@@ -43,7 +41,6 @@ const ToAddrBox = ({
   toaddr,
   zecPrice,
   updateToField,
-  fromAddress,
   fromAmount,
   fromAmountDefault,
   setMaxAmount,
@@ -165,7 +162,7 @@ const ToAddrBox = ({
           placeholder="Unified | Sapling | Transparent | TEX address"
           className={cstyles.inputbox}
           value={toaddr.to}
-          onChange={(e) => updateToField(toaddr.id as number, e.target.value, null, null)}
+          onChange={(e) => updateToField(e.target.value, null, null)}
         />
 
         <Spacer />
@@ -184,13 +181,13 @@ const ToAddrBox = ({
                 step="any"
                 className={cstyles.inputbox}
                 value={isNaN(toaddr.amount) ? "" : toaddr.amount}
-                onChange={(e) => updateToField(toaddr.id as number, null, e.target.value, null)}
+                onChange={(e) => updateToField(null, e.target.value, null)}
               />
               <img
                 className={styles.toaddrbutton}
                 src={ArrowUpLight}
                 alt="Max"
-                onClick={() => setMaxAmount(toaddr.id as number, fromAmount)}
+                onClick={() => setMaxAmount(fromAmount)}
               />
             </div>
           </div>
@@ -238,7 +235,7 @@ const ToAddrBox = ({
               className={[cstyles.inputbox].join(" ")}
               value={toaddr.memo}
               disabled={isMemoDisabled}
-              onChange={(e) => updateToField(toaddr.id as number, null, null, e.target.value)}
+              onChange={(e) => updateToField(null, null, e.target.value)}
               minRows={2}
               maxRows={5}
             />

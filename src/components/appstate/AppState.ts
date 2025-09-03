@@ -13,6 +13,7 @@ import InfoClass from "./classes/InfoClass";
 import { SyncStatusType } from "./types/SyncStatusType";
 import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
 import { ConfirmModalData } from "../confirmmodal";
+import { ZcashURITarget } from "../../utils/uris";
 
 
 export default class AppState {
@@ -76,6 +77,13 @@ export default class AppState {
   // The state of the Address Book Screen, as thhe user create a new label
   addLabelState: AddressBookEntryClass;
 
+  // props to context
+  openErrorModal: (t: string, b: string | JSX.Element) => void;
+  closeErrorModal: () => void;
+  openConfirmModal: (t: string, b: string | JSX.Element, a: () => void) => void;
+  closeConfirmModal: () => void;
+  setSendTo: (t: ZcashURITarget) => void;
+
   constructor() {
     this.totalBalance = new TotalBalanceClass();
     this.addressesUnified = [] as AddressUnifiedClass[];
@@ -103,5 +111,10 @@ export default class AppState {
     this.saplingPool = true;
     this.transparentPool = true;
     this.addLabelState = new AddressBookEntryClass('', '');
+    this.openErrorModal = () => {};
+    this.closeErrorModal = () => {};
+    this.openConfirmModal = () => {};
+    this.closeConfirmModal = () => {};
+    this.setSendTo = () => {};
   }
 }

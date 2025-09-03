@@ -29,7 +29,6 @@ type SendConfirmModalProps = {
     clearToAddrs: () => void;
     closeModal: () => void;
     modalIsOpen: boolean;
-    openErrorModal: (title: string, body: string | JSX.Element) => void;
     sendFee: number;
     currencyName: string;
   };
@@ -42,13 +41,12 @@ type SendConfirmModalProps = {
     clearToAddrs,
     closeModal,
     modalIsOpen,
-    openErrorModal,
     history,
     sendFee,
     currencyName,
   }) => {
     const context = useContext(ContextApp);
-    const { serverChainName } = context;
+    const { serverChainName, openErrorModal } = context;
     
     const [sendingTotal, setSendingTotal] = useState<number>(0);
     const [bigPart, setBigPart] = useState<string>('');
@@ -172,16 +170,16 @@ type SendConfirmModalProps = {
     }, [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance, serverChainName]);
 
     useEffect(() => {
-      const sendingTotal: number = sendPageState.toaddrs.reduce((s, t) => s + t.amount, 0.0) + sendFee;
+      const sendingTotal: number = sendPageState.toaddr.amount + sendFee;
       setSendingTotal(sendingTotal);
       const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(sendingTotal);
       setBigPart(bigPart);
       setSmallPart(smallPart);
       (async () => {
-        const privacyLevel: string = await getPrivacyLevel(sendPageState.toaddrs[0]);
+        const privacyLevel: string = await getPrivacyLevel(sendPageState.toaddr);
         setPrivacyLevel(privacyLevel);
       })();
-    },[getPrivacyLevel, sendFee, sendPageState.toaddrs]);
+    },[getPrivacyLevel, sendFee, sendPageState.toaddr]);
   
     const sendButton = () => {
       // First, close the confirm modal.
@@ -284,7 +282,7 @@ type SendConfirmModalProps = {
           <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
             <ScrollPaneTop offsetHeight={350}>
               <div className={[cstyles.verticalflex].join(" ")}>
-                {sendPageState.toaddrs.map((t) => (
+                {[sendPageState.toaddr].map((t) => (
                   <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
                 ))}
               </div>

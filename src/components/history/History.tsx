@@ -3,7 +3,6 @@ import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
 import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
-import { ZcashURITarget } from "../../utils/uris";
 import VtItemBlock from "./components/VtItemBlock";
 import VtModal from "./components/VtModal";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
@@ -11,15 +10,12 @@ import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 
 type HistoryProps = {
-  setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
-  openConfirmModal: (title: string, body: string | JSX.Element, action: () => void) => void;
   setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
-const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handleShieldButton, openErrorModal, openConfirmModal, setAddLabel }) => {
+const History: React.FC<HistoryProps> = ({ calculateShieldFee, handleShieldButton, setAddLabel }) => {
   const context = useContext(ContextApp);
   const { valueTransfers, info, addressBook, totalBalance, readOnly, fetchError, orchardPool, saplingPool, transparentPool } = context;
 
@@ -194,11 +190,8 @@ const History: React.FC<HistoryProps> = ({ setSendTo, calculateShieldFee, handle
           modalIsOpen={modalIsOpen}
           closeModal={closeModal}
           currencyName={info.currencyName}
-          setSendTo={setSendTo}
           addressBookMap={addressBookMap}
           valueTransfersSliced={valueTransfersSorted}
-          openErrorModal={openErrorModal}
-          openConfirmModal={openConfirmModal}
           setAddLabel={setAddLabel}
         />
       )}
