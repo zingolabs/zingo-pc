@@ -1,11 +1,9 @@
-import ToAddr from "./ToAddrClass";
+import ToAddrClass from "./ToAddrClass";
 
 export default class SendPageStateClass {
-    fromaddr: string;
-    toaddrs: ToAddr[];
+    toaddr: ToAddrClass;
   
     constructor() {
-      this.fromaddr = "";
-      this.toaddrs = [];
+      this.toaddr = new ToAddrClass();
     }
   }

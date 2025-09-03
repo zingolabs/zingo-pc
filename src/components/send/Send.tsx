@@ -20,19 +20,15 @@ import native from "../../native.node";
 import getSendManyJSON from "./components/getSendManyJSON";
 
 type SendProps = {
-  setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string>;
   setSendPageState: (sendPageState: SendPageStateClass) => void;
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
 };
 
 const Send: React.FC<SendProps> = ({
-  setSendTo,
   sendTransaction,
   setSendPageState,
-  openErrorModal,
   calculateShieldFee,
   handleShieldButton,
 }) => {
@@ -47,6 +43,7 @@ const Send: React.FC<SendProps> = ({
     fetchError,
     valueTransfers,
     serverChainName,
+    setSendTo,
   } = context;
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
@@ -55,7 +52,6 @@ const Send: React.FC<SendProps> = ({
   const [sendFeeError, setSendFeeError] = useState<string>('');
   const [totalAmountAvailable, setTotalAmountAvailable] = useState<number>(0);
   const [tooltip, setTooltip ] = useState<string>('');
-  const [fromaddr, setFromaddr] = useState<string>('');
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -83,7 +79,6 @@ const Send: React.FC<SendProps> = ({
       _totalAmountAvailable = 0;
     }
     setTotalAmountAvailable(_totalAmountAvailable);
-    setFromaddr(addressesUnified[addressesUnified.length - 1]?.encoded_address || ""); 
 
     let _tooltip: string = "";
     // set somePending as well here when I know there is something new in ValueTransfers
@@ -116,12 +111,8 @@ const Send: React.FC<SendProps> = ({
   ]);  
 
   const clearToAddrs = () => {
-    const newToAddrs: ToAddrClass[] = [new ToAddrClass(Utils.getNextToAddrID())];
-
     // Create the new state object
     const newState = new SendPageStateClass();
-    newState.fromaddr = sendPageState.fromaddr;
-    newState.toaddrs = newToAddrs;
 
     setSendPageState(newState);
     setSendFee(0);
@@ -137,28 +128,22 @@ const Send: React.FC<SendProps> = ({
   };
 
   const updateToField = async (
-    id: number,
     address: string | null,
     amount: string | null,
     memo: string | null,
   ) => {
     // Find the correct toAddr
-    const toAddr: ToAddrClass | undefined = sendPageState.toaddrs.find((a: ToAddrClass) => a.id === id);
-    const restToAddr: ToAddrClass[] = sendPageState.toaddrs.filter((a: ToAddrClass) => a.id !== id);
+    const toAddr: ToAddrClass = sendPageState.toaddr;
     if (address !== null) {
       // First, check if this is a URI
-      const parsedUri: string | ZcashURITarget[] = await parseZcashURI(address.replace(/ /g, ""), serverChainName);
+      const parsedUri: string | ZcashURITarget = await parseZcashURI(address.replace(/ /g, ""), serverChainName);
       if (typeof parsedUri === "string") {
         if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
           // with error leave the same value
-          if (toAddr) {
-            toAddr.to = address.replace(/ /g, ""); // Remove spaces 
-          }
+          toAddr.to = address.replace(/ /g, ""); // Remove spaces 
         } else {
           // if it is string with no error, it is an address
-          if (toAddr) {
-            toAddr.to = parsedUri
-          }
+          toAddr.to = parsedUri
         }
       } else {
         // if no string and no error extract all the infro from the URI
@@ -173,9 +158,7 @@ const Send: React.FC<SendProps> = ({
       if (newAmount < 0 || newAmount > 21 * 10 ** 6) {
         return;
       }
-      if (toAddr) {
-        toAddr.amount = newAmount;
-      }
+      toAddr.amount = newAmount;
     }
 
     if (memo !== null && toAddr) {
@@ -184,49 +167,22 @@ const Send: React.FC<SendProps> = ({
 
     // Create the new state object 
     const newState = new SendPageStateClass();
-    newState.fromaddr = sendPageState.fromaddr;
-    if (restToAddr && restToAddr.length > 0) {
-      if (toAddr) {
-        newState.toaddrs = [toAddr, ...restToAddr];
-      }
-    } else {
-      if (toAddr) {
-        newState.toaddrs = [toAddr];
-      }
-    }
+    newState.toaddr = toAddr;
 
     setSendPageState(newState);
   };
 
-  const setMaxAmount = async (id: number, total: number) => {
+  const setMaxAmount = async (total: number) => {
     // Find the correct toAddr
-    const toAddr: ToAddrClass | undefined = sendPageState.toaddrs.find((a: ToAddrClass) => a.id === id);
-    const restToAddr: ToAddrClass[] = sendPageState.toaddrs.filter((a: ToAddrClass) => a.id !== id);
+    const toAddr: ToAddrClass = sendPageState.toaddr;
 
-    let totalOtherAmount: number = 0;
-    
-    if (restToAddr && restToAddr.length > 0) {
-      totalOtherAmount = restToAddr.reduce((s: number, a: ToAddrClass) => s + a.amount, 0);
-    }
-
-    if (toAddr) {
-      toAddr.amount = total - totalOtherAmount;
-      if (toAddr.amount < 0) toAddr.amount = 0;
-      toAddr.amount = Number(Utils.maxPrecisionTrimmed(toAddr.amount)); 
-    }
+    toAddr.amount = total;
+    if (toAddr.amount < 0) toAddr.amount = 0;
+    toAddr.amount = Number(Utils.maxPrecisionTrimmed(toAddr.amount)); 
     
     // Create the new state object 
     const newState = new SendPageStateClass();
-    newState.fromaddr = sendPageState.fromaddr;
-    if (restToAddr && restToAddr.length > 0) {
-      if (toAddr) {
-        newState.toaddrs = [toAddr, ...restToAddr];
-      }
-    } else {
-      if (toAddr) {
-        newState.toaddrs = [toAddr];
-      }
-    }
+    newState.toaddr = toAddr;
 
     setSendPageState(newState);
   };
@@ -252,8 +208,8 @@ const Send: React.FC<SendProps> = ({
     let _error: string = '';
     // transparent funds are not spendable.
     let _spendable: number = totalBalance.totalSpendableBalance;
-    if (sendPageState.toaddrs[0].to) {
-      const result: string = await native.get_spendable_balance_with_address(sendPageState.toaddrs[0].to, "false");
+    if (sendPageState.toaddr.to) {
+      const result: string = await native.get_spendable_balance_with_address(sendPageState.toaddr.to, "false");
       console.log('SPENDABLEBALANCE', result);
       if (!result || result.toLowerCase().startsWith('error')) {
         _error = result;
@@ -267,7 +223,7 @@ const Send: React.FC<SendProps> = ({
         }
       }
     }
-    if (sendPageState.toaddrs[0].amount >= 0 && sendPageState.toaddrs[0].to && !_error) {
+    if (sendPageState.toaddr.amount >= 0 && sendPageState.toaddr.to && !_error) {
       const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
       console.log(sendJson);
       const result: string = await native.send(JSON.stringify(sendJson));
@@ -305,16 +261,15 @@ const Send: React.FC<SendProps> = ({
   return (
     <div>
       <SendConfirmModal
-          sendPageState={sendPageState}
-          totalBalance={totalBalance}
-          info={info}
-          sendTransaction={sendTransaction}
-          openErrorModal={openErrorModal}
-          closeModal={closeModal}
-          modalIsOpen={modalIsOpen}
-          clearToAddrs={clearToAddrs}
-          sendFee={sendFee}
-          currencyName={info.currencyName}
+        sendPageState={sendPageState}
+        totalBalance={totalBalance}
+        info={info}
+        sendTransaction={sendTransaction}
+        closeModal={closeModal}
+        modalIsOpen={modalIsOpen}
+        clearToAddrs={clearToAddrs}
+        sendFee={sendFee}
+        currencyName={info.currencyName}
       />
 
       <div className={[cstyles.well, styles.containermargin].join(" ")}>
@@ -362,14 +317,13 @@ const Send: React.FC<SendProps> = ({
       <div className={[styles.horizontalcontainer].join(" ")}>
         <div className={cstyles.containermarginleft}>
           <ScrollPaneTop offsetHeight={260}>
-            {[sendPageState.toaddrs[0]].map((toaddr: ToAddrClass) => {
+            {[sendPageState.toaddr].map((toaddr: ToAddrClass, index: number) => {
               return (
                 <ToAddrBox
-                  key={toaddr.id}
+                  key={index}
                   toaddr={toaddr}
                   zecPrice={info.zecPrice}
                   updateToField={updateToField}
-                  fromAddress={fromaddr}
                   fromAmount={totalAmountAvailable}
                   fromAmountDefault={totalBalance.totalSpendableBalance}
                   setMaxAmount={setMaxAmount}

@@ -18,18 +18,16 @@ const { clipboard } = window.require("electron");
 type AddressBookItemProps = {
   item: AddressBookEntryClass;
   removeAddressBookEntry: (label: string) => void;
-  setSendTo: (targets: ZcashURITarget | ZcashURITarget[]) => void;
 };
 
 // Internal because we're using withRouter just below
 const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemProps> = ({
   item,
   removeAddressBookEntry,
-  setSendTo,
   history,
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly } = context;
+  const { readOnly, setSendTo } = context;
   const [expandAddress, setExpandAddress] = useState<boolean>(false); 
   
   return (

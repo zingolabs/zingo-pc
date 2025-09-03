@@ -20,8 +20,6 @@ const fs = window.require("fs");
 type SidebarProps = {
   setInfo: (info: InfoClass) => void;
   clearTimers: () => void;
-  setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
   navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
   doRescan: () => void;
 };
@@ -29,15 +27,13 @@ type SidebarProps = {
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
   setInfo, 
   clearTimers,
-  setSendTo,
-  openErrorModal,
   navigateToLoadingScreen,
   doRescan,
   history,
   location,
 }) => {
   const context = useContext(ContextApp);
-  const { info, serverUris, valueTransfers, verificationProgress, readOnly, serverChainName, seed_phrase, ufvk, birthday } = context;
+  const { info, serverUris, valueTransfers, verificationProgress, readOnly, serverChainName, seed_phrase, ufvk, birthday, setSendTo, openErrorModal } = context;
 
   const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
   const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
@@ -271,7 +267,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       return;
     }
 
-    const parsedUri: string | ZcashURITarget[] = await parseZcashURI(uri, serverChainName);
+    const parsedUri: string | ZcashURITarget = await parseZcashURI(uri, serverChainName);
     if (typeof parsedUri === "string") {
       if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
         openErrorModal(errTitle, getErrorBody(parsedUri));

@@ -5,14 +5,12 @@ import cstyles from "../common/Common.module.css";
 import { AddressBookEntryClass, AddressKindEnum } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
-import { ZcashURITarget } from "../../utils/uris";
 import AddressBookItem from './components/AddressbookItem';
 import { ContextApp } from "../../context/ContextAppState";
 
 type AddressBookProps = {
   addAddressBookEntry: (label: string, address: string) => void;
   removeAddressBookEntry: (label: string) => void;
-  setSendTo: (targets: ZcashURITarget[] | ZcashURITarget) => void;
   setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
@@ -172,7 +170,6 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                     key={item.label}
                     item={item}
                     removeAddressBookEntry={props.removeAddressBookEntry}
-                    setSendTo={props.setSendTo}
                   />
                 ))}
               </Accordion>

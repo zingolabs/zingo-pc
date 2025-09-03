@@ -51,9 +51,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
     this.state = defaultAppState;
 
-    // Create the initial ToAddr box
-    this.state.sendPageState.toaddrs = [new ToAddrClass(Utils.getNextToAddrID())];
-
     // Set the Modal's app element
     ReactModal.setAppElement("#root");
 
@@ -161,23 +158,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       console.log('=============== addresses UA', addressesUnified.length);
       this.setState({ addressesUnified });
     }
-
-    const { sendPageState } = this.state;
-    // If there is no 'from' address, we'll set a default one
-    if (!sendPageState.fromaddr) {
-      // Find a u-address with the highest balance
-      const defaultAB: UnifiedAddressClass | null = addressesUnified[addressesUnified.length - 1];
-
-      if (defaultAB) {
-        const newSendPageState = new SendPageStateClass();
-        newSendPageState.fromaddr = defaultAB.encoded_address;
-        newSendPageState.toaddrs = sendPageState.toaddrs;
-
-        console.log('=============== default fromaddr UA', defaultAB.encoded_address);
-
-        this.setState({ sendPageState: newSendPageState });
-      }
-    }
   };
 
   setAddressesTransparent = (addressesTransparent: TransparentAddressClass[]) => {
@@ -206,35 +186,23 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ sendPageState });
   };
 
-  setSendTo = (targets: ZcashURITarget[] | ZcashURITarget): void => {
-    console.log('=============== send to', targets);
+  setSendTo = (target: ZcashURITarget): void => {
+    console.log('=============== send to', target);
     // Clear the existing send page state and set up the new one
-    const { sendPageState } = this.state;
-
     const newSendPageState = new SendPageStateClass();
-    newSendPageState.toaddrs = [];
-    newSendPageState.fromaddr = sendPageState.fromaddr;
 
-    // If a single object is passed, accept that as well. 
-    let tgts: ZcashURITarget | ZcashURITarget[] = targets;
-    if (!Array.isArray(tgts)) {
-      tgts = [targets as ZcashURITarget];
+    const to = new ToAddrClass();
+    if (target.address) {
+      to.to = target.address;
+    }
+    if (target.amount) {
+      to.amount = target.amount;
+    }
+    if (target.memoString) {
+      to.memo = target.memoString;
     }
 
-    tgts.forEach((tgt) => {
-      const to = new ToAddrClass(Utils.getNextToAddrID());
-      if (tgt.address) {
-        to.to = tgt.address;
-      }
-      if (tgt.amount) {
-        to.amount = tgt.amount;
-      }
-      if (tgt.memoString) {
-        to.memo = tgt.memoString;
-      }
-
-      newSendPageState.toaddrs.push(to);
-    });
+    newSendPageState.toaddr = to;
 
     this.setState({ sendPageState: newSendPageState });
   };
@@ -487,22 +455,47 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   render() {
-    const standardProps = {
+    const contextAppState: AppState = {
+      totalBalance: this.state.totalBalance,
+      addressesUnified: this.state.addressesUnified,
+      addressesTransparent: this.state.addressesTransparent,
+      addressBook: this.state.addressBook,
+      valueTransfers: this.state.valueTransfers,
+      messages: this.state.messages,
+      serverSelectState: this.state.serverSelectState,
+      sendPageState: this.state.sendPageState,
+      info: this.state.info,
+      syncingStatus: this.state.syncingStatus,
+      verificationProgress: this.state.verificationProgress,
+      readOnly: this.state.readOnly,
+      serverUris: this.state.serverUris,
+      fetchError: this.state.fetchError,
+      serverUri: this.state.serverUri,
+      serverChainName: this.state.serverChainName,
+      serverSelection: this.state.serverSelection,
+      seed_phrase: this.state.seed_phrase,
+      ufvk: this.state.ufvk,
+      birthday: this.state.birthday,
+      orchardPool: this.state.orchardPool,
+      saplingPool: this.state.saplingPool,
+      transparentPool: this.state.transparentPool,
+      addLabelState: this.state.addLabelState,
+      errorModalData: this.state.errorModalData,
+      confirmModalData: this.state.confirmModalData,
       openErrorModal: this.openErrorModal,
       closeErrorModal: this.closeErrorModal,
       openConfirmModal: this.openConfirmModal,
-      closeConfirmModal: this.closeConfirmModal,
+      closeConfirmModal: this.state.closeConfirmModal,
       setSendTo: this.setSendTo,
     };
 
     return (
-      <ContextAppProvider value={this.state}>
+      <ContextAppProvider value={contextAppState}>
         <ErrorModal closeModal={this.closeErrorModal} />
         <ConfirmModal closeModal={this.closeConfirmModal} /> 
 
         <ServerSelectModal
           closeModal={this.closeServerSelectModal}
-          openErrorModal={this.openErrorModal}
         />
 
         <div style={{ overflow: "hidden" }}>
@@ -513,7 +506,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 clearTimers={this.clearTimers}
                 navigateToLoadingScreen={this.navigateToLoadingScreen}
                 doRescan={this.doRescan}
-                {...standardProps}
               />
             </div>
           )}
@@ -528,7 +520,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setSendPageState={this.setSendPageState}
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}
-                    {...standardProps}
                   />
                 )}
               />
@@ -538,7 +529,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <Receive
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}
-                    {...standardProps}
                   />
                 )}
               />
@@ -549,7 +539,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     addAddressBookEntry={this.addAddressBookEntry}
                     removeAddressBookEntry={this.removeAddressBookEntry}
                     setAddLabel={this.setAddLabel}
-                    {...standardProps}
                   />
                 )}
               />
@@ -577,7 +566,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}
                     setAddLabel={this.setAddLabel}
-                    {...standardProps}
                   />
                 )}
               />
@@ -588,7 +576,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     calculateShieldFee={this.calculateShieldFee}
                     handleShieldButton={this.handleShieldButton}
                     setAddLabel={this.setAddLabel}
-                    {...standardProps}
                   />
                 )}
               />
@@ -616,7 +603,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setRecoveryInfo={this.setRecoveryInfo}
                     setServerInfo={this.setServerInfo}
                     setPools={this.setPools}
-                    {...standardProps}
                   />
                 )}
               />

@@ -20,7 +20,6 @@ type AddressBlockProps = {
   label?: string;
   currencyName: string;
   type: 'u' | 't';
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
   calculateShieldFee?: () => Promise<number>;
   handleShieldButton?: () => void;
 };
@@ -30,12 +29,11 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   label,
   currencyName,
   type,
-  openErrorModal,
   calculateShieldFee,
   handleShieldButton
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly, totalBalance, valueTransfers } = context;
+  const { readOnly, totalBalance, valueTransfers, openErrorModal } = context;
   const address_address = address.encoded_address;
 
   const [copied, setCopied] = useState<boolean>(false);

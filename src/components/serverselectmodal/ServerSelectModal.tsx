@@ -10,12 +10,11 @@ const { ipcRenderer } = window.require("electron");
 
 type ModalProps = {
   closeModal: () => void;
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
 };
 
-export default function ServerSelectModal({ closeModal, openErrorModal }: ModalProps) {
+export default function ServerSelectModal({ closeModal }: ModalProps) {
   const context = useContext(ContextApp);
-  const { serverSelectState, serverUris } = context;
+  const { serverSelectState, serverUris, openErrorModal } = context;
   const { modalIsOpen } = serverSelectState;
 
   const [selectedServer, setSelectedServer] = useState<string>("");

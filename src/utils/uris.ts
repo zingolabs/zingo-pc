@@ -22,7 +22,7 @@ export class ZcashURITarget {
   }
 }
 
-export const parseZcashURI = async (uri: string, serverChainName: "" | ServerChainNameEnum): Promise<ZcashURITarget[] | string> => {
+export const parseZcashURI = async (uri: string, serverChainName: "" | ServerChainNameEnum): Promise<ZcashURITarget | string> => {
   if (!uri || uri === "") {
     return "Error: Bad URI";
   }
@@ -167,7 +167,7 @@ export const parseZcashURI = async (uri: string, serverChainName: "" | ServerCha
   }
 
   // only the first item. 
-  return [ans[0]] as ZcashURITarget[];
+  return ans[0] as ZcashURITarget;
 };
 
 export const checkServerURI = async (uri: string, oldUri: string): Promise<boolean> => {

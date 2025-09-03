@@ -78,7 +78,6 @@ type LoadingScreenProps = {
   setReadOnly: (readOnly: boolean) => void;
   setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
-  openErrorModal: (title: string, body: string | JSX.Element) => void;
   setRecoveryInfo: (s: string, u: string, b: number) => void;
   setServerInfo: (u: string, c: ServerChainNameEnum, s: 'auto' | 'list' | 'custom') => void;
   setPools: (o: boolean, s: boolean, t: boolean) => void;
@@ -86,6 +85,7 @@ type LoadingScreenProps = {
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
   static contextType = ContextApp;
+
   constructor(props: LoadingScreenProps & RouteComponentProps) {
     super(props);
 
@@ -121,6 +121,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.setState({
       buttonsDisable: true,
     })
+    const { openErrorModal } = this.context as React.ContextType<typeof ContextApp>;
 
     const r = native.set_crypto_default_provider_to_ring();
     console.log('crypto provider result', r);
@@ -131,7 +132,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const version = await RPC.getWalletVersion();
     console.log('WALLET VERSION -------------->', version);
     if (version && version < 32) {
-      this.props.openErrorModal(
+      openErrorModal(
         "Wallet migration",
         <div>
           <div>
