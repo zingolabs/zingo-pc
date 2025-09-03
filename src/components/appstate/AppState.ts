@@ -12,6 +12,7 @@ import AddressBookEntryClass from "./classes/AddressBookEntryClass";
 import InfoClass from "./classes/InfoClass";
 import { SyncStatusType } from "./types/SyncStatusType";
 import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
+import { ConfirmModalData } from "../confirmmodal";
 
 
 export default class AppState {
@@ -39,6 +40,9 @@ export default class AppState {
 
   // Error modal data
   errorModalData: ErrorModalData;
+
+  // Error modal data
+  confirmModalData: ConfirmModalData;
 
   // Server selection
   serverSelectState: ServerSelectStateClass;
@@ -80,6 +84,7 @@ export default class AppState {
     this.valueTransfers = [] as ValueTransferClass[];
     this.messages = [] as ValueTransferClass[];
     this.errorModalData = new ErrorModalData();
+    this.confirmModalData = new ConfirmModalData();
     this.serverSelectState = new ServerSelectStateClass();
     this.sendPageState = new SendPageStateClass();
     this.info = new InfoClass();

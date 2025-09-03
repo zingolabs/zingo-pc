@@ -39,6 +39,7 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 import native from "../native.node";
 import { Messages } from "../components/messages";
 import serverUrisList from "../utils/serverUrisList";
+import { ConfirmModal, ConfirmModalData } from "../components/confirmmodal";
 
 type Props = {};
 
@@ -104,6 +105,23 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     errorModalData.modalIsOpen = false;
 
     this.setState({ errorModalData });
+  };
+
+  openConfirmModal = (title: string, body: string | JSX.Element, runAction: () => void) => {
+    const confirmModalData = new ConfirmModalData();
+    confirmModalData.modalIsOpen = true;
+    confirmModalData.title = title;
+    confirmModalData.body = body;
+    confirmModalData.runAction = runAction;
+
+    this.setState({ confirmModalData });
+  };
+
+  closeConfirmModal = () => {
+    const confirmModalData = new ConfirmModalData();
+    confirmModalData.modalIsOpen = false;
+
+    this.setState({ confirmModalData });
   };
 
   openServerSelectModal = () => {
@@ -343,9 +361,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   doRescan = () => {
-    this.clearTimers();
-    this.rpc.refreshSync(true);
-    this.rpc.configure();
+    this.openConfirmModal("Rescan Wallet", "Please confirm the Action", () => {
+      this.clearTimers();
+      this.rpc.refreshSync(true);
+      this.rpc.configure();
+    });
   };
 
   clearTimers = () => {
@@ -375,6 +395,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   }
 
   handleShieldButton = () => {
+    this.openConfirmModal("Shield Transparent Funds", "Please confirm the Action", () => this.handleShieldButtonConfirmed());
+  };
+
+  handleShieldButtonConfirmed = () => {
     // This will be replaced by either a success TXID or error message that the user
     // has to close manually.
     this.openErrorModal("Computing Transaction", "Please wait...This could take a while");
@@ -466,12 +490,15 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     const standardProps = {
       openErrorModal: this.openErrorModal,
       closeErrorModal: this.closeErrorModal,
+      openConfirmModal: this.openConfirmModal,
+      closeConfirmModal: this.closeConfirmModal,
       setSendTo: this.setSendTo,
     };
 
     return (
       <ContextAppProvider value={this.state}>
         <ErrorModal closeModal={this.closeErrorModal} />
+        <ConfirmModal closeModal={this.closeConfirmModal} /> 
 
         <ServerSelectModal
           closeModal={this.closeServerSelectModal}

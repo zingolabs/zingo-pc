@@ -14,6 +14,7 @@ import {
   SyncStatusType,
 } from "../components/appstate";
 import { ErrorModalData } from '../components/errormodal';
+import { ConfirmModalData } from '../components/confirmmodal';
 
 export const defaultAppState: AppState = {
   totalBalance: new TotalBalanceClass(),
@@ -23,6 +24,7 @@ export const defaultAppState: AppState = {
   valueTransfers: [] as ValueTransferClass[],
   messages: [] as ValueTransferClass[],
   errorModalData: new ErrorModalData(),
+  confirmModalData: new ConfirmModalData(),
   serverSelectState: new ServerSelectStateClass(),
   sendPageState: new SendPageStateClass(),
   info: new InfoClass(),

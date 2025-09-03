@@ -29,6 +29,7 @@ type VtModalInternalProps = {
   addressBookMap: Map<string, string>;
   valueTransfersSliced: ValueTransferClass[];
   openErrorModal: (title: string, body: string | JSX.Element) => void;
+  openConfirmModal: (title: string, body: string | JSX.Element, action: () => void) => void;
   setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
@@ -45,6 +46,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   addressBookMap,
   valueTransfersSliced,
   openErrorModal,
+  openConfirmModal,
   setAddLabel,
 }) => {
   const context = useContext(ContextApp);
@@ -211,6 +213,10 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   };
 
   const runAction = async (action: 'resend' | 'remove') => {
+    openConfirmModal(action === 'remove' ? 'Remove Transaction' : 'Resend Transaction', "Please confirm the Action", () => runActionConfirmed(action));
+  };
+
+  const runActionConfirmed = async (action: 'resend' | 'remove') => {
     // first close the current modal
     localCloseModal();
 
