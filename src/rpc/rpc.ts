@@ -226,7 +226,7 @@ export default class RPC {
     if (shieldResult) {
       if (shieldResult.toLowerCase().startsWith("error")) {
         // error
-        console.log(shieldResult);
+        console.log(`Error shield ${shieldResult}`);
         return shieldResult;
       }
     } else {
@@ -248,14 +248,14 @@ export default class RPC {
       console.log(err);
       return err;
     }
-    console.log(shieldJSON);
+    //console.log(shieldJSON);
 
     // SHIELDING
     const confirmResult: string = await native.confirm();
     if (confirmResult) {
       if (confirmResult.toLowerCase().startsWith("error")) {
         // error
-        console.log(confirmResult);
+        console.log(`Error Shield Confirm ${confirmResult}`);
         return confirmResult;
       }
     } else {
@@ -282,7 +282,7 @@ export default class RPC {
       console.log(txids);
       return txids;
     }
-    console.log(confirmJSON);
+    //console.log(confirmJSON);
 
     // weird case, I want to see the JSON in the error.
     return JSON.stringify(confirmJSON);
@@ -564,7 +564,7 @@ export default class RPC {
   // This method will get the total balances
   async fetchTotalBalance() {
     const spendableStr: string = await native.get_spendable_balance_total();
-    console.log(spendableStr);
+    //console.log(spendableStr);
     let spendableJSON;
     if (spendableStr) {
       if (spendableStr.toLowerCase().startsWith('error')) {
@@ -674,7 +674,7 @@ export default class RPC {
   async fetchTandZandOValueTransfers() {
     // first to get the last server block.
     let latestBlockHeight: number = 0;
-    console.log(this.server);
+    //console.log(this.server);
     const heightStr: string = await native.get_latest_block_server(this.server.uri);
     if (heightStr) {
       if (heightStr.toLowerCase().startsWith('error')) {

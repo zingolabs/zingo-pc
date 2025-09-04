@@ -128,6 +128,7 @@ export default function ServerSelectModal({ closeModal }: ModalProps) {
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
             <input
               checked={selectedSelection === 'auto'}
+              style={{ accentColor: Utils.getCssVariable('--color-primary') }}
               type="radio" 
               name="selection" 
               value={'auto'}
@@ -158,7 +159,8 @@ export default function ServerSelectModal({ closeModal }: ModalProps) {
 
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
             <input
-              checked={selectedSelection === 'list'} 
+              checked={selectedSelection === 'list'}
+              style={{ accentColor: Utils.getCssVariable('--color-primary') }}
               type="radio" 
               name="selection" 
               value={'list'} 
@@ -197,7 +199,8 @@ export default function ServerSelectModal({ closeModal }: ModalProps) {
 
           <div style={{ margin: "10px" }}>
             <input 
-              checked={selectedSelection === "custom"} 
+              checked={selectedSelection === "custom"}
+              style={{ accentColor: Utils.getCssVariable('--color-primary') }}
               type="radio" 
               name="selection" 
               value={"custom"} 

@@ -120,7 +120,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
     // Export Seed
     ipcRenderer.on("seed", async () => {
-      console.log('data for seed/ufvk & birthday', seed_phrase, ufvk, birthday);
+      //console.log('data for seed/ufvk & birthday', seed_phrase, ufvk, birthday);
 
       openErrorModal(
         "Wallet Seed",
@@ -185,7 +185,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
       // interrupt syncing
       const resultInterrupt: string = await native.pause_sync();
-      console.log("Interrupting sync ....", resultInterrupt);
+      console.log("Pausing sync ....", resultInterrupt);
 
       navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
     });

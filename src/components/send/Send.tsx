@@ -223,7 +223,7 @@ const Send: React.FC<SendProps> = ({
     }
     if (sendPageState.toaddr.amount >= 0 && sendPageState.toaddr.to && !_error) {
       const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
-      console.log(sendJson);
+      //console.log(sendJson);
       const result: string = await native.send(JSON.stringify(sendJson));
       console.log('SEND', result);
       if (!result || result.toLowerCase().startsWith('error')) {
@@ -246,7 +246,7 @@ const Send: React.FC<SendProps> = ({
 
   const fetchSendFeeAndErrorAndSpendable = async (): Promise<void> => {
     const { fee, error, spendable} = await calculateSendFee();
-    console.log(fee, spendable, error);
+    console.log('AMOUNTS CALCULATION: fee', fee, 'spendable', spendable, 'error', error);
     setSendFee(fee);
     setSendFeeError(error);
     setTotalAmountAvailable(spendable);
