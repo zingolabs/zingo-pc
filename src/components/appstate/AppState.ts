@@ -83,6 +83,9 @@ export default class AppState {
   openConfirmModal: (t: string, b: string | JSX.Element, a: () => void) => void;
   closeConfirmModal: () => void;
   setSendTo: (t: ZcashURITarget) => void;
+  calculateShieldFee: () => Promise<number>
+  handleShieldButton: () => void;
+  setAddLabel: (a: AddressBookEntryClass) => void;
 
   constructor() {
     this.totalBalance = new TotalBalanceClass();
@@ -116,5 +119,8 @@ export default class AppState {
     this.openConfirmModal = () => {};
     this.closeConfirmModal = () => {};
     this.setSendTo = () => {};
+    this.calculateShieldFee = async () => 0;
+    this.handleShieldButton = () => {};
+    this.setAddLabel = () => {};
   }
 }

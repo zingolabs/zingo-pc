@@ -10,8 +10,6 @@ import ScrollPaneTop from "../scrollPane/ScrollPane";
 import DetailLine from "../zcashd/components/DetailLine";
 
 type DashboardProps = {
-  calculateShieldFee: () => Promise<number>;
-  handleShieldButton: () => void;
   navigateToHistory: () => void;
   navigateToZcashd: () => void;
 };
@@ -23,9 +21,9 @@ const chains = {
   "": "" 
 }; 
 
-const Dashboard: React.FC<DashboardProps> = ({calculateShieldFee, handleShieldButton, navigateToHistory, navigateToZcashd}) => {
+const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToZcashd }) => {
   const context = useContext(ContextApp);
-  const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus, serverUri, serverChainName, birthday, orchardPool, saplingPool, transparentPool } = context;
+  const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus, serverUri, serverChainName, birthday, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);

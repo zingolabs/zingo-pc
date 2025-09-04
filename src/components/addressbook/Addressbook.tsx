@@ -11,12 +11,11 @@ import { ContextApp } from "../../context/ContextAppState";
 type AddressBookProps = {
   addAddressBookEntry: (label: string, address: string) => void;
   removeAddressBookEntry: (label: string) => void;
-  setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
 const AddressBook: React.FC<AddressBookProps> = (props) => { 
   const context = useContext(ContextApp);
-  const { addressBook, serverChainName, addLabelState } = context;
+  const { addressBook, serverChainName, addLabelState, setAddLabel } = context;
 
   const [currentLabel, setCurrentLabel] = useState<string>(addLabelState.label);
   const [currentAddress, setCurrentAddress] = useState<string>(addLabelState.address);
@@ -85,7 +84,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     setLabelError(null);
     setAddressError(null);
     setAddressKind(undefined);
-    props.setAddLabel(new AddressBookEntryClass('', ''));
+    setAddLabel(new AddressBookEntryClass('', ''));
   };
 
   return (

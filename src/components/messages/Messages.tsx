@@ -10,14 +10,11 @@ import { ContextApp } from "../../context/ContextAppState";
 import VtModal from "../history/components/VtModal";
 
 type MessagesProps = {
-  calculateShieldFee: () => Promise<number>;
-  handleShieldButton: () => void;
-  setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
-const Messages: React.FC<MessagesProps> = ({ calculateShieldFee, handleShieldButton, setAddLabel }) => {
+const Messages: React.FC<MessagesProps> = () => {
   const context = useContext(ContextApp);
-  const { messages, info, addressBook, totalBalance, readOnly, fetchError, valueTransfers, orchardPool, saplingPool, transparentPool } = context;
+  const { messages, info, addressBook, totalBalance, readOnly, fetchError, valueTransfers, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
@@ -193,7 +190,6 @@ const Messages: React.FC<MessagesProps> = ({ calculateShieldFee, handleShieldBut
           currencyName={info.currencyName}
           addressBookMap={addressBookMap}
           valueTransfersSliced={messagesSorted}
-          setAddLabel={setAddLabel}
         />
       )}
     </div>

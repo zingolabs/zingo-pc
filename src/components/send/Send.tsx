@@ -22,15 +22,11 @@ import getSendManyJSON from "./components/getSendManyJSON";
 type SendProps = {
   sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string>;
   setSendPageState: (sendPageState: SendPageStateClass) => void;
-  calculateShieldFee: () => Promise<number>;
-  handleShieldButton: () => void;
 };
 
 const Send: React.FC<SendProps> = ({
   sendTransaction,
   setSendPageState,
-  calculateShieldFee,
-  handleShieldButton,
 }) => {
   const context = useContext(ContextApp);
   const {
@@ -44,6 +40,8 @@ const Send: React.FC<SendProps> = ({
     valueTransfers,
     serverChainName,
     setSendTo,
+    calculateShieldFee,
+    handleShieldButton,
   } = context;
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);

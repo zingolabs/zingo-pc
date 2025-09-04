@@ -8,14 +8,9 @@ import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
 
 type ReceiveProps = {
-  calculateShieldFee: () => Promise<number>;
-  handleShieldButton: () => void;
 };
 
-const Receive: React.FC<ReceiveProps> = ({ 
-  calculateShieldFee, 
-  handleShieldButton,
-}) => {
+const Receive: React.FC<ReceiveProps> = () => {
   const context = useContext(ContextApp);
   const {
     addressesUnified,
@@ -25,6 +20,8 @@ const Receive: React.FC<ReceiveProps> = ({
     orchardPool,
     saplingPool,
     transparentPool,
+    calculateShieldFee,
+    handleShieldButton,
   } = context;
 
   const [uaddrs, setUaddrs] = useState<UnifiedAddressClass[]>([]);

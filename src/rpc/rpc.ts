@@ -762,7 +762,7 @@ export default class RPC {
       console.log('Internal Error server height');
     }
 
-    console.log('SERVER HEIGHT', latestBlockHeight);
+    //console.log('SERVER HEIGHT', latestBlockHeight);
 
     const MessagesJSON: any = await this.zingolibMessages();
 
@@ -771,7 +771,7 @@ export default class RPC {
     let mList: ValueTransferClass[] = [];
 
     const walletHeight: number = await RPC.fetchWalletHeight();
-    console.log('WALLET HEIGHT', walletHeight);
+    //console.log('WALLET HEIGHT', walletHeight);
 
     MessagesJSON
       .forEach((tx: any) => {
