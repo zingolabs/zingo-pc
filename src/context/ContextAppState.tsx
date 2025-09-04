@@ -48,6 +48,9 @@ export const defaultAppState: AppState = {
   openConfirmModal: () => {},
   closeConfirmModal: () => {},
   setSendTo: () => {},
+  calculateShieldFee: async () => 0,
+  handleShieldButton: () => {},
+  setAddLabel: () => {},
 };
 
 export const ContextApp = React.createContext(defaultAppState);

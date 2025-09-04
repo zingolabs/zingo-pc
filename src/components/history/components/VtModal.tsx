@@ -27,7 +27,6 @@ type VtModalInternalProps = {
   currencyName: string;
   addressBookMap: Map<string, string>;
   valueTransfersSliced: ValueTransferClass[];
-  setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
 const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
@@ -41,10 +40,9 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   history,
   addressBookMap,
   valueTransfersSliced,
-  setAddLabel,
 }) => {
   const context = useContext(ContextApp);
-  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, info, setSendTo, openErrorModal, openConfirmModal } = context; 
+  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, info, setSendTo, openErrorModal, openConfirmModal, setAddLabel } = context; 
   const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
   const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
   const [expandAddress, setExpandAddress] = useState(false); 

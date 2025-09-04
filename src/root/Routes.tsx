@@ -288,7 +288,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  sendTransaction = async (sendJson: SendManyJsonType[]): Promise<string> => {
+  runRPCSendTransaction = async (sendJson: SendManyJsonType[]): Promise<string> => {
     try {
       const result: string = await this.rpc.sendTransaction(sendJson);
 
@@ -324,19 +324,19 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ addressBook: newAddressBook });
   };
 
-  doRefreshServerInfo = () => {
+  runRPCfectchInfo = () => {
     this.rpc.fetchInfo();
   };
 
-  doRescan = () => {
+  runRPCRescan = () => {
     this.openConfirmModal("Rescan Wallet", "Please confirm the Action", () => {
-      this.clearTimers();
+      this.runRPCClearTimers();
       this.rpc.refreshSync(true);
       this.rpc.configure();
     });
   };
 
-  clearTimers = () => {
+  runRPCClearTimers = () => {
     this.rpc.clearTimers();
   };
 
@@ -357,7 +357,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   }
 
-  shieldTransparentBalanceToOrchard = async (): Promise<string> => {
+  runRPCShieldTransparentBalanceToOrchard = async (): Promise<string> => {
     const result: string = await this.rpc.shieldTransparentBalanceToOrchard();
     return result;
   }
@@ -373,7 +373,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
     setTimeout(async () => {
       try {
-        const txidsResult: string = await this.shieldTransparentBalanceToOrchard();
+        const txidsResult: string = await this.runRPCShieldTransparentBalanceToOrchard();
 
         if (!txidsResult || txidsResult.toLocaleLowerCase().startsWith('error')) {
           this.openErrorModal("Error Shielding Transaction", `${txidsResult}`);
@@ -487,6 +487,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       openConfirmModal: this.openConfirmModal,
       closeConfirmModal: this.state.closeConfirmModal,
       setSendTo: this.setSendTo,
+      calculateShieldFee: this.calculateShieldFee,
+      handleShieldButton: this.handleShieldButton,
+      setAddLabel: this.setAddLabel,
     };
 
     return (
@@ -503,9 +506,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
             <div className={cstyles.sidebarcontainer}>
               <Sidebar
                 setInfo={this.setInfo}
-                clearTimers={this.clearTimers}
+                clearTimers={this.runRPCClearTimers}
                 navigateToLoadingScreen={this.navigateToLoadingScreen}
-                doRescan={this.doRescan}
+                doRescan={this.runRPCRescan}
               />
             </div>
           )}
@@ -516,20 +519,15 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.SEND}
                 render={() => (
                   <Send
-                    sendTransaction={this.sendTransaction}
+                    sendTransaction={this.runRPCSendTransaction}
                     setSendPageState={this.setSendPageState}
-                    calculateShieldFee={this.calculateShieldFee}
-                    handleShieldButton={this.handleShieldButton}
                   />
                 )}
               />
               <Route
                 path={routes.RECEIVE}
                 render={() => (
-                  <Receive
-                    calculateShieldFee={this.calculateShieldFee}
-                    handleShieldButton={this.handleShieldButton}
-                  />
+                  <Receive />
                 )}
               />
               <Route
@@ -538,7 +536,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <AddressBook
                     addAddressBookEntry={this.addAddressBookEntry}
                     removeAddressBookEntry={this.removeAddressBookEntry}
-                    setAddLabel={this.setAddLabel}
                   />
                 )}
               />
@@ -546,8 +543,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.DASHBOARD}
                 render={() => (
                   <Dashboard 
-                    calculateShieldFee={this.calculateShieldFee}
-                    handleShieldButton={this.handleShieldButton}
                     navigateToHistory={this.navigateToHistory}
                     navigateToZcashd={this.navigateToZcashd}
                   />
@@ -562,21 +557,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
               <Route
                 path={routes.HISTORY}
                 render={() => (
-                  <History
-                    calculateShieldFee={this.calculateShieldFee}
-                    handleShieldButton={this.handleShieldButton}
-                    setAddLabel={this.setAddLabel}
-                  />
+                  <History />
                 )}
               />
               <Route
                 path={routes.MESSAGES}
                 render={() => (
-                  <Messages
-                    calculateShieldFee={this.calculateShieldFee}
-                    handleShieldButton={this.handleShieldButton}
-                    setAddLabel={this.setAddLabel}
-                  />
+                  <Messages />
                 )}
               />
 
@@ -584,7 +571,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.ZCASHD}
                 render={() => (
                   <Zcashd
-                    refresh={this.doRefreshServerInfo}
+                    refresh={this.runRPCfectchInfo}
                     openServerSelectModal={this.openServerSelectModal}
                   />
                 )}

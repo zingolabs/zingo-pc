@@ -10,14 +10,11 @@ import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 
 type HistoryProps = {
-  calculateShieldFee: () => Promise<number>;
-  handleShieldButton: () => void;
-  setAddLabel: (l: AddressBookEntryClass) => void;
 };
 
-const History: React.FC<HistoryProps> = ({ calculateShieldFee, handleShieldButton, setAddLabel }) => {
+const History: React.FC<HistoryProps> = () => {
   const context = useContext(ContextApp);
-  const { valueTransfers, info, addressBook, totalBalance, readOnly, fetchError, orchardPool, saplingPool, transparentPool } = context;
+  const { valueTransfers, info, addressBook, totalBalance, readOnly, fetchError, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
@@ -192,7 +189,6 @@ const History: React.FC<HistoryProps> = ({ calculateShieldFee, handleShieldButto
           currencyName={info.currencyName}
           addressBookMap={addressBookMap}
           valueTransfersSliced={valueTransfersSorted}
-          setAddLabel={setAddLabel}
         />
       )}
     </div>
