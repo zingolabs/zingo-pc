@@ -608,7 +608,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     if (native.wallet_exists(url, chain_name, "High", 3)) {
       // interrupt syncing, just in case.
       const resultInterrupt: string = await native.stop_sync();
-      console.log("Interrupting sync ...", resultInterrupt);
+      console.log("Stopping sync ...", resultInterrupt);
       const resultDelete: string = await native.delete_wallet(url, chain_name, "High", 3);
       console.log("deleting ...", resultDelete);
       native.deinitialize();

@@ -84,10 +84,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   componentWillUnmount = () => {};
 
-  getFullState = (): AppState => {
-    return this.state;
-  };
-
   openErrorModal = (title: string, body: string | JSX.Element) => {
     const errorModalData = new ErrorModalData();
     errorModalData.modalIsOpen = true;
@@ -137,6 +133,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   setTotalBalance = (totalBalance: TotalBalanceClass) => {
     if (!isEqual(totalBalance, this.state.totalBalance)) {
+      console.log('=============== total SPENDABLE balance', totalBalance.totalSpendableBalance);
       console.log('=============== total balance', totalBalance);
       this.setState({ totalBalance });
     }
@@ -330,7 +327,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   runRPCRescan = () => {
     this.openConfirmModal("Rescan Wallet", "Please confirm the Action", () => {
-      this.runRPCClearTimers();
+      this.rpc.clearTimers();
       this.rpc.refreshSync(true);
       this.rpc.configure();
     });
