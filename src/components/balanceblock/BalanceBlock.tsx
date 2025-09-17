@@ -39,7 +39,7 @@ const BalanceBlock: React.FC<BalanceBlockType> = ({
               </span>
               <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPartConfirmed}</span>
             </div>
-            <div className={[cstyles.sublight, cstyles.small].join(" ")}>{usdValueConfirmed}</div>
+            <div style={{ marginLeft: 5 }} className={[cstyles.sublight, cstyles.small].join(" ")}>{usdValueConfirmed}</div>
           </div>
         </>
       )}

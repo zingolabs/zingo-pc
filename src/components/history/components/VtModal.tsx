@@ -205,13 +205,11 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   };
 
   const runAction = async (action: 'resend' | 'remove') => {
+    localCloseModal(); 
     openConfirmModal(action === 'remove' ? 'Remove Transaction' : 'Resend Transaction', "Please confirm the Action", () => runActionConfirmed(action));
   };
 
   const runActionConfirmed = async (action: 'resend' | 'remove') => {
-    // first close the current modal
-    localCloseModal();
-
     // modal while waiting.
     openErrorModal("Computing Transaction", "Please wait...This could take a while");
 
