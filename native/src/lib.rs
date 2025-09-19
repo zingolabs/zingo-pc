@@ -39,7 +39,7 @@ use tokio::runtime::Runtime;
 use zcash_primitives::memo::MemoBytes;
 use zingolib::data::receivers::transaction_request_from_receivers;
 use zingolib::data::proposal::total_fee;
-use zingolib::wallet::network::ZingolibLocalNetwork;
+use zingolib::testutils;
 
 fn install_panic_hook_once() {
     static ONCE: Once = Once::new();
@@ -148,7 +148,7 @@ fn construct_uri_load_config(
     let chaintype = match chain_hint.as_str() {
         "main" => ChainType::Mainnet,
         "test" => ChainType::Testnet,
-        "regtest" => ChainType::Regtest(ZingolibLocalNetwork::default()),
+        "regtest" => ChainType::Regtest(testutils::default_regtest_heights()),
         _ => return Err("Error: Not a valid chain hint!".to_string()),
     };
     let performancetype = match performance_level.as_str() {
@@ -746,7 +746,7 @@ fn parse_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     [
                         ChainType::Mainnet,
                         ChainType::Testnet,
-                        ChainType::Regtest(ZingolibLocalNetwork::default()),
+                        ChainType::Regtest(testutils::default_regtest_heights()),
                     ]
                     .iter()
                     .find_map(|chain| Address::decode(chain, address).zip(Some(*chain)))
