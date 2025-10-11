@@ -335,7 +335,8 @@ function createWindow() {
     },
   });
 
-  mainWindow.webContents.setIgnoreMenuShortcuts(true);
+  const ignore = process.platform !== 'darwin';
+  mainWindow.webContents.setIgnoreMenuShortcuts(ignore);
 
   // Load from localhost if in development
   // Otherwise load index.html file
