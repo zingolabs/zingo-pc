@@ -143,9 +143,9 @@ class MenuBuilder {
           },
         },
         {
-          label: "View Lightwalletd Info",
+          label: "Server Info",
           click: () => {
-            this.mainWindow.webContents.send("zcashd");
+            this.mainWindow.webContents.send("serverinfo");
           },
         },
       ],
@@ -189,7 +189,7 @@ class MenuBuilder {
         {
           label: "Server info",
           click: () => {
-            this.mainWindow.webContents.send("zcashd");
+            this.mainWindow.webContents.send("serverinfo");
           },
         },
       ],
@@ -285,7 +285,7 @@ class MenuBuilder {
           {
             label: "Server info",
             click: () => {
-              this.mainWindow.webContents.send("zcashd");
+              this.mainWindow.webContents.send("serverinfo");
             },
           },
         ],

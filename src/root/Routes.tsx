@@ -29,7 +29,7 @@ import {
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
 import { ZcashURITarget } from "../utils/uris";
-import { Zcashd } from "../components/zcashd";
+import { ServerInfo } from "../components/serverInfo";
 import { AddressBook, AddressbookImpl } from "../components/addressbook";
 import { Sidebar } from "../components/sidebar";
 import { History } from "../components/history";
@@ -433,9 +433,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     });
   };
 
-  navigateToZcashd = () => {
+  navigateToServerInfo = () => {
     this.props.history.replace({
-      pathname: routes.ZCASHD, 
+      pathname: routes.SERVERINFO, 
       state: {},
     });
   };
@@ -541,7 +541,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 render={() => (
                   <Dashboard 
                     navigateToHistory={this.navigateToHistory}
-                    navigateToZcashd={this.navigateToZcashd}
+                    navigateToServerInfo={this.navigateToServerInfo}
                   />
                 )}
               />
@@ -565,9 +565,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
               />
 
               <Route
-                path={routes.ZCASHD}
+                path={routes.SERVERINFO}
                 render={() => (
-                  <Zcashd
+                  <ServerInfo
                     refresh={this.runRPCfectchInfo}
                     openServerSelectModal={this.openServerSelectModal}
                   />

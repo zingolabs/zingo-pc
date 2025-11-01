@@ -7,11 +7,11 @@ import { ContextApp } from "../../context/ContextAppState";
 
 import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
-import DetailLine from "../zcashd/components/DetailLine";
+import DetailLine from "../serverInfo/components/DetailLine";
 
 type DashboardProps = {
   navigateToHistory: () => void;
-  navigateToZcashd: () => void;
+  navigateToServerInfo: () => void;
 };
 
 const chains = {
@@ -21,7 +21,7 @@ const chains = {
   "": "" 
 }; 
 
-const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToZcashd }) => {
+const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToServerInfo }) => {
   const context = useContext(ContextApp);
   const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus, serverUri, serverChainName, birthday, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
 
@@ -112,7 +112,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToZcas
           </>
         )}
       </div>
-
       <div className={[styles.horizontalcontainer].join(" ")}>
         {!!birthday && !!syncingStatus.scan_ranges && (
           <div style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
@@ -291,7 +290,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToZcas
                         <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                         <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
                       </div>
-                      <div style={{ width: '100%', textAlign: 'right', color: Utils.getCssVariable('--color-primary'), marginTop: 20, cursor: 'pointer' }} onClick={() => navigateToZcashd()}>
+                      <div style={{ width: '100%', textAlign: 'right', color: Utils.getCssVariable('--color-primary'), marginTop: 20, cursor: 'pointer' }} onClick={() => navigateToServerInfo()}>
                         See more... 
                       </div>
                     </div>

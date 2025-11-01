@@ -2,10 +2,13 @@ import React, { useContext, useEffect, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
-import { AddressBookEntryClass, AddressScopeEnum, TransparentAddressClass, UnifiedAddressClass } from "../appstate";
+import cstyles from "../common/Common.module.css";
+import { AddressBookEntryClass, AddressScopeEnum, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
+import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
+import Utils from "../../utils/utils";
 
 type ReceiveProps = {
 };
@@ -22,6 +25,10 @@ const Receive: React.FC<ReceiveProps> = () => {
     transparentPool,
     calculateShieldFee,
     handleShieldButton,
+    totalBalance,
+    valueTransfers,
+    readOnly,
+    fetchError,
   } = context;
 
   const [uaddrs, setUaddrs] = useState<UnifiedAddressClass[]>([]);
@@ -29,6 +36,26 @@ const Receive: React.FC<ReceiveProps> = () => {
   const [taddrs, setTaddrs] = useState<TransparentAddressClass[]>([]);
   const [defaultTaddr, setDefaultTaddr] = useState<string>('')
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
+
+  const [anyPending, setAnyPending] = useState<boolean>(false);
+  const [shieldFee, setShieldFee] = useState<number>(0);
+  
+  useEffect(() => {
+    // set somePending as well here when I know there is something new in ValueTransfers
+    const pending: number =
+      valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
+    setAnyPending(pending > 0);
+  }, [valueTransfers]);
+    
+  useEffect(() => {
+    // with confirmed transparent funds & no readonly wallet
+    if (totalBalance.confirmedTransparentBalance > 0 && !readOnly && !anyPending) {
+      (async () => {
+        setShieldFee(await calculateShieldFee());
+      })();
+    }
+  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]); 
+  
 
   useEffect(() => {
     const _uaddrs: UnifiedAddressClass[] = [...addressesUnified].reverse();
@@ -56,7 +83,71 @@ const Receive: React.FC<ReceiveProps> = () => {
 
   return (
     <div>
-      <div className={styles.receivecontainer}>
+      <div className={[cstyles.well, styles.containermargin].join(" ")}>
+        <div className={cstyles.balancebox}>
+          <BalanceBlockHighlight
+            topLabel="All Funds"
+            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
+            currencyName={info.currencyName}
+            zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
+            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
+          />
+          {orchardPool && (
+            <BalanceBlock
+              topLabel="Orchard"
+              zecValue={totalBalance.totalOrchardBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
+              currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedOrchardBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
+            />
+          )}
+          {saplingPool && (
+            <BalanceBlock
+              topLabel="Sapling"
+              zecValue={totalBalance.totalSaplingBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
+              currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedSaplingBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
+            />
+          )}
+          {transparentPool && (
+            <BalanceBlock
+              topLabel="Transparent"
+              zecValue={totalBalance.totalTransparentBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
+              currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedTransparentBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
+            />
+          )}
+        </div>
+        <div className={cstyles.balancebox}>
+          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+            <>
+              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+                Shield Transparent Balance To Orchard (Fee: {shieldFee})
+              </button>
+            </>
+          )}
+          {!!anyPending && (
+            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
+            </div>
+          )}
+        </div>
+        {!!fetchError && !!fetchError.error && (
+          <>
+            <hr />
+            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
+              {fetchError.command + ': ' + fetchError.error}
+            </div>
+          </>
+        )}
+      </div>
+      <div className={[styles.containermargin].join(" ")} style={{ marginLeft: 20 }}>
         <Tabs>
           <TabList>
             {(orchardPool || saplingPool) && <Tab>Unified</Tab>}
@@ -65,7 +156,7 @@ const Receive: React.FC<ReceiveProps> = () => {
 
           <TabPanel>
             {(orchardPool || saplingPool) && !!uaddrs && uaddrs.length > 0 && (
-              <ScrollPaneTop offsetHeight={100}>
+              <ScrollPaneTop offsetHeight={180}>
                 <Accordion preExpanded={[defaultUaddr]}>
                   {uaddrs.map((a: UnifiedAddressClass) => (
                     <AddressBlock
@@ -83,7 +174,7 @@ const Receive: React.FC<ReceiveProps> = () => {
   
           <TabPanel>
             {transparentPool && !!taddrs && taddrs.length > 0 && (
-              <ScrollPaneTop offsetHeight={100}>
+              <ScrollPaneTop offsetHeight={180}>
                 <Accordion preExpanded={[defaultTaddr]}>
                   {taddrs.map((a: TransparentAddressClass) => (
                     <AddressBlock

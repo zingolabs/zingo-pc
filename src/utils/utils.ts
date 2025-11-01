@@ -4,7 +4,7 @@ import randomColor from 'randomcolor';
 import native from "../native.node";
 import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 
-export const NO_CONNECTION: string = "Could not connect to zcashd";
+export const NO_CONNECTION: string = "Could not connect to the Server";
 
 const { shell } = window.require("electron"); 
 

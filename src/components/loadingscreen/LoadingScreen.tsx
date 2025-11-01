@@ -34,13 +34,16 @@ class LoadingScreenState {
   // 1 -> show options
   // 2 -> create new 
   // 3 -> restore existing seed phrase
-  // 4 -> restore existing ufvk 
+  // 4 -> restore existing ufvk
+  // 5 -> restore existing dat wallet file
 
   newWalletError: null | string; // Any errors when creating/restoring wallet
 
   seed_phrase: string; // The new seed phrase for a newly created wallet or the seed phrase to restore from
 
   ufvk: string; // The UFVK to restore from
+
+  fileWallet: string; // The Wallet File Name to load from
 
   birthday: number; // Wallet birthday if we're restoring
 
@@ -64,6 +67,7 @@ class LoadingScreenState {
     this.newWalletError = null;
     this.seed_phrase = "";
     this.ufvk = "";
+    this.fileWallet = "";
     this.birthday = 0;
     this.changeAnotherWallet = changeAnotherWallet;
     this.serverUris = serverUris;
@@ -518,6 +522,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.setState({ walletScreen: 4 });
   };
 
+  restoreExistingFileWallet = () => {
+    this.setState({ walletScreen: 5 });
+  };
+
   updateSeed = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     this.setState({ seed_phrase: e.target.value, ufvk: "" });
     this.props.setRecoveryInfo(e.target.value, "", this.state.birthday);
@@ -526,6 +534,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   updateUfvk = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     this.setState({ ufvk: e.target.value, seed_phrase: "" });
     this.props.setRecoveryInfo("", e.target.value, this.state.birthday);
+  };
+
+  updateFileWallet = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    this.setState({ fileWallet: e.target.value, seed_phrase: "", ufvk: "" });
+    this.props.setRecoveryInfo("", "", 0);
   };
 
   updateBirthday = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -551,6 +564,21 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // Reset the ufvk and birthday and try again 
     this.setState({
       ufvk: "",
+      seed_phrase: "",
+      birthday: 0,
+      newWalletError: null,
+      walletScreen: 4,
+    });
+    this.props.setRecoveryInfo("", "", 0);
+    this.props.setPools(true, true, true);
+    this.props.setReadOnly(false);
+  };
+
+  restoreFileWalletBack = () => {
+    // Reset the file wallet name and try again 
+    this.setState({
+      ufvk: "",
+      fileWallet: "",
       seed_phrase: "",
       birthday: 0,
       newWalletError: null,
@@ -603,6 +631,40 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   };
 
+  doRestoreFileWallet = async () => {
+    const { fileWallet, url, chain_name } = this.state;
+    console.log(`Loading ${fileWallet}`);
+
+    const result: string = native.init_from_b64(url, chain_name, "High", 3);
+    console.log(`Initialization: ${result}`);
+    if (!result || result.toLowerCase().startsWith("error")) {
+      this.setState({ newWalletError: result });
+    } else {
+      const resultJSON = await JSON.parse(result);
+      this.setState({ walletScreen: 0 });
+      this.getInfo();
+
+      // seed phrase or ufvk
+      const walletKindStr: string = await native.wallet_kind();
+      const walletKindJSON = JSON.parse(walletKindStr);
+
+      if (
+        walletKindJSON.kind === "Loaded from unified full viewing key" ||
+        walletKindJSON.kind === "No keys found"
+      ) {
+        // ufvk
+        this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
+        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
+        this.props.setReadOnly(true);
+      } else {
+        // seed phrase
+        this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
+        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
+        this.props.setReadOnly(false);
+      }
+    }
+  };
+
   deleteWallet = async () => {
     const { url, chain_name } = this.state;
     if (native.wallet_exists(url, chain_name, "High", 3)) {
@@ -619,7 +681,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   render() {
-    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed_phrase, ufvk, birthday } =
+    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed_phrase, ufvk, fileWallet, birthday } =
       this.state;
 
     const { openServerSelectModal } = this.props;
@@ -768,6 +830,32 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     }}
                   >
                     Restore Wallet from Viewing Key
+                  </button>
+                </div>
+              </div>
+              <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
+                <div className={[cstyles.large, cstyles.highlight].join(" ")}>Restore Wallet From a Wallet File</div>
+                <div className={cstyles.padtopsmall}>
+                  If you already have a wallet file stored, you can restore it to this wallet. This will rescan the
+                  blockchain for all transactions from the last situation of your wallet file.
+                </div>
+                <div className={cstyles.margintoplarge}>
+                  <button
+                    disabled={buttonsDisable}
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => {
+                      this.setState({
+                        currentStatus: "",
+                        currentStatusIsError: false,
+                        newWalletError: null,
+                        buttonsDisable: true,
+                      });
+                      this.restoreExistingFileWallet();
+                      this.setState({ buttonsDisable: false })
+                    }}
+                  >
+                    Restore Wallet from a File
                   </button>
                 </div>
               </div>
@@ -976,6 +1064,71 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             </div>
           </div>
         )}
+
+        {walletScreen === 5 && (
+          <div>
+            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
+              <div className={cstyles.verticalflex}>
+                {newWalletError && (
+                  <div>
+                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Loading Wallet File</div>
+                    <div className={cstyles.padtopsmall}>There was an error loading your Wallet File</div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.padtopsmall}>{newWalletError}</div>
+                    <hr style={{ width: "100%" }} />
+                    <div className={cstyles.margintoplarge}>
+                      <button 
+                        disabled={this.state.buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={this.restoreFileWalletBack}
+                      >
+                        Back
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {!newWalletError && (
+                  <div>
+                    <div className={[cstyles.large].join(" ")}>Please enter your Wallet File Name stored in the Zcash folder</div>
+                    <TextareaAutosize
+                      className={cstyles.inputbox}
+                      value={fileWallet}
+                      onChange={(e) => this.updateFileWallet(e)}
+                    />
+
+                    <div className={cstyles.margintoplarge}>
+                      <button 
+                        disabled={this.state.buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={async () => {
+                          this.setState({ buttonsDisable: true });
+                          await this.doRestoreFileWallet();
+                          this.setState({ buttonsDisable: false });
+                        }}
+                      >
+                        Restore Wallet
+                      </button>
+                      <button 
+                        disabled={this.state.buttonsDisable} 
+                        type="button" 
+                        className={cstyles.primarybutton} 
+                        onClick={() => {
+                          this.setState({ walletScreen: 1 });
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
     );
 

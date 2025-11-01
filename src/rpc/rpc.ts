@@ -143,8 +143,6 @@ export default class RPC {
     await this.fetchInfo();
     await this.fetchTandZandOMessages();
 
-    //await this.fetchWalletSettings();
-
     // every 5 seconds the App update part of the data
     if (!this.updateTimerID) {
       this.updateTimerID = setInterval(() => this.runTaskPromises(), 5 * 1000); // 5 secs

@@ -229,9 +229,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       doRescan();
     });
 
-    // View zcashd
-    ipcRenderer.on("zcashd", () => {
-      history.push(routes.ZCASHD);
+    // View Server Info
+    ipcRenderer.on("serverinfo", () => {
+      history.push(routes.SERVERINFO);
     });
   };
 
