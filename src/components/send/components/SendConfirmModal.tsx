@@ -33,7 +33,7 @@ type SendConfirmModalProps = {
     currencyName: string;
   };
   
-  const SendConfirmModalInternal: React.FC<RouteComponentProps & SendConfirmModalProps> = ({
+  const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = ({
     sendPageState,
     totalBalance,
     info,
@@ -316,4 +316,4 @@ type SendConfirmModalProps = {
     );
   };
   
-  export default withRouter(SendConfirmModalInternal);
+  export default withRouter(SendConfirmModal);

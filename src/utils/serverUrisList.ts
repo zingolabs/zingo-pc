@@ -3,9 +3,9 @@ import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNam
 
 const serverUrisList = (): ServerClass[] => {
   return [
-    // default servers (2)
+    // default servers (3)
     {
-      uri: 'https://zec.rocks:443', // this will be the default server.
+      uri: 'https://zec.rocks:443', // this will be the default server in MainNet.
       region: 'USA' as string,
       chain_name: ServerChainNameEnum.mainChainName,
       default: true,
@@ -13,9 +13,9 @@ const serverUrisList = (): ServerClass[] => {
       obsolete: false,
     },
     {
-      uri: 'https://lwd1.zcash-infra.com:9067',
+      uri: 'https://testnet.zec.rocks:443', // this will be the default server in Testnet.
       region: 'USA' as string,
-      chain_name: ServerChainNameEnum.mainChainName,
+      chain_name: ServerChainNameEnum.testChainName,
       default: true,
       latency: null,
       obsolete: false,
@@ -53,13 +53,22 @@ const serverUrisList = (): ServerClass[] => {
       latency: null,
       obsolete: false,
     },
+    // obsolete servers (5)
+    {
+      uri: 'https://lwd1.zcash-infra.com:9067',
+      region: 'USA' as string,
+      chain_name: ServerChainNameEnum.mainChainName,
+      default: false,
+      latency: null,
+      obsolete: true,
+    },
     {
       uri: 'https://lwd2.zcash-infra.com:9067',
       region: 'Hong Kong',
       chain_name: ServerChainNameEnum.mainChainName,
       default: false,
       latency: null,
-      obsolete: false,
+      obsolete: true,
     },
     {
       uri: 'https://lwd3.zcash-infra.com:9067',
@@ -67,7 +76,7 @@ const serverUrisList = (): ServerClass[] => {
       chain_name: ServerChainNameEnum.mainChainName,
       default: false,
       latency: null,
-      obsolete: false,
+      obsolete: true,
     },
     {
       uri: 'https://lwd4.zcash-infra.com:9067',
@@ -75,7 +84,7 @@ const serverUrisList = (): ServerClass[] => {
       chain_name: ServerChainNameEnum.mainChainName,
       default: false,
       latency: null,
-      obsolete: false,
+      obsolete: true,
     },
     {
       uri: 'https://lwd5.zcash-infra.com:9067',
@@ -83,7 +92,7 @@ const serverUrisList = (): ServerClass[] => {
       chain_name: ServerChainNameEnum.mainChainName,
       default: false,
       latency: null,
-      obsolete: false,
+      obsolete: true,
     },
     {
       uri: 'https://lwd6.zcash-infra.com:9067',
@@ -91,7 +100,7 @@ const serverUrisList = (): ServerClass[] => {
       chain_name: ServerChainNameEnum.mainChainName,
       default: false,
       latency: null,
-      obsolete: false,
+      obsolete: true,
     },
     {
       uri: 'https://lwd7.zcash-infra.com:9067',
@@ -99,7 +108,7 @@ const serverUrisList = (): ServerClass[] => {
       chain_name: ServerChainNameEnum.mainChainName,
       default: false,
       latency: null,
-      obsolete: false,
+      obsolete: true,
     },
     {
       uri: 'https://lwd8.zcash-infra.com:9067',
@@ -107,9 +116,8 @@ const serverUrisList = (): ServerClass[] => {
       chain_name: ServerChainNameEnum.mainChainName,
       default: false,
       latency: null,
-      obsolete: false,
+      obsolete: true,
     },
-    // obsolete servers (5)
     {
       uri: 'https://mainnet.lightwalletd.com:9067',
       region: 'North America',

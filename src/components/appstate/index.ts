@@ -6,11 +6,13 @@ import InfoClass from "./classes/InfoClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
 import SendProgressClass from "./classes/SendProgressClass";
 import ServerClass from "./classes/ServerClass";
-import ServerSelectStateClass from "./classes/ServerSelectStateClass";
+import ServerSelectModalClass from "./classes/ServerSelectModalClass";
 import ToAddrClass from "./classes/ToAddrClass";
 import TotalBalanceClass from "./classes/TotalBalanceClass";
 import TxDetailClass from "./classes/TxDetailClass";
 import ValueTransferClass from "./classes/ValueTransferClass";
+import ConfirmModalClass from "./classes/ConfirmModalClass";
+import ErrorModalClass from "./classes/ErrorModalClass";
 
 import { AddressKindEnum } from "./enums/AddressKindEnum";
 import { AddressReceiverEnum } from "./enums/AddressReceiverEnum";
@@ -26,6 +28,7 @@ import { SyncStatusType } from "./types/SyncStatusType";
 import { SendJsonToTypeType } from "./types/SendJsonToTypeType";
 import { SendProposeType } from "./types/SendProposeType";
 import { SendType } from "./types/SendType";
+import { WalletType } from "./types/WalletType";
 
 import AppState from "./AppState";
 
@@ -37,12 +40,14 @@ export {
   SendPageStateClass,
   SendProgressClass,
   InfoClass,
-  ServerSelectStateClass,
+  ServerSelectModalClass,
   TotalBalanceClass,
   ToAddrClass,
   TxDetailClass,
   ServerClass,
   FetchErrorTypeClass,
+  ConfirmModalClass,
+  ErrorModalClass,
 
   AddressKindEnum,
   AddressReceiverEnum,
@@ -61,4 +66,5 @@ export type {
     SendJsonToTypeType,
     SendProposeType,
     SendType,
+    WalletType,
   };

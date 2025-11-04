@@ -2,7 +2,7 @@ import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route, withRouter, RouteComponentProps } from "react-router";
 import { isEqual } from 'lodash';
-import { ErrorModal, ErrorModalData } from "../components/errormodal";
+import { ErrorModal } from "../components/errormodal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json"; 
 import { Dashboard } from "../components/dashboard";
@@ -18,13 +18,15 @@ import {
   ToAddrClass,
   InfoClass,
   AddressBookEntryClass,
-  ServerSelectStateClass,
+  ServerSelectModalClass,
   ServerClass,
   FetchErrorTypeClass,
   UnifiedAddressClass,
   TransparentAddressClass,
   SyncStatusType,
   ServerChainNameEnum,
+  ConfirmModalClass,
+  ErrorModalClass,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
@@ -39,7 +41,8 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 import native from "../native.node";
 import { Messages } from "../components/messages";
 import serverUrisList from "../utils/serverUrisList";
-import { ConfirmModal, ConfirmModalData } from "../components/confirmmodal";
+import { ConfirmModal } from "../components/confirmmodal";
+import { WalletType } from "../components/appstate/types/WalletType";
 
 type Props = {};
 
@@ -85,56 +88,56 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   componentWillUnmount = () => {};
 
   openErrorModal = (title: string, body: string | JSX.Element) => {
-    const errorModalData = new ErrorModalData();
-    errorModalData.modalIsOpen = true;
-    errorModalData.title = title;
-    errorModalData.body = body;
+    const errorModal = new ErrorModalClass();
+    errorModal.modalIsOpen = true;
+    errorModal.title = title;
+    errorModal.body = body;
 
-    this.setState({ errorModalData });
+    this.setState({ errorModal });
   };
 
   closeErrorModal = () => {
-    const errorModalData = new ErrorModalData();
-    errorModalData.modalIsOpen = false;
+    const errorModal = new ErrorModalClass();
+    errorModal.modalIsOpen = false;
 
-    this.setState({ errorModalData });
+    this.setState({ errorModal });
   };
 
   openConfirmModal = (title: string, body: string | JSX.Element, runAction: () => void) => {
-    const confirmModalData = new ConfirmModalData();
-    confirmModalData.modalIsOpen = true;
-    confirmModalData.title = title;
-    confirmModalData.body = body;
-    confirmModalData.runAction = runAction;
+    const confirmModal = new ConfirmModalClass();
+    confirmModal.modalIsOpen = true;
+    confirmModal.title = title;
+    confirmModal.body = body;
+    confirmModal.runAction = runAction;
 
-    this.setState({ confirmModalData });
+    this.setState({ confirmModal });
   };
 
   closeConfirmModal = () => {
-    const confirmModalData = new ConfirmModalData();
-    confirmModalData.modalIsOpen = false;
+    const confirmModal = new ConfirmModalClass();
+    confirmModal.modalIsOpen = false;
 
-    this.setState({ confirmModalData });
+    this.setState({ confirmModal });
   };
 
   openServerSelectModal = () => {
-    const serverSelectState = new ServerSelectStateClass();
-    serverSelectState.modalIsOpen = true;
+    const serverSelectModal = new ServerSelectModalClass();
+    serverSelectModal.modalIsOpen = true;
 
-    this.setState({ serverSelectState });
+    this.setState({ serverSelectModal });
   };
 
   closeServerSelectModal = () => {
-    const serverSelectState = new ServerSelectStateClass();
-    serverSelectState.modalIsOpen = false;
+    const serverSelectModal = new ServerSelectModalClass();
+    serverSelectModal.modalIsOpen = false;
 
-    this.setState({ serverSelectState });
+    this.setState({ serverSelectModal });
   };
 
   setTotalBalance = (totalBalance: TotalBalanceClass) => {
     if (!isEqual(totalBalance, this.state.totalBalance)) {
-      console.log('=============== total SPENDABLE balance', totalBalance.totalSpendableBalance);
-      console.log('=============== total balance', totalBalance);
+      //console.log('=============== total SPENDABLE balance', totalBalance.totalSpendableBalance);
+      //console.log('=============== total balance', totalBalance);
       this.setState({ totalBalance });
     }
   };
@@ -260,6 +263,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       serverUri,
       serverChainName,
       serverSelection,
+    });
+  };
+
+  setWallets = (currentWalletId: number, wallets: WalletType[]) => {
+    this.setState({
+      currentWalletId,
+      wallets,
     });
   };
 
@@ -459,7 +469,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       addressBook: this.state.addressBook,
       valueTransfers: this.state.valueTransfers,
       messages: this.state.messages,
-      serverSelectState: this.state.serverSelectState,
+      serverSelectModal: this.state.serverSelectModal,
       sendPageState: this.state.sendPageState,
       info: this.state.info,
       syncingStatus: this.state.syncingStatus,
@@ -470,6 +480,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       serverUri: this.state.serverUri,
       serverChainName: this.state.serverChainName,
       serverSelection: this.state.serverSelection,
+      currentWalletId: this.state.currentWalletId,
+      wallets: this.state.wallets,
       seed_phrase: this.state.seed_phrase,
       ufvk: this.state.ufvk,
       birthday: this.state.birthday,
@@ -477,8 +489,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       saplingPool: this.state.saplingPool,
       transparentPool: this.state.transparentPool,
       addLabelState: this.state.addLabelState,
-      errorModalData: this.state.errorModalData,
-      confirmModalData: this.state.confirmModalData,
+      errorModal: this.state.errorModal,
+      confirmModal: this.state.confirmModal,
       openErrorModal: this.openErrorModal,
       closeErrorModal: this.closeErrorModal,
       openConfirmModal: this.openConfirmModal,
@@ -491,12 +503,15 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
     return (
       <ContextAppProvider value={contextAppState}>
-        <ErrorModal closeModal={this.closeErrorModal} />
-        <ConfirmModal closeModal={this.closeConfirmModal} /> 
-
-        <ServerSelectModal
-          closeModal={this.closeServerSelectModal}
-        />
+        {this.state.confirmModal.modalIsOpen && (
+          <ConfirmModal closeModal={this.closeConfirmModal} /> 
+        )}
+        {this.state.errorModal.modalIsOpen && (
+          <ErrorModal closeModal={this.closeErrorModal} />
+        )}
+        {this.state.serverSelectModal.modalIsOpen && (
+          <ServerSelectModal closeModal={this.closeServerSelectModal} />
+        )}
 
         <div style={{ overflow: "hidden" }}>
           {this.props.location.pathname !== "/" && !this.props.location.pathname.toLowerCase().includes("zingo") && (
@@ -506,6 +521,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 clearTimers={this.runRPCClearTimers}
                 navigateToLoadingScreen={this.navigateToLoadingScreen}
                 doRescan={this.runRPCRescan}
+                setWallets={this.setWallets}
               />
             </div>
           )}
@@ -587,6 +603,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setRecoveryInfo={this.setRecoveryInfo}
                     setServerInfo={this.setServerInfo}
                     setPools={this.setPools}
+                    setWallets={this.setWallets}
                   />
                 )}
               />

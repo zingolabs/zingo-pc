@@ -220,7 +220,7 @@ export default class RPC {
   async shieldTransparentBalanceToOrchard(): Promise<string> {
     // PROPOSING
     const shieldResult: string = await native.shield();
-    console.log('shield proposal', shieldResult);
+    //console.log('shield proposal', shieldResult);
     if (shieldResult) {
       if (shieldResult.toLowerCase().startsWith("error")) {
         // error
@@ -830,7 +830,7 @@ export default class RPC {
       let sendError: string = '';
       let sendTxids: string = '';
       try {
-        console.log('send JSON', sendJson);
+        //console.log('send JSON', sendJson);
         // creating the propose
         const proposeStr: string = await native.send(JSON.stringify(sendJson));
         if (proposeStr) {

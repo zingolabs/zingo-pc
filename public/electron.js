@@ -1,7 +1,9 @@
 const { app, BrowserWindow, Menu, shell, ipcMain } = require("electron");
 const path = require("path");
 const settings = require("electron-settings");
+const storage = require('electron-json-storage');
 
+const STORAGE_KEY = 'wallets';
 const isDev = !app.isPackaged;
 
 class MenuBuilder {
@@ -319,6 +321,51 @@ class MenuBuilder {
   }
 }
 
+async function getWallets() {
+  return new Promise((resolve, reject) => {
+    storage.get(STORAGE_KEY, (err, data) => {
+      if (err) return reject(err);
+      resolve(Array.isArray(data) ? (data) : []);
+    });
+  });
+}
+
+async function getWallet(id) {
+  const wallets = await getWallets();
+  const currentWallet = wallets.filter(w => w.id === id);
+  return currentWallet;
+}
+
+async function addWallet(wallet) {
+  const wallets = await getWallets();
+  wallets.push(wallet);
+  await saveWallets(wallets);
+}
+
+async function updateWallet(id, updates) {
+  const wallets = await getWallets();
+  const updated = wallets.map(w => (w.id === id ? { ...w, ...updates } : w));
+  await saveWallets(updated);
+}
+
+async function removeWallet(id) {
+  const wallets = await getWallets();
+  const filtered = wallets.filter(w => w.id !== id);
+  await saveWallets(filtered);
+}
+
+async function clearWallets() {
+  return new Promise((resolve, reject) => {
+    storage.remove(STORAGE_KEY, (err) => (err ? reject(err) : resolve()));
+  });
+}
+
+async function saveWallets(wallets) {
+  return new Promise((resolve, reject) => {
+    storage.set(STORAGE_KEY, wallets, (err) => (err ? reject(err) : resolve()));
+  });
+}
+
 function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1350,
@@ -352,9 +399,16 @@ function createWindow() {
     return await settings.get("all");
   });
 
-  ipcMain.handle("saveSettings", async (event, kv) => {
+  ipcMain.handle("saveSettings", async (_e, kv) => {
     return await settings.set(`all.${kv.key}`, kv.value);
   });
+
+  ipcMain.handle('wallets:all', async () => await getWallets());
+  ipcMain.handle('wallets:get', async (_e, id) => await getWallet(id));
+  ipcMain.handle('wallets:add', async (_e, wallet) => await addWallet(wallet));
+  ipcMain.handle('wallets:update', async (_e, id, data) => updateWallet(id, data));
+  ipcMain.handle('wallets:remove', async (_e, id) => await removeWallet(id));
+  ipcMain.handle('wallets:clear', async () => await clearWallets());
 
   ipcMain.handle('get-app-data-path', () => {
     return app.getPath('appData');

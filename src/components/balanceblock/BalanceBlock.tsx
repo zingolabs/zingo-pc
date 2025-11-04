@@ -1,8 +1,8 @@
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
-import BalanceBlockType from "./components/BalanceBlockType";
+import BalanceBlockProps from "./components/BalanceBlockProps";
 
-const BalanceBlock: React.FC<BalanceBlockType> = ({ 
+const BalanceBlock: React.FC<BalanceBlockProps> = ({ 
   zecValue, 
   zecValueConfirmed,
   usdValue, 

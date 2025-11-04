@@ -8,14 +8,14 @@ import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 import Utils from "../../utils/utils";
 const { ipcRenderer } = window.require("electron");
 
-type ModalProps = {
+type SelectSelectModalProps = {
   closeModal: () => void;
 };
 
-export default function ServerSelectModal({ closeModal }: ModalProps) {
+const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
-  const { serverSelectState, serverUris, openErrorModal } = context;
-  const { modalIsOpen } = serverSelectState;
+  const { serverSelectModal, serverUris, openErrorModal } = context;
+  const { modalIsOpen } = serverSelectModal;
 
   const [selectedServer, setSelectedServer] = useState<string>("");
   const [selectedChain, setSelectedChain] = useState<ServerChainNameEnum | ''>("");
@@ -65,7 +65,7 @@ export default function ServerSelectModal({ closeModal }: ModalProps) {
     (async () => {
       const servers: ServerClass[] = serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false);
       const settings = await ipcRenderer.invoke("loadSettings");
-      //console.log('modal server settings', settings);
+      console.log('modal server settings', settings);
 
       const currServer: string = settings?.serveruri || servers[0].uri; 
       const currChain: ServerChainNameEnum = settings?.serverchain_name || ServerChainNameEnum.mainChainName;
@@ -271,3 +271,5 @@ export default function ServerSelectModal({ closeModal }: ModalProps) {
     </Modal>
   );
 }
+
+export default SelectSelectModal;

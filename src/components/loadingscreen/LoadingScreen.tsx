@@ -12,6 +12,7 @@ import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
 import { Logo } from "../logo";
 import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
+import { WalletType } from "../appstate/types/WalletType";
 
 const { ipcRenderer } = window.require("electron");
 const fs = window.require("fs");
@@ -28,6 +29,8 @@ class LoadingScreenState {
   chain_name: '' | ServerChainNameEnum;
 
   selection: '' | 'auto' | 'list' | 'custom';
+
+  currentWalletId: number | null;
 
   walletScreen: number; 
   // 0 -> no wallet, load existing wallet 
@@ -63,6 +66,7 @@ class LoadingScreenState {
     this.url = "";
     this.chain_name = "";
     this.selection = '';
+    this.currentWalletId = null;
     this.walletScreen = 0;
     this.newWalletError = null;
     this.seed_phrase = "";
@@ -85,6 +89,7 @@ type LoadingScreenProps = {
   setRecoveryInfo: (s: string, u: string, b: number) => void;
   setServerInfo: (u: string, c: ServerChainNameEnum, s: 'auto' | 'list' | 'custom') => void;
   setPools: (o: boolean, s: boolean, t: boolean) => void;
+  setWallets: (c: number, w: WalletType[]) => void;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
@@ -127,14 +132,14 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     })
     const { openErrorModal } = this.context as React.ContextType<typeof ContextApp>;
 
-    const r = native.set_crypto_default_provider_to_ring();
-    console.log('crypto provider result', r);
+    native.set_crypto_default_provider_to_ring();
+    //console.log('crypto provider result', r);
 
     await this.doFirstTimeSetup();
 
     // warning with the migration from Z1 to Z2
     const version = await RPC.getWalletVersion();
-    console.log('WALLET VERSION -------------->', version);
+    //console.log('WALLET VERSION -------------->', version);
     if (version && version < 32) {
       openErrorModal(
         "Wallet migration",
@@ -207,35 +212,26 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   };
 
-  loadServer = async () => {    
-    // Try to read the default server
-    const settings = await ipcRenderer.invoke("loadSettings");
-    //console.log('SETTINGS;;;;;;;;;', settings);
-    let server: string, 
-        chain_name: ServerChainNameEnum, 
-        selection: 'auto' | 'list' | 'custom';
-    if (!settings) {
+  checkCurrentSettings = async (serveruri: string, serverchain_name: ServerChainNameEnum, serverselection: 'auto' | 'list' | 'custom') => {
+    let server: string = '', 
+      chain_name: ServerChainNameEnum = ServerChainNameEnum.mainChainName, 
+      selection: 'auto' | 'list' | 'custom' = 'list';
+    if (!serveruri && !serverchain_name && !serverselection) {
       // no settings stored, asumming `list` by default.
       server = serverUrisList()[0].uri;
       chain_name = serverUrisList()[0].chain_name;
       selection = 'list';
-      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
-      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
-      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     } else {
-      if (!settings.serveruri) {
+      if (!serveruri) {
         // no server in settings, asuming `list` by default.
         server = serverUrisList()[0].uri;
         chain_name = serverUrisList()[0].chain_name;
         selection = 'list';
-        await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
-        await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
-        await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
       } else {
-        // the server is in settings, asking for the others fields.
-        server = settings.serveruri;
+        // the server is in settings, asking for the other fields.
+        server = serveruri;
         const serverInList = serverUrisList().filter((s: ServerClass) => s.uri === server)
-        if (!settings.serverchain_name) {
+        if (!serverchain_name) {
           chain_name = ServerChainNameEnum.mainChainName;
           if (serverInList && serverInList.length === 1) {
             // if the server is in the list, then selection is `list`
@@ -244,19 +240,16 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
               server = serverUrisList()[0].uri;
               chain_name = serverUrisList()[0].chain_name;
               selection = 'list';
-              await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
             } else {
               selection = 'list';
             }
           } else {
             selection = 'custom';
           }
-          await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
-          await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
         } else {
-          chain_name = settings.serverchain_name;
+          chain_name = serverchain_name;
           // the server & chain are in settings, asking for selection 
-          if (!settings.serverselection) {
+          if (!serverselection) {
             if (serverInList && serverInList.length === 1) {
               // if the server is in the list, then selection is `list`
               chain_name = ServerChainNameEnum.mainChainName;
@@ -264,10 +257,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             } else {
               selection = 'custom';
             }
-            await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
-            await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
           } else {
-            selection = settings.serverselection;
+            selection = serverselection;
           }
         }
       }
@@ -279,9 +270,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       server = serverUrisList()[0].uri;
       chain_name = serverUrisList()[0].chain_name;
       selection = 'list';
-      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
-      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
-      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     }
 
     // if empty is the first time and if auto => App needs to check the servers.
@@ -296,30 +284,77 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         chain_name = serverUrisList()[0].chain_name;
       }
       selection = 'list';
-      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
-      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
-      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
+    }
+    // server settings checked
+    console.log('&&&&&&&&&&&&&&&&& CHECKING SETTINGS', server, chain_name, selection);
+    return {server, chain_name, selection};
+  };
+
+  loadServer = async () => {
+    // try to read wallets
+    const wallets: WalletType[] = await ipcRenderer.invoke("wallets:all");
+    console.log('&&&&&&&&&&&&&&&&& WALLETS', wallets);
+    // Try to read the default server
+    const settings = await ipcRenderer.invoke("loadSettings");
+    console.log('&&&&&&&&&&&&&&&&& SETTINGS', settings);
+    let server: string = '', 
+        chain_name: ServerChainNameEnum = ServerChainNameEnum.mainChainName, 
+        selection: 'auto' | 'list' | 'custom' = 'list',
+        currentWalletId: number;
+    if (!wallets || wallets.length === 0) {
+      // The App have to migrate from settings.json to wallets.json
+      ({ server, chain_name, selection } = await this.checkCurrentSettings(settings.serveruri, settings.serverchain_name, settings.serverselection));
+      // store the same info in wallets.json
+      currentWalletId = 1;
+      const currentWallet: WalletType = {
+        id: currentWalletId, // by default: 1
+        fileName: '', // by default: zingo-wallet.dat
+        alias: 'Main Wallet',
+        serveruri: server,
+        serverchain_name: chain_name,
+        serverselection: selection,
+      };
+      await ipcRenderer.invoke("wallets:add", currentWallet);
+    } else {
+      // the normal situation with multi-wallet.
+      currentWalletId = settings.currentwalletid || 1;
+      let currentWallet: WalletType[] = wallets.filter((w: WalletType) => w.id === currentWalletId);
+      if (!currentWallet || currentWallet.length === 0) {
+        // if the id is wrong, selecting the first wallet.
+        currentWalletId = wallets[0].id;
+        currentWallet = wallets.filter((w: WalletType) => w.id === currentWalletId);
+      }
+      ({ server, chain_name, selection } = await this.checkCurrentSettings(currentWallet[0].serveruri, currentWallet[0].serverchain_name, currentWallet[0].serverselection));
     }
 
-    //console.log('&&&&&&&&----------', server, chain_name, selection);
+    await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
+    await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
+    await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
+    await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: currentWalletId });
+
+    //console.log('&&&&&&&&-----------', currentWalletId, server, chain_name, selection); 
 
     return {
       url: server,
       chain_name,
       selection,
+      currentWalletId,
+      wallets,
     };
   };
 
   doFirstTimeSetup = async () => {
-    const { url, chain_name, selection } = await this.loadServer();
-    console.log(`Url: -${url}-${chain_name}-${selection}`);
+    const { url, chain_name, selection, currentWalletId, wallets } = await this.loadServer();
+    console.log(`Url: -${currentWalletId}-${url}-${chain_name}-${selection}`);
 
     this.setState({
       url,
       chain_name,
       selection,
+      currentWalletId,
     });
     this.props.setServerInfo(url, chain_name, selection);
+    this.props.setWallets(currentWalletId, wallets);
 
     // First, set up the exit handler
     this.setupExitHandler();
@@ -337,7 +372,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         this.setState({ walletScreen: 1 });
       } else {
         const result: string = native.init_from_b64(url, chain_name, "High", 3);
-        console.log(`Initialization: ${result}`);
+        //console.log(`Initialization: ${result}`);
         if (!result || result.toLowerCase().startsWith('error')) {
           this.setState({
             currentStatus: (
@@ -495,7 +530,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const result: string = native.init_new(url, chain_name, "High", 3);
 
     if (!result || result.toLowerCase().startsWith("error")) {
-      console.log('creating new wallet', result);
+      //console.log('creating new wallet', result);
       this.setState({ walletScreen: 2, newWalletError: result });
     } else {
       const resultJSON = await JSON.parse(result);
@@ -591,7 +626,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   doRestoreSeedWallet = async () => {
     const { seed_phrase, birthday, url, chain_name } = this.state;
-    console.log(`Restoring ${seed_phrase} with ${birthday}`);
+    //console.log(`Restoring ${seed_phrase} with ${birthday}`);
 
     const result: string = native.init_from_seed(seed_phrase, birthday, url, chain_name, "High", 3);
     if (!result || result.toLowerCase().startsWith("error")) {
@@ -612,7 +647,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   doRestoreUfvkWallet = async () => {
     const { ufvk, birthday, url, chain_name } = this.state;
-    console.log(`Restoring ${ufvk} with ${birthday}`);
+    //console.log(`Restoring ${ufvk} with ${birthday}`);
 
     const result: string = native.init_from_ufvk(ufvk, birthday, url, chain_name, "High", 3);
     if (!result || result.toLowerCase().startsWith("error")) {
