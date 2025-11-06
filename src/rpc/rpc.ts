@@ -749,6 +749,7 @@ export default class RPC {
   async fetchTandZandOMessages() {
     // first to get the last server block.
     let latestBlockHeight: number = 0;
+    //console.log(this.server);
     const heightStr: string = await native.get_latest_block_server(this.server.uri);
     if (heightStr) {
       if (heightStr.toLowerCase().startsWith('error')) {

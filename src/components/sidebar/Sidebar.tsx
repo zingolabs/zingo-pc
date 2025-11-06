@@ -24,7 +24,7 @@ type SidebarProps = {
   clearTimers: () => void;
   navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
   doRescan: () => void;
-  setWallets: (c: number, w: WalletType[]) => void;
+  setWallets: (c: number | null, w: WalletType[]) => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 

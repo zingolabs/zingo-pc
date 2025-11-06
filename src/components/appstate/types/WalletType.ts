@@ -4,9 +4,7 @@ export interface WalletType {
   id: number;
   fileName: string;
   alias: string;
-  serveruri: string;
-  serverchain_name: ServerChainNameEnum;
-  serverselection: 'auto' | 'list' | 'custom';
+  chain_name: ServerChainNameEnum;
   last_total_balance?: number;
   last_block_height?: number;
 }

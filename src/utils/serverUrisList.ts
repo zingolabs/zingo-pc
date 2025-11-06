@@ -3,7 +3,7 @@ import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNam
 
 const serverUrisList = (): ServerClass[] => {
   return [
-    // default servers (3)
+    // default servers (2)
     {
       uri: 'https://zec.rocks:443', // this will be the default server in MainNet.
       region: 'USA' as string,
@@ -20,7 +20,7 @@ const serverUrisList = (): ServerClass[] => {
       latency: null,
       obsolete: false,
     },
-    // new servers (not default) (11)
+    // new servers (not default) (4)
     {
       uri: 'https://na.zec.rocks:443',
       region: 'North America',
@@ -53,7 +53,7 @@ const serverUrisList = (): ServerClass[] => {
       latency: null,
       obsolete: false,
     },
-    // obsolete servers (5)
+    // obsolete servers (13)
     {
       uri: 'https://lwd1.zcash-infra.com:9067',
       region: 'USA' as string,

@@ -14,7 +14,7 @@ type SelectSelectModalProps = {
 
 const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
-  const { serverSelectModal, serverUris, openErrorModal } = context;
+  const { serverSelectModal, serverUris, openErrorModal, serverUri, serverChainName, serverSelection } = context;
   const { modalIsOpen } = serverSelectModal;
 
   const [selectedServer, setSelectedServer] = useState<string>("");
@@ -26,6 +26,7 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
   const [listServer, setListServer] = useState<string>("");
   
   const [customChain, setCustomChain] = useState<ServerChainNameEnum | ''>("");
+  const [autoChain, setAutoChain] = useState<ServerChainNameEnum | ''>("");
 
   const [servers, setServers] = useState<ServerClass[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false));
 
@@ -36,16 +37,28 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
     "": ""
   };
 
-  const initialServerValue = useCallback((servers: ServerClass[], server: string, chain_name: ServerChainNameEnum | '', selection: 'auto' | 'list' | 'custom' | '') => {
+  const initialServerValue = useCallback((server: string, chain_name: ServerChainNameEnum | '', selection: 'auto' | 'list' | 'custom' | '') => {
     if (selection === 'custom') {
       setCustomServer(server);
       setCustomChain(chain_name);
 
       setListServer("");
 
-      setAutoServer(servers[0].uri);
+      setAutoServer(server);
+      // if the user have a custom server
+      // pre-fill with the server's chain only for:
+      // - MainNet
+      // - TestNet
+      // make no sense to select automatically for RegTest (no list)
+      if (chain_name === ServerChainNameEnum.mainChainName || chain_name === ServerChainNameEnum.testChainName) {
+        setAutoChain(chain_name);
+      } else {
+        // for RegTest -> TestNet.
+        setAutoChain(ServerChainNameEnum.testChainName);
+      }
     } else if (selection === 'auto') {
       setAutoServer(server);
+      setAutoChain(chain_name);
 
       setListServer("");
 
@@ -57,37 +70,33 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
       setCustomServer("");
       setCustomChain("");
 
-      setAutoServer(servers[0].uri);
+      setAutoServer(server);
+      setAutoChain(chain_name);
     }
   }, []);
 
   useEffect(() => {
-    (async () => {
-      const servers: ServerClass[] = serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false);
-      const settings = await ipcRenderer.invoke("loadSettings");
-      console.log('modal server settings', settings);
+    const servers: ServerClass[] = serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false);
 
-      const currServer: string = settings?.serveruri || servers[0].uri; 
-      const currChain: ServerChainNameEnum = settings?.serverchain_name || ServerChainNameEnum.mainChainName;
-      const currSelection: 'auto' | 'list' | 'custom' = settings?.serverselection || 'list'
-      initialServerValue(servers, currServer, currChain, currSelection);
-      setSelectedServer(currServer);
-      setSelectedChain(currChain);
-      setSelectedSelection(currSelection);
-      setServers(servers);
-    })();
-  }, [initialServerValue, serverUris]);
+    const currServer: string = serverUri || servers[0].uri; 
+    const currChain: ServerChainNameEnum = serverChainName || servers[0].chain_name;
+    const currSelection: 'auto' | 'list' | 'custom' = serverSelection || 'list'
+    initialServerValue(currServer, currChain, currSelection);
+    setSelectedServer(currServer);
+    setSelectedChain(currChain);
+    setSelectedSelection(currSelection);
+    setServers(servers);
+  }, [initialServerValue, serverChainName, serverSelection, serverUri, serverUris]);
 
   const switchServer = async () => {
-    const serveruri: string = selectedServer;
-    const serverchain_name: ServerChainNameEnum | '' = selectedChain;
-    const serverselection: 'auto' | 'list' | 'custom' | '' = selectedSelection;
-
-    await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: serveruri });
-    await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: serverchain_name });
-    await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: serverselection });
-
-    localCloseModal();
+    await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
+    await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
+    await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
+    // reset the current wallet Id.
+    // only if the Network/Chain changed.
+    if (serverChainName !== selectedChain) {
+      await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
+    }
 
     setTimeout(() => {
       openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server"); 
@@ -98,12 +107,10 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
   };
 
   const localCloseModal = async () => {
-    const settings = await ipcRenderer.invoke("loadSettings");
-      
-    const currServer: string = settings?.serveruri || servers[0].uri; 
-    const currChain: ServerChainNameEnum = settings?.serverchain_name || ServerChainNameEnum.mainChainName;
-    const currSelection: 'auto' | 'list' | 'custom' = settings?.serverselection || 'list'
-    initialServerValue(servers, currServer, currChain, currSelection);
+    const currServer: string = serverUri || servers[0].uri; 
+    const currChain: ServerChainNameEnum = serverChainName || servers[0].chain_name;
+    const currSelection: 'auto' | 'list' | 'custom' = serverSelection || 'list'
+    initialServerValue(currServer, currChain, currSelection);
     setSelectedServer(currServer);
     setSelectedChain(currChain);
     setSelectedSelection(currSelection);
@@ -135,26 +142,31 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
               onClick={(e) => {
                 setSelectedSelection('auto');
                 setSelectedServer(autoServer);
-                if (!!autoServer) {
-                  setSelectedChain(servers.filter((s: ServerClass) => s.uri === autoServer)[0].chain_name);
-                }
+                setSelectedChain(autoChain);
               }} 
               onChange={(e) => {
                 setSelectedSelection('auto');
                 setSelectedServer(autoServer);
-                if (!!autoServer) {
-                  setSelectedChain(servers.filter((s: ServerClass) => s.uri === autoServer)[0].chain_name);
-                }
+                setSelectedChain(autoChain);
               }}
             />
             Automatic
-            {!!autoServer && servers.filter((s: ServerClass) => s.uri === autoServer)[0].latency !== null && selectedSelection === 'auto' && ( 
-              <div style={{ margin: "10px"}}>{autoServer + ' - ' + 
-                chains[servers.filter((s: ServerClass) => s.uri === autoServer)[0].chain_name] + ' - ' + 
-                servers.filter((s: ServerClass) => s.uri === autoServer)[0].region +
-                (servers.filter((s: ServerClass) => s.uri === autoServer)[0].latency ? (' _ ' + servers.filter((s: ServerClass) => s.uri === autoServer)[0].latency + ' ms.') : '')}
-              </div>
-            )}
+            <select
+              disabled={selectedSelection !== "auto"}
+              className={cstyles.inputbox}
+              style={{ marginLeft: "20px", color: customChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
+              value={autoChain}
+              onChange={(e) => {
+                const value = e.target.value as ServerChainNameEnum | ''; 
+                setAutoChain(value);
+                setSelectedChain(value);
+                setSelectedServer(servers.filter((s: ServerClass) => s.default && s.chain_name === value)[0].uri);
+              }}
+            > 
+              <option value="" disabled hidden>Select...</option> 
+              <option value="main">{chains["main"]}</option>
+              <option value="test">{chains["test"]}</option>
+            </select>
           </div>
 
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>

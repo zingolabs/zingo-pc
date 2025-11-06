@@ -1,11 +1,12 @@
-import React from "react";
+import React, { useContext } from "react";
 import cstyles from "../../common/Common.module.css";
 import { WalletType } from "../../appstate/types/WalletType";
+import { ContextApp } from "../../../context/ContextAppState";
 
 type SelectWalletProps = {
   currentWalletId: number | null;
   wallets: WalletType[];
-  setWallets: (c: number, w: WalletType[]) => void;
+  setWallets: (c: number | null, w: WalletType[]) => void;
 };
 
 const chains = {
@@ -15,12 +16,16 @@ const chains = {
 };
 
 const SelectWallet = ({ currentWalletId, wallets, setWallets }: SelectWalletProps) => {
+  const context = useContext(ContextApp);
+  const { serverChainName } = context;
+  
+  console.log('SIDEBAR ---->', currentWalletId, wallets);
   return (
     <>
       {currentWalletId !== null && (
         <div style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
           <select
-            disabled={wallets.length === 1}
+            disabled={wallets.filter((w: WalletType) => w.chain_name === serverChainName).length === 1}
             className={cstyles.inputbox}
             style={{ marginLeft: 7 }}
             value={currentWalletId}
@@ -28,9 +33,9 @@ const SelectWallet = ({ currentWalletId, wallets, setWallets }: SelectWalletProp
               const id: number = Number(e.target.value);
               setWallets(id, wallets);
             }}>
-            {wallets.map((w: WalletType) => (
+            {wallets.filter((w: WalletType) => w.chain_name === serverChainName).map((w: WalletType) => (
               <option key={w.id} value={w.id}>
-                {w.alias + (w.fileName ? (' - ' + w.fileName) : '') + ' - ' + chains[w.serverchain_name]}
+                {w.alias + (w.fileName ? (' - ' + w.fileName) : '') + ' - ' + chains[w.chain_name]}
               </option>
             ))}
           </select>

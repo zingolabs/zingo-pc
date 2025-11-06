@@ -266,7 +266,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     });
   };
 
-  setWallets = (currentWalletId: number, wallets: WalletType[]) => {
+  setWallets = (currentWalletId: number | null, wallets: WalletType[]) => {
     this.setState({
       currentWalletId,
       wallets,
