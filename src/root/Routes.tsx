@@ -348,19 +348,24 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   calculateShieldFee = async (): Promise<number> => {
-    const result: string = await native.shield();
-    //console.log(result);
-    if (!result || result.toLowerCase().startsWith('error')) {
-      return 0;
-    } else {
-      const resultJSON = JSON.parse(result);
-      if (resultJSON.error) {
+    try {
+      const result: string = await native.shield();
+      //console.log(result);
+      if (!result || result.toLowerCase().startsWith('error')) {
         return 0;
-      } else if (resultJSON.fee) {
-        return resultJSON.fee / 10 ** 8;
       } else {
-        return 0;
+        const resultJSON = JSON.parse(result);
+        if (resultJSON.error) {
+          return 0;
+        } else if (resultJSON.fee) {
+          return resultJSON.fee / 10 ** 8;
+        } else {
+          return 0;
+        }
       }
+    } catch (error) {
+      console.log(`Critical Error calculate shield fee ${error}`);
+      return 0;
     }
   }
 

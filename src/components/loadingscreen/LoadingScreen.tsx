@@ -143,8 +143,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     })
     const { openErrorModal } = this.context as React.ContextType<typeof ContextApp>;
 
-    native.set_crypto_default_provider_to_ring();
-    //console.log('crypto provider result', r);
+    try {
+      native.set_crypto_default_provider_to_ring();
+      //console.log('crypto provider result', r);
+    } catch (error) {
+      console.log(`Critical Error crypto provider default ${error}`);
+    }
 
     await this.doFirstTimeSetup();
 
@@ -317,7 +321,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     let currentWalletId: number | null;
     const { server, chain_name, selection } = await this.checkCurrentSettings(settings.serveruri, settings.serverchain_name, settings.serverselection);
 
-    if (!wallets || wallets.length === 0) {
+    // to know the App is magrating to multi-wallet the settings field
+    // `currentwalletid` must have not exists.
+    // if it is `null` means the user just did:
+    // - or changed the server
+    // - or deleted the actual wallet
+    if ((!wallets || wallets.length === 0) && !settings.hasOwnProperty("currentwalletid")) {
       // The App have to migrate from settings.json to wallets.json
       // store the info about the current wallet in wallets.json
       if (chain_name === ServerChainNameEnum.mainChainName) {
@@ -358,8 +367,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         // if the id is wrong, selecting the first wallet for the selected chain
         let firstWallet: WalletType[] = wallets.filter((w: WalletType) => w.chain_name === chain_name); 
         currentWalletId = !firstWallet || firstWallet.length === 0 ? null : firstWallet[0].id;
-      } else {
-        currentWalletId = currentWallet[0].id;
       }
     }
 
@@ -403,14 +410,47 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
     
     try {
-      // Test to see if the wallet exists
-      const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
+      let wallet_name: string = '';
+      // when currentWalletId is null -> no wallets for this server in wallets.json
+      // but the standard wallet file can be there...
+      if (currentWalletId !== null) {
+        // Test to see if the wallet exists
+        wallet_name = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
+      }
+
       const walletExistsResult: boolean | string = native.wallet_exists(url, chain_name, "High", 3, wallet_name);
       //console.log(walletExistsResult);
       if (!walletExistsResult) {
-        // Show the wallet creation screen
+        // the wallet file DOES NOT exists
+        // if currentWalletId have a value -> remove the wallet local data for this id.
+        if (currentWalletId !== null) {
+          await ipcRenderer.invoke("wallets:remove", currentWalletId);
+          await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
+          // re-fetching wallets
+          const wallets = await ipcRenderer.invoke("wallets:all");
+          this.setState({ wallets, currentWalletId: null });
+          this.props.setWallets(null, wallets);
+        }
+        // Show the wallet creation screen if no wallet file.
         this.setState({ walletScreen: 1 });
       } else {
+        // if currentWalletId is null -> add the wallet item id(1, 2, 3) 
+        if (currentWalletId === null) {
+          const id: number = chain_name === ServerChainNameEnum.mainChainName ? 1 : chain_name === ServerChainNameEnum.testChainName ? 2 : 3;
+          const currentWallet: WalletType = {
+            id,
+            fileName: '', // by default: zingo-wallet.dat
+            alias: 'Main Wallet',
+            chain_name,
+          };
+          await ipcRenderer.invoke("wallets:add", currentWallet);
+          await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
+          // re-fetching wallets
+          const wallets = await ipcRenderer.invoke("wallets:all");
+          this.setState({ wallets, currentWalletId: id });
+          this.props.setWallets(id, wallets);
+        }
+        // the wallet file YES exists
         const result: string = native.init_from_b64(url, chain_name, "High", 3, wallet_name);
         //console.log(`Initialization: ${result}`);
         if (!result || result.toLowerCase().startsWith('error')) {
@@ -480,16 +520,21 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
   calculateLatency = async (server: ServerClass, _index: number) => {
     const start: number = Date.now();
-    const resp: string = await native.get_latest_block_server(server.uri);
-  
-    const end: number = Date.now();
     let latency = null;
-    if (resp && !resp.toLowerCase().startsWith('error')) {
-      latency = end - start;
+
+    try {
+      const resp: string = await native.get_latest_block_server(server.uri);
+    
+      const end: number = Date.now();
+      if (resp && !resp.toLowerCase().startsWith('error')) {
+        latency = end - start;
+      }
+    
+      console.log('Checking SERVER', server, latency);
+    } catch (error) {
+      console.log(`Critical Error calculate server latency ${error}`);
     }
-  
-    console.log('Checking SERVER', server, latency);
-  
+    
     return latency;
   };
   
@@ -568,19 +613,23 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   createNewWallet = async () => {
     const { url, chain_name, wallets, currentWalletId } = this.state;
     const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
-    const result: string = native.init_new(url, chain_name, "High", 3, wallet_name);
+    try {
+      const result: string = native.init_new(url, chain_name, "High", 3, wallet_name);
 
-    if (!result || result.toLowerCase().startsWith("error")) {
-      //console.log('creating new wallet', result);
-      this.setState({ walletScreen: 2, newWalletError: result });
-    } else {
-      const resultJSON = await JSON.parse(result);
-      const seed_phrase: string = resultJSON.seed_phrase;
-      const birthday: number = resultJSON.birthday;
-      this.setState({ walletScreen: 2, seed_phrase, birthday });
-      this.props.setRecoveryInfo(seed_phrase, "", birthday);
-      this.props.setPools(true, true, true);
-      this.props.setReadOnly(false);
+      if (!result || result.toLowerCase().startsWith("error")) {
+        //console.log('creating new wallet', result);
+        this.setState({ walletScreen: 2, newWalletError: result });
+      } else {
+        const resultJSON = await JSON.parse(result);
+        const seed_phrase: string = resultJSON.seed_phrase;
+        const birthday: number = resultJSON.birthday;
+        this.setState({ walletScreen: 2, seed_phrase, birthday });
+        this.props.setRecoveryInfo(seed_phrase, "", birthday);
+        this.props.setPools(true, true, true);
+        this.props.setReadOnly(false);
+      }
+    } catch (error) {
+      console.log(`Critical Error create new wallet ${error}`);
     }
   };
 
@@ -668,97 +717,114 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   doRestoreSeedWallet = async () => {
     const { seed_phrase, birthday, url, chain_name, wallets, currentWalletId } = this.state;
     //console.log(`Restoring ${seed_phrase} with ${birthday}`);
+    try {
+      const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
+      const result: string = native.init_from_seed(seed_phrase, birthday, url, chain_name, "High", 3, wallet_name);
+      if (!result || result.toLowerCase().startsWith("error")) {
+        this.setState({ newWalletError: result });
+      } else {
+        const resultJSON = await JSON.parse(result);
+        this.setState({ walletScreen: 0 });
+        this.getInfo();
+        
+        const walletKindStr: string = await native.wallet_kind();
+        const walletKindJSON = JSON.parse(walletKindStr);
 
-    const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
-    const result: string = native.init_from_seed(seed_phrase, birthday, url, chain_name, "High", 3, wallet_name);
-    if (!result || result.toLowerCase().startsWith("error")) {
-      this.setState({ newWalletError: result });
-    } else {
-      const resultJSON = await JSON.parse(result);
-      this.setState({ walletScreen: 0 });
-      this.getInfo();
-      
-      const walletKindStr: string = await native.wallet_kind();
-      const walletKindJSON = JSON.parse(walletKindStr);
-
-      this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
-      this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
-      this.props.setReadOnly(false);
+        this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
+        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
+        this.props.setReadOnly(false);
+      }
+    } catch (error) {
+      console.log(`Critical Error restore from seed ${error}`);
     }
   };
 
   doRestoreUfvkWallet = async () => {
     const { ufvk, birthday, url, chain_name, wallets, currentWalletId } = this.state;
     //console.log(`Restoring ${ufvk} with ${birthday}`);
+    try {
+      const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
+      const result: string = native.init_from_ufvk(ufvk, birthday, url, chain_name, "High", 3, wallet_name);
+      if (!result || result.toLowerCase().startsWith("error")) {
+        this.setState({ newWalletError: result });
+      } else {
+        const resultJSON = await JSON.parse(result);
+        this.setState({ walletScreen: 0 });
+        this.getInfo();
 
-    const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
-    const result: string = native.init_from_ufvk(ufvk, birthday, url, chain_name, "High", 3, wallet_name);
-    if (!result || result.toLowerCase().startsWith("error")) {
-      this.setState({ newWalletError: result });
-    } else {
-      const resultJSON = await JSON.parse(result);
-      this.setState({ walletScreen: 0 });
-      this.getInfo();
+        const walletKindStr: string = await native.wallet_kind();
+        const walletKindJSON = JSON.parse(walletKindStr);
 
-      const walletKindStr: string = await native.wallet_kind();
-      const walletKindJSON = JSON.parse(walletKindStr);
-
-      this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
-      this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
-      this.props.setReadOnly(true);
+        this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
+        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
+        this.props.setReadOnly(true);
+      }
+    } catch (error) {
+      console.log(`Critical Error restore from ufvk ${error}`);
     }
   };
 
   doRestoreFileWallet = async () => {
     const { fileWallet, url, chain_name, wallets, currentWalletId } = this.state;
     console.log(`Loading ${fileWallet}`);
-
-    const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName; 
-    const result: string = native.init_from_b64(url, chain_name, "High", 3, wallet_name);
-    console.log(`Initialization: ${result}`);
-    if (!result || result.toLowerCase().startsWith("error")) {
-      this.setState({ newWalletError: result });
-    } else {
-      const resultJSON = await JSON.parse(result);
-      this.setState({ walletScreen: 0 });
-      this.getInfo();
-
-      // seed phrase or ufvk
-      const walletKindStr: string = await native.wallet_kind();
-      const walletKindJSON = JSON.parse(walletKindStr);
-
-      if (
-        walletKindJSON.kind === "Loaded from unified full viewing key" ||
-        walletKindJSON.kind === "No keys found"
-      ) {
-        // ufvk
-        this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
-        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
-        this.props.setReadOnly(true);
+    try {
+      const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName; 
+      const result: string = native.init_from_b64(url, chain_name, "High", 3, wallet_name);
+      console.log(`Initialization: ${result}`);
+      if (!result || result.toLowerCase().startsWith("error")) {
+        this.setState({ newWalletError: result });
       } else {
-        // seed phrase
-        this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
-        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
-        this.props.setReadOnly(false);
+        const resultJSON = await JSON.parse(result);
+        this.setState({ walletScreen: 0 });
+        this.getInfo();
+
+        // seed phrase or ufvk
+        const walletKindStr: string = await native.wallet_kind();
+        const walletKindJSON = JSON.parse(walletKindStr);
+
+        if (
+          walletKindJSON.kind === "Loaded from unified full viewing key" ||
+          walletKindJSON.kind === "No keys found"
+        ) {
+          // ufvk
+          this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
+          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
+          this.props.setReadOnly(true);
+        } else {
+          // seed phrase
+          this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
+          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
+          this.props.setReadOnly(false);
+        }
       }
+    } catch (error) {
+      console.log(`Critical Error restore from file ${error}`);
     }
   };
 
   deleteWallet = async () => {
     const { url, chain_name, wallets, currentWalletId } = this.state;
-    const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
-    const walletExistsResult: boolean | string = native.wallet_exists(url, chain_name, "High", 3, wallet_name);
-    console.log(walletExistsResult);
-    if (walletExistsResult) {
-      // interrupt syncing, just in case.
-      const resultInterrupt: string = await native.stop_sync();
-      console.log("Stopping sync ...", resultInterrupt);
-      const resultDelete: string = await native.delete_wallet(url, chain_name, "High", 3, wallet_name);
-      console.log("deleting ...", resultDelete);
-      native.deinitialize();
+    try {
+      const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
+      const walletExistsResult: boolean | string = native.wallet_exists(url, chain_name, "High", 3, wallet_name);
+      console.log(walletExistsResult);
+      if (walletExistsResult) {
+        // interrupt syncing, just in case.
+        const resultInterrupt: string = await native.stop_sync();
+        console.log("Stopping sync ...", resultInterrupt);
+        const resultDelete: string = await native.delete_wallet(url, chain_name, "High", 3, wallet_name);
+        console.log("deleting ...", resultDelete);
+        native.deinitialize();
 
-      // restart the App now.
-      ipcRenderer.send("apprestart");
+        // remove the actual wallet
+        await ipcRenderer.invoke("wallets:remove", currentWalletId);
+        await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
+
+        // restart the App now.
+        ipcRenderer.send("apprestart");
+      }
+    } catch (error) {
+      console.log(`Critical Error delete wallet ${error}`);
     }
   };
 

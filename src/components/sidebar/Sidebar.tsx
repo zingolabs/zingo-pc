@@ -187,9 +187,13 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       // Reset the info object, it will be refetched
       setInfo(new InfoClass());
 
-      // interrupt syncing
-      const resultInterrupt: string = await native.pause_sync();
-      console.log("Pausing sync ....", resultInterrupt);
+      try {
+        // interrupt syncing
+        const resultInterrupt: string = await native.pause_sync();
+        console.log("Pausing sync ....", resultInterrupt);
+      } catch (error) {
+        console.log(`Critical Error pause sync ${error}`);
+      }
 
       navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
     });

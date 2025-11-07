@@ -75,16 +75,21 @@ type SendConfirmModalProps = {
         return '-';
       }
   
-      const result: string = await native.parse_address(toaddr.to);
-      if (!result || result.toLowerCase().startsWith('error')) {
-        return '-';
-      }
-      
       let resultJSON;
       try {
-        resultJSON = await JSON.parse(result);
+        const result: string = await native.parse_address(toaddr.to);
+        if (!result || result.toLowerCase().startsWith('error')) {
+          return '-';
+        }
+        
+        try {
+          resultJSON = await JSON.parse(result);
+        } catch (error) {
+          console.log('parse-address', error);
+          return '-';
+        }
       } catch (error) {
-        console.log('parse-address', error);
+        console.log(`Critical Error parse address ${error}`);
         return '-';
       }
       

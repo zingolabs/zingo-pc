@@ -213,28 +213,38 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     // modal while waiting.
     openErrorModal("Computing Transaction", "Please wait...This could take a while");
 
-    let actionStr: string;
-    if (action === 'resend') {
-      actionStr = await native.resend_transaction(txid);
-    } else {
-      actionStr = await native.remove_transaction(txid);
-    }
-
-    //console.log(actionStr);
-
-    if (actionStr) {
-      if (actionStr.toLowerCase().startsWith('error')) {
-        if (action === 'resend') {
-          openErrorModal("Resend", "Resend " + actionStr);
-        } else {
-          openErrorModal("Remove", "Remove " + actionStr);
-        }
+    try {
+      let actionStr: string;
+      if (action === 'resend') {
+        actionStr = await native.resend_transaction(txid);
       } else {
-        if (action === 'resend') {
-          openErrorModal("Resend", actionStr);
+        actionStr = await native.remove_transaction(txid);
+      }
+
+      //console.log(actionStr);
+
+      if (actionStr) {
+        if (actionStr.toLowerCase().startsWith('error')) {
+          if (action === 'resend') {
+            openErrorModal("Resend", "Resend " + actionStr);
+          } else {
+            openErrorModal("Remove", "Remove " + actionStr);
+          }
         } else {
-          openErrorModal("Remove", actionStr);
+          if (action === 'resend') {
+            openErrorModal("Resend", actionStr);
+          } else {
+            openErrorModal("Remove", actionStr);
+          }
         }
+      }
+    } catch (error: any) {
+      if (action === 'resend') {
+        console.log(`Critical Error Resend ${error}`);
+        openErrorModal("Resend", error);
+      } else {
+        console.log(`Critical Error Remove ${error}`);
+        openErrorModal("Remove", error);
       }
     }
   };

@@ -32,6 +32,13 @@ const ServerInfo: React.FC<ServerInfoProps> = ({ refresh, openServerSelectModal 
           </div>
           <div className={cstyles.margintoplarge}>Not Connected</div>
         </div>
+        <div className={cstyles.buttoncontainer}>
+          <button className={cstyles.primarybutton} type="button" onClick={openServerSelectModal}>
+            Switch to Another Server
+          </button>
+        </div>
+
+        <div className={cstyles.margintoplarge} />
       </div>
     );
   } else {

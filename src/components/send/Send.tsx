@@ -206,39 +206,46 @@ const Send: React.FC<SendProps> = ({
     let _error: string = '';
     // transparent funds are not spendable.
     let _spendable: number = totalBalance.totalSpendableBalance;
-    if (sendPageState.toaddr.to) {
-      const result: string = await native.get_spendable_balance_with_address(sendPageState.toaddr.to, "false");
-      console.log('SPENDABLEBALANCE', result);
-      if (!result || result.toLowerCase().startsWith('error')) {
-        _error = result;
-        _spendable = 0;
-      } else {
-        const resultJSON = JSON.parse(result);
-        if (resultJSON.spendable_balance) {
-          _spendable = resultJSON.spendable_balance / 10 ** 8;
-        } else {
+    try {
+      if (sendPageState.toaddr.to) {
+        const result: string = await native.get_spendable_balance_with_address(sendPageState.toaddr.to, "false");
+        console.log('SPENDABLEBALANCE', result);
+        if (!result || result.toLowerCase().startsWith('error')) {
+          _error = result;
           _spendable = 0;
+        } else {
+          const resultJSON = JSON.parse(result);
+          if (resultJSON.spendable_balance) {
+            _spendable = resultJSON.spendable_balance / 10 ** 8;
+          } else {
+            _spendable = 0;
+          }
         }
       }
-    }
-    if (sendPageState.toaddr.amount >= 0 && sendPageState.toaddr.to && !_error) {
-      const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
-      //console.log(sendJson);
-      const result: string = await native.send(JSON.stringify(sendJson));
-      console.log('SEND', result);
-      if (!result || result.toLowerCase().startsWith('error')) {
-        _error = result;
-      } else {
-        const resultJSON = JSON.parse(result);
-        if (resultJSON.error) {
-          _error = resultJSON.error;
-        } else if (resultJSON.fee) {
-          _fee = resultJSON.fee / 10 ** 8;
+      if (sendPageState.toaddr.amount >= 0 && sendPageState.toaddr.to && !_error) {
+        const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
+        //console.log(sendJson);
+        const result: string = await native.send(JSON.stringify(sendJson));
+        console.log('SEND', result);
+        if (!result || result.toLowerCase().startsWith('error')) {
+          _error = result;
+        } else {
+          const resultJSON = JSON.parse(result);
+          if (resultJSON.error) {
+            _error = resultJSON.error;
+          } else if (resultJSON.fee) {
+            _fee = resultJSON.fee / 10 ** 8;
+          }
         }
       }
-    }
-    _spendable = Number(Utils.maxPrecisionTrimmed(_spendable));
-    if (_spendable < 0) {
+      _spendable = Number(Utils.maxPrecisionTrimmed(_spendable));
+      if (_spendable < 0) {
+        _spendable = 0;
+      }
+    } catch (error: any) {
+      const err = `Error: Critical Error calculate send fee ${error}`;
+      console.log(err);
+      _error = err;
       _spendable = 0;
     }
     return {fee: _fee, error: _error, spendable: _spendable};

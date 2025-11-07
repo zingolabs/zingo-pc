@@ -56,28 +56,33 @@ export default class Utils {
 
   static async getAddressKind(addr: string, currChain: "" | ServerChainNameEnum): Promise<AddressKindEnum | undefined> {
     if (!addr) return;
-    const resultParse: string = await native.parse_address(addr);
-    if (!resultParse || resultParse.toLowerCase().startsWith('error')) {
-      return;
-    }
-
-    let resultParseJSON;
     try {
-      resultParseJSON = await JSON.parse(resultParse);
-    } catch (error) {
-      console.log('parse-address', error);
-      return;
-    }
+      const resultParse: string = await native.parse_address(addr);
+      if (!resultParse || resultParse.toLowerCase().startsWith('error')) {
+        return;
+      }
 
-    if (
-      resultParseJSON && 
-      resultParseJSON.status && 
-      resultParseJSON.status === "success" && 
-      resultParseJSON.chain_name &&
-      resultParseJSON.chain_name === currChain
-    ) {
-      return resultParseJSON.address_kind;
-    } else {
+      let resultParseJSON;
+      try {
+        resultParseJSON = await JSON.parse(resultParse);
+      } catch (error) {
+        console.log('parse-address', error);
+        return;
+      }
+
+      if (
+        resultParseJSON && 
+        resultParseJSON.status && 
+        resultParseJSON.status === "success" && 
+        resultParseJSON.chain_name &&
+        resultParseJSON.chain_name === currChain
+      ) {
+        return resultParseJSON.address_kind;
+      } else {
+        return;
+      }
+    } catch (error) {
+      console.log(`Critical Error address kind ${error}`);
       return;
     }
   }
