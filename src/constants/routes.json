@@ -7,7 +7,6 @@
   "ADDRESSBOOK": "/addressbook",
   "HISTORY": "/history",
   "MESSAGES": "/messages",
-  "SETTINGS": "/settings",
-  "ZCASHD": "/zcashd",
+  "SERVERINFO": "/serverinfo",
   "INSIGHT": "/insight"
 }

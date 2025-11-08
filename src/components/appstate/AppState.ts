@@ -1,19 +1,19 @@
-import { ErrorModalData } from "../errormodal";
 import TotalBalanceClass from "./classes/TotalBalanceClass";
 import ValueTransferClass from "./classes/ValueTransferClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
-import ServerSelectStateClass from "./classes/ServerSelectStateClass";
+import ServerSelectModalClass from "./classes/ServerSelectModalClass";
 import ServerClass from "./classes/ServerClass";
 import FetchErrorClass from "./classes/FetchErrorClass";
-
+import ConfirmModalClass from "./classes/ConfirmModalClass";
+import ErrorModalClass from "./classes/ErrorModalClass";
 import AddressUnifiedClass from "./classes/UnifiedAddressClass";
 import AddressTransparentClass from "./classes/TransparentAddressClass";
 import AddressBookEntryClass from "./classes/AddressBookEntryClass";
 import InfoClass from "./classes/InfoClass";
 import { SyncStatusType } from "./types/SyncStatusType";
 import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
-import { ConfirmModalData } from "../confirmmodal";
 import { ZcashURITarget } from "../../utils/uris";
+import { WalletType } from "./types/WalletType";
 
 
 export default class AppState {
@@ -40,13 +40,13 @@ export default class AppState {
   info: InfoClass;
 
   // Error modal data
-  errorModalData: ErrorModalData;
+  errorModal: ErrorModalClass;
 
   // Error modal data
-  confirmModalData: ConfirmModalData;
+  confirmModal: ConfirmModalClass;
 
   // Server selection
-  serverSelectState: ServerSelectStateClass;
+  serverSelectModal: ServerSelectModalClass;
 
   // if the wallet is from seed or from VK
   readOnly: boolean;
@@ -61,10 +61,17 @@ export default class AppState {
   syncingStatus: SyncStatusType;
   verificationProgress: number | null;
 
-  // local data for performance
+  // local data for performance - Active Server.
   serverUri: string;
   serverChainName: "" | ServerChainNameEnum;
   serverSelection: '' | 'auto' | 'list' | 'custom';
+
+  // current wallet
+  currentWalletId: number | null;
+  
+  // list of wallets
+  wallets: WalletType[];
+
   seed_phrase: string;
   ufvk: string;
   birthday: number;
@@ -94,9 +101,9 @@ export default class AppState {
     this.addressBook = [] as AddressBookEntryClass[];
     this.valueTransfers = [] as ValueTransferClass[];
     this.messages = [] as ValueTransferClass[];
-    this.errorModalData = new ErrorModalData();
-    this.confirmModalData = new ConfirmModalData();
-    this.serverSelectState = new ServerSelectStateClass();
+    this.errorModal = new ErrorModalClass();
+    this.confirmModal = new ConfirmModalClass();
+    this.serverSelectModal = new ServerSelectModalClass();
     this.sendPageState = new SendPageStateClass();
     this.info = new InfoClass();
     this.syncingStatus = {} as SyncStatusType;
@@ -107,6 +114,8 @@ export default class AppState {
     this.serverUri = "";
     this.serverChainName = "";
     this.serverSelection = "";
+    this.currentWalletId = null;
+    this.wallets = [] as WalletType[];
     this.seed_phrase = "";
     this.ufvk = "";
     this.birthday = 0;

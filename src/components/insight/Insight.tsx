@@ -42,116 +42,128 @@ const Insight: React.FC<InsightProps> = () => {
   }, []);
 
   const fetchDataSent: () => void = async () => {
-    const resultStr: string = await native.get_total_value_to_address();
-    //console.log('################# value', resultStr);
+    try {
+      const resultStr: string = await native.get_total_value_to_address();
+      //console.log('################# value', resultStr);
 
-    const resultJSON = JSON.parse(resultStr);
-    let amounts: { data: number; address: string; tag: string }[] = [];
-    const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
-    resultJSONEntries.forEach(([key, value]) => {
-      if (value > 0) {
-        //console.log(value, key);
-        const tag = addressBook.filter((a: any) => a.address === key);
-        amounts.push({ data: value / 10 ** 8, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
-      }
-    });
-    //console.log(amounts);
-    const randomColors = Utils.generateColorList(amounts.length);
-    const newLabels: string[] = [];
-    const newBackgroundColor: string[] = [];
-    const newHoverBackgroundColor: string[] = [];
-    const newData: number[] = amounts
-      .sort((a, b) => b.data - a.data)
-      .map((item, index) => {
-        newLabels.push(!!item.tag ? item.tag : item.address === 'fee' ? item.address : Utils.trimToSmall(item.address, 10));
-        newBackgroundColor.push(item.address === 'fee' ? Utils.getCssVariable('--color-zingo') : randomColors[index]);
-        newHoverBackgroundColor.push(item.address === 'fee' ? Utils.getCssVariable('--color-zingo') : randomColors[index]);
-        return item.data;
+      const resultJSON = JSON.parse(resultStr);
+      let amounts: { data: number; address: string; tag: string }[] = [];
+      const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
+      resultJSONEntries.forEach(([key, value]) => {
+        if (value > 0) {
+          //console.log(value, key);
+          const tag = addressBook.filter((a: any) => a.address === key);
+          amounts.push({ data: value / 10 ** 8, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
+        }
       });
-    setDataSent({
-      labels: newLabels,
-      datasets: [
-        {
-          data: newData,
-          backgroundColor: newBackgroundColor,
-          hoverBackgroundColor: newHoverBackgroundColor,
-        } as Dataset,
-      ],
-    } as Data);
+      //console.log(amounts);
+      const randomColors = Utils.generateColorList(amounts.length);
+      const newLabels: string[] = [];
+      const newBackgroundColor: string[] = [];
+      const newHoverBackgroundColor: string[] = [];
+      const newData: number[] = amounts
+        .sort((a, b) => b.data - a.data)
+        .map((item, index) => {
+          newLabels.push(!!item.tag ? item.tag : item.address === 'fee' ? item.address : Utils.trimToSmall(item.address, 10));
+          newBackgroundColor.push(item.address === 'fee' ? Utils.getCssVariable('--color-zingo') : randomColors[index]);
+          newHoverBackgroundColor.push(item.address === 'fee' ? Utils.getCssVariable('--color-zingo') : randomColors[index]);
+          return item.data;
+        });
+      setDataSent({
+        labels: newLabels,
+        datasets: [
+          {
+            data: newData,
+            backgroundColor: newBackgroundColor,
+            hoverBackgroundColor: newHoverBackgroundColor,
+          } as Dataset,
+        ],
+      } as Data);
+    } catch (error) {
+      console.log(`Critical Error insight sent ${error}`);
+    }
   }
 
   const fetchDataSends: () => void = async () => {
-    const resultStr = await native.get_total_spends_to_address();
-    //console.log('################# sends', resultStr);
-        
-    const resultJSON = JSON.parse(resultStr);
-    let amounts: { data: number; address: string; tag: string }[] = [];
-    const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
-    resultJSONEntries.forEach(([key, value]) => {
-      if (key !== 'fee' && value > 0) {
-        const tag = addressBook.filter((a: any) => a.address === key);
-        amounts.push({ data: false ? value / 10 ** 8 : value, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
-      }
-    });
-    const randomColors = Utils.generateColorList(amounts.length);
-    const newLabels: string[] = [];
-    const newBackgroundColor: string[] = [];
-    const newHoverBackgroundColor: string[] = [];
-    const newData: number[] = amounts
-      .sort((a, b) => b.data - a.data)
-      .map((item, index) => {
-        newLabels.push(!!item.tag ? item.tag : item.address === 'fee' ? item.address : Utils.trimToSmall(item.address, 10));
-        newBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
-        newHoverBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
-        return item.data;
+    try {
+      const resultStr = await native.get_total_spends_to_address();
+      //console.log('################# sends', resultStr);
+          
+      const resultJSON = JSON.parse(resultStr);
+      let amounts: { data: number; address: string; tag: string }[] = [];
+      const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
+      resultJSONEntries.forEach(([key, value]) => {
+        if (key !== 'fee' && value > 0) {
+          const tag = addressBook.filter((a: any) => a.address === key);
+          amounts.push({ data: false ? value / 10 ** 8 : value, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
+        }
       });
-    setDataSends({
-      labels: newLabels,
-      datasets: [
-        {
-          data: newData,
-          backgroundColor: newBackgroundColor,
-          hoverBackgroundColor: newHoverBackgroundColor,
-        } as Dataset,
-      ],
-    } as Data);
+      const randomColors = Utils.generateColorList(amounts.length);
+      const newLabels: string[] = [];
+      const newBackgroundColor: string[] = [];
+      const newHoverBackgroundColor: string[] = [];
+      const newData: number[] = amounts
+        .sort((a, b) => b.data - a.data)
+        .map((item, index) => {
+          newLabels.push(!!item.tag ? item.tag : item.address === 'fee' ? item.address : Utils.trimToSmall(item.address, 10));
+          newBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
+          newHoverBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
+          return item.data;
+        });
+      setDataSends({
+        labels: newLabels,
+        datasets: [
+          {
+            data: newData,
+            backgroundColor: newBackgroundColor,
+            hoverBackgroundColor: newHoverBackgroundColor,
+          } as Dataset,
+        ],
+      } as Data);
+    } catch (error) {
+      console.log(`Critical Error insight sends ${error}`);
+    }
   }
 
   const fetchDataMemobytes: () => void = async () => {
-    const resultStr = await native.get_total_memobytes_to_address();
-    //console.log('################# memobytes', resultStr);
+    try {
+      const resultStr = await native.get_total_memobytes_to_address();
+      //console.log('################# memobytes', resultStr);
 
-    const resultJSON = JSON.parse(resultStr);
-    let amounts: { data: number; address: string; tag: string }[] = [];
-    const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
-    resultJSONEntries.forEach(([key, value]) => {
-      if (key !== 'fee' && value > 0) {
-        const tag = addressBook.filter((a: any) => a.address === key);
-        amounts.push({ data: false ? value / 10 ** 8 : value, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
-      }
-    });
-    const randomColors = Utils.generateColorList(amounts.length);
-    const newLabels: string[] = [];
-    const newBackgroundColor: string[] = [];
-    const newHoverBackgroundColor: string[] = [];
-    const newData: number[] = amounts
-      .sort((a, b) => b.data - a.data)
-      .map((item, index) => {
-        newLabels.push(!!item.tag ? item.tag : item.address === 'fee' ? item.address : Utils.trimToSmall(item.address, 10));
-        newBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
-        newHoverBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
-        return item.data;
+      const resultJSON = JSON.parse(resultStr);
+      let amounts: { data: number; address: string; tag: string }[] = [];
+      const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
+      resultJSONEntries.forEach(([key, value]) => {
+        if (key !== 'fee' && value > 0) {
+          const tag = addressBook.filter((a: any) => a.address === key);
+          amounts.push({ data: false ? value / 10 ** 8 : value, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : '' });
+        }
       });
-    setDataMemobytes({
-      labels: newLabels,
-      datasets: [
-        {
-          data: newData,
-          backgroundColor: newBackgroundColor,
-          hoverBackgroundColor: newHoverBackgroundColor,
-        } as Dataset,
-      ],
-    } as Data);
+      const randomColors = Utils.generateColorList(amounts.length);
+      const newLabels: string[] = [];
+      const newBackgroundColor: string[] = [];
+      const newHoverBackgroundColor: string[] = [];
+      const newData: number[] = amounts
+        .sort((a, b) => b.data - a.data)
+        .map((item, index) => {
+          newLabels.push(!!item.tag ? item.tag : item.address === 'fee' ? item.address : Utils.trimToSmall(item.address, 10));
+          newBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
+          newHoverBackgroundColor.push(item.address === 'fee' ? 'gray' : randomColors[index]);
+          return item.data;
+        });
+      setDataMemobytes({
+        labels: newLabels,
+        datasets: [
+          {
+            data: newData,
+            backgroundColor: newBackgroundColor,
+            hoverBackgroundColor: newHoverBackgroundColor,
+          } as Dataset,
+        ],
+      } as Data);
+    } catch (error) {
+      console.log(`Critical Error insight memo bytes ${error}`);
+    }
   }
 
   const getPercent = (percent: number) => {

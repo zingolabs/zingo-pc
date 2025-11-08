@@ -143,8 +143,6 @@ export default class RPC {
     await this.fetchInfo();
     await this.fetchTandZandOMessages();
 
-    //await this.fetchWalletSettings();
-
     // every 5 seconds the App update part of the data
     if (!this.updateTimerID) {
       this.updateTimerID = setInterval(() => this.runTaskPromises(), 5 * 1000); // 5 secs
@@ -187,14 +185,23 @@ export default class RPC {
   }
 
   static async doSave() {
-    const syncstr: string = await native.save_wallet_file();
-    console.log(`wallet saved: ${syncstr}`);
-    return syncstr;
+    try {
+      const syncstr: string = await native.save_wallet_file();
+      console.log(`wallet saved: ${syncstr}`);
+      return syncstr;
+    }catch (error: any) {
+      console.log(`Critical Error save wallet ${error}`);
+      return error;
+    }
   }
 
   static deinitialize() {
-    const str: string = native.deinitialize();
-    console.log(`Deinitialize status: ${str}`);
+    try {
+      const str: string = native.deinitialize();
+      console.log(`Deinitialize status: ${str}`);
+    } catch (error) {
+      console.log(`Critical Error de-initialize ${error}`);
+    }
   }
 
   static async getWalletVersion(): Promise<number | undefined> {
@@ -220,72 +227,78 @@ export default class RPC {
   
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
-    // PROPOSING
-    const shieldResult: string = await native.shield();
-    console.log('shield proposal', shieldResult);
-    if (shieldResult) {
-      if (shieldResult.toLowerCase().startsWith("error")) {
-        // error
-        console.log(`Error shield ${shieldResult}`);
-        return shieldResult;
-      }
-    } else {
-      // error empty
-      const err = 'Error: Internal error shield';
-      console.log(err);
-      return err;
-    }
-    let shieldJSON = {} as {fee: number, error: string};
     try {
-      shieldJSON = JSON.parse(shieldResult);
-    } catch(error: any) {
-      const err = `Error: parsing shield result ${error.message}`;
-      console.log(err);
-      return err;
-    }
-    if (shieldJSON.error) {
-      const err = `Error: shield ${shieldJSON.error}`;
-      console.log(err);
-      return err;
-    }
-    //console.log(shieldJSON);
-
-    // SHIELDING
-    const confirmResult: string = await native.confirm();
-    if (confirmResult) {
-      if (confirmResult.toLowerCase().startsWith("error")) {
-        // error
-        console.log(`Error Shield Confirm ${confirmResult}`);
-        return confirmResult;
+      // PROPOSING
+      const shieldResult: string = await native.shield();
+      //console.log('shield proposal', shieldResult);
+      if (shieldResult) {
+        if (shieldResult.toLowerCase().startsWith("error")) {
+          // error
+          console.log(`Error shield ${shieldResult}`);
+          return shieldResult;
+        }
+      } else {
+        // error empty
+        const err = 'Error: Internal error shield';
+        console.log(err);
+        return err;
       }
-    } else {
-      // error empty
-      const err = 'Error: Internal error confirm';
-      console.log(err);
-      return err;
-    }
-    let confirmJSON = {} as {txids: string[], error: string};
-    try {
-      confirmJSON = JSON.parse(confirmResult);
-    } catch(error: any) {
-      const err = `Error: parsing confirm result ${error.message}`;
-      console.log(err);
-      return err;
-    }
-    if (confirmJSON.error) {
-      const err = `Error: confirm ${confirmJSON.error}`;
-      console.log(err);
-      return err;
-    }
-    if (confirmJSON.txids && confirmJSON.txids.length > 0) {
-      const txids: string = confirmJSON.txids.join(', ');
-      console.log(txids);
-      return txids;
-    }
-    //console.log(confirmJSON);
+      let shieldJSON = {} as {fee: number, error: string};
+      try {
+        shieldJSON = JSON.parse(shieldResult);
+      } catch(error: any) {
+        const err = `Error: parsing shield result ${error.message}`;
+        console.log(err);
+        return err;
+      }
+      if (shieldJSON.error) {
+        const err = `Error: shield ${shieldJSON.error}`;
+        console.log(err);
+        return err;
+      }
+      //console.log(shieldJSON);
 
-    // weird case, I want to see the JSON in the error.
-    return JSON.stringify(confirmJSON);
+      // SHIELDING
+      const confirmResult: string = await native.confirm();
+      if (confirmResult) {
+        if (confirmResult.toLowerCase().startsWith("error")) {
+          // error
+          console.log(`Error Shield Confirm ${confirmResult}`);
+          return confirmResult;
+        }
+      } else {
+        // error empty
+        const err = 'Error: Internal error confirm';
+        console.log(err);
+        return err;
+      }
+      let confirmJSON = {} as {txids: string[], error: string};
+      try {
+        confirmJSON = JSON.parse(confirmResult);
+      } catch(error: any) {
+        const err = `Error: parsing confirm result ${error.message}`;
+        console.log(err);
+        return err;
+      }
+      if (confirmJSON.error) {
+        const err = `Error: confirm ${confirmJSON.error}`;
+        console.log(err);
+        return err;
+      }
+      if (confirmJSON.txids && confirmJSON.txids.length > 0) {
+        const txids: string = confirmJSON.txids.join(', ');
+        console.log(txids);
+        return txids;
+      }
+      //console.log(confirmJSON);
+
+      // weird case, I want to see the JSON in the error.
+      return JSON.stringify(confirmJSON);
+    } catch (error) {
+      const err = `Error: Critical Error shield/confirm ${error}`;
+      console.log(err);
+      return err;
+    }
   }
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
@@ -349,6 +362,7 @@ export default class RPC {
   }
 
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
+    // unimplemented.
     //const r: string = await native.("setoption", `${name}=${value}`);
     const r: string = await native.set_option_wallet();
 
@@ -383,227 +397,214 @@ export default class RPC {
   }
 
   async fetchSyncPoll(): Promise<void> {
-    const returnPoll: string = await native.poll_sync();
-    if (!returnPoll || returnPoll.toLowerCase().startsWith('error')) {
-      console.log('SYNC POLL ERROR', returnPoll);
-      this.lastPollSyncError = returnPoll;
-      return;
-    }
+    try {
+      const returnPoll: string = await native.poll_sync();
+      if (!returnPoll || returnPoll.toLowerCase().startsWith('error')) {
+        console.log('SYNC POLL ERROR', returnPoll);
+        this.lastPollSyncError = returnPoll;
+        return;
+      }
 
-    if (returnPoll.toLowerCase().startsWith('sync task has not been launched')) {
-      console.log('SYNC POLL -> RUN SYNC', returnPoll);
-      setTimeout(async () => {
-        await this.refreshSync();
-      }, 0);
-      return;
-    }
+      if (returnPoll.toLowerCase().startsWith('sync task has not been launched')) {
+        console.log('SYNC POLL -> RUN SYNC', returnPoll);
+        setTimeout(async () => {
+          await this.refreshSync();
+        }, 0);
+        return;
+      }
 
-    if (returnPoll.toLowerCase().startsWith('sync task is not complete')) {
-      console.log('SYNC POLL -> FETCH STATUS', returnPoll);
+      if (returnPoll.toLowerCase().startsWith('sync task is not complete')) {
+        console.log('SYNC POLL -> FETCH STATUS', returnPoll);
+        setTimeout(async () => {
+          await this.fetchSyncStatus();
+        }, 0);
+        return;
+      }
+
+      let sp;
+      try {
+        sp = await JSON.parse(returnPoll);
+      } catch (error) {
+        console.log('SYNC POLL ERROR - PARSE JSON', returnPoll, error);
+        return;
+      }
+
+      console.log('SYNC POLL', sp);
+
+      console.log('SYNC POLL -> FETCH STATUS');
       setTimeout(async () => {
         await this.fetchSyncStatus();
       }, 0);
-      return;
-    }
-
-    let sp;
-    try {
-      sp = await JSON.parse(returnPoll);
     } catch (error) {
-      console.log('SYNC POLL ERROR - PARSE JSON', returnPoll, error);
-      return;
+      console.log(`Critical Error sync poll ${error}`);
     }
-
-    console.log('SYNC POLL', sp);
-
-    console.log('SYNC POLL -> FETCH STATUS');
-    setTimeout(async () => {
-      await this.fetchSyncStatus();
-    }, 0);
-
   }
 
-  async refreshSync(fullRescan?: boolean) {
-    // This is async, so when it is done, we finish the refresh.
-    if (fullRescan) {
-      await this.clearTimers();
-      // clean the ValueTransfer list before.
-      this.fnSetValueTransfersList([]);
-      this.fnSetMessagesList([]);
-      this.fnSetTotalBalance({
-        totalOrchardBalance: 0,
-        totalSaplingBalance: 0,
-        totalTransparentBalance: 0,
-        confirmedTransparentBalance: 0,
-        confirmedOrchardBalance: 0,
-        confirmedSaplingBalance: 0,
-        totalSpendableBalance: 0,
-      } as TotalBalanceClass);
-      this.fnSetSyncStatus({});
-      this.fnSetVerificationProgress(null);
+  async refreshSync(fullRescan?: boolean): Promise<void> {
+    try {
+      // This is async, so when it is done, we finish the refresh.
+      if (fullRescan) {
+        await this.clearTimers();
+        // clean the ValueTransfer list before.
+        this.fnSetValueTransfersList([]);
+        this.fnSetMessagesList([]);
+        this.fnSetTotalBalance({
+          totalOrchardBalance: 0,
+          totalSaplingBalance: 0,
+          totalTransparentBalance: 0,
+          confirmedTransparentBalance: 0,
+          confirmedOrchardBalance: 0,
+          confirmedSaplingBalance: 0,
+          totalSpendableBalance: 0,
+        } as TotalBalanceClass);
+        this.fnSetSyncStatus({});
+        this.fnSetVerificationProgress(null);
 
-      // the rescan in zingolib do two tasks:
-      // 1. stop the sync.
-      // 2. launch the rescan.
-      const rescanStr: string = await native.run_rescan();
-      //console.log('rescan RUN', rescanStr);
-      if (!rescanStr || rescanStr.toLowerCase().startsWith('error')) {
-        console.log(`Error rescan ${rescanStr}`);
+        // the rescan in zingolib do two tasks:
+        // 1. stop the sync.
+        // 2. launch the rescan.
+        const rescanStr: string = await native.run_rescan();
+        //console.log('rescan RUN', rescanStr);
+        if (!rescanStr || rescanStr.toLowerCase().startsWith('error')) {
+          console.log(`Error rescan ${rescanStr}`);
+        }
+        await this.configure();
+      } else {
+        const syncStr: string = await native.run_sync();
+        //console.log('sync RUN', syncStr);
+        if (!syncStr || syncStr.toLowerCase().startsWith('error')) {
+          console.log(`Error sync ${syncStr}`);
+        }
       }
-      await this.configure();
-    } else {
-      const syncStr: string = await native.run_sync();
-      //console.log('sync RUN', syncStr);
-      if (!syncStr || syncStr.toLowerCase().startsWith('error')) {
-        console.log(`Error sync ${syncStr}`);
-      }
+    } catch (error) {
+      console.log(`Critical Error run sync/rescan ${error}`);
     }
   }
 
   async fetchSyncStatus(): Promise<void> {
-    const returnStatus: string = await native.status_sync();
-    if (!returnStatus || returnStatus.toLowerCase().startsWith('error')) {
-      console.log('SYNC STATUS ERROR', returnStatus);
-      return;
-    }
-    let ss = {} as SyncStatusType;
     try {
-      ss = await JSON.parse(returnStatus);
-      ss.lastError = this.lastPollSyncError;
+      const returnStatus: string = await native.status_sync();
+      if (!returnStatus || returnStatus.toLowerCase().startsWith('error')) {
+        console.log('SYNC STATUS ERROR', returnStatus);
+        return;
+      }
+      let ss = {} as SyncStatusType;
+      try {
+        ss = await JSON.parse(returnStatus);
+        ss.lastError = this.lastPollSyncError;
+      } catch (error) {
+        console.log('SYNC STATUS ERROR - PARSE JSON', returnStatus, error);
+        return;
+      }
+
+      //console.log('SYNC STATUS', ss);
+      console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned);
+
+      //console.log('interval sync/rescan, secs', this.secondsBatch, 'timer', this.syncStatusTimerID);
+
+      // store SyncStatus object for a new screen
+      this.fnSetSyncStatus(ss);
+      this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ? ss.percentage_total_outputs_scanned : 0);
     } catch (error) {
-      console.log('SYNC STATUS ERROR - PARSE JSON', returnStatus, error);
-      return;
+      console.log(`Critical Error sync status ${error}`);
     }
-
-    //console.log('SYNC STATUS', ss);
-    console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned);
-
-    //console.log('interval sync/rescan, secs', this.secondsBatch, 'timer', this.syncStatusTimerID);
-
-    // store SyncStatus object for a new screen
-    this.fnSetSyncStatus(ss);
-    this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ? ss.percentage_total_outputs_scanned : 0);
   }
 
-  async zingolibAddressesUnified(): Promise<any> {
-    // fetch all Unified addresses
-    const addressesStr: string = await native.get_unified_addresses();
-    if (addressesStr) {
-      if (addressesStr.toLowerCase().startsWith('error')) {
-        console.log(`Error Unified addresses ${addressesStr}`);
-        this.fnSetFetchError('Unified addresses', addressesStr);
-        return;
+  async zingolibValueTransfers(): Promise<any> {
+    try {
+      // fetch value transfers
+      const txValueTransfersStr: string = await native.get_value_transfers();
+      if (txValueTransfersStr) {
+        if (txValueTransfersStr.toLowerCase().startsWith('error')) {
+          console.log(`Error txs ValueTransfers ${txValueTransfersStr}`);
+          this.fnSetFetchError('ValueTransfers', txValueTransfersStr);
+          return [];
+        }
+      } else {
+        console.log('Internal Error txs ValueTransfers');
+        this.fnSetFetchError('ValueTransfers', 'Error: Internal RPC Error');
+        return [];
       }
-    } else {
-      console.log('Internal Error Unified addresses');
-      this.fnSetFetchError('Unified addresses', 'Error: Internal RPC Error');
-      return;
+      const txValueTransfersJSON = JSON.parse(txValueTransfersStr);
+
+      return txValueTransfersJSON.value_transfers;
+    } catch (error) {
+      console.log(`Critical Error value transfers ${error}`);
+      return [];
     }
-    const addressesJSON = JSON.parse(addressesStr);
-
-    return addressesJSON;
-  }
-
-  async zingolibAddressesTransparent(): Promise<any> {
-    // fetch all Transparent addresses
-    const addressesStr: string = await native.get_transparent_addresses();
-    if (addressesStr) {
-      if (addressesStr.toLowerCase().startsWith('error')) {
-        console.log(`Error Transparent addresses ${addressesStr}`);
-        this.fnSetFetchError('Transparent addresses', addressesStr);
-        return;
-      }
-    } else {
-      console.log('Internal Error Transparent addresses');
-      this.fnSetFetchError('Transparent addresses', 'Error: Internal RPC Error');
-      return;
-    }
-    const addressesJSON = JSON.parse(addressesStr);
-
-    return addressesJSON;
-  }
-
-  async zingolibValueTransfers() {
-    // fetch value transfers
-    const txValueTransfersStr: string = await native.get_value_transfers();
-    if (txValueTransfersStr) {
-      if (txValueTransfersStr.toLowerCase().startsWith('error')) {
-        console.log(`Error txs ValueTransfers ${txValueTransfersStr}`);
-        this.fnSetFetchError('ValueTransfers', txValueTransfersStr);
-        return {};
-      }
-    } else {
-      console.log('Internal Error txs ValueTransfers');
-      this.fnSetFetchError('ValueTransfers', 'Error: Internal RPC Error');
-      return {};
-    }
-    const txValueTransfersJSON = JSON.parse(txValueTransfersStr);
-
-    return txValueTransfersJSON.value_transfers;
   }
 
   async zingolibMessages() {
-    // fetch value transfers
-    const txMessagesStr: string = await native.get_messages("");
-    if (txMessagesStr) {
-      if (txMessagesStr.toLowerCase().startsWith('error')) {
-        console.log(`Error txs ValueTransfers ${txMessagesStr}`);
-        this.fnSetFetchError('ValueTransfers', txMessagesStr);
-        return {};
+    try {
+      // fetch value transfers
+      const txMessagesStr: string = await native.get_messages("");
+      if (txMessagesStr) {
+        if (txMessagesStr.toLowerCase().startsWith('error')) {
+          console.log(`Error txs ValueTransfers ${txMessagesStr}`);
+          this.fnSetFetchError('ValueTransfers', txMessagesStr);
+          return [];
+        }
+      } else {
+        console.log('Internal Error txs ValueTransfers');
+        this.fnSetFetchError('ValueTransfers', 'Error: Internal RPC Error');
+        return [];
       }
-    } else {
-      console.log('Internal Error txs ValueTransfers');
-      this.fnSetFetchError('ValueTransfers', 'Error: Internal RPC Error');
-      return {};
-    }
-    const txMessagesJSON = JSON.parse(txMessagesStr);
+      const txMessagesJSON = JSON.parse(txMessagesStr);
 
-    return txMessagesJSON.value_transfers;
+      return txMessagesJSON.value_transfers;
+    } catch (error) {
+      console.log(`Critical Error messages ${error}`);
+      return [];
+    }
   }
 
   // This method will get the total balances
   async fetchTotalBalance() {
-    const spendableStr: string = await native.get_spendable_balance_total();
-    //console.log(spendableStr);
-    let spendableJSON;
-    if (spendableStr) {
-      if (spendableStr.toLowerCase().startsWith('error')) {
-        console.log(`Error spendable balance ${spendableStr}`);
+    try {
+      const spendableStr: string = await native.get_spendable_balance_total();
+      //console.log(spendableStr);
+      let spendableJSON;
+      if (spendableStr) {
+        if (spendableStr.toLowerCase().startsWith('error')) {
+          console.log(`Error spendable balance ${spendableStr}`);
+        } else {
+          spendableJSON = await JSON.parse(spendableStr);
+        }
       } else {
-        spendableJSON = await JSON.parse(spendableStr);
+        console.log('Internal Error spendable balance');
       }
-    } else {
-      console.log('Internal Error spendable balance');
-    }
 
-    const balanceStr: string = await native.get_balance();
-    if (balanceStr) {
-      if (balanceStr.toLowerCase().startsWith('error')) {
-        console.log(`Error balance ${balanceStr}`);
-        this.fnSetFetchError('balance', balanceStr);
+      const balanceStr: string = await native.get_balance();
+      if (balanceStr) {
+        if (balanceStr.toLowerCase().startsWith('error')) {
+          console.log(`Error balance ${balanceStr}`);
+          this.fnSetFetchError('balance', balanceStr);
+        }
+      } else {
+        console.log('Internal Error balance');
+        this.fnSetFetchError('balance', 'Error: Internal RPC Error');
       }
-    } else {
-      console.log('Internal Error balance');
-      this.fnSetFetchError('balance', 'Error: Internal RPC Error');
+      const balanceJSON = JSON.parse(balanceStr);
+
+      //console.log(balanceJSON);
+
+      // Total Balance
+      const balance: TotalBalanceClass = {
+        totalOrchardBalance: (balanceJSON.total_orchard_balance || 0) / 10 ** 8,
+        totalSaplingBalance: (balanceJSON.total_sapling_balance || 0) / 10 ** 8,
+        totalTransparentBalance: (balanceJSON.total_transparent_balance || 0) / 10 ** 8,
+        confirmedOrchardBalance: (balanceJSON.confirmed_orchard_balance || 0) / 10 ** 8,
+        confirmedSaplingBalance: (balanceJSON.confirmed_sapling_balance || 0) / 10 ** 8,
+        confirmedTransparentBalance: (balanceJSON.confirmed_transparent_balance || 0) / 10 ** 8,
+        // header total balance
+        totalSpendableBalance: (spendableJSON.spendable_balance || 0) / 10 ** 8,
+        //totalSpendableBalance: ((balanceJSON.confirmed_orchard_balance + balanceJSON.confirmed_sapling_balance) || 0) / 10 ** 8,
+      };
+
+      this.fnSetTotalBalance(balance);
+    } catch (error) {
+      console.log(`Critical Error balance ${error}`);
     }
-    const balanceJSON = JSON.parse(balanceStr);
-
-    //console.log(balanceJSON);
-
-    // Total Balance
-    const balance: TotalBalanceClass = {
-      totalOrchardBalance: (balanceJSON.total_orchard_balance || 0) / 10 ** 8,
-      totalSaplingBalance: (balanceJSON.total_sapling_balance || 0) / 10 ** 8,
-      totalTransparentBalance: (balanceJSON.total_transparent_balance || 0) / 10 ** 8,
-      confirmedOrchardBalance: (balanceJSON.confirmed_orchard_balance || 0) / 10 ** 8,
-      confirmedSaplingBalance: (balanceJSON.confirmed_sapling_balance || 0) / 10 ** 8,
-      confirmedTransparentBalance: (balanceJSON.confirmed_transparent_balance || 0) / 10 ** 8,
-      // header total balance
-      totalSpendableBalance: (spendableJSON.spendable_balance || 0) / 10 ** 8,
-      //totalSpendableBalance: ((balanceJSON.confirmed_orchard_balance + balanceJSON.confirmed_sapling_balance) || 0) / 10 ** 8,
-    };
-
-    this.fnSetTotalBalance(balance);
   }
 
   async fetchAddresses() {
@@ -641,186 +642,210 @@ export default class RPC {
     } catch (error) {
       console.log(`Critical Error addresses ${error}`);
       // relaunch the interval tasks just in case they are aborted.
-      await this.clearTimers();
-      await this.configure();
       return;
     }
   }
 
   static async createNewAddressUnified(type: string) {
-    // Zingolib creates addresses like this:
-    // o = orchard only
-    // z = sapling only
-    // oz = orchard + sapling
-    const addrStr: string = await native.create_new_unified_address(type);
-    return addrStr;
+    try {
+      // Zingolib creates addresses like this:
+      // o = orchard only
+      // z = sapling only
+      // oz = orchard + sapling
+      const addrStr: string = await native.create_new_unified_address(type);
+      return addrStr;
+    } catch (error) {
+      const err = `Error: Critical Error new address U ${error}`;
+      console.log(error);
+      return err;
+    }
   }
 
   static async createNewAddressTransparent() {
-    // Zingolib creates Addresses like this:
-    // t = transparent
-    const addrStr: string = await native.create_new_transparent_address();
-    return addrStr;
+    try {
+      // Zingolib creates Addresses like this:
+      // t = transparent
+      const addrStr: string = await native.create_new_transparent_address();
+      return addrStr;
+    } catch (error) {
+      const err = `Error: Critical Error new address T ${error}`;
+      console.log(err);
+      return err;
+    }
   }
 
   static async fetchWalletHeight(): Promise<number> {
-    const heightStr: string = await native.get_latest_block_wallet();
-    const heightJSON = JSON.parse(heightStr);
+    try {
+      const heightStr: string = await native.get_latest_block_wallet();
+      const heightJSON = JSON.parse(heightStr);
 
-    return heightJSON.height;
+      return heightJSON.height;
+    } catch (error) {
+      console.log(`Critical Error wallet height ${error}`);
+      return 0;
+    }
   }
 
   // Fetch all T and Z and O value transfers
   async fetchTandZandOValueTransfers() {
-    // first to get the last server block.
-    let latestBlockHeight: number = 0;
-    //console.log(this.server);
-    const heightStr: string = await native.get_latest_block_server(this.server.uri);
-    if (heightStr) {
-      if (heightStr.toLowerCase().startsWith('error')) {
-        console.log(`Error server height ${heightStr}`);
-      } else {
-        latestBlockHeight = Number(heightStr);
-      }
-    } else {
-      console.log('Internal Error server height');
-    }
-
-    //console.log('SERVER HEIGHT', latestBlockHeight);
-
-    const valueTransfersJSON: any = await this.zingolibValueTransfers();
-
-    //console.log('value transfers antes ', valueTransfersJSON);
-
-    let vtList: ValueTransferClass[] = [];
-
-    const walletHeight: number = await RPC.fetchWalletHeight();
-    //console.log('WALLET HEIGHT', walletHeight);
-
-    valueTransfersJSON
-      .forEach((tx: any) => {
-        let currentVtList: ValueTransferClass = {} as ValueTransferClass;
-
-        currentVtList.txid = tx.txid;
-        currentVtList.time = tx.datetime;
-        currentVtList.type = tx.kind;
-        currentVtList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
-        currentVtList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
-
-        // unconfirmed means 0 confirmations, the tx is mining already.
-        // 'pending' is obsolete
-        if (
-          tx.status === ValueTransferStatusEnum.calculated ||
-          tx.status === ValueTransferStatusEnum.transmitted ||
-          tx.status === ValueTransferStatusEnum.mempool
-        ) {
-          currentVtList.confirmations = 0;
-        } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
-          currentVtList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
-            ? latestBlockHeight - tx.blockheight + 1
-            : walletHeight - tx.blockheight + 1;
+    try {
+      // first to get the last server block.
+      let latestBlockHeight: number = 0;
+      //console.log(this.server);
+      const heightStr: string = await native.get_latest_block_server(this.server.uri);
+      if (heightStr) {
+        if (heightStr.toLowerCase().startsWith('error')) {
+          console.log(`Error server height ${heightStr}`);
         } else {
-          // impossible case... I guess.
-          currentVtList.confirmations = 0;
+          latestBlockHeight = Number(heightStr);
         }
+      } else {
+        console.log('Internal Error server height');
+      }
 
-        currentVtList.blockheight = tx.blockheight;
-        currentVtList.status = tx.status;
-        currentVtList.address = !tx.recipient_address ? undefined : tx.recipient_address;
-        currentVtList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
-        currentVtList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
-        currentVtList.pool = !tx.pool_received ? undefined : tx.pool_received;
+      //console.log('SERVER HEIGHT', latestBlockHeight);
 
-        if (currentVtList.confirmations < 0) {
-          console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
-        }
-        //if (tx.txid.startsWith('426e')) {
-        //  console.log('valuetranfer: ', tx);
-        //  console.log('--------------------------------------------------');
-        //}
+      const valueTransfersJSON: any = await this.zingolibValueTransfers();
 
-        vtList.push(currentVtList);
-      });
+      //console.log('value transfers antes ', valueTransfersJSON);
 
-    //console.log(vtList);
+      let vtList: ValueTransferClass[] = [];
 
-    this.fnSetValueTransfersList(vtList);
+      const walletHeight: number = await RPC.fetchWalletHeight();
+      //console.log('WALLET HEIGHT', walletHeight);
+
+      valueTransfersJSON
+        .forEach((tx: any) => {
+          let currentVtList: ValueTransferClass = {} as ValueTransferClass;
+
+          currentVtList.txid = tx.txid;
+          currentVtList.time = tx.datetime;
+          currentVtList.type = tx.kind;
+          currentVtList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
+          currentVtList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
+
+          // unconfirmed means 0 confirmations, the tx is mining already.
+          // 'pending' is obsolete
+          if (
+            tx.status === ValueTransferStatusEnum.calculated ||
+            tx.status === ValueTransferStatusEnum.transmitted ||
+            tx.status === ValueTransferStatusEnum.mempool
+          ) {
+            currentVtList.confirmations = 0;
+          } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
+            currentVtList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
+              ? latestBlockHeight - tx.blockheight + 1
+              : walletHeight - tx.blockheight + 1;
+          } else {
+            // impossible case... I guess.
+            currentVtList.confirmations = 0;
+          }
+
+          currentVtList.blockheight = tx.blockheight;
+          currentVtList.status = tx.status;
+          currentVtList.address = !tx.recipient_address ? undefined : tx.recipient_address;
+          currentVtList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
+          currentVtList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
+          currentVtList.pool = !tx.pool_received ? undefined : tx.pool_received;
+
+          if (currentVtList.confirmations < 0) {
+            console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
+          }
+          //if (tx.txid.startsWith('426e')) {
+          //  console.log('valuetranfer: ', tx);
+          //  console.log('--------------------------------------------------');
+          //}
+
+          vtList.push(currentVtList);
+        });
+
+      //console.log(vtList);
+
+      this.fnSetValueTransfersList(vtList);
+    } catch (error) {
+      console.log(`Critical Error value transfers ${error}`);
+    }
   }
 
   // Fetch all T and Z and O value transfers
   async fetchTandZandOMessages() {
-    // first to get the last server block.
-    let latestBlockHeight: number = 0;
-    const heightStr: string = await native.get_latest_block_server(this.server.uri);
-    if (heightStr) {
-      if (heightStr.toLowerCase().startsWith('error')) {
-        console.log(`Error server height ${heightStr}`);
-      } else {
-        latestBlockHeight = Number(heightStr);
-      }
-    } else {
-      console.log('Internal Error server height');
-    }
-
-    //console.log('SERVER HEIGHT', latestBlockHeight);
-
-    const MessagesJSON: any = await this.zingolibMessages();
-
-    //console.log('value transfers antes ', valueTransfersJSON);
-
-    let mList: ValueTransferClass[] = [];
-
-    const walletHeight: number = await RPC.fetchWalletHeight();
-    //console.log('WALLET HEIGHT', walletHeight);
-
-    MessagesJSON
-      .forEach((tx: any) => {
-        let currentMList: ValueTransferClass = {} as ValueTransferClass;
-
-        currentMList.txid = tx.txid;
-        currentMList.time = tx.datetime;
-        currentMList.type = tx.kind;
-        currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
-        currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
-
-        // unconfirmed means 0 confirmations, the tx is mining already.
-        // 'pending' is obsolete
-        if (
-          tx.status === ValueTransferStatusEnum.calculated ||
-          tx.status === ValueTransferStatusEnum.transmitted ||
-          tx.status === ValueTransferStatusEnum.mempool
-        ) {
-          currentMList.confirmations = 0;
-        } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
-          currentMList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
-            ? latestBlockHeight - tx.blockheight + 1
-            : walletHeight - tx.blockheight + 1;
+    try {
+      // first to get the last server block.
+      let latestBlockHeight: number = 0;
+      //console.log(this.server);
+      const heightStr: string = await native.get_latest_block_server(this.server.uri);
+      if (heightStr) {
+        if (heightStr.toLowerCase().startsWith('error')) {
+          console.log(`Error server height ${heightStr}`);
         } else {
-          // impossible case... I guess.
-          currentMList.confirmations = 0;
+          latestBlockHeight = Number(heightStr);
         }
+      } else {
+        console.log('Internal Error server height');
+      }
 
-        currentMList.blockheight = tx.blockheight;
-        currentMList.status = tx.status;
-        currentMList.address = !tx.recipient_address ? undefined : tx.recipient_address;
-        currentMList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
-        currentMList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
-        currentMList.pool = !tx.pool_received ? undefined : tx.pool_received;
+      //console.log('SERVER HEIGHT', latestBlockHeight);
 
-        if (currentMList.confirmations < 0) {
-          console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
-        }
-        //if (tx.txid.startsWith('426e')) {
-        //  console.log('valuetranfer: ', tx);
-        //  console.log('--------------------------------------------------');
-        //}
+      const MessagesJSON: any = await this.zingolibMessages();
 
-        mList.push(currentMList);
-      });
+      //console.log('value transfers antes ', valueTransfersJSON);
 
-    //console.log(mList);
+      let mList: ValueTransferClass[] = [];
 
-    this.fnSetMessagesList(mList);
+      const walletHeight: number = await RPC.fetchWalletHeight();
+      //console.log('WALLET HEIGHT', walletHeight);
+
+      MessagesJSON
+        .forEach((tx: any) => {
+          let currentMList: ValueTransferClass = {} as ValueTransferClass;
+
+          currentMList.txid = tx.txid;
+          currentMList.time = tx.datetime;
+          currentMList.type = tx.kind;
+          currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
+          currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
+
+          // unconfirmed means 0 confirmations, the tx is mining already.
+          // 'pending' is obsolete
+          if (
+            tx.status === ValueTransferStatusEnum.calculated ||
+            tx.status === ValueTransferStatusEnum.transmitted ||
+            tx.status === ValueTransferStatusEnum.mempool
+          ) {
+            currentMList.confirmations = 0;
+          } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
+            currentMList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
+              ? latestBlockHeight - tx.blockheight + 1
+              : walletHeight - tx.blockheight + 1;
+          } else {
+            // impossible case... I guess.
+            currentMList.confirmations = 0;
+          }
+
+          currentMList.blockheight = tx.blockheight;
+          currentMList.status = tx.status;
+          currentMList.address = !tx.recipient_address ? undefined : tx.recipient_address;
+          currentMList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
+          currentMList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
+          currentMList.pool = !tx.pool_received ? undefined : tx.pool_received;
+
+          if (currentMList.confirmations < 0) {
+            console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
+          }
+          //if (tx.txid.startsWith('426e')) {
+          //  console.log('valuetranfer: ', tx);
+          //  console.log('--------------------------------------------------');
+          //}
+
+          mList.push(currentMList);
+        });
+
+      //console.log(mList);
+
+      this.fnSetMessagesList(mList);
+    } catch (error) {
+      console.log(`Critical Error messages ${error}`);
+    }
   }
   
   // Send a transaction using the already constructed sendJson structure
@@ -832,7 +857,7 @@ export default class RPC {
       let sendError: string = '';
       let sendTxids: string = '';
       try {
-        console.log('send JSON', sendJson);
+        //console.log('send JSON', sendJson);
         // creating the propose
         const proposeStr: string = await native.send(JSON.stringify(sendJson));
         if (proposeStr) {
@@ -897,19 +922,23 @@ export default class RPC {
   }
 
   async getZecPrice() {
-    const resultStr: string = await native.zec_price("false");
+    try {
+      const resultStr: string = await native.zec_price("false");
 
-    if (resultStr) {
-      if (resultStr.toLowerCase().startsWith("error")) {
+      if (resultStr) {
+        if (resultStr.toLowerCase().startsWith("error")) {
+          console.log(`Error fetching price ${resultStr}`);
+          this.fnSetZecPrice(0);
+        } else {
+          const resultJSON = JSON.parse(resultStr);
+          this.fnSetZecPrice(resultJSON.current_price);
+        }
+      } else {
         console.log(`Error fetching price ${resultStr}`);
         this.fnSetZecPrice(0);
-      } else {
-        const resultJSON = JSON.parse(resultStr);
-        this.fnSetZecPrice(resultJSON.current_price);
       }
-    } else {
-      console.log(`Error fetching price ${resultStr}`);
-      this.fnSetZecPrice(0);
+    } catch (error) {
+      console.log(`Critical Error get price ${error}`);
     }
   }
 }

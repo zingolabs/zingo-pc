@@ -4,7 +4,7 @@ import {
   AppState, 
   InfoClass, 
   SendPageStateClass, 
-  ServerSelectStateClass, 
+  ServerSelectModalClass, 
   TotalBalanceClass, 
   ValueTransferClass, 
   ServerClass, 
@@ -12,9 +12,10 @@ import {
   UnifiedAddressClass, 
   TransparentAddressClass, 
   SyncStatusType,
+  WalletType,
+  ConfirmModalClass,
+  ErrorModalClass
 } from "../components/appstate";
-import { ErrorModalData } from '../components/errormodal';
-import { ConfirmModalData } from '../components/confirmmodal';
 
 export const defaultAppState: AppState = {
   totalBalance: new TotalBalanceClass(),
@@ -23,9 +24,9 @@ export const defaultAppState: AppState = {
   addressBook: [] as AddressBookEntryClass[],
   valueTransfers: [] as ValueTransferClass[],
   messages: [] as ValueTransferClass[],
-  errorModalData: new ErrorModalData(),
-  confirmModalData: new ConfirmModalData(),
-  serverSelectState: new ServerSelectStateClass(),
+  errorModal: new ErrorModalClass(),
+  confirmModal: new ConfirmModalClass(),
+  serverSelectModal: new ServerSelectModalClass(),
   sendPageState: new SendPageStateClass(),
   info: new InfoClass(),
   syncingStatus: {} as SyncStatusType,
@@ -36,6 +37,8 @@ export const defaultAppState: AppState = {
   serverUri: "",
   serverChainName: "",
   serverSelection: "",
+  currentWalletId: null,
+  wallets: [] as WalletType[],
   seed_phrase: "",
   ufvk: "",
   birthday: 0,

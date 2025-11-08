@@ -9,8 +9,8 @@ type ConfirmModalProps = {
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
-  const { confirmModalData } = context;
-  const { title, body, modalIsOpen, runAction } = confirmModalData;
+  const { confirmModal } = context;
+  const { title, body, modalIsOpen, runAction } = confirmModal;
   
   return (
     <Modal

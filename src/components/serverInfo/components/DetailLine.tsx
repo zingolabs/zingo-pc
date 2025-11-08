@@ -1,6 +1,6 @@
 import React from "react";
 import cstyles from "../../common/Common.module.css";
-import styles from "../Zcashd.module.css";
+import styles from "../ServerInfo.module.css";
 
 type DetailLineProps = {
   label: string;

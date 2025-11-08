@@ -9,8 +9,8 @@ type ErrorModalProps = {
 
 const ErrorModal: React.FC<ErrorModalProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
-  const { errorModalData } = context;
-  const { title, body, modalIsOpen } = errorModalData;
+  const { errorModal } = context;
+  const { title, body, modalIsOpen } = errorModal;
   
   return (
     <Modal

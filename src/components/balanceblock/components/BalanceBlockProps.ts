@@ -1,4 +1,4 @@
-type BalanceBlockType = {
+type BalanceBlockProps = {
     zecValue: number;
     zecValueConfirmed?: number;
     usdValue: string;
@@ -8,4 +8,4 @@ type BalanceBlockType = {
     tooltip?: string;
   };
 
-export default BalanceBlockType;
+export default BalanceBlockProps;

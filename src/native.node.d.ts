@@ -3,13 +3,15 @@ export function wallet_exists(
   server_uri: string, 
   chain_hint: string,
   performance_level: string,
-  min_confirmations: number
+  min_confirmations: number,
+  wallet_name: string
 ): boolean;
 export function init_new(
   server_uri: string, 
   chain_hint: string,
   performance_level: string,
-  min_confirmations: number
+  min_confirmations: number,
+  wallet_name: string
 ): string;
 export function init_from_seed(
   seed: string,
@@ -17,7 +19,8 @@ export function init_from_seed(
   server_uri: string,
   chain_hint: string,
   performance_level: string,
-  min_confirmations: number
+  min_confirmations: number,
+  wallet_name: string
 ): string;
 export function init_from_ufvk(
   ufvk: string,
@@ -25,13 +28,15 @@ export function init_from_ufvk(
   server_uri: string,
   chain_hint: string,
   performance_level: string,
-  min_confirmations: number
+  min_confirmations: number,
+  wallet_name: string
 ): string;
 export function init_from_b64(
   server_uri: string, 
   chain_hint: string,
   performance_level: string,
-  min_confirmations: number
+  min_confirmations: number,
+  wallet_name: string
 ): string;
 export function save_wallet_file(): Promise<string>;
 export function get_developer_donation_address(): string;
@@ -113,5 +118,6 @@ export function delete_wallet(
   server_uri: string, 
   chain_hint: string,
   performance_level: string,
-  min_confirmations: number
+  min_confirmations: number,
+  wallet_name: string
 ): Promise<string>;

@@ -1,13 +1,14 @@
-export default class ErrorModalData {
+export default class ConfirmModalClass {
   title: string;
   body: string | JSX.Element;
   modalIsOpen: boolean;
-  closeModal?: () => void;
+  runAction:() => void;
 
   constructor() {
     this.modalIsOpen = false;
     this.title = "";
     this.body = "";
+    this.runAction = () => {};
   }
 }
 

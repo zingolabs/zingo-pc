@@ -1,13 +1,13 @@
 import React, { useContext } from "react";
 import cstyles from "../common/Common.module.css";
-import styles from "./Zcashd.module.css";
+import styles from "./ServerInfo.module.css";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Heart from "../../assets/img/zcashdlogo.gif";
 import DetailLine from "./components/DetailLine"; 
 import { ContextApp } from "../../context/ContextAppState";
 import Utils from "../../utils/utils";
 
-type ZcashdProps = {
+type ServerInfoProps = {
   refresh: () => void;
   openServerSelectModal: () => void;
 };
@@ -19,7 +19,7 @@ const chains = {
   "": "" 
 }; 
 
-const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
+const ServerInfo: React.FC<ServerInfoProps> = ({ refresh, openServerSelectModal }) => {
   const context = useContext(ContextApp);
   const { info, serverUri, serverChainName } = context;
 
@@ -32,6 +32,13 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
           </div>
           <div className={cstyles.margintoplarge}>Not Connected</div>
         </div>
+        <div className={cstyles.buttoncontainer}>
+          <button className={cstyles.primarybutton} type="button" onClick={openServerSelectModal}>
+            Switch to Another Server
+          </button>
+        </div>
+
+        <div className={cstyles.margintoplarge} />
       </div>
     );
   } else {
@@ -73,4 +80,4 @@ const Zcashd: React.FC<ZcashdProps> = ({ refresh, openServerSelectModal }) => {
   }
 };
 
-export default Zcashd;
+export default ServerInfo;

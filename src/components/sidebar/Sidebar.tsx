@@ -13,15 +13,18 @@ import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
 import native from "../../native.node";
 import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
+import SelectWallet from "./components/SelectWallet";
+import { WalletType } from "../appstate/types/WalletType";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
 
 type SidebarProps = {
   setInfo: (info: InfoClass) => void;
-  clearTimers: () => void;
+  clearTimers: () => Promise<void>;
   navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
   doRescan: () => void;
+  setWallets: (c: number | null, w: WalletType[]) => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
@@ -29,11 +32,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   clearTimers,
   navigateToLoadingScreen,
   doRescan,
+  setWallets,
   history,
   location,
 }) => {
   const context = useContext(ContextApp);
-  const { info, serverUris, valueTransfers, verificationProgress, readOnly, serverChainName, seed_phrase, ufvk, birthday, setSendTo, openErrorModal } = context;
+  const { info, serverUris, valueTransfers, verificationProgress, readOnly, serverChainName, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWalletId, wallets } = context;
 
   const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
   const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
@@ -72,9 +76,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         "Zingo PC",
         <div className={cstyles.verticalflex}>
           <div className={cstyles.margintoplarge}>Zingo PC v2.0.1</div>
-          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2024, ZingoLabs.</div>
+          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2025, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
-            The MIT License (MIT) Copyright (c) 2024 ZingoLabs
+            The MIT License (MIT) Copyright (c) 2025 ZingoLabs
             <br />
             <br />
             Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -178,16 +182,20 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     ipcRenderer.on("change", async () => {
       // To change to another wallet, we reset the wallet loading
       // and redirect to the loading screen
-      clearTimers();
+      try {
+        // interrupt syncing
+        const resultInterrupt: string = await native.pause_sync();
+        console.log("Pausing sync ....", resultInterrupt);
+      } catch (error) {
+        console.log(`Critical Error pause sync ${error}`);
+      }
 
       // Reset the info object, it will be refetched
       setInfo(new InfoClass());
+      
+      await clearTimers();
 
-      // interrupt syncing
-      const resultInterrupt: string = await native.pause_sync();
-      console.log("Pausing sync ....", resultInterrupt);
-
-      navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
+      navigateToLoadingScreen(true, "Change/Add another wallet...", serverUris)
     });
 
     // Export All Transactions
@@ -229,9 +237,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       doRescan();
     });
 
-    // View zcashd
-    ipcRenderer.on("zcashd", () => {
-      history.push(routes.ZCASHD);
+    // View Server Info
+    ipcRenderer.on("serverinfo", () => {
+      history.push(routes.SERVERINFO);
     });
   };
 
@@ -299,6 +307,11 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       </div>
 
       <div className={styles.sidebar}>
+        <SelectWallet
+          currentWalletId={currentWalletId}
+          wallets={wallets}
+          setWallets={setWallets}
+        />
         <SidebarMenuItem
           name="Dashboard"
           routeName={routes.DASHBOARD}
