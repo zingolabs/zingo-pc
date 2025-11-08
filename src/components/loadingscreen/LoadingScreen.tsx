@@ -62,7 +62,9 @@ class LoadingScreenState {
   constructor(currentStatus: string | JSX.Element, 
               currentStatusIsError: boolean, 
               changeAnotherWallet: boolean, 
-              serverUris: ServerClass[]) {
+              serverUris: ServerClass[],
+              walletScreen: number,
+            ) {
     this.currentStatus = currentStatus;
     this.currentStatusIsError = currentStatusIsError;
     this.loadingDone = false;
@@ -71,7 +73,7 @@ class LoadingScreenState {
     this.selection = '';
     this.currentWalletId = null;
     this.wallets = [];
-    this.walletScreen = 0;
+    this.walletScreen = walletScreen;
     this.newWalletError = null;
     this.seed_phrase = "";
     this.ufvk = "";
@@ -94,6 +96,7 @@ type LoadingScreenProps = {
   setServerInfo: (u: string, c: ServerChainNameEnum, s: 'auto' | 'list' | 'custom') => void;
   setPools: (o: boolean, s: boolean, t: boolean) => void;
   setWallets: (c: number | null, w: WalletType[]) => void;
+  clearTimers: () => Promise<void>;
 };
 
 const chains = {
@@ -118,21 +121,24 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         ),
         currentStatusIsError: boolean = false, 
         changeAnotherWallet: boolean = false,
-        serverUris: ServerClass[] = [];
+        serverUris: ServerClass[] = [],
+        walletScreen: number = 0;
     if (props.location.state) {
       const locationState = props.location.state as { 
         currentStatus: string, 
         currentStatusIsError: boolean, 
         serverUris: ServerClass[],
+        walletScreen: number,
       };
       currentStatus = locationState.currentStatus;
       currentStatusIsError = locationState.currentStatusIsError;
       if (locationState.currentStatus) {
         changeAnotherWallet = true;
+        walletScreen = 1;
       }
       serverUris = locationState.serverUris;
     }
-    const state = new LoadingScreenState(currentStatus, currentStatusIsError, changeAnotherWallet, serverUris);
+    const state = new LoadingScreenState(currentStatus, currentStatusIsError, changeAnotherWallet, serverUris, walletScreen); 
     this.state = state;
     this.props.setServerUris(serverUris);
   }
@@ -341,18 +347,21 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         fileName: '', // by default: zingo-wallet.dat
         alias: 'Main Wallet',
         chain_name: ServerChainNameEnum.mainChainName,
+        creationType: 'Main',
       };
       const currentWallet_2: WalletType = {
         id: 2, // by default: 2 (testnet)
         fileName: '', // by default: zingo-wallet.dat
         alias: 'Main Wallet',
         chain_name: ServerChainNameEnum.testChainName,
+        creationType: 'Main',
       };
       const currentWallet_3: WalletType = {
         id: 3, // by default: 2 (testnet)
         fileName: '', // by default: zingo-wallet.dat
         alias: 'Main Wallet',
         chain_name: ServerChainNameEnum.regtestChainName,
+        creationType: 'Main',
       };
       await ipcRenderer.invoke("wallets:add", currentWallet_1);
       await ipcRenderer.invoke("wallets:add", currentWallet_2);
@@ -442,6 +451,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             fileName: '', // by default: zingo-wallet.dat
             alias: 'Main Wallet',
             chain_name,
+            creationType: 'Main',
           };
           await ipcRenderer.invoke("wallets:add", currentWallet);
           await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
@@ -490,6 +500,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
           this.props.setReadOnly(false);
         }
+        this.setState({ walletScreen: 0 });
       }
     } catch (err) {
       console.log("Error initializing", err);
@@ -610,9 +621,42 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.setState({ loadingDone: true });
   };
 
+  nextWalletId = (): number => {
+    const { wallets } = this.state;
+    let maxId = !!wallets && wallets.length > 0 ? Math.max(...wallets.map(w => w.id)) : 3;
+    if (maxId < 3) {
+      maxId = 3;
+    }
+    return maxId + 1;
+  };
+
+  nextWalletName = (id: number): string => {
+    return `zingo-wallet-${id}.dat`
+  };
+
+  createNextWallet = async (id: number, wallet_name: string, alias: string, creationType: 'Seed' | 'Ufvk' | 'File' | 'Main') => {
+    const { chain_name } = this.state;
+
+    const currentWallet: WalletType = {
+      id,
+      fileName: wallet_name, // by default: zingo-wallet.dat
+      alias, // by default: the first word of the seed phrase
+      chain_name: chain_name ? chain_name : ServerChainNameEnum.mainChainName,
+      creationType,
+    };
+    await ipcRenderer.invoke("wallets:add", currentWallet);
+    await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
+    // re-fetching wallets
+    const newWallets = await ipcRenderer.invoke("wallets:all");
+    this.setState({ wallets: newWallets, currentWalletId: id });
+    this.props.setWallets(id, newWallets);
+  };
+
   createNewWallet = async () => {
-    const { url, chain_name, wallets, currentWalletId } = this.state;
-    const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
+    const { url, chain_name } = this.state;
+    
+    const id: number = this.nextWalletId();
+    const wallet_name: string = this.nextWalletName(id);
     try {
       const result: string = native.init_new(url, chain_name, "High", 3, wallet_name);
 
@@ -623,6 +667,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         const resultJSON = await JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
         const birthday: number = resultJSON.birthday;
+
+        this.createNextWallet(id, wallet_name, `${seed_phrase.split(' ')[0]}...`, 'Seed');
+
         this.setState({ walletScreen: 2, seed_phrase, birthday });
         this.props.setRecoveryInfo(seed_phrase, "", birthday);
         this.props.setPools(true, true, true);
@@ -707,7 +754,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       seed_phrase: "",
       birthday: 0,
       newWalletError: null,
-      walletScreen: 4,
+      walletScreen: 5,
     });
     this.props.setRecoveryInfo("", "", 0);
     this.props.setPools(true, true, true);
@@ -715,22 +762,28 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreSeedWallet = async () => {
-    const { seed_phrase, birthday, url, chain_name, wallets, currentWalletId } = this.state;
+    const { seed_phrase, birthday, url, chain_name } = this.state;
     //console.log(`Restoring ${seed_phrase} with ${birthday}`);
     try {
-      const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
+      const id: number = this.nextWalletId();
+      const wallet_name: string = this.nextWalletName(id);
       const result: string = native.init_from_seed(seed_phrase, birthday, url, chain_name, "High", 3, wallet_name);
       if (!result || result.toLowerCase().startsWith("error")) {
         this.setState({ newWalletError: result });
       } else {
         const resultJSON = await JSON.parse(result);
+        const seed_phrase: string = resultJSON.seed_phrase;
+        const birthday: number = resultJSON.birthday;
+
+        this.createNextWallet(id, wallet_name, `${seed_phrase.split(' ')[0]}...`, 'Seed');
+
         this.setState({ walletScreen: 0 });
         this.getInfo();
         
         const walletKindStr: string = await native.wallet_kind();
         const walletKindJSON = JSON.parse(walletKindStr);
 
-        this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
+        this.props.setRecoveryInfo(seed_phrase, "", birthday)
         this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
         this.props.setReadOnly(false);
       }
@@ -740,22 +793,28 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreUfvkWallet = async () => {
-    const { ufvk, birthday, url, chain_name, wallets, currentWalletId } = this.state;
+    const { ufvk, birthday, url, chain_name } = this.state;
     //console.log(`Restoring ${ufvk} with ${birthday}`);
     try {
-      const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
+      const id: number = this.nextWalletId();
+      const wallet_name: string = this.nextWalletName(id);
       const result: string = native.init_from_ufvk(ufvk, birthday, url, chain_name, "High", 3, wallet_name);
       if (!result || result.toLowerCase().startsWith("error")) {
         this.setState({ newWalletError: result });
       } else {
         const resultJSON = await JSON.parse(result);
+        const ufvk: string = resultJSON.ufvk;
+        const birthday: number = resultJSON.birthday;
+
+        this.createNextWallet(id, wallet_name, `${ufvk.substring(0, 10)}...`, 'Ufvk');
+
         this.setState({ walletScreen: 0 });
         this.getInfo();
 
         const walletKindStr: string = await native.wallet_kind();
         const walletKindJSON = JSON.parse(walletKindStr);
 
-        this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
+        this.props.setRecoveryInfo("", ufvk, birthday)
         this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
         this.props.setReadOnly(true);
       }
@@ -765,10 +824,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreFileWallet = async () => {
-    const { fileWallet, url, chain_name, wallets, currentWalletId } = this.state;
+    const { fileWallet, url, chain_name } = this.state;
     console.log(`Loading ${fileWallet}`);
     try {
-      const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName; 
+      const id: number = this.nextWalletId();
+      const wallet_name: string = this.state.fileWallet;
       const result: string = native.init_from_b64(url, chain_name, "High", 3, wallet_name);
       console.log(`Initialization: ${result}`);
       if (!result || result.toLowerCase().startsWith("error")) {
@@ -787,11 +847,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           walletKindJSON.kind === "No keys found"
         ) {
           // ufvk
+          this.createNextWallet(id, wallet_name, wallet_name, 'File');
+
           this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
           this.props.setReadOnly(true);
         } else {
           // seed phrase
+          this.createNextWallet(id, wallet_name, wallet_name, 'File');
+
           this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
           this.props.setReadOnly(false);
@@ -803,6 +867,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   deleteWallet = async () => {
+    const { openErrorModal } = this.context as React.ContextType<typeof ContextApp>;
     const { url, chain_name, wallets, currentWalletId } = this.state;
     try {
       const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
@@ -812,16 +877,21 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         // interrupt syncing, just in case.
         const resultInterrupt: string = await native.stop_sync();
         console.log("Stopping sync ...", resultInterrupt);
-        const resultDelete: string = await native.delete_wallet(url, chain_name, "High", 3, wallet_name);
-        console.log("deleting ...", resultDelete);
-        native.deinitialize();
+        await this.props.clearTimers();
 
         // remove the actual wallet
         await ipcRenderer.invoke("wallets:remove", currentWalletId);
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
 
-        // restart the App now.
-        ipcRenderer.send("apprestart");
+        setTimeout(() => {
+          openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server/wallet"); 
+        }, 10);
+        setTimeout(async () => {
+          ipcRenderer.send("apprestart");
+          const resultDelete: string = await native.delete_wallet(url, chain_name, "High", 3, wallet_name);
+          console.log("deleting ...", resultDelete);
+          native.deinitialize();
+        }, 5000);
       }
     } catch (error) {
       console.log(`Critical Error delete wallet ${error}`);
@@ -829,7 +899,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   render() {
-    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed_phrase, ufvk, fileWallet, birthday, currentWalletId, wallets, url } =
+    const { buttonsDisable, loadingDone, currentStatus, walletScreen, newWalletError, seed_phrase, ufvk, fileWallet, birthday, currentWalletId, wallets, url } =
       this.state;
 
     const { openServerSelectModal } = this.props;
@@ -843,72 +913,74 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // If still loading, show the status 
     return (
       <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
-        <div style={{ marginTop: walletScreen === 1 ? "20px" : "70px", marginBottom: "20px" }}>
+        <div style={{ marginTop: walletScreen === 1 ? "0px" : "70px", marginBottom: "10px" }}>
           <Logo readOnly={false} />
         </div>
         {!!currentWalletId && (
-          <div style={{ color: Utils.getCssVariable('--color-primary'), marginBottom: 10 }}>
+          <div style={{ color: Utils.getCssVariable('--color-primary'), marginBottom: 0 }}>
             Active Wallet:
             {' '}
             {wallets.filter((w: WalletType) => w.id === currentWalletId)[0].alias}
             {' - '}
             {chains[wallets.filter((w: WalletType) => w.id === currentWalletId)[0].chain_name]}
-            {' - '}
+            {' - ['}
+            {wallets.filter((w: WalletType) => w.id === currentWalletId)[0].creationType}
+            {'] - '}
             {url}
           </div>
         )}
+
         {walletScreen === 0 && (
-          <div>
+          <div style={{ marginTop: 10 }}>
             <div>{currentStatus}</div>
-            {currentStatusIsError && (
-              <div className={cstyles.buttoncontainer}>
-                <button disabled={buttonsDisable} type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
-                  Switch to Another Server
-                </button>
-                <button
-                  disabled={buttonsDisable}
-                  type="button"
-                  className={cstyles.primarybutton}
-                  onClick={async () => {
-                    this.setState({
-                      currentStatus: "", 
-                      currentStatusIsError: false,
-                      newWalletError: null,
-                      changeAnotherWallet: false,
-                      buttonsDisable: true,
-                    });
-                    await this.doFirstTimeSetup();
-                    this.setState({ buttonsDisable: false })
-                  }}
-                >
-                  Open Current Wallet File
-                </button>
-                <button
-                  disabled={buttonsDisable}
-                  type="button"
-                  className={cstyles.primarybutton}
-                  onClick={async () => {
-                    this.setState({
-                      currentStatus: "",
-                      currentStatusIsError: false,
-                      walletScreen: 0,
-                      newWalletError: null,
-                      changeAnotherWallet: false,
-                      buttonsDisable: true,
-                    });
-                    await this.deleteWallet();
-                    this.setState({ buttonsDisable: false })
-                  }}
-                >
-                  Delete Current Wallet File
-                </button>
-              </div>
-            )}
           </div>
         )}
 
         {walletScreen === 1 && (
-          <div>
+          <div style={{ marginTop: -10 }}>
+            <div className={cstyles.buttoncontainer} style={{ marginBottom: 10 }}>
+              <button disabled={buttonsDisable} type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
+                Switch to Another Server
+              </button>
+              <button
+                disabled={buttonsDisable}
+                type="button"
+                className={cstyles.primarybutton}
+                onClick={async () => {
+                  this.setState({
+                    currentStatus: "", 
+                    currentStatusIsError: false,
+                    newWalletError: null,
+                    changeAnotherWallet: false,
+                    buttonsDisable: true,
+                  });
+                  await this.doFirstTimeSetup();
+                  this.setState({ buttonsDisable: false })
+                }}
+              >
+                Open Current Wallet
+              </button>
+              <button
+                disabled={buttonsDisable}
+                type="button"
+                className={cstyles.primarybutton}
+                onClick={async () => {
+                  this.setState({
+                    currentStatus: "",
+                    currentStatusIsError: false,
+                    walletScreen: 0,
+                    newWalletError: null,
+                    changeAnotherWallet: false,
+                    buttonsDisable: true,
+                  });
+                  await this.deleteWallet();
+                  this.setState({ buttonsDisable: false })
+                }}
+              >
+                Delete Current Wallet
+              </button>
+            </div>
+
             <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
               <div className={cstyles.verticalflex}>
                 <div className={[cstyles.large, cstyles.highlight].join(" ")}>Create A New Wallet</div>
@@ -934,9 +1006,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
                     }}
                   >
                     Create New Wallet
-                  </button>
-                  <button disabled={buttonsDisable} type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
-                    Switch to Another Server
                   </button>
                 </div>
               </div>

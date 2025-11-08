@@ -21,7 +21,7 @@ const fs = window.require("fs");
 
 type SidebarProps = {
   setInfo: (info: InfoClass) => void;
-  clearTimers: () => void;
+  clearTimers: () => Promise<void>;
   navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
   doRescan: () => void;
   setWallets: (c: number | null, w: WalletType[]) => void;
@@ -182,11 +182,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     ipcRenderer.on("change", async () => {
       // To change to another wallet, we reset the wallet loading
       // and redirect to the loading screen
-      clearTimers();
-
-      // Reset the info object, it will be refetched
-      setInfo(new InfoClass());
-
       try {
         // interrupt syncing
         const resultInterrupt: string = await native.pause_sync();
@@ -195,7 +190,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         console.log(`Critical Error pause sync ${error}`);
       }
 
-      navigateToLoadingScreen(true, "Change to another wallet...", serverUris)
+      // Reset the info object, it will be refetched
+      setInfo(new InfoClass());
+      
+      await clearTimers();
+
+      navigateToLoadingScreen(true, "Change/Add another wallet...", serverUris)
     });
 
     // Export All Transactions

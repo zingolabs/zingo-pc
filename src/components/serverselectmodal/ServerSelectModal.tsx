@@ -99,7 +99,7 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
     }
 
     setTimeout(() => {
-      openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server"); 
+      openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server/wallet"); 
     }, 10);
     setTimeout(() => {
       ipcRenderer.send("apprestart");

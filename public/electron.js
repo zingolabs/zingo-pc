@@ -119,7 +119,7 @@ class MenuBuilder {
         },
         { type: "separator" },
         {
-          label: "Change to another Wallet",
+          label: "Add/Remove Wallet",
           click: () => {
             mainWindow.webContents.send("change");
           },
@@ -163,7 +163,7 @@ class MenuBuilder {
         },
         { type: "separator" },
         {
-          label: "Change to another Wallet",
+          label: "Add/Remove Wallet",
           click: () => {
             mainWindow.webContents.send("change");
           },
@@ -266,7 +266,7 @@ class MenuBuilder {
           },
           { type: "separator" },
           {
-            label: "Change to another Wallet",
+            label: "Add/Remove Wallet",
             click: () => {
               mainWindow.webContents.send("change");
             },

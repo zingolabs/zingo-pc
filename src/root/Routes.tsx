@@ -336,15 +336,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   runRPCRescan = () => {
-    this.openConfirmModal("Rescan Wallet", "Please confirm the Action", () => {
-      this.rpc.clearTimers();
-      this.rpc.refreshSync(true);
-      this.rpc.configure();
+    this.openConfirmModal("Rescan Wallet", "Please confirm the Action", async () => {
+      await this.rpc.refreshSync(true);
     });
   };
 
-  runRPCClearTimers = () => {
-    this.rpc.clearTimers();
+  runRPCClearTimers = async () => {
+    await this.rpc.clearTimers();
   };
 
   calculateShieldFee = async (): Promise<number> => {
@@ -609,6 +607,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setServerInfo={this.setServerInfo}
                     setPools={this.setPools}
                     setWallets={this.setWallets}
+                    clearTimers={this.runRPCClearTimers}
                   />
                 )}
               />

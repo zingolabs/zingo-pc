@@ -642,8 +642,6 @@ export default class RPC {
     } catch (error) {
       console.log(`Critical Error addresses ${error}`);
       // relaunch the interval tasks just in case they are aborted.
-      await this.clearTimers();
-      await this.configure();
       return;
     }
   }

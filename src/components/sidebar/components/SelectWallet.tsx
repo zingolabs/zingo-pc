@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import cstyles from "../../common/Common.module.css";
 import { WalletType } from "../../appstate/types/WalletType";
 import { ContextApp } from "../../../context/ContextAppState";
+const { ipcRenderer } = window.require("electron");
 
 type SelectWalletProps = {
   currentWalletId: number | null;
@@ -17,7 +18,7 @@ const chains = {
 
 const SelectWallet = ({ currentWalletId, wallets, setWallets }: SelectWalletProps) => {
   const context = useContext(ContextApp);
-  const { serverChainName } = context;
+  const { serverChainName, openErrorModal } = context;
   
   console.log('SIDEBAR ---->', currentWalletId, wallets);
   return (
@@ -29,13 +30,21 @@ const SelectWallet = ({ currentWalletId, wallets, setWallets }: SelectWalletProp
             className={cstyles.inputbox}
             style={{ marginLeft: 7 }}
             value={currentWalletId}
-            onChange={(e) => {
+            onChange={async (e) => {
               const id: number = Number(e.target.value);
+              await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
               setWallets(id, wallets);
+
+              setTimeout(() => {
+                openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server/wallet"); 
+              }, 10);
+              setTimeout(() => {
+                ipcRenderer.send("apprestart");    
+              }, 5000);
             }}>
             {wallets.filter((w: WalletType) => w.chain_name === serverChainName).map((w: WalletType) => (
               <option key={w.id} value={w.id}>
-                {w.alias + (w.fileName ? (' - ' + w.fileName) : '') + ' - ' + chains[w.chain_name]}
+                {w.alias + ' - ' + chains[w.chain_name] + ' [' + w.creationType + ']'}
               </option>
             ))}
           </select>
