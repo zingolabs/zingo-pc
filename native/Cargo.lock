@@ -715,9 +715,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.44"
+version = "1.2.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "37521ac7aabe3d13122dc382493e20c9416f299d2ccd5b3a5340a2570cdeb0f3"
+checksum = "35900b6c8d709fb1d854671ae27aeaa9eec2f8b01b364e1619a40da3e6fe2afe"
 dependencies = [
  "find-msvc-tools",
  "jobserver",
@@ -3300,7 +3300,7 @@ dependencies = [
 [[package]]
 name = "pepper-sync"
 version = "0.0.1"
-source = "git+https://github.com/juanky201271/zingolib?branch=dev_multi_wallet_zingo_pc#c3a944fb155fd389f4caf140d7fabe48be109e0d"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5"
 dependencies = [
  "bip32",
  "byteorder",
@@ -7433,7 +7433,7 @@ dependencies = [
 [[package]]
 name = "zingo-memo"
 version = "0.0.1"
-source = "git+https://github.com/juanky201271/zingolib?branch=dev_multi_wallet_zingo_pc#c3a944fb155fd389f4caf140d7fabe48be109e0d"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5"
 dependencies = [
  "zcash_address",
  "zcash_client_backend",
@@ -7445,7 +7445,7 @@ dependencies = [
 [[package]]
 name = "zingo-price"
 version = "0.0.1"
-source = "git+https://github.com/juanky201271/zingolib?branch=dev_multi_wallet_zingo_pc#c3a944fb155fd389f4caf140d7fabe48be109e0d"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5"
 dependencies = [
  "byteorder",
  "reqwest",
@@ -7461,7 +7461,7 @@ dependencies = [
 [[package]]
 name = "zingo-status"
 version = "0.0.1"
-source = "git+https://github.com/juanky201271/zingolib?branch=dev_multi_wallet_zingo_pc#c3a944fb155fd389f4caf140d7fabe48be109e0d"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5"
 dependencies = [
  "byteorder",
  "zcash_primitives",
@@ -7496,7 +7496,7 @@ dependencies = [
 [[package]]
 name = "zingo_test_vectors"
 version = "0.0.1"
-source = "git+https://github.com/zingolabs/infrastructure.git?branch=dev#a12ab1874767b212e2bbc319adb23492693a9987"
+source = "git+https://github.com/zingolabs/infrastructure.git?branch=dev#985c8332f0a6e82d102ea0b7962c65a0e86c3a34"
 dependencies = [
  "bip0039",
 ]
@@ -7504,7 +7504,7 @@ dependencies = [
 [[package]]
 name = "zingolib"
 version = "0.0.1"
-source = "git+https://github.com/juanky201271/zingolib?branch=dev_multi_wallet_zingo_pc#c3a944fb155fd389f4caf140d7fabe48be109e0d"
+source = "git+https://github.com/zingolabs/zingolib?branch=dev#349e2380b93f1dc0d082ca4bc8d9801c9e88c4c5"
 dependencies = [
  "append-only-vec",
  "bech32",
