@@ -67,7 +67,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Handle menu items 
+  // Handle menu items
   const setupMenuHandlers = async (): Promise<void> => {
 
     // About
@@ -75,7 +75,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zingo PC v2.0.2</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v2.0.3</div>
           <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2025, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
             The MIT License (MIT) Copyright (c) 2025 ZingoLabs
