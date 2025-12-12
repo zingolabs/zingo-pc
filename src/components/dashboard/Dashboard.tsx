@@ -288,7 +288,9 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToServ
                         <DetailLine label="Chain Name" value={serverChainName ? chains[serverChainName] : ''} />
                         <DetailLine label="Server Network" value={chains[info.chainName]} />
                         <DetailLine label="Block Height" value={`${info.latestBlock}`} />
-                        <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
+                        {info.currencyName === 'ZEC' && (
+                          <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
+                        )}
                       </div>
                       <div style={{ width: '100%', textAlign: 'right', color: Utils.getCssVariable('--color-primary'), marginTop: 20, cursor: 'pointer' }} onClick={() => navigateToServerInfo()}>
                         See more... 

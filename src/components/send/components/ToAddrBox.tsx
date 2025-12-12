@@ -35,6 +35,7 @@ type ToAddrBoxProps = {
   label: string;
   serverChainName: "" | ServerChainNameEnum;
   block: number;
+  currencyName: string;
 };
 
 const ToAddrBox = ({
@@ -54,6 +55,7 @@ const ToAddrBox = ({
   label,
   serverChainName,
   block,
+  currencyName,
 }: ToAddrBoxProps) => {
   const [addressKind, setAddressKind] = useState<AddressKindEnum>();
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
@@ -172,7 +174,7 @@ const ToAddrBox = ({
             <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
               <div className={cstyles.sublight}>Amount</div>
               <div className={cstyles.validationerror}>
-                {amountError ? <span className={cstyles.red}>{amountError}</span> : <span>{usdValue}</span>}
+                {amountError ? <span className={cstyles.red}>{amountError}</span> : currencyName === 'ZEC' ? <span>{usdValue}</span> : null}
               </div>
             </div>
             <div className={[cstyles.flexspacebetween].join(" ")}>

@@ -43,7 +43,6 @@ type SendConfirmModalProps = {
     modalIsOpen,
     history,
     sendFee,
-    currencyName,
   }) => {
     const context = useContext(ContextApp);
     const { serverChainName, openErrorModal } = context;
@@ -278,8 +277,9 @@ type SendConfirmModalProps = {
                   </span>
                   <span className={[cstyles.small, styles.zecsmallpart].join(" ")}>{smallPart}</span>
                 </div>
-  
-                <div className={cstyles.normal}>{Utils.getZecToUsdString(info.zecPrice, sendingTotal)}</div>
+                {info.currencyName === 'ZEC' && (
+                  <div className={cstyles.normal}>{Utils.getZecToUsdString(info.zecPrice, sendingTotal)}</div>
+                )}
               </div>
             </div>
           </div>

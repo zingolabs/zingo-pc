@@ -31,7 +31,9 @@ const SendConfirmModalToAddr = ({ toaddr, info }: SendConfirmModalToAddrProps) =
               <span className={[cstyles.small, styles.zecsmallpart].join(" ")}>{smallPart}</span>
             </div>
           </div>
-          <div>{Utils.getZecToUsdString(info.zecPrice, toaddr.amount)}</div>
+          {info.currencyName === 'ZEC' && (
+            <div>{Utils.getZecToUsdString(info.zecPrice, toaddr.amount)}</div>
+          )}
         </div>
       </div>
       <div className={[cstyles.sublight, cstyles.breakword, cstyles.memodiv].join(" ")}>{memo + memoReplyTo}</div>

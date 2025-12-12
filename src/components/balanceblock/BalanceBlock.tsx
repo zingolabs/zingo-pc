@@ -27,7 +27,9 @@ const BalanceBlock: React.FC<BalanceBlockProps> = ({
         </span>
         <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
       </div>
-      <div className={[cstyles.sublight, cstyles.small].join(" ")}>{usdValue}</div>
+      {currencyName === 'ZEC' && (
+        <div className={[cstyles.sublight, cstyles.small].join(" ")}>{usdValue}</div>
+      )}
 
       {zecValueConfirmed !== undefined && zecValue !== zecValueConfirmed && (
         <>
@@ -39,7 +41,9 @@ const BalanceBlock: React.FC<BalanceBlockProps> = ({
               </span>
               <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPartConfirmed}</span>
             </div>
-            <div style={{ marginLeft: 5 }} className={[cstyles.sublight, cstyles.small].join(" ")}>{usdValueConfirmed}</div>
+            {currencyName === 'ZEC' && (
+              <div style={{ marginLeft: 5 }} className={[cstyles.sublight, cstyles.small].join(" ")}>{usdValueConfirmed}</div>
+            )}
           </div>
         </>
       )}
