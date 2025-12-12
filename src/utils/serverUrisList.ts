@@ -20,7 +20,7 @@ const serverUrisList = (): ServerClass[] => {
       latency: null,
       obsolete: false,
     },
-    // new servers (not default) (4)
+    // new servers (not default) (5)
     {
       uri: 'https://na.zec.rocks:443',
       region: 'North America',
@@ -49,6 +49,14 @@ const serverUrisList = (): ServerClass[] => {
       uri: 'https://ap.zec.rocks:443',
       region: 'Asia & Oceania',
       chain_name: ServerChainNameEnum.mainChainName,
+      default: false,
+      latency: null,
+      obsolete: false,
+    },
+    {
+      uri: 'zcash.mysideoftheweb.com:19067',
+      region: 'USA' as string,
+      chain_name: ServerChainNameEnum.testChainName,
       default: false,
       latency: null,
       obsolete: false,
