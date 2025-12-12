@@ -176,7 +176,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     memos = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos : [];
     pool = valueTransfer.pool ? valueTransfer.pool : '';
     price = valueTransfer.zec_price ? valueTransfer.zec_price : 0;
-    if (price) {
+    if (price && currencyName === 'ZEC') {
       priceString = `USD ${price.toFixed(2)} / ZEC`;
     }
   }

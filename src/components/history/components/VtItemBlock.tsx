@@ -45,7 +45,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
 
   const price: number = vt.zec_price ? vt.zec_price : 0;
   let  priceString: string = '';
-  if (price) {
+  if (price && currencyName === 'ZEC') {
     priceString = `USD ${price.toFixed(2)} / ZEC`; 
   }
 

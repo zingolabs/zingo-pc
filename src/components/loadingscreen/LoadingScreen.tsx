@@ -59,6 +59,8 @@ class LoadingScreenState {
 
   buttonsDisable: boolean;
 
+  walletExists: boolean;
+
   constructor(currentStatus: string | JSX.Element, 
               currentStatusIsError: boolean, 
               changeAnotherWallet: boolean, 
@@ -82,6 +84,7 @@ class LoadingScreenState {
     this.changeAnotherWallet = changeAnotherWallet;
     this.serverUris = serverUris;
     this.buttonsDisable = false;
+    this.walletExists = false;
   }
 }
 
@@ -158,21 +161,24 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     await this.doFirstTimeSetup();
 
-    // warning with the migration from Z1 to Z2
-    const version = await RPC.getWalletVersion();
-    //console.log('WALLET VERSION -------------->', version);
-    if (version && version < 32) {
-      openErrorModal(
-        "Wallet migration",
-        <div>
+    // only if the active wallet exists
+    if (this.state.walletExists) {
+      // warning with the migration from Z1 to Z2
+      const version = await RPC.getWalletVersion();
+      //console.log('WALLET VERSION -------------->', version); 
+      if (version && version < 32) {
+        openErrorModal(
+          "Wallet migration",
           <div>
-            We are migrating your wallet to the new synchronization system.
+            <div>
+              We are migrating your wallet to the new synchronization system.
+            </div>
+            <div>
+              Your balance will change as the migration progresses. Don't worry, your funds are safe!
+            </div>
           </div>
-          <div>
-            Your balance will change as the migration progresses. Don't worry, your funds are safe!
-          </div>
-        </div>
-      );
+        );
+      }
     }
 
     this.setState({
@@ -325,14 +331,21 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const settings = await ipcRenderer.invoke("loadSettings");
     console.log('&&&&&&&&&&&&&&&&& SETTINGS', settings);
     let currentWalletId: number | null;
-    const { server, chain_name, selection } = await this.checkCurrentSettings(settings.serveruri, settings.serverchain_name, settings.serverselection);
+    const { server, chain_name, selection } = await this.checkCurrentSettings(
+      settings && settings.serveruri ? settings.serveruri : '', 
+      settings && settings.serverchain_name ? settings.serverchain_name : '', 
+      settings && settings.serverselection ? settings.serverselection : ''
+    );
 
     // to know the App is magrating to multi-wallet the settings field
     // `currentwalletid` must have not exists.
-    // if it is `null` means the user just did:
+    // if it is `null` means the user just did: 
     // - or changed the server
     // - or deleted the actual wallet
-    if ((!wallets || wallets.length === 0) && !settings.hasOwnProperty("currentwalletid")) {
+    if (
+      (!wallets || wallets.length === 0) && 
+      (!settings || (!!settings && !settings.hasOwnProperty("currentwalletid")))
+    ) {
       // The App have to migrate from settings.json to wallets.json
       // store the info about the current wallet in wallets.json
       if (chain_name === ServerChainNameEnum.mainChainName) {
@@ -415,6 +428,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { changeAnotherWallet } = this.state;
     // if is: `change to another wallet` exit here 
     if (changeAnotherWallet) {
+      // this means there are a activa wallet
+      this.setState({ walletExists: true });
       return;
     }
     
@@ -428,7 +443,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
 
       const walletExistsResult: boolean | string = native.wallet_exists(url, chain_name, "High", 3, wallet_name);
-      //console.log(walletExistsResult);
+      console.log(walletExistsResult);
       if (!walletExistsResult) {
         // the wallet file DOES NOT exists
         // if currentWalletId have a value -> remove the wallet local data for this id.
@@ -441,7 +456,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           this.props.setWallets(null, wallets);
         }
         // Show the wallet creation screen if no wallet file.
-        this.setState({ walletScreen: 1 });
+        // No matter what if the wallet is not there
+        // disable open & delete buttons.
+        this.setState({ walletScreen: 1, walletExists: false });
       } else {
         // if currentWalletId is null -> add the wallet item id(1, 2, 3) 
         if (currentWalletId === null) {
@@ -500,7 +517,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
           this.props.setReadOnly(false);
         }
-        this.setState({ walletScreen: 0 });
+        this.setState({ walletScreen: 0, walletExists: true });
       }
     } catch (err) {
       console.log("Error initializing", err);
@@ -916,7 +933,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         <div style={{ marginTop: walletScreen === 1 ? "0px" : "70px", marginBottom: "10px" }}>
           <Logo readOnly={false} />
         </div>
-        {!!currentWalletId && (
+        {!!currentWalletId ? (
           <div style={{ color: Utils.getCssVariable('--color-primary'), marginBottom: 0 }}>
             Active Wallet:
             {' '}
@@ -926,6 +943,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             {' - ['}
             {wallets.filter((w: WalletType) => w.id === currentWalletId)[0].creationType}
             {'] - '}
+            {url}
+          </div>
+        ) : (
+          <div style={{ color: Utils.getCssVariable('--color-primary'), marginBottom: 0 }}>
+            Active Server:
+            {' '}
             {url}
           </div>
         )}
@@ -942,43 +965,47 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
               <button disabled={buttonsDisable} type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
                 Switch to Another Server
               </button>
-              <button
-                disabled={buttonsDisable}
-                type="button"
-                className={cstyles.primarybutton}
-                onClick={async () => {
-                  this.setState({
-                    currentStatus: "", 
-                    currentStatusIsError: false,
-                    newWalletError: null,
-                    changeAnotherWallet: false,
-                    buttonsDisable: true,
-                  });
-                  await this.doFirstTimeSetup();
-                  this.setState({ buttonsDisable: false })
-                }}
-              >
-                Open Current Wallet
-              </button>
-              <button
-                disabled={buttonsDisable}
-                type="button"
-                className={cstyles.primarybutton}
-                onClick={async () => {
-                  this.setState({
-                    currentStatus: "",
-                    currentStatusIsError: false,
-                    walletScreen: 0,
-                    newWalletError: null,
-                    changeAnotherWallet: false,
-                    buttonsDisable: true,
-                  });
-                  await this.deleteWallet();
-                  this.setState({ buttonsDisable: false })
-                }}
-              >
-                Delete Current Wallet
-              </button>
+              {this.state.walletExists && (
+                <>
+                  <button
+                    disabled={buttonsDisable}
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={async () => {
+                      this.setState({
+                        currentStatus: "", 
+                        currentStatusIsError: false,
+                        newWalletError: null,
+                        changeAnotherWallet: false,
+                        buttonsDisable: true,
+                      });
+                      await this.doFirstTimeSetup();
+                      this.setState({ buttonsDisable: false })
+                    }}
+                  >
+                    Open Current Wallet
+                  </button>
+                  <button
+                    disabled={buttonsDisable}
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={async () => {
+                      this.setState({
+                        currentStatus: "",
+                        currentStatusIsError: false,
+                        walletScreen: 0,
+                        newWalletError: null,
+                        changeAnotherWallet: false,
+                        buttonsDisable: true,
+                      });
+                      await this.deleteWallet();
+                      this.setState({ buttonsDisable: false })
+                    }}
+                  >
+                    Delete Current Wallet
+                  </button>
+                </>
+              )}
             </div>
 
             <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>

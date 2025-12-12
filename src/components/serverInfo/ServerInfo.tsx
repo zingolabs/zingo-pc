@@ -59,7 +59,9 @@ const ServerInfo: React.FC<ServerInfoProps> = ({ refresh, openServerSelectModal 
                 <DetailLine label="Chain Name" value={serverChainName ? chains[serverChainName] : ''} />
                 <DetailLine label="Server Network" value={chains[info.chainName]} />
                 <DetailLine label="Block Height" value={`${info.latestBlock}`} />
-                <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
+                {info.currencyName === 'ZEC' && (
+                  <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
+                )}
               </div>
             </div>
 
