@@ -54,7 +54,7 @@ const serverUrisList = (): ServerClass[] => {
       obsolete: false,
     },
     {
-      uri: 'zcash.mysideoftheweb.com:19067',
+      uri: 'https://zcash.mysideoftheweb.com:19067',
       region: 'USA' as string,
       chain_name: ServerChainNameEnum.testChainName,
       default: false,
@@ -62,6 +62,15 @@ const serverUrisList = (): ServerClass[] => {
       obsolete: false,
     },
     // obsolete servers (13)
+    // this was a typo in the previous version.
+    {
+      uri: 'zcash.mysideoftheweb.com:19067',
+      region: 'USA' as string,
+      chain_name: ServerChainNameEnum.testChainName,
+      default: false,
+      latency: null,
+      obsolete: true,
+    },
     {
       uri: 'https://lwd1.zcash-infra.com:9067',
       region: 'USA' as string,

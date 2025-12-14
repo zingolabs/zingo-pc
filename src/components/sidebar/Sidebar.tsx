@@ -195,7 +195,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       
       await clearTimers();
 
-      navigateToLoadingScreen(true, "Change/Add another wallet...", serverUris)
+      navigateToLoadingScreen(false, "", serverUris)
     });
 
     // Export All Transactions
@@ -303,7 +303,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       />
 
       <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
-        <Logo readOnly={readOnly} />
+        <Logo readOnly={readOnly} onlyVersion={false} />
       </div>
 
       <div className={styles.sidebar}>
