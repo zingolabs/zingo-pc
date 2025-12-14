@@ -25,7 +25,7 @@ class LoadingScreenState {
 
   loadingDone: boolean;
 
-  url: string;
+  uri: string;
 
   chain_name: '' | ServerChainNameEnum;
 
@@ -70,7 +70,7 @@ class LoadingScreenState {
     this.currentStatus = currentStatus;
     this.currentStatusIsError = currentStatusIsError;
     this.loadingDone = false;
-    this.url = "";
+    this.uri = "";
     this.chain_name = "";
     this.selection = '';
     this.currentWalletId = null;
@@ -107,7 +107,7 @@ const chains = {
     "test": "Testnet",
     "regtest": "Regtest",
     "": ""
-  };
+  }; 
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
   static contextType = ContextApp;
@@ -131,14 +131,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         currentStatus: string, 
         currentStatusIsError: boolean, 
         serverUris: ServerClass[],
-        walletScreen: number,
       };
       currentStatus = locationState.currentStatus;
       currentStatusIsError = locationState.currentStatusIsError;
-      if (locationState.currentStatus) {
-        changeAnotherWallet = true;
-        walletScreen = 1;
-      }
+      changeAnotherWallet = true;
+      walletScreen = 1;
       serverUris = locationState.serverUris;
     }
     const state = new LoadingScreenState(currentStatus, currentStatusIsError, changeAnotherWallet, serverUris, walletScreen); 
@@ -210,6 +207,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       const str = progress({ time: 1000 }, (pgrs) => {
         this.setState({
           currentStatus: `Downloading ${name}... (${(pgrs.transferred / 1024 / 1024).toFixed(0)} MB / ${totalSize} MB)`,
+          currentStatusIsError: false,
         });
       });
 
@@ -240,38 +238,48 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   checkCurrentSettings = async (serveruri: string, serverchain_name: ServerChainNameEnum, serverselection: 'auto' | 'list' | 'custom') => {
-    let server: string = '', 
-      chain_name: ServerChainNameEnum = ServerChainNameEnum.mainChainName, 
-      selection: 'auto' | 'list' | 'custom' = 'list';
+    let uri: string = '', 
+        chain_name: ServerChainNameEnum = ServerChainNameEnum.mainChainName, 
+        selection: 'auto' | 'list' | 'custom' = 'list';
     if (!serveruri && !serverchain_name && !serverselection) {
-      // no settings stored, asumming `list` by default.
-      server = serverUrisList()[0].uri;
-      chain_name = serverUrisList()[0].chain_name;
+      // no settings stored, asumming `list` and the first server by default.
+      const d = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.default);
+      uri = d[0].uri;
+      chain_name = d[0].chain_name;
       selection = 'list';
+      return { uri, chain_name, selection };
     } else {
       if (!serveruri) {
-        // no server in settings, asuming `list` by default.
-        server = serverUrisList()[0].uri;
-        chain_name = serverUrisList()[0].chain_name;
+        // no settings for server stored, asumming `list` and the first server by default.
+        const d = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.default);
+        uri = d[0].uri;
+        chain_name = d[0].chain_name;
         selection = 'list';
+        return { uri, chain_name, selection };
       } else {
         // the server is in settings, asking for the other fields.
-        server = serveruri;
-        const serverInList = serverUrisList().filter((s: ServerClass) => s.uri === server)
+        const serverInList = serverUrisList().filter((s: ServerClass) => s.uri === serveruri)
+        uri = serveruri;
         if (!serverchain_name) {
-          chain_name = ServerChainNameEnum.mainChainName;
           if (serverInList && serverInList.length === 1) {
             // if the server is in the list, then selection is `list`
             if (serverInList[0].obsolete) {
               // if obsolete then select the first one on list
-              server = serverUrisList()[0].uri;
-              chain_name = serverUrisList()[0].chain_name;
+              const d = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.default);
+              uri = d[0].uri;
+              chain_name = d[0].chain_name;
               selection = 'list';
+              return { uri, chain_name, selection };
             } else {
+              chain_name = serverInList[0].chain_name;
               selection = 'list';
+              return { uri, chain_name, selection };
             }
           } else {
+            // asuming mainnet
+            chain_name = ServerChainNameEnum.mainChainName;
             selection = 'custom';
+            return { uri, chain_name, selection };
           }
         } else {
           chain_name = serverchain_name;
@@ -279,10 +287,24 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           if (!serverselection) {
             if (serverInList && serverInList.length === 1) {
               // if the server is in the list, then selection is `list`
-              chain_name = ServerChainNameEnum.mainChainName;
-              selection = 'list';
+              if (serverInList[0].obsolete) {
+                // if obsolete then select the first one on list for the chain
+                let d = serverUrisList().filter((s: ServerClass) => s.chain_name === chain_name && !s.obsolete && s.default);
+                if (!d || d.length === 0) {
+                  d = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.default);
+                }
+                uri = d[0].uri;
+                chain_name = d[0].chain_name;
+                selection = 'list';
+                return { uri, chain_name, selection };
+              } else {
+                chain_name = serverInList[0].chain_name;
+                selection = 'list';
+                return { uri, chain_name, selection };
+              }
             } else {
               selection = 'custom';
+              return { uri, chain_name, selection };
             }
           } else {
             selection = serverselection;
@@ -290,52 +312,60 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }
       }
     }
+
     // if the server selected is now obsolete, change it for the first one
-    const serverInList: ServerClass[] = serverUrisList().filter((s: ServerClass) => s.uri === server)
+    const serverInList: ServerClass[] = serverUrisList().filter((s: ServerClass) => s.uri === uri)
     if (serverInList && serverInList.length > 0 && serverInList[0].obsolete) {
-      console.log('server obsolete', server, '=>', serverUrisList()[0].uri);
-      server = serverUrisList()[0].uri;
-      chain_name = serverUrisList()[0].chain_name;
+      console.log('server obsolete', uri, '=>', serverUrisList()[0].uri);
+      // select the first one for the chain selected by default
+      let d = serverUrisList().filter((s: ServerClass) => s.chain_name === chain_name && !s.obsolete && s.default);
+      if (!d || d.length === 0) {
+        d = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.default);      
+      }
+      uri = d[0].uri;
+      chain_name = d[0].chain_name;
       selection = 'list';
+      return { uri, chain_name, selection };
     }
 
     // if empty is the first time and if auto => App needs to check the servers.
     if (selection === 'auto') {
       // we need to filter by Network/Chain
-      const servers: ServerClass[] = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.chain_name === chain_name);
+      const servers: ServerClass[] = serverUrisList().filter((s: ServerClass) => s.chain_name === chain_name && !s.obsolete);
       const serverFaster = await this.selectingServer(servers);
       if (serverFaster) {
-        server = serverFaster.uri;
+        uri = serverFaster.uri;
         chain_name = serverFaster.chain_name;  
       } else if (!!servers && servers.length > 0) {
         // none of the servers are working properly.
-        server = servers[0].uri;
+        uri = servers[0].uri;
         chain_name = servers[0].chain_name;
       } else {
         // no appropiate server to choose.
-        server = serverUrisList()[0].uri;
+        uri = serverUrisList()[0].uri;
         chain_name = serverUrisList()[0].chain_name;
       }
       selection = 'list';
     }
     // server settings checked
-    console.log('&&&&&&&&&&&&&&&&& CHECKING SETTINGS', server, chain_name, selection);
-    return {server, chain_name, selection};
+    return {uri, chain_name, selection};
   };
 
   loadServer = async () => {
-    // try to read wallets
+    // try to read wallets 
     let wallets: WalletType[] = await ipcRenderer.invoke("wallets:all");
     console.log('&&&&&&&&&&&&&&&&& WALLETS', wallets);
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
     console.log('&&&&&&&&&&&&&&&&& SETTINGS', settings);
     let currentWalletId: number | null;
-    const { server, chain_name, selection } = await this.checkCurrentSettings(
+    const { uri, chain_name, selection } = await this.checkCurrentSettings(
       settings && settings.serveruri ? settings.serveruri : '', 
       settings && settings.serverchain_name ? settings.serverchain_name : '', 
       settings && settings.serverselection ? settings.serverselection : ''
     );
+
+    console.log('&&&&&&&&&&&&&&&&& CHECKING SETTINGS', uri, chain_name, selection);
 
     // to know the App is magrating to multi-wallet the settings field
     // `currentwalletid` must have not exists.
@@ -392,15 +422,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     }
 
-    await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: server });
+    await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: uri });
     await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: chain_name });
     await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: currentWalletId });
 
-    console.log('&&&&&&&&-----------', currentWalletId, server, chain_name, selection); 
+    console.log('&&&&&&&&-----------', currentWalletId, uri, chain_name, selection); 
 
     return {
-      url: server,
+      uri,
       chain_name,
       selection,
       currentWalletId,
@@ -409,17 +439,17 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doFirstTimeSetup = async () => {
-    const { url, chain_name, selection, currentWalletId, wallets } = await this.loadServer();
-    console.log(`Url: -${currentWalletId}-${url}-${chain_name}-${selection}`);
+    const { uri, chain_name, selection, currentWalletId, wallets } = await this.loadServer();
+    console.log(`Url: -${currentWalletId}-${uri}-${chain_name}-${selection}`);
 
     this.setState({
-      url,
+      uri,
       chain_name,
       selection,
       currentWalletId,
       wallets,
     });
-    this.props.setServerInfo(url, chain_name, selection);
+    this.props.setServerInfo(uri, chain_name, selection);
     this.props.setWallets(currentWalletId, wallets);
 
     // First, set up the exit handler
@@ -428,7 +458,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { changeAnotherWallet } = this.state;
     // if is: `change to another wallet` exit here 
     if (changeAnotherWallet) {
-      // this means there are a activa wallet
+      // this means there are a active wallet
       this.setState({ walletExists: true });
       return;
     }
@@ -442,7 +472,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         wallet_name = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
       }
 
-      const walletExistsResult: boolean | string = native.wallet_exists(url, chain_name, "High", 3, wallet_name);
+      const walletExistsResult: boolean | string = native.wallet_exists(uri, chain_name, "High", 3, wallet_name);
       console.log(walletExistsResult);
       if (!walletExistsResult) {
         // the wallet file DOES NOT exists
@@ -458,7 +488,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         // Show the wallet creation screen if no wallet file.
         // No matter what if the wallet is not there
         // disable open & delete buttons.
-        this.setState({ walletScreen: 1, walletExists: false });
+        this.setState({ walletScreen: 1, walletExists: false, currentStatus: '', currentStatusIsError: false });
       } else {
         // if currentWalletId is null -> add the wallet item id(1, 2, 3) 
         if (currentWalletId === null) {
@@ -477,8 +507,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           this.setState({ wallets, currentWalletId: id });
           this.props.setWallets(id, wallets);
         }
+        this.setState({ walletExists: true });
         // the wallet file YES exists
-        const result: string = native.init_from_b64(url, chain_name, "High", 3, wallet_name);
+        const result: string = native.init_from_b64(uri, chain_name, "High", 3, wallet_name);
         //console.log(`Initialization: ${result}`);
         if (!result || result.toLowerCase().startsWith('error')) {
           this.setState({
@@ -517,7 +548,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
           this.props.setReadOnly(false);
         }
-        this.setState({ walletScreen: 0, walletExists: true });
+        this.setState({ walletScreen: 0 });
       }
     } catch (err) {
       console.log("Error initializing", err);
@@ -591,7 +622,10 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // Try getting the info.
     try {
       // Do a sync at start
-      this.setState({ currentStatus: "Setting things up..." });
+      this.setState({ 
+        currentStatus: "Setting things up...", 
+        currentStatusIsError: false 
+      });
       await this.runSyncStatusPoller();
     } catch (err) {
       console.log("Error initializing", err);
@@ -670,12 +704,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   createNewWallet = async () => {
-    const { url, chain_name } = this.state;
+    const { uri, chain_name } = this.state;
     
     const id: number = this.nextWalletId();
     const wallet_name: string = this.nextWalletName(id);
     try {
-      const result: string = native.init_new(url, chain_name, "High", 3, wallet_name);
+      const result: string = native.init_new(uri, chain_name, "High", 3, wallet_name);
 
       if (!result || result.toLowerCase().startsWith("error")) {
         //console.log('creating new wallet', result);
@@ -694,6 +728,16 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     } catch (error) {
       console.log(`Critical Error create new wallet ${error}`);
+      this.setState({
+        currentStatus: (
+          <span>
+            Error Initializing Lightclient
+            <br />
+            {`${error}`}
+          </span>
+        ),
+        currentStatusIsError: true,
+      });
     }
   };
 
@@ -779,12 +823,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doRestoreSeedWallet = async () => {
-    const { seed_phrase, birthday, url, chain_name } = this.state;
+    const { seed_phrase, birthday, uri, chain_name } = this.state;
     //console.log(`Restoring ${seed_phrase} with ${birthday}`);
     try {
       const id: number = this.nextWalletId();
       const wallet_name: string = this.nextWalletName(id);
-      const result: string = native.init_from_seed(seed_phrase, birthday, url, chain_name, "High", 3, wallet_name);
+      const result: string = native.init_from_seed(seed_phrase, birthday, uri, chain_name, "High", 3, wallet_name);
       if (!result || result.toLowerCase().startsWith("error")) {
         this.setState({ newWalletError: result });
       } else {
@@ -806,16 +850,26 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     } catch (error) {
       console.log(`Critical Error restore from seed ${error}`);
+      this.setState({
+        currentStatus: (
+          <span>
+            Error Initializing Lightclient
+            <br />
+            {`${error}`}
+          </span>
+        ),
+        currentStatusIsError: true,
+      });
     }
   };
 
   doRestoreUfvkWallet = async () => {
-    const { ufvk, birthday, url, chain_name } = this.state;
+    const { ufvk, birthday, uri, chain_name } = this.state;
     //console.log(`Restoring ${ufvk} with ${birthday}`);
     try {
       const id: number = this.nextWalletId();
       const wallet_name: string = this.nextWalletName(id);
-      const result: string = native.init_from_ufvk(ufvk, birthday, url, chain_name, "High", 3, wallet_name);
+      const result: string = native.init_from_ufvk(ufvk, birthday, uri, chain_name, "High", 3, wallet_name);
       if (!result || result.toLowerCase().startsWith("error")) {
         this.setState({ newWalletError: result });
       } else {
@@ -837,16 +891,26 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     } catch (error) {
       console.log(`Critical Error restore from ufvk ${error}`);
+      this.setState({
+        currentStatus: (
+          <span>
+            Error Initializing Lightclient
+            <br />
+            {`${error}`}
+          </span>
+        ),
+        currentStatusIsError: true,
+      });
     }
   };
 
   doRestoreFileWallet = async () => {
-    const { fileWallet, url, chain_name } = this.state;
+    const { fileWallet, uri, chain_name } = this.state;
     console.log(`Loading ${fileWallet}`);
     try {
       const id: number = this.nextWalletId();
       const wallet_name: string = this.state.fileWallet;
-      const result: string = native.init_from_b64(url, chain_name, "High", 3, wallet_name);
+      const result: string = native.init_from_b64(uri, chain_name, "High", 3, wallet_name);
       console.log(`Initialization: ${result}`);
       if (!result || result.toLowerCase().startsWith("error")) {
         this.setState({ newWalletError: result });
@@ -880,15 +944,26 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
     } catch (error) {
       console.log(`Critical Error restore from file ${error}`);
+      this.setState({
+        currentStatus: (
+          <span>
+            Error Initializing Lightclient
+            <br />
+            {`${error}`}
+          </span>
+        ),
+        currentStatusIsError: true,
+      });
+
     }
   };
 
   deleteWallet = async () => {
     const { openErrorModal } = this.context as React.ContextType<typeof ContextApp>;
-    const { url, chain_name, wallets, currentWalletId } = this.state;
+    const { uri, chain_name, wallets, currentWalletId } = this.state;
     try {
       const wallet_name: string = wallets.filter((w: WalletType) => w.id === currentWalletId)[0].fileName;
-      const walletExistsResult: boolean | string = native.wallet_exists(url, chain_name, "High", 3, wallet_name);
+      const walletExistsResult: boolean | string = native.wallet_exists(uri, chain_name, "High", 3, wallet_name);
       console.log(walletExistsResult);
       if (walletExistsResult) {
         // interrupt syncing, just in case.
@@ -905,18 +980,28 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }, 10);
         setTimeout(async () => {
           ipcRenderer.send("apprestart");
-          const resultDelete: string = await native.delete_wallet(url, chain_name, "High", 3, wallet_name);
+          const resultDelete: string = await native.delete_wallet(uri, chain_name, "High", 3, wallet_name);
           console.log("deleting ...", resultDelete);
           native.deinitialize();
         }, 5000);
       }
     } catch (error) {
       console.log(`Critical Error delete wallet ${error}`);
+      this.setState({
+        currentStatus: (
+          <span>
+            Error Initializing Lightclient
+            <br />
+            {`${error}`}
+          </span>
+        ),
+        currentStatusIsError: true,
+      });
     }
   };
 
   render() {
-    const { buttonsDisable, loadingDone, currentStatus, walletScreen, newWalletError, seed_phrase, ufvk, fileWallet, birthday, currentWalletId, wallets, url } =
+    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed_phrase, ufvk, fileWallet, birthday, currentWalletId, wallets, uri } =
       this.state;
 
     const { openServerSelectModal } = this.props;
@@ -927,11 +1012,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         setTimeout(() => this.props.navigateToDashboard(), 500);
     }
 
-    // If still loading, show the status 
+    // If still loading, show the status
     return (
       <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
-        <div style={{ marginTop: walletScreen === 1 ? "0px" : "70px", marginBottom: "10px" }}>
-          <Logo readOnly={false} />
+        <div style={{ marginTop: "0px", marginBottom: "0px" }}>
+          <Logo readOnly={false} onlyVersion={currentStatusIsError} />
         </div>
         {!!currentWalletId ? (
           <div style={{ color: Utils.getCssVariable('--color-primary'), marginBottom: 0 }}>
@@ -943,23 +1028,23 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             {' - ['}
             {wallets.filter((w: WalletType) => w.id === currentWalletId)[0].creationType}
             {'] - '}
-            {url}
+            {uri}
           </div>
         ) : (
           <div style={{ color: Utils.getCssVariable('--color-primary'), marginBottom: 0 }}>
             Active Server:
             {' '}
-            {url}
+            {uri}
           </div>
         )}
 
-        {walletScreen === 0 && (
+        {!!currentStatus && (walletScreen === 0 || walletScreen === 1) && (
           <div style={{ marginTop: 10 }}>
             <div>{currentStatus}</div>
           </div>
         )}
 
-        {walletScreen === 1 && (
+        {(walletScreen === 1 || (walletScreen === 0 && currentStatusIsError)) && (
           <div style={{ marginTop: -10 }}>
             <div className={cstyles.buttoncontainer} style={{ marginBottom: 10 }}>
               <button disabled={buttonsDisable} type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>

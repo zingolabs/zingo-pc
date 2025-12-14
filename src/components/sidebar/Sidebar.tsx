@@ -75,7 +75,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zingo PC v2.0.4</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v2.0.5</div>
           <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2025, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
             The MIT License (MIT) Copyright (c) 2025 ZingoLabs
@@ -195,7 +195,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       
       await clearTimers();
 
-      navigateToLoadingScreen(true, "Change/Add another wallet...", serverUris)
+      navigateToLoadingScreen(false, "", serverUris)
     });
 
     // Export All Transactions
@@ -303,7 +303,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       />
 
       <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
-        <Logo readOnly={readOnly} />
+        <Logo readOnly={readOnly} onlyVersion={false} />
       </div>
 
       <div className={styles.sidebar}>
