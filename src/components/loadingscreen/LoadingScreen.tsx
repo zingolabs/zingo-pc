@@ -485,6 +485,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           this.setState({ wallets, currentWalletId: null });
           this.props.setWallets(null, wallets);
         }
+        
+        // if exists others wallet for the same chain, pick the first one...
+        const w = wallets.filter((item: WalletType) => item.chain_name === chain_name);
+        if (!!w && w.length > 0) {
+          // the first one...
+          this.props.setWallets(w[0].id, wallets);
+          this.componentDidMount();
+        }
+
         // Show the wallet creation screen if no wallet file.
         // No matter what if the wallet is not there
         // disable open & delete buttons.
@@ -672,17 +681,30 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     this.setState({ loadingDone: true });
   };
 
-  nextWalletId = (): number => {
-    const { wallets } = this.state;
+  nextWalletName = () => {
+    const { wallets, uri, chain_name } = this.state;
     let maxId = !!wallets && wallets.length > 0 ? Math.max(...wallets.map(w => w.id)) : 3;
     if (maxId < 3) {
       maxId = 3;
     }
-    return maxId + 1;
-  };
+    let next =  maxId + 1;
+    // we need to check if this file already exists 
+    let nextWalletName = `zingo-wallet-${next}.dat`;
 
-  nextWalletName = (id: number): string => {
-    return `zingo-wallet-${id}.dat`
+    while (true) {
+      console.log(next, nextWalletName);
+      const walletExistsResult: boolean | string = native.wallet_exists(uri, chain_name, "High", 3, nextWalletName);
+      console.log(walletExistsResult);
+      if (walletExistsResult) {
+        next = next + 1;
+        nextWalletName = `zingo-wallet-${next}.dat`;
+        console.log('NEXT', next, nextWalletName);
+      } else {
+        break;
+      }
+    }
+
+    return { next, nextWalletName };
   };
 
   createNextWallet = async (id: number, wallet_name: string, alias: string, creationType: 'Seed' | 'Ufvk' | 'File' | 'Main') => {
@@ -706,9 +728,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   createNewWallet = async () => {
     const { uri, chain_name } = this.state;
     
-    const id: number = this.nextWalletId();
-    const wallet_name: string = this.nextWalletName(id);
     try {
+      const { next: id, nextWalletName: wallet_name } = this.nextWalletName();
       const result: string = native.init_new(uri, chain_name, "High", 3, wallet_name);
 
       if (!result || result.toLowerCase().startsWith("error")) {
@@ -826,8 +847,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { seed_phrase, birthday, uri, chain_name } = this.state;
     //console.log(`Restoring ${seed_phrase} with ${birthday}`);
     try {
-      const id: number = this.nextWalletId();
-      const wallet_name: string = this.nextWalletName(id);
+      const { next: id, nextWalletName: wallet_name } = this.nextWalletName();
       const result: string = native.init_from_seed(seed_phrase, birthday, uri, chain_name, "High", 3, wallet_name);
       if (!result || result.toLowerCase().startsWith("error")) {
         this.setState({ newWalletError: result });
@@ -867,8 +887,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { ufvk, birthday, uri, chain_name } = this.state;
     //console.log(`Restoring ${ufvk} with ${birthday}`);
     try {
-      const id: number = this.nextWalletId();
-      const wallet_name: string = this.nextWalletName(id);
+      const { next: id, nextWalletName: wallet_name } = this.nextWalletName();
       const result: string = native.init_from_ufvk(ufvk, birthday, uri, chain_name, "High", 3, wallet_name);
       if (!result || result.toLowerCase().startsWith("error")) {
         this.setState({ newWalletError: result });
@@ -908,7 +927,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { fileWallet, uri, chain_name } = this.state;
     console.log(`Loading ${fileWallet}`);
     try {
-      const id: number = this.nextWalletId();
+      // only needs the id, it have the wallet_name already
+      const { next: id } = this.nextWalletName();
       const wallet_name: string = this.state.fileWallet;
       const result: string = native.init_from_b64(uri, chain_name, "High", 3, wallet_name);
       console.log(`Initialization: ${result}`);
