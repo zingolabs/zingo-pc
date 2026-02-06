@@ -11,10 +11,8 @@ import AddressTransparentClass from "./classes/TransparentAddressClass";
 import AddressBookEntryClass from "./classes/AddressBookEntryClass";
 import InfoClass from "./classes/InfoClass";
 import { SyncStatusType } from "./types/SyncStatusType";
-import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
 import { ZcashURITarget } from "../../utils/uris";
 import { WalletType } from "./types/WalletType";
-
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
@@ -61,14 +59,9 @@ export default class AppState {
   syncingStatus: SyncStatusType;
   verificationProgress: number | null;
 
-  // local data for performance - Active Server.
-  serverUri: string;
-  serverChainName: "" | ServerChainNameEnum;
-  serverSelection: '' | 'auto' | 'list' | 'custom';
-
   // current wallet
-  currentWalletId: number | null;
-  
+  currentWallet: WalletType | null;
+
   // list of wallets
   wallets: WalletType[];
 
@@ -111,10 +104,7 @@ export default class AppState {
     this.readOnly = false;
     this.serverUris = [] as ServerClass[];
     this.fetchError = {} as FetchErrorClass;
-    this.serverUri = "";
-    this.serverChainName = "";
-    this.serverSelection = "";
-    this.currentWalletId = null;
+    this.currentWallet = {} as WalletType;
     this.wallets = [] as WalletType[];
     this.seed_phrase = "";
     this.ufvk = "";

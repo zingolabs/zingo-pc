@@ -2,24 +2,24 @@ import Modal from "react-modal";
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import { ContextApp } from "../../context/ContextAppState";
-import { ServerClass } from "../appstate";
+import { ServerClass, ServerSelectionEnum } from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
 import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 import Utils from "../../utils/utils";
 const { ipcRenderer } = window.require("electron");
 
-type SelectSelectModalProps = {
+type SettingsWalletProps = {
   closeModal: () => void;
 };
 
-const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => {
+const SettingsWallet: React.FC<SettingsWalletProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
-  const { serverSelectModal, serverUris, openErrorModal, serverUri, serverChainName, serverSelection } = context;
+  const { serverSelectModal, serverUris, openErrorModal, currentWallet } = context;
   const { modalIsOpen } = serverSelectModal;
 
   const [selectedServer, setSelectedServer] = useState<string>("");
   const [selectedChain, setSelectedChain] = useState<ServerChainNameEnum | ''>("");
-  const [selectedSelection, setSelectedSelection] = useState<'auto' | 'list' | 'custom' | ''>("");
+  const [selectedSelection, setSelectedSelection] = useState<ServerSelectionEnum | ''>("");
 
   const [autoServer, setAutoServer] = useState<string>("");
   const [customServer, setCustomServer] = useState<string>("");
@@ -37,8 +37,8 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
     "": ""
   };
 
-  const initialServerValue = useCallback((server: string, chain_name: ServerChainNameEnum | '', selection: 'auto' | 'list' | 'custom' | '') => {
-    if (selection === 'custom') {
+  const initialServerValue = useCallback((server: string, chain_name: ServerChainNameEnum | '', selection: ServerSelectionEnum | '') => {
+    if (selection === ServerSelectionEnum.custom) {
       setCustomServer(server);
       setCustomChain(chain_name);
 
@@ -56,7 +56,7 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
         // for RegTest -> TestNet.
         setAutoChain(ServerChainNameEnum.testChainName);
       }
-    } else if (selection === 'auto') {
+    } else if (selection === ServerSelectionEnum.auto) {
       setAutoServer(server);
       setAutoChain(chain_name);
 
@@ -76,17 +76,15 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
   }, []);
 
   useEffect(() => {
-    const servers: ServerClass[] = serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false);
-
-    const currServer: string = serverUri || servers[0].uri; 
-    const currChain: ServerChainNameEnum = serverChainName || servers[0].chain_name;
-    const currSelection: 'auto' | 'list' | 'custom' = serverSelection || 'list'
+    const currServer: string = currentWallet ? currentWallet.uri : ''; 
+    const currChain: ServerChainNameEnum = currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName;
+    const currSelection: ServerSelectionEnum = currentWallet ? currentWallet.selection : ServerSelectionEnum.list;
     initialServerValue(currServer, currChain, currSelection);
     setSelectedServer(currServer);
     setSelectedChain(currChain);
     setSelectedSelection(currSelection);
     setServers(servers);
-  }, [initialServerValue, serverChainName, serverSelection, serverUri, serverUris]);
+  }, [initialServerValue, currentWallet?.chain_name, currentWallet?.selection, currentWallet?.uri, serverUris, currentWallet, servers]);
 
   const switchServer = async () => {
     await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
@@ -94,9 +92,9 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
     await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
     // reset the current wallet Id.
     // only if the Network/Chain changed.
-    if (serverChainName !== selectedChain) {
-      await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
-    }
+    //if (serverChainName !== selectedChain) {
+    //  await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
+    //}
 
     setTimeout(() => {
       openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server/wallet"); 
@@ -107,9 +105,9 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
   };
 
   const localCloseModal = async () => {
-    const currServer: string = serverUri || servers[0].uri; 
-    const currChain: ServerChainNameEnum = serverChainName || servers[0].chain_name;
-    const currSelection: 'auto' | 'list' | 'custom' = serverSelection || 'list'
+    const currServer: string = currentWallet ? currentWallet.uri : ''; 
+    const currChain: ServerChainNameEnum = currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName;
+    const currSelection: ServerSelectionEnum = currentWallet ? currentWallet.selection : ServerSelectionEnum.list;
     initialServerValue(currServer, currChain, currSelection);
     setSelectedServer(currServer);
     setSelectedChain(currChain);
@@ -134,18 +132,18 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
             <input
-              checked={selectedSelection === 'auto'}
+              checked={selectedSelection === ServerSelectionEnum.auto}
               style={{ accentColor: Utils.getCssVariable('--color-primary') }}
               type="radio" 
               name="selection" 
-              value={'auto'}
+              value={ServerSelectionEnum.auto}
               onClick={(e) => {
-                setSelectedSelection('auto');
+                setSelectedSelection(ServerSelectionEnum.auto);
                 setSelectedServer(autoServer);
                 setSelectedChain(autoChain);
               }} 
               onChange={(e) => {
-                setSelectedSelection('auto');
+                setSelectedSelection(ServerSelectionEnum.auto);
                 setSelectedServer(autoServer);
                 setSelectedChain(autoChain);
               }}
@@ -171,20 +169,20 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
 
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
             <input
-              checked={selectedSelection === 'list'}
+              checked={selectedSelection === ServerSelectionEnum.list}
               style={{ accentColor: Utils.getCssVariable('--color-primary') }}
               type="radio" 
               name="selection" 
-              value={'list'} 
+              value={ServerSelectionEnum.list} 
               onClick={(e) => {
-                setSelectedSelection('list');
+                setSelectedSelection(ServerSelectionEnum.list);
                 setSelectedServer(listServer);
                 if (!!listServer) {
                   setSelectedChain(servers.filter((s: ServerClass) => s.uri === listServer)[0].chain_name);
                 }
               }} 
               onChange={(e) => {
-                setSelectedSelection('list');
+                setSelectedSelection(ServerSelectionEnum.list);
                 setSelectedServer(listServer);
                 if (!!listServer) {
                   setSelectedChain(servers.filter((s: ServerClass) => s.uri === listServer)[0].chain_name);
@@ -217,12 +215,12 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
               name="selection" 
               value={"custom"} 
               onClick={(e) => {
-                setSelectedSelection('custom');
+                setSelectedSelection(ServerSelectionEnum.custom);
                 setSelectedServer(customServer);
                 setSelectedChain(customChain);
               }} 
               onChange={(e) => {
-                setSelectedSelection('custom');
+                setSelectedSelection(ServerSelectionEnum.custom);
                 setSelectedServer(customServer);
                 setSelectedChain(customChain);
               }} 
@@ -284,4 +282,4 @@ const SelectSelectModal: React.FC<SelectSelectModalProps> = ({ closeModal }) => 
   );
 }
 
-export default SelectSelectModal;
+export default SettingsWallet;

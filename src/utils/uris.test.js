@@ -1,8 +1,9 @@
 import { parseZcashURI } from "./uris";
 import native from '../native.node';
 import serverUrisList from "./serverUrisList";
+import { PerformanceLevelEnum } from "../components/appstate";
 
-native.init_from_b64(serverUrisList()[0].uri, serverUrisList()[0].chain_name, 'High', '1');
+native.init_from_b64(serverUrisList()[0].uri, serverUrisList()[0].chain_name, PerformanceLevelEnum.High, '1');
 
 test("ZIP321 case 1", async () => { 
   const targets = await parseZcashURI(

@@ -6,10 +6,11 @@ import {
   SendPageStateClass,
   AddressBookEntryClass,
   ValueTransferClass,
+  ServerChainNameEnum,
 } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
-import { BalanceBlockHighlight } from "../balanceblock";
+import { BalanceBlockHighlight } from "../balanceBlock";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
 import ToAddrBox from "./components/ToAddrBox";
@@ -38,7 +39,7 @@ const Send: React.FC<SendProps> = ({
     addressBook,
     fetchError,
     valueTransfers,
-    serverChainName,
+    currentWallet,
     setSendTo,
     calculateShieldFee,
     handleShieldButton,
@@ -134,7 +135,7 @@ const Send: React.FC<SendProps> = ({
     const toAddr: ToAddrClass = sendPageState.toaddr;
     if (address !== null) {
       // First, check if this is a URI
-      const parsedUri: string | ZcashURITarget = await parseZcashURI(address.replace(/ /g, ""), serverChainName);
+      const parsedUri: string | ZcashURITarget = await parseZcashURI(address.replace(/ /g, ""), currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName);
       if (typeof parsedUri === "string") {
         if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
           // with error leave the same value
@@ -340,7 +341,7 @@ const Send: React.FC<SendProps> = ({
                   setSendFeeError={setSendFeeError}
                   setTotalAmountAvailable={setTotalAmountAvailable}
                   label={getLabelAddressBook(toaddr.to)}
-                  serverChainName={serverChainName}
+                  serverChainName={currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName}
                   block={info.latestBlock >= info.walletHeight ? info.latestBlock : info.walletHeight}
                   currencyName={info.currencyName}
                 />

@@ -5,16 +5,15 @@ import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
 import { InfoClass, ServerClass, ValueTransferClass } from "../appstate";
-import Utils from "../../utils/utils";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import PayURIModal from "./components/PayURIModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
 import native from "../../native.node";
-import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 import SelectWallet from "./components/SelectWallet";
 import { WalletType } from "../appstate/types/WalletType";
+import RPC from "../../rpc/rpc";
 
 const { ipcRenderer, remote } = window.require("electron");
 const fs = window.require("fs");
@@ -22,9 +21,10 @@ const fs = window.require("fs");
 type SidebarProps = {
   setInfo: (info: InfoClass) => void;
   clearTimers: () => Promise<void>;
-  navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
+  navigateToLoadingScreen: (c: string, cb: boolean, ch: boolean, s: ServerClass[], sc: number) => void;
   doRescan: () => void;
-  setWallets: (c: number | null, w: WalletType[]) => void;
+  setWallets: (w: WalletType | null, ws: WalletType[]) => void;
+  navigateToLoadingScreenChangingWallet: () => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
@@ -35,9 +35,10 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   setWallets,
   history,
   location,
+  navigateToLoadingScreenChangingWallet,
 }) => {
   const context = useContext(ContextApp);
-  const { info, serverUris, valueTransfers, verificationProgress, readOnly, serverChainName, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWalletId, wallets } = context;
+  const { info, valueTransfers, verificationProgress, readOnly, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWallet } = context;
 
   const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
   const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
@@ -76,9 +77,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         "Zingo PC",
         <div className={cstyles.verticalflex}>
           <div className={cstyles.margintoplarge}>Zingo PC v2.0.5</div>
-          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2025, ZingoLabs.</div>
+          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2026, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
-            The MIT License (MIT) Copyright (c) 2025 ZingoLabs
+            The MIT License (MIT) Copyright (c) 2026 ZingoLabs
             <br />
             <br />
             Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -102,21 +103,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       );
     });
 
-    // Donate button
-    ipcRenderer.on("donate", () => {
-      const i = info;
-      setSendTo(
-        new ZcashURITarget(
-          Utils.getDonationAddress(i.chainName !== ServerChainNameEnum.mainChainName),
-          Utils.getDefaultDonationAmount(i.chainName !== ServerChainNameEnum.mainChainName),
-          Utils.getDefaultDonationMemo(i.chainName !== ServerChainNameEnum.mainChainName)
-        )
-      );
-
-      history.push(routes.SEND);
-    });
-
-
     // Pay URI
     ipcRenderer.on("payuri", (event: any, uri: string) => {
       openURIModal(uri);
@@ -127,7 +113,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       //console.log('data for seed/ufvk & birthday', seed_phrase, ufvk, birthday);
 
       openErrorModal(
-        "Wallet Seed",
+        "Wallet Seed Phrase / Viewing Key",
         <div className={cstyles.verticalflex}>
           {!!seed_phrase && (
             <>
@@ -179,25 +165,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       );        
     });
 
-    ipcRenderer.on("change", async () => {
-      // To change to another wallet, we reset the wallet loading
-      // and redirect to the loading screen
-      try {
-        // interrupt syncing
-        const resultInterrupt: string = await native.pause_sync();
-        console.log("Pausing sync ....", resultInterrupt);
-      } catch (error) {
-        console.log(`Critical Error pause sync ${error}`);
-      }
-
-      // Reset the info object, it will be refetched
-      setInfo(new InfoClass());
-      
-      await clearTimers();
-
-      navigateToLoadingScreen(false, "", serverUris)
-    });
-
     // Export All Transactions
     ipcRenderer.on("exportalltx", async () => {
       const save = await remote.dialog.showSaveDialog({
@@ -237,9 +204,49 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       doRescan();
     });
 
-    // View Server Info
-    ipcRenderer.on("serverinfo", () => {
-      history.push(routes.SERVERINFO);
+    ipcRenderer.on("addnewwallet", () => {
+      history.push(routes.ADDNEWWALLET);
+    });
+
+    ipcRenderer.on("settingswallet", () => {
+      history.push(routes.SETTINGSWALLET);
+    });
+
+    ipcRenderer.on("deletewallet", async () => {
+      if (!currentWallet) {
+        const error: string = 'No current wallet to delete.';
+        console.log(error);
+        openErrorModal("Error Delete Wallet", `${error}`); 
+        return;
+      }
+      try {
+        const walletExistsResult: boolean | string = native.wallet_exists(currentWallet.uri, currentWallet.chain_name, currentWallet.PerformanceLevel, 3, currentWallet.fileName);
+        console.log(walletExistsResult);
+        if (walletExistsResult) {
+          // interrupt syncing, just in case.
+          const resultInterrupt: string = await native.stop_sync();
+          console.log("Stopping sync ...", resultInterrupt);
+          await clearTimers();
+
+          // remove the actual wallet
+          await ipcRenderer.invoke("wallets:remove", currentWallet.id);
+          await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
+
+          setTimeout(() => {
+            openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server/wallet"); 
+          }, 10);
+          setTimeout(async () => {
+            ipcRenderer.send("apprestart");
+            const resultDelete: string = await native.delete_wallet(currentWallet.uri, currentWallet.chain_name, currentWallet.PerformanceLevel, 3, currentWallet.fileName);
+            console.log("deleting ...", resultDelete);
+            RPC.deinitialize();
+          }, 5000);
+        }
+      } catch (error) {
+        console.log(`Critical Error delete wallet ${error}`);
+        openErrorModal("Error Delete Wallet", `${error}`);
+        return;
+      }
     });
   };
 
@@ -275,7 +282,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       return;
     }
 
-    const parsedUri: string | ZcashURITarget = await parseZcashURI(uri, serverChainName);
+    const parsedUri: string | ZcashURITarget = await parseZcashURI(uri, currentWallet ? currentWallet.chain_name: '');
     if (typeof parsedUri === "string") {
       if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
         openErrorModal(errTitle, getErrorBody(parsedUri));
@@ -308,9 +315,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
       <div className={styles.sidebar}>
         <SelectWallet
-          currentWalletId={currentWalletId}
-          wallets={wallets}
-          setWallets={setWallets}
+          navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
         />
         <SidebarMenuItem
           name="Dashboard"

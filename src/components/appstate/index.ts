@@ -22,6 +22,9 @@ import { SyncStatusScanRangePriorityEnum } from "./enums/SyncStatusScanRangePrio
 import { ValueTransferStatusEnum } from "./enums/ValueTransferStatusEnum";
 import { ValueTransferKindEnum } from "./enums/ValueTransferKindEnum";
 import { ValueTransferPoolEnum } from "./enums/ValueTransferPoolEnum";
+import { CreationTypeEnum } from "./enums/CreationTypeEnum";
+import { ServerSelectionEnum } from "./enums/ServerSelectionEnum";
+import { PerformanceLevelEnum } from "./enums/PerformanceLevelEnum";
 
 import { SyncStatusScanRangeType } from "./types/SyncStatusScanRangeType";
 import { SyncStatusType } from "./types/SyncStatusType";
@@ -57,6 +60,9 @@ export {
   ValueTransferStatusEnum,
   ValueTransferKindEnum,
   ValueTransferPoolEnum,
+  CreationTypeEnum,
+  ServerSelectionEnum,
+  PerformanceLevelEnum,
   
   AppState
 };

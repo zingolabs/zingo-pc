@@ -5,7 +5,7 @@ import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import VtItemBlock from "./components/VtItemBlock";
 import VtModal from "./components/VtModal";
-import { BalanceBlock, BalanceBlockHighlight } from "../balanceblock";
+import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 

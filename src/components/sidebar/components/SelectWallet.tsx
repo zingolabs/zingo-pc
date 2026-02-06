@@ -5,46 +5,36 @@ import { ContextApp } from "../../../context/ContextAppState";
 const { ipcRenderer } = window.require("electron");
 
 type SelectWalletProps = {
-  currentWalletId: number | null;
-  wallets: WalletType[];
-  setWallets: (c: number | null, w: WalletType[]) => void;
+  navigateToLoadingScreenChangingWallet: () => void;
 };
 
 const chains = {
   "main": "Mainnet",
   "test": "Testnet",
   "regtest": "Regtest",
+  "": "",
 };
 
-const SelectWallet = ({ currentWalletId, wallets, setWallets }: SelectWalletProps) => {
+const SelectWallet = ({ navigateToLoadingScreenChangingWallet }: SelectWalletProps) => {
   const context = useContext(ContextApp);
-  const { serverChainName, openErrorModal } = context;
+  const { currentWallet, wallets } = context;
   
-  console.log('SIDEBAR ---->', currentWalletId, wallets);
   return (
     <>
-      {currentWalletId !== null && (
+      {currentWallet !== null && (
         <div style={{ justifyContent: 'center', alignItems: 'center', marginBottom: 20 }}>
           <select
-            disabled={wallets.filter((w: WalletType) => w.chain_name === serverChainName).length === 1}
             className={cstyles.inputbox}
             style={{ marginLeft: 7 }}
-            value={currentWalletId}
+            value={currentWallet.id}
             onChange={async (e) => {
               const id: number = Number(e.target.value);
               await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
-              setWallets(id, wallets);
-
-              setTimeout(() => {
-                openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server/wallet"); 
-              }, 10);
-              setTimeout(() => {
-                ipcRenderer.send("apprestart");    
-              }, 5000);
+              navigateToLoadingScreenChangingWallet();
             }}>
-            {wallets.filter((w: WalletType) => w.chain_name === serverChainName).map((w: WalletType) => (
+            {wallets.map((w: WalletType) => (
               <option key={w.id} value={w.id}>
-                {w.alias + ' - ' + chains[w.chain_name] + ' [' + w.creationType + ']'}
+                {w.alias + ' - ' + chains[w.chain_name || ''] + ' [' + w.creationType + ']'}
               </option>
             ))}
           </select>

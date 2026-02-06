@@ -9,6 +9,7 @@ import {
   TotalBalanceClass,
   AddressKindEnum,
   ToAddrClass,
+  ServerChainNameEnum,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ScrollPaneTop from "../../scrollPane/ScrollPane";
@@ -45,7 +46,7 @@ type SendConfirmModalProps = {
     sendFee,
   }) => {
     const context = useContext(ContextApp);
-    const { serverChainName, openErrorModal } = context;
+    const { currentWallet, openErrorModal } = context;
     
     const [sendingTotal, setSendingTotal] = useState<number>(0);
     const [bigPart, setBigPart] = useState<string>('');
@@ -94,7 +95,7 @@ type SendConfirmModalProps = {
       
       //console.log('parse-address', address, resultJSON.status === 'success');
   
-      const currChain = serverChainName
+      const currChain = currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName;
 
       if (
         !(resultJSON && 
@@ -171,7 +172,7 @@ type SendConfirmModalProps = {
   
       // whatever else
       return '-';
-    }, [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance, serverChainName]);
+    }, [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance, currentWallet]);
 
     useEffect(() => {
       const sendingTotal: number = sendPageState.toaddr.amount + sendFee;

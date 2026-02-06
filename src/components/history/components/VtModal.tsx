@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { RouteComponentProps, withRouter } from "react-router";
-import { BalanceBlockHighlight } from "../../balanceblock";
+import { BalanceBlockHighlight } from "../../balanceBlock";
 import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
 import { AddressBookEntryClass, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass, ValueTransferKindEnum, ValueTransferPoolEnum, ValueTransferStatusEnum } from "../../appstate";

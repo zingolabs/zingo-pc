@@ -5,11 +5,11 @@ import {
   UnifiedAddressClass,
   TransparentAddressClass,
   SyncStatusType,
-  ServerClass,
   SendJsonToTypeType,
   SendProposeType,
   SendType,
   ValueTransferStatusEnum,
+  WalletType,
 } from "../components/appstate";
 import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 
@@ -28,7 +28,7 @@ export default class RPC {
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
 
-  server: ServerClass;
+  currentWallet: WalletType | null;
   
   updateTimerID?: NodeJS.Timeout;
   timers: NodeJS.Timeout[];
@@ -49,7 +49,7 @@ export default class RPC {
     fnSetSyncStatus: (ss: SyncStatusType) => void,
     fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
-    server: ServerClass,
+    currentWallet: WalletType | null,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
     this.fnSetAddressesUnified = fnSetAddressesUnified;
@@ -62,7 +62,7 @@ export default class RPC {
     this.fnSetVerificationProgress = fnSetVerificationProgress;
     this.fnSetFetchError = fnSetFetchError;
 
-    this.server = server;
+    this.currentWallet = currentWallet;
 
     this.lastBlockHeight = 0;
 
@@ -418,6 +418,13 @@ export default class RPC {
         setTimeout(async () => {
           await this.fetchSyncStatus();
         }, 0);
+        console.log('SYNC POLL -> RUN SYNC', returnPoll);
+        // I don't trust in this message, when the tx is stuck in Trasmitted
+        // this is the message I got & after that the status says 100% complete
+        // this is not true, here Just in case, I need to run the sync again.
+        setTimeout(async () => {
+          await this.refreshSync();
+        }, 0);
         return;
       }
 
@@ -692,7 +699,7 @@ export default class RPC {
       // first to get the last server block.
       let latestBlockHeight: number = 0;
       //console.log(this.server);
-      const heightStr: string = await native.get_latest_block_server(this.server.uri);
+      const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : '');
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith('error')) {
           console.log(`Error server height ${heightStr}`);
@@ -773,7 +780,7 @@ export default class RPC {
       // first to get the last server block.
       let latestBlockHeight: number = 0;
       //console.log(this.server);
-      const heightStr: string = await native.get_latest_block_server(this.server.uri);
+      const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : '');
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith('error')) {
           console.log(`Error server height ${heightStr}`);
