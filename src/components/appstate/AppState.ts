@@ -40,10 +40,10 @@ export default class AppState {
   // Error modal data
   errorModal: ErrorModalClass;
 
-  // Error modal data
+  // Config modal data
   confirmModal: ConfirmModalClass;
 
-  // Server selection
+  // Server selection modal data
   serverSelectModal: ServerSelectModalClass;
 
   // if the wallet is from seed or from VK
@@ -62,6 +62,9 @@ export default class AppState {
   // current wallet
   currentWallet: WalletType | null;
 
+  // current wallet Open Error
+  currentWalletOpenError: string;
+
   // list of wallets
   wallets: WalletType[];
 
@@ -74,7 +77,7 @@ export default class AppState {
   saplingPool: boolean;
   transparentPool: boolean;
 
-  // The state of the Address Book Screen, as thhe user create a new label
+  // The state of the Address Book Screen, as the user create a new label
   addLabelState: AddressBookEntryClass;
 
   // props to context
@@ -105,6 +108,7 @@ export default class AppState {
     this.serverUris = [] as ServerClass[];
     this.fetchError = {} as FetchErrorClass;
     this.currentWallet = {} as WalletType;
+    this.currentWalletOpenError = "";
     this.wallets = [] as WalletType[];
     this.seed_phrase = "";
     this.ufvk = "";

@@ -7,7 +7,7 @@ import { ContextApp } from "../../context/ContextAppState";
 
 import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
-import DetailLine from "../addNewWallet/components/DetailLine";
+import DetailLine from "../detailLine/DetailLine";
 
 type DashboardProps = {
   navigateToHistory: () => void;
@@ -22,7 +22,7 @@ const chains = {
 
 const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   const context = useContext(ContextApp);
-  const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus, currentWallet, birthday, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
+  const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus, currentWallet, currentWalletOpenError, birthday, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -299,14 +299,13 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 </div>
               )}
               
-              {!!info && (
+              {!!info && !!info.serverUri && !!info.chainName && !!info.latestBlock && (
                 <div style={{ width: '48%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   Server info
                   <div>
                     <div className={styles.detailcontainer}>
                       <div className={styles.detaillines}>
-                        <DetailLine label="Server URI" value={currentWallet ? currentWallet.uri : ''} />
-                        <DetailLine label="Chain Name" value={currentWallet ? chains[currentWallet.chain_name] : ''} />
+                        <DetailLine label="Server URI" value={info ? info.serverUri : ''} />
                         <DetailLine label="Server Network" value={chains[info.chainName]} />
                         <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                         {info.currencyName === 'ZEC' && (
@@ -317,7 +316,51 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                   </div>
                 </div>
               )}
-              
+
+              {currentWallet === null && (
+                <div
+                  style={{
+                    display: 'flex',
+                    width: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: 50,
+                  }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      width: '80%',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginTop: 50,
+                    }}>
+                      There is no wallets added.
+                  </div>
+                </div>
+              )}
+
+              {!!currentWalletOpenError && (
+                <div
+                  style={{
+                    display: 'flex',
+                    width: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: 50,
+                  }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      width: '80%',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginTop: 50,
+                    }}>
+                      {`Error Opening the current Wallet: ${currentWalletOpenError}`}
+                  </div>
+                </div>
+              )}
+
             </div>
           </ScrollPaneTop>
         </div>

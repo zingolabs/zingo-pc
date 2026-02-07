@@ -8,3 +8,16 @@
   margin-right: 10%;
   text-align: left;
 }
+
+.detailcontainer {
+  flex-direction: column;
+  margin-top: 3%;
+  justify-content: center;
+  align-items: center;
+  width: auto;
+}
+
+.detaillines {
+  border: 1px solid grey;
+  padding: 16px;
+}

@@ -35,6 +35,7 @@ export const defaultAppState: AppState = {
   serverUris: [] as ServerClass[],
   fetchError: {} as FetchErrorTypeClass,
   currentWallet: null,
+  currentWalletOpenError: "",
   wallets: [] as WalletType[],
   seed_phrase: "",
   ufvk: "",

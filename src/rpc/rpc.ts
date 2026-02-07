@@ -316,6 +316,7 @@ export default class RPC {
       info.chainName = infoJSON.chain_name;
       info.latestBlock = infoJSON.latest_block_height;
       info.connections = 1;
+      info.serverUri = infoJSON.server_uri;
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit ? infoJSON.git_commit.substring(0, 6) : ""}/${infoJSON.version}`;
       info.zcashdVersion = "Not Available";
       info.currencyName = info.chainName === ServerChainNameEnum.mainChainName ? "ZEC" : "TAZ";
@@ -698,7 +699,7 @@ export default class RPC {
     try {
       // first to get the last server block.
       let latestBlockHeight: number = 0;
-      //console.log(this.server);
+      //console.log('CUUUUUUURRENT WALLET', this.currentWallet);
       const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : '');
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith('error')) {
@@ -947,5 +948,9 @@ export default class RPC {
     } catch (error) {
       console.log(`Critical Error get price ${error}`);
     }
+  }
+
+  setCurrentWallet(cw: WalletType) {
+    this.currentWallet = cw;
   }
 }

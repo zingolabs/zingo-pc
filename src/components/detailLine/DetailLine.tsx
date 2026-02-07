@@ -1,6 +1,6 @@
 import React from "react";
-import cstyles from "../../common/Common.module.css";
-import styles from "../AddNewWallet.module.css";
+import cstyles from "../common/Common.module.css";
+import styles from "./DetailLine.module.css";
 
 type DetailLineProps = {
   label: string;

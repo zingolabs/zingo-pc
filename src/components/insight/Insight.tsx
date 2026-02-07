@@ -268,7 +268,7 @@ const Insight: React.FC<InsightProps> = () => {
             <div className={[cstyles.well].join(" ")} style={{ display: 'flex', flexDirection: 'row', justifyContent: 'stretch' }}>
               <div className={cstyles.balancebox} style={{ width: '30%', marginRight: 5 }}>
                 {dataSent && dataSent.datasets && dataSent.datasets[0].data.length === 0 && (
-                  <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
+                  <div style={{ alignSelf: 'center', width: '100%' }} className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
                 )}
                 {dataSent && dataSent.datasets && dataSent.datasets[0].data.length > 0 && (
                   <div style={{ flexDirection: 'column', alignItems: 'center', width: '100%' }}>
@@ -319,7 +319,7 @@ const Insight: React.FC<InsightProps> = () => {
               </div>
               <div className={cstyles.balancebox} style={{ width: '30%', marginRight: 5 }}>
                 {dataSends && dataSends.datasets && dataSends.datasets[0].data.length === 0 && (
-                  <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
+                  <div style={{ alignSelf: 'center', width: '100%' }} className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
                 )}
                 {dataSends && dataSends.datasets && dataSends.datasets[0].data.length > 0 && (
                   <div style={{ flexDirection: 'column', alignItems: 'center', width: '100%' }}>
@@ -354,7 +354,7 @@ const Insight: React.FC<InsightProps> = () => {
               </div>
               <div className={cstyles.balancebox} style={{ width: '30%' }}>
                 {dataMemobytes && dataMemobytes.datasets && dataMemobytes.datasets[0].data.length === 0 && (
-                  <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
+                  <div style={{ alignSelf: 'center', width: '100%' }} className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
                 )}
                 {dataMemobytes && dataMemobytes.datasets && dataMemobytes.datasets[0].data.length > 0 && (
                   <div style={{ flexDirection: 'column', alignItems: 'center', width: '100%' }}>

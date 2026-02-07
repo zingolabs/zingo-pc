@@ -1,296 +1,277 @@
-import React, { useContext } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./AddNewWallet.module.css";
-import ScrollPaneTop from "../scrollPane/ScrollPane";
-import Heart from "../../assets/img/zcashdlogo.gif";
-import DetailLine from "./components/DetailLine"; 
 import { ContextApp } from "../../context/ContextAppState";
-//import { CreationTypeEnum, PerformanceLevelEnum, ServerChainNameEnum, ServerSelectionEnum, WalletType } from "../appstate";
-//import native from "../../native.node";
-//import { ipcRenderer } from "electron";
+import { ServerClass, ServerSelectionEnum } from "../appstate";
+import serverUrisList from "../../utils/serverUrisList";
+import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
+import Utils from "../../utils/utils";
+const { ipcRenderer } = window.require("electron");
 
 type AddNewWalletProps = {
-  refresh: () => void;
-  openServerSelectModal: () => void;
+  closeModal: () => void;
 };
 
-const chains = {
-  "main": "Mainnet",
-  "test": "Testnet",
-  "regtest": "Regtest",
-  "": "" 
-}; 
-
-const AddNewWallet: React.FC<AddNewWalletProps> = ({ refresh, openServerSelectModal }) => {
+const AddNewWallet: React.FC<AddNewWalletProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
-  const { 
-    info, 
-    //currentWallet, 
-    //wallets 
-  } = context;
+  const { serverUris, openErrorModal, currentWallet } = context;
 
-/*
-  const nextWalletName = () => {
-    let maxId = !!wallets && wallets.length > 0 ? Math.max(...wallets.map(w => w.id)) : 3;
-    if (maxId < 3) {
-      maxId = 3;
-    }
-    let next =  maxId + 1;
-    // we need to check if this file already exists 
-    let nextWalletName = `zingo-wallet-${next}.dat`;
+  const [selectedServer, setSelectedServer] = useState<string>("");
+  const [selectedChain, setSelectedChain] = useState<ServerChainNameEnum | ''>("");
+  const [selectedSelection, setSelectedSelection] = useState<ServerSelectionEnum | ''>("");
 
-    while (true) {
-      console.log(next, nextWalletName);
-      const walletExistsResult: boolean | string = native.wallet_exists(
-        currentWallet ? currentWallet.uri : '', 
-        currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName, 
-        currentWallet ? currentWallet.PerformanceLevel : PerformanceLevelEnum.High, 
-        3, 
-        nextWalletName);
-      console.log(walletExistsResult);
-      if (walletExistsResult) {
-        next = next + 1;
-        nextWalletName = `zingo-wallet-${next}.dat`;
-        console.log('NEXT', next, nextWalletName);
+  const [autoServer, setAutoServer] = useState<string>("");
+  const [customServer, setCustomServer] = useState<string>("");
+  const [listServer, setListServer] = useState<string>("");
+  
+  const [customChain, setCustomChain] = useState<ServerChainNameEnum | ''>("");
+  const [autoChain, setAutoChain] = useState<ServerChainNameEnum | ''>("");
+
+  const [servers, setServers] = useState<ServerClass[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false));
+
+  const chains = {
+    "main": "Mainnet",
+    "test": "Testnet",
+    "regtest": "Regtest",
+    "": ""
+  };
+
+  const initialServerValue = useCallback((server: string, chain_name: ServerChainNameEnum | '', selection: ServerSelectionEnum | '') => {
+    if (selection === ServerSelectionEnum.custom) {
+      setCustomServer(server);
+      setCustomChain(chain_name);
+
+      setListServer("");
+
+      setAutoServer(server);
+      // if the user have a custom server
+      // pre-fill with the server's chain only for:
+      // - MainNet
+      // - TestNet
+      // make no sense to select automatically for RegTest (no list)
+      if (chain_name === ServerChainNameEnum.mainChainName || chain_name === ServerChainNameEnum.testChainName) {
+        setAutoChain(chain_name);
       } else {
-        break;
+        // for RegTest -> TestNet.
+        setAutoChain(ServerChainNameEnum.testChainName);
       }
+    } else if (selection === ServerSelectionEnum.auto) {
+      setAutoServer(server);
+      setAutoChain(chain_name);
+
+      setListServer("");
+
+      setCustomServer("");
+      setCustomChain("");
+    } else { // list
+      setListServer(server);
+
+      setCustomServer("");
+      setCustomChain("");
+
+      setAutoServer(server);
+      setAutoChain(chain_name);
     }
+  }, []);
 
-    return { next, nextWalletName };
+  useEffect(() => {
+    const currServer: string = currentWallet ? currentWallet.uri : ''; 
+    const currChain: ServerChainNameEnum = currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName;
+    const currSelection: ServerSelectionEnum = currentWallet ? currentWallet.selection : ServerSelectionEnum.list;
+    initialServerValue(currServer, currChain, currSelection);
+    setSelectedServer(currServer);
+    setSelectedChain(currChain);
+    setSelectedSelection(currSelection);
+    setServers(servers);
+  }, [initialServerValue, currentWallet?.chain_name, currentWallet?.selection, currentWallet?.uri, serverUris, currentWallet, servers]);
+
+  const switchServer = async () => {
+    await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
+    await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
+    await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
+    // reset the current wallet Id.
+    // only if the Network/Chain changed.
+    //if (serverChainName !== selectedChain) {
+    //  await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
+    //}
+
+    setTimeout(() => {
+      openErrorModal("Restart Zingo PC", "Zingo PC is going to restart in 5 seconds to connect to the new server/wallet"); 
+    }, 10);
+    setTimeout(() => {
+      ipcRenderer.send("apprestart");
+    }, 5000);
   };
 
-  const createNextWallet = async (id: number, wallet_name: string, alias: string, creationType: CreationTypeEnum) => {
-    const addWallet: WalletType = {
-      id,
-      fileName: wallet_name, // by default: zingo-wallet.dat
-      alias, // by default: the first word of the seed phrase 
-      chain_name: currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName,
-      creationType,
-      uri: currentWallet ? currentWallet.uri : '',
-      selection: currentWallet ? currentWallet.selection : ServerSelectionEnum.list,
-      PerformanceLevel: PerformanceLevelEnum.High,
-    };
-    await ipcRenderer.invoke("wallets:add", addWallet);
-    await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
-    // re-fetching wallets
-    //const newWallets = await ipcRenderer.invoke("wallets:all");
-    //this.setState({ wallets: newWallets, currentWalletId: id });
-    //this.props.setWallets(id, newWallets);
+  const localCloseModal = async () => {
+    const currServer: string = currentWallet ? currentWallet.uri : ''; 
+    const currChain: ServerChainNameEnum = currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName;
+    const currSelection: ServerSelectionEnum = currentWallet ? currentWallet.selection : ServerSelectionEnum.list;
+    initialServerValue(currServer, currChain, currSelection);
+    setSelectedServer(currServer);
+    setSelectedChain(currChain);
+    setSelectedSelection(currSelection);
+    closeModal();
   };
 
-  const createNewWallet = async () => {
-    try {
-      const { next: id, nextWalletName: wallet_name } = nextWalletName();
-      const result: string = native.init_new(
-        currentWallet ? currentWallet.uri : '', 
-        currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName, 
-        currentWallet ? currentWallet.PerformanceLevel : PerformanceLevelEnum.High, 
-        3, 
-        wallet_name
-      );
+  //console.log('render modal server', servers, selectedServer, selectedChain, selectedSelection);
 
-      if (!result || result.toLowerCase().startsWith("error")) {
-        //console.log('creating new wallet', result);
-        //this.setState({ walletScreen: 2, newWalletError: result });
-      } else {
-        const resultJSON = await JSON.parse(result);
-        const seed_phrase: string = resultJSON.seed_phrase;
-        //const birthday: number = resultJSON.birthday;
-
-        createNextWallet(id, wallet_name, `${seed_phrase.split(' ')[0]}...`, CreationTypeEnum.Seed);
-
-        //this.setState({ walletScreen: 2, seed_phrase, birthday });
-        //this.props.setRecoveryInfo(seed_phrase, "", birthday);
-        //this.props.setPools(true, true, true);
-        //this.props.setReadOnly(false);
-      }
-    } catch (error) {
-      console.log(`Critical Error create new wallet ${error}`);
-      //this.setState({
-      //  currentStatus: (
-      //    <span>
-      //      Error Initializing Lightclient
-      //      <br />
-      //      {`${error}`}
-      //    </span>
-      //  ),
-      //  currentStatusIsError: true,
-      //});
-    }
-  };
-
-  const doRestoreSeedWallet = async () => {
-    const { seed_phrase, birthday, uri, chain_name } = this.state;
-    //console.log(`Restoring ${seed_phrase} with ${birthday}`);
-    try {
-      const { next: id, nextWalletName: wallet_name } = this.nextWalletName();
-      const result: string = native.init_from_seed(seed_phrase, birthday, uri, chain_name, PerformanceLevelEnum.High, 3, wallet_name);
-      if (!result || result.toLowerCase().startsWith("error")) {
-        this.setState({ newWalletError: result });
-      } else {
-        const resultJSON = await JSON.parse(result);
-        const seed_phrase: string = resultJSON.seed_phrase;
-        const birthday: number = resultJSON.birthday;
-
-        this.createNextWallet(id, wallet_name, `${seed_phrase.split(' ')[0]}...`, CreationTypeEnum.Seed);
-
-        this.setState({ walletScreen: 0 });
-        this.getInfo();
-        
-        const walletKindStr: string = await native.wallet_kind();
-        const walletKindJSON = JSON.parse(walletKindStr);
-
-        this.props.setRecoveryInfo(seed_phrase, "", birthday)
-        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
-        this.props.setReadOnly(false);
-      }
-    } catch (error) {
-      console.log(`Critical Error restore from seed ${error}`);
-      this.setState({
-        currentStatus: (
-          <span>
-            Error Initializing Lightclient
-            <br />
-            {`${error}`}
-          </span>
-        ),
-        currentStatusIsError: true,
-      });
-    }
-  };
-
-  const doRestoreUfvkWallet = async () => {
-    const { ufvk, birthday, uri, chain_name } = this.state;
-    //console.log(`Restoring ${ufvk} with ${birthday}`);
-    try {
-      const { next: id, nextWalletName: wallet_name } = this.nextWalletName();
-      const result: string = native.init_from_ufvk(ufvk, birthday, uri, chain_name, PerformanceLevelEnum.High, 3, wallet_name);
-      if (!result || result.toLowerCase().startsWith("error")) {
-        this.setState({ newWalletError: result });
-      } else {
-        const resultJSON = await JSON.parse(result);
-        const ufvk: string = resultJSON.ufvk;
-        const birthday: number = resultJSON.birthday;
-
-        this.createNextWallet(id, wallet_name, `${ufvk.substring(0, 10)}...`, CreationTypeEnum.Ufvk);
-
-        this.setState({ walletScreen: 0 });
-        this.getInfo();
-
-        const walletKindStr: string = await native.wallet_kind();
-        const walletKindJSON = JSON.parse(walletKindStr);
-
-        this.props.setRecoveryInfo("", ufvk, birthday)
-        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
-        this.props.setReadOnly(true);
-      }
-    } catch (error) {
-      console.log(`Critical Error restore from ufvk ${error}`);
-      this.setState({
-        currentStatus: (
-          <span>
-            Error Initializing Lightclient
-            <br />
-            {`${error}`}
-          </span>
-        ),
-        currentStatusIsError: true,
-      });
-    }
-  };
-
-  const doRestoreFileWallet = async () => {
-    const { fileWallet, uri, chain_name } = this.state;
-    console.log(`Loading ${fileWallet}`);
-    try {
-      // only needs the id, it have the wallet_name already
-      const { next: id } = this.nextWalletName();
-      const wallet_name: string = this.state.fileWallet;
-      const result: string = native.init_from_b64(uri, chain_name, PerformanceLevelEnum.High, 3, wallet_name);
-      console.log(`Initialization: ${result}`);
-      if (!result || result.toLowerCase().startsWith("error")) {
-        this.setState({ newWalletError: result });
-      } else {
-        const resultJSON = await JSON.parse(result);
-        this.setState({ walletScreen: 0 });
-        this.getInfo();
-
-        // seed phrase or ufvk
-        const walletKindStr: string = await native.wallet_kind();
-        const walletKindJSON = JSON.parse(walletKindStr);
-
-        if (
-          walletKindJSON.kind === "Loaded from unified full viewing key" ||
-          walletKindJSON.kind === "No keys found"
-        ) {
-          // ufvk
-          this.createNextWallet(id, wallet_name, wallet_name, CreationTypeEnum.File);
-
-          this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday)
-          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
-          this.props.setReadOnly(true);
-        } else {
-          // seed phrase
-          this.createNextWallet(id, wallet_name, wallet_name, CreationTypeEnum.File);
-
-          this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday)
-          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
-          this.props.setReadOnly(false);
-        }
-      }
-    } catch (error) {
-      console.log(`Critical Error restore from file ${error}`);
-      this.setState({
-        currentStatus: (
-          <span>
-            Error Initializing Lightclient
-            <br />
-            {`${error}`}
-          </span>
-        ),
-        currentStatusIsError: true,
-      });
-
-    }
-  };
-*/
   return (
     <div>
-      <div className={styles.container}>
-        <ScrollPaneTop offsetHeight={0}>
-          <div className={styles.imgcontainer}>
-            <img src={Heart} alt="heart" />
+      <div className={[cstyles.xlarge, cstyles.margintoplarge, cstyles.center].join(" ")}>Add a New Wallet</div>
+
+      <div className={styles.addnewwalletcontainer}>
+        <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
+          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
+            <input
+              checked={selectedSelection === ServerSelectionEnum.auto}
+              style={{ accentColor: Utils.getCssVariable('--color-primary') }}
+              type="radio" 
+              name="selection" 
+              value={ServerSelectionEnum.auto}
+              onClick={(e) => {
+                setSelectedSelection(ServerSelectionEnum.auto);
+                setSelectedServer(autoServer);
+                setSelectedChain(autoChain);
+              }} 
+              onChange={(e) => {
+                setSelectedSelection(ServerSelectionEnum.auto);
+                setSelectedServer(autoServer);
+                setSelectedChain(autoChain);
+              }}
+            />
+            Automatic
+            <select
+              disabled={selectedSelection !== "auto"}
+              className={cstyles.inputbox}
+              style={{ marginLeft: "20px", color: customChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
+              value={autoChain}
+              onChange={(e) => {
+                const value = e.target.value as ServerChainNameEnum | ''; 
+                setAutoChain(value);
+                setSelectedChain(value);
+                setSelectedServer(servers.filter((s: ServerClass) => s.default && s.chain_name === value)[0].uri);
+              }}
+            > 
+              <option value="" disabled hidden>Select...</option> 
+              <option value="main">{chains["main"]}</option>
+              <option value="test">{chains["test"]}</option>
+            </select>
           </div>
 
-          <div className={styles.detailcontainer}>
-            <div className={styles.detaillines}>
-              <DetailLine label="Version" value={info.version} />
-              <DetailLine label="Zingolib Version" value={info.zingolib} />
-              <DetailLine label="Node" value={info.zcashdVersion} />
-              <DetailLine label="Server URI" value={info.serverUri} />
-              <DetailLine label="Server Network" value={chains[info.chainName]} />
-              <DetailLine label="Block Height" value={`${info.latestBlock}`} />
-              {info.currencyName === 'ZEC' && (
-                <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
-              )}
+          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
+            <input
+              checked={selectedSelection === ServerSelectionEnum.list}
+              style={{ accentColor: Utils.getCssVariable('--color-primary') }}
+              type="radio" 
+              name="selection" 
+              value={ServerSelectionEnum.list} 
+              onClick={(e) => {
+                setSelectedSelection(ServerSelectionEnum.list);
+                setSelectedServer(listServer);
+                if (!!listServer) {
+                  setSelectedChain(servers.filter((s: ServerClass) => s.uri === listServer)[0].chain_name);
+                }
+              }} 
+              onChange={(e) => {
+                setSelectedSelection(ServerSelectionEnum.list);
+                setSelectedServer(listServer);
+                if (!!listServer) {
+                  setSelectedChain(servers.filter((s: ServerClass) => s.uri === listServer)[0].chain_name);
+                }
+              }}
+            />
+            Server
+            <select
+              disabled={selectedSelection !== "list"}
+              className={cstyles.inputbox}
+              style={{ marginLeft: "20px" }}
+              value={listServer}
+              onChange={(e) => {
+                setListServer(e.target.value);
+                setSelectedServer(e.target.value);
+                setSelectedChain(servers.filter((s: ServerClass) => s.uri === e.target.value)[0].chain_name);
+              }}>
+                <option key="" value="" disabled hidden></option>
+                {servers.map((s: ServerClass) => (
+                  <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + (s.latency ? (' _ ' + s.latency + ' ms.') : '')}</option>
+                ))}
+            </select>
+          </div>
+
+          <div style={{ margin: "10px" }}>
+            <input 
+              checked={selectedSelection === "custom"}
+              style={{ accentColor: Utils.getCssVariable('--color-primary') }}
+              type="radio" 
+              name="selection" 
+              value={"custom"} 
+              onClick={(e) => {
+                setSelectedSelection(ServerSelectionEnum.custom);
+                setSelectedServer(customServer);
+                setSelectedChain(customChain);
+              }} 
+              onChange={(e) => {
+                setSelectedSelection(ServerSelectionEnum.custom);
+                setSelectedServer(customServer);
+                setSelectedChain(customChain);
+              }} 
+            />
+            Custom
+            <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
+              <div style={{ width: '75%', padding: 0, margin: 0, flexWrap: 'nowrap' }}>
+                URI 
+                <input
+                  placeholder="https://------.---:---"
+                  disabled={selectedSelection !== "custom"}
+                  type="text"
+                  className={cstyles.inputbox} 
+                  style={{ marginLeft: "20px", width: '80%' }}
+                  value={customServer}
+                  onChange={(e) => {
+                    setCustomServer(e.target.value);
+                    setSelectedServer(e.target.value);
+                  }}
+                />
+              </div>
+              <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
+                Network 
+                <select
+                  disabled={selectedSelection !== "custom"}
+                  className={cstyles.inputbox}
+                  style={{ marginLeft: "20px", color: customChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
+                  value={customChain}
+                  onChange={(e) => {
+                    setCustomChain(e.target.value as ServerChainNameEnum | '');
+                    setSelectedChain(e.target.value as ServerChainNameEnum | '');
+                  }}
+                >
+                  <option value="" disabled hidden>Select...</option> 
+                  <option value="main">{chains["main"]}</option>
+                  <option value="test">{chains["test"]}</option>
+                  <option value="regtest">{chains["regtest"]}</option> 
+                </select>
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className={cstyles.buttoncontainer}>
-            <button className={cstyles.primarybutton} type="button" onClick={openServerSelectModal}>
-              Switch to Another Server
-            </button>
-            <button className={cstyles.primarybutton} type="button" onClick={refresh}>
-              Refresh All Data
-            </button>
-          </div>
-
-          <div className={cstyles.margintoplarge} />
-        </ScrollPaneTop>
+        <div className={cstyles.buttoncontainer}>
+          <button 
+            type="button" 
+            className={cstyles.primarybutton} 
+            onClick={switchServer} 
+            disabled={(selectedServer === "custom" && customServer === "") || (selectedSelection === "custom" && customChain === "")}
+          >
+            Switch Server
+          </button>
+          <button type="button" className={cstyles.primarybutton} onClick={() => localCloseModal()}>
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );
-};
+}
 
 export default AddNewWallet;

@@ -1,8 +1,5 @@
 import React, { Component } from "react";
 import { RouteComponentProps, withRouter } from "react-router";
-import TextareaAutosize from "react-textarea-autosize";
-import progress from "progress-stream";
-import axios from "axios";
 import native from "../../native.node";
 import { CreationTypeEnum, InfoClass, PerformanceLevelEnum, ServerClass, ServerSelectionEnum } from "../appstate";
 import RPC from "../../rpc/rpc";
@@ -13,68 +10,21 @@ import serverUrisList from "../../utils/serverUrisList";
 import { Logo } from "../logo";
 import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 import { WalletType } from "../appstate/types/WalletType";
-import Utils from "../../utils/utils";
+import DetailLine from "../detailLine/DetailLine";
+
 
 const { ipcRenderer } = window.require("electron");
-const fs = window.require("fs");
 
 class LoadingScreenState {
-  currentStatus: string | JSX.Element;
-
-  currentStatusIsError: boolean;
-
   loadingDone: boolean;
 
   currentWallet: WalletType | null;
 
-  wallets: WalletType[];
-
-  walletScreen: number; 
-  // 0 -> no wallet, load existing wallet 
-  // 1 -> show options
-  // 2 -> create new 
-  // 3 -> restore existing seed phrase
-  // 4 -> restore existing ufvk
-  // 5 -> restore existing dat wallet file
-
-  newWalletError: null | string; // Any errors when creating/restoring wallet
-
-  seed_phrase: string; // The new seed phrase for a newly created wallet or the seed phrase to restore from
-
-  ufvk: string; // The UFVK to restore from
-
-  fileWallet: string; // The Wallet File Name to load from
-
-  birthday: number; // Wallet birthday if we're restoring
-
-  changeAnotherWalletMenu: boolean;
-
-  serverUris: ServerClass[];
-
-  buttonsDisable: boolean;
-
   walletExists: boolean;
 
-  constructor(currentStatus: string | JSX.Element, 
-              currentStatusIsError: boolean, 
-              changeAnotherWalletMenu: boolean, 
-              serverUris: ServerClass[],
-              walletScreen: number,
-            ) {
-    this.currentStatus = currentStatus;
-    this.currentStatusIsError = currentStatusIsError;
+  constructor() {
     this.loadingDone = false;
     this.currentWallet = null;
-    this.wallets = [];
-    this.walletScreen = walletScreen;
-    this.newWalletError = null;
-    this.seed_phrase = "";
-    this.ufvk = "";
-    this.fileWallet = "";
-    this.birthday = 0;
-    this.changeAnotherWalletMenu = changeAnotherWalletMenu;
-    this.serverUris = serverUris;
-    this.buttonsDisable = false;
     this.walletExists = false;
   }
 }
@@ -82,14 +32,16 @@ class LoadingScreenState {
 type LoadingScreenProps = {
   runRPCConfigure: () => void;
   setInfo: (info: InfoClass) => void;
-  openServerSelectModal: () => void;
   setReadOnly: (readOnly: boolean) => void;
   setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
+  navigateToAddNewWallet: () => void;
   setRecoveryInfo: (s: string, u: string, b: number) => void;
   setPools: (o: boolean, s: boolean, t: boolean) => void;
-  setWallets: (w: WalletType | null,  ws: WalletType[]) => void;
-  clearTimers: () => Promise<void>;
+  setWallets: (ws: WalletType[]) => void;
+  setCurrentWallet: (w: WalletType | null) => void;
+  setCurrentWalletOpenError: (e: string) => void;
+  setFetchError: (command: string, error: string) => void;
 };
 
 const chains = {
@@ -105,46 +57,18 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   constructor(props: LoadingScreenProps & RouteComponentProps) {
     super(props);
 
-    let currentStatusIsError: boolean = false,
-        currentStatus: string | JSX.Element = (
-          <span>
-            Checking servers to connect...
-            <br />
-            This process can take several seconds/minutes depends of the Server's status.
-          </span>
-        ),
-        changeAnotherWalletMenu: boolean = false,
-        serverUris: ServerClass[] = [],
-        walletScreen: number = 0;
+    let serverUris: ServerClass[] = [];
     if (props.location.state) {
       const locationState = props.location.state as { 
-        currentStatusIsError: boolean, 
-        currentStatus: string,
-        changeAnotherWalletMenu: boolean,
         serverUris: ServerClass[],
-        walletScreen: number,
       };
-      currentStatus = locationState.currentStatus;
-      currentStatusIsError = locationState.currentStatusIsError;
-      changeAnotherWalletMenu = locationState.changeAnotherWalletMenu;
-      walletScreen = locationState.walletScreen;
       serverUris = locationState.serverUris;
     }
-    const state = new LoadingScreenState(
-      currentStatus, 
-      currentStatusIsError, 
-      changeAnotherWalletMenu, 
-      serverUris, 
-      walletScreen
-    ); 
-    this.state = state;
+    this.state = new LoadingScreenState(); 
     this.props.setServerUris(serverUris);
   }
 
   componentDidMount = async () => {
-    this.setState({
-      buttonsDisable: true,
-    })
     const { openErrorModal } = this.context as React.ContextType<typeof ContextApp>;
 
     try {
@@ -175,65 +99,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         );
       }
     }
-
-    this.setState({
-      buttonsDisable: false,
-    })
   }
-
-  download = async (url: string, dest: string, name: string, cb: (msg: string) => void) => {
-    const file = fs.createWriteStream(dest);
-
-    try {
-      const response = await axios.get(url, {
-        responseType: "stream",
-        // headers: { ... }
-        // timeout: 60_000,
-        // maxRedirects: 5,
-        validateStatus: (s) => s >= 200 && s < 400,
-      });
-
-      if (response.status !== 200) {
-        file.close();
-        fs.unlink(dest, () => {});
-        return cb(`Response status was ${response.status}`);
-      }
-
-      const len = response.headers["content-length"] ?? "";
-      const totalSize = len ? (parseInt(len, 10) / 1024 / 1024).toFixed(0) : "??";
-
-      const str = progress({ time: 1000 }, (pgrs) => {
-        this.setState({
-          currentStatus: `Downloading ${name}... (${(pgrs.transferred / 1024 / 1024).toFixed(0)} MB / ${totalSize} MB)`,
-          currentStatusIsError: false,
-        });
-      });
-
-      if (len) str.setLength(parseInt(len, 10));
-
-      response.data.pipe(str).pipe(file);
-
-      file.on("finish", () => file.close());
-
-      response.data.on("error", (err: any) => {
-        try { file.destroy(); } catch {}
-        fs.unlink(dest, () => cb(err.message));
-      });
-
-      file.on("error", (err: any) => {
-        try { file.destroy(); } catch {}
-        fs.unlink(dest, () => cb(err.message));
-      });
-    } catch (err: any) {
-      try { file.destroy(); } catch {}
-      fs.unlink(dest, () => {});
-      const msg =
-        err?.response?.status
-          ? `Response status was ${err.response.status}`
-          : (err?.message || "Unknown axios error");
-      cb(msg);
-    }
-  };
 
   checkCurrentSettings = async (serveruri: string, serverchain_name: ServerChainNameEnum, serverselection: ServerSelectionEnum) => {
     let uri: string = '', 
@@ -540,126 +406,125 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         console.log('wwwwwwwwwwwwwwwwwwwallet STORE', currentWalletId, currentWallet)
         await ipcRenderer.invoke("wallets:update", currentWallet);
       }
-      // re-fetching wallets
+      // re-fetching wallets again... 
       wallets = await ipcRenderer.invoke("wallets:all");
-      // trying to recover the main wallets, just in case.
-      //if (wallets.filter(w => w.id === 1).length === 0) {
-        // not exists default mainnet wallet
-        // trying to recover it
-        const mainnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.mainChainName, PerformanceLevelEnum.High, 3, '');
-        console.log(mainnetWalletExistsResult);
-        if (!mainnetWalletExistsResult) {
-          console.log('RECOVERY. Mainnet wallet not found.');
+      // not exists default mainnet wallet
+      // trying to recover it
+      const mainnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.mainChainName, PerformanceLevelEnum.High, 3, '');
+      console.log(mainnetWalletExistsResult);
+      if (!mainnetWalletExistsResult) {
+        if (wallets.filter(w => w.id === 1).length === 1) {
+          console.log('RECOVERY. Mainnet wallet not found, delete wallet.');
           await ipcRenderer.invoke("wallets:remove", 1);
-        } else {
-          let mainnetWallet_1: WalletType | null = null;
-          if (chain_name === ServerChainNameEnum.mainChainName) {
-            mainnetWallet_1 = {
-              id: 1, // by default: 1 (mainnet)
-              fileName: '', // by default: zingo-wallet.dat
-              alias: 'Main Wallet',
-              creationType: CreationTypeEnum.Main,
-              uri: uri,
-              chain_name: chain_name,
-              selection: selection,
-              PerformanceLevel: PerformanceLevelEnum.High,
-            };
-          } else {
-            let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.mainChainName && !s.obsolete && s.default);
-            mainnetWallet_1 = {
-              id: 1, // by default: 1 (mainnet)
-              fileName: '', // by default: zingo-wallet.dat
-              alias: 'Main Wallet',
-              creationType: CreationTypeEnum.Main,
-              uri: !d || d.length === 0 ? '' : d[0].uri,
-              chain_name: ServerChainNameEnum.mainChainName,
-              selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
-              PerformanceLevel: PerformanceLevelEnum.High,
-            };
-          }
-          if (mainnetWallet_1 !== null) {
-            await ipcRenderer.invoke("wallets:add", mainnetWallet_1);
-          }
         }
-      //}
-      //if (wallets.filter(w => w.id === 2).length === 0) {
-        // not exists default testnet wallet
-        // trying to recover it
-        const testnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.testChainName, PerformanceLevelEnum.High, 3, '');
-        console.log(testnetWalletExistsResult);
-        if (!testnetWalletExistsResult) {
-          console.log('RECOVERY. Testnet wallet not found.');
+      } else {
+        let mainnetWallet_1: WalletType | null = null;
+        if (chain_name === ServerChainNameEnum.mainChainName) {
+          mainnetWallet_1 = {
+            id: 1, // by default: 1 (mainnet)
+            fileName: '', // by default: zingo-wallet.dat
+            alias: 'Main Wallet',
+            creationType: CreationTypeEnum.Main,
+            uri: uri,
+            chain_name: chain_name,
+            selection: selection,
+            PerformanceLevel: PerformanceLevelEnum.High,
+          };
+        } else {
+          let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.mainChainName && !s.obsolete && s.default);
+          mainnetWallet_1 = {
+            id: 1, // by default: 1 (mainnet)
+            fileName: '', // by default: zingo-wallet.dat
+            alias: 'Main Wallet',
+            creationType: CreationTypeEnum.Main,
+            uri: !d || d.length === 0 ? '' : d[0].uri,
+            chain_name: ServerChainNameEnum.mainChainName,
+            selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
+            PerformanceLevel: PerformanceLevelEnum.High,
+          };
+        }
+        if (mainnetWallet_1 !== null) {
+          await ipcRenderer.invoke("wallets:add", mainnetWallet_1);
+        }
+      }
+      // not exists default testnet wallet
+      // trying to recover it
+      const testnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.testChainName, PerformanceLevelEnum.High, 3, '');
+      console.log(testnetWalletExistsResult);
+      if (!testnetWalletExistsResult) {
+        if (wallets.filter(w => w.id === 2).length === 1) {
+          console.log('RECOVERY. Testnet wallet not found, delete wallet.');
           await ipcRenderer.invoke("wallets:remove", 2);
-        } else {
-          let testnetWallet_2: WalletType | null = null;
-          if (chain_name === ServerChainNameEnum.testChainName) {
-            testnetWallet_2 = {
-              id: 2, // by default: 1 (testnet)
-              fileName: '', // by default: zingo-wallet.dat
-              alias: 'Main Wallet',
-              creationType: CreationTypeEnum.Main,
-              uri: uri,
-              chain_name: chain_name,
-              selection: selection,
-              PerformanceLevel: PerformanceLevelEnum.High,
-            };
-          } else {
-            let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.testChainName && !s.obsolete && s.default);
-            testnetWallet_2 = {
-              id: 2, // by default: 1 (testnet)
-              fileName: '', // by default: zingo-wallet.dat
-              alias: 'Main Wallet',
-              creationType: CreationTypeEnum.Main,
-              uri: !d || d.length === 0 ? '' : d[0].uri,
-              chain_name: ServerChainNameEnum.testChainName,
-              selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
-              PerformanceLevel: PerformanceLevelEnum.High,
-            };
-          }
-          if (testnetWallet_2 !== null) {
-            await ipcRenderer.invoke("wallets:add", testnetWallet_2);
-          }
         }
-      //}
-      //if (wallets.filter(w => w.id === 3).length === 0) {
-        // not exists default regnet wallet
-        // trying to recover it
-        const regnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.regtestChainName, PerformanceLevelEnum.High, 3, '');
-        console.log(regnetWalletExistsResult);
-        if (!regnetWalletExistsResult) {
-          console.log('RECOVERY. Regtest wallet not found.');
+      } else {
+        let testnetWallet_2: WalletType | null = null;
+        if (chain_name === ServerChainNameEnum.testChainName) {
+          testnetWallet_2 = {
+            id: 2, // by default: 1 (testnet)
+            fileName: '', // by default: zingo-wallet.dat
+            alias: 'Main Wallet',
+            creationType: CreationTypeEnum.Main,
+            uri: uri,
+            chain_name: chain_name,
+            selection: selection,
+            PerformanceLevel: PerformanceLevelEnum.High,
+          };
+        } else {
+          let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.testChainName && !s.obsolete && s.default);
+          testnetWallet_2 = {
+            id: 2, // by default: 1 (testnet)
+            fileName: '', // by default: zingo-wallet.dat
+            alias: 'Main Wallet',
+            creationType: CreationTypeEnum.Main,
+            uri: !d || d.length === 0 ? '' : d[0].uri,
+            chain_name: ServerChainNameEnum.testChainName,
+            selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
+            PerformanceLevel: PerformanceLevelEnum.High,
+          };
+        }
+        if (testnetWallet_2 !== null) {
+          await ipcRenderer.invoke("wallets:add", testnetWallet_2);
+        }
+      }
+      // not exists default regtest wallet
+      // trying to recover it
+      const regnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.regtestChainName, PerformanceLevelEnum.High, 3, '');
+      console.log(regnetWalletExistsResult);
+      if (!regnetWalletExistsResult) {
+        if (wallets.filter(w => w.id === 3).length === 1) {
+          console.log('RECOVERY. Regtest wallet not found, delete wallet');
           await ipcRenderer.invoke("wallets:remove", 3);
-        } else {
-          let regtestWallet_3: WalletType | null = null;
-          if (chain_name === ServerChainNameEnum.regtestChainName) {
-            regtestWallet_3 = {
-              id: 3, // by default: 1 (testnet)
-              fileName: '', // by default: zingo-wallet.dat
-              alias: 'Main Wallet',
-              creationType: CreationTypeEnum.Main,
-              uri: uri,
-              chain_name: chain_name,
-              selection: selection,
-              PerformanceLevel: PerformanceLevelEnum.High,
-            };
-          } else {
-            let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.regtestChainName && !s.obsolete && s.default);
-            regtestWallet_3 = {
-              id: 3, // by default: 1 (testnet)
-              fileName: '', // by default: zingo-wallet.dat
-              alias: 'Main Wallet',
-              creationType: CreationTypeEnum.Main,
-              uri: !d || d.length === 0 ? '' : d[0].uri,
-              chain_name: ServerChainNameEnum.regtestChainName,
-              selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
-              PerformanceLevel: PerformanceLevelEnum.High,
-            };
-          }
-          if (regtestWallet_3 !== null) {
-            await ipcRenderer.invoke("wallets:add", regtestWallet_3);
-          }
         }
-      //}
+      } else {
+        let regtestWallet_3: WalletType | null = null;
+        if (chain_name === ServerChainNameEnum.regtestChainName) {
+          regtestWallet_3 = {
+            id: 3, // by default: 1 (testnet)
+            fileName: '', // by default: zingo-wallet.dat
+            alias: 'Main Wallet',
+            creationType: CreationTypeEnum.Main,
+            uri: uri,
+            chain_name: chain_name,
+            selection: selection,
+            PerformanceLevel: PerformanceLevelEnum.High,
+          };
+        } else {
+          let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.regtestChainName && !s.obsolete && s.default);
+          regtestWallet_3 = {
+            id: 3, // by default: 1 (testnet)
+            fileName: '', // by default: zingo-wallet.dat
+            alias: 'Main Wallet',
+            creationType: CreationTypeEnum.Main,
+            uri: !d || d.length === 0 ? '' : d[0].uri,
+            chain_name: ServerChainNameEnum.regtestChainName,
+            selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
+            PerformanceLevel: PerformanceLevelEnum.High,
+          };
+        }
+        if (regtestWallet_3 !== null) {
+          await ipcRenderer.invoke("wallets:add", regtestWallet_3);
+        }
+      }
       // re-fetching wallets again...
       wallets = await ipcRenderer.invoke("wallets:all");
     }
@@ -683,15 +548,15 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     this.setState({
       currentWallet,
-      wallets,
     });
-    this.props.setWallets(currentWallet, wallets);
+    this.props.setCurrentWallet(currentWallet);
+    this.props.setWallets(wallets);
 
-    // First, set up the exit handler
-    this.setupExitHandler();
-
-    // if no current wallet exit now.
+    // if no current wallet here means no wallets at all,
     if (currentWallet === null) {
+      this.setState({
+        loadingDone: true,
+      });
       return;
     }
     
@@ -700,57 +565,32 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       console.log(walletExistsResult);
       if (!walletExistsResult) {
         // the wallet file DOES NOT exists
-        // if currentWalletId have a value -> remove the wallet local data for this id.
+        // if currentWalletId have a value -> remove the wallet local data for this id. 
         await ipcRenderer.invoke("wallets:remove", currentWallet.id);
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
         // re-fetching wallets
         const walletsNew = await ipcRenderer.invoke("wallets:all");
         this.setState({ 
-          wallets: walletsNew, 
           currentWallet: null,
         });
-        this.props.setWallets(null, walletsNew);
+        this.props.setCurrentWallet(null);
+        this.props.setWallets(walletsNew);
         
-        // if exists others wallet for the same chain, pick the first one...
-        const w = wallets.filter((item: WalletType) => item.chain_name === currentWallet.chain_name);
-        if (!!w && w.length > 0) {
-          // the first one...
-          await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: w[0].id });
-          this.setState({ 
-            wallets: walletsNew, 
-            currentWallet: w[0],
-          });
-          this.props.setWallets(w[0], walletsNew);
-          this.componentDidMount();
-        }
-
-        // Show the wallet creation screen if no wallet file.
-        // No matter what if the wallet is not there
-        // disable open & delete buttons.
-        this.setState({ walletScreen: 1, walletExists: false, currentStatus: '', currentStatusIsError: false });
+        this.componentDidMount();
       } else {
         this.setState({ walletExists: true });
         // the wallet file YES exists
         const result: string = native.init_from_b64(currentWallet.uri, currentWallet.chain_name, PerformanceLevelEnum.High, 3, currentWallet.fileName);
         //console.log(`Initialization: ${result}`);
         if (!result || result.toLowerCase().startsWith('error')) {
+          this.props.setCurrentWalletOpenError(`${result}`);
           this.setState({
-            currentStatus: (
-              <span>
-                Error Initializing Lightclient
-                <br />
-                {`${result}`}
-              </span>
-            ),
-            currentStatusIsError: true,
+            loadingDone: true,
           });
-
           return;
         }
 
         const resultJSON = await JSON.parse(result);
-
-        this.getInfo();
 
         // seed phrase or ufvk
         const walletKindStr: string = await native.wallet_kind();
@@ -770,33 +610,16 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent)
           this.props.setReadOnly(false);
         }
-        this.setState({ walletScreen: 0 });
+
+        this.getInfo();
       }
-    } catch (err) {
-      console.log("Error initializing", err);
+    } catch (error) {
+      console.log("Error initializing", error);
+      this.props.setCurrentWalletOpenError(`${error}`)
       this.setState({
-        currentStatus: (
-          <span>
-            Error Initializing Lightclient
-            <br />
-            {`${err}`}
-          </span>
-        ),
-        currentStatusIsError: true,
+        loadingDone: true,
       });
     }
-  };
-
-  setupExitHandler = () => {
-    // App is quitting, make sure to save the wallet properly.
-    ipcRenderer.on("appquitting", () => {
-      RPC.deinitialize();
-
-      // And reply that we're all done after 100ms, to allow cleanup of the rust stuff.
-      setTimeout(() => {
-        ipcRenderer.send("appquitdone");
-      }, 100);
-    });
   };
 
   calculateLatency = async (server: ServerClass, _index: number) => {
@@ -843,598 +666,53 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   getInfo = async () => {
     // Try getting the info.
     try {
-      // Do a sync at start
-      this.setState({ 
-        currentStatus: "Setting things up...", 
-        currentStatusIsError: false 
-      });
-      await this.runSyncStatusPoller();
-    } catch (err) {
-      console.log("Error initializing", err);
-      this.setState({
-        currentStatus: (
-          <span>
-            Error Initializing Lightclient 
-            <br />
-            {`${err}`}
-          </span>
-        ),
-        currentStatusIsError: true,
-      });
+      const { runRPCConfigure, setInfo } = this.props;
+
+      const info: InfoClass = await RPC.getInfoObject();
+      //console.log(info);
+
+      if (info.error) {
+        this.props.setFetchError('info', `${info.error}`);
+        return;
+      }
+
+      setInfo(info);
+
+      runRPCConfigure();
+
+      // This will cause a redirect to the dashboard screen
+      this.setState({ loadingDone: true });
+    } catch (error) {
+      console.log("Error initializing", error);
+      this.props.setFetchError('info', `${error}`);
     }
   }
 
-  runSyncStatusPoller = async () => {
-    //console.log('start runSyncStatusPoller');
-
-    const { runRPCConfigure, setInfo } = this.props;
-
-    const info: InfoClass = await RPC.getInfoObject();
-    //console.log(info);
-
-    if (info.error) {
-      this.setState({
-        currentStatus: (
-          <span>
-            Error Initializing Lightclient
-            <br />
-            {`${info.error}`}
-          </span>
-        ),
-        currentStatusIsError: true,
-      });
-      return;
-    }
-
-    setInfo(info);
-
-    runRPCConfigure();
-
-    // This will cause a redirect to the dashboard screen
-    this.setState({ loadingDone: true });
-  };
-
-  startNewWallet = () => {
-    // Start using the new wallet
-    this.setState({ walletScreen: 0 });
-    this.getInfo();
-  };
-
-  restoreExistingSeedWallet = () => {
-    this.setState({ walletScreen: 3 });
-  };
-
-  restoreExistingUfvkWallet = () => {
-    this.setState({ walletScreen: 4 });
-  };
-
-  restoreExistingFileWallet = () => {
-    this.setState({ walletScreen: 5 });
-  };
-
-  updateSeed = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    this.setState({ seed_phrase: e.target.value, ufvk: "" });
-    this.props.setRecoveryInfo(e.target.value, "", this.state.birthday);
-  };
-
-  updateUfvk = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    this.setState({ ufvk: e.target.value, seed_phrase: "" });
-    this.props.setRecoveryInfo("", e.target.value, this.state.birthday);
-  };
-
-  updateFileWallet = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    this.setState({ fileWallet: e.target.value, seed_phrase: "", ufvk: "" });
-    this.props.setRecoveryInfo("", "", 0);
-  };
-
-  updateBirthday = (e: React.ChangeEvent<HTMLInputElement>) => {
-    this.setState({ birthday: isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value) });
-    this.props.setRecoveryInfo(this.state.seed_phrase, this.state.ufvk, isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value));
-  };
-
-  restoreSeedWalletBack = () => {
-    // Reset the seed and birthday and try again 
-    this.setState({
-      seed_phrase: "",
-      ufvk: "",
-      birthday: 0,
-      newWalletError: null,
-      walletScreen: 3,
-    });
-    this.props.setRecoveryInfo("", "", 0);
-    this.props.setPools(true, true, true);
-    this.props.setReadOnly(false);
-  };
-
-  restoreUfvkWalletBack = () => {
-    // Reset the ufvk and birthday and try again 
-    this.setState({
-      ufvk: "",
-      seed_phrase: "",
-      birthday: 0,
-      newWalletError: null,
-      walletScreen: 4,
-    });
-    this.props.setRecoveryInfo("", "", 0);
-    this.props.setPools(true, true, true);
-    this.props.setReadOnly(false);
-  };
-
-  restoreFileWalletBack = () => {
-    // Reset the file wallet name and try again 
-    this.setState({
-      ufvk: "",
-      fileWallet: "",
-      seed_phrase: "",
-      birthday: 0,
-      newWalletError: null,
-      walletScreen: 5,
-    });
-    this.props.setRecoveryInfo("", "", 0);
-    this.props.setPools(true, true, true);
-    this.props.setReadOnly(false);
-  };
-
   render() {
-    const { buttonsDisable, loadingDone, currentStatus, currentStatusIsError, walletScreen, newWalletError, seed_phrase, ufvk, fileWallet, birthday, wallets, currentWallet } =
-      this.state;
-
-    const { openServerSelectModal } = this.props;
-
-    //console.log('loading screen render', buttonsDisable);
+    const { loadingDone, currentWallet } = this.state;
 
     if (loadingDone) {
         setTimeout(() => this.props.navigateToDashboard(), 500);
     }
 
-    // If still loading, show the status
     return (
       <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
-        <div style={{ marginTop: "0px", marginBottom: "0px" }}>
-          <Logo readOnly={false} onlyVersion={currentStatusIsError} />
+        <div style={{ marginTop: "50px", marginBottom: "20px" }}>
+          <Logo readOnly={false} onlyVersion={false} />
         </div>
-        {!!currentWallet && currentWallet.id ? (
-          <div style={{ color: Utils.getCssVariable('--color-primary'), marginBottom: 0 }}>
-            Active Wallet:
-            {' '}
-            {wallets.filter((w: WalletType) => w.id === currentWallet.id)[0].alias}
-            {' - '}
-            {chains[wallets.filter((w: WalletType) => w.id === currentWallet.id)[0].chain_name || '']}
-            {' - ['}
-            {wallets.filter((w: WalletType) => w.id === currentWallet.id)[0].creationType}
-            {'] - '}
-            {currentWallet.uri}
-          </div>
-        ) : (
-          <div style={{ color: Utils.getCssVariable('--color-primary'), marginBottom: 0 }}>
-            Active Server:
-            {' '}
-            {' -- '}
-          </div>
-        )}
-
-        {!!currentStatus && (walletScreen === 0 || walletScreen === 1) && (
-          <div style={{ marginTop: 10 }}>
-            <div>{currentStatus}</div>
-          </div>
-        )}
-
-        {(walletScreen === 1 || (walletScreen === 0 && currentStatusIsError)) && (
-          <div style={{ marginTop: -10 }}>
-            <div className={cstyles.buttoncontainer} style={{ marginBottom: 10 }}>
-              <button disabled={buttonsDisable} type="button" className={cstyles.primarybutton} onClick={openServerSelectModal}>
-                Switch to Another Server
-              </button>
-              {this.state.walletExists && (
-                <>
-                  <button
-                    disabled={buttonsDisable}
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={async () => {
-                      this.setState({
-                        currentStatus: "", 
-                        currentStatusIsError: false,
-                        newWalletError: null,
-                        changeAnotherWalletMenu: false,
-                        buttonsDisable: true,
-                      });
-                      await this.doFirstTimeSetup();
-                      this.setState({ buttonsDisable: false })
-                    }}
-                  >
-                    Open Current Wallet
-                  </button>
-                  <button
-                    disabled={buttonsDisable}
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={async () => {
-                      this.setState({
-                        currentStatus: "",
-                        currentStatusIsError: false,
-                        walletScreen: 0,
-                        newWalletError: null,
-                        changeAnotherWalletMenu: false,
-                        buttonsDisable: true,
-                      });
-                      //await this.deleteWallet();
-                      this.setState({ buttonsDisable: false })
-                    }}
-                  >
-                    Delete Current Wallet
-                  </button>
-                </>
-              )}
-            </div>
-
-            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
-              <div className={cstyles.verticalflex}>
-                <div className={[cstyles.large, cstyles.highlight].join(" ")}>Create A New Wallet</div>
-                <div className={cstyles.padtopsmall}>
-                  Creates a new wallet with a new randomly generated seed phrase. Please save the seed phrase
-                  carefully, it&rsquo;s the only way to restore your wallet.
-                </div>
-                <div className={cstyles.margintoplarge}>
-                  <button
-                    disabled={buttonsDisable}
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={async () => {
-                      this.setState({
-                        currentStatus: "",
-                        currentStatusIsError: false,
-                        walletScreen: 0,
-                        newWalletError: null,
-                        buttonsDisable: true,
-                      });
-                      //await this.createNewWallet();
-                      this.setState({ buttonsDisable: false })
-                    }}
-                  >
-                    Create New Wallet
-                  </button>
-                </div>
-              </div>
-              <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
-                <div className={[cstyles.large, cstyles.highlight].join(" ")}>Restore Wallet From Seed / Viewing Key</div>
-                <div className={cstyles.padtopsmall}>
-                  If you already have a seed phrase / Unified Full Viewing Key, you can restore it to this wallet. This will rescan the
-                  blockchain for all transactions from the seed phrase / Unified Full Viewing Key.
-                </div>
-                <div className={cstyles.margintoplarge}>
-                  <button
-                    disabled={buttonsDisable}
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={() => {
-                      this.setState({
-                        currentStatus: "",
-                        currentStatusIsError: false,
-                        newWalletError: null,
-                        buttonsDisable: true,
-                      });
-                      this.restoreExistingSeedWallet();
-                      this.setState({ buttonsDisable: false })
-                    }}
-                  >
-                    Restore Wallet from Seed
-                  </button>
-                  <button
-                    disabled={buttonsDisable}
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={() => {
-                      this.setState({
-                        currentStatus: "",
-                        currentStatusIsError: false,
-                        newWalletError: null,
-                        buttonsDisable: true,
-                      });
-                      this.restoreExistingUfvkWallet();
-                      this.setState({ buttonsDisable: false })
-                    }}
-                  >
-                    Restore Wallet from Viewing Key
-                  </button>
-                </div>
-              </div>
-              <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
-                <div className={[cstyles.large, cstyles.highlight].join(" ")}>Restore Wallet From a Wallet File</div>
-                <div className={cstyles.padtopsmall}>
-                  If you already have a wallet file stored, you can restore it to this wallet. This will rescan the
-                  blockchain for all transactions from the last situation of your wallet file.
-                </div>
-                <div className={cstyles.margintoplarge}>
-                  <button
-                    disabled={buttonsDisable}
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={() => {
-                      this.setState({
-                        currentStatus: "",
-                        currentStatusIsError: false,
-                        newWalletError: null,
-                        buttonsDisable: true,
-                      });
-                      this.restoreExistingFileWallet();
-                      this.setState({ buttonsDisable: false })
-                    }}
-                  >
-                    Restore Wallet from a File
-                  </button>
-                </div>
+        {!!currentWallet && (
+          <div style={{ width: '40%', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', alignSelf: 'center' }}>
+            ...Loading...
+            <div className={styles.detailcontainer}>
+              <div className={styles.detaillines}>
+                <DetailLine label="Wallet" value={currentWallet.alias} />
+                <DetailLine label="Wallet created by" value={currentWallet.creationType} />
+                <DetailLine label="Network" value={chains[currentWallet.chain_name]} />
+                <DetailLine label="Server" value={currentWallet.uri} />
               </div>
             </div>
           </div>
         )}
-
-        {walletScreen === 2 && (
-          <div>
-            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
-              <div className={cstyles.verticalflex}>
-                {newWalletError && (
-                  <div>
-                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Creating New Wallet</div>
-                    <div className={cstyles.padtopsmall}>There was an error creating a new wallet</div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.padtopsmall}>{newWalletError}</div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.margintoplarge}>
-                      <button 
-                        disabled={buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={() => {
-                          this.setState({ walletScreen: 1 });
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!newWalletError && (
-                  <div>
-                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Your New Wallet</div>
-                    <div className={cstyles.padtopsmall}>
-                      This is your new wallet. Below is your seed phrase. PLEASE STORE IT CAREFULLY! The seed phrase
-                      is the only way to recover your funds and transactions.
-                    </div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.padtopsmall}>{seed_phrase}</div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.padtopsmall}>{'Birthday: ' + birthday}</div> 
-                    <div className={cstyles.margintoplarge}>
-                      <button 
-                        disabled={buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={this.startNewWallet}
-                      >
-                        Start Wallet
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {walletScreen === 3 && (
-          <div>
-            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
-              <div className={cstyles.verticalflex}>
-                {newWalletError && (
-                  <div>
-                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Restoring Wallet</div>
-                    <div className={cstyles.padtopsmall}>There was an error restoring your seed phrase</div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.padtopsmall}>{newWalletError}</div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.margintoplarge}>
-                      <button 
-                        disabled={this.state.buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={this.restoreSeedWalletBack}
-                      >
-                        Back
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!newWalletError && (
-                  <div>
-                    <div className={[cstyles.large].join(" ")}>Please enter your seed phrase</div>
-                    <TextareaAutosize
-                      className={cstyles.inputbox}
-                      value={seed_phrase}
-                      onChange={(e) => this.updateSeed(e)}
-                    />
-
-                    <div className={[cstyles.large, cstyles.margintoplarge].join(" ")}>
-                      Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;0&rsquo;
-                    </div>
-                    <input
-                      type="number"
-                      className={cstyles.inputbox}
-                      value={birthday}
-                      onChange={(e) => this.updateBirthday(e)}
-                    />
-
-                    <div className={cstyles.margintoplarge}>
-                      <button 
-                        disabled={this.state.buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={async () => {
-                          this.setState({ buttonsDisable: true });
-                          //await this.doRestoreSeedWallet();
-                          this.setState({ buttonsDisable: false });
-                        }}
-                      >
-                        Restore Wallet
-                      </button>
-                      <button 
-                        disabled={this.state.buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={() => {
-                          this.setState({ walletScreen: 1 });
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {walletScreen === 4 && (
-          <div>
-            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
-              <div className={cstyles.verticalflex}>
-                {newWalletError && (
-                  <div>
-                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Restoring Wallet</div>
-                    <div className={cstyles.padtopsmall}>There was an error restoring your Viewing Key</div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.padtopsmall}>{newWalletError}</div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.margintoplarge}>
-                      <button 
-                        disabled={this.state.buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={this.restoreUfvkWalletBack}
-                      >
-                        Back
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!newWalletError && (
-                  <div>
-                    <div className={[cstyles.large].join(" ")}>Please enter your Unified Full Viewing Key</div>
-                    <TextareaAutosize
-                      className={cstyles.inputbox}
-                      value={ufvk}
-                      onChange={(e) => this.updateUfvk(e)}
-                    />
-
-                    <div className={[cstyles.large, cstyles.margintoplarge].join(" ")}>
-                      Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;0&rsquo;
-                    </div>
-                    <input
-                      type="number"
-                      className={cstyles.inputbox}
-                      value={birthday}
-                      onChange={(e) => this.updateBirthday(e)}
-                    />
-
-                    <div className={cstyles.margintoplarge}>
-                      <button 
-                        disabled={this.state.buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={async () => {
-                          this.setState({ buttonsDisable: true });
-                          //await this.doRestoreUfvkWallet();
-                          this.setState({ buttonsDisable: false });
-                        }}
-                      >
-                        Restore Wallet
-                      </button>
-                      <button 
-                        disabled={this.state.buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={() => {
-                          this.setState({ walletScreen: 1 });
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {walletScreen === 5 && (
-          <div>
-            <div className={[cstyles.well, styles.newwalletcontainer].join(" ")}>
-              <div className={cstyles.verticalflex}>
-                {newWalletError && (
-                  <div>
-                    <div className={[cstyles.large, cstyles.highlight].join(" ")}>Error Loading Wallet File</div>
-                    <div className={cstyles.padtopsmall}>There was an error loading your Wallet File</div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.padtopsmall}>{newWalletError}</div>
-                    <hr style={{ width: "100%" }} />
-                    <div className={cstyles.margintoplarge}>
-                      <button 
-                        disabled={this.state.buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={this.restoreFileWalletBack}
-                      >
-                        Back
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {!newWalletError && (
-                  <div>
-                    <div className={[cstyles.large].join(" ")}>Please enter your Wallet File Name stored in the Zcash folder</div>
-                    <TextareaAutosize
-                      className={cstyles.inputbox}
-                      value={fileWallet}
-                      onChange={(e) => this.updateFileWallet(e)}
-                    />
-
-                    <div className={cstyles.margintoplarge}>
-                      <button 
-                        disabled={this.state.buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={async () => {
-                          this.setState({ buttonsDisable: true });
-                          //await this.doRestoreFileWallet();
-                          this.setState({ buttonsDisable: false });
-                        }}
-                      >
-                        Restore Wallet
-                      </button>
-                      <button 
-                        disabled={this.state.buttonsDisable} 
-                        type="button" 
-                        className={cstyles.primarybutton} 
-                        onClick={() => {
-                          this.setState({ walletScreen: 1 });
-                        }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
       </div>
     );
 

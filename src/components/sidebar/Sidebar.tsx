@@ -4,7 +4,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import { InfoClass, ServerClass, ValueTransferClass } from "../appstate";
+import { InfoClass, ValueTransferClass } from "../appstate";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import PayURIModal from "./components/PayURIModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
@@ -21,9 +21,10 @@ const fs = window.require("fs");
 type SidebarProps = {
   setInfo: (info: InfoClass) => void;
   clearTimers: () => Promise<void>;
-  navigateToLoadingScreen: (c: string, cb: boolean, ch: boolean, s: ServerClass[], sc: number) => void;
+  navigateToLoadingScreen: () => void;
   doRescan: () => void;
-  setWallets: (w: WalletType | null, ws: WalletType[]) => void;
+  setWallets: (ws: WalletType[]) => void;
+  setCurrentWallet: (w: WalletType | null) => void;
   navigateToLoadingScreenChangingWallet: () => void;
 };
 

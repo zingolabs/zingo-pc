@@ -253,10 +253,24 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  setWallets = (currentWallet: WalletType | null, wallets: WalletType[]) => {
+  setWallets = (wallets: WalletType[]) => {
+    this.setState({
+      wallets,
+    });
+  };
+
+  setCurrentWallet = (currentWallet: WalletType | null) => {
+    if (currentWallet !== null) {
+      this.rpc.setCurrentWallet(currentWallet);
+    }
     this.setState({
       currentWallet,
-      wallets,
+    });
+  };
+
+  setCurrentWalletOpenError = (error: string) => {
+    this.setState({
+      currentWalletOpenError: error,
     });
   };
 
@@ -418,6 +432,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }, 10);
   };
 
+  navigateToAddNewWallet = () => {
+    this.props.history.replace({
+      pathname: routes.ADDNEWWALLET, 
+      state: {},
+    });
+  };
+
 
   navigateToDashboard = () => {
     this.props.history.replace({
@@ -433,21 +454,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     });
   };
 
-  navigateToLoadingScreen = (
-    currentStatus: string,
-    currentStatusIsError: boolean, 
-    changeAnotherWalletMenu: boolean,
-    serverUris: ServerClass[],
-    walletScreen: number,
-  ) => {
+  navigateToLoadingScreen = () => {
     this.props.history.replace({
       pathname: routes.LOADING, 
       state: { 
-        currentStatus,
-        currentStatusIsError,
-        changeAnotherWalletMenu,
-        serverUris,
-        walletScreen,
+        serverUris: this.state.serverUris,
       },
     });
   };
@@ -455,28 +466,20 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   navigateToLoadingScreenChangingWallet = async () => {
     // To change to another wallet, we reset the wallet loading
     // and redirect to the loading screen
-    try {
-      // interrupt syncing
-      const resultInterrupt: string = await native.pause_sync();
-      console.log("Pausing sync ....", resultInterrupt);
-    } catch (error) {
-      console.log(`Critical Error pause sync ${error}`);
-    }
-
-    // Reset the info object, it will be refetched
     this.setTotalBalance(new TotalBalanceClass());
     this.setAddressesUnified([]);
     this.setAddressesTransparent([])
     this.setValueTransferList([]);
     this.setMessagesList([]);
     this.setInfo(new InfoClass());
+    this.setZecPrice(0);
     this.setSyncStatus({} as SyncStatusType);
     this.setVerificationProgress(null);
     this.setFetchError('', '');
     
     await this.rpc.clearTimers();
 
-    this.navigateToLoadingScreen("Changing to another wallet.", false, false, this.state.serverUris, 0);
+    this.navigateToLoadingScreen();
   };
 
   render() {
@@ -496,6 +499,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       serverUris: this.state.serverUris,
       fetchError: this.state.fetchError,
       currentWallet: this.state.currentWallet,
+      currentWalletOpenError: this.state.currentWalletOpenError,
       wallets: this.state.wallets,
       seed_phrase: this.state.seed_phrase,
       ufvk: this.state.ufvk,
@@ -537,6 +541,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 navigateToLoadingScreen={this.navigateToLoadingScreen}
                 doRescan={this.runRPCRescan}
                 setWallets={this.setWallets}
+                setCurrentWallet={this.setCurrentWallet}
                 navigateToLoadingScreenChangingWallet={this.navigateToLoadingScreenChangingWallet}
               />
             </div>
@@ -599,8 +604,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 path={routes.ADDNEWWALLET}
                 render={() => (
                   <AddNewWallet
-                    refresh={this.runRPCfectchInfo}
-                    openServerSelectModal={this.openServerSelectModal}
+                    closeModal={() => this.navigateToDashboard()}
                   />
                 )}
               />
@@ -611,14 +615,16 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <LoadingScreen
                     runRPCConfigure={this.runRPCConfigure}
                     setInfo={this.setInfo}
-                    openServerSelectModal={this.openServerSelectModal}
                     setReadOnly={this.setReadOnly}
                     setServerUris={this.setServerUris}
                     navigateToDashboard={this.navigateToDashboard}
+                    navigateToAddNewWallet={this.navigateToAddNewWallet}
                     setRecoveryInfo={this.setRecoveryInfo}
                     setPools={this.setPools}
                     setWallets={this.setWallets}
-                    clearTimers={this.runRPCClearTimers}
+                    setCurrentWallet={this.setCurrentWallet}
+                    setCurrentWalletOpenError={this.setCurrentWalletOpenError}
+                    setFetchError={this.setFetchError}
                   />
                 )}
               />
