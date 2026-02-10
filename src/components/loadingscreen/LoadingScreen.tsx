@@ -254,7 +254,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           testnetWallet_2: WalletType | null = null,
           regtestWallet_3: WalletType | null = null;
       // MAINNET
-      const mainnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.mainChainName, PerformanceLevelEnum.High, 3, '');
+      const mainnetWalletExistsResult: boolean = native.wallet_exists('', ServerChainNameEnum.mainChainName, PerformanceLevelEnum.High, 3, '');
       console.log(mainnetWalletExistsResult);
       if (!mainnetWalletExistsResult) {
         console.log('MIGRATION. Mainnet wallet not found.');
@@ -269,7 +269,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             uri: uri,
             chain_name: chain_name,
             selection: selection,
-            PerformanceLevel: PerformanceLevelEnum.High,
+            performanceLevel: PerformanceLevelEnum.High,
           };
           currentWallet = mainnetWallet_1;
         } else {
@@ -282,12 +282,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             uri: !d || d.length === 0 ? '' : d[0].uri,
             chain_name: ServerChainNameEnum.mainChainName,
             selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
-            PerformanceLevel: PerformanceLevelEnum.High,
+            performanceLevel: PerformanceLevelEnum.High,
           };
         }
       }
       // TESTNET
-      const testnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.testChainName, PerformanceLevelEnum.High, 3, '');
+      const testnetWalletExistsResult: boolean = native.wallet_exists('', ServerChainNameEnum.testChainName, PerformanceLevelEnum.High, 3, '');
       console.log(testnetWalletExistsResult);
       if (!testnetWalletExistsResult) {
         console.log('MIGRATION. Testnet wallet not found.');
@@ -302,7 +302,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             uri: uri,
             chain_name: chain_name,
             selection: selection,
-            PerformanceLevel: PerformanceLevelEnum.High,
+            performanceLevel: PerformanceLevelEnum.High,
           };
           currentWallet = testnetWallet_2;
         } else {
@@ -315,12 +315,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             uri: !d || d.length === 0 ? '' : d[0].uri,
             chain_name: ServerChainNameEnum.testChainName,
             selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
-            PerformanceLevel: PerformanceLevelEnum.High,
+            performanceLevel: PerformanceLevelEnum.High,
           };
         }
       }
       // REGTEST
-      const regnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.regtestChainName, PerformanceLevelEnum.High, 3, '');
+      const regnetWalletExistsResult: boolean = native.wallet_exists('', ServerChainNameEnum.regtestChainName, PerformanceLevelEnum.High, 3, '');
       console.log(regnetWalletExistsResult);
       if (!regnetWalletExistsResult) {
         console.log('MIGRATION. Regtest wallet not found.');
@@ -335,7 +335,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             uri: uri,
             chain_name: chain_name,
             selection: selection,
-            PerformanceLevel: PerformanceLevelEnum.High,
+            performanceLevel: PerformanceLevelEnum.High,
           };
           currentWallet = regtestWallet_3;
         } else {
@@ -348,7 +348,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             uri: !d || d.length === 0 ? '' : d[0].uri,
             chain_name: ServerChainNameEnum.regtestChainName,
             selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
-            PerformanceLevel: PerformanceLevelEnum.High,
+            performanceLevel: PerformanceLevelEnum.High,
           };
         }
       }
@@ -369,7 +369,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       const cw: WalletType[] = wallets.filter((w: WalletType) => w.id === currentWalletId);
       if (!cw || cw.length === 0) {
         // if the id is wrong, selecting the first wallet by default.
-        let firstWallet: WalletType = !!wallets && wallets[0];
+        const walletsSorted = wallets.sort((a, b) => {
+          const chainCmp = a.chain_name.localeCompare(b.chain_name);
+          return chainCmp !== 0 ? chainCmp : a.id - b.id;
+        });
+        let firstWallet: WalletType = !!walletsSorted && walletsSorted[0];
         if (firstWallet) {
           currentWalletId = firstWallet.id;
           currentWallet = firstWallet;
@@ -403,6 +407,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         currentWallet.uri = currentWalleUri;
         currentWallet.chain_name = currentWalletChain_name;
         currentWallet.selection = currentWalletSelection;
+        if (!currentWallet.hasOwnProperty("currentwalletid")) {
+          currentWallet.performanceLevel = PerformanceLevelEnum.High;
+        }
         console.log('wwwwwwwwwwwwwwwwwwwallet STORE', currentWalletId, currentWallet)
         await ipcRenderer.invoke("wallets:update", currentWallet);
       }
@@ -410,7 +417,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       wallets = await ipcRenderer.invoke("wallets:all");
       // not exists default mainnet wallet
       // trying to recover it
-      const mainnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.mainChainName, PerformanceLevelEnum.High, 3, '');
+      const mainnetWalletExistsResult: boolean = native.wallet_exists('', ServerChainNameEnum.mainChainName, PerformanceLevelEnum.High, 3, '');
       console.log(mainnetWalletExistsResult);
       if (!mainnetWalletExistsResult) {
         if (wallets.filter(w => w.id === 1).length === 1) {
@@ -418,38 +425,40 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           await ipcRenderer.invoke("wallets:remove", 1);
         }
       } else {
-        let mainnetWallet_1: WalletType | null = null;
-        if (chain_name === ServerChainNameEnum.mainChainName) {
-          mainnetWallet_1 = {
-            id: 1, // by default: 1 (mainnet)
-            fileName: '', // by default: zingo-wallet.dat
-            alias: 'Main Wallet',
-            creationType: CreationTypeEnum.Main,
-            uri: uri,
-            chain_name: chain_name,
-            selection: selection,
-            PerformanceLevel: PerformanceLevelEnum.High,
-          };
-        } else {
-          let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.mainChainName && !s.obsolete && s.default);
-          mainnetWallet_1 = {
-            id: 1, // by default: 1 (mainnet)
-            fileName: '', // by default: zingo-wallet.dat
-            alias: 'Main Wallet',
-            creationType: CreationTypeEnum.Main,
-            uri: !d || d.length === 0 ? '' : d[0].uri,
-            chain_name: ServerChainNameEnum.mainChainName,
-            selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
-            PerformanceLevel: PerformanceLevelEnum.High,
-          };
-        }
-        if (mainnetWallet_1 !== null) {
-          await ipcRenderer.invoke("wallets:add", mainnetWallet_1);
+        if (wallets.filter(w => w.id === 1).length === 0) {
+          let mainnetWallet_1: WalletType | null = null;
+          if (chain_name === ServerChainNameEnum.mainChainName) {
+            mainnetWallet_1 = {
+              id: 1, // by default: 1 (mainnet)
+              fileName: '', // by default: zingo-wallet.dat
+              alias: 'Main Wallet',
+              creationType: CreationTypeEnum.Main,
+              uri: uri,
+              chain_name: chain_name,
+              selection: selection,
+              performanceLevel: PerformanceLevelEnum.High,
+            };
+          } else {
+            let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.mainChainName && !s.obsolete && s.default);
+            mainnetWallet_1 = {
+              id: 1, // by default: 1 (mainnet)
+              fileName: '', // by default: zingo-wallet.dat
+              alias: 'Main Wallet',
+              creationType: CreationTypeEnum.Main,
+              uri: !d || d.length === 0 ? '' : d[0].uri,
+              chain_name: ServerChainNameEnum.mainChainName,
+              selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
+              performanceLevel: PerformanceLevelEnum.High,
+            };
+          }
+          if (mainnetWallet_1 !== null) {
+            await ipcRenderer.invoke("wallets:add", mainnetWallet_1);
+          }
         }
       }
       // not exists default testnet wallet
       // trying to recover it
-      const testnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.testChainName, PerformanceLevelEnum.High, 3, '');
+      const testnetWalletExistsResult: boolean = native.wallet_exists('', ServerChainNameEnum.testChainName, PerformanceLevelEnum.High, 3, '');
       console.log(testnetWalletExistsResult);
       if (!testnetWalletExistsResult) {
         if (wallets.filter(w => w.id === 2).length === 1) {
@@ -457,38 +466,40 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           await ipcRenderer.invoke("wallets:remove", 2);
         }
       } else {
-        let testnetWallet_2: WalletType | null = null;
-        if (chain_name === ServerChainNameEnum.testChainName) {
-          testnetWallet_2 = {
-            id: 2, // by default: 1 (testnet)
-            fileName: '', // by default: zingo-wallet.dat
-            alias: 'Main Wallet',
-            creationType: CreationTypeEnum.Main,
-            uri: uri,
-            chain_name: chain_name,
-            selection: selection,
-            PerformanceLevel: PerformanceLevelEnum.High,
-          };
-        } else {
-          let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.testChainName && !s.obsolete && s.default);
-          testnetWallet_2 = {
-            id: 2, // by default: 1 (testnet)
-            fileName: '', // by default: zingo-wallet.dat
-            alias: 'Main Wallet',
-            creationType: CreationTypeEnum.Main,
-            uri: !d || d.length === 0 ? '' : d[0].uri,
-            chain_name: ServerChainNameEnum.testChainName,
-            selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
-            PerformanceLevel: PerformanceLevelEnum.High,
-          };
-        }
-        if (testnetWallet_2 !== null) {
-          await ipcRenderer.invoke("wallets:add", testnetWallet_2);
+        if (wallets.filter(w => w.id === 2).length === 0) {
+          let testnetWallet_2: WalletType | null = null;
+          if (chain_name === ServerChainNameEnum.testChainName) {
+            testnetWallet_2 = {
+              id: 2, // by default: 1 (testnet)
+              fileName: '', // by default: zingo-wallet.dat
+              alias: 'Main Wallet',
+              creationType: CreationTypeEnum.Main,
+              uri: uri,
+              chain_name: chain_name,
+              selection: selection,
+              performanceLevel: PerformanceLevelEnum.High,
+            };
+          } else {
+            let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.testChainName && !s.obsolete && s.default);
+            testnetWallet_2 = {
+              id: 2, // by default: 1 (testnet)
+              fileName: '', // by default: zingo-wallet.dat
+              alias: 'Main Wallet',
+              creationType: CreationTypeEnum.Main,
+              uri: !d || d.length === 0 ? '' : d[0].uri,
+              chain_name: ServerChainNameEnum.testChainName,
+              selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
+              performanceLevel: PerformanceLevelEnum.High,
+            };
+          }
+          if (testnetWallet_2 !== null) {
+            await ipcRenderer.invoke("wallets:add", testnetWallet_2);
+          }
         }
       }
-      // not exists default regtest wallet
+      // not exists default regtest wallet 
       // trying to recover it
-      const regnetWalletExistsResult: boolean | string = native.wallet_exists('', ServerChainNameEnum.regtestChainName, PerformanceLevelEnum.High, 3, '');
+      const regnetWalletExistsResult: boolean = native.wallet_exists('', ServerChainNameEnum.regtestChainName, PerformanceLevelEnum.High, 3, '');
       console.log(regnetWalletExistsResult);
       if (!regnetWalletExistsResult) {
         if (wallets.filter(w => w.id === 3).length === 1) {
@@ -496,33 +507,35 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           await ipcRenderer.invoke("wallets:remove", 3);
         }
       } else {
-        let regtestWallet_3: WalletType | null = null;
-        if (chain_name === ServerChainNameEnum.regtestChainName) {
-          regtestWallet_3 = {
-            id: 3, // by default: 1 (testnet)
-            fileName: '', // by default: zingo-wallet.dat
-            alias: 'Main Wallet',
-            creationType: CreationTypeEnum.Main,
-            uri: uri,
-            chain_name: chain_name,
-            selection: selection,
-            PerformanceLevel: PerformanceLevelEnum.High,
-          };
-        } else {
-          let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.regtestChainName && !s.obsolete && s.default);
-          regtestWallet_3 = {
-            id: 3, // by default: 1 (testnet)
-            fileName: '', // by default: zingo-wallet.dat
-            alias: 'Main Wallet',
-            creationType: CreationTypeEnum.Main,
-            uri: !d || d.length === 0 ? '' : d[0].uri,
-            chain_name: ServerChainNameEnum.regtestChainName,
-            selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
-            PerformanceLevel: PerformanceLevelEnum.High,
-          };
-        }
-        if (regtestWallet_3 !== null) {
-          await ipcRenderer.invoke("wallets:add", regtestWallet_3);
+        if (wallets.filter(w => w.id === 3).length === 0) {
+          let regtestWallet_3: WalletType | null = null;
+          if (chain_name === ServerChainNameEnum.regtestChainName) {
+            regtestWallet_3 = {
+              id: 3, // by default: 1 (testnet)
+              fileName: '', // by default: zingo-wallet.dat
+              alias: 'Main Wallet',
+              creationType: CreationTypeEnum.Main,
+              uri: uri,
+              chain_name: chain_name,
+              selection: selection,
+              performanceLevel: PerformanceLevelEnum.High,
+            };
+          } else {
+            let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.regtestChainName && !s.obsolete && s.default);
+            regtestWallet_3 = {
+              id: 3, // by default: 1 (testnet)
+              fileName: '', // by default: zingo-wallet.dat
+              alias: 'Main Wallet',
+              creationType: CreationTypeEnum.Main,
+              uri: !d || d.length === 0 ? '' : d[0].uri,
+              chain_name: ServerChainNameEnum.regtestChainName,
+              selection: !d || d.length === 0 ? ServerSelectionEnum.custom : ServerSelectionEnum.list,
+              performanceLevel: PerformanceLevelEnum.High,
+            };
+          }
+          if (regtestWallet_3 !== null) {
+            await ipcRenderer.invoke("wallets:add", regtestWallet_3);
+          }
         }
       }
       // re-fetching wallets again...
@@ -534,7 +547,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: currentWalletId });
 
-    console.log('&&&&&&&&-----------', currentWalletId, uri, chain_name, selection, currentWallet); 
+    console.log('&&&&&&&&-----------', currentWalletId, uri, chain_name, selection, currentWallet, wallets); 
 
     return {
       currentWallet,
@@ -543,12 +556,18 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   };
 
   doFirstTimeSetup = async () => {
-    const { currentWallet, wallets } = await this.loadCurrentWallet();
+    let { currentWallet, wallets } = await this.loadCurrentWallet();
     console.log(`Url: -${currentWallet && currentWallet.id}-${currentWallet && currentWallet.uri}-${currentWallet && currentWallet.chain_name}-${currentWallet && currentWallet.selection}`);
 
-    this.setState({
-      currentWallet,
-    });
+    // if no current wallet but there are wallets,
+    // select the first one.
+    if (currentWallet === null && wallets.length > 0) {
+      currentWallet = wallets[0];
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: currentWallet.uri });
+      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: currentWallet.chain_name });
+      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: currentWallet.selection });
+      await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: currentWallet.id });
+    }
     this.props.setCurrentWallet(currentWallet);
     this.props.setWallets(wallets);
 
@@ -561,11 +580,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
     
     try {
-      const walletExistsResult: boolean | string = native.wallet_exists(currentWallet.uri, currentWallet.chain_name, PerformanceLevelEnum.High, 3, currentWallet.fileName);
+      const walletExistsResult: boolean = native.wallet_exists(currentWallet.uri, currentWallet.chain_name, currentWallet.performanceLevel, 3, currentWallet.fileName);
       console.log(walletExistsResult);
       if (!walletExistsResult) {
         // the wallet file DOES NOT exists
-        // if currentWalletId have a value -> remove the wallet local data for this id. 
+        // if currentWalletId have a value -> remove the wallet local data for this id.
         await ipcRenderer.invoke("wallets:remove", currentWallet.id);
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
         // re-fetching wallets
@@ -580,7 +599,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       } else {
         this.setState({ walletExists: true });
         // the wallet file YES exists
-        const result: string = native.init_from_b64(currentWallet.uri, currentWallet.chain_name, PerformanceLevelEnum.High, 3, currentWallet.fileName);
+        const result: string = native.init_from_b64(currentWallet.uri, currentWallet.chain_name, currentWallet.performanceLevel, 3, currentWallet.fileName);
+        //const result: string = 'Error: ay, ay, ay';
         //console.log(`Initialization: ${result}`);
         if (!result || result.toLowerCase().startsWith('error')) {
           this.props.setCurrentWalletOpenError(`${result}`);

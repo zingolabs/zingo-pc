@@ -12,5 +12,5 @@ export interface WalletType {
   // new fields
   uri: string;
   selection: ServerSelectionEnum;
-  PerformanceLevel: PerformanceLevelEnum;
+  performanceLevel: PerformanceLevelEnum;
 }

@@ -114,7 +114,7 @@ class MenuBuilder {
         {
           label: "Add new Wallet",
           click: () => {
-            this.mainWindow.webContents.send("addnewwallet");
+            mainWindow.webContents.send("addnewwallet");
           },
         },
         { type: "separator" },
@@ -133,13 +133,13 @@ class MenuBuilder {
         {
           label: "Wallet Settings",
           click: () => {
-            this.mainWindow.webContents.send("settingswallet");
+            mainWindow.webContents.send("settingswallet");
           },
         },
         {
           label: "Delete Wallet",
           click: () => {
-            this.mainWindow.webContents.send("deletewallet");
+            mainWindow.webContents.send("deletewallet");
           },
         },
         { type: "separator" },
@@ -148,12 +148,6 @@ class MenuBuilder {
           accelerator: "Ctrl+P",
           click: () => {
             mainWindow.webContents.send("payuri");
-          },
-        },
-        {
-          label: "Export All &Transactions",
-          click: () => {
-            mainWindow.webContents.send("exportalltx");
           },
         },
       ],
@@ -164,7 +158,7 @@ class MenuBuilder {
         {
           label: "Add new Wallet",
           click: () => {
-            this.mainWindow.webContents.send("addnewwallet");
+            mainWindow.webContents.send("addnewwallet");
           },
         },
         { type: "separator" },
@@ -183,13 +177,13 @@ class MenuBuilder {
         {
           label: "Wallet Settings",
           click: () => {
-            this.mainWindow.webContents.send("settingswallet");
+            mainWindow.webContents.send("settingswallet");
           },
         },
         {
           label: "Delete Wallet",
           click: () => {
-            this.mainWindow.webContents.send("deletewallet");
+            mainWindow.webContents.send("deletewallet");
           },
         },
         { type: "separator" },
@@ -198,12 +192,6 @@ class MenuBuilder {
           accelerator: "Ctrl+P",
           click: () => {
             mainWindow.webContents.send("payuri");
-          },
-        },
-        {
-          label: "Export All &Transactions",
-          click: () => {
-            mainWindow.webContents.send("exportalltx");
           },
         },
       ],
@@ -262,7 +250,7 @@ class MenuBuilder {
             label: "&Close",
             accelerator: "Ctrl+W",
             click: () => {
-              this.mainWindow.close();
+              mainWindow.close();
             },
           },
         ],
@@ -273,7 +261,7 @@ class MenuBuilder {
           {
             label: "Add new Wallet",
             click: () => {
-              this.mainWindow.webContents.send("addnewwallet");
+              mainWindow.webContents.send("addnewwallet");
             },
           },
           { type: "separator" },
@@ -289,23 +277,17 @@ class MenuBuilder {
               mainWindow.webContents.send("rescan");
             },
           },
-        {
-          label: "Wallet Settings",
-          click: () => {
-            this.mainWindow.webContents.send("settingswallet");
+          {
+            label: "Wallet Settings",
+            click: () => {
+              mainWindow.webContents.send("settingswallet");
+            },
           },
-        },
-        {
-          label: "Delete Wallet",
-          click: () => {
-            this.mainWindow.webContents.send("deletewallet");
-          },
-        },
           { type: "separator" },
           {
-            label: "Export All &Transactions",
+            label: "Delete Wallet",
             click: () => {
-              mainWindow.webContents.send("exportalltx");
+              mainWindow.webContents.send("deletewallet");
             },
           },
         ],

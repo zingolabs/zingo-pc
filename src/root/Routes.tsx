@@ -18,7 +18,6 @@ import {
   ToAddrClass,
   InfoClass,
   AddressBookEntryClass,
-  ServerSelectModalClass,
   ServerClass,
   FetchErrorTypeClass,
   UnifiedAddressClass,
@@ -34,7 +33,6 @@ import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
 import { History } from "../components/history";
-import { SettingsWallet } from "../components/SettingsWallet";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
 import native from "../native.node";
@@ -115,18 +113,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ confirmModal });
   };
 
-  openServerSelectModal = () => {
-    const serverSelectModal = new ServerSelectModalClass();
-    serverSelectModal.modalIsOpen = true;
-
-    this.setState({ serverSelectModal });
-  };
-
-  closeServerSelectModal = () => {
-    const serverSelectModal = new ServerSelectModalClass();
-    serverSelectModal.modalIsOpen = false;
-
-    this.setState({ serverSelectModal });
+  doSaveWallet = () => {
+    RPC.doSave();
   };
 
   setTotalBalance = (totalBalance: TotalBalanceClass) => {
@@ -463,7 +451,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     });
   };
 
-  navigateToLoadingScreenChangingWallet = async () => {
+  navigateToLoadingScreenChangingWallet = () => {
     // To change to another wallet, we reset the wallet loading
     // and redirect to the loading screen
     this.setTotalBalance(new TotalBalanceClass());
@@ -476,8 +464,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setSyncStatus({} as SyncStatusType);
     this.setVerificationProgress(null);
     this.setFetchError('', '');
+    this.setCurrentWalletOpenError('');
     
-    await this.rpc.clearTimers();
+    this.rpc.clearTimers();
 
     this.navigateToLoadingScreen();
   };
@@ -490,7 +479,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       addressBook: this.state.addressBook,
       valueTransfers: this.state.valueTransfers,
       messages: this.state.messages,
-      serverSelectModal: this.state.serverSelectModal,
       sendPageState: this.state.sendPageState,
       info: this.state.info,
       syncingStatus: this.state.syncingStatus,
@@ -528,20 +516,12 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         {this.state.errorModal.modalIsOpen && (
           <ErrorModal closeModal={this.closeErrorModal} />
         )}
-        {this.state.serverSelectModal.modalIsOpen && (
-          <SettingsWallet closeModal={this.closeServerSelectModal} />
-        )}
 
         <div style={{ overflow: "hidden" }}>
           {this.props.location.pathname !== "/" && !this.props.location.pathname.toLowerCase().includes("zingo") && (
             <div className={cstyles.sidebarcontainer}>
               <Sidebar
-                setInfo={this.setInfo}
-                clearTimers={this.runRPCClearTimers}
-                navigateToLoadingScreen={this.navigateToLoadingScreen}
                 doRescan={this.runRPCRescan}
-                setWallets={this.setWallets}
-                setCurrentWallet={this.setCurrentWallet}
                 navigateToLoadingScreenChangingWallet={this.navigateToLoadingScreenChangingWallet}
               />
             </div>
@@ -602,9 +582,15 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
               <Route
                 path={routes.ADDNEWWALLET}
-                render={() => (
+                render={(props) => (
                   <AddNewWallet
+                    {...props}
                     closeModal={() => this.navigateToDashboard()}
+                    setWallets={this.setWallets}
+                    setCurrentWallet={this.setCurrentWallet}
+                    navigateToLoadingScreenChangingWallet={this.navigateToLoadingScreenChangingWallet}
+                    doSaveWallet={this.doSaveWallet}
+                    clearTimers={this.runRPCClearTimers}
                   />
                 )}
               />

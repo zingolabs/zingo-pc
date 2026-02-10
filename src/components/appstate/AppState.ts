@@ -1,7 +1,6 @@
 import TotalBalanceClass from "./classes/TotalBalanceClass";
 import ValueTransferClass from "./classes/ValueTransferClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
-import ServerSelectModalClass from "./classes/ServerSelectModalClass";
 import ServerClass from "./classes/ServerClass";
 import FetchErrorClass from "./classes/FetchErrorClass";
 import ConfirmModalClass from "./classes/ConfirmModalClass";
@@ -42,9 +41,6 @@ export default class AppState {
 
   // Config modal data
   confirmModal: ConfirmModalClass;
-
-  // Server selection modal data
-  serverSelectModal: ServerSelectModalClass;
 
   // if the wallet is from seed or from VK
   readOnly: boolean;
@@ -99,7 +95,6 @@ export default class AppState {
     this.messages = [] as ValueTransferClass[];
     this.errorModal = new ErrorModalClass();
     this.confirmModal = new ConfirmModalClass();
-    this.serverSelectModal = new ServerSelectModalClass();
     this.sendPageState = new SendPageStateClass();
     this.info = new InfoClass();
     this.syncingStatus = {} as SyncStatusType;

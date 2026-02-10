@@ -47,70 +47,72 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
   return (
     <div>
-      <div className={[cstyles.well, styles.containermargin].join(" ")}>
-        <div className={cstyles.balancebox}>
-          <BalanceBlockHighlight
-            topLabel="All Funds"
-            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
-            currencyName={info.currencyName}
-            zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
-            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
-          />
-          {orchardPool && (
-            <BalanceBlock
-              topLabel="Orchard"
-              zecValue={totalBalance.totalOrchardBalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
+      {currentWallet !== null && !currentWalletOpenError && (
+        <div className={[cstyles.well, styles.containermargin].join(" ")}>
+          <div className={cstyles.balancebox}>
+            <BalanceBlockHighlight
+              topLabel="All Funds"
+              zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
               currencyName={info.currencyName}
-              zecValueConfirmed={totalBalance.confirmedOrchardBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
+              zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
             />
-          )}
-          {saplingPool && (
-            <BalanceBlock
-              topLabel="Sapling"
-              zecValue={totalBalance.totalSaplingBalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
-              currencyName={info.currencyName}
-              zecValueConfirmed={totalBalance.confirmedSaplingBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
-            />
-          )}
-          {transparentPool && (
-            <BalanceBlock
-              topLabel="Transparent"
-              zecValue={totalBalance.totalTransparentBalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
-              currencyName={info.currencyName}
-              zecValueConfirmed={totalBalance.confirmedTransparentBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
-            />
-          )}
-        </div>
-        <div className={cstyles.balancebox}>
-          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+            {orchardPool && (
+              <BalanceBlock
+                topLabel="Orchard"
+                zecValue={totalBalance.totalOrchardBalance}
+                usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
+                currencyName={info.currencyName}
+                zecValueConfirmed={totalBalance.confirmedOrchardBalance}
+                usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
+              />
+            )}
+            {saplingPool && (
+              <BalanceBlock
+                topLabel="Sapling"
+                zecValue={totalBalance.totalSaplingBalance}
+                usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
+                currencyName={info.currencyName}
+                zecValueConfirmed={totalBalance.confirmedSaplingBalance}
+                usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
+              />
+            )}
+            {transparentPool && (
+              <BalanceBlock
+                topLabel="Transparent"
+                zecValue={totalBalance.totalTransparentBalance}
+                usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
+                currencyName={info.currencyName}
+                zecValueConfirmed={totalBalance.confirmedTransparentBalance}
+                usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
+              />
+            )}
+          </div>
+          <div className={cstyles.balancebox}>
+            {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+              <>
+                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+                  Shield Transparent Balance To Orchard (Fee: {shieldFee})
+                </button>
+              </>
+            )}
+            {!!anyPending && (
+              <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+                Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
+              </div>
+            )}
+          </div>
+          {!!fetchError && !!fetchError.error && (
             <>
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
-                Shield Transparent Balance To Orchard (Fee: {shieldFee})
-              </button>
+              <hr />
+              <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
+                {fetchError.command + ': ' + fetchError.error}
+              </div>
             </>
           )}
-          {!!anyPending && (
-            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
-              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
-            </div>
-          )}
         </div>
-        {!!fetchError && !!fetchError.error && (
-          <>
-            <hr />
-            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
-              {fetchError.command + ': ' + fetchError.error}
-            </div>
-          </>
-        )}
-      </div>
+      )}
       <div className={[styles.horizontalcontainer].join(" ")}>
         {birthday >= 0 && !!syncingStatus.scan_ranges && (
           <div style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
@@ -299,7 +301,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 </div>
               )}
               
-              {!!info && !!info.serverUri && !!info.chainName && !!info.latestBlock && (
+              {currentWallet !== null && !!info && !!info.serverUri && !!info.chainName && !!info.latestBlock && (
                 <div style={{ width: '48%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   Server info
                   <div>
@@ -324,7 +326,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                     width: '100%',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    marginTop: 50,
+                    marginTop: 100,
                   }}>
                   <div
                     style={{
@@ -346,7 +348,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                     width: '100%',
                     justifyContent: 'center',
                     alignItems: 'center',
-                    marginTop: 50,
+                    marginTop: 100,
                   }}>
                   <div
                     style={{

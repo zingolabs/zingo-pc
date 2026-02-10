@@ -18,6 +18,11 @@ const chains = {
 const SelectWallet = ({ navigateToLoadingScreenChangingWallet }: SelectWalletProps) => {
   const context = useContext(ContextApp);
   const { currentWallet, wallets } = context;
+
+  const walletsSorted = wallets.sort((a, b) => {
+    const chainCmp = a.chain_name.localeCompare(b.chain_name);
+    return chainCmp !== 0 ? chainCmp : a.id - b.id;
+  });
   
   return (
     <>
@@ -32,7 +37,7 @@ const SelectWallet = ({ navigateToLoadingScreenChangingWallet }: SelectWalletPro
               await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
               navigateToLoadingScreenChangingWallet();
             }}>
-            {wallets.map((w: WalletType) => (
+            {walletsSorted.map((w: WalletType) => (
               <option key={w.id} value={w.id}>
                 {w.alias + ' - ' + chains[w.chain_name || ''] + ' [' + w.creationType + ']'}
               </option>

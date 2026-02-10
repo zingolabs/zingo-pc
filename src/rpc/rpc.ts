@@ -505,7 +505,7 @@ export default class RPC {
         return;
       }
 
-      //console.log('SYNC STATUS', ss);
+      console.log('SYNC STATUS', ss);
       console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned);
 
       //console.log('interval sync/rescan, secs', this.secondsBatch, 'timer', this.syncStatusTimerID);

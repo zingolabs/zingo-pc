@@ -6,7 +6,6 @@ import InfoClass from "./classes/InfoClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
 import SendProgressClass from "./classes/SendProgressClass";
 import ServerClass from "./classes/ServerClass";
-import ServerSelectModalClass from "./classes/ServerSelectModalClass";
 import ToAddrClass from "./classes/ToAddrClass";
 import TotalBalanceClass from "./classes/TotalBalanceClass";
 import TxDetailClass from "./classes/TxDetailClass";
@@ -43,7 +42,6 @@ export {
   SendPageStateClass,
   SendProgressClass,
   InfoClass,
-  ServerSelectModalClass,
   TotalBalanceClass,
   ToAddrClass,
   TxDetailClass,
