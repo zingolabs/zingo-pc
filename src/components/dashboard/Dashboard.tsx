@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import styles from "./Dashboard.module.css";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
-import { BalanceBlockHighlight, BalanceBlock } from "../balance_Block";
+import { BalanceBlockHighlight, BalanceBlock } from "../balanceBlock";
 import { ContextApp } from "../../context/ContextAppState";
 
 import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";

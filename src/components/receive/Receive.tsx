@@ -7,7 +7,7 @@ import { AddressBookEntryClass, AddressScopeEnum, TransparentAddressClass, Unifi
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
-import { BalanceBlock, BalanceBlockHighlight } from "../balance_Block";
+import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
 
 type ReceiveProps = {
