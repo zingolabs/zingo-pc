@@ -4,7 +4,7 @@ import styles from "./Messages.module.css";
 import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
 import ScrollPaneBottom from "../scrollPane/ScrollPane";
 import MessagesItemBlock from "./components/MessagesItemBlock";
-import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
+import { BalanceBlock, BalanceBlockHighlight } from "../balance_Block";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import VtModal from "../history/components/VtModal";

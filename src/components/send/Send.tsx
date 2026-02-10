@@ -10,7 +10,7 @@ import {
 } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
-import { BalanceBlockHighlight } from "../balanceBlock";
+import { BalanceBlockHighlight } from "../balance_Block";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
 import ToAddrBox from "./components/ToAddrBox";
