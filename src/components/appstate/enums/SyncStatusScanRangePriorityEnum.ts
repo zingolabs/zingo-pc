@@ -7,4 +7,5 @@ export enum SyncStatusScanRangePriorityEnum {
   FoundNote = 'FoundNote',
   ChainTip = 'ChainTip',
   Verify = 'Verify',
+  RefetchingNullifiers = 'RefetchingNullifiers',
 }

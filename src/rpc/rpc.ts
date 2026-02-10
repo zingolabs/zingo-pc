@@ -5,11 +5,11 @@ import {
   UnifiedAddressClass,
   TransparentAddressClass,
   SyncStatusType,
-  ServerClass,
   SendJsonToTypeType,
   SendProposeType,
   SendType,
   ValueTransferStatusEnum,
+  WalletType,
 } from "../components/appstate";
 import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 
@@ -28,7 +28,7 @@ export default class RPC {
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
 
-  server: ServerClass;
+  currentWallet: WalletType | null;
   
   updateTimerID?: NodeJS.Timeout;
   timers: NodeJS.Timeout[];
@@ -49,7 +49,7 @@ export default class RPC {
     fnSetSyncStatus: (ss: SyncStatusType) => void,
     fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
-    server: ServerClass,
+    currentWallet: WalletType | null,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
     this.fnSetAddressesUnified = fnSetAddressesUnified;
@@ -62,7 +62,7 @@ export default class RPC {
     this.fnSetVerificationProgress = fnSetVerificationProgress;
     this.fnSetFetchError = fnSetFetchError;
 
-    this.server = server;
+    this.currentWallet = currentWallet;
 
     this.lastBlockHeight = 0;
 
@@ -316,6 +316,7 @@ export default class RPC {
       info.chainName = infoJSON.chain_name;
       info.latestBlock = infoJSON.latest_block_height;
       info.connections = 1;
+      info.serverUri = infoJSON.server_uri;
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit ? infoJSON.git_commit.substring(0, 6) : ""}/${infoJSON.version}`;
       info.zcashdVersion = "Not Available";
       info.currencyName = info.chainName === ServerChainNameEnum.mainChainName ? "ZEC" : "TAZ";
@@ -418,6 +419,13 @@ export default class RPC {
         setTimeout(async () => {
           await this.fetchSyncStatus();
         }, 0);
+        console.log('SYNC POLL -> RUN SYNC', returnPoll);
+        // I don't trust in this message, when the tx is stuck in Trasmitted
+        // this is the message I got & after that the status says 100% complete
+        // this is not true, here Just in case, I need to run the sync again.
+        setTimeout(async () => {
+          await this.refreshSync();
+        }, 0);
         return;
       }
 
@@ -497,7 +505,7 @@ export default class RPC {
         return;
       }
 
-      //console.log('SYNC STATUS', ss);
+      console.log('SYNC STATUS', ss);
       console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned);
 
       //console.log('interval sync/rescan, secs', this.secondsBatch, 'timer', this.syncStatusTimerID);
@@ -691,8 +699,8 @@ export default class RPC {
     try {
       // first to get the last server block.
       let latestBlockHeight: number = 0;
-      //console.log(this.server);
-      const heightStr: string = await native.get_latest_block_server(this.server.uri);
+      //console.log('CUUUUUUURRENT WALLET', this.currentWallet);
+      const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : '');
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith('error')) {
           console.log(`Error server height ${heightStr}`);
@@ -773,7 +781,7 @@ export default class RPC {
       // first to get the last server block.
       let latestBlockHeight: number = 0;
       //console.log(this.server);
-      const heightStr: string = await native.get_latest_block_server(this.server.uri);
+      const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : '');
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith('error')) {
           console.log(`Error server height ${heightStr}`);
@@ -940,5 +948,9 @@ export default class RPC {
     } catch (error) {
       console.log(`Critical Error get price ${error}`);
     }
+  }
+
+  setCurrentWallet(cw: WalletType) {
+    this.currentWallet = cw;
   }
 }

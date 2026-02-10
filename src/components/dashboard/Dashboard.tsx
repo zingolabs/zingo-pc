@@ -2,16 +2,15 @@ import React, { useContext, useEffect, useState } from "react";
 import styles from "./Dashboard.module.css";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
-import { BalanceBlockHighlight, BalanceBlock } from "../balanceblock";
+import { BalanceBlockHighlight, BalanceBlock } from "../balanceBlock";
 import { ContextApp } from "../../context/ContextAppState";
 
 import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
-import DetailLine from "../serverInfo/components/DetailLine";
+import DetailLine from "../detailLine/DetailLine";
 
 type DashboardProps = {
   navigateToHistory: () => void;
-  navigateToServerInfo: () => void;
 };
 
 const chains = {
@@ -21,9 +20,9 @@ const chains = {
   "": "" 
 }; 
 
-const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToServerInfo }) => {
+const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   const context = useContext(ContextApp);
-  const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus, serverUri, serverChainName, birthday, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
+  const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus, currentWallet, currentWalletOpenError, birthday, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -48,72 +47,74 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToServ
 
   return (
     <div>
-      <div className={[cstyles.well, styles.containermargin].join(" ")}>
-        <div className={cstyles.balancebox}>
-          <BalanceBlockHighlight
-            topLabel="All Funds"
-            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
-            currencyName={info.currencyName}
-            zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
-            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
-          />
-          {orchardPool && (
-            <BalanceBlock
-              topLabel="Orchard"
-              zecValue={totalBalance.totalOrchardBalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
+      {currentWallet !== null && !currentWalletOpenError && (
+        <div className={[cstyles.well, styles.containermargin].join(" ")}>
+          <div className={cstyles.balancebox}>
+            <BalanceBlockHighlight
+              topLabel="All Funds"
+              zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
+              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
               currencyName={info.currencyName}
-              zecValueConfirmed={totalBalance.confirmedOrchardBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
+              zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
             />
-          )}
-          {saplingPool && (
-            <BalanceBlock
-              topLabel="Sapling"
-              zecValue={totalBalance.totalSaplingBalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
-              currencyName={info.currencyName}
-              zecValueConfirmed={totalBalance.confirmedSaplingBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
-            />
-          )}
-          {transparentPool && (
-            <BalanceBlock
-              topLabel="Transparent"
-              zecValue={totalBalance.totalTransparentBalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
-              currencyName={info.currencyName}
-              zecValueConfirmed={totalBalance.confirmedTransparentBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
-            />
-          )}
-        </div>
-        <div className={cstyles.balancebox}>
-          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+            {orchardPool && (
+              <BalanceBlock
+                topLabel="Orchard"
+                zecValue={totalBalance.totalOrchardBalance}
+                usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
+                currencyName={info.currencyName}
+                zecValueConfirmed={totalBalance.confirmedOrchardBalance}
+                usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
+              />
+            )}
+            {saplingPool && (
+              <BalanceBlock
+                topLabel="Sapling"
+                zecValue={totalBalance.totalSaplingBalance}
+                usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
+                currencyName={info.currencyName}
+                zecValueConfirmed={totalBalance.confirmedSaplingBalance}
+                usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
+              />
+            )}
+            {transparentPool && (
+              <BalanceBlock
+                topLabel="Transparent"
+                zecValue={totalBalance.totalTransparentBalance}
+                usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
+                currencyName={info.currencyName}
+                zecValueConfirmed={totalBalance.confirmedTransparentBalance}
+                usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
+              />
+            )}
+          </div>
+          <div className={cstyles.balancebox}>
+            {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+              <>
+                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+                  Shield Transparent Balance To Orchard (Fee: {shieldFee})
+                </button>
+              </>
+            )}
+            {!!anyPending && (
+              <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+                Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
+              </div>
+            )}
+          </div>
+          {!!fetchError && !!fetchError.error && (
             <>
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
-                Shield Transparent Balance To Orchard (Fee: {shieldFee})
-              </button>
+              <hr />
+              <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
+                {fetchError.command + ': ' + fetchError.error}
+              </div>
             </>
           )}
-          {!!anyPending && (
-            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
-              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
-            </div>
-          )}
         </div>
-        {!!fetchError && !!fetchError.error && (
-          <>
-            <hr />
-            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
-              {fetchError.command + ': ' + fetchError.error}
-            </div>
-          </>
-        )}
-      </div>
+      )}
       <div className={[styles.horizontalcontainer].join(" ")}>
-        {!!birthday && !!syncingStatus.scan_ranges && (
+        {birthday >= 0 && !!syncingStatus.scan_ranges && (
           <div style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
             Nonlinear Scanning Map
           </div>
@@ -129,7 +130,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToServ
             marginBottom: 0,
             marginTop: 10,
           }}>
-          {!!birthday && !!syncingStatus.scan_ranges && syncingStatus.scan_ranges.map((range: SyncStatusScanRangeType) => {
+          {birthday >= 0 && !!syncingStatus.scan_ranges && syncingStatus.scan_ranges.map((range: SyncStatusScanRangeType) => {
             const percent: number = ((range.end_block - range.start_block) * 100) / (info.latestBlock - birthday);
             return <div
               key={`${range.start_block.toString() + '-' + range.end_block.toString()}`}
@@ -139,6 +140,8 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToServ
                 backgroundColor:
                   range.priority === SyncStatusScanRangePriorityEnum.Scanning
                     ? 'orange' /* Scanning */
+                    : range.priority === SyncStatusScanRangePriorityEnum.RefetchingNullifiers
+                    ? 'darkorange'  /* Refetching spends  */
                     : range.priority === SyncStatusScanRangePriorityEnum.Scanned
                     ? 'green'  /* Scanned  */
                     : range.priority === SyncStatusScanRangePriorityEnum.ScannedWithoutMapping
@@ -159,7 +162,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToServ
           }
           )}
         </div>
-        {!!birthday && !!syncingStatus.scan_ranges && (
+        {birthday >= 0 && !!syncingStatus.scan_ranges && (
           <div
             style={{
               display: 'flex',
@@ -208,6 +211,26 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToServ
                 }}
               />
               Scanning...
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'row',
+                flexWrap: 'nowrap',
+                marginRight: 10,
+                }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'row',
+                  width: 10,
+                  height: 10,
+                  justifyContent: 'flex-start',
+                  backgroundColor: 'darkorange',
+                  margin: 5,
+                }}
+              />
+              Refetching spends...
             </div>
             <div
               style={{
@@ -278,28 +301,68 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory, navigateToServ
                 </div>
               )}
               
-              {!!info && (
+              {currentWallet !== null && !!info && !!info.serverUri && !!info.chainName && !!info.latestBlock && (
                 <div style={{ width: '48%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   Server info
                   <div>
                     <div className={styles.detailcontainer}>
                       <div className={styles.detaillines}>
-                        <DetailLine label="Server URI" value={serverUri} />
-                        <DetailLine label="Chain Name" value={serverChainName ? chains[serverChainName] : ''} />
+                        <DetailLine label="Server URI" value={info ? info.serverUri : ''} />
                         <DetailLine label="Server Network" value={chains[info.chainName]} />
                         <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                         {info.currencyName === 'ZEC' && (
                           <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
                         )}
                       </div>
-                      <div style={{ width: '100%', textAlign: 'right', color: Utils.getCssVariable('--color-primary'), marginTop: 20, cursor: 'pointer' }} onClick={() => navigateToServerInfo()}>
-                        See more... 
-                      </div>
                     </div>
                   </div>
                 </div>
               )}
-              
+
+              {currentWallet === null && (
+                <div
+                  style={{
+                    display: 'flex',
+                    width: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: 100,
+                  }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      width: '80%',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginTop: 50,
+                    }}>
+                      There is no wallets added.
+                  </div>
+                </div>
+              )}
+
+              {!!currentWalletOpenError && (
+                <div
+                  style={{
+                    display: 'flex',
+                    width: '100%',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    marginTop: 100,
+                  }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      width: '80%',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      marginTop: 50,
+                    }}>
+                      {`Error Opening the current Wallet: ${currentWalletOpenError}`}
+                  </div>
+                </div>
+              )}
+
             </div>
           </ScrollPaneTop>
         </div>

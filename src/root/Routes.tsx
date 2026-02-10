@@ -2,14 +2,14 @@ import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route, withRouter, RouteComponentProps } from "react-router";
 import { isEqual } from 'lodash';
-import { ErrorModal } from "../components/errormodal";
+import { ErrorModal } from "../components/errorModal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json"; 
 import { Dashboard } from "../components/dashboard";
 import { Insight } from "../components/insight";
 import { Send, SendManyJsonType } from "../components/send";
 import { Receive } from "../components/receive";
-import { LoadingScreen } from "../components/loadingscreen";
+import { LoadingScreen } from "../components/loadingScreen";
 import {
   AppState,
   TotalBalanceClass,
@@ -18,30 +18,26 @@ import {
   ToAddrClass,
   InfoClass,
   AddressBookEntryClass,
-  ServerSelectModalClass,
   ServerClass,
   FetchErrorTypeClass,
   UnifiedAddressClass,
   TransparentAddressClass,
   SyncStatusType,
-  ServerChainNameEnum,
   ConfirmModalClass,
   ErrorModalClass,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
 import { ZcashURITarget } from "../utils/uris";
-import { ServerInfo } from "../components/serverInfo";
-import { AddressBook, AddressbookImpl } from "../components/addressbook";
-import { Sidebar } from "../components/sidebar";
+import { AddNewWallet } from "../components/addNewWallet";
+import { AddressBook, AddressbookImpl } from "../components/addressBook";
+import { Sidebar } from "../components/sideBar";
 import { History } from "../components/history";
-import { ServerSelectModal } from "../components/serverselectmodal";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
 import native from "../native.node";
 import { Messages } from "../components/messages";
-import serverUrisList from "../utils/serverUrisList";
-import { ConfirmModal } from "../components/confirmmodal";
+import { ConfirmModal } from "../components/confirmModal";
 import { WalletType } from "../components/appstate/types/WalletType";
 
 type Props = {};
@@ -57,9 +53,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     // Set the Modal's app element
     ReactModal.setAppElement("#root");
 
-    const servers: ServerClass[] = this.state.serverUris.length > 0 ? this.state.serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false);
-    const server: ServerClass = {uri: this.state.serverUri || servers[0].uri, chain_name: this.state.serverChainName || servers[0].chain_name} as ServerClass;
-
     this.rpc = new RPC(
       this.setTotalBalance,
       this.setAddressesUnified,
@@ -71,7 +64,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       this.setSyncStatus,
       this.setVerificationProgress,
       this.setFetchError,
-      server,
+      this.state.currentWallet,
     );
   };
 
@@ -120,18 +113,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ confirmModal });
   };
 
-  openServerSelectModal = () => {
-    const serverSelectModal = new ServerSelectModalClass();
-    serverSelectModal.modalIsOpen = true;
-
-    this.setState({ serverSelectModal });
-  };
-
-  closeServerSelectModal = () => {
-    const serverSelectModal = new ServerSelectModalClass();
-    serverSelectModal.modalIsOpen = false;
-
-    this.setState({ serverSelectModal });
+  doSaveWallet = () => {
+    RPC.doSave();
   };
 
   setTotalBalance = (totalBalance: TotalBalanceClass) => {
@@ -258,18 +241,24 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }
   };
 
-  setServerInfo = (serverUri: string, serverChainName: ServerChainNameEnum, serverSelection: 'auto' | 'list' | 'custom') => {
+  setWallets = (wallets: WalletType[]) => {
     this.setState({
-      serverUri,
-      serverChainName,
-      serverSelection,
+      wallets,
     });
   };
 
-  setWallets = (currentWalletId: number | null, wallets: WalletType[]) => {
+  setCurrentWallet = (currentWallet: WalletType | null) => {
+    if (currentWallet !== null) {
+      this.rpc.setCurrentWallet(currentWallet);
+    }
     this.setState({
-      currentWalletId,
-      wallets,
+      currentWallet,
+    });
+  };
+
+  setCurrentWalletOpenError = (error: string) => {
+    this.setState({
+      currentWalletOpenError: error,
     });
   };
 
@@ -431,6 +420,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }, 10);
   };
 
+  navigateToAddNewWallet = () => {
+    this.props.history.replace({
+      pathname: routes.ADDNEWWALLET, 
+      state: {},
+    });
+  };
+
 
   navigateToDashboard = () => {
     this.props.history.replace({
@@ -446,22 +442,33 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     });
   };
 
-  navigateToServerInfo = () => {
-    this.props.history.replace({
-      pathname: routes.SERVERINFO, 
-      state: {},
-    });
-  };
-
-  navigateToLoadingScreen = (currentStatusIsError: boolean, currentStatus: string, serverUris: ServerClass[]) => {
+  navigateToLoadingScreen = () => {
     this.props.history.replace({
       pathname: routes.LOADING, 
       state: { 
-        currentStatusIsError,
-        currentStatus,
-        serverUris,
+        serverUris: this.state.serverUris,
       },
     });
+  };
+
+  navigateToLoadingScreenChangingWallet = () => {
+    // To change to another wallet, we reset the wallet loading
+    // and redirect to the loading screen
+    this.setTotalBalance(new TotalBalanceClass());
+    this.setAddressesUnified([]);
+    this.setAddressesTransparent([])
+    this.setValueTransferList([]);
+    this.setMessagesList([]);
+    this.setInfo(new InfoClass());
+    this.setZecPrice(0);
+    this.setSyncStatus({} as SyncStatusType);
+    this.setVerificationProgress(null);
+    this.setFetchError('', '');
+    this.setCurrentWalletOpenError('');
+    
+    this.rpc.clearTimers();
+
+    this.navigateToLoadingScreen();
   };
 
   render() {
@@ -472,7 +479,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       addressBook: this.state.addressBook,
       valueTransfers: this.state.valueTransfers,
       messages: this.state.messages,
-      serverSelectModal: this.state.serverSelectModal,
       sendPageState: this.state.sendPageState,
       info: this.state.info,
       syncingStatus: this.state.syncingStatus,
@@ -480,10 +486,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       readOnly: this.state.readOnly,
       serverUris: this.state.serverUris,
       fetchError: this.state.fetchError,
-      serverUri: this.state.serverUri,
-      serverChainName: this.state.serverChainName,
-      serverSelection: this.state.serverSelection,
-      currentWalletId: this.state.currentWalletId,
+      currentWallet: this.state.currentWallet,
+      currentWalletOpenError: this.state.currentWalletOpenError,
       wallets: this.state.wallets,
       seed_phrase: this.state.seed_phrase,
       ufvk: this.state.ufvk,
@@ -512,19 +516,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         {this.state.errorModal.modalIsOpen && (
           <ErrorModal closeModal={this.closeErrorModal} />
         )}
-        {this.state.serverSelectModal.modalIsOpen && (
-          <ServerSelectModal closeModal={this.closeServerSelectModal} />
-        )}
 
         <div style={{ overflow: "hidden" }}>
           {this.props.location.pathname !== "/" && !this.props.location.pathname.toLowerCase().includes("zingo") && (
             <div className={cstyles.sidebarcontainer}>
               <Sidebar
-                setInfo={this.setInfo}
-                clearTimers={this.runRPCClearTimers}
-                navigateToLoadingScreen={this.navigateToLoadingScreen}
                 doRescan={this.runRPCRescan}
-                setWallets={this.setWallets}
+                navigateToLoadingScreenChangingWallet={this.navigateToLoadingScreenChangingWallet}
               />
             </div>
           )}
@@ -560,7 +558,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                 render={() => (
                   <Dashboard 
                     navigateToHistory={this.navigateToHistory}
-                    navigateToServerInfo={this.navigateToServerInfo}
                   />
                 )}
               />
@@ -584,11 +581,16 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
               />
 
               <Route
-                path={routes.SERVERINFO}
-                render={() => (
-                  <ServerInfo
-                    refresh={this.runRPCfectchInfo}
-                    openServerSelectModal={this.openServerSelectModal}
+                path={routes.ADDNEWWALLET}
+                render={(props) => (
+                  <AddNewWallet
+                    {...props}
+                    closeModal={() => this.navigateToDashboard()}
+                    setWallets={this.setWallets}
+                    setCurrentWallet={this.setCurrentWallet}
+                    navigateToLoadingScreenChangingWallet={this.navigateToLoadingScreenChangingWallet}
+                    doSaveWallet={this.doSaveWallet}
+                    clearTimers={this.runRPCClearTimers}
                   />
                 )}
               />
@@ -599,15 +601,16 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <LoadingScreen
                     runRPCConfigure={this.runRPCConfigure}
                     setInfo={this.setInfo}
-                    openServerSelectModal={this.openServerSelectModal}
                     setReadOnly={this.setReadOnly}
                     setServerUris={this.setServerUris}
                     navigateToDashboard={this.navigateToDashboard}
+                    navigateToAddNewWallet={this.navigateToAddNewWallet}
                     setRecoveryInfo={this.setRecoveryInfo}
-                    setServerInfo={this.setServerInfo}
                     setPools={this.setPools}
                     setWallets={this.setWallets}
-                    clearTimers={this.runRPCClearTimers}
+                    setCurrentWallet={this.setCurrentWallet}
+                    setCurrentWalletOpenError={this.setCurrentWalletOpenError}
+                    setFetchError={this.setFetchError}
                   />
                 )}
               />

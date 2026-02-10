@@ -112,16 +112,34 @@ class MenuBuilder {
       label: "Wallet",
       submenu: [
         {
-          label: "Wallet Seed / Viewing Key",
+          label: "Add new Wallet",
           click: () => {
-            mainWindow.webContents.send("seed");
+            mainWindow.webContents.send("addnewwallet");
           },
         },
         { type: "separator" },
         {
-          label: "Add/Remove Wallet",
+          label: "Wallet Seed Phrase / Viewing Key",
           click: () => {
-            mainWindow.webContents.send("change");
+            mainWindow.webContents.send("seed");
+          },
+        },
+        {
+          label: "&Rescan Wallet",
+          click: () => {
+            mainWindow.webContents.send("rescan");
+          },
+        },
+        {
+          label: "Wallet Settings",
+          click: () => {
+            mainWindow.webContents.send("settingswallet");
+          },
+        },
+        {
+          label: "Delete Wallet",
+          click: () => {
+            mainWindow.webContents.send("deletewallet");
           },
         },
         { type: "separator" },
@@ -130,24 +148,6 @@ class MenuBuilder {
           accelerator: "Ctrl+P",
           click: () => {
             mainWindow.webContents.send("payuri");
-          },
-        },
-        {
-          label: "Export All &Transactions",
-          click: () => {
-            mainWindow.webContents.send("exportalltx");
-          },
-        },
-        {
-          label: "&Rescan",
-          click: () => {
-            mainWindow.webContents.send("rescan");
-          },
-        },
-        {
-          label: "Server Info",
-          click: () => {
-            this.mainWindow.webContents.send("serverinfo");
           },
         },
       ],
@@ -156,16 +156,34 @@ class MenuBuilder {
       label: "Wallet",
       submenu: [
         {
-          label: "Wallet Seed / Viewing Key",
+          label: "Add new Wallet",
           click: () => {
-            mainWindow.webContents.send("seed");
+            mainWindow.webContents.send("addnewwallet");
           },
         },
         { type: "separator" },
         {
-          label: "Add/Remove Wallet",
+          label: "Wallet Seed Phrase / Viewing Key",
           click: () => {
-            mainWindow.webContents.send("change");
+            mainWindow.webContents.send("seed");
+          },
+        },
+        {
+          label: "&Rescan Wallet",
+          click: () => {
+            mainWindow.webContents.send("rescan");
+          },
+        },
+        {
+          label: "Wallet Settings",
+          click: () => {
+            mainWindow.webContents.send("settingswallet");
+          },
+        },
+        {
+          label: "Delete Wallet",
+          click: () => {
+            mainWindow.webContents.send("deletewallet");
           },
         },
         { type: "separator" },
@@ -174,24 +192,6 @@ class MenuBuilder {
           accelerator: "Ctrl+P",
           click: () => {
             mainWindow.webContents.send("payuri");
-          },
-        },
-        {
-          label: "Export All &Transactions",
-          click: () => {
-            mainWindow.webContents.send("exportalltx");
-          },
-        },
-        {
-          label: "&Rescan",
-          click: () => {
-            mainWindow.webContents.send("rescan");
-          },
-        },
-        {
-          label: "Server info",
-          click: () => {
-            this.mainWindow.webContents.send("serverinfo");
           },
         },
       ],
@@ -250,7 +250,7 @@ class MenuBuilder {
             label: "&Close",
             accelerator: "Ctrl+W",
             click: () => {
-              this.mainWindow.close();
+              mainWindow.close();
             },
           },
         ],
@@ -259,35 +259,35 @@ class MenuBuilder {
         label: "&Wallet",
         submenu: [
           {
-            label: "Wallet Seed / Viewing Key",
+            label: "Add new Wallet",
+            click: () => {
+              mainWindow.webContents.send("addnewwallet");
+            },
+          },
+          { type: "separator" },
+          {
+            label: "Wallet Seed Phrase / Viewing Key",
             click: () => {
               mainWindow.webContents.send("seed");
             },
           },
-          { type: "separator" },
           {
-            label: "Add/Remove Wallet",
-            click: () => {
-              mainWindow.webContents.send("change");
-            },
-          },
-          { type: "separator" },
-          {
-            label: "Export All &Transactions",
-            click: () => {
-              mainWindow.webContents.send("exportalltx");
-            },
-          },
-          {
-            label: "&Rescan",
+            label: "&Rescan Wallet",
             click: () => {
               mainWindow.webContents.send("rescan");
             },
           },
           {
-            label: "Server info",
+            label: "Wallet Settings",
             click: () => {
-              this.mainWindow.webContents.send("serverinfo");
+              mainWindow.webContents.send("settingswallet");
+            },
+          },
+          { type: "separator" },
+          {
+            label: "Delete Wallet",
+            click: () => {
+              mainWindow.webContents.send("deletewallet");
             },
           },
         ],
@@ -332,8 +332,7 @@ async function getWallets() {
 
 async function getWallet(id) {
   const wallets = await getWallets();
-  const currentWallet = wallets.filter(w => w.id === id);
-  return currentWallet;
+  return wallets.filter(w => w.id === id);
 }
 
 async function addWallet(wallet) {
@@ -342,10 +341,11 @@ async function addWallet(wallet) {
   await saveWallets(wallets);
 }
 
-async function updateWallet(id, updates) {
+async function updateWallet(wallet) {
   const wallets = await getWallets();
-  const updated = wallets.map(w => (w.id === id ? { ...w, ...updates } : w));
-  await saveWallets(updated);
+  const temp = wallets.filter(w => w.id !== wallet.id);
+  temp.push(wallet);
+  await saveWallets(temp);
 }
 
 async function removeWallet(id) {
@@ -406,7 +406,7 @@ function createWindow() {
   ipcMain.handle('wallets:all', async () => await getWallets());
   ipcMain.handle('wallets:get', async (_e, id) => await getWallet(id));
   ipcMain.handle('wallets:add', async (_e, wallet) => await addWallet(wallet));
-  ipcMain.handle('wallets:update', async (_e, id, data) => updateWallet(id, data));
+  ipcMain.handle('wallets:update', async (_e, wallet) => await updateWallet(wallet));
   ipcMain.handle('wallets:remove', async (_e, id) => await removeWallet(id));
   ipcMain.handle('wallets:clear', async () => await clearWallets());
 

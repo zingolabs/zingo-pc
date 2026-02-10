@@ -1,17 +1,8 @@
-.container {
-  overflow: hidden;
+.addnewwalletcontainer {
   display: flex;
   flex-direction: column;
-}
-
-.imgcontainer {
-  width: 100%;
-  text-align: center;
-  margin-top: 3%;
-}
-
-.imgcontainer img {
-  max-width: 300px;
+  margin-left: 16px;
+  margin-right: 16px;
 }
 
 .detailcontainer {

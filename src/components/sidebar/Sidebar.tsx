@@ -1,46 +1,37 @@
-import React, { ReactElement, useContext, useEffect, useState } from "react";
-import dateformat from "dateformat";
+import React, { ReactElement, useContext, useEffect, useRef, useState } from "react";
 import { RouteComponentProps, withRouter } from "react-router";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import { InfoClass, ServerClass, ValueTransferClass } from "../appstate";
-import Utils from "../../utils/utils";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import PayURIModal from "./components/PayURIModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
-import native from "../../native.node";
-import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
 import SelectWallet from "./components/SelectWallet";
-import { WalletType } from "../appstate/types/WalletType";
+import { WalletType } from "../appstate";
 
-const { ipcRenderer, remote } = window.require("electron");
-const fs = window.require("fs");
+const { ipcRenderer } = window.require("electron");
 
 type SidebarProps = {
-  setInfo: (info: InfoClass) => void;
-  clearTimers: () => Promise<void>;
-  navigateToLoadingScreen: (b: boolean, c: string, s: ServerClass[]) => void;
   doRescan: () => void;
-  setWallets: (c: number | null, w: WalletType[]) => void;
+  navigateToLoadingScreenChangingWallet: () => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
-  setInfo, 
-  clearTimers,
-  navigateToLoadingScreen,
   doRescan,
-  setWallets,
   history,
   location,
+  navigateToLoadingScreenChangingWallet,
 }) => {
   const context = useContext(ContextApp);
-  const { info, serverUris, valueTransfers, verificationProgress, readOnly, serverChainName, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWalletId, wallets } = context;
+  const { info, verificationProgress, readOnly, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWallet, currentWalletOpenError } = context;
 
   const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
   const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
+
+  const currentWalletRef = useRef<WalletType | null>(null);
+  const currentWalletOpenErrorRef = useRef<string>('');
 
   let stateSync: string = "";
   let progress: string = "";
@@ -62,23 +53,21 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     stateSync = "DISCONNECTED"
   }
 
-  useEffect(() => {
-    setupMenuHandlers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { currentWalletRef.current = currentWallet; }, [currentWallet]);
+  useEffect(() => { currentWalletOpenErrorRef.current = currentWalletOpenError; }, [currentWalletOpenError]);
 
   // Handle menu items
-  const setupMenuHandlers = async (): Promise<void> => {
+  useEffect(() => {
 
     // About
-    ipcRenderer.on("about", () => {
+    const about = (_event: any) => {
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
           <div className={cstyles.margintoplarge}>Zingo PC v2.0.5</div>
-          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2025, ZingoLabs.</div>
+          <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2026, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
-            The MIT License (MIT) Copyright (c) 2025 ZingoLabs
+            The MIT License (MIT) Copyright (c) 2026 ZingoLabs
             <br />
             <br />
             Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
@@ -100,34 +89,26 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           </div>
         </div>
       );
-    });
-
-    // Donate button
-    ipcRenderer.on("donate", () => {
-      const i = info;
-      setSendTo(
-        new ZcashURITarget(
-          Utils.getDonationAddress(i.chainName !== ServerChainNameEnum.mainChainName),
-          Utils.getDefaultDonationAmount(i.chainName !== ServerChainNameEnum.mainChainName),
-          Utils.getDefaultDonationMemo(i.chainName !== ServerChainNameEnum.mainChainName)
-        )
-      );
-
-      history.push(routes.SEND);
-    });
-
+    };
 
     // Pay URI
-    ipcRenderer.on("payuri", (event: any, uri: string) => {
-      openURIModal(uri);
-    });
+    const payuri = (_event: any, uri: string) => {
+      if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
+        openErrorModal("Pay Uri", "There is not an active Wallet to perform the action.");
+      } else {
+        openURIModal(uri);
+      }
+    };
 
     // Export Seed
-    ipcRenderer.on("seed", async () => {
-      //console.log('data for seed/ufvk & birthday', seed_phrase, ufvk, birthday);
+    const seed = async (_event: any) => {
+      if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
+        openErrorModal("Wallet Seed Phrase/Viewing Key", "There is not an active Wallet to perform the action.");
+        return;
+      }
 
       openErrorModal(
-        "Wallet Seed",
+        "Wallet Seed Phrase / Viewing Key",
         <div className={cstyles.verticalflex}>
           {!!seed_phrase && (
             <>
@@ -177,71 +158,56 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           </div>
         </div>
       );        
-    });
+    };
 
-    ipcRenderer.on("change", async () => {
-      // To change to another wallet, we reset the wallet loading
-      // and redirect to the loading screen
-      try {
-        // interrupt syncing
-        const resultInterrupt: string = await native.pause_sync();
-        console.log("Pausing sync ....", resultInterrupt);
-      } catch (error) {
-        console.log(`Critical Error pause sync ${error}`);
+    const rescan = async (_event: any) => {
+      if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
+        openErrorModal("Rescan Wallet", "There is not an active Wallet to perform the action.");
+      } else {
+        doRescan();
       }
+    };
 
-      // Reset the info object, it will be refetched
-      setInfo(new InfoClass());
-      
-      await clearTimers();
+    const addnewwallet = (_event: any) => {
+      history.push(routes.ADDNEWWALLET, { mode: 'addnew' });
+    };
 
-      navigateToLoadingScreen(false, "", serverUris)
-    });
-
-    // Export All Transactions
-    ipcRenderer.on("exportalltx", async () => {
-      const save = await remote.dialog.showSaveDialog({
-        title: "Save Transactions As CSV",
-        defaultPath: "zingo_pc_transactions.csv",
-        filters: [{ name: "CSV File", extensions: ["csv"] }],
-        properties: ["showOverwriteConfirmation"],
-      });
-
-      const vt = valueTransfers;
-
-      if (save.filePath) {
-        // Construct a CSV
-        const rows = vt.flatMap((t: ValueTransferClass) => {
-          const normaldate = dateformat(t.time * 1000, "mmm dd yyyy hh::MM tt");
-
-          // Add a single quote "'" into the memo field to force interpretation as a string, rather than as a
-          // formula from a rogue memo
-          const escapedMemo = t.memos && t.memos.length > 0 ? `'${t.memos.join("").replace(/"/g, '""')}'` : "";
-          const price = t.zec_price ? t.zec_price.toFixed(2) : "--";
-
-          return `${t.time},"${normaldate}","${t.txid}","${t.type}",${t.amount},"${t.address}","${price}","${escapedMemo}"`;
-        });
-
-        const header = [`UnixTime, Date, Txid, Type, Amount, Address, ZECPrice, Memo`];
-
-        try {
-          await fs.promises.writeFile(save.filePath, header.concat(rows).join("\n"));
-        } catch (err) {
-          openErrorModal("Error Exporting Transactions", `${err}`);
-        }
+    const settingswallet = (_event: any) => {
+      if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
+        openErrorModal("Wallet Settings", "There is not an active Wallet to perform the action.");
+      } else {
+        history.push(routes.ADDNEWWALLET, { mode: 'settings' });
       }
-    });
+    };
 
-    ipcRenderer.on("rescan", async () => {
-      // To rescan, we reset the wallet loading
-      doRescan();
-    });
+    const deletewallet = (_event: any) => {
+      if (!currentWalletRef.current) {
+        openErrorModal("Delete Wallet", "There is not an active Wallet to perform the action.");
+      } else {
+        history.push(routes.ADDNEWWALLET, { mode: 'delete' });
+      }
+    };
 
-    // View Server Info
-    ipcRenderer.on("serverinfo", () => {
-      history.push(routes.SERVERINFO);
-    });
-  };
+    console.log('ONNNNNNNNNNNNNNNNNNNNNNNN');
+    ipcRenderer.on("about", about);
+    ipcRenderer.on("payuri", payuri);
+    ipcRenderer.on("seed", seed);
+    ipcRenderer.on("rescan", rescan);
+    ipcRenderer.on("addnewwallet", addnewwallet);
+    ipcRenderer.on("settingswallet", settingswallet);
+    ipcRenderer.on("deletewallet", deletewallet);
+
+    return () => {
+      console.log('OFFFFFFFFFFFFFFFFFFFFFF')
+      ipcRenderer.removeListener("about", about);
+      ipcRenderer.off("payuri", payuri);
+      ipcRenderer.off("seed", seed);
+      ipcRenderer.off("rescan", rescan);
+      ipcRenderer.off("addnewwallet", addnewwallet);
+      ipcRenderer.off("settingswallet", settingswallet);
+      ipcRenderer.removeListener("deletewallet", deletewallet);
+    };
+  }, [birthday, doRescan, history, openErrorModal, seed_phrase, ufvk]);
 
   const openURIModal = (defaultValue: string | null) => {
     const _uriModalInputValue: string = defaultValue || "";
@@ -275,7 +241,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       return;
     }
 
-    const parsedUri: string | ZcashURITarget = await parseZcashURI(uri, serverChainName);
+    const parsedUri: string | ZcashURITarget = await parseZcashURI(uri, currentWallet ? currentWallet.chain_name: '');
     if (typeof parsedUri === "string") {
       if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
         openErrorModal(errTitle, getErrorBody(parsedUri));
@@ -308,9 +274,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
       <div className={styles.sidebar}>
         <SelectWallet
-          currentWalletId={currentWalletId}
-          wallets={wallets}
-          setWallets={setWallets}
+          navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
         />
         <SidebarMenuItem
           name="Dashboard"
@@ -318,7 +282,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           currentRoute={location.pathname}
           iconname="fa-home"
         />
-        {!readOnly && (
+        {!readOnly && currentWallet !== null && !currentWalletOpenError && (
           <SidebarMenuItem
             name="Send"
             routeName={routes.SEND}
@@ -326,36 +290,44 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
             iconname="fa-paper-plane"
           />
         )}
-        <SidebarMenuItem
-          name="Receive"
-          routeName={routes.RECEIVE}
-          currentRoute={location.pathname}
-          iconname="fa-download"
-        />
-        <SidebarMenuItem
-          name="History"
-          routeName={routes.HISTORY}
-          currentRoute={location.pathname}
-          iconname="fa-list"
-        />
-        <SidebarMenuItem
-          name="Messages"
-          routeName={routes.MESSAGES}
-          currentRoute={location.pathname}
-          iconname="fa-comments"
-        />
+        {currentWallet !== null && !currentWalletOpenError && (
+          <SidebarMenuItem
+            name="Receive"
+            routeName={routes.RECEIVE}
+            currentRoute={location.pathname}
+            iconname="fa-download"
+          />
+        )}
+        {currentWallet !== null && !currentWalletOpenError && (
+          <SidebarMenuItem
+            name="History"
+            routeName={routes.HISTORY}
+            currentRoute={location.pathname}
+            iconname="fa-list"
+          />
+        )}
+        {currentWallet !== null && !currentWalletOpenError && (
+          <SidebarMenuItem
+            name="Messages"
+            routeName={routes.MESSAGES}
+            currentRoute={location.pathname}
+            iconname="fa-comments"
+          />
+        )}
         <SidebarMenuItem
           name="Address Book"
           routeName={routes.ADDRESSBOOK}
           currentRoute={location.pathname}
           iconname="fa-address-book" 
         />
-        <SidebarMenuItem
-          name="Financial Insight"
-          routeName={routes.INSIGHT}
-          currentRoute={location.pathname}
-          iconname="fa-chart-line" 
-        />
+        {currentWallet !== null && !currentWalletOpenError && (
+          <SidebarMenuItem
+            name="Financial Insight"
+            routeName={routes.INSIGHT}
+            currentRoute={location.pathname}
+            iconname="fa-chart-line" 
+          />
+        )}
       </div>
 
       <div className={cstyles.center}>

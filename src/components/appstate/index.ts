@@ -6,7 +6,6 @@ import InfoClass from "./classes/InfoClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
 import SendProgressClass from "./classes/SendProgressClass";
 import ServerClass from "./classes/ServerClass";
-import ServerSelectModalClass from "./classes/ServerSelectModalClass";
 import ToAddrClass from "./classes/ToAddrClass";
 import TotalBalanceClass from "./classes/TotalBalanceClass";
 import TxDetailClass from "./classes/TxDetailClass";
@@ -22,6 +21,9 @@ import { SyncStatusScanRangePriorityEnum } from "./enums/SyncStatusScanRangePrio
 import { ValueTransferStatusEnum } from "./enums/ValueTransferStatusEnum";
 import { ValueTransferKindEnum } from "./enums/ValueTransferKindEnum";
 import { ValueTransferPoolEnum } from "./enums/ValueTransferPoolEnum";
+import { CreationTypeEnum } from "./enums/CreationTypeEnum";
+import { ServerSelectionEnum } from "./enums/ServerSelectionEnum";
+import { PerformanceLevelEnum } from "./enums/PerformanceLevelEnum";
 
 import { SyncStatusScanRangeType } from "./types/SyncStatusScanRangeType";
 import { SyncStatusType } from "./types/SyncStatusType";
@@ -40,7 +42,6 @@ export {
   SendPageStateClass,
   SendProgressClass,
   InfoClass,
-  ServerSelectModalClass,
   TotalBalanceClass,
   ToAddrClass,
   TxDetailClass,
@@ -57,6 +58,9 @@ export {
   ValueTransferStatusEnum,
   ValueTransferKindEnum,
   ValueTransferPoolEnum,
+  CreationTypeEnum,
+  ServerSelectionEnum,
+  PerformanceLevelEnum,
   
   AppState
 };

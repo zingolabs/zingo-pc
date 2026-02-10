@@ -382,7 +382,7 @@ fn init_new(mut cx: FunctionContext) -> JsResult<JsString> {
             Ok(h) => h,
             Err(e) => return Ok(format!("Error: {e}")),
         };
-        let lightclient = match LightClient::new(
+        let mut lightclient = match LightClient::new(
             config,
             chain_height - 100,
             false,
@@ -390,6 +390,8 @@ fn init_new(mut cx: FunctionContext) -> JsResult<JsString> {
             Ok(l) => l,
             Err(e) => return Ok(format!("Error: {e}")),
         };
+        // save the wallet file here
+        RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
         Ok(get_seed_string())
@@ -433,10 +435,12 @@ fn init_from_seed(mut cx: FunctionContext) -> JsResult<JsString> {
             Ok(w) => w,
             Err(e) => return Ok(format!("Error: {e}")),
         };
-        let lightclient = match LightClient::create_from_wallet(wallet, config, false) {
+        let mut lightclient = match LightClient::create_from_wallet(wallet, config, false) {
             Ok(l) => l,
             Err(e) => return Ok(format!("Error: {e}")),
         };
+        // save the wallet file here
+        RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
         Ok(get_seed_string())
@@ -472,10 +476,12 @@ fn init_from_ufvk(mut cx: FunctionContext) -> JsResult<JsString> {
             Ok(w) => w,
             Err(e) => return Ok(format!("Error: {e}")),
         };
-        let lightclient = match LightClient::create_from_wallet(wallet, config, false) {
+        let mut lightclient = match LightClient::create_from_wallet(wallet, config, false) {
             Ok(l) => l,
             Err(e) => return Ok(format!("Error: {e}")),
         };
+        // save the wallet file here
+        RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
         Ok(get_ufvk_string())
@@ -2122,14 +2128,25 @@ fn delete_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Ok((c, h)) => (config, _lightwalletd_uri) = (c, h),
                     Err(_) => return Ok("Error: Config issue, delete failed.".to_string()),
                 };
+                let wallet_path = config.get_wallet_with_name_path(wallet_name.clone());
                 // Check if the file exists before attempting to delete
-                if config.wallet_with_name_path_exists(wallet_name.clone()) {
-                    match remove_file(config.get_wallet_with_name_path(wallet_name)) {
-                        Ok(_) => Ok("File deleted successfully!".to_string()),
-                        Err(e) => Ok(format!("Error: {e}")),
+                if wallet_path.exists() {
+                    match remove_file(&wallet_path) {
+                        Ok(_) => Ok(format!(
+                            "File deleted successfully: {}",
+                            wallet_path.display()
+                        )),
+                        Err(e) => Ok(format!(
+                            "Error deleting file {}: {}",
+                            wallet_path.display(),
+                            e
+                        )),
                     }
                 } else {
-                    Ok("Error: File does not exist, nothing to delete.".to_string())
+                    Ok(format!(
+                        "Error: File does not exist: {}",
+                        wallet_path.display()
+                    ))
                 }
             })
         })

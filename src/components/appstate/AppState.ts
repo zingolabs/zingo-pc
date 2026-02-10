@@ -1,7 +1,6 @@
 import TotalBalanceClass from "./classes/TotalBalanceClass";
 import ValueTransferClass from "./classes/ValueTransferClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
-import ServerSelectModalClass from "./classes/ServerSelectModalClass";
 import ServerClass from "./classes/ServerClass";
 import FetchErrorClass from "./classes/FetchErrorClass";
 import ConfirmModalClass from "./classes/ConfirmModalClass";
@@ -11,10 +10,8 @@ import AddressTransparentClass from "./classes/TransparentAddressClass";
 import AddressBookEntryClass from "./classes/AddressBookEntryClass";
 import InfoClass from "./classes/InfoClass";
 import { SyncStatusType } from "./types/SyncStatusType";
-import { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
 import { ZcashURITarget } from "../../utils/uris";
 import { WalletType } from "./types/WalletType";
-
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
@@ -42,11 +39,8 @@ export default class AppState {
   // Error modal data
   errorModal: ErrorModalClass;
 
-  // Error modal data
+  // Config modal data
   confirmModal: ConfirmModalClass;
-
-  // Server selection
-  serverSelectModal: ServerSelectModalClass;
 
   // if the wallet is from seed or from VK
   readOnly: boolean;
@@ -61,14 +55,12 @@ export default class AppState {
   syncingStatus: SyncStatusType;
   verificationProgress: number | null;
 
-  // local data for performance - Active Server.
-  serverUri: string;
-  serverChainName: "" | ServerChainNameEnum;
-  serverSelection: '' | 'auto' | 'list' | 'custom';
-
   // current wallet
-  currentWalletId: number | null;
-  
+  currentWallet: WalletType | null;
+
+  // current wallet Open Error
+  currentWalletOpenError: string;
+
   // list of wallets
   wallets: WalletType[];
 
@@ -81,7 +73,7 @@ export default class AppState {
   saplingPool: boolean;
   transparentPool: boolean;
 
-  // The state of the Address Book Screen, as thhe user create a new label
+  // The state of the Address Book Screen, as the user create a new label
   addLabelState: AddressBookEntryClass;
 
   // props to context
@@ -103,7 +95,6 @@ export default class AppState {
     this.messages = [] as ValueTransferClass[];
     this.errorModal = new ErrorModalClass();
     this.confirmModal = new ConfirmModalClass();
-    this.serverSelectModal = new ServerSelectModalClass();
     this.sendPageState = new SendPageStateClass();
     this.info = new InfoClass();
     this.syncingStatus = {} as SyncStatusType;
@@ -111,10 +102,8 @@ export default class AppState {
     this.readOnly = false;
     this.serverUris = [] as ServerClass[];
     this.fetchError = {} as FetchErrorClass;
-    this.serverUri = "";
-    this.serverChainName = "";
-    this.serverSelection = "";
-    this.currentWalletId = null;
+    this.currentWallet = {} as WalletType;
+    this.currentWalletOpenError = "";
     this.wallets = [] as WalletType[];
     this.seed_phrase = "";
     this.ufvk = "";

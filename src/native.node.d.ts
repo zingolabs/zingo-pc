@@ -1,15 +1,17 @@
+import { PerformanceLevelEnum, ServerChainNameEnum } from "./components/appstate";
+
 export function deinitialize(): string;
 export function wallet_exists(
   server_uri: string, 
-  chain_hint: string,
-  performance_level: string,
+  chain_hint: ServerChainNameEnum,
+  performance_level: PerformanceLevelEnum,
   min_confirmations: number,
   wallet_name: string
 ): boolean;
 export function init_new(
   server_uri: string, 
-  chain_hint: string,
-  performance_level: string,
+  chain_hint: ServerChainNameEnum,
+  performance_level: PerformanceLevelEnum,
   min_confirmations: number,
   wallet_name: string
 ): string;
@@ -17,8 +19,8 @@ export function init_from_seed(
   seed: string,
   birthday: number,
   server_uri: string,
-  chain_hint: string,
-  performance_level: string,
+  chain_hint: ServerChainNameEnum,
+  performance_level: PerformanceLevelEnum,
   min_confirmations: number,
   wallet_name: string
 ): string;
@@ -26,15 +28,15 @@ export function init_from_ufvk(
   ufvk: string,
   birthday: number,
   server_uri: string,
-  chain_hint: string,
-  performance_level: string,
+  chain_hint: ServerChainNameEnum,
+  performance_level: PerformanceLevelEnum,
   min_confirmations: number,
   wallet_name: string
 ): string;
 export function init_from_b64(
   server_uri: string, 
-  chain_hint: string,
-  performance_level: string,
+  chain_hint: ServerChainNameEnum,
+  performance_level: PerformanceLevelEnum,
   min_confirmations: number,
   wallet_name: string
 ): string;
@@ -116,8 +118,8 @@ export function shield(): Promise<string>;
 export function confirm(): Promise<string>;
 export function delete_wallet(
   server_uri: string, 
-  chain_hint: string,
-  performance_level: string,
+  chain_hint: ServerChainNameEnum,
+  performance_level: PerformanceLevelEnum,
   min_confirmations: number,
   wallet_name: string
 ): Promise<string>;

@@ -7,6 +7,7 @@
   "ADDRESSBOOK": "/addressbook",
   "HISTORY": "/history",
   "MESSAGES": "/messages",
-  "SERVERINFO": "/serverinfo",
+  "ADDNEWWALLET": "/addnewwallet",
+  "SETTINGSWALLET": "/settingswallet",
   "INSIGHT": "/insight"
 }

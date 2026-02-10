@@ -2,6 +2,7 @@ import { ServerChainNameEnum } from "../enums/ServerChainNameEnum";
 
 export default class InfoClass {
     chainName: ServerChainNameEnum;
+    serverUri: string;
     latestBlock: number;
     connections: number;
     version: string;
@@ -15,6 +16,7 @@ export default class InfoClass {
   
     constructor(error?: string) {
       this.chainName = ServerChainNameEnum.mainChainName;
+      this.serverUri = "";
       this.latestBlock = 0;
       this.connections = 0;
       this.version = "";

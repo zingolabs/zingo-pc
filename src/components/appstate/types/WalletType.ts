@@ -1,11 +1,16 @@
+import { CreationTypeEnum } from "../enums/CreationTypeEnum";
+import { PerformanceLevelEnum } from "../enums/PerformanceLevelEnum";
 import { ServerChainNameEnum } from "../enums/ServerChainNameEnum";
+import { ServerSelectionEnum } from "../enums/ServerSelectionEnum";
 
 export interface WalletType {
   id: number;
   fileName: string;
   alias: string;
   chain_name: ServerChainNameEnum;
-  creationType: 'Seed' | 'Ufvk' | 'File' | 'Main';
-  last_total_balance?: number;
-  last_block_height?: number;
+  creationType: CreationTypeEnum;
+  // new fields
+  uri: string;
+  selection: ServerSelectionEnum;
+  performanceLevel: PerformanceLevelEnum;
 }

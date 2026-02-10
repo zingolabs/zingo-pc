@@ -55,6 +55,7 @@
     "start": "cross-env RUST_BACKTRACE=1 ELECTRON_ENABLE_LOGGING=1 NODE_OPTIONS=--trace-uncaught concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
     "script:build": "cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
     "cargo:clean": "cd native && cargo clean && cd ..",
+    "cargo:check": "cd native && cargo check && cd ..",
     "cargo:update": "cd native && cargo update && cd ..",
     "build": "yarn cargo:clean && yarn neon && cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
     "build-mac-x64": "yarn cargo:clean && yarn neon-mac-x64 && cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",

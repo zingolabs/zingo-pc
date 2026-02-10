@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
 import cstyles from "../common/Common.module.css";
-import { AddressBookEntryClass, AddressKindEnum } from "../appstate";
+import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import AddressBookItem from './components/AddressbookItem';
@@ -15,7 +15,7 @@ type AddressBookProps = {
 
 const AddressBook: React.FC<AddressBookProps> = (props) => { 
   const context = useContext(ContextApp);
-  const { addressBook, serverChainName, addLabelState, setAddLabel } = context;
+  const { addressBook, currentWallet, addLabelState, setAddLabel } = context;
 
   const [currentLabel, setCurrentLabel] = useState<string>(addLabelState.label);
   const [currentAddress, setCurrentAddress] = useState<string>(addLabelState.address);
@@ -68,7 +68,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   };
 
   const validateAddress = async (_currentAddress: string) => {
-    const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(_currentAddress, serverChainName);
+    const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(_currentAddress, currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName);
     let _addressError: string | null = _currentAddress === "" || _addressKind !== undefined ? null : 'Invalid Address';
     if (!_addressError) {
       _addressError = addressBook.find((i: AddressBookEntryClass) => i.address === _currentAddress) ? 'Duplicate Address' : null;
