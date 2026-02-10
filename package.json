@@ -20,7 +20,6 @@
     "@fortawesome/free-regular-svg-icons": "^7.0.0",
     "@fortawesome/free-solid-svg-icons": "^7.0.0",
     "@fortawesome/react-fontawesome": "^0.2.3",
-    "axios": "^1.11.0",
     "chart.js": "3.9.1",
     "dateformat": "5.0.3",
     "deep-diff": "^1.0.2",
