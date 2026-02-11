@@ -4,10 +4,12 @@ import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceBlock";
 import { ContextApp } from "../../context/ContextAppState";
+import routes from "../../constants/routes.json";
 
 import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import DetailLine from "../detailLine/DetailLine";
+import { RouteComponentProps, withRouter } from "react-router";
 
 type DashboardProps = {
   navigateToHistory: () => void;
@@ -20,7 +22,7 @@ const chains = {
   "": "" 
 }; 
 
-const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
+const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToHistory, history }) => {
   const context = useContext(ContextApp);
   const { totalBalance, info, readOnly, fetchError, valueTransfers, syncingStatus, currentWallet, currentWalletOpenError, birthday, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
 
@@ -28,7 +30,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   const [shieldFee, setShieldFee] = useState<number>(0);
 
   useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
+    // set somePending as well here when I know there is something new in ValueTransfers 
     const pending: number =
       valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
     setAnyPending(pending > 0);
@@ -114,7 +116,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
         </div>
       )}
       <div className={[styles.horizontalcontainer].join(" ")}>
-        {birthday >= 0 && !!syncingStatus.scan_ranges && (
+        {currentWallet !== null && !currentWalletOpenError && birthday >= 0 && !!syncingStatus.scan_ranges && (
           <div style={{ justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
             Nonlinear Scanning Map
           </div>
@@ -281,27 +283,35 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
           <ScrollPaneTop offsetHeight={260}>
             <div className={cstyles.horizontalflex} style={{ justifyContent: 'space-between', padding: 20 }}>
 
-              {!!valueTransfers && !!valueTransfers.length && (
+              {currentWallet !== null && !currentWalletOpenError && (
                 <div style={{ width: '48%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   Last transactions
                   <div>
                     <div className={styles.detailcontainer}>
-                      <div className={styles.detaillines}>
-                        {valueTransfers
-                          .filter((_, index: number) => index < 5)
-                          .map((vt: ValueTransferClass, index: number) => (
-                            <DetailLine key={index} label={Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)} value={'ZEC ' + Utils.maxPrecisionTrimmed(vt.amount)} />
-                          ))}
-                      </div>
-                      <div style={{ width: '100%', textAlign: 'right', color: Utils.getCssVariable('--color-primary'), marginTop: 20, cursor: 'pointer' }} onClick={() => navigateToHistory()}>
-                        See more... 
-                      </div>
+                      {!!valueTransfers && !!valueTransfers.length ? (
+                        <>
+                          <div className={styles.detaillines}>
+                            {valueTransfers
+                              .filter((_, index: number) => index < 5)
+                              .map((vt: ValueTransferClass, index: number) => (
+                                <DetailLine key={index} label={Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)} value={'ZEC ' + Utils.maxPrecisionTrimmed(vt.amount)} />
+                              ))}
+                          </div>
+                          <div style={{ width: '100%', textAlign: 'right', color: Utils.getCssVariable('--color-primary'), marginTop: 20, cursor: 'pointer' }} onClick={() => navigateToHistory()}>
+                            See more... 
+                          </div>
+                        </>
+                      ) : (
+                        <div className={styles.detaillines}>
+                          No Transactions Yet
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
               )}
               
-              {currentWallet !== null && !!info && !!info.serverUri && !!info.chainName && !!info.latestBlock && (
+              {currentWallet !== null && !currentWalletOpenError && !!info && !!info.serverUri && !!info.chainName && !!info.latestBlock && (
                 <div style={{ width: '48%', justifyContent: 'center', alignItems: 'center', textAlign: 'center' }}>
                   Server info
                   <div>
@@ -309,6 +319,8 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                       <div className={styles.detaillines}>
                         <DetailLine label="Server URI" value={info ? info.serverUri : ''} />
                         <DetailLine label="Server Network" value={chains[info.chainName]} />
+                        <DetailLine label="Server Version" value={info.version} />
+                        <DetailLine label="Zingolib Version" value={info.zingolib} />
                         <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                         {info.currencyName === 'ZEC' && (
                           <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
@@ -323,6 +335,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 <div
                   style={{
                     display: 'flex',
+                    flexDirection: 'column',
                     width: '100%',
                     justifyContent: 'center',
                     alignItems: 'center',
@@ -335,9 +348,19 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                       justifyContent: 'center',
                       alignItems: 'center',
                       marginTop: 50,
+                      marginBottom: 20,
                     }}>
                       There is no wallets added.
                   </div>
+                  <button
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => {
+                      history.push(routes.ADDNEWWALLET, { mode: 'addnew' });
+                    }}
+                  >
+                    Add New Wallet
+                  </button>
                 </div>
               )}
 
@@ -345,6 +368,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 <div
                   style={{
                     display: 'flex',
+                    flexDirection: 'column',
                     width: '100%',
                     justifyContent: 'center',
                     alignItems: 'center',
@@ -357,8 +381,29 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                       justifyContent: 'center',
                       alignItems: 'center',
                       marginTop: 50,
+                      marginBottom: 20,
                     }}>
                       {`Error Opening the current Wallet: ${currentWalletOpenError}`}
+                  </div>
+                  <div className={cstyles.verticalbuttons}>
+                    <button
+                      type="button"
+                      className={cstyles.primarybutton}
+                      onClick={() => {
+                        history.push(routes.ADDNEWWALLET, { mode: 'settings' });
+                      }}
+                    >
+                      Wallet Settings
+                    </button>
+                    <button 
+                      type="button" 
+                      className={cstyles.primarybutton} 
+                      onClick={() => {
+                        history.push(routes.ADDNEWWALLET, { mode: 'delete' });
+                      }}
+                    >
+                      Delete Wallet
+                    </button>
                   </div>
                 </div>
               )}
@@ -372,4 +417,4 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   );
 };
 
-export default Dashboard;
+export default withRouter(Dashboard);
