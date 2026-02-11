@@ -17,7 +17,7 @@ const chains = {
 
 const SelectWallet = ({ navigateToLoadingScreenChangingWallet }: SelectWalletProps) => {
   const context = useContext(ContextApp);
-  const { currentWallet, wallets } = context;
+  const { currentWallet, wallets, openErrorModal } = context;
 
   const walletsSorted = wallets.sort((a, b) => {
     const chainCmp = a.chain_name.localeCompare(b.chain_name);
@@ -33,6 +33,10 @@ const SelectWallet = ({ navigateToLoadingScreenChangingWallet }: SelectWalletPro
             style={{ marginLeft: 7 }}
             value={currentWallet.id}
             onChange={async (e) => {
+              openErrorModal(
+                "Change Wallet",
+                "Opening the new active Wallet selected",
+              );
               const id: number = Number(e.target.value);
               await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
               navigateToLoadingScreenChangingWallet();
