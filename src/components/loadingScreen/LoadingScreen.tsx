@@ -276,6 +276,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             performanceLevel: PerformanceLevelEnum.High,
           };
           currentWallet = mainnetWallet_1;
+          this.setState({
+            currentWallet: mainnetWallet_1,
+          });
         } else {
           let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.mainChainName && !s.obsolete && s.default);
           mainnetWallet_1 = {
@@ -309,6 +312,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             performanceLevel: PerformanceLevelEnum.High,
           };
           currentWallet = testnetWallet_2;
+          this.setState({
+            currentWallet: testnetWallet_2,
+          });
         } else {
           let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.testChainName && !s.obsolete && s.default);
           testnetWallet_2 = {
@@ -342,6 +348,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             performanceLevel: PerformanceLevelEnum.High,
           };
           currentWallet = regtestWallet_3;
+          this.setState({
+            currentWallet: regtestWallet_3,
+          });
         } else {
           let d = serverUrisList().filter((s: ServerClass) => s.chain_name === ServerChainNameEnum.regtestChainName && !s.obsolete && s.default);
           regtestWallet_3 = {
@@ -381,6 +390,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         if (firstWallet) {
           currentWalletId = firstWallet.id;
           currentWallet = firstWallet;
+          this.setState({
+            currentWallet: firstWallet,
+          });
         } else {
           // no wallets remaining...
           currentWalletId = null;
@@ -388,6 +400,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }
       } else {
         currentWallet = cw[0];
+        this.setState({
+          currentWallet: cw[0],
+        });
       }
       // check if have the new fields: selection / uri
       console.log('wwwwwwwwwwwwwwwwwwwallet BEFORE', currentWalletId, currentWallet);
@@ -416,6 +431,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }
         console.log('wwwwwwwwwwwwwwwwwwwallet STORE', currentWalletId, currentWallet)
         await ipcRenderer.invoke("wallets:update", currentWallet);
+        this.setState({
+          currentWallet: currentWallet,
+        });
       }
       // re-fetching wallets again... 
       wallets = await ipcRenderer.invoke("wallets:all");
@@ -716,7 +734,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { loadingDone, currentWallet } = this.state;
 
     if (loadingDone) {
-        setTimeout(() => this.props.navigateToDashboard(), 500);
+        setTimeout(() => this.props.navigateToDashboard(), 10);
     }
 
     return (

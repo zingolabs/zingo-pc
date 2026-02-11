@@ -309,7 +309,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Restoring wallet from file", result);
       } else {
-        createNextWallet(id, wallet_name, wallet_name);
+        createNextWallet(id, wallet_name, alias ? alias : wallet_name);
 
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
@@ -349,7 +349,10 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       // re-fetching wallets 
       const newWallets = await ipcRenderer.invoke("wallets:all");
       setWallets(newWallets);
-      const needStart: boolean = selectedServer !== currentWallet.uri || performanceLevel !== currentWallet.performanceLevel;
+      const needStart: boolean = 
+        selectedServer !== currentWallet.uri || 
+        performanceLevel !== currentWallet.performanceLevel || 
+        selectedSelection === ServerSelectionEnum.auto;
       setCurrentWallet(currentWalletSave);
       if (needStart) {
          openErrorModal(
@@ -525,7 +528,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
               disabled={mode === 'delete'}
               type="text"
               className={cstyles.inputbox}
-              style={{ width: '70%', marginLeft: "20px" }}
+              style={{ width: '75%', marginLeft: "20px" }}
               value={alias}
               onChange={(e) => updateAlias(e)}
             />
@@ -605,13 +608,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           )}
 
           {mode !== 'addnew' && (
-            <div style={{ margin: "10px" }}>
+            <div className={[cstyles.horizontalflex].join(" ")} style={{ margin: "10px", alignItems: 'center', flexWrap: 'nowrap' }}>
               <div className={[cstyles.sublight].join(" ")}>File Name</div>
               <input
                 disabled={true}
                 type="text"
                 className={cstyles.inputbox}
-                style={{ width: '90%', marginLeft: "20px" }}
+                style={{ width: '85%', marginLeft: "20px" }}
                 value={file}
               />
             </div>
@@ -623,43 +626,44 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
               <div style={{ margin: "10px" }}>
                 <div className={[cstyles.sublight].join(" ")}>Server</div>
-                <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
-                  <input
-                    checked={selectedSelection === ServerSelectionEnum.auto}
-                    style={{ accentColor: Utils.getCssVariable('--color-primary') }}
-                    type="radio" 
-                    name="selection" 
-                    value={ServerSelectionEnum.auto}
-                    onClick={(e) => {
-                      setSelectedSelection(ServerSelectionEnum.auto);
-                      setSelectedServer(autoServer);
-                      setSelectedChain(autoChain);
-                    }} 
-                    onChange={(e) => {
-                      setSelectedSelection(ServerSelectionEnum.auto);
-                      setSelectedServer(autoServer);
-                      setSelectedChain(autoChain);
-                    }}
-                  />
-                  Automatic
-                  <select
-                    disabled={selectedSelection !== "auto"}
-                    className={cstyles.inputbox}
-                    style={{ marginLeft: "20px", color: customChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
-                    value={autoChain}
-                    onChange={(e) => {
-                      const value = e.target.value as ServerChainNameEnum | ''; 
-                      setAutoChain(value);
-                      setSelectedChain(value);
-                      setSelectedServer(servers.filter((s: ServerClass) => s.default && s.chain_name === value)[0].uri);
-                    }}
-                  > 
-                    <option value="" disabled hidden>Select...</option> 
-                    <option value="main">{chains["main"]}</option>
-                    <option value="test">{chains["test"]}</option>
-                  </select>
-                </div>
-
+                {mode === 'settings' && (
+                  <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
+                    <input
+                      checked={selectedSelection === ServerSelectionEnum.auto}
+                      style={{ accentColor: Utils.getCssVariable('--color-primary') }}
+                      type="radio" 
+                      name="selection" 
+                      value={ServerSelectionEnum.auto}
+                      onClick={(e) => {
+                        setSelectedSelection(ServerSelectionEnum.auto);
+                        setSelectedServer(autoServer);
+                        setSelectedChain(autoChain);
+                      }} 
+                      onChange={(e) => {
+                        setSelectedSelection(ServerSelectionEnum.auto);
+                        setSelectedServer(autoServer);
+                        setSelectedChain(autoChain);
+                      }}
+                    />
+                    Automatic
+                    <select
+                      disabled={selectedSelection !== "auto"}
+                      className={cstyles.inputbox}
+                      style={{ marginLeft: "20px", color: customChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
+                      value={autoChain}
+                      onChange={(e) => {
+                        const value = e.target.value as ServerChainNameEnum | ''; 
+                        setAutoChain(value);
+                        setSelectedChain(value);
+                        setSelectedServer(servers.filter((s: ServerClass) => s.default && s.chain_name === value)[0].uri);
+                      }}
+                    > 
+                      <option value="" disabled hidden>Select...</option> 
+                      <option value="main">{chains["main"]}</option>
+                      <option value="test">{chains["test"]}</option>
+                    </select>
+                  </div>
+                )}
                 <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
                   <input
                     checked={selectedSelection === ServerSelectionEnum.list}
