@@ -35,7 +35,6 @@ type LoadingScreenProps = {
   setReadOnly: (readOnly: boolean) => void;
   setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
-  navigateToAddNewWallet: () => void;
   setRecoveryInfo: (s: string, u: string, b: number) => void;
   setPools: (o: boolean, s: boolean, t: boolean) => void;
   setWallets: (ws: WalletType[]) => void;
@@ -69,7 +68,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   }
 
   componentDidMount = async () => {
-    const { openErrorModal } = this.context as React.ContextType<typeof ContextApp>;
+    const { openErrorModal, closeErrorModal } = this.context as React.ContextType<typeof ContextApp>;
 
     try {
       native.set_crypto_default_provider_to_ring();
@@ -86,6 +85,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       const version = await RPC.getWalletVersion();
       //console.log('WALLET VERSION -------------->', version); 
       if (version && version < 32) {
+        closeErrorModal();
         openErrorModal(
           "Wallet migration",
           <div>
@@ -97,7 +97,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
             </div>
           </div>
         );
+      } else {
+        closeErrorModal();
       }
+    } else {
+      closeErrorModal();
     }
   }
 
@@ -407,7 +411,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         currentWallet.uri = currentWalleUri;
         currentWallet.chain_name = currentWalletChain_name;
         currentWallet.selection = currentWalletSelection;
-        if (!currentWallet.hasOwnProperty("currentwalletid")) {
+        if (!currentWallet.hasOwnProperty("performanceLevel")) {
           currentWallet.performanceLevel = PerformanceLevelEnum.High;
         }
         console.log('wwwwwwwwwwwwwwwwwwwallet STORE', currentWalletId, currentWallet)

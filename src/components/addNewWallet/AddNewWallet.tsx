@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import cstyles from "../common/Common.module.css";
 import styles from "./AddNewWallet.module.css";
@@ -63,6 +63,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   const [servers, setServers] = useState<ServerClass[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false));
 
+  const isSubmittingRef = useRef(false);
+  
   const chains = {
     "main": "Mainnet",
     "test": "Testnet",
@@ -138,6 +140,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     })();
   }, [initialServerValue, currentWallet?.chain_name, currentWallet?.selection, currentWallet?.uri, serverUris, currentWallet, servers, mode]);
 
+  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
   const nextWalletName = () => {
     let maxId = !!wallets && wallets.length > 0 ? Math.max(...wallets.map(w => w.id)) : 3;
     if (maxId < 3) {
@@ -205,6 +209,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
         // save the wallet
         doSaveWallet();
+        await delay(1000);
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
@@ -231,6 +236,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
         // save the wallet
         doSaveWallet();
+        await delay(1000);
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
@@ -284,6 +290,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
         // save the wallet
         doSaveWallet();
+        await delay(1000);
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
@@ -310,6 +317,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
         // save the wallet
         doSaveWallet();
+        await delay(1000);
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
@@ -329,7 +337,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       }
       const currentWalletSave: WalletType = {
         id : currentWallet.id,
-        fileName: currentWallet.fileName, // by default: zingo-wallet.dat 
+        fileName: currentWallet.fileName, // by default: zingo-wallet.dat
         alias, // by default: the first word of the seed phrase
         chain_name: selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
         creationType: currentWallet.creationType,
@@ -344,6 +352,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       const needStart: boolean = selectedServer !== currentWallet.uri || performanceLevel !== currentWallet.performanceLevel;
       setCurrentWallet(currentWalletSave);
       if (needStart) {
+         openErrorModal(
+          "Save Wallet Settings",
+          selectedServer !== currentWallet.uri 
+            ? "Opening the active Wallet with the New Server."
+            : "Opening the active Wallet with the New Performance Level",
+        );
+        await delay(1000);
         navigateToLoadingScreenChangingWallet();
       } else {
         closeModal();
@@ -379,9 +394,10 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           const newWallets = await ipcRenderer.invoke("wallets:all");
           setWallets(newWallets);
 
-          setTimeout(async () => {
+          const delayDelete = async () => {
+            await delay(2000);
             navigateToLoadingScreenChangingWallet();
-            // if the wallet was created by a file, don't delete the file.
+            // if the wallet was created by a file, don't delete the file. 
             if (currentWallet.creationType !== CreationTypeEnum.File) {
               const resultDelete: string = await native.delete_wallet(
                 currentWallet.uri, 
@@ -396,7 +412,9 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             }
             RPC.deinitialize();
             setCurrentWallet(null);
-          }, 2000);
+          };
+
+          await delayDelete();
         }
       } catch (error) {
         console.log(`Critical Error delete wallet ${error}`);
@@ -408,41 +426,62 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
 
   const submitAction = async () => {
+    if (isSubmittingRef.current) {
+      console.log('ejecutando...', isSubmittingRef.current);
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    console.log('after TRUE', isSubmittingRef.current)
+
     if (mode === 'addnew') {
       // check the fields 
       if (selectedSelection !== ServerSelectionEnum.auto && (!selectedServer || !selectedChain || !selectedSelection)) {
+        isSubmittingRef.current = false;
         return;
       }
       if (newWalletType === 'seed' && !seedPhrase) {
+        isSubmittingRef.current = false;
         return;
       }
       if (newWalletType === 'ufvk' && !ufvk) {
+        isSubmittingRef.current = false;
         return;
       }
       if (newWalletType === 'file' && !file) {
+        isSubmittingRef.current = false;
         return;
       }
 
       // run the option
       if (newWalletType === 'new') {
-        doCreateNewWallet();
+        openErrorModal("Add New Wallet", "Creating a brand new wallet.");
+        await doCreateNewWallet();
       }
       if (newWalletType === 'seed') {
-        doRestoreSeedWallet();
+        openErrorModal("Restore Wallet", "Restoring an existing wallet from the seed phrase.");
+        await doRestoreSeedWallet();
       }
       if (newWalletType === 'ufvk') {
-        doRestoreUfvkWallet();
+        openErrorModal("Restore Wallet", "Restoring an existing wallet from the Unified Full Viewing Key.");
+        await doRestoreUfvkWallet();
       }
       if (newWalletType === 'file') {
-        doRestoreFileWallet();
+        openErrorModal("Restore Wallet", "Restoring an existing wallet from the DAT file stored.");
+        await doRestoreFileWallet();
       }
     }
+
     if (mode === 'settings') {
-      doSave();
+      await doSave();
     }
     if (mode === 'delete') {
-      doDelete();
+      openErrorModal("Delete Wallet", "Stopping all the activity with the wallet in order to delete it completely.");
+      await doDelete();
     }
+
+    isSubmittingRef.current = false;
+    console.log('finished', isSubmittingRef.current)
   };
 
   const updateSeedPhrase = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -743,10 +782,10 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         </div>
 
         <div style={{ marginBottom: "20px" }} className={cstyles.buttoncontainer}>
-          <button 
+          <button
             type="button" 
             className={cstyles.primarybutton} 
-            onClick={submitAction} 
+            onClick={async () => await submitAction()} 
           >
             {mode === 'addnew' 
               ? (newWalletType === 'new' ? 'Create Wallet' : 'Restore Wallet')

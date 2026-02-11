@@ -420,14 +420,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     }, 10);
   };
 
-  navigateToAddNewWallet = () => {
-    this.props.history.replace({
-      pathname: routes.ADDNEWWALLET, 
-      state: {},
-    });
-  };
-
-
   navigateToDashboard = () => {
     this.props.history.replace({
       pathname: routes.DASHBOARD, 
@@ -604,7 +596,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setReadOnly={this.setReadOnly}
                     setServerUris={this.setServerUris}
                     navigateToDashboard={this.navigateToDashboard}
-                    navigateToAddNewWallet={this.navigateToAddNewWallet}
                     setRecoveryInfo={this.setRecoveryInfo}
                     setPools={this.setPools}
                     setWallets={this.setWallets}
