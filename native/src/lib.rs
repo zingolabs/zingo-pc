@@ -2132,10 +2132,14 @@ fn delete_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 // Check if the file exists before attempting to delete
                 if wallet_path.exists() {
                     match remove_file(&wallet_path) {
-                        Ok(_) => Ok(format!(
-                            "File deleted successfully: {}",
-                            wallet_path.display()
-                        )),
+                        Ok(_) => {
+                            reset_lightclient();
+
+                            Ok(format!(
+                                "File deleted successfully: {}",
+                                wallet_path.display()
+                            ))
+                        }
                         Err(e) => Ok(format!(
                             "Error deleting file {}: {}",
                             wallet_path.display(),
