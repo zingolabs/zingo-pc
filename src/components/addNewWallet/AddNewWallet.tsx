@@ -39,7 +39,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     mode = locationState.mode;
   }
   const context = useContext(ContextApp);
-  const { serverUris, openErrorModal, currentWallet, wallets, currentWalletOpenError } = context;
+  const { serverUris, openErrorModal, closeErrorModal, currentWallet, wallets, currentWalletOpenError } = context;
 
   const [newWalletType, setNewWalletType] = useState<'new' | 'seed' | 'ufvk' | 'file'>('new');
   const [seedPhrase, setSeedPhrase] = useState<string>('');
@@ -383,41 +383,42 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         console.log(walletExistsResult);
         if (walletExistsResult) {
           // interrupt syncing, just in case.
-          if (!currentWalletOpenError) {
+          // only if the App is going to delete the DAT file.
+          if (!currentWalletOpenError && currentWallet.creationType !== CreationTypeEnum.File) {
             const resultInterrupt: string = await native.stop_sync();
-            console.log('~~~~~~~~~~~~~~ wallet', currentWallet);
             console.log("Stopping sync ...", resultInterrupt);
           }
+          RPC.deinitialize();
 
           // remove the actual wallet
           await ipcRenderer.invoke("wallets:remove", currentWallet.id);
           await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
 
           // re-fetching wallets 
-          const newWallets = await ipcRenderer.invoke("wallets:all");
+          const newWallets: WalletType[] = await ipcRenderer.invoke("wallets:all");
           setWallets(newWallets);
 
-          const delayDelete = async () => {
-            await delay(2000);
+          // if the wallet was created by a file, don't delete the file.
+          if (currentWallet.creationType !== CreationTypeEnum.File) {
+            const resultDelete: string = await native.delete_wallet(
+              currentWallet.uri, 
+              currentWallet.chain_name, 
+              currentWallet.performanceLevel, 
+              3, 
+              currentWallet.fileName 
+                ? currentWallet.fileName 
+                : 'zingo-wallet.dat',
+            );
+            console.log("deleting ...", resultDelete);
+          }
+          setCurrentWallet(null);
+          await delay(1000);
+          if (!!newWallets && newWallets.length > 0) {
             navigateToLoadingScreenChangingWallet();
-            // if the wallet was created by a file, don't delete the file. 
-            if (currentWallet.creationType !== CreationTypeEnum.File) {
-              const resultDelete: string = await native.delete_wallet(
-                currentWallet.uri, 
-                currentWallet.chain_name, 
-                currentWallet.performanceLevel, 
-                3, 
-                currentWallet.fileName 
-                  ? currentWallet.fileName 
-                  : 'zingo-wallet.dat',
-              );
-              console.log("deleting ...", resultDelete);
-            }
-            RPC.deinitialize();
-            setCurrentWallet(null);
-          };
-
-          await delayDelete();
+          } else {
+            closeModal();
+            closeErrorModal();
+          }
         }
       } catch (error) {
         console.log(`Critical Error delete wallet ${error}`);
@@ -430,12 +431,10 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   const submitAction = async () => {
     if (isSubmittingRef.current) {
-      console.log('ejecutando...', isSubmittingRef.current);
       return;
     }
 
     isSubmittingRef.current = true;
-    console.log('after TRUE', isSubmittingRef.current)
 
     if (mode === 'addnew') {
       // check the fields 
@@ -484,7 +483,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     }
 
     isSubmittingRef.current = false;
-    console.log('finished', isSubmittingRef.current)
   };
 
   const updateSeedPhrase = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -615,7 +613,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                 type="text"
                 className={cstyles.inputbox}
                 style={{ width: '85%', marginLeft: "20px" }}
-                value={file}
+                value={currentWallet && currentWallet.creationType === CreationTypeEnum.Main ? 'zingo-wallet.dat' : file}
               />
             </div>
           )}

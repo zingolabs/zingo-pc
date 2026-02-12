@@ -132,7 +132,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
             marginBottom: 0,
             marginTop: 10,
           }}>
-          {birthday >= 0 && !!syncingStatus.scan_ranges && syncingStatus.scan_ranges.map((range: SyncStatusScanRangeType) => {
+          {currentWallet !== null && !currentWalletOpenError && birthday >= 0 && !!syncingStatus.scan_ranges && syncingStatus.scan_ranges.map((range: SyncStatusScanRangeType) => {
             const percent: number = ((range.end_block - range.start_block) * 100) / (info.latestBlock - birthday);
             return <div
               key={`${range.start_block.toString() + '-' + range.end_block.toString()}`}
@@ -164,7 +164,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
           }
           )}
         </div>
-        {birthday >= 0 && !!syncingStatus.scan_ranges && (
+        {currentWallet !== null && !currentWalletOpenError && birthday >= 0 && !!syncingStatus.scan_ranges && (
           <div
             style={{
               display: 'flex',
