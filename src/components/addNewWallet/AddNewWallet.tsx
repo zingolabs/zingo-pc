@@ -58,10 +58,11 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
   
-  const [customChain, setCustomChain] = useState<ServerChainNameEnum | ''>("");
-  const [autoChain, setAutoChain] = useState<ServerChainNameEnum | ''>("");
+  //const [customChain, setCustomChain] = useState<ServerChainNameEnum | ''>("");
+  //const [autoChain, setAutoChain] = useState<ServerChainNameEnum | ''>("");
 
   const [servers, setServers] = useState<ServerClass[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false));
+  const [serverExpanded, setServerExpanded] = useState<boolean>(false);
 
   const isSubmittingRef = useRef(false);
   
@@ -82,38 +83,22 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   const initialServerValue = useCallback((server: string, chain_name: ServerChainNameEnum | '', selection: ServerSelectionEnum | '') => {
     if (selection === ServerSelectionEnum.custom) {
       setCustomServer(server);
-      setCustomChain(chain_name);
 
       setListServer("");
 
       setAutoServer(server);
-      // if the user have a custom server
-      // pre-fill with the server's chain only for:
-      // - MainNet
-      // - TestNet
-      // make no sense to select automatically for RegTest (no list)
-      if (chain_name === ServerChainNameEnum.mainChainName || chain_name === ServerChainNameEnum.testChainName) {
-        setAutoChain(chain_name);
-      } else {
-        // for RegTest -> TestNet.
-        setAutoChain(ServerChainNameEnum.testChainName);
-      }
     } else if (selection === ServerSelectionEnum.auto) {
       setAutoServer(server);
-      setAutoChain(chain_name);
 
       setListServer("");
 
       setCustomServer("");
-      setCustomChain("");
     } else { // list
       setListServer(server);
 
       setCustomServer("");
-      setCustomChain("");
 
       setAutoServer(server);
-      setAutoChain(chain_name);
     }
   }, []);
 
@@ -436,12 +421,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
     isSubmittingRef.current = true;
 
+    if (selectedSelection !== ServerSelectionEnum.auto && (!selectedServer || !selectedChain || !selectedSelection)) {
+      isSubmittingRef.current = false;
+      return;
+    }
+    
     if (mode === 'addnew') {
       // check the fields 
-      if (selectedSelection !== ServerSelectionEnum.auto && (!selectedServer || !selectedChain || !selectedSelection)) {
-        isSubmittingRef.current = false;
-        return;
-      }
       if (newWalletType === 'seed' && !seedPhrase) {
         isSubmittingRef.current = false;
         return;
@@ -505,7 +491,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     setAlias(e.target.value);
   };
 
-  //console.log('render modal server', servers, selectedServer, selectedChain, selectedSelection);
+  //console.log('render modal server', servers, selectedServer, selectedChain, selectedSelection); 
 
   return (
     <ScrollPaneTop offsetHeight={20}>
@@ -521,15 +507,51 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
 
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center', flexWrap: 'nowrap' }}>
-            <div className={cstyles.sublight}>Alias/Description Wallet</div>
+            <div className={cstyles.sublight}>Wallet Alias/Description</div>
             <input
               disabled={mode === 'delete'}
               type="text"
               className={cstyles.inputbox}
-              style={{ width: '75%', marginLeft: "20px" }}
+              style={{ width: '60%', marginLeft: "20px" }}
               value={alias}
               onChange={(e) => updateAlias(e)}
             />
+            <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
+              Network 
+              <select
+                disabled={mode !== 'addnew'}
+                className={cstyles.inputbox}
+                style={{ marginLeft: "20px", color: selectedChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
+                value={selectedChain}
+                onChange={(e) => {
+                  setServerExpanded(true);
+                  setSelectedChain(e.target.value as ServerChainNameEnum | '');
+                  if (servers.filter(s => s.chain_name === e.target.value).length === 0) {
+                    setSelectedSelection(ServerSelectionEnum.custom);
+                    setSelectedServer(customServer);
+                    //setListServer('');
+                  } else {
+                    if (!customServer && selectedSelection === ServerSelectionEnum.custom) {
+                      setSelectedSelection(ServerSelectionEnum.list);
+                      const ls: string = servers.filter(s => s.chain_name === e.target.value)[0].uri;
+                      setListServer(ls);
+                      setSelectedServer(ls);
+                    } else {
+                      const ls: string = servers.filter(s => s.chain_name === e.target.value)[0].uri;
+                      setListServer(ls);
+                      if (selectedSelection === ServerSelectionEnum.list) {
+                        setSelectedServer(ls);
+                      }
+                    }
+                  }
+                }}
+              >
+                <option value="" disabled hidden>Select...</option> 
+                <option value="main">{chains["main"]}</option>
+                <option value="test">{chains["test"]}</option>
+                <option value="regtest">{chains["regtest"]}</option> 
+              </select>
+            </div>
           </div>
 
           {mode === 'addnew' && (
@@ -620,148 +642,117 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
           {mode !== 'delete' && (
             <>
-              <hr style={{ width: '100%', borderColor: Utils.getCssVariable('--color-primary') }} />
+              <div style={{ width: '120%', height: '20px', marginTop: 10, marginBottom: 10, marginLeft: "-20px", backgroundColor: Utils.getCssVariable('--color-background') }} />
 
-              <div style={{ margin: "10px" }}>
-                <div className={[cstyles.sublight].join(" ")}>Server</div>
-                {mode === 'settings' && (
-                  <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
-                    <input
-                      checked={selectedSelection === ServerSelectionEnum.auto}
-                      style={{ accentColor: Utils.getCssVariable('--color-primary') }}
-                      type="radio" 
-                      name="selection" 
-                      value={ServerSelectionEnum.auto}
-                      onClick={(e) => {
-                        setSelectedSelection(ServerSelectionEnum.auto);
-                        setSelectedServer(autoServer);
-                        setSelectedChain(autoChain);
-                      }} 
-                      onChange={(e) => {
-                        setSelectedSelection(ServerSelectionEnum.auto);
-                        setSelectedServer(autoServer);
-                        setSelectedChain(autoChain);
-                      }}
-                    />
-                    Automatic
-                    <select
-                      disabled={selectedSelection !== "auto"}
-                      className={cstyles.inputbox}
-                      style={{ marginLeft: "20px", color: customChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
-                      value={autoChain}
-                      onChange={(e) => {
-                        const value = e.target.value as ServerChainNameEnum | ''; 
-                        setAutoChain(value);
-                        setSelectedChain(value);
-                        setSelectedServer(servers.filter((s: ServerClass) => s.default && s.chain_name === value)[0].uri);
-                      }}
-                    > 
-                      <option value="" disabled hidden>Select...</option> 
-                      <option value="main">{chains["main"]}</option>
-                      <option value="test">{chains["test"]}</option>
-                    </select>
+              <div style={{ margin: "10px" }}> 
+                {!serverExpanded ? (
+                  <div className={cstyles.horizontalflex}>
+                    <div className={[cstyles.sublight].join(" ")} style={{ marginRight: "20px" }} onClick={() => setServerExpanded(!serverExpanded)}>Server <span style={{ fontSize: 10, color: Utils.getCssVariable('--color-zingo') }} >(Click here to expand)</span></div>
+                    <div onClick={() => setServerExpanded(!serverExpanded)}>{selectedServer}</div> 
                   </div>
-                )}
-                <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
-                  <input
-                    checked={selectedSelection === ServerSelectionEnum.list}
-                    style={{ accentColor: Utils.getCssVariable('--color-primary') }}
-                    type="radio" 
-                    name="selection" 
-                    value={ServerSelectionEnum.list} 
-                    onClick={(e) => {
-                      setSelectedSelection(ServerSelectionEnum.list);
-                      setSelectedServer(listServer);
-                      if (!!listServer) {
-                        setSelectedChain(servers.filter((s: ServerClass) => s.uri === listServer)[0].chain_name);
-                      }
-                    }} 
-                    onChange={(e) => {
-                      setSelectedSelection(ServerSelectionEnum.list);
-                      setSelectedServer(listServer);
-                      if (!!listServer) {
-                        setSelectedChain(servers.filter((s: ServerClass) => s.uri === listServer)[0].chain_name);
-                      }
-                    }}
-                  />
-                  List
-                  <select
-                    disabled={selectedSelection !== "list"}
-                    className={cstyles.inputbox}
-                    style={{ marginLeft: "20px" }}
-                    value={listServer}
-                    onChange={(e) => {
-                      setListServer(e.target.value);
-                      setSelectedServer(e.target.value);
-                      setSelectedChain(servers.filter((s: ServerClass) => s.uri === e.target.value)[0].chain_name);
-                    }}>
-                      <option key="" value="" disabled hidden></option>
-                      {servers.map((s: ServerClass) => (
-                        <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + (s.latency ? (' _ ' + s.latency + ' ms.') : '')}</option>
-                      ))}
-                  </select>
-                </div>
-
-                <div style={{ margin: "10px" }}>
-                  <input 
-                    checked={selectedSelection === "custom"}
-                    style={{ accentColor: Utils.getCssVariable('--color-primary') }}
-                    type="radio" 
-                    name="selection" 
-                    value={"custom"} 
-                    onClick={(e) => {
-                      setSelectedSelection(ServerSelectionEnum.custom);
-                      setSelectedServer(customServer);
-                      setSelectedChain(customChain);
-                    }} 
-                    onChange={(e) => {
-                      setSelectedSelection(ServerSelectionEnum.custom);
-                      setSelectedServer(customServer);
-                      setSelectedChain(customChain);
-                    }} 
-                  />
-                  Custom
-                  <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
-                    <div style={{ width: '75%', padding: 0, margin: 0, flexWrap: 'nowrap' }}>
-                      URI 
-                      <input
-                        placeholder="https://------.---:---"
-                        disabled={selectedSelection !== "custom"}
-                        type="text"
-                        className={cstyles.inputbox} 
-                        style={{ marginLeft: "20px", width: '80%' }}
-                        value={customServer}
+                ) : (
+                  <>
+                    <div className={[cstyles.sublight].join(" ")} onClick={() => setServerExpanded(!serverExpanded)}>Server <span style={{ fontSize: 10, color: Utils.getCssVariable('--color-zingo') }} >(Click here to collapse)</span></div>
+                    {mode === 'settings' && (
+                      <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
+                        <input
+                          checked={selectedSelection === ServerSelectionEnum.auto}
+                          style={{ accentColor: Utils.getCssVariable('--color-primary') }}
+                          type="radio" 
+                          name="selection" 
+                          value={ServerSelectionEnum.auto}
+                          onClick={(e) => {
+                            setSelectedSelection(ServerSelectionEnum.auto);
+                            setSelectedServer(autoServer);
+                          }} 
+                          onChange={(e) => {
+                            setSelectedSelection(ServerSelectionEnum.auto);
+                            setSelectedServer(autoServer);
+                          }}
+                        />
+                        Automatic
+                      </div>
+                    )}
+                    {servers.filter(s => s.chain_name === selectedChain).length > 0 && (
+                      <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
+                        <input
+                          checked={selectedSelection === ServerSelectionEnum.list}
+                          style={{ accentColor: Utils.getCssVariable('--color-primary') }}
+                          type="radio" 
+                          name="selection" 
+                          value={ServerSelectionEnum.list} 
+                          onClick={(e) => {
+                            setSelectedSelection(ServerSelectionEnum.list);
+                            const ls: string = servers.filter(s => s.chain_name === selectedChain)[0].uri;
+                            setListServer(ls);
+                            setSelectedServer(ls);
+                          }} 
+                          onChange={(e) => {
+                            setSelectedSelection(ServerSelectionEnum.list);
+                            const ls: string = servers.filter(s => s.chain_name === selectedChain)[0].uri;
+                            setListServer(ls);
+                            setSelectedServer(ls);
+                          }}
+                        />
+                        List
+                        <select
+                          disabled={selectedSelection !== "list"}
+                          className={cstyles.inputbox}
+                          style={{ marginLeft: "20px" }}
+                          value={listServer}
+                          onChange={(e) => {
+                            setListServer(e.target.value);
+                            setSelectedServer(e.target.value);
+                          }}>
+                            <option key="" value="" disabled hidden></option>
+                            {servers.filter(s => s.chain_name === selectedChain).map((s: ServerClass) => (
+                              <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + (s.latency ? (' _ ' + s.latency + ' ms.') : '')}</option>
+                            ))}
+                        </select>
+                      </div>
+                    )}
+                    <div style={{ margin: "10px" }}>
+                      <input 
+                        checked={selectedSelection === "custom"}
+                        style={{ accentColor: Utils.getCssVariable('--color-primary') }}
+                        type="radio" 
+                        name="selection" 
+                        value={"custom"} 
+                        onClick={(e) => {
+                          setSelectedSelection(ServerSelectionEnum.custom);
+                          setSelectedServer(customServer);
+                        }} 
                         onChange={(e) => {
-                          setCustomServer(e.target.value);
-                          setSelectedServer(e.target.value);
-                        }}
+                          setSelectedSelection(ServerSelectionEnum.custom);
+                          setSelectedServer(customServer);
+                        }} 
                       />
+                      Custom
+                      <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
+                        <div style={{ width: '75%', padding: 0, margin: 0, flexWrap: 'nowrap' }}>
+                          URI 
+                          <input
+                            placeholder="https://------.---:---"
+                            disabled={selectedSelection !== "custom"}
+                            type="text"
+                            className={cstyles.inputbox} 
+                            style={{ marginLeft: "20px", width: '80%' }}
+                            value={customServer}
+                            onChange={(e) => {
+                              setCustomServer(e.target.value);
+                              setSelectedServer(e.target.value);
+                            }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
-                      Network 
-                      <select
-                        disabled={selectedSelection !== "custom"}
-                        className={cstyles.inputbox}
-                        style={{ marginLeft: "20px", color: customChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
-                        value={customChain}
-                        onChange={(e) => {
-                          setCustomChain(e.target.value as ServerChainNameEnum | '');
-                          setSelectedChain(e.target.value as ServerChainNameEnum | '');
-                        }}
-                      >
-                        <option value="" disabled hidden>Select...</option> 
-                        <option value="main">{chains["main"]}</option>
-                        <option value="test">{chains["test"]}</option>
-                        <option value="regtest">{chains["regtest"]}</option> 
-                      </select>
-                    </div>
-                  </div>
-                </div>
+                  </>
+                )}
               </div>
             </>
           )}
 
-          <hr style={{ width: '100%', borderColor: Utils.getCssVariable('--color-primary') }} />
+          <div style={{ width: '120%', height: '20px', marginTop: 10, marginBottom: 10, marginLeft: "-20px", backgroundColor: Utils.getCssVariable('--color-background') }} />
 
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center', flexWrap: 'nowrap' }}>
             <div className={[cstyles.sublight].join(" ")}>Sync Performance Level</div>
