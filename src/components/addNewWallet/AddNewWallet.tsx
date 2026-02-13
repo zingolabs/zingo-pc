@@ -342,7 +342,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       if (needStart) {
          openErrorModal(
           "Save Wallet Settings",
-          selectedServer !== currentWallet.uri 
+          selectedServer !== currentWallet.uri ||
+          selectedSelection === ServerSelectionEnum.auto
             ? "Opening the active Wallet with the New Server."
             : "Opening the active Wallet with the New Performance Level",
         );
