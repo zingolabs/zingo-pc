@@ -425,7 +425,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       isSubmittingRef.current = false;
       return;
     }
-    
+
     if (mode === 'addnew') {
       // check the fields 
       if (newWalletType === 'seed' && !seedPhrase) {
@@ -510,6 +510,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             <div className={cstyles.sublight}>Wallet Alias/Description</div>
             <input
               disabled={mode === 'delete'}
+              placeholder="Ex: My Zcash Wallet"
               type="text"
               className={cstyles.inputbox}
               style={{ width: '60%', marginLeft: "20px" }}
@@ -578,6 +579,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             <div style={{ margin: "10px" }}>
               <div className={[cstyles.sublight].join(" ")}>Please enter your seed phrase</div>
               <TextareaAutosize
+                placeholder="Enter your 24 recovery words"
                 className={cstyles.inputbox}
                 value={seedPhrase}
                 onChange={(e) => updateSeedPhrase(e)}
@@ -598,6 +600,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             <div style={{ margin: "10px" }}>
               <div className={[cstyles.sublight].join(" ")}>Please enter your Unified Full Viewing Key</div>
               <TextareaAutosize
+                placeholder="Ex: uview..."
                 className={cstyles.inputbox}
                 value={ufvk}
                 onChange={(e) => updateUfvk(e)}
@@ -618,6 +621,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             <div style={{ margin: "10px" }}>
               <div className={[cstyles.sublight].join(" ")}>Please enter your Wallet File Name stored in the Zcash folder</div>
               <input
+                placeholder="Ex: zingo-wallet-renamed....dat"
                 type="text"
                 className={cstyles.inputbox}
                 style={{ width: '90%', marginLeft: "20px" }}
@@ -647,12 +651,20 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
               <div style={{ margin: "10px" }}> 
                 {!serverExpanded ? (
                   <div className={cstyles.horizontalflex}>
-                    <div className={[cstyles.sublight].join(" ")} style={{ marginRight: "20px" }} onClick={() => setServerExpanded(!serverExpanded)}>Server <span style={{ fontSize: 10, color: Utils.getCssVariable('--color-zingo') }} >(Click here to expand)</span></div>
-                    <div onClick={() => setServerExpanded(!serverExpanded)}>{selectedServer}</div> 
+                    <div className={[cstyles.sublight].join(" ")} style={{ marginRight: "25px", cursor: 'pointer' }} onClick={() => setServerExpanded(!serverExpanded)}>Selected Server</div>
+                    <div style={{ marginRight: 25, cursor: 'pointer', opacity: 0.5 }} onClick={() => setServerExpanded(!serverExpanded)}>
+                      <i className={["fas", "fa-chevron-down", "fa-1x"].join(" ")} /> 
+                    </div>
+                    <div style={{ cursor: 'pointer' }} onClick={() => setServerExpanded(!serverExpanded)}>{selectedServer}</div> 
                   </div>
                 ) : (
                   <>
-                    <div className={[cstyles.sublight].join(" ")} onClick={() => setServerExpanded(!serverExpanded)}>Server <span style={{ fontSize: 10, color: Utils.getCssVariable('--color-zingo') }} >(Click here to collapse)</span></div>
+                    <div className={cstyles.horizontalflex}>
+                      <div className={[cstyles.sublight].join(" ")} style={{ marginRight: "25px", cursor: 'pointer' }} onClick={() => setServerExpanded(!serverExpanded)}>Selected Server</div>
+                      <div style={{ marginRight: 25, cursor: 'pointer', opacity: 0.5 }} onClick={() => setServerExpanded(!serverExpanded)}>
+                        <i className={["fas", "fa-chevron-up", "fa-1x"].join(" ")} /> 
+                      </div>
+                    </div>
                     {mode === 'settings' && (
                       <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
                         <input
