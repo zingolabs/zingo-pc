@@ -2,17 +2,11 @@ import React, { useContext } from "react";
 import cstyles from "../../common/Common.module.css";
 import { WalletType } from "../../appstate/types/WalletType";
 import { ContextApp } from "../../../context/ContextAppState";
+import { ServerChainNameEnum } from "../../appstate";
 const { ipcRenderer } = window.require("electron");
 
 type SelectWalletProps = {
   navigateToLoadingScreenChangingWallet: () => void;
-};
-
-const chains = {
-  "main": "Mainnet",
-  "test": "Testnet",
-  "regtest": "Regtest",
-  "": "",
 };
 
 const SelectWallet = ({ navigateToLoadingScreenChangingWallet }: SelectWalletProps) => {
@@ -41,11 +35,33 @@ const SelectWallet = ({ navigateToLoadingScreenChangingWallet }: SelectWalletPro
               await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
               navigateToLoadingScreenChangingWallet();
             }}>
-            {walletsSorted.map((w: WalletType) => (
-              <option key={w.id} value={w.id}>
-                {w.alias + ' - ' + chains[w.chain_name || ''] + ' [' + w.creationType + ']'}
-              </option>
-            ))}
+            {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.mainChainName).length > 0 && (
+              <optgroup label="MAINNET">
+                {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.mainChainName).map((w: WalletType) => (
+                  <option key={w.id} value={w.id}>
+                    {w.alias + ' - [' + w.creationType + ']' + (w.id === currentWallet.id ? ' \u2714' : '')}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.testChainName).length > 0 && (
+              <optgroup label ="TESTNET">
+                {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.testChainName).map((w: WalletType) => (
+                  <option key={w.id} value={w.id}>
+                    {w.alias + ' - [' + w.creationType + ']' + (w.id === currentWallet.id ? ' \u2714' : '')}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.regtestChainName).length > 0 && (
+              <optgroup label="REGTEST">
+                {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.regtestChainName).map((w: WalletType) => (
+                  <option key={w.id} value={w.id}>
+                    {w.alias + ' - [' + w.creationType + ']' + (w.id === currentWallet.id ? ' \u2714' : '')}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
       )}
