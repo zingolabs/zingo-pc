@@ -737,7 +737,8 @@ export default class RPC {
           if (
             tx.status === ValueTransferStatusEnum.calculated ||
             tx.status === ValueTransferStatusEnum.transmitted ||
-            tx.status === ValueTransferStatusEnum.mempool
+            tx.status === ValueTransferStatusEnum.mempool ||
+            tx.status === ValueTransferStatusEnum.failed
           ) {
             currentVtList.confirmations = 0;
           } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
@@ -813,12 +814,13 @@ export default class RPC {
           currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
           currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
-          // unconfirmed means 0 confirmations, the tx is mining already.
+          // unconfirmed means 0 confirmations, the tx is mining already. 
           // 'pending' is obsolete
           if (
             tx.status === ValueTransferStatusEnum.calculated ||
             tx.status === ValueTransferStatusEnum.transmitted ||
-            tx.status === ValueTransferStatusEnum.mempool
+            tx.status === ValueTransferStatusEnum.mempool ||
+            tx.status === ValueTransferStatusEnum.failed
           ) {
             currentMList.confirmations = 0;
           } else  if (tx.status === ValueTransferStatusEnum.confirmed) {

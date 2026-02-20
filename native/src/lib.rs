@@ -21,8 +21,8 @@ use rustls::crypto::{CryptoProvider, ring::default_provider};
 use zcash_address::unified::{Container, Encoding, Ufvk};
 use zcash_keys::address::Address;
 use zcash_keys::keys::UnifiedFullViewingKey;
-use zcash_primitives::consensus::BlockHeight;
-use zcash_primitives::zip32::AccountId;
+use zcash_protocol::consensus::BlockHeight;
+use zip32::AccountId;
 use zcash_protocol::consensus::NetworkType;
 
 use pepper_sync::keys::transparent;
@@ -41,7 +41,7 @@ use zingolib::data::receivers::Receivers;
 use zcash_address::ZcashAddress;
 use zcash_protocol::{value::Zatoshis};
 use tokio::runtime::Runtime;
-use zcash_primitives::memo::MemoBytes;
+use zcash_protocol::memo::MemoBytes;
 use zingolib::data::receivers::transaction_request_from_receivers;
 use zingolib::data::proposal::total_fee;
 
@@ -84,7 +84,6 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_total_value_to_address", get_total_value_to_address)?;
     cx.export_function("get_total_spends_to_address", get_total_spends_to_address)?;
     cx.export_function("zec_price", zec_price)?;
-    cx.export_function("resend_transaction", resend_transaction)?;
     cx.export_function("remove_transaction", remove_transaction)?;
     cx.export_function("get_spendable_balance_with_address", get_spendable_balance_with_address)?;
     cx.export_function("get_spendable_balance_total", get_spendable_balance_total)?;
@@ -524,14 +523,75 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
     }
 }
 
+fn write_to_path(wallet_path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    let temp_wallet_path: std::path::PathBuf = wallet_path.with_extension(
+        wallet_path
+            .extension()
+            .map(|e| format!("{}.tmp", e.to_string_lossy()))
+            .unwrap_or_else(|| "tmp".to_string()),
+    );
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(true)
+        .write(true)
+        .open(&temp_wallet_path)
+        .map_err(|e| std::io::Error::new(e.kind(), format!("open temp {:?}: {}", temp_wallet_path, e)))?;
+
+    let mut writer = std::io::BufWriter::new(file);
+    std::io::Write::write_all(&mut writer, bytes)
+        .map_err(|e| std::io::Error::new(e.kind(), format!("write temp {:?}: {}", temp_wallet_path, e)))?;
+
+    let file = writer.into_inner()
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("into_inner: {}", e)))?;
+
+    file.sync_all()
+        .map_err(|e| std::io::Error::new(e.kind(), format!("sync temp {:?}: {}", temp_wallet_path, e)))?;
+
+    std::fs::rename(&temp_wallet_path, wallet_path)
+        .map_err(|e| std::io::Error::new(e.kind(), format!("rename {:?} -> {:?}: {}", temp_wallet_path, wallet_path, e)))?;
+
+    #[cfg(unix)]
+    {
+        if let Some(parent) = wallet_path.parent() {
+            let wallet_dir = std::fs::File::open(parent)
+                .map_err(|e| std::io::Error::new(e.kind(), format!("open dir {:?}: {}", parent, e)))?;
+            wallet_dir.sync_all()
+                .map_err(|e| std::io::Error::new(e.kind(), format!("sync dir {:?}: {}", parent, e)))?;
+        }
+    }
+
+    Ok(())
+}
+
 fn save_wallet_file(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    RT.block_on(async move { lightclient.save_task().await });
-                    Ok("Launching save task...".to_string())
+                    Ok(RT.block_on(async move {
+                        let wallet_path = lightclient.config.get_wallet_path();
+                        let mut wallet = lightclient.wallet.write().await;
+                        match wallet.save() {
+                            Ok(Some(wallet_bytes)) => {
+                                match write_to_path(&wallet_path, &wallet_bytes) {
+                                    Ok(_) => {
+                                        let size = wallet_bytes.len();
+                                        format!("Wallet saved successfully. Size: {} bytes.", size)
+                                    }
+                                    Err(e) => {
+                                        format!("Error: writing wallet file: {e}")
+                                    }
+                                }
+                            }
+                            Ok(None) => {
+                                "Wallet is empty. Nothing to save.".to_string()
+                            }
+                            Err(e) => {
+                                format!("Error: {e}")
+                            }
+                        }
+                    }))
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -711,7 +771,7 @@ fn get_latest_block_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 if let Some(lightclient) = &mut *guard {
                     Ok(RT.block_on(async move {
                         let wallet = lightclient.wallet.write().await;
-                        object! { "height" => json::JsonValue::from(wallet.sync_state.wallet_height().map(u32::from).unwrap_or(0))}.pretty(2)
+                        object! { "height" => json::JsonValue::from(wallet.sync_state.last_known_chain_height().map_or(0, u32::from))}.pretty(2)
                     }))
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
@@ -1373,37 +1433,6 @@ fn zec_price(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
-fn resend_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let txid = cx.argument::<JsString>(0)?.value(&mut cx);
-
-    let promise = cx
-        .task(move || -> Result<String, ZingolibError> {
-            with_panic_guard(|| {
-                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
-                if let Some(lightclient) = &mut *guard {
-                    let txid = match txid_from_hex_encoded_str(&txid) {
-                        Ok(txid) => txid,
-                        Err(e) => return Ok(format!("Error: {e}")),
-                    };
-                    RT.block_on(async move {
-                        match lightclient.resend(txid).await {
-                            Ok(_) => Ok("Successfully resent transaction.".to_string()),
-                            Err(e) => Ok(format!("Error: {e}")),
-                        }
-                    })
-                } else {
-                    Err(ZingolibError::LightclientNotInitialized)
-                }
-            })
-        })
-        .promise(move |mut cx, result| match result {
-            Ok(msg) => Ok(cx.string(msg)),
-            Err(err) => cx.throw_error(err.to_string()),
-        });
-
-    Ok(promise)
-}
-
 fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let txid = cx.argument::<JsString>(0)?.value(&mut cx);
 
@@ -1421,7 +1450,7 @@ fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             .wallet
                             .write()
                             .await
-                            .remove_unconfirmed_transaction(txid)
+                            .remove_failed_transaction(txid)
                         {
                             Ok(_) => "Successfully removed transaction.".to_string(),
                             Err(e) => format!("Error: {e}"),

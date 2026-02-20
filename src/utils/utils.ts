@@ -1,4 +1,4 @@
-import { AddressKindEnum, UnifiedAddressClass, ValueTransferKindEnum } from "../components/appstate";
+import { AddressKindEnum, UnifiedAddressClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../components/appstate";
 import randomColor from 'randomcolor';
 
 import native from "../native.node";
@@ -17,9 +17,16 @@ export default class Utils {
 
   static VTTypeWithConfirmations(
     type: ValueTransferKindEnum | "", 
+    status: ValueTransferStatusEnum | "",
     confirmations:number,
   ): string {
-    return type === ValueTransferKindEnum.sent && confirmations === 0
+    return status === ValueTransferStatusEnum.failed &&
+      type === ValueTransferKindEnum.sent
+      ? 'Send'
+      : status === ValueTransferStatusEnum.failed &&
+        type === ValueTransferKindEnum.shield
+      ? 'Shield'
+      : type === ValueTransferKindEnum.sent && confirmations === 0
       ? '...Sending...'
       : type === ValueTransferKindEnum.sent && confirmations > 0
       ? 'Sent'

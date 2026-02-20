@@ -79,9 +79,6 @@ export function get_total_spends_to_address(): Promise<string>;
 export function zec_price(
   tor: string
 ): Promise<string>;
-export function resend_transaction(
-  txid: string
-): Promise<string>;
 export function remove_transaction(
   txid: string
 ): Promise<string>;

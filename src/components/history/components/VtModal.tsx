@@ -42,7 +42,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   valueTransfersSliced,
 }) => {
   const context = useContext(ContextApp);
-  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, info, setSendTo, openErrorModal, openConfirmModal, setAddLabel } = context; 
+  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, setSendTo, openErrorModal, openConfirmModal, setAddLabel } = context; 
   const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
   const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
   const [expandAddress, setExpandAddress] = useState(false); 
@@ -125,12 +125,10 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   }, [valueTransferIndex]);
   
   let txid: string = "";
-  let type: ValueTransferKindEnum | "" = "";
   let typeText: string = "";
   let typeIcon: string = "";
   let typeColor: string = "";
   let confirmations: number = 0;
-  let blockHeight: number = 0;
   let status: ValueTransferStatusEnum | "" = "";
   let address: string = "";
   let memos: string[] = [];
@@ -154,8 +152,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
   if (valueTransfer) {
     txid = valueTransfer.txid;
-    type = valueTransfer.type;
-    typeText = Utils.VTTypeWithConfirmations(valueTransfer.type, valueTransfer.confirmations);
+    typeText = Utils.VTTypeWithConfirmations(valueTransfer.type, valueTransfer.status, valueTransfer.confirmations);
     if (valueTransfer.type === ValueTransferKindEnum.received || ValueTransferKindEnum.shield) {
       typeIcon = "fa-arrow-circle-down";
       typeColor = Utils.getCssVariable('--color-primary');
@@ -168,7 +165,6 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     timePart = dateformat(valueTransfer.time * 1000, "hh:MM tt");
 
     confirmations = valueTransfer.confirmations;
-    blockHeight = valueTransfer.blockheight;
     status = valueTransfer.status;
     amount = valueTransfer.amount;
     fees = valueTransfer.fee ? valueTransfer.fee : 0;
@@ -204,48 +200,30 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     closeModal();
   };
 
-  const runAction = async (action: 'resend' | 'remove') => {
+  const runAction = async () => {
     localCloseModal(); 
-    openConfirmModal(action === 'remove' ? 'Remove Transaction' : 'Resend Transaction', "Please confirm the Action", () => runActionConfirmed(action));
+    openConfirmModal('Remove Transaction', "Please confirm the Action", () => runActionConfirmed());
   };
 
-  const runActionConfirmed = async (action: 'resend' | 'remove') => {
+  const runActionConfirmed = async () => {
     // modal while waiting.
     openErrorModal("Computing Transaction", "Please wait...This could take a while");
 
     try {
-      let actionStr: string;
-      if (action === 'resend') {
-        actionStr = await native.resend_transaction(txid);
-      } else {
-        actionStr = await native.remove_transaction(txid);
-      }
+      let actionStr: string = await native.remove_transaction(txid);
 
       //console.log(actionStr);
 
       if (actionStr) {
         if (actionStr.toLowerCase().startsWith('error')) {
-          if (action === 'resend') {
-            openErrorModal("Resend", "Resend " + actionStr);
-          } else {
-            openErrorModal("Remove", "Remove " + actionStr);
-          }
+          openErrorModal("Remove", "Remove " + actionStr);
         } else {
-          if (action === 'resend') {
-            openErrorModal("Resend", actionStr);
-          } else {
-            openErrorModal("Remove", actionStr);
-          }
+          openErrorModal("Remove", actionStr);
         }
       }
     } catch (error: any) {
-      if (action === 'resend') {
-        console.log(`Critical Error Resend ${error}`);
-        openErrorModal("Resend", error);
-      } else {
-        console.log(`Critical Error Remove ${error}`);
-        openErrorModal("Remove", error);
-      }
+      console.log(`Critical Error Remove ${error}`);
+      openErrorModal("Remove", error);
     }
   };
 
@@ -313,6 +291,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
               zecValue={amount}
               usdValue={priceString} 
               currencyName={currencyName}
+              status={status}
             />
           </div>
         </div>
@@ -321,32 +300,14 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
           <>
             <hr style={{ width: "100%" }} />
 
-            {(status === ValueTransferStatusEnum.calculated ||
-              status === ValueTransferStatusEnum.transmitted ||
-              status === ValueTransferStatusEnum.mempool) && (
+            {status === ValueTransferStatusEnum.failed && (
               <>
                 <div className={[cstyles.center, cstyles.horizontalflex].join(" ")} 
                      style={{ width: "100%", alignItems: "center", justifyContent: "center" }}>
-                  {(status === ValueTransferStatusEnum.calculated ||
-                    status === ValueTransferStatusEnum.transmitted) &&
-                    info.latestBlock - blockHeight < 40 &&
-                    !readOnly && (
-                    <button type="button" className={cstyles.primarybutton} onClick={() => runAction('resend')}>
-                      Resend
-                    </button>
-                  )}
-                  {type !== ValueTransferKindEnum.received && (
-                    <button type="button" className={cstyles.primarybutton} onClick={() => runAction('remove')}>
-                      Remove
-                    </button>
-                  )}
+                  <button type="button" className={cstyles.primarybutton} onClick={() => runAction()}>
+                    Remove
+                  </button>
                 </div>
-                {type !== ValueTransferKindEnum.received && (
-                  <div className={[cstyles.center, cstyles.horizontalflex].join(" ")} 
-                       style={{ width: "100%", alignItems: "center", justifyContent: "center", fontSize: 12, marginTop: 10 }}>
-                    Remove transaction to restore balance
-                  </div>
-                )}
               </>
             )}
           </>
@@ -367,14 +328,17 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             )}
             {(status === ValueTransferStatusEnum.transmitted ||
               status === ValueTransferStatusEnum.calculated ||
-              status === ValueTransferStatusEnum.mempool) && (
+              status === ValueTransferStatusEnum.mempool ||
+              status === ValueTransferStatusEnum.failed) && (
               <div
                 style={{
                   color:
-                    status === ValueTransferStatusEnum.transmitted ||
-                    status === ValueTransferStatusEnum.calculated
-                      ? Utils.getCssVariable('--color-primary')
-                      : Utils.getCssVariable('--color-primary-disable'),
+                    status === ValueTransferStatusEnum.failed
+                      ? Utils.getCssVariable('--color-error')
+                      : status === ValueTransferStatusEnum.transmitted ||
+                        status === ValueTransferStatusEnum.calculated
+                          ? Utils.getCssVariable('--color-primary')
+                          : Utils.getCssVariable('--color-primary-disable'),
                   fontSize: 12,
                   fontWeight: '700',
                   textAlign:'center',
@@ -427,11 +391,29 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             <div>{confirmations}</div>
           </div>
 
-          {(status === ValueTransferStatusEnum.calculated || status === ValueTransferStatusEnum.transmitted || status === ValueTransferStatusEnum.mempool) && (
+          {(status === ValueTransferStatusEnum.calculated || 
+            status === ValueTransferStatusEnum.transmitted || 
+            status === ValueTransferStatusEnum.mempool ||
+            status === ValueTransferStatusEnum.failed) && (
             <div>
               <div className={[cstyles.sublight].join(" ")}>Status</div>
-              <div style={{ color: status === ValueTransferStatusEnum.calculated || status === ValueTransferStatusEnum.transmitted ? Utils.getCssVariable('--color-warning') : Utils.getCssVariable('--color-primary-disable') }}>
-                {status === ValueTransferStatusEnum.calculated ? 'Calculated' : status === ValueTransferStatusEnum.transmitted ? 'Transmitted' : status === ValueTransferStatusEnum.mempool ? 'In Mempool': ''}
+              <div 
+                style={{ 
+                  color: status === ValueTransferStatusEnum.failed
+                          ? Utils.getCssVariable('--color-error') 
+                          : status === ValueTransferStatusEnum.calculated || 
+                            status === ValueTransferStatusEnum.transmitted 
+                              ? Utils.getCssVariable('--color-warning') 
+                              : Utils.getCssVariable('--color-primary-disable') }}>
+                {status === ValueTransferStatusEnum.calculated 
+                  ? 'Calculated' 
+                  : status === ValueTransferStatusEnum.transmitted 
+                    ? 'Transmitted' 
+                    : status === ValueTransferStatusEnum.mempool 
+                      ? 'In Mempool'
+                      : status === ValueTransferStatusEnum.failed
+                        ? 'Failed'
+                        : ''}
               </div>
             </div>
           )}

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import dateformat from "dateformat";
 import styles from "../Messages.module.css";
 import cstyles from "../../common/Common.module.css";
-import { ValueTransferClass, ValueTransferKindEnum } from "../../appstate";
+import { ValueTransferClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../../appstate";
 import Utils from "../../../utils/utils";
 const { clipboard } = window.require("electron");
 
@@ -40,7 +40,19 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
   
   const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
 
-  return (
+  //if (index === 0) {
+  //  vt.status = ValueTransferStatusEnum.failed;
+  //  vt.confirmations = 0;
+  //  vt.type = ValueTransferKindEnum.sent;
+  //}
+
+  //if (index === 1) {
+  //  vt.status = ValueTransferStatusEnum.failed;
+  //  vt.confirmations = 0;
+  //  vt.type = ValueTransferKindEnum.shield;
+  //}
+
+  return ( 
     <div>
       <div
         style={{
@@ -54,6 +66,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           borderRadius: 20,
           borderBottomRightRadius: vt.type === ValueTransferKindEnum.received ? 20 : 0,
           borderBottomLeftRadius: vt.type === ValueTransferKindEnum.received ? 0 : 20,
+          opacity: vt.status === ValueTransferStatusEnum.failed ? 0.2 : 1,
           backgroundColor:
             vt.type === ValueTransferKindEnum.received ? Utils.getCssVariable('--color-primary-disable') : Utils.getCssVariable('--color-primary'),
 
@@ -144,6 +157,9 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
             <div className={[].join(" ")}>{datePart + ' ,'}</div>
             <div className={[].join(" ")}>{timePart}</div>
           </div>
+        )}
+        {vt.status === ValueTransferStatusEnum.failed && (
+          <div style={{ color: Utils.getCssVariable('--color-error'), marginLeft: 10, marginRight: 10 }}>Failed</div>
         )}
       </div>
     </div>
