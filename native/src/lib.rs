@@ -58,6 +58,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("init_from_ufvk", init_from_ufvk)?;
     cx.export_function("init_from_b64", init_from_b64)?;
     cx.export_function("save_wallet_file", save_wallet_file)?;
+    cx.export_function("check_save_error", check_save_error)?;
     cx.export_function("get_developer_donation_address", get_developer_donation_address)?;
     cx.export_function("get_zennies_for_zingo_donation_address", get_zennies_for_zingo_donation_address)?;
     cx.export_function("set_crypto_default_provider_to_ring", set_crypto_default_provider_to_ring)?;
@@ -505,13 +506,15 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
             Ok(c) => c,
             Err(e) => return Ok(format!("Error: {e}")),
         };
-        let lightclient = match LightClient::create_from_wallet_path(config) {
+        let mut lightclient = match LightClient::create_from_wallet_path(config) {
             Ok(l) => l,
             Err(e) => return Ok(format!("Error: {e}")),
         };
         let has_seed = RT.block_on(async {
             lightclient.wallet.read().await.mnemonic().is_some()
         });
+        // save the wallet file here
+        RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
         Ok(if has_seed { get_seed_string() } else { get_ufvk_string() })
@@ -589,6 +592,33 @@ fn save_wallet_file(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             }
                             Err(e) => {
                                 format!("Error: {e}")
+                            }
+                        }
+                    }))
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+fn check_save_error(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    Ok(RT.block_on(async move { 
+                        match lightclient.check_save_error().await {
+                            Ok(()) => String::new(),
+                            Err(e) => {
+                                format!("Error: save failed. {e}\nRestarting save task...")
                             }
                         }
                     }))

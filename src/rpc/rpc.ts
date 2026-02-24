@@ -186,11 +186,14 @@ export default class RPC {
 
   static async doSave() {
     try {
-      const syncstr: string = await native.save_wallet_file();
-      console.log(`wallet saved: ${syncstr}`);
+      // no need to check this status anymore 
+      //const saveRequiredStr: string = await native.get_wallet_save_required();
+      //console.log(`Save required? ${saveRequiredStr}`);
+      const syncstr: string = await native.check_save_error();
+      console.log(`wallet check saved: ${syncstr}`);
       return syncstr;
     }catch (error: any) {
-      console.log(`Critical Error save wallet ${error}`);
+      console.log(`Critical Error check save wallet ${error}`);
       return error;
     }
   }
