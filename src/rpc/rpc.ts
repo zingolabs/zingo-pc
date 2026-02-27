@@ -508,14 +508,36 @@ export default class RPC {
         return;
       }
 
-      console.log('SYNC STATUS', ss);
-      console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned);
+      // avoiding 0.00, minimum 0.01, maximun 100
+      // fixing when is:
+      // - 0.00000000123 (rounded 0)     better: 0.01  than 0
+      // - 99.9999999123 (rounded 99.99) better: 99.99 than 100.
+      ss.percentage_total_outputs_scanned = 
+        ss.percentage_total_outputs_scanned && 
+        ss.percentage_total_outputs_scanned < 0.01
+          ? 0.01
+          : ss.percentage_total_outputs_scanned &&
+            ss.percentage_total_outputs_scanned > 99.99 &&
+            ss.percentage_total_outputs_scanned < 100
+              ? 99.99
+              : Number(ss.percentage_total_outputs_scanned?.toFixed(2));
 
-      //console.log('interval sync/rescan, secs', this.secondsBatch, 'timer', this.syncStatusTimerID);
+      ss.percentage_total_blocks_scanned = 
+        ss.percentage_total_blocks_scanned && 
+        ss.percentage_total_blocks_scanned < 0.01
+          ? 0.01
+          : ss.percentage_total_blocks_scanned &&
+            ss.percentage_total_blocks_scanned > 99.99 &&
+            ss.percentage_total_blocks_scanned < 100
+              ? 99.99
+              : Number(ss.percentage_total_blocks_scanned?.toFixed(2));
+
+      console.log('SYNC STATUS', ss);
+      console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned, ss.percentage_total_blocks_scanned);
 
       // store SyncStatus object for a new screen
       this.fnSetSyncStatus(ss);
-      this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ? ss.percentage_total_outputs_scanned : 0);
+      this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ?? ss.percentage_total_blocks_scanned ?? 0);
     } catch (error) {
       console.log(`Critical Error sync status ${error}`);
     }

@@ -384,7 +384,7 @@ fn init_new(mut cx: FunctionContext) -> JsResult<JsString> {
         };
         let mut lightclient = match LightClient::new(
             config,
-            chain_height - 100,
+            chain_height,
             false,
         ) {
             Ok(l) => l,

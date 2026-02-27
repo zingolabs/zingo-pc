@@ -315,6 +315,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         // restore the previous wallet
         loadCurrentWallet();
       } else {
+        const resultJSON = await JSON.parse(result);
+        const birthday: number = resultJSON.birthday;
+
+        if (birthday < activationHeight[selectedChain]) {
+          openErrorModal("Restoring wallet from file", `The birthday found ${birthday} is invalid. The sync process is not going to work.`);
+        }
+
         createNextWallet(id, wallet_name, alias ? alias : wallet_name);
 
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
@@ -403,8 +410,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           // interrupt syncing, just in case.
           // only if the App is going to delete the DAT file.
           if (!currentWalletOpenError && currentWallet.creationType !== CreationTypeEnum.File) {
-            const resultInterrupt: string = await native.stop_sync();
-            console.log("Stopping sync ...", resultInterrupt);
+            // doesn't matter if stop sync fails, let's delete it.
+            try {
+              const resultInterrupt: string = await native.stop_sync();
+              console.log("Stopping sync ...", resultInterrupt);
+            } catch (error) {
+              console.log(`Stopping sync Error ${error}`);
+            }
           }
           RPC.deinitialize();
 
@@ -474,7 +486,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         return;
       }
       // check the birthday
-      if ((newWalletType === 'seed' || newWalletType === 'ufvk') && Number(birthday) < activationHeight[selectedChain]) {
+      if ((newWalletType === 'seed' || newWalletType === 'ufvk') && 
+          Number(birthday) < activationHeight[selectedChain]) {
         isSubmittingRef.current = false;
         return;
       }

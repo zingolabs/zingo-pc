@@ -35,6 +35,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
   let stateSync: string = "";
   let progress: string = "";
+  console.log('PPPPPPPROGRESS', verificationProgress);
   if (info.latestBlock) {
     if (verificationProgress) {
       if (verificationProgress === 100) {
@@ -42,7 +43,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         progress = "100";
       } else {
         stateSync = "SYNCING";
-        progress = (verificationProgress).toFixed(2);
+        progress = verificationProgress.toString();
       }
     } else {
       // no verification progress fetched
