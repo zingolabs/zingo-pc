@@ -298,10 +298,10 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         {confirmations === 0 && ( /* not min confirmations applied */
           <>
-            <hr style={{ width: "100%" }} />
-
             {status === ValueTransferStatusEnum.failed && (
               <>
+                <hr style={{ width: "100%" }} />
+                
                 <div className={[cstyles.center, cstyles.horizontalflex].join(" ")} 
                      style={{ width: "100%", alignItems: "center", justifyContent: "center" }}>
                   <button type="button" className={cstyles.primarybutton} onClick={() => runAction()}>

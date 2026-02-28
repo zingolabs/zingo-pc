@@ -12,8 +12,8 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zingolib = { git="https://github.com/zingolabs/zingolib", default-features = true, branch = "stable" }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", branch = "stable" }
+zingolib = { git="https://github.com/zingolabs/zingolib", rev = "zingolib_v3.0.0-rc.5" }
+pepper-sync = "0.2.0"
 
 zcash_address = { version = "0.10" }
 zcash_client_backend = { version = "0.21", features = [

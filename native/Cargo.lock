@@ -3466,8 +3466,9 @@ dependencies = [
 
 [[package]]
 name = "pepper-sync"
-version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=stable#fc2c8f0659af3e2e1f63c5805a6a963622203ca4"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0e72645feff01b129fa99c02ceebc86ffb990bfb2c36b9796ce61842161274d"
 dependencies = [
  "bip32",
  "byteorder",
@@ -7989,7 +7990,7 @@ dependencies = [
 [[package]]
 name = "zingo-price"
 version = "0.0.1"
-source = "git+https://github.com/zingolabs/zingolib?branch=stable#fc2c8f0659af3e2e1f63c5805a6a963622203ca4"
+source = "git+https://github.com/zingolabs/zingolib?rev=zingolib_v3.0.0-rc.5#2cd0304af0bc39678e35e594c998d85cec7f56ea"
 dependencies = [
  "byteorder",
  "reqwest",
@@ -8004,7 +8005,8 @@ dependencies = [
 [[package]]
 name = "zingo-status"
 version = "0.2.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=stable#fc2c8f0659af3e2e1f63c5805a6a963622203ca4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b345e3911479cf21dddf6027c8fb78010b787044d42461d6864dcc42620f159"
 dependencies = [
  "byteorder",
  "zcash_primitives",
@@ -8021,14 +8023,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "zingo_common_components"
-version = "0.2.0"
-source = "git+https://github.com/zingolabs/zingo-common.git#85a61dcedbccd01e26b6b07bad003770ad30ac1b"
-
-[[package]]
 name = "zingolib"
-version = "2.1.2"
-source = "git+https://github.com/zingolabs/zingolib?branch=stable#fc2c8f0659af3e2e1f63c5805a6a963622203ca4"
+version = "3.0.0-rc.1"
+source = "git+https://github.com/zingolabs/zingolib?rev=zingolib_v3.0.0-rc.5#2cd0304af0bc39678e35e594c998d85cec7f56ea"
 dependencies = [
  "append-only-vec",
  "bech32",
@@ -8084,7 +8081,7 @@ dependencies = [
  "zingo-netutils",
  "zingo-price",
  "zingo-status",
- "zingo_common_components 0.2.0 (git+https://github.com/zingolabs/zingo-common.git)",
+ "zingo_common_components",
  "zip32",
 ]
 
@@ -8115,7 +8112,7 @@ dependencies = [
  "zcash_protocol",
  "zcash_transparent",
  "zebra-chain",
- "zingo_common_components 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "zingo_common_components",
  "zingolib",
  "zip32",
 ]
