@@ -58,7 +58,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
               usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
               currencyName={info.currencyName}
               zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
+              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}
             />
             {orchardPool && (
               <BalanceBlock
@@ -294,7 +294,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
                             {valueTransfers
                               .filter((_, index: number) => index < 5)
                               .map((vt: ValueTransferClass, index: number) => (
-                                <DetailLine key={index} label={Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)} value={'ZEC ' + Utils.maxPrecisionTrimmed(vt.amount)} />
+                                <DetailLine key={index} label={Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)} value={'ZEC ' + Utils.maxPrecisionTrimmed(vt.amount)} />
                               ))}
                           </div>
                           <div style={{ width: '100%', textAlign: 'right', color: Utils.getCssVariable('--color-primary'), marginTop: 20, cursor: 'pointer' }} onClick={() => navigateToHistory()}>

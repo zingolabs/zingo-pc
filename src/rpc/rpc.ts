@@ -186,11 +186,14 @@ export default class RPC {
 
   static async doSave() {
     try {
-      const syncstr: string = await native.save_wallet_file();
-      console.log(`wallet saved: ${syncstr}`);
+      // no need to check this status anymore 
+      //const saveRequiredStr: string = await native.get_wallet_save_required();
+      //console.log(`Save required? ${saveRequiredStr}`);
+      const syncstr: string = await native.check_save_error();
+      console.log(`wallet check saved: ${syncstr}`);
       return syncstr;
     }catch (error: any) {
-      console.log(`Critical Error save wallet ${error}`);
+      console.log(`Critical Error check save wallet ${error}`);
       return error;
     }
   }
@@ -505,14 +508,36 @@ export default class RPC {
         return;
       }
 
-      console.log('SYNC STATUS', ss);
-      console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned);
+      // avoiding 0.00, minimum 0.01, maximun 100
+      // fixing when is:
+      // - 0.00000000123 (rounded 0)     better: 0.01  than 0
+      // - 99.9999999123 (rounded 99.99) better: 99.99 than 100.
+      ss.percentage_total_outputs_scanned = 
+        ss.percentage_total_outputs_scanned && 
+        ss.percentage_total_outputs_scanned < 0.01
+          ? 0.01
+          : ss.percentage_total_outputs_scanned &&
+            ss.percentage_total_outputs_scanned > 99.99 &&
+            ss.percentage_total_outputs_scanned < 100
+              ? 99.99
+              : Number(ss.percentage_total_outputs_scanned?.toFixed(2));
 
-      //console.log('interval sync/rescan, secs', this.secondsBatch, 'timer', this.syncStatusTimerID);
+      ss.percentage_total_blocks_scanned = 
+        ss.percentage_total_blocks_scanned && 
+        ss.percentage_total_blocks_scanned < 0.01
+          ? 0.01
+          : ss.percentage_total_blocks_scanned &&
+            ss.percentage_total_blocks_scanned > 99.99 &&
+            ss.percentage_total_blocks_scanned < 100
+              ? 99.99
+              : Number(ss.percentage_total_blocks_scanned?.toFixed(2));
+
+      console.log('SYNC STATUS', ss);
+      console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned, ss.percentage_total_blocks_scanned);
 
       // store SyncStatus object for a new screen
       this.fnSetSyncStatus(ss);
-      this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ? ss.percentage_total_outputs_scanned : 0);
+      this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ?? ss.percentage_total_blocks_scanned ?? 0);
     } catch (error) {
       console.log(`Critical Error sync status ${error}`);
     }
@@ -737,7 +762,8 @@ export default class RPC {
           if (
             tx.status === ValueTransferStatusEnum.calculated ||
             tx.status === ValueTransferStatusEnum.transmitted ||
-            tx.status === ValueTransferStatusEnum.mempool
+            tx.status === ValueTransferStatusEnum.mempool ||
+            tx.status === ValueTransferStatusEnum.failed
           ) {
             currentVtList.confirmations = 0;
           } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
@@ -813,12 +839,13 @@ export default class RPC {
           currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
           currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
-          // unconfirmed means 0 confirmations, the tx is mining already.
+          // unconfirmed means 0 confirmations, the tx is mining already. 
           // 'pending' is obsolete
           if (
             tx.status === ValueTransferStatusEnum.calculated ||
             tx.status === ValueTransferStatusEnum.transmitted ||
-            tx.status === ValueTransferStatusEnum.mempool
+            tx.status === ValueTransferStatusEnum.mempool ||
+            tx.status === ValueTransferStatusEnum.failed
           ) {
             currentMList.confirmations = 0;
           } else  if (tx.status === ValueTransferStatusEnum.confirmed) {

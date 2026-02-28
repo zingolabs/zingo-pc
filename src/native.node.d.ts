@@ -41,6 +41,7 @@ export function init_from_b64(
   wallet_name: string
 ): string;
 export function save_wallet_file(): Promise<string>;
+export function check_save_error(): Promise<string>;
 export function get_developer_donation_address(): string;
 export function get_zennies_for_zingo_donation_address(): string;
 export function set_crypto_default_provider_to_ring(): string;
@@ -78,9 +79,6 @@ export function get_total_value_to_address(): Promise<string>;
 export function get_total_spends_to_address(): Promise<string>;
 export function zec_price(
   tor: string
-): Promise<string>;
-export function resend_transaction(
-  txid: string
 ): Promise<string>;
 export function remove_transaction(
   txid: string

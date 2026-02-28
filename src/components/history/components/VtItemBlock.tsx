@@ -49,6 +49,17 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
     priceString = `USD ${price.toFixed(2)} / ZEC`; 
   }
 
+  //if (index === 0) {
+  //  vt.status = ValueTransferStatusEnum.failed;
+  //  vt.confirmations = 0;
+  //}
+
+  //if (index === 2) {
+  //  vt.status = ValueTransferStatusEnum.failed;
+  //  vt.type = ValueTransferKindEnum.shield;
+  //  vt.confirmations = 0;
+  //}
+
   return (
     <div>
       {!previousLineWithSameTxid ? (
@@ -66,12 +77,30 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
       >
         <div className={styles.txtype} style={{ marginRight: 10 }}>
           <div style={{ color: vt.confirmations === 0 ? Utils.getCssVariable('--color-primary-disable') : vt.type === ValueTransferKindEnum.received || vt.type === ValueTransferKindEnum.shield ? Utils.getCssVariable('--color-primary') : Utils.getCssVariable('--color-text') }}>
-            {Utils.VTTypeWithConfirmations(vt.type, vt.confirmations)}
+            {Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
           </div>
           <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
-          {(vt.status === ValueTransferStatusEnum.calculated || vt.status === ValueTransferStatusEnum.transmitted || vt.status === ValueTransferStatusEnum.mempool) && (
-            <div style={{ color: vt.status === ValueTransferStatusEnum.calculated || vt.status === ValueTransferStatusEnum.transmitted ? Utils.getCssVariable('--color-warning') : Utils.getCssVariable('--color-primary-disable') }}>
-              {vt.status === ValueTransferStatusEnum.calculated ? 'Calculated' : vt.status === ValueTransferStatusEnum.transmitted ? 'Transmitted' : vt.status === ValueTransferStatusEnum.mempool ? 'In Mempool': ''}
+          {(vt.status === ValueTransferStatusEnum.calculated || 
+            vt.status === ValueTransferStatusEnum.transmitted || 
+            vt.status === ValueTransferStatusEnum.mempool ||
+            vt.status === ValueTransferStatusEnum.failed) && (
+            <div 
+              style={{ 
+                color: vt.status === ValueTransferStatusEnum.failed
+                        ? Utils.getCssVariable('--color-error') 
+                        : vt.status === ValueTransferStatusEnum.calculated || 
+                          vt.status === ValueTransferStatusEnum.transmitted 
+                          ? Utils.getCssVariable('--color-warning') 
+                          : Utils.getCssVariable('--color-primary-disable') }}>
+              {vt.status === ValueTransferStatusEnum.calculated 
+                ? 'Calculated' 
+                : vt.status === ValueTransferStatusEnum.transmitted 
+                  ? 'Transmitted' 
+                  : vt.status === ValueTransferStatusEnum.mempool 
+                    ? 'In Mempool'
+                    : vt.status === ValueTransferStatusEnum.failed
+                      ? 'Failed'
+                      : ''}
             </div>
           )}
         </div>
@@ -146,12 +175,12 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
             )}
             <div className={[styles.txamount, cstyles.right, cstyles.padtopsmall].join(" ")}>
               <div className={cstyles.padtopsmall}>
-                <span>
+                <span style={{ color: vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable('--color-error') : undefined }}>
                   {currencyName} {bigPart}
                 </span>
-                <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
+                <span style={{ color: vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable('--color-error') : undefined }} className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
               </div>
-              <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
+              <div style={{ color: vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable('--color-error') : undefined }} className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
                 {priceString}
               </div>
             </div>

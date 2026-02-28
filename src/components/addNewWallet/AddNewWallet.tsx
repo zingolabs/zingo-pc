@@ -43,7 +43,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   const [newWalletType, setNewWalletType] = useState<'new' | 'seed' | 'ufvk' | 'file'>('new');
   const [seedPhrase, setSeedPhrase] = useState<string>('');
-  const [birthday, setBirthday] = useState<number>(0);
+  const [birthday, setBirthday] = useState<string>('');
   const [ufvk, setUfvk] = useState<string>('');
   const [file, setFile] = useState<string>('');
   
@@ -70,7 +70,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     "main": "Mainnet",
     "test": "Testnet",
     "regtest": "Regtest",
-    "": ""
+    "": "",
   };
 
   const news = {
@@ -78,7 +78,14 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     "seed": "Restore Wallet from Seed Phrase",
     "ufvk": "Restore Wallet from Unified Full Viewing Key",
     "file": "Restore Wallet from an existent DAT file",
-  }
+  };
+
+  const activationHeight = {
+    "main": 419200,
+    "test": 280000,
+    "regtest": 1,
+    "": 1,
+  };
 
   const initialServerValue = useCallback((server: string, chain_name: ServerChainNameEnum | '', selection: ServerSelectionEnum | '') => {
     if (selection === ServerSelectionEnum.custom) {
@@ -182,6 +189,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Creating New wallet", result);
+        // restore the previous wallet
+        loadCurrentWallet();
       } else {
         const resultJSON = await JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
@@ -200,15 +209,19 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     } catch (error) {
       console.log(`Critical Error create new wallet ${error}`);
       openErrorModal('Creating New wallet', `${error}`);
+      // restore the previous wallet
+      loadCurrentWallet();
     }
   };
 
   const doRestoreSeedWallet = async () => {
     try {
       const { next: id, nextWalletName: wallet_name } = nextWalletName();
-      const result: string = native.init_from_seed(seedPhrase, birthday, selectedServer, selectedChain ? selectedChain : ServerChainNameEnum.mainChainName, performanceLevel, 3, wallet_name);
+      const result: string = native.init_from_seed(seedPhrase, Number(birthday), selectedServer, selectedChain ? selectedChain : ServerChainNameEnum.mainChainName, performanceLevel, 3, wallet_name);
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Restoring wallet from seed", result);
+        // restore the previous wallet
+        loadCurrentWallet();
       } else {
         const resultJSON = await JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
@@ -227,6 +240,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     } catch (error) {
       console.log(`Critical Error restore from seed ${error}`);
       openErrorModal("Restoring wallet from seed", `${error}`);
+      // restore the previous wallet
+      loadCurrentWallet();
     }
   };
 
@@ -260,9 +275,11 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         return;
       }
       const { next: id, nextWalletName: wallet_name } = nextWalletName();
-      const result: string = native.init_from_ufvk(ufvk, birthday, selectedServer, selectedChain ? selectedChain : ServerChainNameEnum.mainChainName, performanceLevel, 3, wallet_name);
+      const result: string = native.init_from_ufvk(ufvk, Number(birthday), selectedServer, selectedChain ? selectedChain : ServerChainNameEnum.mainChainName, performanceLevel, 3, wallet_name);
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Restoring wallet from ufvk", result);
+        // restore the previous wallet
+        loadCurrentWallet();
       } else {
         const resultJSON = await JSON.parse(result);
         const ufvk: string = resultJSON.ufvk;
@@ -281,6 +298,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     } catch (error) {
       console.log(`Critical Error restore from ufvk ${error}`);
       openErrorModal("Restoring wallet from ufvk", `${error}`);
+      // restore the previous wallet
+      loadCurrentWallet();
     }
   };
 
@@ -293,7 +312,16 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       console.log(`Initialization: ${result}`);
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Restoring wallet from file", result);
+        // restore the previous wallet
+        loadCurrentWallet();
       } else {
+        const resultJSON = await JSON.parse(result);
+        const birthday: number = resultJSON.birthday;
+
+        if (birthday < activationHeight[selectedChain]) {
+          openErrorModal("Restoring wallet from file", `The birthday found ${birthday} is invalid. The sync process is not going to work.`);
+        }
+
         createNextWallet(id, wallet_name, alias ? alias : wallet_name);
 
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
@@ -308,6 +336,17 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     } catch (error) {
       console.log(`Critical Error restore from file ${error}`);
       openErrorModal("Restoring wallet from file", `${error}`);
+      // restore the previous wallet
+      loadCurrentWallet();
+    }
+  };
+
+  const loadCurrentWallet = async () => {
+    if (currentWallet) {
+      const result: string = native.init_from_b64(currentWallet.uri, currentWallet.chain_name, currentWallet.performanceLevel, 3, currentWallet.fileName);
+      if (!result || result.toLowerCase().startsWith("error")) {
+        openErrorModal("Loading current wallet", result);
+      }
     }
   };
 
@@ -371,8 +410,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           // interrupt syncing, just in case.
           // only if the App is going to delete the DAT file.
           if (!currentWalletOpenError && currentWallet.creationType !== CreationTypeEnum.File) {
-            const resultInterrupt: string = await native.stop_sync();
-            console.log("Stopping sync ...", resultInterrupt);
+            // doesn't matter if stop sync fails, let's delete it.
+            try {
+              const resultInterrupt: string = await native.stop_sync();
+              console.log("Stopping sync ...", resultInterrupt);
+            } catch (error) {
+              console.log(`Stopping sync Error ${error}`);
+            }
           }
           RPC.deinitialize();
 
@@ -429,15 +473,21 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
     if (mode === 'addnew') {
       // check the fields 
-      if (newWalletType === 'seed' && !seedPhrase) {
+      if (newWalletType === 'seed' && (!seedPhrase || !birthday)) {
         isSubmittingRef.current = false;
         return;
       }
-      if (newWalletType === 'ufvk' && !ufvk) {
+      if (newWalletType === 'ufvk' && (!ufvk || !birthday)) {
         isSubmittingRef.current = false;
         return;
       }
       if (newWalletType === 'file' && !file) {
+        isSubmittingRef.current = false;
+        return;
+      }
+      // check the birthday
+      if ((newWalletType === 'seed' || newWalletType === 'ufvk') && 
+          Number(birthday) < activationHeight[selectedChain]) {
         isSubmittingRef.current = false;
         return;
       }
@@ -485,7 +535,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   };
 
   const updateBirthday = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setBirthday(isNaN(parseInt(e.target.value)) ? 0 : parseInt(e.target.value));
+    setBirthday(isNaN(parseInt(e.target.value)) ? '' : e.target.value);
   };
 
   const updateAlias = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -586,9 +636,10 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                 onChange={(e) => updateSeedPhrase(e)}
               />
               <div className={[cstyles.sublight].join(" ")}>
-                Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;0&rsquo;
+                {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
               </div>
               <input
+                placeholder={`>= ${activationHeight[selectedChain]}`}
                 type="number"
                 className={cstyles.inputbox}
                 value={birthday}
@@ -607,9 +658,10 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                 onChange={(e) => updateUfvk(e)}
               />
               <div className={[cstyles.sublight].join(" ")}>
-                Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;0&rsquo;
+                {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
               </div>
               <input
+                placeholder={`>= ${activationHeight[selectedChain]}`}
                 type="number"
                 className={cstyles.inputbox}
                 value={birthday}

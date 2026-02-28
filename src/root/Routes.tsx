@@ -279,9 +279,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   }
 
   setVerificationProgress = (verificationProgress: number | null) => {
-    if (verificationProgress !== this.state.verificationProgress) {
-      this.setState({ verificationProgress });
-    }
+    this.setState({ verificationProgress });
   };
 
   runRPCSendTransaction = async (sendJson: SendManyJsonType[]): Promise<string> => {
