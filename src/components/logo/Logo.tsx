@@ -12,7 +12,7 @@ const Logo = ({ readOnly, onlyVersion }: LogoProps) => {
 
   return (
     <>
-      <div style={{ color: Utils.getCssVariable('--color-zingo'), fontWeight: "bold", marginBottom: 10 }}>Zingo PC v2.0.6</div>
+      <div style={{ color: Utils.getCssVariable('--color-zingo'), fontWeight: "bold", marginBottom: 10 }}>Zingo PC v2.0.7</div>
       {!onlyVersion && (
         <div>
           <img src={logo} width="70" alt="logo" style={{ borderRadius: 5, marginRight: 10 }} />
