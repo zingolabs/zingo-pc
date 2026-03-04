@@ -24,6 +24,7 @@ import { ValueTransferPoolEnum } from "./enums/ValueTransferPoolEnum";
 import { CreationTypeEnum } from "./enums/CreationTypeEnum";
 import { ServerSelectionEnum } from "./enums/ServerSelectionEnum";
 import { PerformanceLevelEnum } from "./enums/PerformanceLevelEnum";
+import { BlockExplorerEnum } from "./enums/BlockExplorerEnum";
 
 import { SyncStatusScanRangeType } from "./types/SyncStatusScanRangeType";
 import { SyncStatusType } from "./types/SyncStatusType";
@@ -61,6 +62,7 @@ export {
   CreationTypeEnum,
   ServerSelectionEnum,
   PerformanceLevelEnum,
+  BlockExplorerEnum,
   
   AppState
 };

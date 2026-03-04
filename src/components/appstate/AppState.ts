@@ -12,6 +12,7 @@ import InfoClass from "./classes/InfoClass";
 import { SyncStatusType } from "./types/SyncStatusType";
 import { ZcashURITarget } from "../../utils/uris";
 import { WalletType } from "./types/WalletType";
+import { BlockExplorerEnum } from "./enums/BlockExplorerEnum";
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
@@ -86,6 +87,9 @@ export default class AppState {
   handleShieldButton: () => void;
   setAddLabel: (a: AddressBookEntryClass) => void;
 
+  // block explorer selected
+  blockExplorer: BlockExplorerEnum;
+
   constructor() {
     this.totalBalance = new TotalBalanceClass();
     this.addressesUnified = [] as AddressUnifiedClass[];
@@ -120,5 +124,6 @@ export default class AppState {
     this.calculateShieldFee = async () => 0;
     this.handleShieldButton = () => {};
     this.setAddLabel = () => {};
+    this.blockExplorer = BlockExplorerEnum.Zcashexplorer;
   }
 }

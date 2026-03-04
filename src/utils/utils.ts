@@ -1,8 +1,8 @@
-import { AddressKindEnum, UnifiedAddressClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../components/appstate";
+import { AddressKindEnum, BlockExplorerEnum, UnifiedAddressClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../components/appstate";
 import randomColor from 'randomcolor';
 
 import native from "../native.node";
-import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
+import { ServerChainNameEnum } from "../components/appstate";
 
 export const NO_CONNECTION: string = "Could not connect to the Server";
 
@@ -259,24 +259,58 @@ export default class Utils {
     return colorList;
   }
 
-  static openTxid = (txid: string, currencyName: string) => {
-    if (currencyName === "TAZ") {
-      shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
-    } else {
-      shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
+  static openTxid = (txid: string, chainName: ServerChainNameEnum | undefined, blockExplorer: BlockExplorerEnum) => {
+    if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
+      if (chainName === ServerChainNameEnum.testChainName) {
+        shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
+      } else {
+        shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
+      }
+    } else if (blockExplorer === BlockExplorerEnum.Cipherscan) {
+      if (chainName === ServerChainNameEnum.testChainName) {
+        shell.openExternal(`https://testnet.cipherscan.app/tx/${txid}`);
+      } else {
+        shell.openExternal(`https://cipherscan.app/tx/${txid}`);
+      }
+    } else if (blockExplorer === BlockExplorerEnum.Zypherscan) {
+      if (chainName === ServerChainNameEnum.testChainName) {
+        shell.openExternal(`https://testnet.zypherscan.com/tx/${txid}`);
+      } else {
+        shell.openExternal(`https://www.zypherscan.com/tx/${txid}`);
+      }
     }
   }
 
-  static openAddress = (address: string, currencyName: string) => { 
-    if (currencyName === "TAZ") {
-      shell.openExternal(`https://testnet.zcashexplorer.app/address/${address}`);
-    } else {
-      if (address.startsWith('u')) {
-        shell.openExternal(`https://mainnet.zcashexplorer.app/ua/${address}`);
+  static openAddress = (address: string, chainName: ServerChainNameEnum | undefined, blockExplorer: BlockExplorerEnum) => {
+    if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
+      if (chainName === ServerChainNameEnum.testChainName) {
+        if (address.startsWith('u')) {
+          shell.openExternal(`https://testnet.zcashexplorer.app/ua/${address}`);
+        } else {
+          shell.openExternal(`https://testnet.zcashexplorer.app/address/${address}`);
+        }
       } else {
-        shell.openExternal(`https://mainnet.zcashexplorer.app/address/${address}`);
+        if (address.startsWith('u')) {
+          shell.openExternal(`https://mainnet.zcashexplorer.app/ua/${address}`);
+        } else {
+          shell.openExternal(`https://mainnet.zcashexplorer.app/address/${address}`);
+        }
+      }
+    } else if (blockExplorer === BlockExplorerEnum.Cipherscan) {
+      if (chainName === ServerChainNameEnum.testChainName) {
+        shell.openExternal(`https://testnet.cipherscan.app/address/${address}`);
+      } else {
+        shell.openExternal(`https://cipherscan.app/address/${address}`);
+      }
+    } else if (blockExplorer === BlockExplorerEnum.Zypherscan) {
+      if (chainName === ServerChainNameEnum.testChainName) {
+        shell.openExternal(`https://testnet.zypherscan.com/address/${address}`);
+      } else {
+        shell.openExternal(`https://www.zypherscan.com/address/${address}`);
       }
     }
+
+
   }
 
 }

@@ -1,5 +1,5 @@
 import { ServerClass } from "../components/appstate";
-import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
+import { ServerChainNameEnum } from "../components/appstate";
 
 const serverUrisList = (): ServerClass[] => {
   return [

@@ -1,15 +1,13 @@
 import React, { Component } from "react";
 import { RouteComponentProps, withRouter } from "react-router";
 import native from "../../native.node";
-import { CreationTypeEnum, InfoClass, PerformanceLevelEnum, ServerClass, ServerSelectionEnum } from "../appstate";
+import { CreationTypeEnum, InfoClass, PerformanceLevelEnum, ServerClass, ServerSelectionEnum, ServerChainNameEnum, WalletType } from "../appstate";
 import RPC from "../../rpc/rpc";
 import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
 import { Logo } from "../logo";
-import { ServerChainNameEnum } from "../appstate/enums/ServerChainNameEnum";
-import { WalletType } from "../appstate/types/WalletType";
 import DetailLine from "../detailLine/DetailLine";
 
 

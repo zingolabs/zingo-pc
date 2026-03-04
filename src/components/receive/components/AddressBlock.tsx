@@ -10,7 +10,7 @@ import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
-import { TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../../appstate";
+import { ServerChainNameEnum, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../../appstate";
 import RPC from "../../../rpc/rpc";
 
 const { clipboard } = window.require("electron");
@@ -33,7 +33,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   handleShieldButton
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly, totalBalance, valueTransfers, openErrorModal } = context;
+  const { readOnly, totalBalance, valueTransfers, openErrorModal, currentWallet, blockExplorer } = context;
   const address_address = address.encoded_address;
 
   const [copied, setCopied] = useState<boolean>(false);
@@ -122,9 +122,11 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
                 </button>
 
-                <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currencyName)}>
-                  View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                </button>
+                {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+                  <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currentWallet?.chain_name, blockExplorer)}>
+                    View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </button>
+                )}
                 {type === 't' && totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
                   <>
                     <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={handleShieldButton}>

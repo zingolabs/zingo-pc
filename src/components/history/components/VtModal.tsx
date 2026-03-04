@@ -5,7 +5,7 @@ import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceBlock";
 import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressBookEntryClass, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass, ValueTransferKindEnum, ValueTransferPoolEnum, ValueTransferStatusEnum } from "../../appstate";
+import { AddressBookEntryClass, ServerChainNameEnum, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass, ValueTransferKindEnum, ValueTransferPoolEnum, ValueTransferStatusEnum } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import { ContextApp } from "../../../context/ContextAppState";
@@ -42,7 +42,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   valueTransfersSliced,
 }) => {
   const context = useContext(ContextApp);
-  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, setSendTo, openErrorModal, openConfirmModal, setAddLabel } = context; 
+  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, setSendTo, openErrorModal, openConfirmModal, setAddLabel, currentWallet, blockExplorer } = context; 
   const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
   const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
   const [expandAddress, setExpandAddress] = useState(false); 
@@ -444,10 +444,12 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
               </div>
             </div>
 
-            <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txid, currencyName)}>
-              View TXID &nbsp;
-              <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-            </div>
+            {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+              <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txid, currentWallet?.chain_name, blockExplorer)}>
+                View TXID &nbsp;
+                <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+              </div>
+            )}
           </div>
         )}
 

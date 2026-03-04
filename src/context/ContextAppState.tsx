@@ -13,7 +13,8 @@ import {
   SyncStatusType,
   WalletType,
   ConfirmModalClass,
-  ErrorModalClass
+  ErrorModalClass,
+  BlockExplorerEnum,
 } from "../components/appstate";
 
 export const defaultAppState: AppState = {
@@ -50,6 +51,7 @@ export const defaultAppState: AppState = {
   calculateShieldFee: async () => 0,
   handleShieldButton: () => {},
   setAddLabel: () => {},
+  blockExplorer: BlockExplorerEnum.Zcashexplorer,
 };
 
 export const ContextApp = React.createContext(defaultAppState);

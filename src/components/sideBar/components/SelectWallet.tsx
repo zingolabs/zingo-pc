@@ -1,8 +1,7 @@
 import React, { useContext } from "react";
 import cstyles from "../../common/Common.module.css";
-import { WalletType } from "../../appstate/types/WalletType";
 import { ContextApp } from "../../../context/ContextAppState";
-import { ServerChainNameEnum } from "../../appstate";
+import { ServerChainNameEnum, WalletType } from "../../appstate";
 const { ipcRenderer } = window.require("electron");
 
 type SelectWalletProps = {

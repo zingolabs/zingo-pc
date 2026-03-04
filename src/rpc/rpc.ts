@@ -10,8 +10,8 @@ import {
   SendType,
   ValueTransferStatusEnum,
   WalletType,
+  ServerChainNameEnum,
 } from "../components/appstate";
-import { ServerChainNameEnum } from "../components/appstate/enums/ServerChainNameEnum";
 
 import native from "../native.node";
 import { RPCInfoType } from "./components/RPCInfoType";
