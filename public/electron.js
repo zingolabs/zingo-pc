@@ -112,32 +112,37 @@ class MenuBuilder {
       label: "Wallet",
       submenu: [
         {
-          label: "Add new Wallet",
+          label: "&Add new Wallet",
+          accelerator: "Ctrl+A",
           click: () => {
             mainWindow.webContents.send("addnewwallet");
           },
         },
         { type: "separator" },
         {
-          label: "Wallet Seed Phrase / Viewing Key",
+          label: "Wallet &Seed Phrase / Viewing Key",
+          accelerator: "Ctrl+S",
           click: () => {
             mainWindow.webContents.send("seed");
           },
         },
         {
           label: "&Rescan Wallet",
+          accelerator: "Ctrl+R",
           click: () => {
             mainWindow.webContents.send("rescan");
           },
         },
         {
-          label: "Wallet Settings",
+          label: "&Wallet Settings",
+          accelerator: "Ctrl+W",
           click: () => {
             mainWindow.webContents.send("settingswallet");
           },
         },
         {
-          label: "Delete Wallet",
+          label: "&Delete Wallet",
+          accelerator: "Ctrl+D",
           click: () => {
             mainWindow.webContents.send("deletewallet");
           },
@@ -148,6 +153,14 @@ class MenuBuilder {
           accelerator: "Ctrl+P",
           click: () => {
             mainWindow.webContents.send("payuri");
+          },
+        },
+        { type: "separator" },
+        {
+          label: "Select Block &Explorer",
+          accelerator: "Ctrl+E",
+          click: () => {
+            mainWindow.webContents.send("blockexplorer");
           },
         },
       ],
@@ -156,32 +169,37 @@ class MenuBuilder {
       label: "Wallet",
       submenu: [
         {
-          label: "Add new Wallet",
+          label: "&Add new Wallet",
+          accelerator: "Ctrl+A",
           click: () => {
             mainWindow.webContents.send("addnewwallet");
           },
         },
         { type: "separator" },
         {
-          label: "Wallet Seed Phrase / Viewing Key",
+          label: "Wallet &Seed Phrase / Viewing Key",
+          accelerator: "Ctrl+S",
           click: () => {
             mainWindow.webContents.send("seed");
           },
         },
         {
           label: "&Rescan Wallet",
+          accelerator: "Ctrl+R",
           click: () => {
             mainWindow.webContents.send("rescan");
           },
         },
         {
-          label: "Wallet Settings",
+          label: "&Wallet Settings",
+          accelerator: "Ctrl+W",
           click: () => {
             mainWindow.webContents.send("settingswallet");
           },
         },
         {
-          label: "Delete Wallet",
+          label: "&Delete Wallet",
+          accelerator: "Ctrl+D",
           click: () => {
             mainWindow.webContents.send("deletewallet");
           },
@@ -192,6 +210,14 @@ class MenuBuilder {
           accelerator: "Ctrl+P",
           click: () => {
             mainWindow.webContents.send("payuri");
+          },
+        },
+        { type: "separator" },
+        {
+          label: "Select Block &Explorer",
+          accelerator: "Ctrl+E",
+          click: () => {
+            mainWindow.webContents.send("blockexplorer");
           },
         },
       ],
@@ -248,7 +274,7 @@ class MenuBuilder {
           },
           {
             label: "&Close",
-            accelerator: "Ctrl+W",
+            accelerator: "Ctrl+C",
             click: () => {
               mainWindow.close();
             },
@@ -259,35 +285,48 @@ class MenuBuilder {
         label: "&Wallet",
         submenu: [
           {
-            label: "Add new Wallet",
+            label: "&Add new Wallet",
+            accelerator: "Ctrl+A",
             click: () => {
               mainWindow.webContents.send("addnewwallet");
             },
           },
           { type: "separator" },
           {
-            label: "Wallet Seed Phrase / Viewing Key",
+            label: "Wallet &Seed Phrase / Viewing Key",
+            accelerator: "Ctrl+S",
             click: () => {
               mainWindow.webContents.send("seed");
             },
           },
           {
             label: "&Rescan Wallet",
+            accelerator: "Ctrl+R",
             click: () => {
               mainWindow.webContents.send("rescan");
             },
           },
           {
-            label: "Wallet Settings",
+            label: "&Wallet Settings",
+            accelerator: "Ctrl+W",
             click: () => {
               mainWindow.webContents.send("settingswallet");
             },
           },
           { type: "separator" },
           {
-            label: "Delete Wallet",
+            label: "&Delete Wallet",
+            accelerator: "Ctrl+D",
             click: () => {
               mainWindow.webContents.send("deletewallet");
+            },
+          },
+          { type: "separator" },
+          {
+            label: "Select Block &Explorer",
+            accelerator: "Ctrl+E",
+            click: () => {
+              mainWindow.webContents.send("blockexplorer");
             },
           },
         ],

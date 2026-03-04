@@ -46,7 +46,7 @@ type SendConfirmModalProps = {
     sendFee,
   }) => {
     const context = useContext(ContextApp);
-    const { currentWallet, openErrorModal } = context;
+    const { currentWallet, openErrorModal, blockExplorer } = context;
     
     const [sendingTotal, setSendingTotal] = useState<number>(0);
     const [bigPart, setBigPart] = useState<string>('');
@@ -218,24 +218,26 @@ type SendConfirmModalProps = {
                     <div>{`TXID: ${txids[2]}`}</div>
                   )}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], info.currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], currentWallet?.chain_name, blockExplorer)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                    {txids.length > 1 && (
+                      <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], currentWallet?.chain_name, blockExplorer)}>
+                        View TXID &nbsp;
+                        <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                      </div>
+                    )}
+                    {txids.length > 2 && (
+                      <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], currentWallet?.chain_name, blockExplorer)}>
+                        View TXID &nbsp;
+                        <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                      </div>
+                    )}
                   </div>
-                  {txids.length > 1 && (
-                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], info.currencyName)}>
-                      View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                    </div>
-                  )}
-                  {txids.length > 2 && (
-                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], info.currencyName)}>
-                      View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                    </div>
-                  )}
-                </div>
+                )}
               </div>
             );  
           }

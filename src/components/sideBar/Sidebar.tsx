@@ -9,13 +9,15 @@ import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
 import SelectWallet from "./components/SelectWallet";
-import { WalletType } from "../appstate";
+import { BlockExplorerEnum, WalletType } from "../appstate";
+import BlockExplorerModal from "./components/BlockExplorerModal";
 
 const { ipcRenderer } = window.require("electron");
 
 type SidebarProps = {
   doRescan: () => void;
   navigateToLoadingScreenChangingWallet: () => void;
+  setBlockExplorer: (be: BlockExplorerEnum) => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
@@ -23,13 +25,16 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   history,
   location,
   navigateToLoadingScreenChangingWallet,
+  setBlockExplorer,
 }) => {
   const context = useContext(ContextApp);
-  const { info, verificationProgress, readOnly, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWallet, currentWalletOpenError } = context;
+  const { info, verificationProgress, readOnly, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWallet, currentWalletOpenError, blockExplorer } = context;
 
-  const [uriModalIsOpen, setUriModalIsOpen] = useState<boolean>(false);
-  const [uriModalInputValue, setUriModalInputValue] = useState<string | undefined>(undefined);
+  const [payURIModalIsOpen, setPayURIModalIsOpen] = useState<boolean>(false);
+  const [payURIModalInputValue, setPayURIModalInputValue] = useState<string | undefined>(undefined);
 
+  const [blockExplorerModalIsOpen, setBlockExplorerModalIsOpen] = useState<boolean>(false);
+  
   const currentWalletRef = useRef<WalletType | null>(null);
   const currentWalletOpenErrorRef = useRef<string>('');
 
@@ -97,8 +102,13 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Pay Uri", "There is not an active Wallet to perform the action.");
       } else {
-        openURIModal(uri);
+        openPayURIModal(uri);
       }
+    };
+
+    // Block Explorer Selection
+    const blockexplorer = (_event: any) => {
+      openBlockExplorerModal();
     };
 
     // Export Seed
@@ -192,6 +202,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     console.log('ONNNNNNNNNNNNNNNNNNNNNNNN');
     ipcRenderer.on("about", about);
     ipcRenderer.on("payuri", payuri);
+    ipcRenderer.on("blockexplorer", blockexplorer);
     ipcRenderer.on("seed", seed);
     ipcRenderer.on("rescan", rescan);
     ipcRenderer.on("addnewwallet", addnewwallet);
@@ -202,26 +213,35 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       console.log('OFFFFFFFFFFFFFFFFFFFFFF')
       ipcRenderer.removeListener("about", about);
       ipcRenderer.off("payuri", payuri);
+      ipcRenderer.off("blockexplorer", blockexplorer);
       ipcRenderer.off("seed", seed);
       ipcRenderer.off("rescan", rescan);
       ipcRenderer.off("addnewwallet", addnewwallet);
       ipcRenderer.off("settingswallet", settingswallet);
-      ipcRenderer.removeListener("deletewallet", deletewallet);
+      ipcRenderer.off("deletewallet", deletewallet);
     };
   }, [birthday, doRescan, history, openErrorModal, seed_phrase, ufvk]);
 
-  const openURIModal = (defaultValue: string | null) => {
+  const openPayURIModal = (defaultValue: string | null) => {
     const _uriModalInputValue: string = defaultValue || "";
-    setUriModalIsOpen(true);
-    setUriModalInputValue(_uriModalInputValue);
+    setPayURIModalIsOpen(true);
+    setPayURIModalInputValue(_uriModalInputValue);
   };
 
-  const setURIInputValue = (_uriModalInputValue: string) => {
-    setUriModalInputValue(_uriModalInputValue);
+  const setPayURIInputValue = (_uriModalInputValue: string) => {
+    setPayURIModalInputValue(_uriModalInputValue);
   };
 
-  const closeURIModal = () => {
-    setUriModalIsOpen(false);
+  const closePayURIModal = () => {
+    setPayURIModalIsOpen(false);
+  };
+
+  const openBlockExplorerModal = () => {
+    setBlockExplorerModalIsOpen(true);
+  };
+
+  const closeBlockExplorerModal = () => {
+    setBlockExplorerModalIsOpen(false);
   };
 
   const payURI = async (uri: string) => {
@@ -260,13 +280,21 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   return (
     <div>
       <PayURIModal
-        modalInput={uriModalInputValue}
-        setModalInput={setURIInputValue}
-        modalIsOpen={uriModalIsOpen}
-        closeModal={closeURIModal}
+        modalInput={payURIModalInputValue}
+        setModalInput={setPayURIInputValue}
+        modalIsOpen={payURIModalIsOpen}
+        closeModal={closePayURIModal}
         modalTitle="Pay URI"
         actionButtonName="Pay URI"
         actionCallback={payURI}
+      />
+
+      <BlockExplorerModal
+        modalInput={blockExplorer}
+        setModalInput={setBlockExplorer}
+        modalIsOpen={blockExplorerModalIsOpen}
+        closeModal={closeBlockExplorerModal}
+        modalTitle="Select Block Explorer"
       />
 
       <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>

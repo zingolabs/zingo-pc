@@ -25,6 +25,9 @@ import {
   SyncStatusType,
   ConfirmModalClass,
   ErrorModalClass,
+  WalletType,
+  BlockExplorerEnum,
+  ServerChainNameEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import Utils from "../utils/utils";
@@ -38,7 +41,6 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 import native from "../native.node";
 import { Messages } from "../components/messages";
 import { ConfirmModal } from "../components/confirmModal";
-import { WalletType } from "../components/appstate/types/WalletType";
 
 type Props = {};
 
@@ -282,6 +284,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ verificationProgress });
   };
 
+  setBlockExplorer = (blockExplorer: BlockExplorerEnum) => {
+    this.setState({ blockExplorer });
+  };
+
   runRPCSendTransaction = async (sendJson: SendManyJsonType[]): Promise<string> => {
     try {
       const result: string = await this.rpc.sendTransaction(sendJson);
@@ -390,24 +396,26 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   <div>{`TXID: ${txids[2]}`}</div>
                 )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], this.state.info.currencyName)}>
-                  View TXID &nbsp;
-                  <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+              {this.state.currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], this.state.currentWallet?.chain_name, this.state.blockExplorer)}>
+                    View TXID &nbsp;
+                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                  </div>
+                  {txids.length > 1 && (
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], this.state.currentWallet?.chain_name, this.state.blockExplorer)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
+                  {txids.length > 2 && (
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], this.state.currentWallet?.chain_name, this.state.blockExplorer)}>
+                      View TXID &nbsp;
+                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    </div>
+                  )}
                 </div>
-                {txids.length > 1 && (
-                  <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], this.state.info.currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
-                {txids.length > 2 && (
-                  <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], this.state.info.currencyName)}>
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                )}
-              </div>
+              )}
             </div>
           );
         }
@@ -496,6 +504,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       calculateShieldFee: this.calculateShieldFee,
       handleShieldButton: this.handleShieldButton,
       setAddLabel: this.setAddLabel,
+      blockExplorer: this.state.blockExplorer,
     };
 
     return (
@@ -513,6 +522,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
               <Sidebar
                 doRescan={this.runRPCRescan}
                 navigateToLoadingScreenChangingWallet={this.navigateToLoadingScreenChangingWallet}
+                setBlockExplorer={this.setBlockExplorer}
               />
             </div>
           )}

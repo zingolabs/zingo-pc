@@ -1,4 +1,4 @@
-import { ServerChainNameEnum } from "../../components/appstate/enums/ServerChainNameEnum";
+import { ServerChainNameEnum } from "../../components/appstate";
 
 export type RPCInfoType = {
   version: string;
