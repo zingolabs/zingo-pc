@@ -349,14 +349,75 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     }
   };
 
+  const calculateLatency = async (server: ServerClass, _index: number) => {
+    const start: number = Date.now();
+    let latency = null;
+
+    try {
+      const resp: string = await native.get_latest_block_server(server.uri);
+    
+      const end: number = Date.now();
+      if (resp && !resp.toLowerCase().startsWith('error')) {
+        latency = end - start;
+      }
+    
+      console.log('Checking SERVER', server, latency);
+    } catch (error) {
+      console.log(`Critical Error calculate server latency ${error}`);
+    }
+    
+    return latency;
+  };
+  
+  const checkingServer = async (server: ServerClass): Promise<ServerClass | null> => {
+    // 30 seconds max.
+    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 30 * 1000));
+  
+    const validServersPromises = [server].map(
+      (server: ServerClass) =>
+        new Promise<ServerClass>(async resolve => {
+          const latency = await calculateLatency(server, servers.indexOf(server));
+          if (latency !== null) {
+            resolve({ ...server, latency });
+          }
+        }),
+    );
+  
+    const fastestServer = await Promise.race([...validServersPromises, timeoutPromise]);
+  
+    return fastestServer;
+  };
+  
   const doSave = async () => {
     if (!!currentWallet) {
       if (selectedChain !== currentWallet.chain_name) {
         openErrorModal(
           "Save Wallet Settings",
-          "Change the server Chain/Network is not allowed",
+          "Change the server Chain/Network is not allowed", 
         );
         return;
+      }
+      // verify the server right here
+      if (selectedServer !== currentWallet.uri) {
+        openErrorModal(
+          "Save Wallet Settings",
+          "CHecking the new selected server, this process can take a while, 30 seconds maximum.",
+        );
+        const serverFaster = await checkingServer({
+          uri: selectedServer,
+          region: '',
+          chain_name: selectedChain,
+          latency: null,
+          default: false,
+          obsolete: false,
+        } as ServerClass);
+        if (!serverFaster) {
+          openErrorModal(
+            "Save Wallet Settings",
+            "This server is not working properly, choose another one.",
+          );
+          return;
+        }
       }
       const currentWalletSave: WalletType = {
         id : currentWallet.id,

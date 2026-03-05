@@ -623,6 +623,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         //const result: string = 'Error: ay, ay, ay';
         //console.log(`Initialization: ${result}`);
         if (!result || result.toLowerCase().startsWith('error')) {
+          console.log(`Initialization Error: ${result}`);
           this.props.setCurrentWalletOpenError(`${result}`);
           this.setState({
             loadingDone: true,
@@ -709,11 +710,9 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       const { runRPCConfigure, setInfo } = this.props;
 
       const info: InfoClass = await RPC.getInfoObject();
-      //console.log(info);
 
       if (info.error) {
         this.props.setFetchError('info', `${info.error}`);
-        return;
       }
 
       setInfo(info);

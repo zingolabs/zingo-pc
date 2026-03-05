@@ -562,6 +562,7 @@ export default class RPC {
 
       return txValueTransfersJSON.value_transfers;
     } catch (error) {
+      this.fnSetFetchError('ValueTransfers', `Critical Error value transfers ${error}`);
       console.log(`Critical Error value transfers ${error}`);
       return [];
     }
@@ -573,19 +574,20 @@ export default class RPC {
       const txMessagesStr: string = await native.get_messages("");
       if (txMessagesStr) {
         if (txMessagesStr.toLowerCase().startsWith('error')) {
-          console.log(`Error txs ValueTransfers ${txMessagesStr}`);
-          this.fnSetFetchError('ValueTransfers', txMessagesStr);
+          console.log(`Error txs Messages ${txMessagesStr}`);
+          this.fnSetFetchError('Messages', txMessagesStr);
           return [];
         }
       } else {
-        console.log('Internal Error txs ValueTransfers');
-        this.fnSetFetchError('ValueTransfers', 'Error: Internal RPC Error');
+        console.log('Internal Error txs Messages');
+        this.fnSetFetchError('Messages', 'Error: Internal RPC Error');
         return [];
       }
       const txMessagesJSON = JSON.parse(txMessagesStr);
 
       return txMessagesJSON.value_transfers;
     } catch (error) {
+      this.fnSetFetchError('Messages', `Critical Error messages ${error}`);
       console.log(`Critical Error messages ${error}`);
       return [];
     }
@@ -636,6 +638,7 @@ export default class RPC {
 
       this.fnSetTotalBalance(balance);
     } catch (error) {
+      this.fnSetFetchError('balance', `Critical Error balance ${error}`);
       console.log(`Critical Error balance ${error}`);
     }
   }
@@ -728,6 +731,7 @@ export default class RPC {
       const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : '');
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith('error')) {
+          this.fnSetFetchError('ValueTransfers', `Error server height ${heightStr}`);
           console.log(`Error server height ${heightStr}`);
         } else {
           latestBlockHeight = Number(heightStr);
@@ -810,6 +814,7 @@ export default class RPC {
       const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : '');
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith('error')) {
+          this.fnSetFetchError('Messages', `Error server height ${heightStr}`);
           console.log(`Error server height ${heightStr}`);
         } else {
           latestBlockHeight = Number(heightStr);
