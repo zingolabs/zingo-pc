@@ -370,8 +370,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   };
   
   const checkingServer = async (server: ServerClass): Promise<ServerClass | null> => {
-    // 30 seconds max.
-    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 30 * 1000));
+    // 15 seconds max.
+    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 15 * 1000));
   
     const validServersPromises = [server].map(
       (server: ServerClass) =>
@@ -401,7 +401,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       if (selectedServer !== currentWallet.uri) {
         openErrorModal(
           "Save Wallet Settings",
-          "CHecking the new selected server, this process can take a while, 30 seconds maximum.",
+          "CHecking the new selected server, this process can take a while, 15 seconds maximum.",
         );
         const serverFaster = await checkingServer({
           uri: selectedServer,

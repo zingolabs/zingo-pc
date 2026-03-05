@@ -686,8 +686,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   selectingServer = async (serverUris: ServerClass[]): Promise<ServerClass | null> => {
     const servers: ServerClass[] = serverUris;
   
-    // 30 seconds max.
-    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 30 * 1000));
+    // 15 seconds max.
+    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 15 * 1000));
   
     const validServersPromises = servers.map(
       (server: ServerClass) =>
