@@ -38,6 +38,8 @@ jobs:
         run: cmake --version
       - name: Use protoc
         run: protoc --version
+      - name: rust stable by default
+        run: rustup default stable
       - name: yarn --frozen-lockfile
         run: |
           yarn install
