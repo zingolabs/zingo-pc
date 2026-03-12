@@ -39,6 +39,7 @@ type LoadingScreenProps = {
   setCurrentWallet: (w: WalletType | null) => void;
   setCurrentWalletOpenError: (e: string) => void;
   setFetchError: (command: string, error: string) => void;
+  setBlockExplorer: (be: any) => void;
 };
 
 const chains = {
@@ -240,6 +241,11 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       settings && settings.serverselection ? settings.serverselection : ''
     );
     console.log('&&&&&&&&&&&&&&&&& CHECKED SETTINGS', uri, chain_name, selection);
+
+    // block explorer configuration 
+    if (settings.hasOwnProperty("blockexplorer")) {
+      this.props.setBlockExplorer(settings.blockexplorer);
+    }
 
     // to know the App is magrating to multi-wallet the settings field
     // `currentwalletid` must have not exists.

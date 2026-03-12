@@ -46,7 +46,10 @@ type SendConfirmModalProps = {
     sendFee,
   }) => {
     const context = useContext(ContextApp);
-    const { currentWallet, openErrorModal, blockExplorer } = context;
+    const { currentWallet, openErrorModal, 
+      blockExplorerMainnetTransaction, blockExplorerTestnetTransaction,
+      blockExplorerMainnetTransactionCustom, blockExplorerTestnetTransactionCustom,
+    } = context;
     
     const [sendingTotal, setSendingTotal] = useState<number>(0);
     const [bigPart, setBigPart] = useState<string>('');
@@ -220,18 +223,33 @@ type SendConfirmModalProps = {
                 </div>
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                   <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], currentWallet?.chain_name, blockExplorer)}>
+                    <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(
+                      txids[0], 
+                      currentWallet?.chain_name, 
+                      currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransaction : blockExplorerTestnetTransaction,
+                      currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransactionCustom : blockExplorerTestnetTransactionCustom,
+                    )}>
                       View TXID &nbsp;
                       <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                     </div>
                     {txids.length > 1 && (
-                      <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], currentWallet?.chain_name, blockExplorer)}>
+                      <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(
+                        txids[1], 
+                        currentWallet?.chain_name, 
+                        currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransaction : blockExplorerTestnetTransaction,
+                        currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransactionCustom : blockExplorerTestnetTransactionCustom,
+                      )}>
                         View TXID &nbsp;
                         <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                       </div>
                     )}
                     {txids.length > 2 && (
-                      <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], currentWallet?.chain_name, blockExplorer)}>
+                      <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(
+                        txids[2], 
+                        currentWallet?.chain_name, 
+                        currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransaction : blockExplorerTestnetTransaction,
+                        currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransactionCustom : blockExplorerTestnetTransactionCustom,
+                      )}>
                         View TXID &nbsp;
                         <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                       </div>

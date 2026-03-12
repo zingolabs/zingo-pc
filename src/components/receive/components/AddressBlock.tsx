@@ -33,7 +33,10 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   handleShieldButton
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly, totalBalance, valueTransfers, openErrorModal, currentWallet, blockExplorer } = context;
+  const { readOnly, totalBalance, valueTransfers, openErrorModal, currentWallet, 
+    blockExplorerMainnetAddress, blockExplorerTestnetAddress,
+    blockExplorerMainnetAddressCustom, blockExplorerTestnetAddressCustom,
+  } = context;
   const address_address = address.encoded_address;
 
   const [copied, setCopied] = useState<boolean>(false);
@@ -123,7 +126,12 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 </button>
 
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-                  <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(address_address, currentWallet?.chain_name, blockExplorer)}>
+                  <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(
+                    address_address, 
+                    currentWallet?.chain_name, 
+                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetAddress : blockExplorerTestnetAddress,
+                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetAddressCustom : blockExplorerTestnetAddressCustom,
+                  )}>
                     View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                   </button>
                 )}

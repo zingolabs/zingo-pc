@@ -42,7 +42,10 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   valueTransfersSliced,
 }) => {
   const context = useContext(ContextApp);
-  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, setSendTo, openErrorModal, openConfirmModal, setAddLabel, currentWallet, blockExplorer } = context; 
+  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, setSendTo, openErrorModal, openConfirmModal, setAddLabel, currentWallet, 
+    blockExplorerMainnetTransaction, blockExplorerTestnetTransaction,
+    blockExplorerMainnetTransactionCustom, blockExplorerTestnetTransactionCustom,
+  } = context; 
   const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
   const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
   const [expandAddress, setExpandAddress] = useState(false); 
@@ -445,7 +448,12 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             </div>
 
             {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-              <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txid, currentWallet?.chain_name, blockExplorer)}>
+              <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(
+                txid, 
+                currentWallet?.chain_name, 
+                currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransaction : blockExplorerTestnetTransaction,
+                currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransactionCustom : blockExplorerTestnetTransactionCustom,
+              )}>
                 View TXID &nbsp;
                 <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </div>

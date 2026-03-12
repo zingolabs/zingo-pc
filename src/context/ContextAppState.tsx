@@ -51,7 +51,14 @@ export const defaultAppState: AppState = {
   calculateShieldFee: async () => 0,
   handleShieldButton: () => {},
   setAddLabel: () => {},
-  blockExplorer: BlockExplorerEnum.Zcashexplorer,
+  blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer,
+  blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer,
+  blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer,
+  blockExplorerTestnetAddress: BlockExplorerEnum.Zcashexplorer,
+  blockExplorerMainnetTransactionCustom: "",
+  blockExplorerTestnetTransactionCustom: "",
+  blockExplorerMainnetAddressCustom: "",
+  blockExplorerTestnetAddressCustom: "",
 };
 
 export const ContextApp = React.createContext(defaultAppState);

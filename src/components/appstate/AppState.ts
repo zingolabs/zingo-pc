@@ -88,7 +88,15 @@ export default class AppState {
   setAddLabel: (a: AddressBookEntryClass) => void;
 
   // block explorer selected
-  blockExplorer: BlockExplorerEnum;
+  blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer;
+  blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer;
+  blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer;
+  blockExplorerTestnetAddress: BlockExplorerEnum.Zcashexplorer;
+  blockExplorerMainnetTransactionCustom: string;
+  blockExplorerTestnetTransactionCustom: string;
+  blockExplorerMainnetAddressCustom: string;
+  blockExplorerTestnetAddressCustom: string;
+
 
   constructor() {
     this.totalBalance = new TotalBalanceClass();
@@ -124,6 +132,13 @@ export default class AppState {
     this.calculateShieldFee = async () => 0;
     this.handleShieldButton = () => {};
     this.setAddLabel = () => {};
-    this.blockExplorer = BlockExplorerEnum.Zcashexplorer;
+    this.blockExplorerMainnetTransaction = BlockExplorerEnum.Zcashexplorer;
+    this.blockExplorerTestnetTransaction = BlockExplorerEnum.Zcashexplorer;
+    this.blockExplorerMainnetAddress = BlockExplorerEnum.Zcashexplorer;
+    this.blockExplorerTestnetAddress = BlockExplorerEnum.Zcashexplorer;
+    this.blockExplorerMainnetTransactionCustom = "";
+    this.blockExplorerTestnetTransactionCustom = "";
+    this.blockExplorerMainnetAddressCustom =  "";
+    this.blockExplorerTestnetAddressCustom =  "";
   }
 }

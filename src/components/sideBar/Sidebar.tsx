@@ -9,7 +9,7 @@ import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { Logo } from "../logo";
 import SelectWallet from "./components/SelectWallet";
-import { BlockExplorerEnum, WalletType } from "../appstate";
+import { WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
 
 const { ipcRenderer } = window.require("electron");
@@ -17,7 +17,7 @@ const { ipcRenderer } = window.require("electron");
 type SidebarProps = {
   doRescan: () => void;
   navigateToLoadingScreenChangingWallet: () => void;
-  setBlockExplorer: (be: BlockExplorerEnum) => void;
+  setBlockExplorer: (be: any) => void;
 };
 
 const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
@@ -28,7 +28,10 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   setBlockExplorer,
 }) => {
   const context = useContext(ContextApp);
-  const { info, verificationProgress, readOnly, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWallet, currentWalletOpenError, blockExplorer } = context;
+  const { info, verificationProgress, readOnly, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWallet, currentWalletOpenError,
+    blockExplorerMainnetAddress, blockExplorerMainnetAddressCustom, blockExplorerMainnetTransaction, blockExplorerMainnetTransactionCustom,
+    blockExplorerTestnetAddress, blockExplorerTestnetAddressCustom, blockExplorerTestnetTransaction, blockExplorerTestnetTransactionCustom,
+   } = context;
 
   const [payURIModalIsOpen, setPayURIModalIsOpen] = useState<boolean>(false);
   const [payURIModalInputValue, setPayURIModalInputValue] = useState<string | undefined>(undefined);
@@ -70,7 +73,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
-          <div className={cstyles.margintoplarge}>Zingo PC v2.0.8</div>
+          <div className={cstyles.margintoplarge}>Zingo PC v2.0.9</div>
           <div className={cstyles.margintoplarge}>Built with Electron. Copyright (c) 2026, ZingoLabs.</div>
           <div className={cstyles.margintoplarge}>
             The MIT License (MIT) Copyright (c) 2026 ZingoLabs
@@ -290,7 +293,16 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       />
 
       <BlockExplorerModal
-        modalInput={blockExplorer}
+        modalInput={{
+          blockExplorerMainnetAddress,
+          blockExplorerMainnetAddressCustom,
+          blockExplorerMainnetTransaction,
+          blockExplorerMainnetTransactionCustom,
+          blockExplorerTestnetAddress,
+          blockExplorerTestnetAddressCustom,
+          blockExplorerTestnetTransaction,
+          blockExplorerTestnetTransactionCustom,
+        }}
         setModalInput={setBlockExplorer}
         modalIsOpen={blockExplorerModalIsOpen}
         closeModal={closeBlockExplorerModal}
