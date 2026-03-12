@@ -26,7 +26,6 @@ import {
   ConfirmModalClass,
   ErrorModalClass,
   WalletType,
-  BlockExplorerEnum,
   ServerChainNameEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
@@ -284,8 +283,17 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setState({ verificationProgress });
   };
 
-  setBlockExplorer = (blockExplorer: BlockExplorerEnum) => {
-    this.setState({ blockExplorer });
+  setBlockExplorer = (blockExplorer: any) => {
+    this.setState({ 
+      blockExplorerMainnetAddress: blockExplorer.blockExplorerMainnetAddress,
+      blockExplorerMainnetAddressCustom: blockExplorer.blockExplorerMainnetAddressCustom,
+      blockExplorerMainnetTransaction: blockExplorer.blockExplorerMainnetTransaction,
+      blockExplorerMainnetTransactionCustom: blockExplorer.blockExplorerMainnetTransactionCustom,
+      blockExplorerTestnetAddress: blockExplorer.blockExplorerTestnetAddress,
+      blockExplorerTestnetAddressCustom: blockExplorer.blockExplorerTestnetAddressCustom,
+      blockExplorerTestnetTransaction: blockExplorer.blockExplorerTestnetTransaction,
+      blockExplorerTestnetTransactionCustom: blockExplorer.blockExplorerTestnetTransactionCustom,
+    });
   };
 
   runRPCSendTransaction = async (sendJson: SendManyJsonType[]): Promise<string> => {
@@ -398,18 +406,33 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
               </div>
               {this.state.currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[0], this.state.currentWallet?.chain_name, this.state.blockExplorer)}>
+                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(
+                    txids[0], 
+                    this.state.currentWallet?.chain_name, 
+                    this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransaction : this.state.blockExplorerTestnetTransaction,
+                    this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransactionCustom : this.state.blockExplorerTestnetTransactionCustom,
+                  )}>
                     View TXID &nbsp;
                     <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                   </div>
                   {txids.length > 1 && (
-                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[1], this.state.currentWallet?.chain_name, this.state.blockExplorer)}>
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(
+                      txids[1], 
+                      this.state.currentWallet?.chain_name, 
+                      this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransaction : this.state.blockExplorerTestnetTransaction,
+                      this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransactionCustom : this.state.blockExplorerTestnetTransactionCustom,
+                    )}>
                       View TXID &nbsp;
                       <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                     </div>
                   )}
                   {txids.length > 2 && (
-                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(txids[2], this.state.currentWallet?.chain_name, this.state.blockExplorer)}>
+                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(
+                      txids[2], 
+                      this.state.currentWallet?.chain_name, 
+                      this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransaction : this.state.blockExplorerTestnetTransaction,
+                      this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransactionCustom : this.state.blockExplorerTestnetTransactionCustom,
+                    )}>
                       View TXID &nbsp;
                       <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                     </div>
@@ -504,7 +527,14 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       calculateShieldFee: this.calculateShieldFee,
       handleShieldButton: this.handleShieldButton,
       setAddLabel: this.setAddLabel,
-      blockExplorer: this.state.blockExplorer,
+      blockExplorerMainnetAddress: this.state.blockExplorerMainnetAddress,
+      blockExplorerMainnetAddressCustom: this.state.blockExplorerMainnetAddressCustom,
+      blockExplorerMainnetTransaction: this.state.blockExplorerMainnetTransaction,
+      blockExplorerMainnetTransactionCustom: this.state.blockExplorerMainnetTransactionCustom,
+      blockExplorerTestnetAddress: this.state.blockExplorerTestnetAddress,
+      blockExplorerTestnetAddressCustom: this.state.blockExplorerTestnetAddressCustom,
+      blockExplorerTestnetTransaction: this.state.blockExplorerTestnetTransaction,
+      blockExplorerTestnetTransactionCustom: this.state.blockExplorerTestnetTransactionCustom,
     };
 
     return (
@@ -610,6 +640,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                     setCurrentWallet={this.setCurrentWallet}
                     setCurrentWalletOpenError={this.setCurrentWalletOpenError}
                     setFetchError={this.setFetchError}
+                    setBlockExplorer={this.setBlockExplorer}
                   />
                 )}
               />

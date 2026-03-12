@@ -259,7 +259,7 @@ export default class Utils {
     return colorList;
   }
 
-  static openTxid = (txid: string, chainName: ServerChainNameEnum | undefined, blockExplorer: BlockExplorerEnum) => {
+  static openTxid = (txid: string, chainName: ServerChainNameEnum | undefined, blockExplorer: BlockExplorerEnum, blockExplorerCustom: string) => {
     if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
       if (chainName === ServerChainNameEnum.testChainName) {
         shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
@@ -278,10 +278,12 @@ export default class Utils {
       } else {
         shell.openExternal(`https://www.zypherscan.com/tx/${txid}`);
       }
+    } else if (blockExplorer === BlockExplorerEnum.Custom) {
+      shell.openExternal(`${blockExplorerCustom}${txid}`);
     }
   }
 
-  static openAddress = (address: string, chainName: ServerChainNameEnum | undefined, blockExplorer: BlockExplorerEnum) => {
+  static openAddress = (address: string, chainName: ServerChainNameEnum | undefined, blockExplorer: BlockExplorerEnum, blockExplorerCustom: string) => {
     if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
       if (chainName === ServerChainNameEnum.testChainName) {
         if (address.startsWith('u')) {
@@ -308,9 +310,9 @@ export default class Utils {
       } else {
         shell.openExternal(`https://www.zypherscan.com/address/${address}`);
       }
+    } else if (blockExplorer === BlockExplorerEnum.Custom) {
+      shell.openExternal(`${blockExplorerCustom}${address}`);
     }
-
-
   }
 
 }
