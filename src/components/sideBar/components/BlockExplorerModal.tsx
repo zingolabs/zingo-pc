@@ -187,28 +187,28 @@ const BlockExplorerModal = ({
           onClick={async () => {
             setBlockExplorerMainnetAddressCustom(
               blockExplorerMainnetAddress === BlockExplorerEnum.Custom 
-                ? (blockExplorerMainnetAddressCustom.endsWith('/') 
+                ? (blockExplorerMainnetAddressCustom.endsWith('/') || blockExplorerMainnetAddressCustom.endsWith('=')
                   ? blockExplorerMainnetAddressCustom 
                   : `${blockExplorerMainnetAddressCustom}/`) 
                 : ''
             );
             setBlockExplorerMainnetTransactionCustom(
               blockExplorerMainnetTransaction === BlockExplorerEnum.Custom 
-                ? (blockExplorerMainnetTransactionCustom.endsWith('/') 
+                ? (blockExplorerMainnetTransactionCustom.endsWith('/') || blockExplorerMainnetTransactionCustom.endsWith('=') 
                   ? blockExplorerMainnetTransactionCustom 
                   : `${blockExplorerMainnetTransactionCustom}/`) 
                 : ''
             );
             setBlockExplorerTestnetAddressCustom(
               blockExplorerTestnetAddress === BlockExplorerEnum.Custom 
-                ? (blockExplorerTestnetAddressCustom.endsWith('/') 
+                ? (blockExplorerTestnetAddressCustom.endsWith('/') || blockExplorerTestnetAddressCustom.endsWith('=') 
                   ? blockExplorerTestnetAddressCustom 
                   : `${blockExplorerTestnetAddressCustom}/`) 
                 : ''
             );
             setBlockExplorerTestnetTransactionCustom(
               blockExplorerTestnetTransaction === BlockExplorerEnum.Custom 
-                ? (blockExplorerTestnetTransactionCustom.endsWith('/') 
+                ? (blockExplorerTestnetTransactionCustom.endsWith('/') || blockExplorerTestnetTransactionCustom.endsWith('=') 
                   ? blockExplorerTestnetTransactionCustom 
                   : `${blockExplorerTestnetTransactionCustom}/`) 
                 : ''
@@ -217,28 +217,28 @@ const BlockExplorerModal = ({
               blockExplorerMainnetAddress,
               blockExplorerMainnetAddressCustom: 
                 blockExplorerMainnetAddress === BlockExplorerEnum.Custom 
-                  ? (blockExplorerMainnetAddressCustom.endsWith('/') 
+                  ? (blockExplorerMainnetAddressCustom.endsWith('/') || blockExplorerMainnetAddressCustom.endsWith('=') 
                     ? blockExplorerMainnetAddressCustom 
                     : `${blockExplorerMainnetAddressCustom}/`) 
                   : '',
               blockExplorerMainnetTransaction,
               blockExplorerMainnetTransactionCustom: 
                 blockExplorerMainnetTransaction === BlockExplorerEnum.Custom 
-                  ? (blockExplorerMainnetTransactionCustom.endsWith('/') 
+                  ? (blockExplorerMainnetTransactionCustom.endsWith('/') || blockExplorerMainnetTransactionCustom.endsWith('=') 
                     ? blockExplorerMainnetTransactionCustom 
                     : `${blockExplorerMainnetTransactionCustom}/`) 
                   : '',
               blockExplorerTestnetAddress,
               blockExplorerTestnetAddressCustom: 
                 blockExplorerTestnetAddress === BlockExplorerEnum.Custom 
-                  ? (blockExplorerTestnetAddressCustom.endsWith('/') 
+                  ? (blockExplorerTestnetAddressCustom.endsWith('/') || blockExplorerTestnetAddressCustom.endsWith('=') 
                     ? blockExplorerTestnetAddressCustom 
                     : `${blockExplorerTestnetAddressCustom}/`) 
                   : '',
               blockExplorerTestnetTransaction,
               blockExplorerTestnetTransactionCustom: 
                 blockExplorerTestnetTransaction === BlockExplorerEnum.Custom 
-                  ? (blockExplorerTestnetTransactionCustom.endsWith('/') 
+                  ? (blockExplorerTestnetTransactionCustom.endsWith('/') || blockExplorerTestnetTransactionCustom.endsWith('=') 
                     ? blockExplorerTestnetTransactionCustom 
                     : `${blockExplorerTestnetTransactionCustom}/`) 
                   : '',
