@@ -286,17 +286,9 @@ export default class Utils {
   static openAddress = (address: string, chainName: ServerChainNameEnum | undefined, blockExplorer: BlockExplorerEnum, blockExplorerCustom: string) => {
     if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
       if (chainName === ServerChainNameEnum.testChainName) {
-        if (address.startsWith('u')) {
-          shell.openExternal(`https://testnet.zcashexplorer.app/ua/${address}`);
-        } else {
-          shell.openExternal(`https://testnet.zcashexplorer.app/address/${address}`);
-        }
+        shell.openExternal(`https://testnet.zcashexplorer.app/search?qs=${address}`);
       } else {
-        if (address.startsWith('u')) {
-          shell.openExternal(`https://mainnet.zcashexplorer.app/ua/${address}`);
-        } else {
-          shell.openExternal(`https://mainnet.zcashexplorer.app/address/${address}`);
-        }
+        shell.openExternal(`https://mainnet.zcashexplorer.app/search?qs=${address}`);
       }
     } else if (blockExplorer === BlockExplorerEnum.Cipherscan) {
       if (chainName === ServerChainNameEnum.testChainName) {
