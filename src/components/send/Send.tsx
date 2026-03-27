@@ -4,7 +4,6 @@ import cstyles from "../common/Common.module.css";
 import {
   ToAddrClass,
   SendPageStateClass,
-  AddressBookEntryClass,
   ValueTransferClass,
   ServerChainNameEnum,
 } from "../appstate";
@@ -36,7 +35,6 @@ const Send: React.FC<SendProps> = ({
     info,
     totalBalance,
     readOnly,
-    addressBook,
     fetchError,
     valueTransfers,
     currentWallet,
@@ -56,7 +54,7 @@ const Send: React.FC<SendProps> = ({
   const [shieldFee, setShieldFee] = useState<number>(0);
 
   useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
+    // set somePending as well here when I know there is something new in ValueTransfers 
     const pending: number =
       valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
     setAnyPending(pending > 0);
@@ -194,14 +192,6 @@ const Send: React.FC<SendProps> = ({
     setModalIsOpen(false);
   };
 
-  const getLabelAddressBook = (addr: string) => {
-    // Find the addr in addresses
-    const label: AddressBookEntryClass | undefined = addressBook.find((ab: AddressBookEntryClass) => ab.address === addr);
-    const labelStr: string = label ? ` [ ${label.label} ]` : "";
-
-    return labelStr; 
-  };
-
   const calculateSendFee = async (): Promise<{fee: number, error: string, spendable: number}> => {
     let _fee: number = 0;
     let _error: string = '';
@@ -323,30 +313,24 @@ const Send: React.FC<SendProps> = ({
       <div className={[styles.horizontalcontainer].join(" ")}>
         <div className={cstyles.containermarginleft}>
           <ScrollPaneTop offsetHeight={260}>
-            {[sendPageState.toaddr].map((toaddr: ToAddrClass, index: number) => {
-              return (
-                <ToAddrBox
-                  key={index}
-                  toaddr={toaddr}
-                  zecPrice={info.zecPrice}
-                  updateToField={updateToField}
-                  fromAmount={totalAmountAvailable}
-                  fromAmountDefault={totalBalance.totalSpendableBalance}
-                  setMaxAmount={setMaxAmount}
-                  setSendButtonEnabled={setSendButtonEnabled}
-                  sendFee={sendFee}
-                  sendFeeError={sendFeeError}
-                  fetchSendFeeAndErrorAndSpendable={fetchSendFeeAndErrorAndSpendable}
-                  setSendFee={setSendFee}
-                  setSendFeeError={setSendFeeError}
-                  setTotalAmountAvailable={setTotalAmountAvailable}
-                  label={getLabelAddressBook(toaddr.to)}
-                  serverChainName={currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName}
-                  block={info.latestBlock >= info.walletHeight ? info.latestBlock : info.walletHeight}
-                  currencyName={info.currencyName}
-                />
-              );
-            })}
+            <ToAddrBox
+              toaddr={sendPageState.toaddr}
+              zecPrice={info.zecPrice}
+              updateToField={updateToField}
+              fromAmount={totalAmountAvailable}
+              fromAmountDefault={totalBalance.totalSpendableBalance}
+              setMaxAmount={setMaxAmount}
+              setSendButtonEnabled={setSendButtonEnabled}
+              sendFee={sendFee}
+              sendFeeError={sendFeeError}
+              fetchSendFeeAndErrorAndSpendable={fetchSendFeeAndErrorAndSpendable}
+              setSendFee={setSendFee}
+              setSendFeeError={setSendFeeError}
+              setTotalAmountAvailable={setTotalAmountAvailable}
+              serverChainName={currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName}
+              block={info.latestBlock >= info.walletHeight ? info.latestBlock : info.walletHeight}
+              currencyName={info.currencyName}
+            />
           </ScrollPaneTop>
         </div>
 

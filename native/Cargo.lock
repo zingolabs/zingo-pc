@@ -3466,9 +3466,8 @@ dependencies = [
 
 [[package]]
 name = "pepper-sync"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0e72645feff01b129fa99c02ceebc86ffb990bfb2c36b9796ce61842161274d"
+version = "0.3.0"
+source = "git+https://github.com/zingolabs/zingolib?rev=zingolib_v3.0.1#31da83657d88fbb3b57bf45996023850e8aaf9da"
 dependencies = [
  "bip32",
  "byteorder",
@@ -7970,27 +7969,24 @@ dependencies = [
 
 [[package]]
 name = "zingo-netutils"
-version = "1.1.0"
+version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3716e3f0352d80468ce2baef8a998ffeee8bdfe0aacc515eb8821e3147d4057e"
+checksum = "2d2ca11c717feb94a0032da1e6cffb2928ce2c34aca3b430e85cac02fd0ab425"
 dependencies = [
  "http",
- "http-body",
  "hyper",
  "hyper-rustls",
  "hyper-util",
  "thiserror 1.0.69",
  "tokio-rustls",
  "tonic",
- "tower",
- "webpki-roots 0.25.4",
  "zcash_client_backend",
 ]
 
 [[package]]
 name = "zingo-price"
 version = "0.0.1"
-source = "git+https://github.com/zingolabs/zingolib?rev=zingolib_v3.0.0#8a663aa646aa2811f4dbe1ea4a89373a28ee6239"
+source = "git+https://github.com/zingolabs/zingolib?rev=zingolib_v3.0.1#31da83657d88fbb3b57bf45996023850e8aaf9da"
 dependencies = [
  "byteorder",
  "reqwest",
@@ -8024,8 +8020,8 @@ dependencies = [
 
 [[package]]
 name = "zingolib"
-version = "3.0.0"
-source = "git+https://github.com/zingolabs/zingolib?rev=zingolib_v3.0.0#8a663aa646aa2811f4dbe1ea4a89373a28ee6239"
+version = "3.0.1"
+source = "git+https://github.com/zingolabs/zingolib?rev=zingolib_v3.0.1#31da83657d88fbb3b57bf45996023850e8aaf9da"
 dependencies = [
  "append-only-vec",
  "bech32",
@@ -8052,6 +8048,7 @@ dependencies = [
  "prost",
  "rand 0.8.5",
  "ring",
+ "rusqlite",
  "rust-embed",
  "rustls 0.23.36",
  "sapling-crypto",
@@ -8111,7 +8108,6 @@ dependencies = [
  "zcash_proofs",
  "zcash_protocol",
  "zcash_transparent",
- "zebra-chain",
  "zingo_common_components",
  "zingolib",
  "zip32",
