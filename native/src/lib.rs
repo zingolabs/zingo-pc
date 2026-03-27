@@ -25,8 +25,9 @@ use zcash_protocol::consensus::BlockHeight;
 use zip32::AccountId;
 use zcash_protocol::consensus::NetworkType;
 
+use zingolib::config::SyncConfig;
+use pepper_sync::config::{PerformanceLevel, TransparentAddressDiscovery};
 use pepper_sync::keys::transparent;
-use pepper_sync::config::{PerformanceLevel, SyncConfig, TransparentAddressDiscovery};
 use pepper_sync::wallet::{KeyIdInterface, SyncMode};
 use zingolib::config::{ChainType, ZingoConfig, construct_lightwalletd_uri};
 use zingolib::data::PollReport;
@@ -800,7 +801,7 @@ fn get_latest_block_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
                     Ok(RT.block_on(async move {
-                        let wallet = lightclient.wallet.write().await;
+                        let wallet = lightclient.wallet.read().await;
                         object! { "height" => json::JsonValue::from(wallet.sync_state.last_known_chain_height().map_or(0, u32::from))}.pretty(2)
                     }))
                 } else {
@@ -1545,7 +1546,7 @@ fn get_spendable_balance_total(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
                     Ok(RT.block_on(async move {
-                        let wallet = lightclient.wallet.write().await;
+                        let wallet = lightclient.wallet.read().await;
                         let spendable_balance =
                             match wallet.shielded_spendable_balance(AccountId::ZERO, false) {
                                 Ok(bal) => bal,

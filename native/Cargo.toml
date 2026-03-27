@@ -12,8 +12,8 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zingolib = { git="https://github.com/zingolabs/zingolib", rev = "zingolib_v3.0.0" }
-pepper-sync = "0.2.0"
+zingolib = { git="https://github.com/zingolabs/zingolib", rev = "zingolib_v3.0.1" }
+pepper-sync = { git="https://github.com/zingolabs/zingolib", rev = "zingolib_v3.0.1" }
 
 zcash_address = { version = "0.10" }
 zcash_client_backend = { version = "0.21", features = [
@@ -33,11 +33,9 @@ zcash_proofs = { version = "0.26" }
 zcash_protocol = { version = "0.7" }
 zcash_transparent = { version = "0.6" }
 
-zebra-chain = "5.0.0"
-
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 
-zingo_common_components = { version = "0.2", features = ["for_test"] }
+zingo_common_components = { version = "0.2.0", features = ["for_test"] }
 
 bip0039 = { version = "0.13", features = [ "rand" ] }
 zip32 = "0.2.0"
