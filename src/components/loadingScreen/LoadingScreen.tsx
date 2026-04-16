@@ -243,7 +243,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     console.log('&&&&&&&&&&&&&&&&& CHECKED SETTINGS', uri, chain_name, selection);
 
     // block explorer configuration 
-    if (settings.hasOwnProperty("blockexplorer")) {
+    if (settings && settings.hasOwnProperty("blockexplorer")) {
       this.props.setBlockExplorer(settings.blockexplorer);
     }
 
