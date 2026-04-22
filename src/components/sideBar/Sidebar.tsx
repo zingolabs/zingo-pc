@@ -12,7 +12,7 @@ import SelectWallet from "./components/SelectWallet";
 import { WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
 
-const { ipcRenderer } = window.require("electron");
+import { ipcRenderer } from "../../electronBridge";
 
 type SidebarProps = {
   doRescan: () => void;
@@ -20,7 +20,7 @@ type SidebarProps = {
   setBlockExplorer: (be: any) => void;
 };
 
-const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({ 
+const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   doRescan,
   history,
   location,
@@ -28,22 +28,37 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   setBlockExplorer,
 }) => {
   const context = useContext(ContextApp);
-  const { info, verificationProgress, readOnly, seed_phrase, ufvk, birthday, setSendTo, openErrorModal, currentWallet, currentWalletOpenError,
-    blockExplorerMainnetAddress, blockExplorerMainnetAddressCustom, blockExplorerMainnetTransaction, blockExplorerMainnetTransactionCustom,
-    blockExplorerTestnetAddress, blockExplorerTestnetAddressCustom, blockExplorerTestnetTransaction, blockExplorerTestnetTransactionCustom,
-   } = context;
+  const {
+    info,
+    verificationProgress,
+    readOnly,
+    seed_phrase,
+    ufvk,
+    birthday,
+    setSendTo,
+    openErrorModal,
+    currentWallet,
+    currentWalletOpenError,
+    blockExplorerMainnetAddress,
+    blockExplorerMainnetAddressCustom,
+    blockExplorerMainnetTransaction,
+    blockExplorerMainnetTransactionCustom,
+    blockExplorerTestnetAddress,
+    blockExplorerTestnetAddressCustom,
+    blockExplorerTestnetTransaction,
+    blockExplorerTestnetTransactionCustom,
+  } = context;
 
   const [payURIModalIsOpen, setPayURIModalIsOpen] = useState<boolean>(false);
   const [payURIModalInputValue, setPayURIModalInputValue] = useState<string | undefined>(undefined);
 
   const [blockExplorerModalIsOpen, setBlockExplorerModalIsOpen] = useState<boolean>(false);
-  
+
   const currentWalletRef = useRef<WalletType | null>(null);
-  const currentWalletOpenErrorRef = useRef<string>('');
+  const currentWalletOpenErrorRef = useRef<string>("");
 
   let stateSync: string = "";
   let progress: string = "";
-  console.log('PPPPPPPROGRESS', verificationProgress);
   if (info.latestBlock) {
     if (verificationProgress) {
       if (verificationProgress === 100) {
@@ -55,19 +70,22 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       }
     } else {
       // no verification progress fetched
-      stateSync = "CONNECTING"
+      stateSync = "CONNECTING";
     }
   } else {
     // no server latest block
-    stateSync = "DISCONNECTED"
+    stateSync = "DISCONNECTED";
   }
 
-  useEffect(() => { currentWalletRef.current = currentWallet; }, [currentWallet]);
-  useEffect(() => { currentWalletOpenErrorRef.current = currentWalletOpenError; }, [currentWalletOpenError]);
+  useEffect(() => {
+    currentWalletRef.current = currentWallet;
+  }, [currentWallet]);
+  useEffect(() => {
+    currentWalletOpenErrorRef.current = currentWalletOpenError;
+  }, [currentWalletOpenError]);
 
   // Handle menu items
   useEffect(() => {
-
     // About
     const about = (_event: any) => {
       openErrorModal(
@@ -96,7 +114,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
             IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
             USE OR OTHER DEALINGS IN THE SOFTWARE.
           </div>
-        </div>
+        </div>,
       );
     };
 
@@ -127,7 +145,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           {!!seed_phrase && (
             <>
               <div>
-                This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet. 
+                This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet.
                 <br />
                 PLEASE KEEP IT SAFE!
               </div>
@@ -136,7 +154,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
                 style={{
                   wordBreak: "break-word",
                   fontFamily: "monospace, Roboto",
-                  fontWeight: 'bolder',
+                  fontWeight: "bolder",
                 }}
               >
                 {seed_phrase}
@@ -155,7 +173,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
               <div
                 style={{
                   fontFamily: "monospace, Roboto",
-                  fontWeight: 'bolder',
+                  fontWeight: "bolder",
                 }}
               >
                 {ufvk}
@@ -168,10 +186,10 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
               fontFamily: "monospace, Roboto",
             }}
           >
-            {'Birthday: ' + birthday}
+            {"Birthday: " + birthday}
           </div>
-        </div>
-      );        
+        </div>,
+      );
     };
 
     const rescan = async (_event: any) => {
@@ -183,14 +201,14 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     };
 
     const addnewwallet = (_event: any) => {
-      history.push(routes.ADDNEWWALLET, { mode: 'addnew' });
+      history.push(routes.ADDNEWWALLET, { mode: "addnew" });
     };
 
     const settingswallet = (_event: any) => {
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Settings", "There is not an active Wallet to perform the action.");
       } else {
-        history.push(routes.ADDNEWWALLET, { mode: 'settings' });
+        history.push(routes.ADDNEWWALLET, { mode: "settings" });
       }
     };
 
@@ -198,11 +216,11 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       if (!currentWalletRef.current) {
         openErrorModal("Delete Wallet", "There is not an active Wallet to perform the action.");
       } else {
-        history.push(routes.ADDNEWWALLET, { mode: 'delete' });
+        history.push(routes.ADDNEWWALLET, { mode: "delete" });
       }
     };
 
-    console.log('ONNNNNNNNNNNNNNNNNNNNNNNN');
+    console.log("ONNNNNNNNNNNNNNNNNNNNNNNN");
     ipcRenderer.on("about", about);
     ipcRenderer.on("payuri", payuri);
     ipcRenderer.on("blockexplorer", blockexplorer);
@@ -213,7 +231,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     ipcRenderer.on("deletewallet", deletewallet);
 
     return () => {
-      console.log('OFFFFFFFFFFFFFFFFFFFFFF')
+      console.log("OFFFFFFFFFFFFFFFFFFFFFF");
       ipcRenderer.removeListener("about", about);
       ipcRenderer.off("payuri", payuri);
       ipcRenderer.off("blockexplorer", blockexplorer);
@@ -265,9 +283,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       return;
     }
 
-    const parsedUri: string | ZcashURITarget = await parseZcashURI(uri, currentWallet ? currentWallet.chain_name: '');
+    const parsedUri: string | ZcashURITarget = await parseZcashURI(uri, currentWallet ? currentWallet.chain_name : "");
     if (typeof parsedUri === "string") {
-      if (!parsedUri || parsedUri.toLowerCase().startsWith('error')) {
+      if (!parsedUri || parsedUri.toLowerCase().startsWith("error")) {
         openErrorModal(errTitle, getErrorBody(parsedUri));
         return;
       } else {
@@ -276,7 +294,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     } else {
       setSendTo(parsedUri);
     }
-    
+
     history.push(routes.SEND);
   };
 
@@ -314,9 +332,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       </div>
 
       <div className={styles.sidebar}>
-        <SelectWallet
-          navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
-        />
+        <SelectWallet navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet} />
         <SidebarMenuItem
           name="Dashboard"
           routeName={routes.DASHBOARD}
@@ -359,20 +375,20 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           name="Address Book"
           routeName={routes.ADDRESSBOOK}
           currentRoute={location.pathname}
-          iconname="fa-address-book" 
+          iconname="fa-address-book"
         />
         {currentWallet !== null && !currentWalletOpenError && (
           <SidebarMenuItem
             name="Financial Insight"
             routeName={routes.INSIGHT}
             currentRoute={location.pathname}
-            iconname="fa-chart-line" 
+            iconname="fa-chart-line"
           />
         )}
       </div>
 
       <div className={cstyles.center}>
-        {stateSync === "CONNECTED" && ( 
+        {stateSync === "CONNECTED" && (
           <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
             <div>
               {info.latestBlock === info.walletHeight ? (
@@ -403,13 +419,13 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         {stateSync === "CONNECTING" && (
           <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
             <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
-            &nbsp; Connecting... 
+            &nbsp; Connecting...
           </div>
         )}
       </div>
     </div>
   );
-}
+};
 
 // @ts-ignore
 export default withRouter(Sidebar);

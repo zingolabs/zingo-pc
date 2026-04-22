@@ -1,5 +1,5 @@
 export enum ServerSelectionEnum {
-  list = 'list',
-  auto = 'auto',
-  custom = 'custom',
+  list = "list",
+  auto = "auto",
+  custom = "custom",
 }

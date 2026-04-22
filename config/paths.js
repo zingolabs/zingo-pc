@@ -1,5 +1,3 @@
-
-
 const path = require("path");
 const fs = require("fs");
 const getPublicUrlOrPath = require("react-dev-utils/getPublicUrlOrPath");
@@ -18,7 +16,7 @@ const resolveApp = (relativePath) => path.resolve(appDirectory, relativePath);
 const publicUrlOrPath = getPublicUrlOrPath(
   process.env.NODE_ENV === "development",
   require(resolveApp("package.json")).homepage,
-  process.env.PUBLIC_URL
+  process.env.PUBLIC_URL,
 );
 
 const buildPath = process.env.BUILD_PATH || "build";

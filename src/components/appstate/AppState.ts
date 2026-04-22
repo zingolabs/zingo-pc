@@ -83,7 +83,7 @@ export default class AppState {
   openConfirmModal: (t: string, b: string | JSX.Element, a: () => void) => void;
   closeConfirmModal: () => void;
   setSendTo: (t: ZcashURITarget) => void;
-  calculateShieldFee: () => Promise<number>
+  calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
   setAddLabel: (a: AddressBookEntryClass) => void;
 
@@ -96,7 +96,6 @@ export default class AppState {
   blockExplorerTestnetTransactionCustom: string;
   blockExplorerMainnetAddressCustom: string;
   blockExplorerTestnetAddressCustom: string;
-
 
   constructor() {
     this.totalBalance = new TotalBalanceClass();
@@ -123,7 +122,7 @@ export default class AppState {
     this.orchardPool = true;
     this.saplingPool = true;
     this.transparentPool = true;
-    this.addLabelState = new AddressBookEntryClass('', '');
+    this.addLabelState = new AddressBookEntryClass("", "");
     this.openErrorModal = () => {};
     this.closeErrorModal = () => {};
     this.openConfirmModal = () => {};
@@ -138,7 +137,7 @@ export default class AppState {
     this.blockExplorerTestnetAddress = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerMainnetTransactionCustom = "";
     this.blockExplorerTestnetTransactionCustom = "";
-    this.blockExplorerMainnetAddressCustom =  "";
-    this.blockExplorerTestnetAddressCustom =  "";
+    this.blockExplorerMainnetAddressCustom = "";
+    this.blockExplorerTestnetAddressCustom = "";
   }
 }

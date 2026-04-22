@@ -13,7 +13,7 @@ import {
   ServerChainNameEnum,
 } from "../components/appstate";
 
-import native from "../native.node";
+import { native } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
 
 export default class RPC {
@@ -29,13 +29,13 @@ export default class RPC {
   fnSetFetchError: (command: string, error: string) => void;
 
   currentWallet: WalletType | null;
-  
+
   updateTimerID?: NodeJS.Timeout;
   timers: NodeJS.Timeout[];
 
   lastBlockHeight: number;
   lastTxId?: string;
-  
+
   lastPollSyncError: string;
 
   constructor(
@@ -69,23 +69,22 @@ export default class RPC {
     this.updateTimerID = undefined;
     this.timers = [];
 
-    this.lastPollSyncError = '';
+    this.lastPollSyncError = "";
   }
 
   async runTaskPromises(): Promise<void> {
-
     const taskPromises: Promise<void>[] = [];
 
     // do need this because of the sync process
     taskPromises.push(
-      new Promise<void>(async resolve => {
+      new Promise<void>(async (resolve) => {
         await this.fetchSyncPoll();
         //console.log('INTERVAL poll sync');
         resolve();
       }),
     );
     taskPromises.push(
-      new Promise<void>(async resolve => {
+      new Promise<void>(async (resolve) => {
         //const s = Date.now();
         await this.fetchInfo();
         //console.log('info & server height - ', Date.now() - s);
@@ -93,7 +92,7 @@ export default class RPC {
       }),
     );
     taskPromises.push(
-      new Promise<void>(async resolve => {
+      new Promise<void>(async (resolve) => {
         //const s = Date.now();
         await this.fetchAddresses();
         //console.log('addresses - ', Date.now() - s);
@@ -101,7 +100,7 @@ export default class RPC {
       }),
     );
     taskPromises.push(
-      new Promise<void>(async resolve => {
+      new Promise<void>(async (resolve) => {
         //const s = Date.now();
         await this.fetchTotalBalance();
         //console.log('balance - ', Date.now() - s);
@@ -110,13 +109,13 @@ export default class RPC {
     );
     // save the wallet as required.
     taskPromises.push(
-      new Promise<void>(async resolve => {
+      new Promise<void>(async (resolve) => {
         await RPC.doSave();
         resolve();
       }),
     );
     taskPromises.push(
-      new Promise<void>(async resolve => {
+      new Promise<void>(async (resolve) => {
         //const s = Date.now();
         await this.fetchTandZandOValueTransfers();
         //console.log('value transfers - ', Date.now() - s);
@@ -124,7 +123,7 @@ export default class RPC {
       }),
     );
     taskPromises.push(
-      new Promise<void>(async resolve => {
+      new Promise<void>(async (resolve) => {
         //const s = Date.now();
         await this.fetchTandZandOMessages();
         //console.log('messages - ', Date.now() - s);
@@ -132,7 +131,7 @@ export default class RPC {
       }),
     );
 
-    Promise.allSettled(taskPromises);
+    await Promise.allSettled(taskPromises);
   }
 
   async configure(): Promise<void> {
@@ -186,13 +185,13 @@ export default class RPC {
 
   static async doSave() {
     try {
-      // no need to check this status anymore 
+      // no need to check this status anymore
       //const saveRequiredStr: string = await native.get_wallet_save_required();
       //console.log(`Save required? ${saveRequiredStr}`);
       const syncstr: string = await native.check_save_error();
       console.log(`wallet check saved: ${syncstr}`);
       return syncstr;
-    }catch (error: any) {
+    } catch (error: any) {
       console.log(`Critical Error check save wallet ${error}`);
       return error;
     }
@@ -211,12 +210,12 @@ export default class RPC {
     try {
       const walletVersionStr: string = await native.get_wallet_version();
       if (walletVersionStr) {
-        if (walletVersionStr.toLowerCase().startsWith('error')) {
+        if (walletVersionStr.toLowerCase().startsWith("error")) {
           console.log(`Error wallet version ${walletVersionStr}`);
           return;
         }
       } else {
-        console.log('Internal Error wallet version');
+        console.log("Internal Error wallet version");
         return;
       }
       const walletVersionJSON = await JSON.parse(walletVersionStr);
@@ -227,7 +226,7 @@ export default class RPC {
       return;
     }
   }
-  
+
   // shield transparent balance to orchard
   async shieldTransparentBalanceToOrchard(): Promise<string> {
     try {
@@ -242,14 +241,14 @@ export default class RPC {
         }
       } else {
         // error empty
-        const err = 'Error: Internal error shield';
+        const err = "Error: Internal error shield";
         console.log(err);
         return err;
       }
-      let shieldJSON = {} as {fee: number, error: string};
+      let shieldJSON = {} as { fee: number; error: string };
       try {
         shieldJSON = JSON.parse(shieldResult);
-      } catch(error: any) {
+      } catch (error: any) {
         const err = `Error: parsing shield result ${error.message}`;
         console.log(err);
         return err;
@@ -271,14 +270,14 @@ export default class RPC {
         }
       } else {
         // error empty
-        const err = 'Error: Internal error confirm';
+        const err = "Error: Internal error confirm";
         console.log(err);
         return err;
       }
-      let confirmJSON = {} as {txids: string[], error: string};
+      let confirmJSON = {} as { txids: string[]; error: string };
       try {
         confirmJSON = JSON.parse(confirmResult);
-      } catch(error: any) {
+      } catch (error: any) {
         const err = `Error: parsing confirm result ${error.message}`;
         console.log(err);
         return err;
@@ -289,7 +288,7 @@ export default class RPC {
         return err;
       }
       if (confirmJSON.txids && confirmJSON.txids.length > 0) {
-        const txids: string = confirmJSON.txids.join(', ');
+        const txids: string = confirmJSON.txids.join(", ");
         console.log(txids);
         return txids;
       }
@@ -345,11 +344,11 @@ export default class RPC {
       let zingolibStr: string = await native.get_version();
       //console.log(zingolibStr);
       if (zingolibStr) {
-        if (zingolibStr.toLowerCase().startsWith('error')) {
-          zingolibStr = '<error>';
+        if (zingolibStr.toLowerCase().startsWith("error")) {
+          zingolibStr = "<error>";
         }
       } else {
-        zingolibStr = '<none>';
+        zingolibStr = "<none>";
       }
       info.zingolib = zingolibStr;
 
@@ -383,12 +382,12 @@ export default class RPC {
     try {
       const walletSaveRequiredStr: string = await native.get_wallet_save_required();
       if (walletSaveRequiredStr) {
-        if (walletSaveRequiredStr.toLowerCase().startsWith('error')) {
+        if (walletSaveRequiredStr.toLowerCase().startsWith("error")) {
           console.log(`Error wallet save required ${walletSaveRequiredStr}`);
           return false;
         }
       } else {
-        console.log('Internal Error wallet save required');
+        console.log("Internal Error wallet save required");
         return false;
       }
       const walletSaveRequiredJSON = await JSON.parse(walletSaveRequiredStr);
@@ -403,26 +402,26 @@ export default class RPC {
   async fetchSyncPoll(): Promise<void> {
     try {
       const returnPoll: string = await native.poll_sync();
-      if (!returnPoll || returnPoll.toLowerCase().startsWith('error')) {
-        console.log('SYNC POLL ERROR', returnPoll);
+      if (!returnPoll || returnPoll.toLowerCase().startsWith("error")) {
+        console.log("SYNC POLL ERROR", returnPoll);
         this.lastPollSyncError = returnPoll;
         return;
       }
 
-      if (returnPoll.toLowerCase().startsWith('sync task has not been launched')) {
-        console.log('SYNC POLL -> RUN SYNC', returnPoll);
+      if (returnPoll.toLowerCase().startsWith("sync task has not been launched")) {
+        console.log("SYNC POLL -> RUN SYNC", returnPoll);
         setTimeout(async () => {
           await this.refreshSync();
         }, 0);
         return;
       }
 
-      if (returnPoll.toLowerCase().startsWith('sync task is not complete')) {
-        console.log('SYNC POLL -> FETCH STATUS', returnPoll);
+      if (returnPoll.toLowerCase().startsWith("sync task is not complete")) {
+        console.log("SYNC POLL -> FETCH STATUS", returnPoll);
         setTimeout(async () => {
           await this.fetchSyncStatus();
         }, 0);
-        console.log('SYNC POLL -> RUN SYNC', returnPoll);
+        console.log("SYNC POLL -> RUN SYNC", returnPoll);
         // I don't trust in this message, when the tx is stuck in Trasmitted
         // this is the message I got & after that the status says 100% complete
         // this is not true, here Just in case, I need to run the sync again.
@@ -436,13 +435,13 @@ export default class RPC {
       try {
         sp = await JSON.parse(returnPoll);
       } catch (error) {
-        console.log('SYNC POLL ERROR - PARSE JSON', returnPoll, error);
+        console.log("SYNC POLL ERROR - PARSE JSON", returnPoll, error);
         return;
       }
 
-      console.log('SYNC POLL', sp);
+      console.log("SYNC POLL", sp);
 
-      console.log('SYNC POLL -> FETCH STATUS');
+      console.log("SYNC POLL -> FETCH STATUS");
       setTimeout(async () => {
         await this.fetchSyncStatus();
       }, 0);
@@ -476,14 +475,14 @@ export default class RPC {
         // 2. launch the rescan.
         const rescanStr: string = await native.run_rescan();
         //console.log('rescan RUN', rescanStr);
-        if (!rescanStr || rescanStr.toLowerCase().startsWith('error')) {
+        if (!rescanStr || rescanStr.toLowerCase().startsWith("error")) {
           console.log(`Error rescan ${rescanStr}`);
         }
         await this.configure();
       } else {
         const syncStr: string = await native.run_sync();
         //console.log('sync RUN', syncStr);
-        if (!syncStr || syncStr.toLowerCase().startsWith('error')) {
+        if (!syncStr || syncStr.toLowerCase().startsWith("error")) {
           console.log(`Error sync ${syncStr}`);
         }
       }
@@ -495,8 +494,8 @@ export default class RPC {
   async fetchSyncStatus(): Promise<void> {
     try {
       const returnStatus: string = await native.status_sync();
-      if (!returnStatus || returnStatus.toLowerCase().startsWith('error')) {
-        console.log('SYNC STATUS ERROR', returnStatus);
+      if (!returnStatus || returnStatus.toLowerCase().startsWith("error")) {
+        console.log("SYNC STATUS ERROR", returnStatus);
         return;
       }
       let ss = {} as SyncStatusType;
@@ -504,7 +503,7 @@ export default class RPC {
         ss = await JSON.parse(returnStatus);
         ss.lastError = this.lastPollSyncError;
       } catch (error) {
-        console.log('SYNC STATUS ERROR - PARSE JSON', returnStatus, error);
+        console.log("SYNC STATUS ERROR - PARSE JSON", returnStatus, error);
         return;
       }
 
@@ -512,28 +511,31 @@ export default class RPC {
       // fixing when is:
       // - 0.00000000123 (rounded 0)     better: 0.01  than 0
       // - 99.9999999123 (rounded 99.99) better: 99.99 than 100.
-      ss.percentage_total_outputs_scanned = 
-        ss.percentage_total_outputs_scanned && 
-        ss.percentage_total_outputs_scanned < 0.01
+      ss.percentage_total_outputs_scanned =
+        ss.percentage_total_outputs_scanned && ss.percentage_total_outputs_scanned < 0.01
           ? 0.01
           : ss.percentage_total_outputs_scanned &&
-            ss.percentage_total_outputs_scanned > 99.99 &&
-            ss.percentage_total_outputs_scanned < 100
-              ? 99.99
-              : Number(ss.percentage_total_outputs_scanned?.toFixed(2));
+              ss.percentage_total_outputs_scanned > 99.99 &&
+              ss.percentage_total_outputs_scanned < 100
+            ? 99.99
+            : Number(ss.percentage_total_outputs_scanned?.toFixed(2));
 
-      ss.percentage_total_blocks_scanned = 
-        ss.percentage_total_blocks_scanned && 
-        ss.percentage_total_blocks_scanned < 0.01
+      ss.percentage_total_blocks_scanned =
+        ss.percentage_total_blocks_scanned && ss.percentage_total_blocks_scanned < 0.01
           ? 0.01
           : ss.percentage_total_blocks_scanned &&
-            ss.percentage_total_blocks_scanned > 99.99 &&
-            ss.percentage_total_blocks_scanned < 100
-              ? 99.99
-              : Number(ss.percentage_total_blocks_scanned?.toFixed(2));
+              ss.percentage_total_blocks_scanned > 99.99 &&
+              ss.percentage_total_blocks_scanned < 100
+            ? 99.99
+            : Number(ss.percentage_total_blocks_scanned?.toFixed(2));
 
-      console.log('SYNC STATUS', ss);
-      console.log('SYNC STATUS', ss.scan_ranges?.length, ss.percentage_total_outputs_scanned, ss.percentage_total_blocks_scanned);
+      console.log("SYNC STATUS", ss);
+      console.log(
+        "SYNC STATUS",
+        ss.scan_ranges?.length,
+        ss.percentage_total_outputs_scanned,
+        ss.percentage_total_blocks_scanned,
+      );
 
       // store SyncStatus object for a new screen
       this.fnSetSyncStatus(ss);
@@ -548,21 +550,21 @@ export default class RPC {
       // fetch value transfers
       const txValueTransfersStr: string = await native.get_value_transfers();
       if (txValueTransfersStr) {
-        if (txValueTransfersStr.toLowerCase().startsWith('error')) {
+        if (txValueTransfersStr.toLowerCase().startsWith("error")) {
           console.log(`Error txs ValueTransfers ${txValueTransfersStr}`);
-          this.fnSetFetchError('ValueTransfers', txValueTransfersStr);
+          this.fnSetFetchError("ValueTransfers", txValueTransfersStr);
           return [];
         }
       } else {
-        console.log('Internal Error txs ValueTransfers');
-        this.fnSetFetchError('ValueTransfers', 'Error: Internal RPC Error');
+        console.log("Internal Error txs ValueTransfers");
+        this.fnSetFetchError("ValueTransfers", "Error: Internal RPC Error");
         return [];
       }
       const txValueTransfersJSON = JSON.parse(txValueTransfersStr);
 
       return txValueTransfersJSON.value_transfers;
     } catch (error) {
-      this.fnSetFetchError('ValueTransfers', `Critical Error value transfers ${error}`);
+      this.fnSetFetchError("ValueTransfers", `Critical Error value transfers ${error}`);
       console.log(`Critical Error value transfers ${error}`);
       return [];
     }
@@ -573,21 +575,21 @@ export default class RPC {
       // fetch value transfers
       const txMessagesStr: string = await native.get_messages("");
       if (txMessagesStr) {
-        if (txMessagesStr.toLowerCase().startsWith('error')) {
+        if (txMessagesStr.toLowerCase().startsWith("error")) {
           console.log(`Error txs Messages ${txMessagesStr}`);
-          this.fnSetFetchError('Messages', txMessagesStr);
+          this.fnSetFetchError("Messages", txMessagesStr);
           return [];
         }
       } else {
-        console.log('Internal Error txs Messages');
-        this.fnSetFetchError('Messages', 'Error: Internal RPC Error');
+        console.log("Internal Error txs Messages");
+        this.fnSetFetchError("Messages", "Error: Internal RPC Error");
         return [];
       }
       const txMessagesJSON = JSON.parse(txMessagesStr);
 
       return txMessagesJSON.value_transfers;
     } catch (error) {
-      this.fnSetFetchError('Messages', `Critical Error messages ${error}`);
+      this.fnSetFetchError("Messages", `Critical Error messages ${error}`);
       console.log(`Critical Error messages ${error}`);
       return [];
     }
@@ -600,24 +602,24 @@ export default class RPC {
       //console.log(spendableStr);
       let spendableJSON;
       if (spendableStr) {
-        if (spendableStr.toLowerCase().startsWith('error')) {
+        if (spendableStr.toLowerCase().startsWith("error")) {
           console.log(`Error spendable balance ${spendableStr}`);
         } else {
           spendableJSON = await JSON.parse(spendableStr);
         }
       } else {
-        console.log('Internal Error spendable balance');
+        console.log("Internal Error spendable balance");
       }
 
       const balanceStr: string = await native.get_balance();
       if (balanceStr) {
-        if (balanceStr.toLowerCase().startsWith('error')) {
+        if (balanceStr.toLowerCase().startsWith("error")) {
           console.log(`Error balance ${balanceStr}`);
-          this.fnSetFetchError('balance', balanceStr);
+          this.fnSetFetchError("balance", balanceStr);
         }
       } else {
-        console.log('Internal Error balance');
-        this.fnSetFetchError('balance', 'Error: Internal RPC Error');
+        console.log("Internal Error balance");
+        this.fnSetFetchError("balance", "Error: Internal RPC Error");
       }
       const balanceJSON = JSON.parse(balanceStr);
 
@@ -638,7 +640,7 @@ export default class RPC {
 
       this.fnSetTotalBalance(balance);
     } catch (error) {
-      this.fnSetFetchError('balance', `Critical Error balance ${error}`);
+      this.fnSetFetchError("balance", `Critical Error balance ${error}`);
       console.log(`Critical Error balance ${error}`);
     }
   }
@@ -648,29 +650,29 @@ export default class RPC {
       // UNIFIED
       const unifiedAddressesStr: string = await native.get_unified_addresses();
       if (unifiedAddressesStr) {
-        if (unifiedAddressesStr.toLowerCase().startsWith('error')) {
+        if (unifiedAddressesStr.toLowerCase().startsWith("error")) {
           console.log(`Error addresses ${unifiedAddressesStr}`);
           return;
         }
       } else {
-        console.log('Internal Error addresses');
+        console.log("Internal Error addresses");
         return;
       }
-      const unifiedAddressesJSON: UnifiedAddressClass[] = await JSON.parse(unifiedAddressesStr) || [];
+      const unifiedAddressesJSON: UnifiedAddressClass[] = (await JSON.parse(unifiedAddressesStr)) || [];
       //console.log(unifiedAddressesStr, unifiedAddressesJSON);
 
       // TRANSPARENT
       const transparentAddressStr: string = await native.get_transparent_addresses();
       if (transparentAddressStr) {
-        if (transparentAddressStr.toLowerCase().startsWith('error')) {
+        if (transparentAddressStr.toLowerCase().startsWith("error")) {
           console.log(`Error addresses ${transparentAddressStr}`);
           return;
         }
       } else {
-        console.log('Internal Error addresses');
+        console.log("Internal Error addresses");
         return;
       }
-      const transparentAddressesJSON: TransparentAddressClass[] = await JSON.parse(transparentAddressStr) || [];
+      const transparentAddressesJSON: TransparentAddressClass[] = (await JSON.parse(transparentAddressStr)) || [];
       //console.log(transparentAddressStr, transparentAddressesJSON);
 
       this.fnSetAddressesUnified(unifiedAddressesJSON);
@@ -728,16 +730,16 @@ export default class RPC {
       // first to get the last server block.
       let latestBlockHeight: number = 0;
       //console.log('CUUUUUUURRENT WALLET', this.currentWallet);
-      const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : '');
+      const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : "");
       if (heightStr) {
-        if (heightStr.toLowerCase().startsWith('error')) {
-          this.fnSetFetchError('ValueTransfers', `Error server height ${heightStr}`);
+        if (heightStr.toLowerCase().startsWith("error")) {
+          this.fnSetFetchError("ValueTransfers", `Error server height ${heightStr}`);
           console.log(`Error server height ${heightStr}`);
         } else {
           latestBlockHeight = Number(heightStr);
         }
       } else {
-        console.log('Internal Error server height');
+        console.log("Internal Error server height");
       }
 
       //console.log('SERVER HEIGHT', latestBlockHeight);
@@ -751,51 +753,51 @@ export default class RPC {
       const walletHeight: number = await RPC.fetchWalletHeight();
       //console.log('WALLET HEIGHT', walletHeight);
 
-      valueTransfersJSON
-        .forEach((tx: any) => {
-          let currentVtList: ValueTransferClass = {} as ValueTransferClass;
+      valueTransfersJSON.forEach((tx: any) => {
+        let currentVtList: ValueTransferClass = {} as ValueTransferClass;
 
-          currentVtList.txid = tx.txid;
-          currentVtList.time = tx.datetime;
-          currentVtList.type = tx.kind;
-          currentVtList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
-          currentVtList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
+        currentVtList.txid = tx.txid;
+        currentVtList.time = tx.datetime;
+        currentVtList.type = tx.kind;
+        currentVtList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
+        currentVtList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
-          // unconfirmed means 0 confirmations, the tx is mining already.
-          // 'pending' is obsolete
-          if (
-            tx.status === ValueTransferStatusEnum.calculated ||
-            tx.status === ValueTransferStatusEnum.transmitted ||
-            tx.status === ValueTransferStatusEnum.mempool ||
-            tx.status === ValueTransferStatusEnum.failed
-          ) {
-            currentVtList.confirmations = 0;
-          } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
-            currentVtList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
+        // unconfirmed means 0 confirmations, the tx is mining already.
+        // 'pending' is obsolete
+        if (
+          tx.status === ValueTransferStatusEnum.calculated ||
+          tx.status === ValueTransferStatusEnum.transmitted ||
+          tx.status === ValueTransferStatusEnum.mempool ||
+          tx.status === ValueTransferStatusEnum.failed
+        ) {
+          currentVtList.confirmations = 0;
+        } else if (tx.status === ValueTransferStatusEnum.confirmed) {
+          currentVtList.confirmations =
+            latestBlockHeight && latestBlockHeight >= walletHeight
               ? latestBlockHeight - tx.blockheight + 1
               : walletHeight - tx.blockheight + 1;
-          } else {
-            // impossible case... I guess.
-            currentVtList.confirmations = 0;
-          }
+        } else {
+          // impossible case... I guess.
+          currentVtList.confirmations = 0;
+        }
 
-          currentVtList.blockheight = tx.blockheight;
-          currentVtList.status = tx.status;
-          currentVtList.address = !tx.recipient_address ? undefined : tx.recipient_address;
-          currentVtList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
-          currentVtList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
-          currentVtList.pool = !tx.pool_received ? undefined : tx.pool_received;
+        currentVtList.blockheight = tx.blockheight;
+        currentVtList.status = tx.status;
+        currentVtList.address = !tx.recipient_address ? undefined : tx.recipient_address;
+        currentVtList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
+        currentVtList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
+        currentVtList.pool = !tx.pool_received ? undefined : tx.pool_received;
 
-          if (currentVtList.confirmations < 0) {
-            console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
-          }
-          //if (tx.txid.startsWith('426e')) {
-          //  console.log('valuetranfer: ', tx);
-          //  console.log('--------------------------------------------------');
-          //}
+        if (currentVtList.confirmations < 0) {
+          console.log("[[[[[[[[[[[[[[[[[[", tx, "server", latestBlockHeight, "wallet", walletHeight);
+        }
+        //if (tx.txid.startsWith('426e')) {
+        //  console.log('valuetranfer: ', tx);
+        //  console.log('--------------------------------------------------');
+        //}
 
-          vtList.push(currentVtList);
-        });
+        vtList.push(currentVtList);
+      });
 
       //console.log(vtList);
 
@@ -811,16 +813,16 @@ export default class RPC {
       // first to get the last server block.
       let latestBlockHeight: number = 0;
       //console.log(this.server);
-      const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : '');
+      const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : "");
       if (heightStr) {
-        if (heightStr.toLowerCase().startsWith('error')) {
-          this.fnSetFetchError('Messages', `Error server height ${heightStr}`);
+        if (heightStr.toLowerCase().startsWith("error")) {
+          this.fnSetFetchError("Messages", `Error server height ${heightStr}`);
           console.log(`Error server height ${heightStr}`);
         } else {
           latestBlockHeight = Number(heightStr);
         }
       } else {
-        console.log('Internal Error server height');
+        console.log("Internal Error server height");
       }
 
       //console.log('SERVER HEIGHT', latestBlockHeight);
@@ -834,51 +836,51 @@ export default class RPC {
       const walletHeight: number = await RPC.fetchWalletHeight();
       //console.log('WALLET HEIGHT', walletHeight);
 
-      MessagesJSON
-        .forEach((tx: any) => {
-          let currentMList: ValueTransferClass = {} as ValueTransferClass;
+      MessagesJSON.forEach((tx: any) => {
+        let currentMList: ValueTransferClass = {} as ValueTransferClass;
 
-          currentMList.txid = tx.txid;
-          currentMList.time = tx.datetime;
-          currentMList.type = tx.kind;
-          currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
-          currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
+        currentMList.txid = tx.txid;
+        currentMList.time = tx.datetime;
+        currentMList.type = tx.kind;
+        currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
+        currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
-          // unconfirmed means 0 confirmations, the tx is mining already. 
-          // 'pending' is obsolete
-          if (
-            tx.status === ValueTransferStatusEnum.calculated ||
-            tx.status === ValueTransferStatusEnum.transmitted ||
-            tx.status === ValueTransferStatusEnum.mempool ||
-            tx.status === ValueTransferStatusEnum.failed
-          ) {
-            currentMList.confirmations = 0;
-          } else  if (tx.status === ValueTransferStatusEnum.confirmed) {
-            currentMList.confirmations = latestBlockHeight && latestBlockHeight >= walletHeight
+        // unconfirmed means 0 confirmations, the tx is mining already.
+        // 'pending' is obsolete
+        if (
+          tx.status === ValueTransferStatusEnum.calculated ||
+          tx.status === ValueTransferStatusEnum.transmitted ||
+          tx.status === ValueTransferStatusEnum.mempool ||
+          tx.status === ValueTransferStatusEnum.failed
+        ) {
+          currentMList.confirmations = 0;
+        } else if (tx.status === ValueTransferStatusEnum.confirmed) {
+          currentMList.confirmations =
+            latestBlockHeight && latestBlockHeight >= walletHeight
               ? latestBlockHeight - tx.blockheight + 1
               : walletHeight - tx.blockheight + 1;
-          } else {
-            // impossible case... I guess.
-            currentMList.confirmations = 0;
-          }
+        } else {
+          // impossible case... I guess.
+          currentMList.confirmations = 0;
+        }
 
-          currentMList.blockheight = tx.blockheight;
-          currentMList.status = tx.status;
-          currentMList.address = !tx.recipient_address ? undefined : tx.recipient_address;
-          currentMList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
-          currentMList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
-          currentMList.pool = !tx.pool_received ? undefined : tx.pool_received;
+        currentMList.blockheight = tx.blockheight;
+        currentMList.status = tx.status;
+        currentMList.address = !tx.recipient_address ? undefined : tx.recipient_address;
+        currentMList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
+        currentMList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
+        currentMList.pool = !tx.pool_received ? undefined : tx.pool_received;
 
-          if (currentMList.confirmations < 0) {
-            console.log('[[[[[[[[[[[[[[[[[[', tx, 'server', latestBlockHeight, 'wallet', walletHeight);
-          }
-          //if (tx.txid.startsWith('426e')) {
-          //  console.log('valuetranfer: ', tx);
-          //  console.log('--------------------------------------------------');
-          //}
+        if (currentMList.confirmations < 0) {
+          console.log("[[[[[[[[[[[[[[[[[[", tx, "server", latestBlockHeight, "wallet", walletHeight);
+        }
+        //if (tx.txid.startsWith('426e')) {
+        //  console.log('valuetranfer: ', tx);
+        //  console.log('--------------------------------------------------');
+        //}
 
-          mList.push(currentMList);
-        });
+        mList.push(currentMList);
+      });
 
       //console.log(mList);
 
@@ -887,27 +889,27 @@ export default class RPC {
       console.log(`Critical Error messages ${error}`);
     }
   }
-  
+
   // Send a transaction using the already constructed sendJson structure
   async sendTransaction(sendJson: Array<SendJsonToTypeType>): Promise<string> {
     const sendTxPromise = new Promise<string>(async (resolve, reject) => {
       // clear the timers - Tasks.
       await this.clearTimers();
       // sending
-      let sendError: string = '';
-      let sendTxids: string = '';
+      let sendError: string = "";
+      let sendTxids: string = "";
       try {
         //console.log('send JSON', sendJson);
         // creating the propose
         const proposeStr: string = await native.send(JSON.stringify(sendJson));
         if (proposeStr) {
-          if (proposeStr.toLowerCase().startsWith('error')) {
+          if (proposeStr.toLowerCase().startsWith("error")) {
             console.log(`Error propose ${proposeStr}`);
             sendError = proposeStr;
           }
         } else {
-          console.log('Internal Error propose');
-          sendError = 'Error: Internal RPC Error: propose';
+          console.log("Internal Error propose");
+          sendError = "Error: Internal RPC Error: propose";
         }
         if (!sendError) {
           const proposeJSON: SendProposeType = await JSON.parse(proposeStr);
@@ -919,13 +921,13 @@ export default class RPC {
             // creating the transaction
             const sendStr: string = await native.confirm();
             if (sendStr) {
-              if (sendStr.toLowerCase().startsWith('error')) {
+              if (sendStr.toLowerCase().startsWith("error")) {
                 console.log(`Error confirm ${sendStr}`);
                 sendError = sendStr;
               }
             } else {
-              console.log('Internal Error confirm');
-              sendError = 'Error: Internal RPC Error: confirm';
+              console.log("Internal Error confirm");
+              sendError = "Error: Internal RPC Error: confirm";
             }
             if (!sendError) {
               const sendJSON: SendType = await JSON.parse(sendStr);
@@ -933,7 +935,7 @@ export default class RPC {
                 console.log(`Error confirm ${sendJSON.error}`);
                 sendError = sendJSON.error;
               } else if (sendJSON.txids && sendJSON.txids.length > 0) {
-                sendTxids = sendJSON.txids.join(', ');
+                sendTxids = sendJSON.txids.join(", ");
               }
             }
           }

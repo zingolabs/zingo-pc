@@ -1,17 +1,16 @@
 export default class SendProgressClass {
-    sendInProgress: boolean;
-  
-    progress: number;
-  
-    total: number;
-  
-    etaSeconds: number;
-  
-    constructor() {
-      this.sendInProgress = false;
-      this.progress = 0;
-      this.total = 0;
-      this.etaSeconds = 0;
-    }
+  sendInProgress: boolean;
+
+  progress: number;
+
+  total: number;
+
+  etaSeconds: number;
+
+  constructor() {
+    this.sendInProgress = false;
+    this.progress = 0;
+    this.total = 0;
+    this.etaSeconds = 0;
   }
-  
+}

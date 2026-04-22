@@ -5,7 +5,16 @@ import { RouteComponentProps, withRouter } from "react-router";
 import { BalanceBlockHighlight } from "../../balanceBlock";
 import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressBookEntryClass, ServerChainNameEnum, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass, ValueTransferKindEnum, ValueTransferPoolEnum, ValueTransferStatusEnum } from "../../appstate";
+import {
+  AddressBookEntryClass,
+  ServerChainNameEnum,
+  TransparentAddressClass,
+  UnifiedAddressClass,
+  ValueTransferClass,
+  ValueTransferKindEnum,
+  ValueTransferPoolEnum,
+  ValueTransferStatusEnum,
+} from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import { ContextApp } from "../../../context/ContextAppState";
@@ -13,9 +22,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import routes from "../../../constants/routes.json";
 
-import native from "../../../native.node";
-
-const { clipboard } = window.require("electron");
+import { native, clipboard } from "../../../electronBridge";
 
 type VtModalInternalProps = {
   index: number;
@@ -42,20 +49,32 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   valueTransfersSliced,
 }) => {
   const context = useContext(ContextApp);
-  const { addressBook, addressesUnified, addressesTransparent, valueTransfers, readOnly, setSendTo, openErrorModal, openConfirmModal, setAddLabel, currentWallet, 
-    blockExplorerMainnetTransaction, blockExplorerTestnetTransaction,
-    blockExplorerMainnetTransactionCustom, blockExplorerTestnetTransactionCustom,
-  } = context; 
+  const {
+    addressBook,
+    addressesUnified,
+    addressesTransparent,
+    valueTransfers,
+    readOnly,
+    setSendTo,
+    openErrorModal,
+    openConfirmModal,
+    setAddLabel,
+    currentWallet,
+    blockExplorerMainnetTransaction,
+    blockExplorerTestnetTransaction,
+    blockExplorerMainnetTransactionCustom,
+    blockExplorerTestnetTransactionCustom,
+  } = context;
   const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
   const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
-  const [expandAddress, setExpandAddress] = useState(false); 
+  const [expandAddress, setExpandAddress] = useState(false);
   const [expandTxid, setExpandTxid] = useState(false);
   const [showNavigator, setShowNavigator] = useState<boolean>(true);
   const isTheFirstMount = useRef(true);
 
   // if the App is syncing, the VT list will change (new items).
   // Hide the navigator is the solution because the current index
-  // will be associated to other item. 
+  // will be associated to other item.
   useEffect(() => {
     if (isTheFirstMount.current) {
       isTheFirstMount.current = false;
@@ -74,8 +93,8 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     if (!valueTransfers) {
       return [] as ValueTransferClass[];
     }
-    return valueTransfers.filter((vtt: ValueTransferClass) =>
-      vtt.txid === v.txid && vtt.address === v.address && vtt.pool === v.pool
+    return valueTransfers.filter(
+      (vtt: ValueTransferClass) => vtt.txid === v.txid && vtt.address === v.address && vtt.pool === v.pool,
     );
   };
 
@@ -92,11 +111,10 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     }
   });
 
-    const moveValueTransferDetail = (indexParm: number, typeParm: number) => {
+  const moveValueTransferDetail = (indexParm: number, typeParm: number) => {
     // -1 -> Previous ValueTransfer
     //  1 -> Next ValueTransfer
-    if ((indexParm > 0 && typeParm === -1) ||
-        (indexParm < valueTransfersSliced.length - 1 && typeParm === 1)) {
+    if ((indexParm > 0 && typeParm === -1) || (indexParm < valueTransfersSliced.length - 1 && typeParm === 1)) {
       const newIndex = indexParm + typeParm;
       const vtNew = getValueTransferAgain(valueTransfersSliced[newIndex]);
       if (vtNew.length !== 1) {
@@ -110,23 +128,23 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   };
 
   const handleKeyDown = (event: any) => {
-    if (event.key === 'ArrowUp') {
+    if (event.key === "ArrowUp") {
       // Mover a la transacción anterior
       moveValueTransferDetail(valueTransferIndex, -1);
-    } else if (event.key === 'ArrowDown') {
+    } else if (event.key === "ArrowDown") {
       // Mover a la siguiente transacción
       moveValueTransferDetail(valueTransferIndex, 1);
     }
   };
 
   useEffect(() => {
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener("keydown", handleKeyDown);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valueTransferIndex]);
-  
+
   let txid: string = "";
   let typeText: string = "";
   let typeIcon: string = "";
@@ -142,15 +160,17 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   let timePart: string = "";
   let price: number = 0;
   let priceString: string = "";
-  let replyTo: string = ""; 
+  let replyTo: string = "";
   let labelReplyTo: string = "";
 
   const getLabelAddressBook = (addr: string) => {
     // Find the addr in addresses
-    const label: AddressBookEntryClass | undefined = addressBook.find((ab: AddressBookEntryClass) => ab.address === addr);
+    const label: AddressBookEntryClass | undefined = addressBook.find(
+      (ab: AddressBookEntryClass) => ab.address === addr,
+    );
     const labelStr: string = label ? `[ ${label.label} ]` : "";
 
-    return labelStr; 
+    return labelStr;
   };
 
   if (valueTransfer) {
@@ -158,10 +178,10 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     typeText = Utils.VTTypeWithConfirmations(valueTransfer.type, valueTransfer.status, valueTransfer.confirmations);
     if (valueTransfer.type === ValueTransferKindEnum.received || ValueTransferKindEnum.shield) {
       typeIcon = "fa-arrow-circle-down";
-      typeColor = Utils.getCssVariable('--color-primary');
+      typeColor = Utils.getCssVariable("--color-primary");
     } else {
       typeIcon = "fa-arrow-circle-up";
-      typeColor = Utils.getCssVariable('--color-text');
+      typeColor = Utils.getCssVariable("--color-text");
     }
 
     datePart = dateformat(valueTransfer.time * 1000, "mmm dd, yyyy");
@@ -173,26 +193,26 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     fees = valueTransfer.fee ? valueTransfer.fee : 0;
     address = valueTransfer.address;
     memos = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos : [];
-    pool = valueTransfer.pool ? valueTransfer.pool : '';
+    pool = valueTransfer.pool ? valueTransfer.pool : "";
     price = valueTransfer.zec_price ? valueTransfer.zec_price : 0;
-    if (price && currencyName === 'ZEC') {
+    if (price && currencyName === "ZEC") {
       priceString = `USD ${price.toFixed(2)} / ZEC`;
     }
   }
 
-  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(amount);
+  const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(amount);
 
   const label: string = addressBookMap.get(address) || "";
 
-  const memoTotal = memos ? memos.join('') : '';
-  if (memoTotal.includes('\nReply to: \n')) {
-    let memoArray = memoTotal.split('\nReply to: \n');
+  const memoTotal = memos ? memos.join("") : "";
+  if (memoTotal.includes("\nReply to: \n")) {
+    let memoArray = memoTotal.split("\nReply to: \n");
     const memoPoped = memoArray.pop();
-    replyTo = memoPoped ? memoPoped.toString() : '';
+    replyTo = memoPoped ? memoPoped.toString() : "";
     labelReplyTo = getLabelAddressBook(replyTo);
     if (!labelReplyTo) {
-      const u: boolean = !!addressesUnified.find((a: UnifiedAddressClass) => a.encoded_address === replyTo)
-      const t: boolean = !!addressesTransparent.find((a: TransparentAddressClass) => a.encoded_address === replyTo)
+      const u: boolean = !!addressesUnified.find((a: UnifiedAddressClass) => a.encoded_address === replyTo);
+      const t: boolean = !!addressesTransparent.find((a: TransparentAddressClass) => a.encoded_address === replyTo);
       labelReplyTo = u || t ? "[ This Wallet's Address ]" : "";
     }
   }
@@ -204,8 +224,8 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   };
 
   const runAction = async () => {
-    localCloseModal(); 
-    openConfirmModal('Remove Transaction', "Please confirm the Action", () => runActionConfirmed());
+    localCloseModal();
+    openConfirmModal("Remove Transaction", "Please confirm the Action", () => runActionConfirmed());
   };
 
   const runActionConfirmed = async () => {
@@ -218,7 +238,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       //console.log(actionStr);
 
       if (actionStr) {
-        if (actionStr.toLowerCase().startsWith('error')) {
+        if (actionStr.toLowerCase().startsWith("error")) {
           openErrorModal("Remove", "Remove " + actionStr);
         } else {
           openErrorModal("Remove", actionStr);
@@ -242,7 +262,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     // first close the current modal
     localCloseModal();
 
-    setAddLabel(new AddressBookEntryClass('', address));
+    setAddLabel(new AddressBookEntryClass("", address));
     history.push(routes.ADDRESSBOOK);
   };
 
@@ -256,23 +276,32 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       overlayClassName={styles.txmodalOverlay}
     >
       {showNavigator && (
-        <div style={{ position: "absolute", alignItems: 'center', top: 15, left: 40 }} className={[cstyles.horizontalflex].join(" ")}>
+        <div
+          style={{ position: "absolute", alignItems: "center", top: 15, left: 40 }}
+          className={[cstyles.horizontalflex].join(" ")}
+        >
           {valueTransferIndex === 0 ? (
-            <div style={{ marginRight: 25, cursor: 'pointer', opacity: 0.5 }}>
+            <div style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}>
               <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
             </div>
           ) : (
-            <div style={{ marginRight: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(valueTransferIndex, -1)}>
+            <div
+              style={{ marginRight: 25, cursor: "pointer" }}
+              onClick={() => moveValueTransferDetail(valueTransferIndex, -1)}
+            >
               <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
             </div>
           )}
           <div>{(valueTransferIndex + 1).toString()}</div>
           {valueTransferIndex === length - 1 ? (
-            <div style={{ marginLeft: 25, cursor: 'pointer', opacity: 0.5 }}>
+            <div style={{ marginLeft: 25, cursor: "pointer", opacity: 0.5 }}>
               <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
             </div>
           ) : (
-            <div style={{ marginLeft: 25, cursor: 'pointer' }} onClick={() => moveValueTransferDetail(valueTransferIndex, 1)}>
+            <div
+              style={{ marginLeft: 25, cursor: "pointer" }}
+              onClick={() => moveValueTransferDetail(valueTransferIndex, 1)}
+            >
               <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
             </div>
           )}
@@ -281,10 +310,14 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       <div className={[cstyles.verticalflex].join(" ")}>
         <div className={[cstyles.center].join(" ")}>Transaction Status</div>
 
-        <div className={[cstyles.center, cstyles.horizontalflex].join(" ")} 
-             style={{ width: "100%", alignItems: "center", justifyContent: "center" }}>
-          <div className={[cstyles.center, cstyles.verticalflex].join(" ")}
-               style={{ alignItems: "center", justifyContent: "center" }}>
+        <div
+          className={[cstyles.center, cstyles.horizontalflex].join(" ")}
+          style={{ width: "100%", alignItems: "center", justifyContent: "center" }}
+        >
+          <div
+            className={[cstyles.center, cstyles.verticalflex].join(" ")}
+            style={{ alignItems: "center", justifyContent: "center" }}
+          >
             <i className={["fas", typeIcon].join(" ")} style={{ fontSize: "35px", color: typeColor }} />
             {typeText}
           </div>
@@ -292,21 +325,23 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
           <div className={[cstyles.center].join(" ")} style={{ marginLeft: 20 }}>
             <BalanceBlockHighlight
               zecValue={amount}
-              usdValue={priceString} 
+              usdValue={priceString}
               currencyName={currencyName}
               status={status}
             />
           </div>
         </div>
 
-        {confirmations === 0 && ( /* not min confirmations applied */
+        {confirmations === 0 /* not min confirmations applied */ && (
           <>
             {status === ValueTransferStatusEnum.failed && (
               <>
                 <hr style={{ width: "100%" }} />
-                
-                <div className={[cstyles.center, cstyles.horizontalflex].join(" ")} 
-                     style={{ width: "100%", alignItems: "center", justifyContent: "center" }}>
+
+                <div
+                  className={[cstyles.center, cstyles.horizontalflex].join(" ")}
+                  style={{ width: "100%", alignItems: "center", justifyContent: "center" }}
+                >
                   <button type="button" className={cstyles.primarybutton} onClick={() => runAction()}>
                     Remove
                   </button>
@@ -316,17 +351,17 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
           </>
         )}
 
-        {confirmations >= 0 &&
-          confirmations < 3 && (
-          <div className={[cstyles.center, cstyles.horizontalflex].join(" ")} 
-               style={{ width: "100%", alignItems: "center", justifyContent: "center", marginTop: 10 }}>
-            {(status === ValueTransferStatusEnum.transmitted ||
-              status === ValueTransferStatusEnum.calculated) && (
+        {confirmations >= 0 && confirmations < 3 && (
+          <div
+            className={[cstyles.center, cstyles.horizontalflex].join(" ")}
+            style={{ width: "100%", alignItems: "center", justifyContent: "center", marginTop: 10 }}
+          >
+            {(status === ValueTransferStatusEnum.transmitted || status === ValueTransferStatusEnum.calculated) && (
               <FontAwesomeIcon
                 style={{ marginRight: 5 }}
                 icon={faTriangleExclamation}
-                color={Utils.getCssVariable('--color-warning')}
-                size='xs'
+                color={Utils.getCssVariable("--color-warning")}
+                size="xs"
               />
             )}
             {(status === ValueTransferStatusEnum.transmitted ||
@@ -337,35 +372,33 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
                 style={{
                   color:
                     status === ValueTransferStatusEnum.failed
-                      ? Utils.getCssVariable('--color-error')
-                      : status === ValueTransferStatusEnum.transmitted ||
-                        status === ValueTransferStatusEnum.calculated
-                          ? Utils.getCssVariable('--color-primary')
-                          : Utils.getCssVariable('--color-primary-disable'),
+                      ? Utils.getCssVariable("--color-error")
+                      : status === ValueTransferStatusEnum.transmitted || status === ValueTransferStatusEnum.calculated
+                        ? Utils.getCssVariable("--color-primary")
+                        : Utils.getCssVariable("--color-primary-disable"),
                   fontSize: 12,
-                  fontWeight: '700',
-                  textAlign:'center',
+                  fontWeight: "700",
+                  textAlign: "center",
                   textDecorationLine:
-                    status === ValueTransferStatusEnum.transmitted ||
-                    status === ValueTransferStatusEnum.calculated
-                      ? 'underline'
-                      : 'none',
-                }}>
+                    status === ValueTransferStatusEnum.transmitted || status === ValueTransferStatusEnum.calculated
+                      ? "underline"
+                      : "none",
+                }}
+              >
                 {`${status} - Transaction not yet confirmed`}
               </div>
             )}
-            {status === ValueTransferStatusEnum.confirmed &&
-              confirmations >= 0 &&
-              confirmations < 3 && (
+            {status === ValueTransferStatusEnum.confirmed && confirmations >= 0 && confirmations < 3 && (
               <div
                 style={{
-                  color: Utils.getCssVariable('--color-primary-disable'),
+                  color: Utils.getCssVariable("--color-primary-disable"),
                   fontSize: 12,
                   opacity: 1,
-                  fontWeight: '700',
-                  textAlign: 'left',
-                  textDecorationLine: 'none',
-                }}>
+                  fontWeight: "700",
+                  textAlign: "left",
+                  textDecorationLine: "none",
+                }}
+              >
                 {`${status} - Funds waiting for the minimum confirmations (3)`}
               </div>
             )}
@@ -394,29 +427,31 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             <div>{confirmations}</div>
           </div>
 
-          {(status === ValueTransferStatusEnum.calculated || 
-            status === ValueTransferStatusEnum.transmitted || 
+          {(status === ValueTransferStatusEnum.calculated ||
+            status === ValueTransferStatusEnum.transmitted ||
             status === ValueTransferStatusEnum.mempool ||
             status === ValueTransferStatusEnum.failed) && (
             <div>
               <div className={[cstyles.sublight].join(" ")}>Status</div>
-              <div 
-                style={{ 
-                  color: status === ValueTransferStatusEnum.failed
-                          ? Utils.getCssVariable('--color-error') 
-                          : status === ValueTransferStatusEnum.calculated || 
-                            status === ValueTransferStatusEnum.transmitted 
-                              ? Utils.getCssVariable('--color-warning') 
-                              : Utils.getCssVariable('--color-primary-disable') }}>
-                {status === ValueTransferStatusEnum.calculated 
-                  ? 'Calculated' 
-                  : status === ValueTransferStatusEnum.transmitted 
-                    ? 'Transmitted' 
-                    : status === ValueTransferStatusEnum.mempool 
-                      ? 'In Mempool'
+              <div
+                style={{
+                  color:
+                    status === ValueTransferStatusEnum.failed
+                      ? Utils.getCssVariable("--color-error")
+                      : status === ValueTransferStatusEnum.calculated || status === ValueTransferStatusEnum.transmitted
+                        ? Utils.getCssVariable("--color-warning")
+                        : Utils.getCssVariable("--color-primary-disable"),
+                }}
+              >
+                {status === ValueTransferStatusEnum.calculated
+                  ? "Calculated"
+                  : status === ValueTransferStatusEnum.transmitted
+                    ? "Transmitted"
+                    : status === ValueTransferStatusEnum.mempool
+                      ? "In Mempool"
                       : status === ValueTransferStatusEnum.failed
-                        ? 'Failed'
-                        : ''}
+                        ? "Failed"
+                        : ""}
               </div>
             </div>
           )}
@@ -424,7 +459,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         <div className={cstyles.margintoplarge} />
 
-        {!!txid && ( 
+        {!!txid && (
           <div className={[cstyles.flexspacebetween].join(" ")}>
             <div>
               <div className={[cstyles.sublight].join(" ")}>TXID</div>
@@ -435,12 +470,15 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
                     clipboard.writeText(txid);
                     setExpandTxid(true);
                   }
-                }}>
-                <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
                   {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
                   {expandTxid && !!txid && (
                     <>
-                      {txid.length < 80 ? txid : Utils.splitStringIntoChunks(txid, 3).map(item => <div key={item}>{item}</div>)}
+                      {txid.length < 80
+                        ? txid
+                        : Utils.splitStringIntoChunks(txid, 3).map((item) => <div key={item}>{item}</div>)}
                     </>
                   )}
                 </div>
@@ -448,12 +486,21 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             </div>
 
             {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-              <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(
-                txid, 
-                currentWallet?.chain_name, 
-                currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransaction : blockExplorerTestnetTransaction,
-                currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetTransactionCustom : blockExplorerTestnetTransactionCustom,
-              )}>
+              <div
+                className={cstyles.primarybutton}
+                onClick={() =>
+                  Utils.openTxid(
+                    txid,
+                    currentWallet?.chain_name,
+                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                      ? blockExplorerMainnetTransaction
+                      : blockExplorerTestnetTransaction,
+                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                      ? blockExplorerMainnetTransactionCustom
+                      : blockExplorerTestnetTransactionCustom,
+                  )
+                }
+              >
                 View TXID &nbsp;
                 <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
               </div>
@@ -462,13 +509,15 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
         )}
 
         <hr style={{ width: "100%" }} />
-   
+
         {!!address && (
           <div className={[cstyles.flexspacebetween].join(" ")}>
             <div>
               <div className={[cstyles.sublight].join(" ")}>Address</div>
               {!!label && (
-                <div className={cstyles.highlight} style={{ marginBottom: 0 }}>{label}</div> 
+                <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
+                  {label}
+                </div>
               )}
               <div className={[cstyles.verticalflex].join(" ")}>
                 <div
@@ -478,12 +527,15 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
                       clipboard.writeText(address);
                       setExpandAddress(true);
                     }
-                  }}> 
-                  <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
                     {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
                     {expandAddress && !!address && (
                       <>
-                        {address.length < 80 ? address : Utils.splitStringIntoChunks(address, 3).map(item => <div key={item}>{item}</div>)}
+                        {address.length < 80
+                          ? address
+                          : Utils.splitStringIntoChunks(address, 3).map((item) => <div key={item}>{item}</div>)}
                       </>
                     )}
                   </div>
@@ -546,13 +598,9 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             <div className={[cstyles.sublight].join(" ")}>Memo</div>
             <div className={[cstyles.flexspacebetween].join(" ")}>
               <div
-                className={[
-                  cstyles.small,
-                  cstyles.sublight,
-                  cstyles.padtopsmall,
-                  cstyles.memodiv,
-                  styles.txmemo,
-                ].join(" ")}
+                className={[cstyles.small, cstyles.sublight, cstyles.padtopsmall, cstyles.memodiv, styles.txmemo].join(
+                  " ",
+                )}
               >
                 {memos.join("\n") + "\n" + labelReplyTo}
               </div>

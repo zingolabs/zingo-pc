@@ -4,14 +4,14 @@ import { useContext } from "react";
 import { ContextApp } from "../../context/ContextAppState";
 
 type ErrorModalProps = {
-  closeModal: () => void
+  closeModal: () => void;
 };
 
 const ErrorModal: React.FC<ErrorModalProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
   const { errorModal } = context;
   const { title, body, modalIsOpen } = errorModal;
-  
+
   return (
     <Modal
       isOpen={modalIsOpen}

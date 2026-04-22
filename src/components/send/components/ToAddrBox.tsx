@@ -2,12 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
-import {
-  AddressBookEntryClass,
-  AddressKindEnum,
-  ServerChainNameEnum,
-  ToAddrClass,
-} from "../../appstate";
+import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum, ToAddrClass } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
 import { ContextApp } from "../../../context/ContextAppState";
@@ -19,11 +14,7 @@ const Spacer = () => {
 type ToAddrBoxProps = {
   toaddr: ToAddrClass;
   zecPrice: number;
-  updateToField: (
-    address: string | null,
-    amount: string | null,
-    memo: string | null,
-  ) => void;
+  updateToField: (address: string | null, amount: string | null, memo: string | null) => void;
   fromAmount: number;
   fromAmountDefault: number;
   setSendButtonEnabled: (sendButtonEnabled: boolean) => void;
@@ -68,7 +59,7 @@ const ToAddrBox = ({
   const [isMemoDisabled, setIsMemoDisabled] = useState<boolean>(false);
   const [addressIsValid, setAddressIsValid] = useState<number>(0);
   const [amountError, setAmountError] = useState<string | null>(null);
-  const [usdValue, setUsdValue] = useState<string>('');
+  const [usdValue, setUsdValue] = useState<string>("");
   const [memoError, setMemoError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -76,14 +67,16 @@ const ToAddrBox = ({
     setAmountLocal(toaddr.amount);
     setMemoLocal(toaddr.memo);
   }, [toaddr.to, toaddr.amount, toaddr.memo]);
-  
+
   useEffect(() => {
     (async () => {
       const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(toLocal, serverChainName);
       setAddressKind(_addressKind);
-      const _isMemoDisabled: boolean = !(_addressKind === AddressKindEnum.sapling || _addressKind === AddressKindEnum.unified);
+      const _isMemoDisabled: boolean = !(
+        _addressKind === AddressKindEnum.sapling || _addressKind === AddressKindEnum.unified
+      );
       setIsMemoDisabled(_isMemoDisabled);
-    
+
       let _addressIsValid: number;
       if (!toLocal) {
         _addressIsValid = 0;
@@ -93,7 +86,7 @@ const ToAddrBox = ({
         _addressIsValid = -1;
       }
       setAddressIsValid(_addressIsValid);
-    
+
       let _amountError: string | null = null;
       if (amountLocal) {
         if (amountLocal < 0) {
@@ -110,7 +103,7 @@ const ToAddrBox = ({
           _amountError = "Too Many Decimals";
         }
       }
-    
+
       if (isNaN(amountLocal)) {
         // Amount is empty
         _amountError = "Amount cannot be empty";
@@ -128,39 +121,47 @@ const ToAddrBox = ({
       } else {
         if (sendFee) {
           setSendFee(0);
-          setSendFeeError('');
+          setSendFeeError("");
           setTotalAmountAvailable(fromAmountDefault);
         }
       }
-    
+
       let buttonstate: boolean = true;
-      if (_addressIsValid === -1 || _amountError || _memoError || toLocal === "" || fromAmount < 0 || sendFee <= 0 || sendFeeError) {
+      if (
+        _addressIsValid === -1 ||
+        _amountError ||
+        _memoError ||
+        toLocal === "" ||
+        fromAmount < 0 ||
+        sendFee <= 0 ||
+        sendFeeError
+      ) {
         buttonstate = false;
       }
-    
+
       setTimeout(() => {
         setSendButtonEnabled(buttonstate);
       }, 10);
-    
+
       const usdValue: string = Utils.getZecToUsdString(zecPrice, amountLocal);
       setUsdValue(usdValue);
     })();
   }, [
-    fetchSendFeeAndErrorAndSpendable, 
-    fromAmount, 
-    fromAmountDefault, 
-    sendFee, 
-    sendFeeError, 
-    setSendButtonEnabled, 
-    setSendFee, 
-    setSendFeeError, 
-    setTotalAmountAvailable, 
-    zecPrice, 
-    serverChainName, 
-    block, 
-    toLocal, 
-    amountLocal, 
-    memoLocal, 
+    fetchSendFeeAndErrorAndSpendable,
+    fromAmount,
+    fromAmountDefault,
+    sendFee,
+    sendFeeError,
+    setSendButtonEnabled,
+    setSendFee,
+    setSendFeeError,
+    setTotalAmountAvailable,
+    zecPrice,
+    serverChainName,
+    block,
+    toLocal,
+    amountLocal,
+    memoLocal,
     toaddr.to,
     toaddr.amount,
     toaddr.memo,
@@ -172,16 +173,17 @@ const ToAddrBox = ({
       return "";
     }
     // Find the addr in addresses
-    const label: AddressBookEntryClass | undefined = addressBook.find((ab: AddressBookEntryClass) => ab.address === addr);
+    const label: AddressBookEntryClass | undefined = addressBook.find(
+      (ab: AddressBookEntryClass) => ab.address === addr,
+    );
     const labelStr: string = label ? ` [ ${label.label} ]` : "";
 
-    return labelStr; 
+    return labelStr;
   };
 
-  
   //console.log(sendFeeError);
 
-  return ( 
+  return (
     <div>
       <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
         <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
@@ -190,18 +192,14 @@ const ToAddrBox = ({
             <div style={{ fontWeight: 900, marginLeft: 20 }}>{getLabelAddressBook(toLocal)}</div>
           </div>
           <div className={[cstyles.sublight, cstyles.green].join(" ")}>
-            {addressKind !== undefined && addressKind === AddressKindEnum.tex && 'TEX'}
-            {addressKind !== undefined && addressKind === AddressKindEnum.transparent && 'Transparent'}
-            {addressKind !== undefined && addressKind === AddressKindEnum.sapling && 'Sapling'}
-            {addressKind !== undefined && addressKind === AddressKindEnum.unified && 'Unified'}
+            {addressKind !== undefined && addressKind === AddressKindEnum.tex && "TEX"}
+            {addressKind !== undefined && addressKind === AddressKindEnum.transparent && "Transparent"}
+            {addressKind !== undefined && addressKind === AddressKindEnum.sapling && "Sapling"}
+            {addressKind !== undefined && addressKind === AddressKindEnum.unified && "Unified"}
           </div>
           <div className={cstyles.validationerror}>
-            {addressIsValid === 1 && (
-              <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
-            )}
-            {addressIsValid === -1 && (
-              <span className={cstyles.red}>Invalid Address</span>
-            )}
+            {addressIsValid === 1 && <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />}
+            {addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
           </div>
         </div>
         <input
@@ -218,11 +216,15 @@ const ToAddrBox = ({
         <Spacer />
 
         <div className={[cstyles.well, cstyles.flexspacebetween].join(" ")}>
-          <div style={{ width: '60%' }} className={[cstyles.verticalflex].join(" ")}>
+          <div style={{ width: "60%" }} className={[cstyles.verticalflex].join(" ")}>
             <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
               <div className={cstyles.sublight}>Amount</div>
               <div className={cstyles.validationerror}>
-                {amountError ? <span className={cstyles.red}>{amountError}</span> : currencyName === 'ZEC' ? <span>{usdValue}</span> : null}
+                {amountError ? (
+                  <span className={cstyles.red}>{amountError}</span>
+                ) : currencyName === "ZEC" ? (
+                  <span>{usdValue}</span>
+                ) : null}
               </div>
             </div>
             <div className={[cstyles.flexspacebetween].join(" ")}>
@@ -244,9 +246,19 @@ const ToAddrBox = ({
               />
             </div>
           </div>
-          <div style={{ width: '30%' }} className={[cstyles.verticalflex].join(" ")}>
+          <div style={{ width: "30%" }} className={[cstyles.verticalflex].join(" ")}>
             <div style={{ marginBottom: 5 }} className={[cstyles.horizontalflex].join(" ")}>
-              <div style={{ color: sendFeeError && !amountError && addressIsValid ? Utils.getCssVariable('--color-error') : Utils.getCssVariable('--color-text') }} className={cstyles.sublight}>Fee</div>
+              <div
+                style={{
+                  color:
+                    sendFeeError && !amountError && addressIsValid
+                      ? Utils.getCssVariable("--color-error")
+                      : Utils.getCssVariable("--color-text"),
+                }}
+                className={cstyles.sublight}
+              >
+                Fee
+              </div>
               <div style={{ paddingTop: 3, paddingLeft: 10 }} title={sendFeeError}>
                 <div className={[cstyles.small].join(" ")}>
                   {sendFeeError && !amountError && addressIsValid !== -1 && (
@@ -279,9 +291,11 @@ const ToAddrBox = ({
             <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
               <div className={cstyles.sublight}>Memo</div>
               <div className={cstyles.validationerror}>
-                {memoError 
-                  ? <span className={cstyles.red}>{memoError + '. ' + (memoLocal + toaddr.memoReplyTo).length }</span> 
-                  : <span>{(memoLocal + toaddr.memoReplyTo).length}</span>}
+                {memoError ? (
+                  <span className={cstyles.red}>{memoError + ". " + (memoLocal + toaddr.memoReplyTo).length}</span>
+                ) : (
+                  <span>{(memoLocal + toaddr.memoReplyTo).length}</span>
+                )}
               </div>
             </div>
             <TextareaAutosize
@@ -309,6 +323,6 @@ const ToAddrBox = ({
       </div>
     </div>
   );
-}; 
+};
 
 export default ToAddrBox;

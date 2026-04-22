@@ -11,7 +11,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
   const { confirmModal } = context;
   const { title, body, modalIsOpen, runAction } = confirmModal;
-  
+
   return (
     <Modal
       isOpen={modalIsOpen}
@@ -32,13 +32,17 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
         </div>
       </div>
 
-      <div className={cstyles.verticalflex} style={{ justifyContent: 'center', alignItems: 'center' }}>
+      <div className={cstyles.verticalflex} style={{ justifyContent: "center", alignItems: "center" }}>
         <div className={cstyles.horizontalflex}>
           <div className={cstyles.buttoncontainer}>
-            <button type="button" className={cstyles.primarybutton} onClick={() => {
-              runAction();
-              closeModal();
-            }}>
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                runAction();
+                closeModal();
+              }}
+            >
               Confirm
             </button>
           </div>

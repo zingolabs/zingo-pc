@@ -140,7 +140,7 @@ module.exports = function (webpackEnv) {
           options: {
             sourceMap: true,
           },
-        }
+        },
       );
     }
     return loaders;
@@ -394,7 +394,7 @@ module.exports = function (webpackEnv) {
                       },
                     },
                   ],
-                  require.resolve("@babel/plugin-transform-class-properties"), 
+                  require.resolve("@babel/plugin-transform-class-properties"),
                   require.resolve("@babel/plugin-transform-private-methods"),
                   require.resolve("@babel/plugin-transform-private-property-in-object"),
                   isEnvDevelopment && shouldUseReactRefresh && require.resolve("react-refresh/babel"),
@@ -415,7 +415,7 @@ module.exports = function (webpackEnv) {
                 {
                   loader: path.resolve("./internals/NativeLoader.js"),
                   options: {
-                    name: "[name]-[hash].[ext]",
+                    name: "native.node",
                   },
                 },
               ],
@@ -488,7 +488,7 @@ module.exports = function (webpackEnv) {
                   importLoaders: 3,
                   sourceMap: isEnvProduction ? shouldUseSourceMap : isEnvDevelopment,
                 },
-                "sass-loader"
+                "sass-loader",
               ),
               // Don't consider CSS imports dead code even if the
               // containing package claims to have no side effects.
@@ -508,7 +508,7 @@ module.exports = function (webpackEnv) {
                     getLocalIdent: getCSSModuleLocalIdent,
                   },
                 },
-                "sass-loader"
+                "sass-loader",
               ),
             },
             // "file" loader makes sure those assets get served by WebpackDevServer.
@@ -557,8 +557,8 @@ module.exports = function (webpackEnv) {
                   minifyURLs: true,
                 },
               }
-            : undefined
-        )
+            : undefined,
+        ),
       ),
       // Inlines the webpack runtime script. This script is too small to warrant
       // a network request.

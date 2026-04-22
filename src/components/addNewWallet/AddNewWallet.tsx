@@ -3,14 +3,20 @@ import TextareaAutosize from "react-textarea-autosize";
 import cstyles from "../common/Common.module.css";
 import styles from "./AddNewWallet.module.css";
 import { ContextApp } from "../../context/ContextAppState";
-import { CreationTypeEnum, PerformanceLevelEnum, ServerClass, ServerSelectionEnum, WalletType, ServerChainNameEnum } from "../appstate";
+import {
+  CreationTypeEnum,
+  PerformanceLevelEnum,
+  ServerClass,
+  ServerSelectionEnum,
+  WalletType,
+  ServerChainNameEnum,
+} from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
 import Utils from "../../utils/utils";
-import native from "../../native.node";
+import { native, ipcRenderer } from "../../electronBridge";
 import { RouteComponentProps } from "react-router";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import RPC from "../../rpc/rpc";
-const { ipcRenderer } = window.require("electron");
 
 type AddNewWalletProps = {
   closeModal: () => void;
@@ -21,101 +27,106 @@ type AddNewWalletProps = {
   clearTimers: () => Promise<void>;
 };
 
-const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({ 
-  closeModal, 
-  setWallets, 
-  setCurrentWallet, 
+const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
+  closeModal,
+  setWallets,
+  setCurrentWallet,
   navigateToLoadingScreenChangingWallet,
   doSaveWallet,
   clearTimers,
   location,
 }) => {
-  let mode: 'addnew' | 'settings' | 'delete' = 'addnew';
+  let mode: "addnew" | "settings" | "delete" = "addnew";
   if (location.state) {
-    const locationState = location.state as { 
-      mode: 'addnew' | 'settings' | 'delete',
+    const locationState = location.state as {
+      mode: "addnew" | "settings" | "delete";
     };
     mode = locationState.mode;
   }
   const context = useContext(ContextApp);
   const { serverUris, openErrorModal, closeErrorModal, currentWallet, wallets, currentWalletOpenError } = context;
 
-  const [newWalletType, setNewWalletType] = useState<'new' | 'seed' | 'ufvk' | 'file'>('new');
-  const [seedPhrase, setSeedPhrase] = useState<string>('');
-  const [birthday, setBirthday] = useState<string>('');
-  const [ufvk, setUfvk] = useState<string>('');
-  const [file, setFile] = useState<string>('');
-  
-  const [alias, setAlias] = useState<string>('');
+  const [newWalletType, setNewWalletType] = useState<"new" | "seed" | "ufvk" | "file">("new");
+  const [seedPhrase, setSeedPhrase] = useState<string>("");
+  const [birthday, setBirthday] = useState<string>("");
+  const [ufvk, setUfvk] = useState<string>("");
+  const [file, setFile] = useState<string>("");
+
+  const [alias, setAlias] = useState<string>("");
   const [performanceLevel, setPerformanceLevel] = useState<PerformanceLevelEnum>(PerformanceLevelEnum.High);
 
   const [selectedServer, setSelectedServer] = useState<string>("");
-  const [selectedChain, setSelectedChain] = useState<ServerChainNameEnum | ''>("");
-  const [selectedSelection, setSelectedSelection] = useState<ServerSelectionEnum | ''>("");
+  const [selectedChain, setSelectedChain] = useState<ServerChainNameEnum | "">("");
+  const [selectedSelection, setSelectedSelection] = useState<ServerSelectionEnum | "">("");
 
   const [autoServer, setAutoServer] = useState<string>("");
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
-  
+
   //const [customChain, setCustomChain] = useState<ServerChainNameEnum | ''>("");
   //const [autoChain, setAutoChain] = useState<ServerChainNameEnum | ''>("");
 
-  const [servers, setServers] = useState<ServerClass[]>(serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false));
+  const [servers, setServers] = useState<ServerClass[]>(
+    serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false),
+  );
   const [serverExpanded, setServerExpanded] = useState<boolean>(false);
 
   const isSubmittingRef = useRef(false);
-  
+
   const chains = {
-    "main": "Mainnet",
-    "test": "Testnet",
-    "regtest": "Regtest",
+    main: "Mainnet",
+    test: "Testnet",
+    regtest: "Regtest",
     "": "",
   };
 
   const news = {
-    "new":  "Create a New Wallet",
-    "seed": "Restore Wallet from Seed Phrase",
-    "ufvk": "Restore Wallet from Unified Full Viewing Key",
-    "file": "Restore Wallet from an existent DAT file",
+    new: "Create a New Wallet",
+    seed: "Restore Wallet from Seed Phrase",
+    ufvk: "Restore Wallet from Unified Full Viewing Key",
+    file: "Restore Wallet from an existent DAT file",
   };
 
   const activationHeight = {
-    "main": 419200,
-    "test": 280000,
-    "regtest": 1,
+    main: 419200,
+    test: 280000,
+    regtest: 1,
     "": 1,
   };
 
-  const initialServerValue = useCallback((server: string, chain_name: ServerChainNameEnum | '', selection: ServerSelectionEnum | '') => {
-    if (selection === ServerSelectionEnum.custom) {
-      setCustomServer(server);
+  const initialServerValue = useCallback(
+    (server: string, chain_name: ServerChainNameEnum | "", selection: ServerSelectionEnum | "") => {
+      if (selection === ServerSelectionEnum.custom) {
+        setCustomServer(server);
 
-      setListServer("");
+        setListServer("");
 
-      setAutoServer(server);
-    } else if (selection === ServerSelectionEnum.auto) {
-      setAutoServer(server);
+        setAutoServer(server);
+      } else if (selection === ServerSelectionEnum.auto) {
+        setAutoServer(server);
 
-      setListServer("");
+        setListServer("");
 
-      setCustomServer("");
-    } else { // list
-      setListServer(server);
+        setCustomServer("");
+      } else {
+        // list
+        setListServer(server);
 
-      setCustomServer("");
+        setCustomServer("");
 
-      setAutoServer(server);
-    }
-  }, []);
+        setAutoServer(server);
+      }
+    },
+    [],
+  );
 
-  useEffect(() => {
-  }, [currentWallet, initialServerValue, mode]);
+  useEffect(() => {}, [currentWallet, initialServerValue, mode]);
 
   useEffect(() => {
     (async () => {
       // Try to read the default server
       const settings = await ipcRenderer.invoke("loadSettings");
-      const currServer: string = currentWallet ? currentWallet.uri : settings.serveruri; 
+      const currServer: string = currentWallet ? currentWallet.uri : settings.serveruri;
       const currChain: ServerChainNameEnum = currentWallet ? currentWallet.chain_name : settings.serverchain_name;
       const currSelection: ServerSelectionEnum = currentWallet ? currentWallet.selection : settings.serverselection;
       initialServerValue(currServer, currChain, currSelection);
@@ -123,33 +134,48 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       setSelectedChain(currChain);
       setSelectedSelection(currSelection);
       setServers(servers);
-      if (mode !== 'addnew' && !!currentWallet) {
+      if (mode !== "addnew" && !!currentWallet) {
         setAlias(currentWallet.alias);
         setPerformanceLevel(currentWallet.performanceLevel);
         setFile(currentWallet.fileName);
       }
     })();
-  }, [initialServerValue, currentWallet?.chain_name, currentWallet?.selection, currentWallet?.uri, serverUris, currentWallet, servers, mode]);
+  }, [
+    initialServerValue,
+    currentWallet?.chain_name,
+    currentWallet?.selection,
+    currentWallet?.uri,
+    serverUris,
+    currentWallet,
+    servers,
+    mode,
+  ]);
 
-  const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+  const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const nextWalletName = () => {
-    let maxId = !!wallets && wallets.length > 0 ? Math.max(...wallets.map(w => w.id)) : 3;
+    let maxId = !!wallets && wallets.length > 0 ? Math.max(...wallets.map((w) => w.id)) : 3;
     if (maxId < 3) {
       maxId = 3;
     }
-    let next =  maxId + 1;
-    // we need to check if this file already exists 
+    let next = maxId + 1;
+    // we need to check if this file already exists
     let nextWalletName = `zingo-wallet-${next}.dat`;
 
     while (true) {
       console.log(next, nextWalletName);
-      const walletExistsResult: boolean = native.wallet_exists(selectedServer, selectedChain ? selectedChain : ServerChainNameEnum.mainChainName, performanceLevel, 3, nextWalletName);
+      const walletExistsResult: boolean = native.wallet_exists(
+        selectedServer,
+        selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
+        performanceLevel,
+        3,
+        nextWalletName,
+      );
       console.log(walletExistsResult);
       if (walletExistsResult) {
         next = next + 1;
         nextWalletName = `zingo-wallet-${next}.dat`;
-        console.log('NEXT', next, nextWalletName);
+        console.log("NEXT", next, nextWalletName);
       } else {
         break;
       }
@@ -158,24 +184,24 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     return { next, nextWalletName };
   };
 
-
   const createNextWallet = async (id: number, wallet_name: string, alias: string) => {
     const currentWallet: WalletType = {
       id,
       fileName: wallet_name, // by default: zingo-wallet.dat
       alias, // by default: the first word of the seed phrase
       chain_name: selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
-      creationType: newWalletType === 'ufvk' 
-        ? CreationTypeEnum.Ufvk 
-        : newWalletType === 'file' 
-          ? CreationTypeEnum.File 
-          : CreationTypeEnum.Seed,
+      creationType:
+        newWalletType === "ufvk"
+          ? CreationTypeEnum.Ufvk
+          : newWalletType === "file"
+            ? CreationTypeEnum.File
+            : CreationTypeEnum.Seed,
       uri: selectedServer,
       selection: selectedSelection ? selectedSelection : ServerSelectionEnum.auto,
       performanceLevel: performanceLevel,
     };
     await ipcRenderer.invoke("wallets:add", currentWallet);
-    // re-fetching wallets 
+    // re-fetching wallets
     const newWallets = await ipcRenderer.invoke("wallets:all");
     setWallets(newWallets);
     setCurrentWallet(currentWallet);
@@ -184,7 +210,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   const doCreateNewWallet = async () => {
     try {
       const { next: id, nextWalletName: wallet_name } = nextWalletName();
-      const result: string = native.init_new(selectedServer, selectedChain ? selectedChain : ServerChainNameEnum.mainChainName, performanceLevel, 3, wallet_name);
+      const result: string = native.init_new(
+        selectedServer,
+        selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
+        performanceLevel,
+        3,
+        wallet_name,
+      );
 
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Creating New wallet", result);
@@ -194,7 +226,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         const resultJSON = await JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
 
-        createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(' ')[0]}...`);
+        createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
 
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
@@ -207,7 +239,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       }
     } catch (error) {
       console.log(`Critical Error create new wallet ${error}`);
-      openErrorModal('Creating New wallet', `${error}`);
+      openErrorModal("Creating New wallet", `${error}`);
       // restore the previous wallet
       loadCurrentWallet();
     }
@@ -216,7 +248,15 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   const doRestoreSeedWallet = async () => {
     try {
       const { next: id, nextWalletName: wallet_name } = nextWalletName();
-      const result: string = native.init_from_seed(seedPhrase, Number(birthday), selectedServer, selectedChain ? selectedChain : ServerChainNameEnum.mainChainName, performanceLevel, 3, wallet_name);
+      const result: string = native.init_from_seed(
+        seedPhrase,
+        Number(birthday),
+        selectedServer,
+        selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
+        performanceLevel,
+        3,
+        wallet_name,
+      );
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Restoring wallet from seed", result);
         // restore the previous wallet
@@ -225,7 +265,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         const resultJSON = await JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
 
-        createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(' ')[0]}...`);
+        createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
 
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
@@ -246,35 +286,39 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   const doRestoreUfvkWallet = async () => {
     try {
-      if (!ufvk.startsWith('uview')) {
-        // the ufvk is not correct 
+      if (!ufvk.startsWith("uview")) {
+        // the ufvk is not correct
         openErrorModal("Parsing UFVK", "The prefix of the Unified Full Viewing Key is not valid");
         return;
       }
-      if (selectedChain === ServerChainNameEnum.mainChainName && 
-          (ufvk.startsWith('uviewtest') ||
-           ufvk.startsWith('uviewregtest'))
+      if (
+        selectedChain === ServerChainNameEnum.mainChainName &&
+        (ufvk.startsWith("uviewtest") || ufvk.startsWith("uviewregtest"))
       ) {
         // the ufvk is not correct
         openErrorModal("Parsing UFVK", "The prefix of the Unified Full Viewing Key is not valid");
         return;
       }
-      if (selectedChain === ServerChainNameEnum.testChainName && 
-          !ufvk.startsWith('uviewtest')
-      ) {
+      if (selectedChain === ServerChainNameEnum.testChainName && !ufvk.startsWith("uviewtest")) {
         // the ufvk is not correct
         openErrorModal("Parsing UFVK", "The prefix of the Unified Full Viewing Key is not valid");
         return;
       }
-      if (selectedChain === ServerChainNameEnum.regtestChainName && 
-          !ufvk.startsWith('uviewregtest')
-      ) {
+      if (selectedChain === ServerChainNameEnum.regtestChainName && !ufvk.startsWith("uviewregtest")) {
         // the ufvk is not correct
         openErrorModal("Parsing UFVK", "The prefix of the Unified Full Viewing Key is not valid");
         return;
       }
       const { next: id, nextWalletName: wallet_name } = nextWalletName();
-      const result: string = native.init_from_ufvk(ufvk, Number(birthday), selectedServer, selectedChain ? selectedChain : ServerChainNameEnum.mainChainName, performanceLevel, 3, wallet_name);
+      const result: string = native.init_from_ufvk(
+        ufvk,
+        Number(birthday),
+        selectedServer,
+        selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
+        performanceLevel,
+        3,
+        wallet_name,
+      );
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Restoring wallet from ufvk", result);
         // restore the previous wallet
@@ -307,7 +351,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       // only needs the id, it have the wallet_name already
       const { next: id } = nextWalletName();
       const wallet_name: string = file;
-      const result: string = native.init_from_b64(selectedServer, selectedChain ? selectedChain : ServerChainNameEnum.mainChainName, performanceLevel, 3, wallet_name);
+      const result: string = native.init_from_b64(
+        selectedServer,
+        selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
+        performanceLevel,
+        3,
+        wallet_name,
+      );
       console.log(`Initialization: ${result}`);
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Restoring wallet from file", result);
@@ -318,7 +368,10 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         const birthday: number = resultJSON.birthday;
 
         if (birthday < activationHeight[selectedChain]) {
-          openErrorModal("Restoring wallet from file", `The birthday found ${birthday} is invalid. The sync process is not going to work.`);
+          openErrorModal(
+            "Restoring wallet from file",
+            `The birthday found ${birthday} is invalid. The sync process is not going to work.`,
+          );
         }
 
         createNextWallet(id, wallet_name, alias ? alias : wallet_name);
@@ -342,7 +395,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   const loadCurrentWallet = async () => {
     if (currentWallet) {
-      const result: string = native.init_from_b64(currentWallet.uri, currentWallet.chain_name, currentWallet.performanceLevel, 3, currentWallet.fileName);
+      const result: string = native.init_from_b64(
+        currentWallet.uri,
+        currentWallet.chain_name,
+        currentWallet.performanceLevel,
+        3,
+        currentWallet.fileName,
+      );
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Loading current wallet", result);
       }
@@ -355,46 +414,43 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
     try {
       const resp: string = await native.get_latest_block_server(server.uri);
-    
+
       const end: number = Date.now();
-      if (resp && !resp.toLowerCase().startsWith('error')) {
+      if (resp && !resp.toLowerCase().startsWith("error")) {
         latency = end - start;
       }
-    
-      console.log('Checking SERVER', server, latency);
+
+      console.log("Checking SERVER", server, latency);
     } catch (error) {
       console.log(`Critical Error calculate server latency ${error}`);
     }
-    
+
     return latency;
   };
-  
+
   const checkingServer = async (server: ServerClass): Promise<ServerClass | null> => {
     // 15 seconds max.
-    const timeoutPromise = new Promise<null>(resolve => setTimeout(() => resolve(null), 15 * 1000));
-  
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 15 * 1000));
+
     const validServersPromises = [server].map(
       (server: ServerClass) =>
-        new Promise<ServerClass>(async resolve => {
+        new Promise<ServerClass>(async (resolve) => {
           const latency = await calculateLatency(server, servers.indexOf(server));
           if (latency !== null) {
             resolve({ ...server, latency });
           }
         }),
     );
-  
+
     const fastestServer = await Promise.race([...validServersPromises, timeoutPromise]);
-  
+
     return fastestServer;
   };
-  
+
   const doSave = async () => {
     if (!!currentWallet) {
       if (selectedChain !== currentWallet.chain_name) {
-        openErrorModal(
-          "Save Wallet Settings",
-          "Change the server Chain/Network is not allowed", 
-        );
+        openErrorModal("Save Wallet Settings", "Change the server Chain/Network is not allowed");
         return;
       }
       // verify the server right here
@@ -405,22 +461,19 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         );
         const serverFaster = await checkingServer({
           uri: selectedServer,
-          region: '',
+          region: "",
           chain_name: selectedChain,
           latency: null,
           default: false,
           obsolete: false,
         } as ServerClass);
         if (!serverFaster) {
-          openErrorModal(
-            "Save Wallet Settings",
-            "This server is not working properly, choose another one.",
-          );
+          openErrorModal("Save Wallet Settings", "This server is not working properly, choose another one.");
           return;
         }
       }
       const currentWalletSave: WalletType = {
-        id : currentWallet.id,
+        id: currentWallet.id,
         fileName: currentWallet.fileName, // by default: zingo-wallet.dat
         alias, // by default: the first word of the seed phrase
         chain_name: selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
@@ -430,19 +483,18 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         performanceLevel: performanceLevel,
       };
       await ipcRenderer.invoke("wallets:update", currentWalletSave);
-      // re-fetching wallets 
+      // re-fetching wallets
       const newWallets = await ipcRenderer.invoke("wallets:all");
       setWallets(newWallets);
-      const needStart: boolean = 
-        selectedServer !== currentWallet.uri || 
-        performanceLevel !== currentWallet.performanceLevel || 
+      const needStart: boolean =
+        selectedServer !== currentWallet.uri ||
+        performanceLevel !== currentWallet.performanceLevel ||
         selectedSelection === ServerSelectionEnum.auto;
       setCurrentWallet(currentWalletSave);
       if (needStart) {
-         openErrorModal(
+        openErrorModal(
           "Save Wallet Settings",
-          selectedServer !== currentWallet.uri ||
-          selectedSelection === ServerSelectionEnum.auto
+          selectedServer !== currentWallet.uri || selectedSelection === ServerSelectionEnum.auto
             ? "Opening the active Wallet with the New Server."
             : "Opening the active Wallet with the New Performance Level",
         );
@@ -459,10 +511,10 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       try {
         await clearTimers();
         const walletExistsResult: boolean = native.wallet_exists(
-          currentWallet.uri, 
-          currentWallet.chain_name, 
-          currentWallet.performanceLevel, 
-          3, 
+          currentWallet.uri,
+          currentWallet.chain_name,
+          currentWallet.performanceLevel,
+          3,
           currentWallet.fileName,
         );
         console.log(walletExistsResult);
@@ -484,20 +536,18 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           await ipcRenderer.invoke("wallets:remove", currentWallet.id);
           await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
 
-          // re-fetching wallets 
+          // re-fetching wallets
           const newWallets: WalletType[] = await ipcRenderer.invoke("wallets:all");
           setWallets(newWallets);
 
           // if the wallet was created by a file, don't delete the file.
           if (currentWallet.creationType !== CreationTypeEnum.File) {
             const resultDelete: string = await native.delete_wallet(
-              currentWallet.uri, 
-              currentWallet.chain_name, 
-              currentWallet.performanceLevel, 
-              3, 
-              currentWallet.fileName 
-                ? currentWallet.fileName 
-                : 'zingo-wallet.dat',
+              currentWallet.uri,
+              currentWallet.chain_name,
+              currentWallet.performanceLevel,
+              3,
+              currentWallet.fileName ? currentWallet.fileName : "zingo-wallet.dat",
             );
             console.log("deleting ...", resultDelete);
           }
@@ -518,7 +568,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     }
   };
 
-
   const submitAction = async () => {
     if (isSubmittingRef.current) {
       return;
@@ -531,50 +580,52 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       return;
     }
 
-    if (mode === 'addnew') {
-      // check the fields 
-      if (newWalletType === 'seed' && (!seedPhrase || !birthday)) {
+    if (mode === "addnew") {
+      // check the fields
+      if (newWalletType === "seed" && (!seedPhrase || !birthday)) {
         isSubmittingRef.current = false;
         return;
       }
-      if (newWalletType === 'ufvk' && (!ufvk || !birthday)) {
+      if (newWalletType === "ufvk" && (!ufvk || !birthday)) {
         isSubmittingRef.current = false;
         return;
       }
-      if (newWalletType === 'file' && !file) {
+      if (newWalletType === "file" && !file) {
         isSubmittingRef.current = false;
         return;
       }
       // check the birthday
-      if ((newWalletType === 'seed' || newWalletType === 'ufvk') && 
-          Number(birthday) < activationHeight[selectedChain]) {
+      if (
+        (newWalletType === "seed" || newWalletType === "ufvk") &&
+        Number(birthday) < activationHeight[selectedChain]
+      ) {
         isSubmittingRef.current = false;
         return;
       }
 
       // run the option
-      if (newWalletType === 'new') {
+      if (newWalletType === "new") {
         openErrorModal("Add New Wallet", "Creating a brand new wallet.");
         await doCreateNewWallet();
       }
-      if (newWalletType === 'seed') {
+      if (newWalletType === "seed") {
         openErrorModal("Restore Wallet", "Restoring an existing wallet from the seed phrase.");
         await doRestoreSeedWallet();
       }
-      if (newWalletType === 'ufvk') {
+      if (newWalletType === "ufvk") {
         openErrorModal("Restore Wallet", "Restoring an existing wallet from the Unified Full Viewing Key.");
         await doRestoreUfvkWallet();
       }
-      if (newWalletType === 'file') {
+      if (newWalletType === "file") {
         openErrorModal("Restore Wallet", "Restoring an existing wallet from the DAT file stored.");
         await doRestoreFileWallet();
       }
     }
 
-    if (mode === 'settings') {
+    if (mode === "settings") {
       await doSave();
     }
-    if (mode === 'delete') {
+    if (mode === "delete") {
       openErrorModal("Delete Wallet", "Stopping all the activity with the wallet in order to delete it completely.");
       await doDelete();
     }
@@ -595,61 +646,59 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   };
 
   const updateBirthday = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setBirthday(isNaN(parseInt(e.target.value)) ? '' : e.target.value);
+    setBirthday(isNaN(parseInt(e.target.value)) ? "" : e.target.value);
   };
 
   const updateAlias = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAlias(e.target.value);
   };
 
-  //console.log('render modal server', servers, selectedServer, selectedChain, selectedSelection); 
+  //console.log('render modal server', servers, selectedServer, selectedChain, selectedSelection);
 
   return (
     <ScrollPaneTop offsetHeight={20}>
       <div className={[cstyles.xlarge, cstyles.margintopsmall, cstyles.center].join(" ")}>
-        {mode === 'addnew' 
-          ? 'Add a New Wallet' 
-          : mode === 'settings' 
-            ? 'Wallet Settings'
-            : 'Delete Wallet'}
+        {mode === "addnew" ? "Add a New Wallet" : mode === "settings" ? "Wallet Settings" : "Delete Wallet"}
       </div>
 
       <div className={styles.addnewwalletcontainer}>
         <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
-
-          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center', flexWrap: 'nowrap' }}>
+          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
             <div className={cstyles.sublight}>Wallet Alias/Description</div>
             <input
-              disabled={mode === 'delete'}
+              disabled={mode === "delete"}
               placeholder="Ex: My Zcash Wallet"
               type="text"
               className={cstyles.inputbox}
-              style={{ width: '60%', marginLeft: "20px" }}
+              style={{ width: "60%", marginLeft: "20px" }}
               value={alias}
               onChange={(e) => updateAlias(e)}
             />
-            <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
-              Network 
+            <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center" }}>
+              Network
               <select
-                disabled={mode !== 'addnew'}
+                disabled={mode !== "addnew"}
                 className={cstyles.inputbox}
-                style={{ marginLeft: "20px", color: selectedChain === '' ? Utils.getCssVariable('--color-zingo') : undefined }}
+                style={{
+                  marginLeft: "20px",
+                  color: selectedChain === "" ? Utils.getCssVariable("--color-zingo") : undefined,
+                }}
                 value={selectedChain}
                 onChange={(e) => {
                   setServerExpanded(true);
-                  setSelectedChain(e.target.value as ServerChainNameEnum | '');
-                  if (servers.filter(s => s.chain_name === e.target.value).length === 0) {
+                  setSelectedChain(e.target.value as ServerChainNameEnum | "");
+                  if (servers.filter((s) => s.chain_name === e.target.value).length === 0) {
                     setSelectedSelection(ServerSelectionEnum.custom);
                     setSelectedServer(customServer);
                     //setListServer('');
                   } else {
                     if (!customServer && selectedSelection === ServerSelectionEnum.custom) {
                       setSelectedSelection(ServerSelectionEnum.list);
-                      const ls: string = servers.filter(s => s.chain_name === e.target.value)[0].uri;
+                      const ls: string = servers.filter((s) => s.chain_name === e.target.value)[0].uri;
                       setListServer(ls);
                       setSelectedServer(ls);
                     } else {
-                      const ls: string = servers.filter(s => s.chain_name === e.target.value)[0].uri;
+                      const ls: string = servers.filter((s) => s.chain_name === e.target.value)[0].uri;
                       setListServer(ls);
                       if (selectedSelection === ServerSelectionEnum.list) {
                         setSelectedServer(ls);
@@ -658,35 +707,42 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                   }
                 }}
               >
-                <option value="" disabled hidden>Select...</option> 
+                <option value="" disabled hidden>
+                  Select...
+                </option>
                 <option value="main">{chains["main"]}</option>
                 <option value="test">{chains["test"]}</option>
-                <option value="regtest">{chains["regtest"]}</option> 
+                <option value="regtest">{chains["regtest"]}</option>
               </select>
             </div>
           </div>
 
-          {mode === 'addnew' && (
-            <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center', flexWrap: 'nowrap' }}>
+          {mode === "addnew" && (
+            <div
+              className={cstyles.horizontalflex}
+              style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}
+            >
               <div className={cstyles.sublight}>Type of Wallet creation</div>
               <select
                 className={cstyles.inputbox}
-                style={{width: '80%', marginLeft: "20px" }}
+                style={{ width: "80%", marginLeft: "20px" }}
                 value={newWalletType}
                 onChange={(e) => {
-                  setNewWalletType(e.target.value as 'new' | 'seed' | 'ufvk' | 'file');
+                  setNewWalletType(e.target.value as "new" | "seed" | "ufvk" | "file");
                 }}
               >
-                <option value="" disabled hidden>Select...</option> 
+                <option value="" disabled hidden>
+                  Select...
+                </option>
                 <option value="new">{news["new"]}</option>
                 <option value="seed">{news["seed"]}</option>
-                <option value="ufvk">{news["ufvk"]}</option> 
-                <option value="file">{news["file"]}</option> 
+                <option value="ufvk">{news["ufvk"]}</option>
+                <option value="file">{news["file"]}</option>
               </select>
             </div>
           )}
 
-          {newWalletType === 'seed' && mode === 'addnew' && (
+          {newWalletType === "seed" && mode === "addnew" && (
             <div style={{ margin: "10px" }}>
               <div className={[cstyles.sublight].join(" ")}>Please enter your seed phrase</div>
               <TextareaAutosize
@@ -708,7 +764,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             </div>
           )}
 
-          {newWalletType === 'ufvk' && mode === 'addnew' && (
+          {newWalletType === "ufvk" && mode === "addnew" && (
             <div style={{ margin: "10px" }}>
               <div className={[cstyles.sublight].join(" ")}>Please enter your Unified Full Viewing Key</div>
               <TextareaAutosize
@@ -730,66 +786,102 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             </div>
           )}
 
-          {newWalletType === 'file' && mode === 'addnew' && (
+          {newWalletType === "file" && mode === "addnew" && (
             <div style={{ margin: "10px" }}>
-              <div className={[cstyles.sublight].join(" ")}>Please enter your Wallet File Name stored in the Zcash folder</div>
+              <div className={[cstyles.sublight].join(" ")}>
+                Please enter your Wallet File Name stored in the Zcash folder
+              </div>
               <input
                 placeholder="Ex: zingo-wallet-renamed....dat"
                 type="text"
                 className={cstyles.inputbox}
-                style={{ width: '90%', marginLeft: "20px" }}
+                style={{ width: "90%", marginLeft: "20px" }}
                 value={file}
                 onChange={(e) => updateFile(e)}
               />
             </div>
           )}
 
-          {mode !== 'addnew' && (
-            <div className={[cstyles.horizontalflex].join(" ")} style={{ margin: "10px", alignItems: 'center', flexWrap: 'nowrap' }}>
+          {mode !== "addnew" && (
+            <div
+              className={[cstyles.horizontalflex].join(" ")}
+              style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}
+            >
               <div className={[cstyles.sublight].join(" ")}>File Name</div>
               <input
                 disabled={true}
                 type="text"
                 className={cstyles.inputbox}
-                style={{ width: '85%', marginLeft: "20px" }}
-                value={currentWallet && currentWallet.creationType === CreationTypeEnum.Main ? 'zingo-wallet.dat' : file}
+                style={{ width: "85%", marginLeft: "20px" }}
+                value={
+                  currentWallet && currentWallet.creationType === CreationTypeEnum.Main ? "zingo-wallet.dat" : file
+                }
               />
             </div>
           )}
 
-          {mode !== 'delete' && (
+          {mode !== "delete" && (
             <>
-              <div style={{ width: '120%', height: '20px', marginTop: 10, marginBottom: 10, marginLeft: "-20px", backgroundColor: Utils.getCssVariable('--color-background') }} />
+              <div
+                style={{
+                  width: "120%",
+                  height: "20px",
+                  marginTop: 10,
+                  marginBottom: 10,
+                  marginLeft: "-20px",
+                  backgroundColor: Utils.getCssVariable("--color-background"),
+                }}
+              />
 
-              <div style={{ margin: "10px" }}> 
+              <div style={{ margin: "10px" }}>
                 {!serverExpanded ? (
                   <div className={cstyles.horizontalflex}>
-                    <div className={[cstyles.sublight].join(" ")} style={{ marginRight: "25px", cursor: 'pointer' }} onClick={() => setServerExpanded(!serverExpanded)}>Selected Server</div>
-                    <div style={{ marginRight: 25, cursor: 'pointer', opacity: 0.5 }} onClick={() => setServerExpanded(!serverExpanded)}>
-                      <i className={["fas", "fa-chevron-down", "fa-1x"].join(" ")} /> 
+                    <div
+                      className={[cstyles.sublight].join(" ")}
+                      style={{ marginRight: "25px", cursor: "pointer" }}
+                      onClick={() => setServerExpanded(!serverExpanded)}
+                    >
+                      Selected Server
                     </div>
-                    <div style={{ cursor: 'pointer' }} onClick={() => setServerExpanded(!serverExpanded)}>{selectedServer}</div> 
+                    <div
+                      style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
+                      onClick={() => setServerExpanded(!serverExpanded)}
+                    >
+                      <i className={["fas", "fa-chevron-down", "fa-1x"].join(" ")} />
+                    </div>
+                    <div style={{ cursor: "pointer" }} onClick={() => setServerExpanded(!serverExpanded)}>
+                      {selectedServer}
+                    </div>
                   </div>
                 ) : (
                   <>
                     <div className={cstyles.horizontalflex}>
-                      <div className={[cstyles.sublight].join(" ")} style={{ marginRight: "25px", cursor: 'pointer' }} onClick={() => setServerExpanded(!serverExpanded)}>Selected Server</div>
-                      <div style={{ marginRight: 25, cursor: 'pointer', opacity: 0.5 }} onClick={() => setServerExpanded(!serverExpanded)}>
-                        <i className={["fas", "fa-chevron-up", "fa-1x"].join(" ")} /> 
+                      <div
+                        className={[cstyles.sublight].join(" ")}
+                        style={{ marginRight: "25px", cursor: "pointer" }}
+                        onClick={() => setServerExpanded(!serverExpanded)}
+                      >
+                        Selected Server
+                      </div>
+                      <div
+                        style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
+                        onClick={() => setServerExpanded(!serverExpanded)}
+                      >
+                        <i className={["fas", "fa-chevron-up", "fa-1x"].join(" ")} />
                       </div>
                     </div>
-                    {mode === 'settings' && (
-                      <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems:'center' }}>
+                    {mode === "settings" && (
+                      <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center" }}>
                         <input
                           checked={selectedSelection === ServerSelectionEnum.auto}
-                          style={{ accentColor: Utils.getCssVariable('--color-primary') }}
-                          type="radio" 
-                          name="selection" 
+                          style={{ accentColor: Utils.getCssVariable("--color-primary") }}
+                          type="radio"
+                          name="selection"
                           value={ServerSelectionEnum.auto}
                           onClick={(e) => {
                             setSelectedSelection(ServerSelectionEnum.auto);
                             setSelectedServer(autoServer);
-                          }} 
+                          }}
                           onChange={(e) => {
                             setSelectedSelection(ServerSelectionEnum.auto);
                             setSelectedServer(autoServer);
@@ -798,23 +890,23 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                         Automatic
                       </div>
                     )}
-                    {servers.filter(s => s.chain_name === selectedChain).length > 0 && (
-                      <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center' }}>
+                    {servers.filter((s) => s.chain_name === selectedChain).length > 0 && (
+                      <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center" }}>
                         <input
                           checked={selectedSelection === ServerSelectionEnum.list}
-                          style={{ accentColor: Utils.getCssVariable('--color-primary') }}
-                          type="radio" 
-                          name="selection" 
-                          value={ServerSelectionEnum.list} 
+                          style={{ accentColor: Utils.getCssVariable("--color-primary") }}
+                          type="radio"
+                          name="selection"
+                          value={ServerSelectionEnum.list}
                           onClick={(e) => {
                             setSelectedSelection(ServerSelectionEnum.list);
-                            const ls: string = servers.filter(s => s.chain_name === selectedChain)[0].uri;
+                            const ls: string = servers.filter((s) => s.chain_name === selectedChain)[0].uri;
                             setListServer(ls);
                             setSelectedServer(ls);
-                          }} 
+                          }}
                           onChange={(e) => {
                             setSelectedSelection(ServerSelectionEnum.list);
-                            const ls: string = servers.filter(s => s.chain_name === selectedChain)[0].uri;
+                            const ls: string = servers.filter((s) => s.chain_name === selectedChain)[0].uri;
                             setListServer(ls);
                             setSelectedServer(ls);
                           }}
@@ -828,40 +920,50 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                           onChange={(e) => {
                             setListServer(e.target.value);
                             setSelectedServer(e.target.value);
-                          }}>
-                            <option key="" value="" disabled hidden></option>
-                            {servers.filter(s => s.chain_name === selectedChain).map((s: ServerClass) => (
-                              <option key={s.uri} value={s.uri}>{s.uri + ' - ' + chains[s.chain_name] + ' - ' + s.region + (s.latency ? (' _ ' + s.latency + ' ms.') : '')}</option>
+                          }}
+                        >
+                          <option key="" value="" disabled hidden></option>
+                          {servers
+                            .filter((s) => s.chain_name === selectedChain)
+                            .map((s: ServerClass) => (
+                              <option key={s.uri} value={s.uri}>
+                                {s.uri +
+                                  " - " +
+                                  chains[s.chain_name] +
+                                  " - " +
+                                  s.region +
+                                  (s.latency ? " _ " + s.latency + " ms." : "")}
+                              </option>
                             ))}
                         </select>
                       </div>
                     )}
                     <div style={{ margin: "10px" }}>
-                      <input 
+                      <input
                         checked={selectedSelection === "custom"}
-                        style={{ accentColor: Utils.getCssVariable('--color-primary') }}
-                        type="radio" 
-                        name="selection" 
-                        value={"custom"} 
+                        style={{ accentColor: Utils.getCssVariable("--color-primary") }}
+                        type="radio"
+                        name="selection"
+                        value={"custom"}
                         onClick={(e) => {
                           setSelectedSelection(ServerSelectionEnum.custom);
                           setSelectedServer(customServer);
-                        }} 
+                        }}
                         onChange={(e) => {
                           setSelectedSelection(ServerSelectionEnum.custom);
                           setSelectedServer(customServer);
-                        }} 
+                        }}
                       />
                       Custom
                       <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
-                        <div style={{ width: '75%', padding: 0, margin: 0, flexWrap: 'nowrap' }}>
-                          URI 
+                        <div style={{ width: "75%", padding: 0, margin: 0, flexWrap: "nowrap" }}>
+                          URI
                           <input
                             placeholder="https://------.---:---"
                             disabled={selectedSelection !== "custom"}
                             type="text"
-                            className={cstyles.inputbox} 
-                            style={{ marginLeft: "20px", width: '80%' }}
+                            className={cstyles.inputbox}
+                            style={{ marginLeft: "20px", width: "80%" }}
                             value={customServer}
                             onChange={(e) => {
                               setCustomServer(e.target.value);
@@ -877,20 +979,31 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             </>
           )}
 
-          <div style={{ width: '120%', height: '20px', marginTop: 10, marginBottom: 10, marginLeft: "-20px", backgroundColor: Utils.getCssVariable('--color-background') }} />
+          <div
+            style={{
+              width: "120%",
+              height: "20px",
+              marginTop: 10,
+              marginBottom: 10,
+              marginLeft: "-20px",
+              backgroundColor: Utils.getCssVariable("--color-background"),
+            }}
+          />
 
-          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: 'center', flexWrap: 'nowrap' }}>
+          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
             <div className={[cstyles.sublight].join(" ")}>Sync Performance Level</div>
             <select
-              disabled={mode === 'delete'}
+              disabled={mode === "delete"}
               className={cstyles.inputbox}
-              style={{width: '80%', marginLeft: "20px" }}
+              style={{ width: "80%", marginLeft: "20px" }}
               value={performanceLevel}
               onChange={(e) => {
                 setPerformanceLevel(e.target.value as PerformanceLevelEnum);
               }}
             >
-              <option value="" disabled hidden>Select...</option> 
+              <option value="" disabled hidden>
+                Select...
+              </option>
               <option value={PerformanceLevelEnum.Low}>{PerformanceLevelEnum.Low}</option>
               <option value={PerformanceLevelEnum.Medium}>{PerformanceLevelEnum.Medium}</option>
               <option value={PerformanceLevelEnum.High}>{PerformanceLevelEnum.High}</option>
@@ -900,16 +1013,14 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         </div>
 
         <div style={{ marginBottom: "20px" }} className={cstyles.buttoncontainer}>
-          <button
-            type="button" 
-            className={cstyles.primarybutton} 
-            onClick={async () => await submitAction()} 
-          >
-            {mode === 'addnew' 
-              ? (newWalletType === 'new' ? 'Create Wallet' : 'Restore Wallet')
-              : mode === 'settings'
-                ? 'Save Wallet Settings'
-                : 'Delete Wallet'}
+          <button type="button" className={cstyles.primarybutton} onClick={async () => await submitAction()}>
+            {mode === "addnew"
+              ? newWalletType === "new"
+                ? "Create Wallet"
+                : "Restore Wallet"
+              : mode === "settings"
+                ? "Save Wallet Settings"
+                : "Delete Wallet"}
           </button>
           <button type="button" className={cstyles.primarybutton} onClick={() => closeModal()}>
             Close
@@ -918,6 +1029,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       </div>
     </ScrollPaneTop>
   );
-}
+};
 
 export default AddNewWallet;

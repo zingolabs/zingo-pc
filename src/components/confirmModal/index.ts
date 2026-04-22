@@ -1,3 +1,3 @@
 import ConfirmModal from "./ConfirmModal";
 
-export { ConfirmModal }; 
+export { ConfirmModal };

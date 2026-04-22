@@ -1,14 +1,13 @@
 import path from "path";
 import { AddressBookEntryClass } from "../appstate";
 
-const { ipcRenderer } = window.require("electron");
-const fs = window.require("fs");
+import { ipcRenderer, fs } from "../../electronBridge";
 
 // Utility class to save / read the address book.
 export default class AddressbookImpl {
   static async getFileName(): Promise<string> {
-    const relativePath: string = await ipcRenderer.invoke('get-app-data-path');
-    const dir: string = path.join(relativePath, 'Zingo PC');
+    const relativePath: string = await ipcRenderer.invoke("get-app-data-path");
+    const dir: string = path.join(relativePath, "Zingo PC");
     if (!fs.existsSync(dir)) {
       await fs.promises.mkdir(dir);
     }
@@ -32,7 +31,7 @@ export default class AddressbookImpl {
       return await JSON.parse((await fs.promises.readFile(fileName)).toString());
     } catch (err) {
       // File probably doesn't exist, so return nothing
-      console.log('address book', err);
+      console.log("address book", err);
       return [] as AddressBookEntryClass[];
     }
   }

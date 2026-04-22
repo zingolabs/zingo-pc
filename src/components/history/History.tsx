@@ -9,12 +9,23 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 
-type HistoryProps = {
-};
+type HistoryProps = {};
 
 const History: React.FC<HistoryProps> = () => {
   const context = useContext(ContextApp);
-  const { valueTransfers, info, addressBook, totalBalance, readOnly, fetchError, orchardPool, saplingPool, transparentPool, calculateShieldFee, handleShieldButton } = context;
+  const {
+    valueTransfers,
+    info,
+    addressBook,
+    totalBalance,
+    readOnly,
+    fetchError,
+    orchardPool,
+    saplingPool,
+    transparentPool,
+    calculateShieldFee,
+    handleShieldButton,
+  } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
@@ -30,32 +41,35 @@ const History: React.FC<HistoryProps> = () => {
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
     const pending: number =
-      valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
+      valueTransfers.length > 0
+        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
+        : 0;
     setAnyPending(pending > 0);
   }, [valueTransfers]);
-    
+
   useEffect(() => {
     if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly && !anyPending) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]); 
+  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   useEffect(() => {
     setIsLoadMoreEnabled(valueTransfers && numVtnsToShow < valueTransfers.length);
   }, [numVtnsToShow, valueTransfers]);
 
   useEffect(() => {
-    setValueTransfersSorted(valueTransfers
-    .slice(0, numVtnsToShow));
+    setValueTransfersSorted(valueTransfers.slice(0, numVtnsToShow));
   }, [numVtnsToShow, valueTransfers]);
 
   useEffect(() => {
-    setAddressBookMap(addressBook.reduce((m: Map<string, string>, obj: AddressBookEntryClass) => {
-      m.set(obj.address, obj.label);
-      return m; 
-    }, new Map()));
+    setAddressBookMap(
+      addressBook.reduce((m: Map<string, string>, obj: AddressBookEntryClass) => {
+        m.set(obj.address, obj.label);
+        return m;
+      }, new Map()),
+    );
   }, [addressBook]);
 
   const closeModal = () => {
@@ -74,11 +88,27 @@ const History: React.FC<HistoryProps> = () => {
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
+            zecValue={
+              totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance
+            }
+            usdValue={Utils.getZecToUsdString(
+              info.zecPrice,
+              totalBalance.totalOrchardBalance +
+                totalBalance.totalSaplingBalance +
+                totalBalance.totalTransparentBalance,
+            )}
             currencyName={info.currencyName}
-            zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
-            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
+            zecValueConfirmed={
+              totalBalance.confirmedOrchardBalance +
+              totalBalance.confirmedSaplingBalance +
+              totalBalance.confirmedTransparentBalance
+            }
+            usdValueConfirmed={Utils.getZecToUsdString(
+              info.zecPrice,
+              totalBalance.confirmedOrchardBalance +
+                totalBalance.confirmedSaplingBalance +
+                totalBalance.confirmedTransparentBalance,
+            )}
           />
           {orchardPool && (
             <BalanceBlock
@@ -112,7 +142,7 @@ const History: React.FC<HistoryProps> = () => {
           )}
         </div>
         <div className={cstyles.balancebox}>
-          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
             <>
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
@@ -128,25 +158,29 @@ const History: React.FC<HistoryProps> = () => {
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
-              {fetchError.command + ': ' + fetchError.error}
+            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable("--color-error") }}>
+              {fetchError.command + ": " + fetchError.error}
             </div>
           </>
         )}
       </div>
 
-      <div style={{ marginBottom: 5 }} className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>History</div>
+      <div
+        style={{ marginBottom: 5 }}
+        className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}
+      >
+        History
+      </div>
 
       <ScrollPaneTop offsetHeight={180}>
-        {!valueTransfersSorted && (
-          <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>
-        )}
+        {!valueTransfersSorted && <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>}
 
         {valueTransfersSorted && valueTransfersSorted.length === 0 && (
           <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
         )}
 
-        {valueTransfersSorted && valueTransfersSorted.length > 0 &&
+        {valueTransfersSorted &&
+          valueTransfersSorted.length > 0 &&
           valueTransfersSorted.map((vt: ValueTransferClass, index: number) => {
             return (
               <VtItemBlock
@@ -155,14 +189,10 @@ const History: React.FC<HistoryProps> = () => {
                 vt={vt}
                 setValueTransferDetail={(ttt: ValueTransferClass) => setValueTransferDetail(ttt)}
                 setValueTransferDetailIndex={(iii: number) => setValueTransferDetailIndex(iii)}
-                setModalIsOpen={(bbb: boolean) => setModalIsOpen(bbb)}  
+                setModalIsOpen={(bbb: boolean) => setModalIsOpen(bbb)}
                 currencyName={info.currencyName}
                 addressBookMap={addressBookMap}
-                previousLineWithSameTxid={
-                  index === 0 
-                    ? false 
-                    : (valueTransfersSorted[index - 1].txid === vt.txid)
-                }
+                previousLineWithSameTxid={index === 0 ? false : valueTransfersSorted[index - 1].txid === vt.txid}
               />
             );
           })}

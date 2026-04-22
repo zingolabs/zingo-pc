@@ -7,10 +7,10 @@ export default class UnifiedAddressClass {
   has_transparent: boolean;
   constructor(
     account: number,
-    address_index: number, 
-    encoded_address: string, 
-    has_orchard: boolean, 
-    has_sapling: boolean, 
+    address_index: number,
+    encoded_address: string,
+    has_orchard: boolean,
+    has_sapling: boolean,
     has_transparent: boolean,
   ) {
     this.account = account;

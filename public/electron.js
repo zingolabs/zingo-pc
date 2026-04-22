@@ -1,9 +1,9 @@
 const { app, BrowserWindow, Menu, shell, ipcMain } = require("electron");
 const path = require("path");
 const settings = require("electron-settings");
-const storage = require('electron-json-storage');
+const storage = require("electron-json-storage");
 
-const STORAGE_KEY = 'wallets';
+const STORAGE_KEY = "wallets";
 const isDev = !app.isPackaged;
 
 class MenuBuilder {
@@ -364,14 +364,14 @@ async function getWallets() {
   return new Promise((resolve, reject) => {
     storage.get(STORAGE_KEY, (err, data) => {
       if (err) return reject(err);
-      resolve(Array.isArray(data) ? (data) : []);
+      resolve(Array.isArray(data) ? data : []);
     });
   });
 }
 
 async function getWallet(id) {
   const wallets = await getWallets();
-  return wallets.filter(w => w.id === id);
+  return wallets.filter((w) => w.id === id);
 }
 
 async function addWallet(wallet) {
@@ -382,14 +382,14 @@ async function addWallet(wallet) {
 
 async function updateWallet(wallet) {
   const wallets = await getWallets();
-  const temp = wallets.filter(w => w.id !== wallet.id);
+  const temp = wallets.filter((w) => w.id !== wallet.id);
   temp.push(wallet);
   await saveWallets(temp);
 }
 
 async function removeWallet(id) {
   const wallets = await getWallets();
-  const filtered = wallets.filter(w => w.id !== id);
+  const filtered = wallets.filter((w) => w.id !== id);
   await saveWallets(filtered);
 }
 
@@ -405,7 +405,37 @@ async function saveWallets(wallets) {
   });
 }
 
+// IPC close-state lives at module level so it survives across createWindow calls on macOS
+let waitingForClose = false;
+let proceedToClose = false;
+
+// Register all IPC handlers once — calling ipcMain.handle twice for the same channel throws
+ipcMain.handle("loadSettings", async () => settings.get("all"));
+ipcMain.handle("saveSettings", async (_e, kv) => settings.set(`all.${kv.key}`, kv.value));
+ipcMain.handle("wallets:all", async () => getWallets());
+ipcMain.handle("wallets:get", async (_e, id) => getWallet(id));
+ipcMain.handle("wallets:add", async (_e, wallet) => addWallet(wallet));
+ipcMain.handle("wallets:update", async (_e, wallet) => updateWallet(wallet));
+ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
+ipcMain.handle("wallets:clear", async () => clearWallets());
+ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
+
+ipcMain.on("apprestart", () => {
+  app.relaunch({ args: process.argv.slice(1).concat(["--relaunch"]) });
+  app.exit(0);
+});
+
+ipcMain.on("appquitdone", () => {
+  waitingForClose = false;
+  proceedToClose = true;
+  app.quit();
+});
+
 function createWindow() {
+  // Reset close state for the new window
+  waitingForClose = false;
+  proceedToClose = false;
+
   const mainWindow = new BrowserWindow({
     width: 1350,
     height: 700,
@@ -414,14 +444,16 @@ function createWindow() {
     maxWidth: 1500,
     maxHeight: 800,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
-      nodeIntegrationInWorker: true,
-      enableRemoteModule: true,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      nodeIntegrationInWorker: false,
+      enableRemoteModule: false,
+      preload: path.join(__dirname, "preload.js"),
     },
   });
 
-  const ignore = process.platform !== 'darwin';
+  const ignore = process.platform !== "darwin";
   mainWindow.webContents.setIgnoreMenuShortcuts(ignore);
 
   // Load from localhost if in development
@@ -431,40 +463,13 @@ function createWindow() {
   const menuBuilder = new MenuBuilder(mainWindow);
   menuBuilder.buildMenu();
 
-  let waitingForClose = false;
-  let proceedToClose = false;
-
-  ipcMain.handle("loadSettings", async () => {
-    return await settings.get("all");
-  });
-
-  ipcMain.handle("saveSettings", async (_e, kv) => {
-    return await settings.set(`all.${kv.key}`, kv.value);
-  });
-
-  ipcMain.handle('wallets:all', async () => await getWallets());
-  ipcMain.handle('wallets:get', async (_e, id) => await getWallet(id));
-  ipcMain.handle('wallets:add', async (_e, wallet) => await addWallet(wallet));
-  ipcMain.handle('wallets:update', async (_e, wallet) => await updateWallet(wallet));
-  ipcMain.handle('wallets:remove', async (_e, id) => await removeWallet(id));
-  ipcMain.handle('wallets:clear', async () => await clearWallets());
-
-  ipcMain.handle('get-app-data-path', () => {
-    return app.getPath('appData');
-  });
-
-  ipcMain.on("apprestart", () => {
-    app.relaunch({ args: process.argv.slice(1).concat(['--relaunch']) })
-    app.exit(0) 
-  });  
-
   mainWindow.on("close", (event) => {
     // If we are clear to close, then return and allow everything to close
     if (proceedToClose) {
       return;
     }
 
-    // If we're already waiting for close, then don't allow another close event to actually close the window
+    // If we're already waiting for close, don't allow another close event to actually close the window
     if (waitingForClose) {
       console.log("Waiting for close... Timeout in 10s");
       event.preventDefault();
@@ -474,12 +479,6 @@ function createWindow() {
     waitingForClose = true;
     event.preventDefault();
 
-    ipcMain.on("appquitdone", () => {
-      waitingForClose = false;
-      proceedToClose = true;
-      app.quit();
-    });
-
     mainWindow.webContents.send("appquitting");
 
     // Failsafe, timeout after 5 seconds
@@ -487,7 +486,6 @@ function createWindow() {
       waitingForClose = false;
       proceedToClose = true;
       console.log("Timeout, quitting");
-
       app.quit();
     }, 5 * 1000);
   });
@@ -507,24 +505,23 @@ app.whenReady().then(async () => {
   if (isDev) {
     try {
       // v4: export nombrado
-      const mod = await import('electron-devtools-installer');
+      const mod = await import("electron-devtools-installer");
       const installExtension = mod.installExtension ?? mod.default; // compat v3/v4
       const { REACT_DEVELOPER_TOOLS } = mod;
 
-      if (typeof installExtension !== 'function') {
-        throw new TypeError('installExtension export not found');
+      if (typeof installExtension !== "function") {
+        throw new TypeError("installExtension export not found");
       }
 
       const ext = await installExtension(REACT_DEVELOPER_TOOLS);
       console.log(`React DevTools instalado: ${ext?.name ?? ext}`);
     } catch (e) {
-      console.warn('Devtools not installed (ok in prod):', e?.message ?? e);
+      console.warn("Devtools not installed (ok in prod):", e?.message ?? e);
     }
   }
 
   createWindow();
 });
-
 
 // Add a new listener that tries to quit the application when
 // it no longer has any open windows. This listener is a no-op

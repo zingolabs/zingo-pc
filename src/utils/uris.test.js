@@ -1,19 +1,19 @@
 import { parseZcashURI } from "./uris";
-import native from '../native.node';
+import native from "../native.node";
 import serverUrisList from "./serverUrisList";
 import { PerformanceLevelEnum } from "../components/appstate";
 
-native.init_from_b64(serverUrisList()[0].uri, serverUrisList()[0].chain_name, PerformanceLevelEnum.High, '1');
+native.init_from_b64(serverUrisList()[0].uri, serverUrisList()[0].chain_name, PerformanceLevelEnum.High, "1");
 
-test("ZIP321 case 1", async () => { 
+test("ZIP321 case 1", async () => {
   const targets = await parseZcashURI(
-    "zcash:ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez?amount=1&memo=VGhpcyBpcyBhIHNpbXBsZSBtZW1vLg&message=Thank%20you%20for%20your%20purchase"
+    "zcash:ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez?amount=1&memo=VGhpcyBpcyBhIHNpbXBsZSBtZW1vLg&message=Thank%20you%20for%20your%20purchase",
   );
 
   expect(targets.length).toBe(1);
 
   expect(targets[0].address).toBe(
-    "ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez"
+    "ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez",
   );
   expect(targets[0].message).toBe("Thank you for your purchase");
   expect(targets[0].label).toBeUndefined();
@@ -23,7 +23,7 @@ test("ZIP321 case 1", async () => {
 
 test("ZIP321 case 2", async () => {
   const targets = await parseZcashURI(
-    "zcash:?address=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU&amount=123.456&address.1=ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez&amount.1=0.789&memo.1=VGhpcyBpcyBhIHVuaWNvZGUgbWVtbyDinKjwn6aE8J-PhvCfjok"
+    "zcash:?address=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU&amount=123.456&address.1=ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez&amount.1=0.789&memo.1=VGhpcyBpcyBhIHVuaWNvZGUgbWVtbyDinKjwn6aE8J-PhvCfjok",
   );
 
   // this version of the App only read the first item of the URI
@@ -86,7 +86,7 @@ test("bad uris", async () => {
 
   // index=1 doesn't have amount
   error = await parseZcashURI(
-    "zcash:tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?amount=2&address.1=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU"
+    "zcash:tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?amount=2&address.1=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU",
   );
   expect(typeof error).toBe("string");
 
@@ -96,13 +96,13 @@ test("bad uris", async () => {
 
   // bad index
   error = await parseZcashURI(
-    "zcash:tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?amount=2&address.a=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU&amount.a=3"
+    "zcash:tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?amount=2&address.a=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU&amount.a=3",
   );
   expect(typeof error).toBe("string");
 
   // index=1 is missing
   error = await parseZcashURI(
-    "zcash:tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?amount=0.1&address.2=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU&amount.2=2"
+    "zcash:tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?amount=0.1&address.2=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU&amount.2=2",
   );
   expect(typeof error).toBe("string");
 });

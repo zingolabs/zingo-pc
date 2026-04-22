@@ -1,3 +1,3 @@
-import Insight from './Insight';
+import Insight from "./Insight";
 
 export { Insight };

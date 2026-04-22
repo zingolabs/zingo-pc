@@ -3,7 +3,7 @@ import { Base64 } from "js-base64";
 
 import Utils from "./utils";
 
-import native from '../native.node';
+import { native } from "../electronBridge";
 import { AddressKindEnum, ServerChainNameEnum } from "../components/appstate";
 
 export class ZcashURITarget {
@@ -22,7 +22,10 @@ export class ZcashURITarget {
   }
 }
 
-export const parseZcashURI = async (uri: string, serverChainName: "" | ServerChainNameEnum): Promise<ZcashURITarget | string> => {
+export const parseZcashURI = async (
+  uri: string,
+  serverChainName: "" | ServerChainNameEnum,
+): Promise<ZcashURITarget | string> => {
   if (!uri || uri === "") {
     return "Error: Bad URI";
   }
@@ -46,7 +49,7 @@ export const parseZcashURI = async (uri: string, serverChainName: "" | ServerCha
   if (address) {
     addressKind = await Utils.getAddressKind(address, serverChainName);
     if (addressKind === undefined) {
-      return `Error: "${address || ""}" was not a valid zcash address`; 
+      return `Error: "${address || ""}" was not a valid zcash address`;
     }
   }
 
@@ -123,7 +126,7 @@ export const parseZcashURI = async (uri: string, serverChainName: "" | ServerCha
           return `Error: Duplicate param ${qName}`;
         }
         const a: number = parseFloat(value);
-        if (isNaN(a)) {
+        if (isNaN(a) || a < 0 || a > 21_000_000) {
           return `Error: Amount ${value} could not be parsed`;
         }
 
@@ -166,7 +169,7 @@ export const parseZcashURI = async (uri: string, serverChainName: "" | ServerCha
     return "Error: Some indexes were missing";
   }
 
-  // only the first item. 
+  // only the first item.
   return ans[0] as ZcashURITarget;
 };
 
@@ -178,17 +181,15 @@ export const checkServerURI = async (uri: string, oldUri: string): Promise<boole
   if (!port) {
     // by default -> 9067
     // for `zec.rocks` -> 443
-    port = uri.includes('zec.rocks') ? '443' : '9067';
+    port = uri.includes("zec.rocks") ? "443" : "9067";
   }
 
   try {
-    const resultStrServer: string = await native.change_server(
-      `${parsedUri.protocol}//${parsedUri.hostname}:${port}`,
-    );
+    const resultStrServer: string = await native.change_server(`${parsedUri.protocol}//${parsedUri.hostname}:${port}`);
 
-    if (!resultStrServer || resultStrServer.toLowerCase().startsWith('error')) {
+    if (!resultStrServer || resultStrServer.toLowerCase().startsWith("error")) {
       // I have to restore the old server again. Just in case.
-      console.log('changeserver', resultStrServer);
+      console.log("changeserver", resultStrServer);
       native.change_server(oldUri);
       // error, no timeout
       return false;
@@ -196,8 +197,8 @@ export const checkServerURI = async (uri: string, oldUri: string): Promise<boole
       // the server is changed
       const infoStr: string = await native.info_server();
 
-      if (!infoStr || infoStr.toLowerCase().startsWith('error')) {
-        console.log('info', infoStr);
+      if (!infoStr || infoStr.toLowerCase().startsWith("error")) {
+        console.log("info", infoStr);
         // I have to restore the old server again.
         native.change_server(oldUri);
         // error, no timeout
@@ -205,7 +206,7 @@ export const checkServerURI = async (uri: string, oldUri: string): Promise<boole
       }
     }
   } catch (error: any) {
-    console.log('catch', error);
+    console.log("catch", error);
     // I have to restore the old server again. Just in case.
     await native.change_server(oldUri);
     // error, YES timeout
