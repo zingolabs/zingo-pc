@@ -15,9 +15,9 @@
 }
 
 .sidebarlogobg {
-  background: var(--color-background); 
-  margin-bottom: 8px; 
-  padding: 8px; 
+  background: var(--color-background);
+  margin-bottom: 8px;
+  padding: 8px;
 }
 
 .exportedPrivKeys {

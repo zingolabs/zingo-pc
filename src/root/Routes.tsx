@@ -29,7 +29,6 @@ import {
   ServerChainNameEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
-import Utils from "../utils/utils";
 import { ZcashURITarget } from "../utils/uris";
 import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
@@ -40,11 +39,13 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
 import { ConfirmModal } from "../components/confirmModal";
+import ShieldResultContent from "./ShieldResultContent";
 
 type Props = {};
 
 class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   rpc: RPC;
+  fetchErrorTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(props: Props & RouteComponentProps) {
     super(props);
@@ -70,16 +71,15 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   }
 
   componentDidMount = async () => {
-    // Read the address book
-    (async () => {
-      const addressBook: AddressBookEntryClass[] = await AddressbookImpl.readAddressBook();
-      if (addressBook && addressBook.length > 0) {
-        this.setState({ addressBook });
-      }
-    })();
+    const addressBook: AddressBookEntryClass[] = await AddressbookImpl.readAddressBook();
+    if (addressBook && addressBook.length > 0) {
+      this.setState({ addressBook });
+    }
   };
 
-  componentWillUnmount = () => {};
+  componentWillUnmount = () => {
+    if (this.fetchErrorTimer) clearTimeout(this.fetchErrorTimer);
+  };
 
   openErrorModal = (title: string, body: string | JSX.Element) => {
     const errorModal = new ErrorModalClass();
@@ -134,7 +134,9 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         error,
       },
     });
-    setTimeout(() => {
+    if (this.fetchErrorTimer) clearTimeout(this.fetchErrorTimer);
+    this.fetchErrorTimer = setTimeout(() => {
+      this.fetchErrorTimer = null;
       this.setState({ fetchError: {} as FetchErrorTypeClass });
     }, 5000);
   };
@@ -314,24 +316,11 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   addAddressBookEntry = (label: string, address: string): void => {
-    // Add an entry into the address book
-    const { addressBook } = this.state;
-    const newAddressBook: AddressBookEntryClass[] = addressBook.concat(new AddressBookEntryClass(label, address));
-
-    // Write to disk. This method is async
-    AddressbookImpl.writeAddressBook(newAddressBook);
-
-    this.setState({ addressBook: newAddressBook });
+    this.setState({ addressBook: AddressbookImpl.addEntry(this.state.addressBook, label, address) });
   };
 
   removeAddressBookEntry = (label: string): void => {
-    const { addressBook } = this.state;
-    const newAddressBook: AddressBookEntryClass[] = addressBook.filter((i) => i.label !== label);
-
-    // Write to disk. This method is async
-    AddressbookImpl.writeAddressBook(newAddressBook);
-
-    this.setState({ addressBook: newAddressBook });
+    this.setState({ addressBook: AddressbookImpl.removeEntry(this.state.addressBook, label) });
   };
 
   runRPCfectchInfo = () => {
@@ -393,96 +382,26 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
         if (!txidsResult || txidsResult.toLocaleLowerCase().startsWith("error")) {
           this.openErrorModal("Error Shielding Transaction", `${txidsResult}`);
           return;
-        } else {
-          const txids: string[] = txidsResult.split(", ");
-          this.openErrorModal(
-            "Successfully Broadcast Transaction",
-            <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: 10,
-                }}
-              >
-                <div>{(txids.length === 1 ? "Transaction was" : "Transactions were") + " successfully broadcast."}</div>
-                <div>{`TXID: ${txids[0]}`}</div>
-                {txids.length > 1 && <div>{`TXID: ${txids[1]}`}</div>}
-                {txids.length > 2 && <div>{`TXID: ${txids[2]}`}</div>}
-              </div>
-              {this.state.currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-                <div
-                  style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}
-                >
-                  <div
-                    className={cstyles.primarybutton}
-                    onClick={() =>
-                      Utils.openTxid(
-                        txids[0],
-                        this.state.currentWallet?.chain_name,
-                        this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                          ? this.state.blockExplorerMainnetTransaction
-                          : this.state.blockExplorerTestnetTransaction,
-                        this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                          ? this.state.blockExplorerMainnetTransactionCustom
-                          : this.state.blockExplorerTestnetTransactionCustom,
-                      )
-                    }
-                  >
-                    View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                  </div>
-                  {txids.length > 1 && (
-                    <div
-                      style={{ marginTop: 5 }}
-                      className={cstyles.primarybutton}
-                      onClick={() =>
-                        Utils.openTxid(
-                          txids[1],
-                          this.state.currentWallet?.chain_name,
-                          this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                            ? this.state.blockExplorerMainnetTransaction
-                            : this.state.blockExplorerTestnetTransaction,
-                          this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                            ? this.state.blockExplorerMainnetTransactionCustom
-                            : this.state.blockExplorerTestnetTransactionCustom,
-                        )
-                      }
-                    >
-                      View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                    </div>
-                  )}
-                  {txids.length > 2 && (
-                    <div
-                      style={{ marginTop: 5 }}
-                      className={cstyles.primarybutton}
-                      onClick={() =>
-                        Utils.openTxid(
-                          txids[2],
-                          this.state.currentWallet?.chain_name,
-                          this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                            ? this.state.blockExplorerMainnetTransaction
-                            : this.state.blockExplorerTestnetTransaction,
-                          this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                            ? this.state.blockExplorerMainnetTransactionCustom
-                            : this.state.blockExplorerTestnetTransactionCustom,
-                        )
-                      }
-                    >
-                      View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>,
-          );
         }
+
+        const txids: string[] = txidsResult.split(", ");
+        const isMainnet = this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName;
+        this.openErrorModal(
+          "Successfully Broadcast Transaction",
+          <ShieldResultContent
+            txids={txids}
+            chainName={this.state.currentWallet?.chain_name}
+            blockExplorerTransaction={
+              isMainnet ? this.state.blockExplorerMainnetTransaction : this.state.blockExplorerTestnetTransaction
+            }
+            blockExplorerTransactionCustom={
+              isMainnet
+                ? this.state.blockExplorerMainnetTransactionCustom
+                : this.state.blockExplorerTestnetTransactionCustom
+            }
+          />,
+        );
       } catch (err) {
-        // If there was an error, show the error modal
         this.openErrorModal("Error Shielding Transaction", `${err}`);
       }
     }, 10);
@@ -511,7 +430,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     });
   };
 
-  navigateToLoadingScreenChangingWallet = () => {
+  navigateToLoadingScreenChangingWallet = async () => {
     // To change to another wallet, we reset the wallet loading
     // and redirect to the loading screen
     this.setTotalBalance(new TotalBalanceClass());
@@ -526,7 +445,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setFetchError("", "");
     this.setCurrentWalletOpenError("");
 
-    this.rpc.clearTimers();
+    await this.rpc.clearTimers();
 
     this.navigateToLoadingScreen();
   };

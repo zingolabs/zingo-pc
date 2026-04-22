@@ -38,7 +38,7 @@
 .txmemo {
   word-break: break-all;
   float: left;
-  max-width: 800px; 
+  max-width: 800px;
 }
 
 .txfeeamount {
@@ -54,7 +54,6 @@
 .txamount {
   float: right;
 }
-
 
 .txmodal {
   top: 12.5%;
