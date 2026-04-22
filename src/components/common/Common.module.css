@@ -96,7 +96,7 @@
 }
 
 .primarybutton {
-  background-color: var(--color-primary); 
+  background-color: var(--color-primary);
   color: var(--color-text);
   text-align: center;
   font-weight: bold;
@@ -177,7 +177,12 @@
 
 .inputbox {
   width: calc(100% - 16px);
-  font-family: Roboto, Arial, Helvetica, Helvetica Neue, serif;
+  font-family:
+    Roboto,
+    Arial,
+    Helvetica,
+    Helvetica Neue,
+    serif;
   min-height: 38px;
   max-height: 300px;
   padding-left: 8px;
@@ -191,7 +196,12 @@
 
 .inputboxmemo {
   width: calc(100% - 16px);
-  font-family: Roboto, Arial, Helvetica, Helvetica Neue, serif;
+  font-family:
+    Roboto,
+    Arial,
+    Helvetica,
+    Helvetica Neue,
+    serif;
   min-height: 38px;
   max-height: 300px;
   padding-left: 8px;

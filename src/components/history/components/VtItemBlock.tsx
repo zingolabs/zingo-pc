@@ -226,4 +226,4 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
   );
 };
 
-export default VtItemBlock;
+export default React.memo(VtItemBlock);

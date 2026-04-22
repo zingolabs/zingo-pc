@@ -6,7 +6,7 @@
 @import "~typeface-roboto/index.css";
 
 html {
-  overflow: hidden; 
+  overflow: hidden;
 }
 
 body {
@@ -14,7 +14,12 @@ body {
   color: var(--color-text);
   height: 100vh;
   background-color: var(--color-background);
-  font-family: Roboto, Arial, Helvetica, Helvetica Neue, serif;
+  font-family:
+    Roboto,
+    Arial,
+    Helvetica,
+    Helvetica Neue,
+    serif;
 }
 
 ::-webkit-scrollbar {

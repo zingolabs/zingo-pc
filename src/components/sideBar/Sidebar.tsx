@@ -220,7 +220,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       }
     };
 
-    console.log("ONNNNNNNNNNNNNNNNNNNNNNNN");
     ipcRenderer.on("about", about);
     ipcRenderer.on("payuri", payuri);
     ipcRenderer.on("blockexplorer", blockexplorer);
@@ -231,8 +230,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     ipcRenderer.on("deletewallet", deletewallet);
 
     return () => {
-      console.log("OFFFFFFFFFFFFFFFFFFFFFF");
-      ipcRenderer.removeListener("about", about);
+      ipcRenderer.off("about", about);
       ipcRenderer.off("payuri", payuri);
       ipcRenderer.off("blockexplorer", blockexplorer);
       ipcRenderer.off("seed", seed);

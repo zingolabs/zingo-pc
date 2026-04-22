@@ -90,7 +90,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
     promises: {
       mkdir: (p, opts) => fs.promises.mkdir(p, opts),
       writeFile: (p, data) => fs.promises.writeFile(p, data),
-      readFile: (p) => fs.promises.readFile(p),
+      readFile: (p) => fs.promises.readFile(p, "utf8"),
     },
   },
 });

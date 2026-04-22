@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
 import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
@@ -72,6 +72,27 @@ const History: React.FC<HistoryProps> = () => {
     );
   }, [addressBook]);
 
+  const totalFunds = useMemo(
+    () => totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance,
+    [totalBalance.totalOrchardBalance, totalBalance.totalSaplingBalance, totalBalance.totalTransparentBalance],
+  );
+
+  const confirmedFunds = useMemo(
+    () =>
+      totalBalance.confirmedOrchardBalance +
+      totalBalance.confirmedSaplingBalance +
+      totalBalance.confirmedTransparentBalance,
+    [
+      totalBalance.confirmedOrchardBalance,
+      totalBalance.confirmedSaplingBalance,
+      totalBalance.confirmedTransparentBalance,
+    ],
+  );
+
+  const handleSetValueTransferDetail = useCallback((ttt: ValueTransferClass) => setValueTransferDetail(ttt), []);
+  const handleSetValueTransferDetailIndex = useCallback((iii: number) => setValueTransferDetailIndex(iii), []);
+  const handleSetModalIsOpen = useCallback((bbb: boolean) => setModalIsOpen(bbb), []);
+
   const closeModal = () => {
     setValueTransferDetail(undefined);
     setValueTransferDetailIndex(-1);
@@ -88,27 +109,11 @@ const History: React.FC<HistoryProps> = () => {
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={
-              totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance
-            }
-            usdValue={Utils.getZecToUsdString(
-              info.zecPrice,
-              totalBalance.totalOrchardBalance +
-                totalBalance.totalSaplingBalance +
-                totalBalance.totalTransparentBalance,
-            )}
+            zecValue={totalFunds}
+            usdValue={Utils.getZecToUsdString(info.zecPrice, totalFunds)}
             currencyName={info.currencyName}
-            zecValueConfirmed={
-              totalBalance.confirmedOrchardBalance +
-              totalBalance.confirmedSaplingBalance +
-              totalBalance.confirmedTransparentBalance
-            }
-            usdValueConfirmed={Utils.getZecToUsdString(
-              info.zecPrice,
-              totalBalance.confirmedOrchardBalance +
-                totalBalance.confirmedSaplingBalance +
-                totalBalance.confirmedTransparentBalance,
-            )}
+            zecValueConfirmed={confirmedFunds}
+            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, confirmedFunds)}
           />
           {orchardPool && (
             <BalanceBlock
@@ -187,9 +192,9 @@ const History: React.FC<HistoryProps> = () => {
                 index={index}
                 key={`${index}-${vt.type}-${vt.txid}`}
                 vt={vt}
-                setValueTransferDetail={(ttt: ValueTransferClass) => setValueTransferDetail(ttt)}
-                setValueTransferDetailIndex={(iii: number) => setValueTransferDetailIndex(iii)}
-                setModalIsOpen={(bbb: boolean) => setModalIsOpen(bbb)}
+                setValueTransferDetail={handleSetValueTransferDetail}
+                setValueTransferDetailIndex={handleSetValueTransferDetailIndex}
+                setModalIsOpen={handleSetModalIsOpen}
                 currencyName={info.currencyName}
                 addressBookMap={addressBookMap}
                 previousLineWithSameTxid={index === 0 ? false : valueTransfersSorted[index - 1].txid === vt.txid}

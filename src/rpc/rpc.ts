@@ -73,65 +73,15 @@ export default class RPC {
   }
 
   async runTaskPromises(): Promise<void> {
-    const taskPromises: Promise<void>[] = [];
-
-    // do need this because of the sync process
-    taskPromises.push(
-      new Promise<void>(async (resolve) => {
-        await this.fetchSyncPoll();
-        //console.log('INTERVAL poll sync');
-        resolve();
-      }),
-    );
-    taskPromises.push(
-      new Promise<void>(async (resolve) => {
-        //const s = Date.now();
-        await this.fetchInfo();
-        //console.log('info & server height - ', Date.now() - s);
-        resolve();
-      }),
-    );
-    taskPromises.push(
-      new Promise<void>(async (resolve) => {
-        //const s = Date.now();
-        await this.fetchAddresses();
-        //console.log('addresses - ', Date.now() - s);
-        resolve();
-      }),
-    );
-    taskPromises.push(
-      new Promise<void>(async (resolve) => {
-        //const s = Date.now();
-        await this.fetchTotalBalance();
-        //console.log('balance - ', Date.now() - s);
-        resolve();
-      }),
-    );
-    // save the wallet as required.
-    taskPromises.push(
-      new Promise<void>(async (resolve) => {
-        await RPC.doSave();
-        resolve();
-      }),
-    );
-    taskPromises.push(
-      new Promise<void>(async (resolve) => {
-        //const s = Date.now();
-        await this.fetchTandZandOValueTransfers();
-        //console.log('value transfers - ', Date.now() - s);
-        resolve();
-      }),
-    );
-    taskPromises.push(
-      new Promise<void>(async (resolve) => {
-        //const s = Date.now();
-        await this.fetchTandZandOMessages();
-        //console.log('messages - ', Date.now() - s);
-        resolve();
-      }),
-    );
-
-    await Promise.allSettled(taskPromises);
+    await Promise.allSettled([
+      this.fetchSyncPoll(),
+      this.fetchInfo(),
+      this.fetchAddresses(),
+      this.fetchTotalBalance(),
+      RPC.doSave(),
+      this.fetchTandZandOValueTransfers(),
+      this.fetchTandZandOMessages(),
+    ]);
   }
 
   async configure(): Promise<void> {
@@ -178,7 +128,7 @@ export default class RPC {
       }
     }
     // remove the cleared timers.
-    for (var ii = 0; ii < deleted.length; i++) {
+    for (var ii = 0; ii < deleted.length; ii++) {
       this.timers.splice(deleted[ii], 1);
     }
   }
@@ -410,24 +360,18 @@ export default class RPC {
 
       if (returnPoll.toLowerCase().startsWith("sync task has not been launched")) {
         console.log("SYNC POLL -> RUN SYNC", returnPoll);
-        setTimeout(async () => {
-          await this.refreshSync();
-        }, 0);
+        void this.refreshSync();
         return;
       }
 
       if (returnPoll.toLowerCase().startsWith("sync task is not complete")) {
         console.log("SYNC POLL -> FETCH STATUS", returnPoll);
-        setTimeout(async () => {
-          await this.fetchSyncStatus();
-        }, 0);
+        void this.fetchSyncStatus();
         console.log("SYNC POLL -> RUN SYNC", returnPoll);
         // I don't trust in this message, when the tx is stuck in Trasmitted
         // this is the message I got & after that the status says 100% complete
         // this is not true, here Just in case, I need to run the sync again.
-        setTimeout(async () => {
-          await this.refreshSync();
-        }, 0);
+        void this.refreshSync();
         return;
       }
 
@@ -442,9 +386,7 @@ export default class RPC {
       console.log("SYNC POLL", sp);
 
       console.log("SYNC POLL -> FETCH STATUS");
-      setTimeout(async () => {
-        await this.fetchSyncStatus();
-      }, 0);
+      void this.fetchSyncStatus();
     } catch (error) {
       console.log(`Critical Error sync poll ${error}`);
     }

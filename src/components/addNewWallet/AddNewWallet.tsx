@@ -226,7 +226,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         const resultJSON = await JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
 
-        createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
+        await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
 
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
@@ -265,7 +265,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         const resultJSON = await JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
 
-        createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
+        await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
 
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
@@ -374,7 +374,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           );
         }
 
-        createNextWallet(id, wallet_name, alias ? alias : wallet_name);
+        await createNextWallet(id, wallet_name, alias ? alias : wallet_name);
 
         await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
         await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
