@@ -22,7 +22,7 @@ declare global {
         promises: {
           mkdir: (path: string, options?: any) => Promise<void>;
           writeFile: (path: string, data: string) => Promise<void>;
-          readFile: (path: string) => Promise<Buffer>;
+          readFile: (path: string) => Promise<string>;
         };
       };
     };

@@ -7,8 +7,8 @@ import { ipcRenderer, fs } from "../../electronBridge";
 export default class AddressbookImpl {
   static async getFileName(): Promise<string> {
     const relativePath: string = await ipcRenderer.invoke("get-app-data-path");
-    const dir: string = path.resolve(relativePath, "Zingo PC");
-    if (!dir.startsWith(path.resolve(relativePath))) {
+    const dir: string = path.join(relativePath, "Zingo PC");
+    if (!dir.startsWith(relativePath)) {
       throw new Error("Invalid app data path");
     }
     if (!fs.existsSync(dir)) {
@@ -43,7 +43,7 @@ export default class AddressbookImpl {
     const fileName: string = await this.getFileName();
 
     try {
-      return await JSON.parse((await fs.promises.readFile(fileName)).toString());
+      return await JSON.parse(await fs.promises.readFile(fileName));
     } catch (err) {
       // File probably doesn't exist, so return nothing
       console.log("address book", err);
