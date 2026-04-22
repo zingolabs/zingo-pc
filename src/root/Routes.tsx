@@ -1,7 +1,6 @@
 import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route, withRouter, RouteComponentProps } from "react-router";
-import { isEqual } from "lodash";
 import { ErrorModal } from "../components/errorModal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json";
@@ -42,6 +41,10 @@ import { ConfirmModal } from "../components/confirmModal";
 import ShieldResultContent from "./ShieldResultContent";
 
 type Props = {};
+
+function deepEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
 
 class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   rpc: RPC;
@@ -119,7 +122,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setTotalBalance = (totalBalance: TotalBalanceClass) => {
-    if (!isEqual(totalBalance, this.state.totalBalance)) {
+    if (!deepEqual(totalBalance, this.state.totalBalance)) {
       //console.log('=============== total SPENDABLE balance', totalBalance.totalSpendableBalance);
       //console.log('=============== total balance', totalBalance);
       this.setState({ totalBalance });
@@ -142,28 +145,28 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setAddressesUnified = (addressesUnified: UnifiedAddressClass[]) => {
-    if (!isEqual(addressesUnified, this.state.addressesUnified)) {
+    if (!deepEqual(addressesUnified, this.state.addressesUnified)) {
       console.log("=============== addresses UA", addressesUnified.length);
       this.setState({ addressesUnified });
     }
   };
 
   setAddressesTransparent = (addressesTransparent: TransparentAddressClass[]) => {
-    if (!isEqual(addressesTransparent, this.state.addressesTransparent)) {
+    if (!deepEqual(addressesTransparent, this.state.addressesTransparent)) {
       console.log("=============== addresses T", addressesTransparent.length);
       this.setState({ addressesTransparent });
     }
   };
 
   setValueTransferList = (valueTransfers: ValueTransferClass[]) => {
-    if (!isEqual(valueTransfers, this.state.valueTransfers)) {
+    if (!deepEqual(valueTransfers, this.state.valueTransfers)) {
       console.log("=============== ValueTransfer list", valueTransfers.length);
       this.setState({ valueTransfers });
     }
   };
 
   setMessagesList = (messages: ValueTransferClass[]) => {
-    if (!isEqual(messages, this.state.messages)) {
+    if (!deepEqual(messages, this.state.messages)) {
       console.log("=============== ValueTransfer Messages list", messages.length);
       this.setState({ messages });
     }
@@ -228,7 +231,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setInfo = (newInfo: InfoClass) => {
-    if (!isEqual(newInfo, this.state.info)) {
+    if (!deepEqual(newInfo, this.state.info)) {
       console.log("=============== info", newInfo);
       // If the price is not set in this object, copy it over from the current object
       const { info } = this.state;
@@ -241,7 +244,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setSyncStatus = (syncingStatus: SyncStatusType) => {
-    if (!isEqual(this.state.syncingStatus, syncingStatus)) {
+    if (!deepEqual(this.state.syncingStatus, syncingStatus)) {
       this.setState({ syncingStatus });
     }
   };
