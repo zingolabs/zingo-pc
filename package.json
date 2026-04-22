@@ -27,7 +27,6 @@
     "electron-settings": "^4.0.4",
     "fs-extra": "^9.0.1",
     "js-base64": "^3.7.7",
-    "lodash": "4.17.21",
     "minimatch": "^10.0.3",
     "progress-stream": "^2.0.0",
     "qrcode.react": "^4.2.0",
