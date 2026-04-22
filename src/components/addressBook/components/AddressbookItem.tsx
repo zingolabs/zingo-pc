@@ -13,7 +13,7 @@ import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
-const { clipboard } = window.require("electron");
+import { clipboard } from "../../../electronBridge";
 
 type AddressBookItemProps = {
   item: AddressBookEntryClass;
@@ -28,10 +28,14 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
 }) => {
   const context = useContext(ContextApp);
   const { readOnly, setSendTo } = context;
-  const [expandAddress, setExpandAddress] = useState<boolean>(false); 
-  
+  const [expandAddress, setExpandAddress] = useState<boolean>(false);
+
   return (
-    <AccordionItem key={item.label.replace(/\s/g, '')} className={[cstyles.well, cstyles.margintopsmall].join(" ")} uuid={item.label.replace(/\s/g, '')}>
+    <AccordionItem
+      key={item.label.replace(/\s/g, "")}
+      className={[cstyles.well, cstyles.margintopsmall].join(" ")}
+      uuid={item.label.replace(/\s/g, "")}
+    >
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={[cstyles.flexspacebetween].join(" ")}>
@@ -44,12 +48,15 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
                     clipboard.writeText(item.address);
                     setExpandAddress(true);
                   }
-                }}>
-                <div style={{ display: 'flex', flexDirection: 'column', flexWrap: 'wrap' }}>
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
                   {!expandAddress && Utils.trimToSmall(item.address, 10)}
                   {expandAddress && (
                     <>
-                      {item.address.length < 80 ? item.address : Utils.splitStringIntoChunks(item.address, 3).map(item => <div key={item}>{item}</div>)}
+                      {item.address.length < 80
+                        ? item.address
+                        : Utils.splitStringIntoChunks(item.address, 3).map((item) => <div key={item}>{item}</div>)}
                     </>
                   )}
                 </div>

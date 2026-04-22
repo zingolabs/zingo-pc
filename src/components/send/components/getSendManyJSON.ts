@@ -1,7 +1,7 @@
 import Utils from "../../../utils/utils";
 import { SendPageStateClass, ToAddrClass } from "../../appstate";
 import SendManyJsonType from "./SendManyJSONType";
-  
+
 function getSendManyJSON(sendPageState: SendPageStateClass): SendManyJsonType[] {
   const json: SendManyJsonType[] = [sendPageState.toaddr].flatMap((to: ToAddrClass) => {
     const memo: string = (to.memo || "") + (to.memoReplyTo || "");
@@ -22,7 +22,7 @@ function getSendManyJSON(sendPageState: SendPageStateClass): SendManyJsonType[] 
       tos.push({ address: to.to, amount, memo: `(1/${splits.length})${splits[0]}` });
 
       for (let i = 1; i < splits.length; i++) {
-          tos.push({ address: to.to, amount: 0, memo: `(${i + 1}/${splits.length})${splits[i]}` });
+        tos.push({ address: to.to, amount: 0, memo: `(${i + 1}/${splits.length})${splits[i]}` });
       }
 
       return tos;

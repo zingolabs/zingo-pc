@@ -2,7 +2,7 @@ export default class ConfirmModalClass {
   title: string;
   body: string | JSX.Element;
   modalIsOpen: boolean;
-  runAction:() => void;
+  runAction: () => void;
 
   constructor() {
     this.modalIsOpen = false;
@@ -11,4 +11,3 @@ export default class ConfirmModalClass {
     this.runAction = () => {};
   }
 }
-

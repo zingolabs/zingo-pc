@@ -23,7 +23,7 @@ const PayURIModal = ({
   actionCallback,
 }: PayURIModalProps) => {
   const context = useContext(ContextApp);
-  const { readOnly } = context; 
+  const { readOnly } = context;
   return (
     <Modal
       isOpen={modalIsOpen}
@@ -37,7 +37,9 @@ const PayURIModal = ({
         </div>
 
         {readOnly && (
-          <div className={cstyles.well} style={{ textAlign: "center" }}>This is a only-watch wallet, it is imposible to spend/send the balance.</div>  
+          <div className={cstyles.well} style={{ textAlign: "center" }}>
+            This is a only-watch wallet, it is imposible to spend/send the balance.
+          </div>
         )}
         {!readOnly && (
           <div className={cstyles.well} style={{ textAlign: "center" }}>
@@ -55,7 +57,7 @@ const PayURIModal = ({
       <div className={cstyles.buttoncontainer}>
         {actionButtonName && !readOnly && (
           <button
-            type="button" 
+            type="button"
             disabled={!modalInput}
             className={cstyles.primarybutton}
             onClick={() => {

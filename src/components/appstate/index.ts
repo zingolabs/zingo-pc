@@ -50,7 +50,6 @@ export {
   FetchErrorTypeClass,
   ConfirmModalClass,
   ErrorModalClass,
-
   AddressKindEnum,
   AddressReceiverEnum,
   AddressScopeEnum,
@@ -63,14 +62,6 @@ export {
   ServerSelectionEnum,
   PerformanceLevelEnum,
   BlockExplorerEnum,
-  
-  AppState
+  AppState,
 };
-export type {
-    SyncStatusScanRangeType,
-    SyncStatusType,
-    SendJsonToTypeType,
-    SendProposeType,
-    SendType,
-    WalletType,
-  };
+export type { SyncStatusScanRangeType, SyncStatusType, SendJsonToTypeType, SendProposeType, SendType, WalletType };

@@ -16,17 +16,16 @@ export default class ValueTransferClass {
   memos?: string[];
   pool?: ValueTransferPoolEnum;
 
-
   constructor(
     type: ValueTransferKindEnum,
     confirmations: number,
     blockheight: number,
     status: ValueTransferStatusEnum,
-    txid: string, 
-    time: number, 
+    txid: string,
+    time: number,
     address: string,
-    amount: number,  
-   ) {
+    amount: number,
+  ) {
     this.type = type;
     this.confirmations = confirmations;
     this.blockheight = blockheight;

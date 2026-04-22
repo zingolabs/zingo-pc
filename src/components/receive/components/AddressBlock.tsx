@@ -13,13 +13,13 @@ import { ContextApp } from "../../../context/ContextAppState";
 import { ServerChainNameEnum, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../../appstate";
 import RPC from "../../../rpc/rpc";
 
-const { clipboard } = window.require("electron");
+import { clipboard } from "../../../electronBridge";
 
 type AddressBlockProps = {
   address: UnifiedAddressClass | TransparentAddressClass;
   label?: string;
   currencyName: string;
-  type: 'u' | 't';
+  type: "u" | "t";
   calculateShieldFee?: () => Promise<number>;
   handleShieldButton?: () => void;
 };
@@ -30,12 +30,19 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   currencyName,
   type,
   calculateShieldFee,
-  handleShieldButton
+  handleShieldButton,
 }) => {
   const context = useContext(ContextApp);
-  const { readOnly, totalBalance, valueTransfers, openErrorModal, currentWallet, 
-    blockExplorerMainnetAddress, blockExplorerTestnetAddress,
-    blockExplorerMainnetAddressCustom, blockExplorerTestnetAddressCustom,
+  const {
+    readOnly,
+    totalBalance,
+    valueTransfers,
+    openErrorModal,
+    currentWallet,
+    blockExplorerMainnetAddress,
+    blockExplorerTestnetAddress,
+    blockExplorerMainnetAddressCustom,
+    blockExplorerTestnetAddressCustom,
   } = context;
   const address_address = address.encoded_address;
 
@@ -44,17 +51,25 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   const [shieldFee, setShieldFee] = useState<number>(0);
   const [anyPending, setAnyPending] = useState<boolean>(false);
 
-  const [unifiedCreateType, setUnifiedCreateType] = useState<'o' | 'z' | 'oz'>('o');
+  const [unifiedCreateType, setUnifiedCreateType] = useState<"o" | "z" | "oz">("o");
 
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
     const pending: number =
-      valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
+      valueTransfers.length > 0
+        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
+        : 0;
     setAnyPending(pending > 0);
   }, [valueTransfers]);
 
   useEffect(() => {
-    if (type === 't' && totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly && !anyPending) {
+    if (
+      type === "t" &&
+      totalBalance.confirmedTransparentBalance > 0 &&
+      calculateShieldFee &&
+      !readOnly &&
+      !anyPending
+    ) {
       (async () => {
         setShieldFee(await calculateShieldFee());
       })();
@@ -65,19 +80,15 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     //console.log('____________ click processed');
     const canvas: HTMLCanvasElement | null = document.querySelector("canvas");
     if (canvas) {
-      const pngUrl = canvas
-        .toDataURL("image/png")
-        .replace("image/png", "image/octet-stream");
-    let downloadLink = document.createElement("a");
-    downloadLink.href = pngUrl;
-    downloadLink.download = "QR_" + 
-                            type + 
-                            "_Zingo_PC.png";
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
+      const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+      let downloadLink = document.createElement("a");
+      downloadLink.href = pngUrl;
+      downloadLink.download = "QR_" + type + "_Zingo_PC.png";
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
     }
-  }
+  };
 
   return (
     <div>
@@ -85,7 +96,9 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
         <AccordionItemHeading>
           <AccordionItemButton className={cstyles.accordionHeader}>
             <div className={[cstyles.verticalflex].join(" ")}>
-              {!!address_address && address_address.length < 80 ? address_address : Utils.splitStringIntoChunks(address_address, 3).map(item => <div key={item}>{item}</div>)}
+              {!!address_address && address_address.length < 80
+                ? address_address
+                : Utils.splitStringIntoChunks(address_address, 3).map((item) => <div key={item}>{item}</div>)}
             </div>
           </AccordionItemButton>
         </AccordionItemHeading>
@@ -99,13 +112,15 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 </div>
               )}
 
-              {type === 'u' && (
+              {type === "u" && (
                 <div>
-                  <div className={[cstyles.sublight].join(" ")}>Address type: {Utils.getReceivers(address as UnifiedAddressClass).join(" + ")}</div>
+                  <div className={[cstyles.sublight].join(" ")}>
+                    Address type: {Utils.getReceivers(address as UnifiedAddressClass).join(" + ")}
+                  </div>
                 </div>
               )}
 
-              {type === 't' && (
+              {type === "t" && (
                 <div>
                   <div className={[cstyles.sublight].join(" ")}>Address type: Transparent</div>
                 </div>
@@ -126,37 +141,69 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 </button>
 
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-                  <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={() => Utils.openAddress(
-                    address_address, 
-                    currentWallet?.chain_name, 
-                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetAddress : blockExplorerTestnetAddress,
-                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? blockExplorerMainnetAddressCustom : blockExplorerTestnetAddressCustom,
-                  )}>
+                  <button
+                    className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                    type="button"
+                    onClick={() =>
+                      Utils.openAddress(
+                        address_address,
+                        currentWallet?.chain_name,
+                        currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                          ? blockExplorerMainnetAddress
+                          : blockExplorerTestnetAddress,
+                        currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                          ? blockExplorerMainnetAddressCustom
+                          : blockExplorerTestnetAddressCustom,
+                      )
+                    }
+                  >
                     View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                   </button>
                 )}
-                {type === 't' && totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
-                  <>
-                    <button className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")} type="button" onClick={handleShieldButton}>
-                      Shield Balance To Orchard (Fee: {shieldFee})
-                    </button>
-                  </>
-                )}
+                {type === "t" &&
+                  totalBalance.confirmedTransparentBalance >= shieldFee &&
+                  shieldFee > 0 &&
+                  !readOnly &&
+                  !anyPending && (
+                    <>
+                      <button
+                        className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                        type="button"
+                        onClick={handleShieldButton}
+                      >
+                        Shield Balance To Orchard (Fee: {shieldFee})
+                      </button>
+                    </>
+                  )}
               </div>
-              <div 
-                className={type === 'u' ? cstyles.margintoplarge : undefined}
-                style={{ borderWidth: type === 'u' ? 1: 0, borderStyle: 'solid', borderColor: Utils.getCssVariable('--color-primary'), paddingTop: 10, paddingBottom: 10 }}>
-                {type === 'u' && ( 
+              <div
+                className={type === "u" ? cstyles.margintoplarge : undefined}
+                style={{
+                  borderWidth: type === "u" ? 1 : 0,
+                  borderStyle: "solid",
+                  borderColor: Utils.getCssVariable("--color-primary"),
+                  paddingTop: 10,
+                  paddingBottom: 10,
+                }}
+              >
+                {type === "u" && (
                   <select
                     className={cstyles.inputbox}
                     style={{ marginLeft: 10 }}
                     value={unifiedCreateType}
                     onChange={(e) => {
-                      setUnifiedCreateType(e.target.value as 'o' | 'z' | 'oz');
-                    }}>
-                      <option key="o" value="o">Orchard</option>
-                      <option key="oz" value="oz">Orchard+Sapling</option>
-                      <option key="z" value="z">Sapling</option>
+                      setUnifiedCreateType(e.target.value as "o" | "z" | "oz");
+                    }}
+                  >
+                    <option key="o" value="o">
+                      Orchard
+                    </option>
+                    <option key="oz" value="oz">
+                      Orchard+Sapling
+                    </option>
+                    <option key="z" value="z">
+                      Sapling
+                    </option>
                   </select>
                 )}
                 <button
@@ -166,13 +213,13 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   onClick={async () => {
                     setCreating(true);
                     let result: string;
-                    if (type === 't') {
+                    if (type === "t") {
                       result = await RPC.createNewAddressTransparent();
                     } else {
-                      result = await RPC.createNewAddressUnified(unifiedCreateType)
+                      result = await RPC.createNewAddressUnified(unifiedCreateType);
                     }
-                    if (!result || result.toLowerCase().startsWith('error')) {
-                      openErrorModal("New Address", result ? result : "Error: creating a new address.")
+                    if (!result || result.toLowerCase().startsWith("error")) {
+                      openErrorModal("New Address", result ? result : "Error: creating a new address.");
                     }
                     setTimeout(() => setCreating(false), 5000);
                   }}
@@ -184,13 +231,29 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
             <div style={{ marginRight: 10 }}>
               {/* 
               // @ts-ignore */}
-              <QRCodeCanvas includeMargin={true} size={300} value={address_address} className={[styles.receiveQrcode].join(" ")} onClick={handleQRCodeClick} />
-              <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', opacity: 0.5 }}>{'Click to download'}</div>
+              <QRCodeCanvas
+                includeMargin={true}
+                size={300}
+                value={address_address}
+                className={[styles.receiveQrcode].join(" ")}
+                onClick={handleQRCodeClick}
+              />
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", opacity: 0.5 }}>
+                {"Click to download"}
+              </div>
             </div>
           </div>
         </AccordionItemPanel>
       </AccordionItem>
-      <div style={{ height: 1, width: '98%', backgroundColor: Utils.getCssVariable('--color-primary'), alignSelf: 'center', marginBottom: 10 }} />
+      <div
+        style={{
+          height: 1,
+          width: "98%",
+          backgroundColor: Utils.getCssVariable("--color-primary"),
+          alignSelf: "center",
+          marginBottom: 10,
+        }}
+      />
     </div>
   );
 };

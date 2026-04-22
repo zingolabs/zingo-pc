@@ -9,7 +9,9 @@ type SendConfirmModalToAddrProps = {
 };
 
 const SendConfirmModalToAddr = ({ toaddr, info }: SendConfirmModalToAddrProps) => {
-  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = Utils.splitZecAmountIntoBigSmall(toaddr.amount);
+  const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(
+    toaddr.amount,
+  );
 
   const memo: string = toaddr.memo ? toaddr.memo : "";
   const memoReplyTo: string = toaddr.memoReplyTo ? toaddr.memoReplyTo : "";
@@ -19,7 +21,9 @@ const SendConfirmModalToAddr = ({ toaddr, info }: SendConfirmModalToAddrProps) =
       <div className={[cstyles.flexspacebetween, cstyles.margintopsmall].join(" ")}>
         <div className={[styles.confirmModalAddress].join(" ")}>
           <div className={[cstyles.verticalflex].join(" ")}>
-            {toaddr.to.length < 80 ? toaddr.to : Utils.splitStringIntoChunks(toaddr.to, 3).map(item => <div key={item}>{item}</div>)}
+            {toaddr.to.length < 80
+              ? toaddr.to
+              : Utils.splitStringIntoChunks(toaddr.to, 3).map((item) => <div key={item}>{item}</div>)}
           </div>
         </div>
         <div className={[cstyles.verticalflex, cstyles.right].join(" ")}>
@@ -31,9 +35,7 @@ const SendConfirmModalToAddr = ({ toaddr, info }: SendConfirmModalToAddrProps) =
               <span className={[cstyles.small, styles.zecsmallpart].join(" ")}>{smallPart}</span>
             </div>
           </div>
-          {info.currencyName === 'ZEC' && (
-            <div>{Utils.getZecToUsdString(info.zecPrice, toaddr.amount)}</div>
-          )}
+          {info.currencyName === "ZEC" && <div>{Utils.getZecToUsdString(info.zecPrice, toaddr.amount)}</div>}
         </div>
       </div>
       <div className={[cstyles.sublight, cstyles.breakword, cstyles.memodiv].join(" ")}>{memo + memoReplyTo}</div>

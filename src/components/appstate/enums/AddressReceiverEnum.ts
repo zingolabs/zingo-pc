@@ -1,5 +1,5 @@
 export enum AddressReceiverEnum {
-    transparent = 'transparent',
-    sapling = 'sapling',
-    orchard = 'orchard',
+  transparent = "transparent",
+  sapling = "sapling",
+  orchard = "orchard",
 }

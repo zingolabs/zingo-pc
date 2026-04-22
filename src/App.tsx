@@ -2,7 +2,6 @@ import logo from "./assets/img/logobig.png";
 import "./App.css";
 
 function App() {
-
   return (
     <div className="App">
       <header className="App-header">

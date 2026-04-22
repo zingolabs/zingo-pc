@@ -4,14 +4,12 @@ import "./index.css";
 import reportWebVitals from "./reportWebVitals";
 import Root from "./root/Root";
 
-import './components/common/Global.css';
+import "./components/common/Global.css";
 
-const container = document.getElementById('root');
+const container = document.getElementById("root");
 const root = createRoot(container!);
 
-root.render(
-  <Root />
-);
+root.render(<Root />);
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

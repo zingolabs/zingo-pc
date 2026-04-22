@@ -1,10 +1,10 @@
 import React from "react";
 import ReactModal from "react-modal";
 import { Switch, Route, withRouter, RouteComponentProps } from "react-router";
-import { isEqual } from 'lodash';
+import { isEqual } from "lodash";
 import { ErrorModal } from "../components/errorModal";
 import cstyles from "../components/common/Common.module.css";
-import routes from "../constants/routes.json"; 
+import routes from "../constants/routes.json";
 import { Dashboard } from "../components/dashboard";
 import { Insight } from "../components/insight";
 import { Send, SendManyJsonType } from "../components/send";
@@ -37,7 +37,7 @@ import { Sidebar } from "../components/sideBar";
 import { History } from "../components/history";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 
-import native from "../native.node";
+import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
 import { ConfirmModal } from "../components/confirmModal";
 
@@ -67,7 +67,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       this.setFetchError,
       this.state.currentWallet,
     );
-  };
+  }
 
   componentDidMount = async () => {
     // Read the address book
@@ -127,51 +127,53 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setFetchError = (command: string, error: string) => {
-    console.log('=============== fetch error', command, error);
-    this.setState({ fetchError: {
-      command,
-      error,
-    } });
+    console.log("=============== fetch error", command, error);
+    this.setState({
+      fetchError: {
+        command,
+        error,
+      },
+    });
     setTimeout(() => {
-      this.setState({ fetchError: {} as FetchErrorTypeClass })
+      this.setState({ fetchError: {} as FetchErrorTypeClass });
     }, 5000);
   };
 
   setAddressesUnified = (addressesUnified: UnifiedAddressClass[]) => {
     if (!isEqual(addressesUnified, this.state.addressesUnified)) {
-      console.log('=============== addresses UA', addressesUnified.length);
+      console.log("=============== addresses UA", addressesUnified.length);
       this.setState({ addressesUnified });
     }
   };
 
   setAddressesTransparent = (addressesTransparent: TransparentAddressClass[]) => {
     if (!isEqual(addressesTransparent, this.state.addressesTransparent)) {
-      console.log('=============== addresses T', addressesTransparent.length);
+      console.log("=============== addresses T", addressesTransparent.length);
       this.setState({ addressesTransparent });
     }
   };
 
   setValueTransferList = (valueTransfers: ValueTransferClass[]) => {
     if (!isEqual(valueTransfers, this.state.valueTransfers)) {
-      console.log('=============== ValueTransfer list', valueTransfers.length);
+      console.log("=============== ValueTransfer list", valueTransfers.length);
       this.setState({ valueTransfers });
     }
   };
 
   setMessagesList = (messages: ValueTransferClass[]) => {
     if (!isEqual(messages, this.state.messages)) {
-      console.log('=============== ValueTransfer Messages list', messages.length);
+      console.log("=============== ValueTransfer Messages list", messages.length);
       this.setState({ messages });
     }
   };
 
   setSendPageState = (sendPageState: SendPageStateClass) => {
-    console.log('=============== send page state', sendPageState);
+    console.log("=============== send page state", sendPageState);
     this.setState({ sendPageState });
   };
 
   setSendTo = (target: ZcashURITarget): void => {
-    console.log('=============== send to', target);
+    console.log("=============== send to", target);
     // Clear the existing send page state and set up the new one
     const newSendPageState = new SendPageStateClass();
 
@@ -192,26 +194,26 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
   };
 
   setAddLabel = (ab: AddressBookEntryClass): void => {
-    console.log('=============== add label state', ab);
+    console.log("=============== add label state", ab);
     this.setState({ addLabelState: ab });
   };
 
   runRPCConfigure = () => {
-    console.log('=============== rpc configure');
-    
+    console.log("=============== rpc configure");
+
     this.rpc.configure();
   };
 
   setZecPrice = (price?: number) => {
-    console.log('=============== price', price);
+    console.log("=============== price", price);
     if (!!price && price !== this.state.info.zecPrice) {
       const { info } = this.state;
-  
+
       const newInfo = new InfoClass();
       Object.assign(newInfo, info);
       newInfo.zecPrice = price;
-  
-      this.setState({ info: newInfo });  
+
+      this.setState({ info: newInfo });
     }
   };
 
@@ -225,8 +227,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   setInfo = (newInfo: InfoClass) => {
     if (!isEqual(newInfo, this.state.info)) {
-      console.log('=============== info', newInfo);
-      // If the price is not set in this object, copy it over from the current object 
+      console.log("=============== info", newInfo);
+      // If the price is not set in this object, copy it over from the current object
       const { info } = this.state;
       if (!newInfo.zecPrice) {
         newInfo.zecPrice = info.zecPrice;
@@ -277,14 +279,14 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       saplingPool,
       transparentPool,
     });
-  }
+  };
 
   setVerificationProgress = (verificationProgress: number | null) => {
     this.setState({ verificationProgress });
   };
 
   setBlockExplorer = (blockExplorer: any) => {
-    this.setState({ 
+    this.setState({
       blockExplorerMainnetAddress: blockExplorer.blockExplorerMainnetAddress,
       blockExplorerMainnetAddressCustom: blockExplorer.blockExplorerMainnetAddressCustom,
       blockExplorerMainnetTransaction: blockExplorer.blockExplorerMainnetTransaction,
@@ -350,7 +352,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     try {
       const result: string = await native.shield();
       //console.log(result);
-      if (!result || result.toLowerCase().startsWith('error')) {
+      if (!result || result.toLowerCase().startsWith("error")) {
         return 0;
       } else {
         const resultJSON = JSON.parse(result);
@@ -366,15 +368,17 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       console.log(`Critical Error calculate shield fee ${error}`);
       return 0;
     }
-  }
+  };
 
   runRPCShieldTransparentBalanceToOrchard = async (): Promise<string> => {
     const result: string = await this.rpc.shieldTransparentBalanceToOrchard();
     return result;
-  }
+  };
 
   handleShieldButton = () => {
-    this.openConfirmModal("Shield Transparent Funds", "Please confirm the Action", () => this.handleShieldButtonConfirmed());
+    this.openConfirmModal("Shield Transparent Funds", "Please confirm the Action", () =>
+      this.handleShieldButtonConfirmed(),
+    );
   };
 
   handleShieldButtonConfirmed = () => {
@@ -386,64 +390,99 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
       try {
         const txidsResult: string = await this.runRPCShieldTransparentBalanceToOrchard();
 
-        if (!txidsResult || txidsResult.toLocaleLowerCase().startsWith('error')) {
+        if (!txidsResult || txidsResult.toLocaleLowerCase().startsWith("error")) {
           this.openErrorModal("Error Shielding Transaction", `${txidsResult}`);
-          return;  
+          return;
         } else {
-          const txids: string[] = txidsResult.split(', ');
+          const txids: string[] = txidsResult.split(", ");
           this.openErrorModal(
             "Successfully Broadcast Transaction",
-            <div style={{ display: 'flex', flexDirection: 'row', justifyContent: 'center', alignItems: 'center' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
-                <div>{(txids.length === 1 ? 'Transaction was' : 'Transactions were') + ' successfully broadcast.'}</div>
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "center", alignItems: "center" }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  marginRight: 10,
+                }}
+              >
+                <div>{(txids.length === 1 ? "Transaction was" : "Transactions were") + " successfully broadcast."}</div>
                 <div>{`TXID: ${txids[0]}`}</div>
-                {txids.length > 1 && (
-                  <div>{`TXID: ${txids[1]}`}</div>
-                )}
-                {txids.length > 2 && (
-                  <div>{`TXID: ${txids[2]}`}</div>
-                )}
+                {txids.length > 1 && <div>{`TXID: ${txids[1]}`}</div>}
+                {txids.length > 2 && <div>{`TXID: ${txids[2]}`}</div>}
               </div>
               {this.state.currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                  <div className={cstyles.primarybutton} onClick={() => Utils.openTxid(
-                    txids[0], 
-                    this.state.currentWallet?.chain_name, 
-                    this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransaction : this.state.blockExplorerTestnetTransaction,
-                    this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransactionCustom : this.state.blockExplorerTestnetTransactionCustom,
-                  )}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}
+                >
+                  <div
+                    className={cstyles.primarybutton}
+                    onClick={() =>
+                      Utils.openTxid(
+                        txids[0],
+                        this.state.currentWallet?.chain_name,
+                        this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                          ? this.state.blockExplorerMainnetTransaction
+                          : this.state.blockExplorerTestnetTransaction,
+                        this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                          ? this.state.blockExplorerMainnetTransactionCustom
+                          : this.state.blockExplorerTestnetTransactionCustom,
+                      )
+                    }
+                  >
                     View TXID &nbsp;
                     <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                   </div>
                   {txids.length > 1 && (
-                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(
-                      txids[1], 
-                      this.state.currentWallet?.chain_name, 
-                      this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransaction : this.state.blockExplorerTestnetTransaction,
-                      this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransactionCustom : this.state.blockExplorerTestnetTransactionCustom,
-                    )}>
+                    <div
+                      style={{ marginTop: 5 }}
+                      className={cstyles.primarybutton}
+                      onClick={() =>
+                        Utils.openTxid(
+                          txids[1],
+                          this.state.currentWallet?.chain_name,
+                          this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                            ? this.state.blockExplorerMainnetTransaction
+                            : this.state.blockExplorerTestnetTransaction,
+                          this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                            ? this.state.blockExplorerMainnetTransactionCustom
+                            : this.state.blockExplorerTestnetTransactionCustom,
+                        )
+                      }
+                    >
                       View TXID &nbsp;
                       <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                     </div>
                   )}
                   {txids.length > 2 && (
-                    <div style={{ marginTop: 5 }} className={cstyles.primarybutton} onClick={() => Utils.openTxid(
-                      txids[2], 
-                      this.state.currentWallet?.chain_name, 
-                      this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransaction : this.state.blockExplorerTestnetTransaction,
-                      this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName ? this.state.blockExplorerMainnetTransactionCustom : this.state.blockExplorerTestnetTransactionCustom,
-                    )}>
+                    <div
+                      style={{ marginTop: 5 }}
+                      className={cstyles.primarybutton}
+                      onClick={() =>
+                        Utils.openTxid(
+                          txids[2],
+                          this.state.currentWallet?.chain_name,
+                          this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                            ? this.state.blockExplorerMainnetTransaction
+                            : this.state.blockExplorerTestnetTransaction,
+                          this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                            ? this.state.blockExplorerMainnetTransactionCustom
+                            : this.state.blockExplorerTestnetTransactionCustom,
+                        )
+                      }
+                    >
                       View TXID &nbsp;
                       <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
                     </div>
                   )}
                 </div>
               )}
-            </div>
+            </div>,
           );
         }
       } catch (err) {
-        // If there was an error, show the error modal 
+        // If there was an error, show the error modal
         this.openErrorModal("Error Shielding Transaction", `${err}`);
       }
     }, 10);
@@ -451,22 +490,22 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
   navigateToDashboard = () => {
     this.props.history.replace({
-      pathname: routes.DASHBOARD, 
+      pathname: routes.DASHBOARD,
       state: {},
     });
   };
 
   navigateToHistory = () => {
     this.props.history.replace({
-      pathname: routes.HISTORY, 
+      pathname: routes.HISTORY,
       state: {},
     });
   };
 
   navigateToLoadingScreen = () => {
     this.props.history.replace({
-      pathname: routes.LOADING, 
-      state: { 
+      pathname: routes.LOADING,
+      state: {
         serverUris: this.state.serverUris,
       },
     });
@@ -477,16 +516,16 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     // and redirect to the loading screen
     this.setTotalBalance(new TotalBalanceClass());
     this.setAddressesUnified([]);
-    this.setAddressesTransparent([])
+    this.setAddressesTransparent([]);
     this.setValueTransferList([]);
     this.setMessagesList([]);
     this.setInfo(new InfoClass());
     this.setZecPrice(0);
     this.setSyncStatus({} as SyncStatusType);
     this.setVerificationProgress(null);
-    this.setFetchError('', '');
-    this.setCurrentWalletOpenError('');
-    
+    this.setFetchError("", "");
+    this.setCurrentWalletOpenError("");
+
     this.rpc.clearTimers();
 
     this.navigateToLoadingScreen();
@@ -539,12 +578,8 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
     return (
       <ContextAppProvider value={contextAppState}>
-        {this.state.confirmModal.modalIsOpen && (
-          <ConfirmModal closeModal={this.closeConfirmModal} /> 
-        )}
-        {this.state.errorModal.modalIsOpen && (
-          <ErrorModal closeModal={this.closeErrorModal} />
-        )}
+        {this.state.confirmModal.modalIsOpen && <ConfirmModal closeModal={this.closeConfirmModal} />}
+        {this.state.errorModal.modalIsOpen && <ErrorModal closeModal={this.closeErrorModal} />}
 
         <div style={{ overflow: "hidden" }}>
           {this.props.location.pathname !== "/" && !this.props.location.pathname.toLowerCase().includes("zingo") && (
@@ -562,18 +597,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
               <Route
                 path={routes.SEND}
                 render={() => (
-                  <Send
-                    sendTransaction={this.runRPCSendTransaction}
-                    setSendPageState={this.setSendPageState}
-                  />
+                  <Send sendTransaction={this.runRPCSendTransaction} setSendPageState={this.setSendPageState} />
                 )}
               />
-              <Route
-                path={routes.RECEIVE}
-                render={() => (
-                  <Receive />
-                )}
-              />
+              <Route path={routes.RECEIVE} render={() => <Receive />} />
               <Route
                 path={routes.ADDRESSBOOK}
                 render={() => (
@@ -583,32 +610,10 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
                   />
                 )}
               />
-              <Route
-                path={routes.DASHBOARD}
-                render={() => (
-                  <Dashboard 
-                    navigateToHistory={this.navigateToHistory}
-                  />
-                )}
-              />
-              <Route
-                path={routes.INSIGHT}
-                render={() => (
-                  <Insight />
-                )}
-              />
-              <Route
-                path={routes.HISTORY}
-                render={() => (
-                  <History />
-                )}
-              />
-              <Route
-                path={routes.MESSAGES}
-                render={() => (
-                  <Messages />
-                )}
-              />
+              <Route path={routes.DASHBOARD} render={() => <Dashboard navigateToHistory={this.navigateToHistory} />} />
+              <Route path={routes.INSIGHT} render={() => <Insight />} />
+              <Route path={routes.HISTORY} render={() => <History />} />
+              <Route path={routes.MESSAGES} render={() => <Messages />} />
 
               <Route
                 path={routes.ADDNEWWALLET}
@@ -651,7 +656,6 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     );
   }
 }
-
 
 // @ts-ignore
 export default withRouter(Routes);

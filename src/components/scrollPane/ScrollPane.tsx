@@ -4,14 +4,14 @@ type ScrollPaneTopProps = {
   children: React.ReactNode;
   className?: string;
   offsetHeight: number;
-  initialScrollType?: 'top' | 'bottom'
+  initialScrollType?: "top" | "bottom";
 };
 
-const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({ 
-  children, 
-  className, 
+const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
+  children,
+  className,
   offsetHeight,
-  initialScrollType = 'top',
+  initialScrollType = "top",
 }) => {
   const [height, setHeight] = useState<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -21,13 +21,13 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
     const updateHeight = window.innerHeight - offsetHeight;
     setHeight(updateHeight);
   }, [offsetHeight]);
-  
+
   useEffect(() => {
     updateDimensions();
-    window.addEventListener('resize', updateDimensions);
+    window.addEventListener("resize", updateDimensions);
 
     return () => {
-      window.removeEventListener('resize', updateDimensions);
+      window.removeEventListener("resize", updateDimensions);
     };
   }, [updateDimensions]);
 
@@ -35,7 +35,7 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
     if (isInitialLoad.current && containerRef.current) {
       const scrollToBottom = () => {
         if (containerRef.current) {
-          containerRef.current.scrollTop = initialScrollType === 'top' ? 0 : containerRef.current.scrollHeight;
+          containerRef.current.scrollTop = initialScrollType === "top" ? 0 : containerRef.current.scrollHeight;
           isInitialLoad.current = false;
         }
       };
@@ -49,15 +49,10 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
   //console.log('scroll pane', isInitialLoad.current, containerRef.current);
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      style={{ overflowY: "auto", overflowX: "hidden", height }}
-    >
+    <div ref={containerRef} className={className} style={{ overflowY: "auto", overflowX: "hidden", height }}>
       {children}
     </div>
   );
 };
 
 export default ScrollPaneTop;
-

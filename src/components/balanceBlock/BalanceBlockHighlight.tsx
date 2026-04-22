@@ -3,19 +3,18 @@ import Utils from "../../utils/utils";
 import BalanceBlockProps from "./components/BalanceBlockProps";
 import { ValueTransferStatusEnum } from "../appstate";
 
-const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({ 
-  zecValue, 
-  zecValueConfirmed, 
-  usdValue, 
-  usdValueConfirmed, 
-  currencyName, 
+const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
+  zecValue,
+  zecValueConfirmed,
+  usdValue,
+  usdValueConfirmed,
+  currencyName,
   status,
-  topLabel, 
+  topLabel,
   tooltip,
 }) => {
-  const { bigPart, smallPart }: {bigPart: string, smallPart: string} = 
-    Utils.splitZecAmountIntoBigSmall(zecValue);
-  const { bigPart: bigPartConfirmed, smallPart: smallPartConfirmed }: {bigPart: string, smallPart: string} = 
+  const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(zecValue);
+  const { bigPart: bigPartConfirmed, smallPart: smallPartConfirmed }: { bigPart: string; smallPart: string } =
     Utils.splitZecAmountIntoBigSmall(zecValueConfirmed ? zecValueConfirmed : 0);
 
   return (
@@ -33,27 +32,64 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
       )}
 
       <div className={[cstyles.highlight, cstyles.xlarge].join(" ")}>
-        <span style={{ color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable('--color-error') : undefined }}>
+        <span
+          style={{
+            color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+          }}
+        >
           {currencyName} {bigPart}
         </span>
-        <span style={{ color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable('--color-error') : undefined }} className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
+        <span
+          style={{
+            color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+          }}
+          className={[cstyles.small, cstyles.zecsmallpart].join(" ")}
+        >
+          {smallPart}
+        </span>
       </div>
-      {currencyName === 'ZEC' && (
-        <div style={{ color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable('--color-error') : undefined }} className={[cstyles.sublight, cstyles.small].join(" ")}>{usdValue}</div>
+      {currencyName === "ZEC" && (
+        <div
+          style={{
+            color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+          }}
+          className={[cstyles.sublight, cstyles.small].join(" ")}
+        >
+          {usdValue}
+        </div>
       )}
 
       {zecValueConfirmed !== undefined && zecValue !== zecValueConfirmed && (
         <>
-          <div className={[cstyles.small].join(" ")}>{topLabel + ' Confirmed'}</div>
+          <div className={[cstyles.small].join(" ")}>{topLabel + " Confirmed"}</div>
           <div className={cstyles.horizontalflex}>
             <div className={[cstyles.highlight, cstyles.small].join(" ")}>
-              <span style={{ color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable('--color-error') : undefined }}>
+              <span
+                style={{
+                  color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                }}
+              >
                 {currencyName} {bigPartConfirmed}
               </span>
-              <span style={{ color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable('--color-error') : undefined }} className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPartConfirmed}</span>
+              <span
+                style={{
+                  color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                }}
+                className={[cstyles.small, cstyles.zecsmallpart].join(" ")}
+              >
+                {smallPartConfirmed}
+              </span>
             </div>
-            {currencyName === 'ZEC' && (
-              <div style={{ color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable('--color-error') : undefined, marginLeft: 5 }} className={[cstyles.sublight, cstyles.small].join(" ")}>{usdValueConfirmed}</div>
+            {currencyName === "ZEC" && (
+              <div
+                style={{
+                  color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                  marginLeft: 5,
+                }}
+                className={[cstyles.sublight, cstyles.small].join(" ")}
+              >
+                {usdValueConfirmed}
+              </div>
             )}
           </div>
         </>

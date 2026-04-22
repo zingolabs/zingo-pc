@@ -1,5 +1,5 @@
 export enum ServerChainNameEnum {
-  mainChainName = 'main',
-  testChainName = 'test',
-  regtestChainName = 'regtest',
+  mainChainName = "main",
+  testChainName = "test",
+  regtestChainName = "regtest",
 }

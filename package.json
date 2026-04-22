@@ -51,6 +51,7 @@
   "scripts": {
     "postinstall": "node set-resolutions-macos.js && electron-builder install-app-deps",
     "lint": "cross-env NODE_ENV=production eslint . --fix --ext .js,.jsx,.ts,.tsx",
+    "prettier": "prettier './**/*.{js,jsx,ts,tsx}' -w",
     "start": "cross-env RUST_BACKTRACE=1 ELECTRON_ENABLE_LOGGING=1 NODE_OPTIONS=--trace-uncaught concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
     "script:build": "cross-env NODE_OPTIONS=--openssl-legacy-provider node scripts/build.js",
     "cargo:clean": "cd native && cargo clean && cd ..",
@@ -179,6 +180,7 @@
     "postcss-normalize": "8.0.1",
     "postcss-preset-env": "6.7.0",
     "postcss-safe-parser": "5.0.2",
+    "prettier": "^3.8.3",
     "prompts": "2.4.0",
     "react-dev-utils": "^11.0.3",
     "react-refresh": "^0.8.3",

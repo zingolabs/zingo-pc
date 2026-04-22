@@ -3,15 +3,20 @@ import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Receive.module.css";
 import cstyles from "../common/Common.module.css";
-import { AddressBookEntryClass, AddressScopeEnum, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../appstate";
+import {
+  AddressBookEntryClass,
+  AddressScopeEnum,
+  TransparentAddressClass,
+  UnifiedAddressClass,
+  ValueTransferClass,
+} from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
 
-type ReceiveProps = {
-};
+type ReceiveProps = {};
 
 const Receive: React.FC<ReceiveProps> = () => {
   const context = useContext(ContextApp);
@@ -32,21 +37,23 @@ const Receive: React.FC<ReceiveProps> = () => {
   } = context;
 
   const [uaddrs, setUaddrs] = useState<UnifiedAddressClass[]>([]);
-  const [defaultUaddr, setDefaultUaddr] = useState<string>('')
+  const [defaultUaddr, setDefaultUaddr] = useState<string>("");
   const [taddrs, setTaddrs] = useState<TransparentAddressClass[]>([]);
-  const [defaultTaddr, setDefaultTaddr] = useState<string>('')
+  const [defaultTaddr, setDefaultTaddr] = useState<string>("");
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
-  
+
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
     const pending: number =
-      valueTransfers.length > 0 ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length : 0;
+      valueTransfers.length > 0
+        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
+        : 0;
     setAnyPending(pending > 0);
   }, [valueTransfers]);
-    
+
   useEffect(() => {
     // with confirmed transparent funds & no readonly wallet
     if (totalBalance.confirmedTransparentBalance > 0 && !readOnly && !anyPending) {
@@ -54,8 +61,7 @@ const Receive: React.FC<ReceiveProps> = () => {
         setShieldFee(await calculateShieldFee());
       })();
     }
-  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]); 
-  
+  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   useEffect(() => {
     const _uaddrs: UnifiedAddressClass[] = [...addressesUnified].reverse();
@@ -63,9 +69,11 @@ const Receive: React.FC<ReceiveProps> = () => {
     setUaddrs(_uaddrs);
     setDefaultUaddr(_defaultUaddr);
   }, [addressesUnified]);
-  
+
   useEffect(() => {
-    const _taddrs: TransparentAddressClass[] = [...addressesTransparent.filter((t: TransparentAddressClass) => t.scope === AddressScopeEnum.external)].reverse();
+    const _taddrs: TransparentAddressClass[] = [
+      ...addressesTransparent.filter((t: TransparentAddressClass) => t.scope === AddressScopeEnum.external),
+    ].reverse();
     let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[0].encoded_address : "";
     setTaddrs(_taddrs);
     setDefaultTaddr(_defaultTaddr);
@@ -87,11 +95,27 @@ const Receive: React.FC<ReceiveProps> = () => {
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance)}
+            zecValue={
+              totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance
+            }
+            usdValue={Utils.getZecToUsdString(
+              info.zecPrice,
+              totalBalance.totalOrchardBalance +
+                totalBalance.totalSaplingBalance +
+                totalBalance.totalTransparentBalance,
+            )}
             currencyName={info.currencyName}
-            zecValueConfirmed={totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance}
-            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance + totalBalance.confirmedTransparentBalance)}            
+            zecValueConfirmed={
+              totalBalance.confirmedOrchardBalance +
+              totalBalance.confirmedSaplingBalance +
+              totalBalance.confirmedTransparentBalance
+            }
+            usdValueConfirmed={Utils.getZecToUsdString(
+              info.zecPrice,
+              totalBalance.confirmedOrchardBalance +
+                totalBalance.confirmedSaplingBalance +
+                totalBalance.confirmedTransparentBalance,
+            )}
           />
           {orchardPool && (
             <BalanceBlock
@@ -125,7 +149,7 @@ const Receive: React.FC<ReceiveProps> = () => {
           )}
         </div>
         <div className={cstyles.balancebox}>
-          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending &&  (
+          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
             <>
               <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
@@ -141,8 +165,8 @@ const Receive: React.FC<ReceiveProps> = () => {
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable('--color-error') }}>
-              {fetchError.command + ': ' + fetchError.error}
+            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable("--color-error") }}>
+              {fetchError.command + ": " + fetchError.error}
             </div>
           </>
         )}
@@ -164,14 +188,14 @@ const Receive: React.FC<ReceiveProps> = () => {
                       address={a}
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.encoded_address)}
-                      type={'u'}
+                      type={"u"}
                     />
                   ))}
                 </Accordion>
               </ScrollPaneTop>
             )}
           </TabPanel>
-  
+
           <TabPanel>
             {transparentPool && !!taddrs && taddrs.length > 0 && (
               <ScrollPaneTop offsetHeight={180}>
@@ -182,7 +206,7 @@ const Receive: React.FC<ReceiveProps> = () => {
                       address={a}
                       currencyName={info.currencyName}
                       label={addressBookMap.get(a.encoded_address)}
-                      type={'t'}
+                      type={"t"}
                       calculateShieldFee={calculateShieldFee}
                       handleShieldButton={handleShieldButton}
                     />

@@ -5,7 +5,7 @@ import cstyles from "../common/Common.module.css";
 import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
-import AddressBookItem from './components/AddressbookItem';
+import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
 
 type AddressBookProps = {
@@ -13,7 +13,7 @@ type AddressBookProps = {
   removeAddressBookEntry: (label: string) => void;
 };
 
-const AddressBook: React.FC<AddressBookProps> = (props) => { 
+const AddressBook: React.FC<AddressBookProps> = (props) => {
   const context = useContext(ContextApp);
   const { addressBook, currentWallet, addLabelState, setAddLabel } = context;
 
@@ -32,17 +32,19 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       setLabelError(_labelError);
       setAddressError(_addressError);
       setAddressKind(_addressKind);
-      setAddButtonEnabled(!_labelError && !_addressError && currentLabel !== "" && currentAddress !== ""); 
+      setAddButtonEnabled(!_labelError && !_addressError && currentLabel !== "" && currentAddress !== "");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentLabel, currentAddress])
+  }, [currentLabel, currentAddress]);
 
   useEffect(() => {
-    setAddressBookSorted(addressBook.sort((a, b) => {
-      const aLabel = a.label;
-      const bLabel = b.label;
-      return aLabel.localeCompare(bLabel);
-    }))
+    setAddressBookSorted(
+      addressBook.sort((a, b) => {
+        const aLabel = a.label;
+        const bLabel = b.label;
+        return aLabel.localeCompare(bLabel);
+      }),
+    );
   }, [addressBook]);
 
   const updateLabel = (_currentLabel: string) => {
@@ -61,30 +63,37 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   };
 
   const validateLabel = (_currentLabel: string) => {
-    let _labelError: string | null = addressBook.find((i: AddressBookEntryClass) => i.label === _currentLabel) ? "Duplicate Label" : null;
+    let _labelError: string | null = addressBook.find((i: AddressBookEntryClass) => i.label === _currentLabel)
+      ? "Duplicate Label"
+      : null;
     _labelError = _currentLabel.length > 20 ? "Label is too long" : _labelError;
 
     return { _labelError };
   };
 
   const validateAddress = async (_currentAddress: string) => {
-    const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(_currentAddress, currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName);
-    let _addressError: string | null = _currentAddress === "" || _addressKind !== undefined ? null : 'Invalid Address';
+    const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(
+      _currentAddress,
+      currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName,
+    );
+    let _addressError: string | null = _currentAddress === "" || _addressKind !== undefined ? null : "Invalid Address";
     if (!_addressError) {
-      _addressError = addressBook.find((i: AddressBookEntryClass) => i.address === _currentAddress) ? 'Duplicate Address' : null;
+      _addressError = addressBook.find((i: AddressBookEntryClass) => i.address === _currentAddress)
+        ? "Duplicate Address"
+        : null;
     }
 
     return { _addressError, _addressKind };
   };
 
   const clearFields = () => {
-    setCurrentLabel('');
-    setCurrentAddress('');
+    setCurrentLabel("");
+    setCurrentAddress("");
     setAddButtonEnabled(false);
     setLabelError(null);
     setAddressError(null);
     setAddressKind(undefined);
-    setAddLabel(new AddressBookEntryClass('', ''));
+    setAddLabel(new AddressBookEntryClass("", ""));
   };
 
   return (
@@ -115,10 +124,10 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           <div className={[cstyles.flexspacebetween].join(" ")}>
             <div className={cstyles.sublight}>Address</div>
             <div className={[cstyles.sublight, cstyles.green].join(" ")}>
-              {addressKind !== undefined && addressKind === AddressKindEnum.tex && 'TEX'}
-              {addressKind !== undefined && addressKind === AddressKindEnum.transparent && 'Transparent'}
-              {addressKind !== undefined && addressKind === AddressKindEnum.sapling && 'Sapling'}
-              {addressKind !== undefined && addressKind === AddressKindEnum.unified && 'Unified'}
+              {addressKind !== undefined && addressKind === AddressKindEnum.tex && "TEX"}
+              {addressKind !== undefined && addressKind === AddressKindEnum.transparent && "Transparent"}
+              {addressKind !== undefined && addressKind === AddressKindEnum.sapling && "Sapling"}
+              {addressKind !== undefined && addressKind === AddressKindEnum.unified && "Unified"}
             </div>
             <div className={cstyles.validationerror}>
               {!addressError ? (
@@ -153,7 +162,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </button>
         </div>
 
-        {addressBookSorted && addressBookSorted.length > 0 && ( 
+        {addressBookSorted && addressBookSorted.length > 0 && (
           <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
             <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>
             <div style={{ marginRight: 100, marginBottom: 15 }}>Address</div>
@@ -165,11 +174,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
             {addressBookSorted && addressBookSorted.length > 0 && (
               <Accordion>
                 {addressBook.map((item: AddressBookEntryClass) => (
-                  <AddressBookItem
-                    key={item.label}
-                    item={item}
-                    removeAddressBookEntry={props.removeAddressBookEntry}
-                  />
+                  <AddressBookItem key={item.label} item={item} removeAddressBookEntry={props.removeAddressBookEntry} />
                 ))}
               </Accordion>
             )}

@@ -1,5 +1,3 @@
-
-
 const fs = require("fs");
 const path = require("path");
 const paths = require("./paths");
@@ -33,7 +31,7 @@ dotenvFiles.forEach((dotenvFile) => {
     require("dotenv-expand")(
       require("dotenv").config({
         path: dotenvFile,
-      })
+      }),
     );
   }
 });
@@ -88,7 +86,7 @@ function getClientEnvironment(publicUrl) {
         // which is why it's disabled by default.
         // It is defined here so it is available in the webpackHotDevClient.
         FAST_REFRESH: process.env.FAST_REFRESH !== "false",
-      }
+      },
     );
   // Stringify all values so we can feed into webpack DefinePlugin
   const stringified = {

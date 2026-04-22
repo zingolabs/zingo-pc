@@ -1,61 +1,62 @@
-import { AddressKindEnum, BlockExplorerEnum, UnifiedAddressClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../components/appstate";
-import randomColor from 'randomcolor';
+import {
+  AddressKindEnum,
+  BlockExplorerEnum,
+  UnifiedAddressClass,
+  ValueTransferKindEnum,
+  ValueTransferStatusEnum,
+} from "../components/appstate";
+import randomColor from "randomcolor";
 
-import native from "../native.node";
+import { native, shell } from "../electronBridge";
 import { ServerChainNameEnum } from "../components/appstate";
 
 export const NO_CONNECTION: string = "Could not connect to the Server";
 
-const { shell } = window.require("electron"); 
-
 export default class Utils {
-
   // recover the var from the Global CSS.
   static getCssVariable(variableName: string): string {
     return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
-  };
+  }
 
   static VTTypeWithConfirmations(
-    type: ValueTransferKindEnum | "", 
+    type: ValueTransferKindEnum | "",
     status: ValueTransferStatusEnum | "",
-    confirmations:number,
+    confirmations: number,
   ): string {
-    return status === ValueTransferStatusEnum.failed &&
-      type === ValueTransferKindEnum.sent
-      ? 'Send'
-      : status === ValueTransferStatusEnum.failed &&
-        type === ValueTransferKindEnum.shield
-      ? 'Shield'
-      : type === ValueTransferKindEnum.sent && confirmations === 0
-      ? '...Sending...'
-      : type === ValueTransferKindEnum.sent && confirmations > 0
-      ? 'Sent'
-      : type === ValueTransferKindEnum.received && confirmations === 0
-      ? '...Receiving...'
-      : type === ValueTransferKindEnum.received && confirmations > 0
-      ? 'Received'
-      : type === ValueTransferKindEnum.memoToSelf && confirmations === 0
-      ? '...Sending to self...'
-      : type === ValueTransferKindEnum.memoToSelf && confirmations > 0
-      ? 'Memo to self'
-      : type === ValueTransferKindEnum.sendToSelf && confirmations === 0
-      ? '...Sending to self...'
-      : type === ValueTransferKindEnum.sendToSelf && confirmations > 0
-      ? 'Send to self'
-      : type === ValueTransferKindEnum.shield && confirmations === 0
-      ? '...Shielding...'
-      : type === ValueTransferKindEnum.shield && confirmations > 0
-      ? 'Shield'
-      : type === ValueTransferKindEnum.rejection && confirmations === 0
-      ? '...Sending...'
-      : type === ValueTransferKindEnum.rejection && confirmations > 0
-      ? 'Rejection'
-      : ''; 
+    return status === ValueTransferStatusEnum.failed && type === ValueTransferKindEnum.sent
+      ? "Send"
+      : status === ValueTransferStatusEnum.failed && type === ValueTransferKindEnum.shield
+        ? "Shield"
+        : type === ValueTransferKindEnum.sent && confirmations === 0
+          ? "...Sending..."
+          : type === ValueTransferKindEnum.sent && confirmations > 0
+            ? "Sent"
+            : type === ValueTransferKindEnum.received && confirmations === 0
+              ? "...Receiving..."
+              : type === ValueTransferKindEnum.received && confirmations > 0
+                ? "Received"
+                : type === ValueTransferKindEnum.memoToSelf && confirmations === 0
+                  ? "...Sending to self..."
+                  : type === ValueTransferKindEnum.memoToSelf && confirmations > 0
+                    ? "Memo to self"
+                    : type === ValueTransferKindEnum.sendToSelf && confirmations === 0
+                      ? "...Sending to self..."
+                      : type === ValueTransferKindEnum.sendToSelf && confirmations > 0
+                        ? "Send to self"
+                        : type === ValueTransferKindEnum.shield && confirmations === 0
+                          ? "...Shielding..."
+                          : type === ValueTransferKindEnum.shield && confirmations > 0
+                            ? "Shield"
+                            : type === ValueTransferKindEnum.rejection && confirmations === 0
+                              ? "...Sending..."
+                              : type === ValueTransferKindEnum.rejection && confirmations > 0
+                                ? "Rejection"
+                                : "";
   }
 
   static trimToSmall(addr?: string, numChars?: number): string {
     if (!addr) {
-      return '';
+      return "";
     }
     const trimSize: number = numChars || 5;
     return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
@@ -65,7 +66,7 @@ export default class Utils {
     if (!addr) return;
     try {
       const resultParse: string = await native.parse_address(addr);
-      if (!resultParse || resultParse.toLowerCase().startsWith('error')) {
+      if (!resultParse || resultParse.toLowerCase().startsWith("error")) {
         return;
       }
 
@@ -73,14 +74,14 @@ export default class Utils {
       try {
         resultParseJSON = await JSON.parse(resultParse);
       } catch (error) {
-        console.log('parse-address', error);
+        console.log("parse-address", error);
         return;
       }
 
       if (
-        resultParseJSON && 
-        resultParseJSON.status && 
-        resultParseJSON.status === "success" && 
+        resultParseJSON &&
+        resultParseJSON.status &&
+        resultParseJSON.status === "success" &&
         resultParseJSON.chain_name &&
         resultParseJSON.chain_name === currChain
       ) {
@@ -160,11 +161,11 @@ export default class Utils {
   static getReceivers(addr: UnifiedAddressClass): string[] {
     let receivers: string[] = [];
 
-    if(addr.has_orchard) receivers.push("Orchard");
-    if(addr.has_sapling) receivers.push("Sapling");
-    if(addr.has_transparent) receivers.push("Transparent");
-    
-    return receivers; 
+    if (addr.has_orchard) receivers.push("Orchard");
+    if (addr.has_sapling) receivers.push("Sapling");
+    if (addr.has_transparent) receivers.push("Transparent");
+
+    return receivers;
   }
 
   static splitStringIntoChunks(s: string, numChunks: number) {
@@ -209,7 +210,7 @@ export default class Utils {
       return "USD --";
     }
 
-    if ((price * zecValue) < 0.01) {
+    if (price * zecValue < 0.01) {
       return "USD < 0.01";
     }
 
@@ -249,8 +250,8 @@ export default class Utils {
 
     for (let i = 0; i < numColors; i++) {
       const color = randomColor({
-        luminosity: 'bright', // Define la luminosidad de los colores generados
-        format: 'hex', // Formato de color en hexadecimal
+        luminosity: "bright", // Define la luminosidad de los colores generados
+        format: "hex", // Formato de color en hexadecimal
       });
 
       colorList.push(color);
@@ -259,7 +260,12 @@ export default class Utils {
     return colorList;
   }
 
-  static openTxid = (txid: string, chainName: ServerChainNameEnum | undefined, blockExplorer: BlockExplorerEnum, blockExplorerCustom: string) => {
+  static openTxid = (
+    txid: string,
+    chainName: ServerChainNameEnum | undefined,
+    blockExplorer: BlockExplorerEnum,
+    blockExplorerCustom: string,
+  ) => {
     if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
       if (chainName === ServerChainNameEnum.testChainName) {
         shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
@@ -281,9 +287,14 @@ export default class Utils {
     } else if (blockExplorer === BlockExplorerEnum.Custom) {
       shell.openExternal(`${blockExplorerCustom}${txid}`);
     }
-  }
+  };
 
-  static openAddress = (address: string, chainName: ServerChainNameEnum | undefined, blockExplorer: BlockExplorerEnum, blockExplorerCustom: string) => {
+  static openAddress = (
+    address: string,
+    chainName: ServerChainNameEnum | undefined,
+    blockExplorer: BlockExplorerEnum,
+    blockExplorerCustom: string,
+  ) => {
     if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
       if (chainName === ServerChainNameEnum.testChainName) {
         shell.openExternal(`https://testnet.zcashexplorer.app/search?qs=${address}`);
@@ -305,6 +316,5 @@ export default class Utils {
     } else if (blockExplorer === BlockExplorerEnum.Custom) {
       shell.openExternal(`${blockExplorerCustom}${address}`);
     }
-  }
-
+  };
 }
