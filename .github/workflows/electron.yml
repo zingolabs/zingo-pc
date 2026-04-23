@@ -2,8 +2,11 @@ name: Electron CD
 
 on:
   push:
-    branches:
-      - release
+    tags:
+      - 'zingo-pc-*'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -93,14 +96,6 @@ jobs:
         if: matrix.platform == 'win'
         run: yarn ${{ matrix.dist_script }}
 
-      - name: Get version (Unix)
-        if: matrix.platform != 'win'
-        run: ./bin/printversion.sh
-
-      - name: Get version (Windows)
-        if: matrix.platform == 'win'
-        run: ./bin/printversion.ps1
-
       - name: Upload artifacts (Linux)
         uses: actions/upload-artifact@v4
         if: matrix.platform == 'linux'
@@ -126,3 +121,18 @@ jobs:
             dist/*.msi
             dist/*.zip
 
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: artifacts/**/*
