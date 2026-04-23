@@ -2,15 +2,11 @@ const fs = require("fs");
 const electron_notarize = require("@electron/notarize");
 
 module.exports = async function (params) {
-  // Only notarize the app on Mac OS only.
   if (process.platform !== "darwin") {
     return;
   }
-  //console.log('afterSign hook triggered', params);
 
-  // Same appId in electron-builder.
   const appId = "co.zingo.pc";
-
   const appPath = params.artifactPaths.find((p) => p.endsWith(".dmg"));
 
   if (!fs.existsSync(appPath)) {
@@ -23,8 +19,9 @@ module.exports = async function (params) {
     await electron_notarize.notarize({
       appBundleId: appId,
       appPath,
-      appleId: "juanky@zingolabs.org",
-      appleIdPassword: "vdmd-**************",
+      appleId: process.env.APPLE_ID,
+      appleIdPassword: process.env.APPLE_ID_PASSWORD,
+      teamId: process.env.APPLE_TEAM_ID,
     });
   } catch (error) {
     console.error(error);
