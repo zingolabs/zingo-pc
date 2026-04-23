@@ -188,6 +188,8 @@ module.exports = function (webpackEnv) {
           paths.appPackageJson,
           paths.swSrc,
           require.resolve("@babel/runtime/package.json"),
+          require.resolve("path-browserify/package.json"),
+          require.resolve("events/package.json"),
         ]),
       ],
       // webpack 5 stopped auto-polyfilling Node.js built-ins.
