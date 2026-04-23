@@ -69,17 +69,11 @@ jobs:
       - name: yarn install
         run: yarn install
 
-      - name: Decode macOS certificate
-        if: matrix.platform == 'mac'
-        env:
-          p12base64: ${{ secrets.p12cert }}
-        run: echo "$p12base64" | openssl base64 -d -out cert.p12
-
       - name: Import macOS certificate
         if: matrix.platform == 'mac'
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-filepath: "cert.p12"
+          p12-file-base64: ${{ secrets.p12cert }}
           p12-password: ${{ secrets.p12certpassword }}
 
       - name: Build (Linux)
