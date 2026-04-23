@@ -1,125 +1,114 @@
-// Do this as the first thing so that any code reading it knows the right env.
 process.env.BABEL_ENV = "development";
 process.env.NODE_ENV = "development";
 
-// Makes the script crash on unhandled rejections instead of silently
-// ignoring them. In the future, promise rejections that are not handled will
-// terminate the Node.js process with a non-zero exit code.
 process.on("unhandledRejection", (err) => {
   throw err;
 });
 
-// Ensure environment variables are read.
 require("../config/env");
 
 const fs = require("fs");
-const chalk = require("react-dev-utils/chalk");
+const net = require("net");
+const chalk = require("chalk");
 const webpack = require("webpack");
 const WebpackDevServer = require("webpack-dev-server");
-const clearConsole = require("react-dev-utils/clearConsole");
-const checkRequiredFiles = require("react-dev-utils/checkRequiredFiles");
-const { choosePort, createCompiler, prepareProxy, prepareUrls } = require("react-dev-utils/WebpackDevServerUtils");
-const openBrowser = require("react-dev-utils/openBrowser");
 const semver = require("semver");
 const paths = require("../config/paths");
 const configFactory = require("../config/webpack.config");
 const createDevServerConfig = require("../config/webpackDevServer.config");
-const getClientEnvironment = require("../config/env");
 const react = require(require.resolve("react", { paths: [paths.appPath] }));
-
-const env = getClientEnvironment(paths.publicUrlOrPath.slice(0, -1));
-const useYarn = fs.existsSync(paths.yarnLockFile);
-const isInteractive = process.stdout.isTTY;
-
-// Warn and crash if required files are missing
-if (!checkRequiredFiles([paths.appHtml, paths.appIndexJs])) {
-  process.exit(1);
-}
 
 const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 3000;
 const HOST = process.env.HOST || "0.0.0.0";
 
-if (process.env.HOST) {
-  console.log(
-    chalk.cyan(`Attempting to bind to HOST environment variable: ${chalk.yellow(chalk.bold(process.env.HOST))}`),
-  );
-  console.log(`If this was unintentional, check that you haven't mistakenly set it in your shell.`);
-  console.log(`Learn more here: ${chalk.yellow("https://cra.link/advanced-config")}`);
-  console.log();
+// Check that entry files exist
+[paths.appHtml, paths.appIndexJs].forEach((filePath) => {
+  if (!fs.existsSync(filePath)) {
+    console.error(chalk.red(`Could not find a required file: ${filePath}`));
+    process.exit(1);
+  }
+});
+
+// Find an available port starting from the requested one
+function findPort(host, port) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.listen(port, host);
+    server.on("listening", () => server.close(() => resolve(port)));
+    server.on("error", (err) => {
+      if (err.code === "EADDRINUSE") {
+        console.log(chalk.yellow(`Port ${port} is already in use, trying ${port + 1}...`));
+        resolve(findPort(host, port + 1));
+      } else {
+        reject(err);
+      }
+    });
+  });
 }
 
-// We require that you explicitly set browsers and do not fall back to
-// browserslist defaults.
-const { checkBrowsers } = require("react-dev-utils/browsersHelper");
-checkBrowsers(paths.appPath, isInteractive)
-  .then(() => {
-    return choosePort(HOST, DEFAULT_PORT);
-  })
+findPort(HOST, DEFAULT_PORT)
   .then((port) => {
-    if (port == null) {
-      return;
-    }
-
     const config = configFactory("development");
     const protocol = process.env.HTTPS === "true" ? "https" : "http";
-    const appName = require(paths.appPackageJson).name;
+    const localUrl = `${protocol}://localhost:${port}`;
 
-    const useTypeScript = fs.existsSync(paths.appTsConfig);
-    const tscCompileOnError = process.env.TSC_COMPILE_ON_ERROR === "true";
-    const urls = prepareUrls(protocol, HOST, port, paths.publicUrlOrPath.slice(0, -1));
+    const compiler = webpack(config);
 
-    const compiler = createCompiler({
-      appName,
-      config,
-      urls,
-      useYarn,
-      useTypeScript,
-      tscCompileOnError,
-      webpack,
+    compiler.hooks.done.tap("start", (stats) => {
+      const json = stats.toJson({ all: false, warnings: true, errors: true });
+      process.stdout.write("\x1Bc"); // clear console
+      if (json.errors && json.errors.length) {
+        console.log(chalk.red("Failed to compile.\n"));
+        json.errors.forEach((e) => console.log((e.message || e) + "\n"));
+      } else if (json.warnings && json.warnings.length) {
+        console.log(chalk.yellow("Compiled with warnings.\n"));
+        json.warnings.forEach((w) => console.log((w.message || w) + "\n"));
+        console.log(`\nApp running at: ${chalk.cyan(localUrl)}\n`);
+      } else {
+        console.log(chalk.green("Compiled successfully!\n"));
+        console.log(`App running at: ${chalk.cyan(localUrl)}\n`);
+      }
+
+      if (semver.lt(react.version, "16.10.0") && process.env.FAST_REFRESH) {
+        console.log(chalk.yellow(`Fast Refresh requires React 16.10+. You are using ${react.version}.`));
+      }
     });
 
     const proxySetting = require(paths.appPackageJson).proxy;
-    const proxyConfig = prepareProxy(proxySetting, paths.appPublic, paths.publicUrlOrPath);
-
     const serverConfig = {
-      ...createDevServerConfig(proxyConfig, urls.lanUrlForConfig),
+      ...createDevServerConfig(proxySetting, "localhost"),
       host: HOST,
       port,
     };
 
-    // WDS v5: (options, compiler) — args are swapped from v3
     const devServer = new WebpackDevServer(serverConfig, compiler);
 
     devServer.startCallback(() => {
-      if (isInteractive) {
-        clearConsole();
-      }
-
-      if (env.raw.FAST_REFRESH && semver.lt(react.version, "16.10.0")) {
-        console.log(chalk.yellow(`Fast Refresh requires React 16.10 or higher. You are using React ${react.version}.`));
-      }
-
       console.log(chalk.cyan("Starting the development server...\n"));
-      openBrowser(urls.localUrlForBrowser);
+
+      // Respect BROWSER=none (set by the Electron start script)
+      if (process.env.BROWSER !== "none") {
+        try {
+          require("open")(localUrl);
+        } catch (_) {}
+      }
     });
 
-    ["SIGINT", "SIGTERM"].forEach(function (sig) {
-      process.on(sig, function () {
+    ["SIGINT", "SIGTERM"].forEach((sig) => {
+      process.on(sig, () => {
         devServer.stop();
         process.exit();
       });
     });
 
     if (process.env.CI !== "true") {
-      process.stdin.on("end", function () {
+      process.stdin.on("end", () => {
         devServer.stop();
         process.exit();
       });
     }
   })
   .catch((err) => {
-    if (err && err.message) {
-      console.log(err.message);
-    }
+    if (err && err.message) console.log(err.message);
     process.exit(1);
   });

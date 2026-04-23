@@ -4,38 +4,28 @@ const webpack = require("webpack");
 const resolve = require("resolve");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CaseSensitivePathsPlugin = require("case-sensitive-paths-webpack-plugin");
-const InlineChunkHtmlPlugin = require("react-dev-utils/InlineChunkHtmlPlugin");
 const TerserPlugin = require("terser-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const { WebpackManifestPlugin } = require("webpack-manifest-plugin");
-const InterpolateHtmlPlugin = require("react-dev-utils/InterpolateHtmlPlugin");
 const WorkboxWebpackPlugin = require("workbox-webpack-plugin");
-const ModuleScopePlugin = require("react-dev-utils/ModuleScopePlugin");
-const getCSSModuleLocalIdent = require("react-dev-utils/getCSSModuleLocalIdent");
 const ESLintPlugin = require("eslint-webpack-plugin");
 const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
 const ReactRefreshWebpackPlugin = require("@pmmmwh/react-refresh-webpack-plugin");
 const paths = require("./paths");
 const modules = require("./modules");
 const getClientEnvironment = require("./env");
-const ModuleNotFoundPlugin = require("react-dev-utils/ModuleNotFoundPlugin");
 
 const postcssNormalize = require("postcss-normalize");
 
 const appPackageJson = require(paths.appPackageJson);
 
 const shouldUseSourceMap = process.env.GENERATE_SOURCEMAP !== "false";
-
 const shouldInlineRuntimeChunk = process.env.INLINE_RUNTIME_CHUNK !== "false";
-
 const emitErrorsAsWarnings = process.env.ESLINT_NO_DEV_ERRORS === "true";
 const disableESLintPlugin = process.env.DISABLE_ESLINT_PLUGIN === "true";
-
 const imageInlineSizeLimit = parseInt(process.env.IMAGE_INLINE_SIZE_LIMIT || "10000");
-
 const useTypeScript = fs.existsSync(paths.appTsConfig);
-
 const swSrc = paths.swSrc;
 
 const cssRegex = /\.css$/;
@@ -55,14 +45,31 @@ const hasJsxRuntime = (() => {
   }
 })();
 
+// Inlined replacement for react-dev-utils/InterpolateHtmlPlugin.
+// Replaces %VAR% tokens in the HTML template with values from env.raw.
+class HtmlInterpolatePlugin {
+  constructor(replacements) {
+    this.replacements = replacements;
+  }
+  apply(compiler) {
+    compiler.hooks.compilation.tap("HtmlInterpolatePlugin", (compilation) => {
+      HtmlWebpackPlugin.getHooks(compilation).beforeEmit.tap("HtmlInterpolatePlugin", (data) => {
+        Object.keys(this.replacements).forEach((key) => {
+          const value = this.replacements[key];
+          data.html = data.html.replace(new RegExp("%" + key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "%", "g"), value);
+        });
+        return data;
+      });
+    });
+  }
+}
+
 module.exports = function (webpackEnv) {
   const isEnvDevelopment = webpackEnv === "development";
   const isEnvProduction = webpackEnv === "production";
-
   const isEnvProductionProfile = isEnvProduction && process.argv.includes("--profile");
 
   const env = getClientEnvironment(paths.publicUrlOrPath.slice(0, -1));
-
   const shouldUseReactRefresh = env.raw.FAST_REFRESH;
 
   const getStyleLoaders = (cssOptions, preProcessor) => {
@@ -83,9 +90,7 @@ module.exports = function (webpackEnv) {
             plugins: [
               require("postcss-flexbugs-fixes"),
               require("postcss-preset-env")({
-                autoprefixer: {
-                  flexbox: "no-2009",
-                },
+                autoprefixer: { flexbox: "no-2009" },
                 stage: 3,
               }),
               postcssNormalize(),
@@ -106,9 +111,7 @@ module.exports = function (webpackEnv) {
         },
         {
           loader: require.resolve(preProcessor),
-          options: {
-            sourceMap: true,
-          },
+          options: { sourceMap: true },
         },
       );
     }
@@ -145,24 +148,12 @@ module.exports = function (webpackEnv) {
       minimizer: [
         new TerserPlugin({
           terserOptions: {
-            parse: {
-              ecma: 8,
-            },
-            compress: {
-              ecma: 5,
-              comparisons: false,
-              inline: 2,
-            },
-            mangle: {
-              safari10: true,
-            },
+            parse: { ecma: 8 },
+            compress: { ecma: 5, comparisons: false, inline: 2 },
+            mangle: { safari10: true },
             keep_classnames: isEnvProductionProfile,
             keep_fnames: isEnvProductionProfile,
-            format: {
-              ecma: 5,
-              comments: false,
-              ascii_only: true,
-            },
+            format: { ecma: 5, comments: false, ascii_only: true },
           },
         }),
         new CssMinimizerPlugin(),
@@ -183,21 +174,11 @@ module.exports = function (webpackEnv) {
         }),
         ...(modules.webpackAliases || {}),
       },
-      plugins: [
-        new ModuleScopePlugin(paths.appSrc, [
-          paths.appPackageJson,
-          paths.swSrc,
-          require.resolve("@babel/runtime/package.json"),
-          require.resolve("path-browserify/package.json"),
-          require.resolve("events/package.json"),
-        ]),
-      ],
       // webpack 5 stopped auto-polyfilling Node.js built-ins.
       // Renderer runs with nodeIntegration:false so use browser-compatible polyfills.
       fallback: {
         path: require.resolve("path-browserify"),
         events: require.resolve("events/events.js"),
-        // modules the original config emptied — keep empty in the browser bundle
         module: false,
         dgram: false,
         dns: false,
@@ -217,16 +198,12 @@ module.exports = function (webpackEnv) {
               test: [/\.avif$/],
               type: "asset",
               mimetype: "image/avif",
-              parser: {
-                dataUrlCondition: { maxSize: imageInlineSizeLimit },
-              },
+              parser: { dataUrlCondition: { maxSize: imageInlineSizeLimit } },
             },
             {
               test: [/\.bmp$/, /\.gif$/, /\.jpe?g$/, /\.png$/],
               type: "asset",
-              parser: {
-                dataUrlCondition: { maxSize: imageInlineSizeLimit },
-              },
+              parser: { dataUrlCondition: { maxSize: imageInlineSizeLimit } },
             },
             {
               test: /\.(js|mjs|jsx|ts|tsx)$/,
@@ -235,21 +212,14 @@ module.exports = function (webpackEnv) {
               options: {
                 customize: require.resolve("babel-preset-react-app/webpack-overrides"),
                 presets: [
-                  [
-                    require.resolve("babel-preset-react-app"),
-                    {
-                      runtime: hasJsxRuntime ? "automatic" : "classic",
-                    },
-                  ],
+                  [require.resolve("babel-preset-react-app"), { runtime: hasJsxRuntime ? "automatic" : "classic" }],
                 ],
                 plugins: [
                   [
                     require.resolve("babel-plugin-named-asset-import"),
                     {
                       loaderMap: {
-                        svg: {
-                          ReactComponent: "@svgr/webpack?-svgo,+titleProp,+ref![path]",
-                        },
+                        svg: { ReactComponent: "@svgr/webpack?-svgo,+titleProp,+ref![path]" },
                       },
                     },
                   ],
@@ -268,9 +238,7 @@ module.exports = function (webpackEnv) {
               use: [
                 {
                   loader: path.resolve("./internals/NativeLoader.js"),
-                  options: {
-                    name: "native.node",
-                  },
+                  options: { name: "native.node" },
                 },
               ],
             },
@@ -282,10 +250,7 @@ module.exports = function (webpackEnv) {
                 babelrc: false,
                 configFile: false,
                 compact: false,
-                presets: [
-                  [require.resolve("@babel/preset-env")],
-                  [require.resolve("babel-preset-react-app/dependencies"), { helpers: true }],
-                ],
+                presets: [[require.resolve("babel-preset-react-app/dependencies"), { helpers: true }]],
                 cacheDirectory: true,
                 cacheCompression: false,
                 sourceMaps: shouldUseSourceMap,
@@ -309,7 +274,7 @@ module.exports = function (webpackEnv) {
                 sourceMap: isEnvProduction ? shouldUseSourceMap : isEnvDevelopment,
                 modules: {
                   mode: "local",
-                  getLocalIdent: getCSSModuleLocalIdent,
+                  localIdentName: "[local]--[hash:base64:5]",
                 },
               }),
             },
@@ -334,7 +299,7 @@ module.exports = function (webpackEnv) {
                   sourceMap: isEnvProduction ? shouldUseSourceMap : isEnvDevelopment,
                   modules: {
                     mode: "local",
-                    getLocalIdent: getCSSModuleLocalIdent,
+                    localIdentName: "[local]--[hash:base64:5]",
                   },
                 },
                 "sass-loader",
@@ -374,15 +339,9 @@ module.exports = function (webpackEnv) {
             : undefined,
         ),
       ),
-      isEnvProduction && shouldInlineRuntimeChunk && new InlineChunkHtmlPlugin(HtmlWebpackPlugin, [/runtime-.+[.]js/]),
-      new InterpolateHtmlPlugin(HtmlWebpackPlugin, env.raw),
-      new ModuleNotFoundPlugin(paths.appPath),
+      new HtmlInterpolatePlugin(env.raw),
       new webpack.DefinePlugin(env.stringified),
-      isEnvDevelopment &&
-        shouldUseReactRefresh &&
-        new ReactRefreshWebpackPlugin({
-          overlay: false,
-        }),
+      isEnvDevelopment && shouldUseReactRefresh && new ReactRefreshWebpackPlugin({ overlay: false }),
       isEnvDevelopment && new CaseSensitivePathsPlugin(),
       isEnvProduction &&
         new MiniCssExtractPlugin({
@@ -398,11 +357,7 @@ module.exports = function (webpackEnv) {
             return manifest;
           }, seed);
           const entrypointFiles = entrypoints.main.filter((fileName) => !fileName.endsWith(".map"));
-
-          return {
-            files: manifestFiles,
-            entrypoints: entrypointFiles,
-          };
+          return { files: manifestFiles, entrypoints: entrypointFiles };
         },
       }),
       new webpack.IgnorePlugin({
@@ -435,9 +390,7 @@ module.exports = function (webpackEnv) {
               },
             },
             context: paths.appPath,
-            diagnosticOptions: {
-              syntactic: true,
-            },
+            diagnosticOptions: { syntactic: true },
             mode: "write-references",
           },
           issue: {
@@ -454,7 +407,6 @@ module.exports = function (webpackEnv) {
       !disableESLintPlugin &&
         new ESLintPlugin({
           extensions: ["js", "mjs", "jsx", "ts", "tsx"],
-          formatter: require.resolve("react-dev-utils/eslintFormatter"),
           eslintPath: require.resolve("eslint"),
           failOnError: !(isEnvDevelopment && emitErrorsAsWarnings),
           context: paths.appSrc,
@@ -465,9 +417,7 @@ module.exports = function (webpackEnv) {
           baseConfig: {
             extends: [require.resolve("eslint-config-react-app/base")],
             rules: {
-              ...(!hasJsxRuntime && {
-                "react/react-in-jsx-scope": "error",
-              }),
+              ...(!hasJsxRuntime && { "react/react-in-jsx-scope": "error" }),
             },
           },
         }),

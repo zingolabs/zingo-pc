@@ -1,8 +1,4 @@
 const fs = require("fs");
-const evalSourceMapMiddleware = require("react-dev-utils/evalSourceMapMiddleware");
-const noopServiceWorkerMiddleware = require("react-dev-utils/noopServiceWorkerMiddleware");
-const ignoredFiles = require("react-dev-utils/ignoredFiles");
-const redirectServedPath = require("react-dev-utils/redirectServedPathMiddleware");
 const paths = require("./paths");
 const getHttpsConfig = require("./getHttpsConfig");
 
@@ -28,7 +24,8 @@ module.exports = function (proxy, allowedHost) {
       directory: paths.appPublic,
       publicPath: [paths.publicUrlOrPath],
       watch: {
-        ignored: ignoredFiles(paths.appSrc),
+        // ignore node_modules to avoid excessive file watching
+        ignored: /node_modules/,
       },
     },
     client: {
@@ -55,21 +52,9 @@ module.exports = function (proxy, allowedHost) {
       if (!devServer) {
         throw new Error("webpack-dev-server is not defined");
       }
-
       if (fs.existsSync(paths.proxySetup)) {
         require(paths.proxySetup)(devServer.app);
       }
-
-      middlewares.unshift({
-        name: "evalSourceMapMiddleware",
-        middleware: evalSourceMapMiddleware(devServer),
-      });
-
-      middlewares.push(
-        { name: "redirectServedPath", middleware: redirectServedPath(paths.publicUrlOrPath) },
-        { name: "noopServiceWorker", middleware: noopServiceWorkerMiddleware(paths.publicUrlOrPath) },
-      );
-
       return middlewares;
     },
   };

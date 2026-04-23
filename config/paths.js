@@ -1,18 +1,24 @@
 const path = require("path");
 const fs = require("fs");
-const getPublicUrlOrPath = require("react-dev-utils/getPublicUrlOrPath");
-
-// Make sure any symlinks in the project folder are resolved:
-// https://github.com/facebook/create-react-app/issues/637
 const appDirectory = fs.realpathSync(process.cwd());
 const resolveApp = (relativePath) => path.resolve(appDirectory, relativePath);
 
-// We use `PUBLIC_URL` environment variable or "homepage" field to infer
-// "public path" at which the app is served.
-// webpack needs to know it to put the right <script> hrefs into HTML even in
-// single-page apps that may serve index.html for nested URLs like /todos/42.
-// We can't use a relative path in HTML because we don't want to load something
-// like /todos/42/static/js/bundle.7289d.js. We have to know the root.
+// Inlined from react-dev-utils/getPublicUrlOrPath.
+// Determines the public URL prefix from PUBLIC_URL env var or package.json "homepage".
+// Relative paths (starting with ".") are converted to "/" in development.
+function getPublicUrlOrPath(isEnvDevelopment, homepage, envPublicUrl) {
+  const stub = "https://create-react-app.dev";
+  if (envPublicUrl) {
+    const url = envPublicUrl.endsWith("/") ? envPublicUrl : envPublicUrl + "/";
+    return isEnvDevelopment && url.startsWith(".") ? "/" : isEnvDevelopment ? new URL(url, stub).pathname : url;
+  }
+  if (homepage) {
+    const hp = homepage.endsWith("/") ? homepage : homepage + "/";
+    return isEnvDevelopment && hp.startsWith(".") ? "/" : isEnvDevelopment ? new URL(hp, stub).pathname : hp;
+  }
+  return "/";
+}
+
 const publicUrlOrPath = getPublicUrlOrPath(
   process.env.NODE_ENV === "development",
   require(resolveApp("package.json")).homepage,
