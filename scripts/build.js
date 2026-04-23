@@ -36,6 +36,7 @@ build()
     } else {
       console.log(chalk.green("Compiled successfully.\n"));
     }
+    copyNativeNode();
     printFileSizes(paths.appBuild);
 
     if (writeStatsJson) {
@@ -87,6 +88,17 @@ function copyPublicFolder() {
     dereference: true,
     filter: (file) => file !== paths.appHtml,
   });
+}
+
+function copyNativeNode() {
+  const src = path.join(__dirname, "../src/native.node");
+  const dest = path.join(paths.appBuild, "native.node");
+  if (fs.existsSync(src)) {
+    fs.copySync(src, dest);
+    console.log(chalk.cyan("Copied native.node to build/"));
+  } else {
+    console.warn(chalk.yellow("Warning: src/native.node not found, skipping copy."));
+  }
 }
 
 function gzipSize(filePath) {
