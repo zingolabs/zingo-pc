@@ -183,7 +183,13 @@ module.exports = function (webpackEnv) {
         }),
         ...(modules.webpackAliases || {}),
       },
-      plugins: [new ModuleScopePlugin(paths.appSrc, [paths.appPackageJson, paths.swSrc])],
+      plugins: [
+        new ModuleScopePlugin(paths.appSrc, [
+          paths.appPackageJson,
+          paths.swSrc,
+          require.resolve("@babel/runtime/package.json"),
+        ]),
+      ],
       // webpack 5 stopped auto-polyfilling Node.js built-ins.
       // Renderer runs with nodeIntegration:false so use browser-compatible polyfills.
       fallback: {
