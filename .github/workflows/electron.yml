@@ -84,7 +84,7 @@ jobs:
         if: matrix.platform == 'mac'
         env:
           APPLE_ID: ${{ secrets.appleId }}
-          APPLE_ID_PASSWORD: ${{ secrets.appleIdPassword }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.appleIdPassword }}
           APPLE_TEAM_ID: ${{ secrets.appleTeamId }}
         run: yarn ${{ matrix.dist_script }}
 
