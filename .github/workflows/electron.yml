@@ -20,10 +20,11 @@ jobs:
             arch: x64
             dist_script: dist:linux
 
-          - runner: macos-13
+          - runner: macos-15
             platform: mac
             arch: x64
             dist_script: dist:mac-x64
+            rust_target: x86_64-apple-darwin
 
           - runner: macos-14
             platform: mac
