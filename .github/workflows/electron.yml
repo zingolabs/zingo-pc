@@ -95,6 +95,7 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.p12certMas }}
           p12-password: ${{ secrets.p12certMasPassword }}
+          keychain-password: ${{ secrets.p12certMasPassword }}
 
       - name: Import macOS installer certificate (MAS)
         if: matrix.platform == 'mas'
@@ -102,6 +103,7 @@ jobs:
         with:
           p12-file-base64: ${{ secrets.p12certMasInstaller }}
           p12-password: ${{ secrets.p12certMasInstallerPassword }}
+          keychain-password: ${{ secrets.p12certMasPassword }}
           create-keychain: false
 
       - name: Install provisioning profile (MAS)
