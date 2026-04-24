@@ -27,6 +27,12 @@ jobs:
             arch: arm64
             dist_script: dist:mac-arm64
 
+          - runner: macos-14
+            platform: mas
+            arch: universal
+            dist_script: dist:mac-mas
+            rust_target: x86_64-apple-darwin
+
           - runner: windows-latest
             platform: win
             arch: x64
@@ -64,18 +70,50 @@ jobs:
       - name: yarn install
         run: yarn install
 
-      - name: Decode macOS certificate
+      - name: Decode macOS certificate (DMG)
         if: matrix.platform == 'mac'
         env:
           p12base64: ${{ secrets.p12cert }}
         run: echo "$p12base64" | openssl base64 -d -out cert.p12
 
-      - name: Import macOS certificate
+      - name: Import macOS certificate (DMG)
         if: matrix.platform == 'mac'
         uses: apple-actions/import-codesign-certs@v3
         with:
           p12-filepath: "cert.p12"
           p12-password: ${{ secrets.p12certpassword }}
+
+      - name: Decode macOS certificates (MAS)
+        if: matrix.platform == 'mas'
+        env:
+          p12mas: ${{ secrets.p12certMas }}
+          p12installer: ${{ secrets.p12certMasInstaller }}
+        run: |
+          echo "$p12mas" | openssl base64 -d -out cert-mas.p12
+          echo "$p12installer" | openssl base64 -d -out cert-mas-installer.p12
+
+      - name: Import macOS certificates (MAS)
+        if: matrix.platform == 'mas'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-filepath: "cert-mas.p12"
+          p12-password: ${{ secrets.p12certMasPassword }}
+
+      - name: Import macOS installer certificate (MAS)
+        if: matrix.platform == 'mas'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-filepath: "cert-mas-installer.p12"
+          p12-password: ${{ secrets.p12certMasInstallerPassword }}
+          create-keychain: false
+
+      - name: Install provisioning profile (MAS)
+        if: matrix.platform == 'mas'
+        env:
+          profile: ${{ secrets.provisioningProfile }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$profile" | openssl base64 -d -out ~/Library/MobileDevice/Provisioning\ Profiles/zingo-pc.provisionprofile
 
       - name: Build (Linux)
         if: matrix.platform == 'linux'
@@ -87,6 +125,10 @@ jobs:
           APPLE_ID: ${{ secrets.appleId }}
           APPLE_ID_PASSWORD: ${{ secrets.appleIdPassword }}
           APPLE_TEAM_ID: ${{ secrets.appleTeamId }}
+        run: yarn ${{ matrix.dist_script }}
+
+      - name: Build (macOS MAS)
+        if: matrix.platform == 'mas'
         run: yarn ${{ matrix.dist_script }}
 
       - name: Build (Windows)
@@ -110,12 +152,19 @@ jobs:
             dist/*.deb
             dist/*.AppImage
 
-      - name: Upload artifacts (macOS)
+      - name: Upload artifacts (macOS DMG)
         uses: actions/upload-artifact@v4
         if: matrix.platform == 'mac'
         with:
           name: zingo-pc-mac-${{ matrix.arch }}
           path: dist/*.dmg
+
+      - name: Upload artifacts (macOS MAS)
+        uses: actions/upload-artifact@v4
+        if: matrix.platform == 'mas'
+        with:
+          name: zingo-pc-mas-${{ matrix.arch }}
+          path: dist/*.pkg
 
       - name: Upload artifacts (Windows)
         uses: actions/upload-artifact@v4

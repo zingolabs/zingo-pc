@@ -9,8 +9,9 @@ module.exports = async function (params) {
   const appId = "co.zingo.pc";
   const appPath = params.artifactPaths.find((p) => p.endsWith(".dmg"));
 
-  if (!fs.existsSync(appPath)) {
-    throw new Error(`Cannot find application at: ${appPath}`);
+  // MAS builds produce .pkg, not .dmg — notarization is handled by App Store
+  if (!appPath || !fs.existsSync(appPath)) {
+    return;
   }
 
   console.log(`Notarizing ${appId} found at ${appPath}`);

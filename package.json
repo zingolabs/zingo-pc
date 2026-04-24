@@ -63,6 +63,7 @@
     "dist:linux": "rimraf dist && yarn build && electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
     "dist:linux-only-build": "electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-arm64": "rimraf dist && yarn build-mac-arm64 && electron-builder -m --arm64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:mac-mas": "rimraf dist && yarn neon-mac-x64 && yarn neon-mac-arm64 && cross-env node scripts/build.js && electron-builder -m --universal --target mas -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-x64": "rimraf dist && yarn build-mac-x64 && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-x64": "rimraf dist && yarn build-win-x64 && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
@@ -210,7 +211,7 @@
       "buildResources": "public"
     },
     "mac": {
-      "category": "public.app-category.productivity",
+      "category": "public.app-category.finance",
       "type": "distribution",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
@@ -219,6 +220,15 @@
         "dmg"
       ],
       "icon": "./resources/icon.icns"
+    },
+    "mas": {
+      "category": "public.app-category.finance",
+      "entitlements": "./configs/entitlements.mas.plist",
+      "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
+      "icon": "./resources/icon.icns",
+      "target": [
+        "mas"
+      ]
     },
     "win": {
       "icon": "./resources/icon.ico",
