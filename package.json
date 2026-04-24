@@ -206,6 +206,9 @@
       "build/**/*",
       "node_modules/**/*"
     ],
+    "asarUnpack": [
+      "build/native.node"
+    ],
     "directories": {
       "buildResources": "public"
     },
