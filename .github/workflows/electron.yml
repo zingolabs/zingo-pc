@@ -111,8 +111,7 @@ jobs:
         env:
           profile: ${{ secrets.provisioningProfile }}
         run: |
-          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          echo "$profile" | openssl base64 -d -out ~/Library/MobileDevice/Provisioning\ Profiles/zingo-pc.provisionprofile
+          echo "$profile" | openssl base64 -d -out configs/zingo-pc.provisionprofile
 
       - name: Build (Linux)
         if: matrix.platform == 'linux'
