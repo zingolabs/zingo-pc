@@ -89,27 +89,18 @@ jobs:
           p12-file-base64: ${{ secrets.p12cert }}
           p12-password: ${{ secrets.p12certpassword }}
 
-      - name: Decode macOS certificates (MAS)
-        if: matrix.platform == 'mas'
-        env:
-          p12mas: ${{ secrets.p12certMas }}
-          p12installer: ${{ secrets.p12certMasInstaller }}
-        run: |
-          echo "$p12mas" | openssl base64 -d -out cert-mas.p12
-          echo "$p12installer" | openssl base64 -d -out cert-mas-installer.p12
-
       - name: Import macOS certificates (MAS)
         if: matrix.platform == 'mas'
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-filepath: "cert-mas.p12"
+          p12-file-base64: ${{ secrets.p12certMas }}
           p12-password: ${{ secrets.p12certMasPassword }}
 
       - name: Import macOS installer certificate (MAS)
         if: matrix.platform == 'mas'
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-filepath: "cert-mas-installer.p12"
+          p12-file-base64: ${{ secrets.p12certMasInstaller }}
           p12-password: ${{ secrets.p12certMasInstallerPassword }}
           create-keychain: false
 
