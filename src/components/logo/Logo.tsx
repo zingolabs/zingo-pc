@@ -12,7 +12,7 @@ const Logo = ({ readOnly, onlyVersion }: LogoProps) => {
   return (
     <>
       <div style={{ color: Utils.getCssVariable("--color-zingo"), fontWeight: "bold", marginBottom: 10 }}>
-        Zingo PC v2.0.13
+        Zingo PC v2.0.14
       </div>
       {!onlyVersion && (
         <div>
