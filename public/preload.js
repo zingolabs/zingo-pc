@@ -3,12 +3,10 @@ const { shell } = require("electron");
 const fs = require("fs");
 const path = require("path");
 
-// In dev, preload lives in public/ and native.node is in src/.
-// In prod, CRA copies public/ → build/, and NativeLoader emits native.node into build/.
-const nativePath =
-  process.env.NODE_ENV === "production"
-    ? path.join(__dirname, "native.node")
-    : path.join(__dirname, "../src/native.node");
+// In packaged app __dirname is inside app.asar; in dev it's the real public/ folder.
+const nativePath = __dirname.includes(".asar")
+  ? path.join(__dirname, "native.node")
+  : path.join(__dirname, "../src/native.node");
 
 const native = require(nativePath);
 

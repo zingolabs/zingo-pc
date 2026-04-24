@@ -8,7 +8,7 @@ if (os.platform() === "darwin") {
   if (!packageJson.resolutions || !packageJson.resolutions.fsevents) {
     const hadResolutions = !!packageJson.resolutions;
     if (!packageJson.resolutions) packageJson.resolutions = {};
-    packageJson.resolutions.fsevents = "2.3.2";
+    packageJson.resolutions.fsevents = "2.3.3";
 
     fs.writeFileSync("package.json", JSON.stringify(packageJson, null, 2));
     console.log("Adding fsevents resolution for macOS, re-running yarn...");

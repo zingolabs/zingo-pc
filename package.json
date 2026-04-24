@@ -1,7 +1,7 @@
 {
   "name": "zingo-pc",
   "productName": "Zingo PC",
-  "version": "2.0.12",
+  "version": "2.0.13",
   "private": true,
   "description": "Zingo PC",
   "license": "MIT",
@@ -206,6 +206,9 @@
     "files": [
       "build/**/*",
       "node_modules/**/*"
+    ],
+    "asarUnpack": [
+      "build/native.node"
     ],
     "directories": {
       "buildResources": "public"

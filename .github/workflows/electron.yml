@@ -2,8 +2,11 @@ name: Electron CD
 
 on:
   push:
-    branches:
-      - release
+    tags:
+      - 'zingo-pc-*'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -17,10 +20,11 @@ jobs:
             arch: x64
             dist_script: dist:linux
 
-          - runner: macos-13
+          - runner: macos-15
             platform: mac
             arch: x64
             dist_script: dist:mac-x64
+            rust_target: x86_64-apple-darwin
 
           - runner: macos-14
             platform: mac
@@ -66,6 +70,8 @@ jobs:
 
       - name: Install Protoc
         uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: yarn install
         run: yarn install
@@ -80,7 +86,7 @@ jobs:
         if: matrix.platform == 'mac'
         uses: apple-actions/import-codesign-certs@v3
         with:
-          p12-filepath: "cert.p12"
+          p12-file-base64: ${{ secrets.p12cert }}
           p12-password: ${{ secrets.p12certpassword }}
 
       - name: Decode macOS certificates (MAS)
@@ -123,7 +129,7 @@ jobs:
         if: matrix.platform == 'mac'
         env:
           APPLE_ID: ${{ secrets.appleId }}
-          APPLE_ID_PASSWORD: ${{ secrets.appleIdPassword }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.appleIdPassword }}
           APPLE_TEAM_ID: ${{ secrets.appleTeamId }}
         run: yarn ${{ matrix.dist_script }}
 
@@ -134,14 +140,6 @@ jobs:
       - name: Build (Windows)
         if: matrix.platform == 'win'
         run: yarn ${{ matrix.dist_script }}
-
-      - name: Get version (Unix)
-        if: matrix.platform != 'win'
-        run: ./bin/printversion.sh
-
-      - name: Get version (Windows)
-        if: matrix.platform == 'win'
-        run: ./bin/printversion.ps1
 
       - name: Upload artifacts (Linux)
         uses: actions/upload-artifact@v4
@@ -175,3 +173,25 @@ jobs:
             dist/*.msi
             dist/*.zip
 
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: false
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          body: |
+            ## Zingolabs
+            * @Oscar-Pepper @fluidvanadium @AloeareV @idky137 @dorianvp @nachog00 @ala-mode @karentaponte @pacu and @zancas making the magic behind the scenes.
+
+            ## Manual Testing
+            * Windows & Linux by @edicksonjga.
+            * MacOS by @juanky201271
+          files: artifacts/**/*
