@@ -219,6 +219,9 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
+      "extendInfo": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "target": [
         "dmg"
       ],
@@ -229,6 +232,9 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
+      "extendInfo": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
       "icon": "./resources/icon.icns",
       "target": [
         "mas"
