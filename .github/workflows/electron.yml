@@ -132,4 +132,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          body: |
+            ## Zingolabs
+            * @Oscar-Pepper @fluidvanadium @AloeareV @idky137 @dorianvp @nachog00 @ala-mode @karentaponte @pacu and @zancas making the magic behind the scenes.
+
+            ## Manual Testing
+            * Windows & Linux by @edicksonjga.
+            * MacOS by @juanky201271
           files: artifacts/**/*
