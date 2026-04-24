@@ -111,7 +111,7 @@ jobs:
         env:
           profile: ${{ secrets.provisioningProfile }}
         run: |
-          echo "$profile" | openssl base64 -d -out configs/zingo-pc.provisionprofile
+          echo "$profile" | base64 -D -o configs/zingo-pc.provisionprofile
 
       - name: Build (Linux)
         if: matrix.platform == 'linux'
