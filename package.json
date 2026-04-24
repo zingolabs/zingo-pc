@@ -219,6 +219,8 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
+      "_version": "2.0.14",
+      "buildVersion": "100",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -232,6 +234,8 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
+      "_version": "2.0.14",
+      "buildVersion": "100",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
