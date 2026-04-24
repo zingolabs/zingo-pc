@@ -228,7 +228,7 @@
       "category": "public.app-category.finance",
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
-      "provisioningProfile": "./configs/zingo-pc.provisionprofile",
+      "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
       "icon": "./resources/icon.icns",
       "target": [
         "mas"
