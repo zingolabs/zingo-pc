@@ -12,5 +12,9 @@
     <true/>
     <key>com.apple.security.files.downloads.read-write</key>
     <true/>
+    <key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
+    <array>
+      <string>Library/Application Support/Zcash/</string>
+    </array>
   </dict>
 </plist>
