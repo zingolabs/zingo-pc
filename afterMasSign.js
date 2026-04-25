@@ -33,17 +33,10 @@ function collectBinaries(dir, results) {
 module.exports = async function afterSign(context) {
   if (process.platform !== "darwin") return;
 
-  const { appOutDir, packager, targets } = context;
+  const { appOutDir, packager } = context;
 
-  const isMas =
-    Array.isArray(targets) && targets.some((t) => t.name === "mas");
-  if (!isMas) return;
-
-  const appName = packager.appInfo.productFilename;
-  const appPath = path.join(appOutDir, `${appName}.app`);
-  if (!fs.existsSync(appPath)) return;
-
-  // Find the MAS Application signing identity from the keychain.
+  // Detect MAS build by presence of the MAS Application certificate.
+  // DMG builds use "Developer ID Application" — no MAS cert means skip.
   const identityResult = spawnSync(
     "security",
     ["find-identity", "-v", "-p", "codesigning"],
@@ -52,11 +45,14 @@ module.exports = async function afterSign(context) {
   const identityMatch = identityResult.stdout.match(
     /"(3rd Party Mac Developer Application:[^"]+)"/
   );
-  if (!identityMatch) {
-    console.warn("[afterMasSign] MAS Application identity not found, skipping");
-    return;
-  }
+  if (!identityMatch) return;
   const identity = identityMatch[1];
+
+  const appName = packager.appInfo.productFilename;
+  const appPath = path.join(appOutDir, `${appName}.app`);
+  if (!fs.existsSync(appPath)) return;
+
+  console.log(`[afterMasSign] Identity: ${identity}`);
 
   const resign = (filePath, extra = "") => {
     const rel = path.relative(appPath, filePath);
