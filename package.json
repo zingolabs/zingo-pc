@@ -202,6 +202,7 @@
   "build": {
     "productName": "Zingo PC",
     "appId": "co.zingo.pc",
+    "afterSign": "./afterMasSign.js",
     "afterAllArtifactBuild": "./afterSignHook.js",
     "files": [
       "build/**/*",
