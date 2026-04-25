@@ -16,5 +16,9 @@
     <array>
       <string>Library/Application Support/Zcash/</string>
     </array>
+    <key>com.apple.security.application-groups</key>
+    <array>
+      <string>group.co.zingo.pc</string>
+    </array>
   </dict>
 </plist>
