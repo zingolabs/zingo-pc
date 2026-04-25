@@ -31,39 +31,81 @@ function collectBinaries(dir, results) {
 }
 
 module.exports = async function afterSign(context) {
-  if (process.platform !== "darwin") return;
+  console.log("[afterMasSign] Hook invoked.");
+  console.log(`[afterMasSign] process.platform=${process.platform}`);
+
+  if (process.platform !== "darwin") {
+    console.log("[afterMasSign] Not darwin, skipping.");
+    return;
+  }
 
   const { appOutDir, packager } = context;
+  console.log(`[afterMasSign] appOutDir=${appOutDir}`);
+  console.log(`[afterMasSign] electronPlatformName=${context.electronPlatformName}`);
 
-  // Detect MAS build by presence of the MAS Application certificate.
-  // DMG builds use "Developer ID Application" — no MAS cert means skip.
+  // Detect MAS build: electron-builder outputs MAS to dist/mas or dist/mas-universal,
+  // and sets electronPlatformName to "mas". Both checks for reliability.
+  const isMas =
+    context.electronPlatformName === "mas" || appOutDir.includes("mas");
+  if (!isMas) {
+    console.log("[afterMasSign] Not a MAS build, skipping.");
+    return;
+  }
+  console.log("[afterMasSign] MAS build confirmed.");
+
+  // Find the MAS signing identity in keychain.
   const identityResult = spawnSync(
     "security",
     ["find-identity", "-v", "-p", "codesigning"],
     { encoding: "utf-8" }
   );
+  console.log("[afterMasSign] find-identity stdout:", identityResult.stdout);
+  if (identityResult.stderr) {
+    console.log("[afterMasSign] find-identity stderr:", identityResult.stderr);
+  }
+
   const identityMatch = identityResult.stdout.match(
     /"(3rd Party Mac Developer Application:[^"]+)"/
   );
-  if (!identityMatch) return;
+  if (!identityMatch) {
+    throw new Error(
+      "[afterMasSign] FATAL: '3rd Party Mac Developer Application' certificate not found in keychain. " +
+        "Cannot re-sign MAS build. Identities found:\n" +
+        identityResult.stdout
+    );
+  }
   const identity = identityMatch[1];
+  console.log(`[afterMasSign] Signing identity: ${identity}`);
 
   const appName = packager.appInfo.productFilename;
   const appPath = path.join(appOutDir, `${appName}.app`);
-  if (!fs.existsSync(appPath)) return;
-
-  console.log(`[afterMasSign] Identity: ${identity}`);
+  if (!fs.existsSync(appPath)) {
+    throw new Error(`[afterMasSign] FATAL: App bundle not found at ${appPath}`);
+  }
+  console.log(`[afterMasSign] App bundle: ${appPath}`);
 
   const resign = (filePath, extra = "") => {
     const rel = path.relative(appPath, filePath);
     console.log(`[afterMasSign] Re-signing: ${rel}`);
-    execSync(
-      `codesign --force --sign "${identity}" --timestamp ${extra} "${filePath}"`
-    );
+    try {
+      execSync(
+        `codesign --force --sign "${identity}" --timestamp ${extra} "${filePath}"`,
+        { stdio: "pipe" }
+      );
+    } catch (err) {
+      const out = err.stdout ? err.stdout.toString() : "";
+      const errStr = err.stderr ? err.stderr.toString() : "";
+      throw new Error(
+        `[afterMasSign] codesign failed for ${rel}:\n${out}\n${errStr}`
+      );
+    }
   };
 
   const frameworksDir = path.join(appPath, "Contents", "Frameworks");
-  if (!fs.existsSync(frameworksDir)) return;
+  if (!fs.existsSync(frameworksDir)) {
+    console.log("[afterMasSign] No Frameworks directory, nothing to re-sign.");
+    return;
+  }
 
   const frameworkBundles = [];
   const binaries = [];
@@ -77,22 +119,40 @@ module.exports = async function afterSign(context) {
     collectBinaries(fwDir, binaries);
   }
 
-  // Re-sign binaries inside frameworks (no entitlements).
+  console.log(
+    `[afterMasSign] Found ${frameworkBundles.length} framework(s), ${binaries.length} binary(ies) to re-sign.`
+  );
+
+  // Re-sign binaries inside frameworks without entitlements (fixes warning 91166).
   for (const bin of binaries) resign(bin);
 
   // Re-sign framework bundles to update their CodeResources.
   for (const fw of frameworkBundles) resign(fw);
 
-  // Re-seal the main app bundle with MAS entitlements.
+  // Re-seal the main app bundle with explicit MAS entitlements.
+  // This removes the com.apple.security.application-groups that electron-builder
+  // auto-adds but that is not in the provisioning profile, which causes taskgated
+  // to disallow IPC and produces a blue/white screen at launch.
   const entitlementsPath = path.join(
     __dirname,
     "configs",
     "entitlements.mas.plist"
   );
-  console.log("[afterMasSign] Re-sealing app bundle with MAS entitlements...");
-  execSync(
-    `codesign --force --sign "${identity}" --entitlements "${entitlementsPath}" --timestamp "${appPath}"`
+  console.log(
+    "[afterMasSign] Re-sealing app bundle with explicit MAS entitlements..."
   );
+  try {
+    execSync(
+      `codesign --force --sign "${identity}" --entitlements "${entitlementsPath}" --timestamp "${appPath}"`,
+      { stdio: "pipe" }
+    );
+  } catch (err) {
+    const out = err.stdout ? err.stdout.toString() : "";
+    const errStr = err.stderr ? err.stderr.toString() : "";
+    throw new Error(
+      `[afterMasSign] Failed to re-seal app bundle:\n${out}\n${errStr}`
+    );
+  }
 
   console.log("[afterMasSign] Done.");
 };
