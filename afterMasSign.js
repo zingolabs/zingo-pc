@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const { execSync, spawnSync } = require("child_process");
 
 // Returns true if the file is a Mach-O binary (checks magic bytes).
@@ -43,8 +44,6 @@ module.exports = async function afterSign(context) {
   console.log(`[afterMasSign] appOutDir=${appOutDir}`);
   console.log(`[afterMasSign] electronPlatformName=${context.electronPlatformName}`);
 
-  // Detect MAS build: electron-builder outputs MAS to dist/mas or dist/mas-universal,
-  // and sets electronPlatformName to "mas". Both checks for reliability.
   const isMas =
     context.electronPlatformName === "mas" || appOutDir.includes("mas");
   if (!isMas) {
@@ -69,8 +68,7 @@ module.exports = async function afterSign(context) {
   );
   if (!identityMatch) {
     throw new Error(
-      "[afterMasSign] FATAL: '3rd Party Mac Developer Application' certificate not found in keychain. " +
-        "Cannot re-sign MAS build. Identities found:\n" +
+      "[afterMasSign] FATAL: '3rd Party Mac Developer Application' certificate not found.\n" +
         identityResult.stdout
     );
   }
@@ -84,63 +82,76 @@ module.exports = async function afterSign(context) {
   }
   console.log(`[afterMasSign] App bundle: ${appPath}`);
 
-  const resign = (filePath, extra = "") => {
+  // Empty entitlements plist — used to explicitly strip entitlements from
+  // non-executable binaries (framework dylibs, native addons). Signing without
+  // --entitlements may silently preserve existing ones; an explicit empty plist
+  // guarantees they are removed, fixing App Store warning 91166.
+  const emptyPlist = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict/></plist>`;
+  const emptyEntitlementsPath = path.join(os.tmpdir(), "mas-empty-entitlements.plist");
+  fs.writeFileSync(emptyEntitlementsPath, emptyPlist);
+  console.log(`[afterMasSign] Empty entitlements plist: ${emptyEntitlementsPath}`);
+
+  const resignNoEntitlements = (filePath) => {
     const rel = path.relative(appPath, filePath);
-    console.log(`[afterMasSign] Re-signing: ${rel}`);
+    console.log(`[afterMasSign] Re-signing (no entitlements): ${rel}`);
     try {
       execSync(
-        `codesign --force --sign "${identity}" --timestamp ${extra} "${filePath}"`,
+        `codesign --force --sign "${identity}" --entitlements "${emptyEntitlementsPath}" --timestamp "${filePath}"`,
         { stdio: "pipe" }
       );
     } catch (err) {
       const out = err.stdout ? err.stdout.toString() : "";
       const errStr = err.stderr ? err.stderr.toString() : "";
-      throw new Error(
-        `[afterMasSign] codesign failed for ${rel}:\n${out}\n${errStr}`
-      );
+      throw new Error(`[afterMasSign] codesign failed for ${rel}:\n${out}\n${errStr}`);
     }
   };
 
+  // --- 1. Re-sign framework dylibs without entitlements (fixes warning 91166) ---
+
   const frameworksDir = path.join(appPath, "Contents", "Frameworks");
-  if (!fs.existsSync(frameworksDir)) {
-    console.log("[afterMasSign] No Frameworks directory, nothing to re-sign.");
-    return;
-  }
-
   const frameworkBundles = [];
-  const binaries = [];
+  const frameworkBinaries = [];
 
-  for (const entry of fs.readdirSync(frameworksDir, { withFileTypes: true })) {
-    if (!entry.isDirectory() || entry.name.endsWith(".app")) continue;
-    if (!entry.name.endsWith(".framework")) continue;
-
-    const fwDir = path.join(frameworksDir, entry.name);
-    frameworkBundles.push(fwDir);
-    collectBinaries(fwDir, binaries);
+  if (fs.existsSync(frameworksDir)) {
+    for (const entry of fs.readdirSync(frameworksDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || entry.name.endsWith(".app")) continue;
+      if (!entry.name.endsWith(".framework")) continue;
+      const fwDir = path.join(frameworksDir, entry.name);
+      frameworkBundles.push(fwDir);
+      collectBinaries(fwDir, frameworkBinaries);
+    }
   }
 
   console.log(
-    `[afterMasSign] Found ${frameworkBundles.length} framework(s), ${binaries.length} binary(ies) to re-sign.`
+    `[afterMasSign] Frameworks: ${frameworkBundles.length}, framework binaries: ${frameworkBinaries.length}`
   );
 
-  // Re-sign binaries inside frameworks without entitlements (fixes warning 91166).
-  for (const bin of binaries) resign(bin);
+  for (const bin of frameworkBinaries) resignNoEntitlements(bin);
+  for (const fw of frameworkBundles) resignNoEntitlements(fw);
 
-  // Re-sign framework bundles to update their CodeResources.
-  for (const fw of frameworkBundles) resign(fw);
+  // --- 2. Re-sign native addons in app.asar.unpacked (fixes warning 91166) ---
+  // electron-builder signs all Mach-O files including native.node with inherit
+  // entitlements. These are non-executables and should not have entitlements.
 
-  // Re-seal the main app bundle with explicit MAS entitlements.
-  // This removes the com.apple.security.application-groups that electron-builder
-  // auto-adds but that is not in the provisioning profile, which causes taskgated
-  // to disallow IPC and produces a blue/white screen at launch.
-  const entitlementsPath = path.join(
-    __dirname,
-    "configs",
-    "entitlements.mas.plist"
-  );
-  console.log(
-    "[afterMasSign] Re-sealing app bundle with explicit MAS entitlements..."
-  );
+  const asarUnpacked = path.join(appPath, "Contents", "Resources", "app.asar.unpacked");
+  if (fs.existsSync(asarUnpacked)) {
+    const unpacked = [];
+    collectBinaries(asarUnpacked, unpacked);
+    console.log(`[afterMasSign] Native addons in asar.unpacked: ${unpacked.length}`);
+    for (const bin of unpacked) resignNoEntitlements(bin);
+  } else {
+    console.log("[afterMasSign] No app.asar.unpacked directory found.");
+  }
+
+  // --- 3. Re-seal the main app bundle with explicit MAS entitlements ---
+  // Removes auto-added com.apple.security.application-groups that electron-builder
+  // injects but was not in the provisioning profile (now it is, but we still want
+  // to control exactly what entitlements end up in the final signature).
+
+  const entitlementsPath = path.join(__dirname, "configs", "entitlements.mas.plist");
+  console.log("[afterMasSign] Re-sealing app bundle with explicit MAS entitlements...");
   try {
     execSync(
       `codesign --force --sign "${identity}" --entitlements "${entitlementsPath}" --timestamp "${appPath}"`,
@@ -149,9 +160,7 @@ module.exports = async function afterSign(context) {
   } catch (err) {
     const out = err.stdout ? err.stdout.toString() : "";
     const errStr = err.stderr ? err.stderr.toString() : "";
-    throw new Error(
-      `[afterMasSign] Failed to re-seal app bundle:\n${out}\n${errStr}`
-    );
+    throw new Error(`[afterMasSign] Failed to re-seal app bundle:\n${out}\n${errStr}`);
   }
 
   console.log("[afterMasSign] Done.");

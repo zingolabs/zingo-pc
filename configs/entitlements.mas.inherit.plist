@@ -8,9 +8,5 @@
     <true/>
     <key>com.apple.security.inherit</key>
     <true/>
-    <key>com.apple.security.application-groups</key>
-    <array>
-      <string>group.co.zingo.pc</string>
-    </array>
   </dict>
 </plist>
