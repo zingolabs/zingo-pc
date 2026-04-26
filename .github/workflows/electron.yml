@@ -123,10 +123,13 @@ jobs:
           APPLE_ID: ${{ secrets.appleId }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.appleIdPassword }}
           APPLE_TEAM_ID: ${{ secrets.appleTeamId }}
+          LZMA_API_STATIC: 1
         run: yarn ${{ matrix.dist_script }}
 
       - name: Build (macOS MAS)
         if: matrix.platform == 'mas'
+        env:
+          LZMA_API_STATIC: 1
         run: yarn ${{ matrix.dist_script }}
 
       - name: Build (Windows)
