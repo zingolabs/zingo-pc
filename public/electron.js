@@ -561,9 +561,11 @@ if (process.platform !== "darwin") {
 app.whenReady().then(async () => {
   // Register zcash: protocol handler at runtime.
   // - MAS: handled declaratively via protocols in package.json (sandbox forbids this call).
+  // - Flatpak: handled declaratively via the manifest .desktop file (sandbox forbids this call).
   // - Windows/Linux packaged: the installer registers it, but calling this too doesn't hurt.
   // - Dev mode on any platform: needed because electron-builder hasn't run.
-  if (!process.mas) {
+  const isInSandbox = process.mas || !!process.env.FLATPAK_ID;
+  if (!isInSandbox) {
     if (process.defaultApp) {
       // Dev mode: electron.exe is the executable, so we must pass the app path explicitly
       // so the OS knows where to find the app when the protocol is invoked.
