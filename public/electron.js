@@ -422,19 +422,24 @@ function handleZcashUri(uri) {
   }
 }
 
-// Mac/MAS: the OS routes zcash: links here whether the app is open or closed.
+// Mac/MAS only: the OS routes zcash: links here whether the app is open or closed.
 // Must be registered before app.whenReady() to catch cold-start links.
-app.on("open-url", (event, url) => {
-  event.preventDefault();
-  handleZcashUri(url);
-});
+// On Windows/Linux, URIs arrive via second-instance argv — open-url is not fired there.
+if (process.platform === "darwin") {
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    handleZcashUri(url);
+  });
+}
 
 // Windows/Linux: enforce single instance and receive the URI from the second argv.
 // Not used on macOS — the OS handles single-instance for URL schemes via open-url.
 if (process.platform !== "darwin") {
   const gotLock = app.requestSingleInstanceLock();
   if (!gotLock) {
-    app.quit();
+    // Exit immediately — app.quit() is graceful and can briefly show a white
+    // window before the process terminates, which is visible to the user.
+    app.exit(0);
   } else {
     app.on("second-instance", (_event, argv) => {
       const uri = argv.find((a) => a.startsWith("zcash:"));

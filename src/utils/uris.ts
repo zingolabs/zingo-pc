@@ -49,8 +49,9 @@ export const parseZcashURI = async (
   const address: string = parsedUri.pathname;
   if (address) {
     addressKind = await Utils.getAddressKind(address, serverChainName);
+    console.log('URIIIIIIIIIIIIIIIIII', address, serverChainName, addressKind);
     if (addressKind === undefined) {
-      return `Error: "${address || ""}" was not a valid zcash address`;
+      return `Error: "${address || ""}" was not a valid zcash address`; 
     }
   }
 

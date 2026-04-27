@@ -133,8 +133,17 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
   // Handle menu items
   useEffect(() => {
+    // contextBridge wraps every function argument in a new proxy each time it
+    // crosses the context boundary, so ipcRenderer.off() cannot match the proxy
+    // that ipcRenderer.on() received — the old listener is never removed.
+    // React 18 StrictMode runs effects twice (mount → cleanup → mount), which
+    // causes two listeners to accumulate.  The `active` flag makes stale
+    // closures silently no-op so only the latest registration acts on events.
+    let active = true;
+
     // About
     const about = (_event: any) => {
+      if (!active) return;
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
@@ -166,6 +175,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     };
 
     const payuri = (_event: any, uri: string) => {
+      if (!active) return;
       if (!uri) {
         // Manual path (menu / Ctrl+P): open modal so the user can type the URI.
         openPayURIModal("");
@@ -186,11 +196,13 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
     // Block Explorer Selection
     const blockexplorer = (_event: any) => {
+      if (!active) return;
       openBlockExplorerModal();
     };
 
     // Export Seed
     const seed = async (_event: any) => {
+      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Seed Phrase/Viewing Key", "There is not an active Wallet to perform the action.");
         return;
@@ -250,6 +262,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     };
 
     const rescan = async (_event: any) => {
+      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Rescan Wallet", "There is not an active Wallet to perform the action.");
       } else {
@@ -258,10 +271,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     };
 
     const addnewwallet = (_event: any) => {
+      if (!active) return;
       history.push(routes.ADDNEWWALLET, { mode: "addnew" });
     };
 
     const settingswallet = (_event: any) => {
+      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Settings", "There is not an active Wallet to perform the action.");
       } else {
@@ -270,6 +285,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     };
 
     const deletewallet = (_event: any) => {
+      if (!active) return;
       if (!currentWalletRef.current) {
         openErrorModal("Delete Wallet", "There is not an active Wallet to perform the action.");
       } else {
@@ -287,6 +303,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     ipcRenderer.on("deletewallet", deletewallet);
 
     return () => {
+      active = false;
       ipcRenderer.off("about", about);
       ipcRenderer.off("payuri", payuri);
       ipcRenderer.off("blockexplorer", blockexplorer);
