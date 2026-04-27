@@ -6,6 +6,23 @@ import Utils from "./utils";
 import { native } from "../electronBridge";
 import { AddressKindEnum, ServerChainNameEnum } from "../components/appstate";
 
+const chainLabel: Record<string, string> = {
+  main: "Mainnet",
+  test: "Testnet",
+  regtest: "Regtest",
+};
+
+async function networkMismatchError(address: string, walletChain: "" | ServerChainNameEnum): Promise<string | null> {
+  if (!walletChain) return null;
+  const addrChain = await Utils.getAddressChainName(address);
+  if (addrChain && addrChain !== walletChain) {
+    const addrLabel = chainLabel[addrChain] ?? addrChain;
+    const walletLabel = chainLabel[walletChain] ?? walletChain;
+    return `Error: Network mismatch — the address is for ${addrLabel} but your wallet is on ${walletLabel}`;
+  }
+  return null;
+}
+
 export class ZcashURITarget {
   address?: string;
   amount?: number;
@@ -49,7 +66,8 @@ export const parseZcashURI = async (
   if (address) {
     addressKind = await Utils.getAddressKind(address, serverChainName);
     if (addressKind === undefined) {
-      return `Error: "${address || ""}" was not a valid zcash address`;
+      const mismatch = await networkMismatchError(address, serverChainName);
+      return mismatch ?? `Error: "${address || ""}" was not a valid zcash address`;
     }
   }
 
@@ -91,7 +109,8 @@ export const parseZcashURI = async (
 
         const addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(value, serverChainName);
         if (addressKind === undefined) {
-          return `Error: ${value} was not a recognized zcash address`;
+          const mismatch = await networkMismatchError(value, serverChainName);
+          return mismatch ?? `Error: ${value} was not a recognized zcash address`;
         }
         target.address = value;
         break;

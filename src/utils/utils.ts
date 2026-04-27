@@ -62,6 +62,26 @@ export default class Utils {
     return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
   }
 
+  static async getAddressChainName(addr: string): Promise<string | undefined> {
+    if (!addr) return undefined;
+    try {
+      const resultParse: string = await native.parse_address(addr);
+      if (!resultParse || resultParse.toLowerCase().startsWith("error")) return undefined;
+      let parsed;
+      try {
+        parsed = JSON.parse(resultParse);
+      } catch {
+        return undefined;
+      }
+      if (parsed?.status === "success" && parsed?.chain_name) {
+        return parsed.chain_name as string;
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   static async getAddressKind(addr: string, currChain: "" | ServerChainNameEnum): Promise<AddressKindEnum | undefined> {
     if (!addr) return;
     try {

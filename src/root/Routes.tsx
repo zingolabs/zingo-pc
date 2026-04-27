@@ -447,6 +447,7 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     this.setVerificationProgress(null);
     this.setFetchError("", "");
     this.setCurrentWalletOpenError("");
+    this.setSendPageState(new SendPageStateClass());
 
     await this.rpc.clearTimers();
 

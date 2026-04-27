@@ -34,6 +34,7 @@ const ALLOWED_INVOKE = new Set([
   "wallets:remove",
   "wallets:clear",
   "get-app-data-path",
+  "get-pending-uri",
   "apprestart",
   "appquitdone",
 ]);

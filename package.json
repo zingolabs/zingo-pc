@@ -224,6 +224,7 @@
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
+      "protocols": [{ "name": "Zcash", "schemes": ["zcash"] }],
       "target": [
         "dmg"
       ],
@@ -238,6 +239,7 @@
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
+      "protocols": [{ "name": "Zcash", "schemes": ["zcash"] }],
       "icon": "./resources/icon.icns",
       "target": [
         "mas"
@@ -269,7 +271,8 @@
           "StartupNotify": true,
           "StartupWMClass": "zingopc",
           "Categories": "Utility;",
-          "Keywords": "zingo;"
+          "Keywords": "zingo;",
+          "MimeType": "x-scheme-handler/zcash"
         }
       }
     }
