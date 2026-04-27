@@ -567,9 +567,12 @@ app.whenReady().then(async () => {
   const isInSandbox = process.mas || !!process.env.FLATPAK_ID;
   if (!isInSandbox) {
     if (process.defaultApp) {
-      // Dev mode: electron.exe is the executable, so we must pass the app path explicitly
-      // so the OS knows where to find the app when the protocol is invoked.
-      app.setAsDefaultProtocolClient("zcash", process.execPath, [app.getAppPath()]);
+      // Dev mode on Windows/Linux: register so URIs reach this instance via second-instance.
+      // Skipped on macOS: cold-start doesn't work in dev anyway, and registering here would
+      // overwrite the installed app's (DMG/TF) handler in the Launch Services database.
+      if (process.platform !== "darwin") {
+        app.setAsDefaultProtocolClient("zcash", process.execPath, [app.getAppPath()]);
+      }
     } else {
       app.setAsDefaultProtocolClient("zcash");
     }
