@@ -32,7 +32,7 @@ class MenuBuilder {
       { role: "selectall" },
     ]);
 
-    this.mainWindow.webContents.on("context-menu", (e, props) => {
+    this.mainWindow.webContents.on("context-menu", (_e, props) => {
       const { selectionText, isEditable } = props;
       if (isEditable) {
         inputMenu.popup(this.mainWindow);
