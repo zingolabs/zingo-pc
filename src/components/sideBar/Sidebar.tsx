@@ -40,6 +40,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     openErrorModal,
     currentWallet,
     currentWalletOpenError,
+    wallets,
     blockExplorerMainnetAddress,
     blockExplorerMainnetAddressCustom,
     blockExplorerMainnetTransaction,
@@ -57,6 +58,11 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
   const currentWalletRef = useRef<WalletType | null>(null);
   const currentWalletOpenErrorRef = useRef<string>("");
+  const walletsRef = useRef<WalletType[]>([]);
+  const readOnlyRef = useRef<boolean>(false);
+  const payURIRef = useRef<(uri: string) => Promise<void>>(async () => {});
+  // Stores a zcash: URI that arrived via IPC before the wallet was ready.
+  const pendingUriRef = useRef<string | null>(null);
 
   let stateSync: string = "";
   let progress: string = "";
@@ -84,11 +90,60 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   useEffect(() => {
     currentWalletOpenErrorRef.current = currentWalletOpenError;
   }, [currentWalletOpenError]);
+  useEffect(() => {
+    walletsRef.current = wallets;
+  }, [wallets]);
+  useEffect(() => {
+    readOnlyRef.current = readOnly;
+  }, [readOnly]);
+
+  // Consume any pending zcash: URI once the app knows its wallet state.
+  // Fires when: wallet finishes loading (go to Send) or no wallets configured (show error).
+  useEffect(() => {
+    // currentWallet starts as `{} as WalletType`; a real wallet always has an id.
+    const walletReady = !!currentWallet?.id && !currentWalletOpenError && !readOnly;
+    const noWallets = currentWallet === null && wallets.length === 0;
+    const readOnlyWallet = !!currentWallet?.id && !currentWalletOpenError && readOnly;
+
+    if (!walletReady && !noWallets && !readOnlyWallet) return;
+
+    const consumePending = async () => {
+      // Claim the URI: local ref first, then main process (cold start).
+      const uri: string | null = pendingUriRef.current ?? (await ipcRenderer.invoke("get-pending-uri"));
+      pendingUriRef.current = null;
+
+      if (!uri) return;
+
+      if (noWallets) {
+        openErrorModal("Pay URI", "No wallet configured. Please add a wallet before using a payment link.");
+        return;
+      }
+
+      if (readOnlyWallet) {
+        openErrorModal("Pay URI", "This is a watch-only wallet. It cannot send transactions.");
+        return;
+      }
+
+      payURIRef.current(uri);
+    };
+
+    consumePending();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentWallet, currentWalletOpenError, wallets]);
 
   // Handle menu items
   useEffect(() => {
+    // contextBridge wraps every function argument in a new proxy each time it
+    // crosses the context boundary, so ipcRenderer.off() cannot match the proxy
+    // that ipcRenderer.on() received — the old listener is never removed.
+    // React 18 StrictMode runs effects twice (mount → cleanup → mount), which
+    // causes two listeners to accumulate.  The `active` flag makes stale
+    // closures silently no-op so only the latest registration acts on events.
+    let active = true;
+
     // About
     const about = (_event: any) => {
+      if (!active) return;
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
@@ -119,22 +174,35 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       );
     };
 
-    // Pay URI
     const payuri = (_event: any, uri: string) => {
-      if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
-        openErrorModal("Pay Uri", "There is not an active Wallet to perform the action.");
+      if (!active) return;
+      if (!uri) {
+        // Manual path (menu / Ctrl+P): open modal so the user can type the URI.
+        openPayURIModal("");
+        return;
+      }
+      // External link path: go directly to Send, no intermediate modal.
+      if (currentWalletRef.current === null && walletsRef.current.length === 0) {
+        openErrorModal("Pay URI", "No wallet configured. Please add a wallet before using a payment link.");
+      } else if (readOnlyRef.current) {
+        openErrorModal("Pay URI", "This is a watch-only wallet. It cannot send transactions.");
+      } else if (currentWalletRef.current?.id && !currentWalletOpenErrorRef.current) {
+        payURIRef.current(uri);
       } else {
-        openPayURIModal(uri);
+        // Wallet still loading: park until ready.
+        pendingUriRef.current = uri;
       }
     };
 
     // Block Explorer Selection
     const blockexplorer = (_event: any) => {
+      if (!active) return;
       openBlockExplorerModal();
     };
 
     // Export Seed
     const seed = async (_event: any) => {
+      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Seed Phrase/Viewing Key", "There is not an active Wallet to perform the action.");
         return;
@@ -194,6 +262,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     };
 
     const rescan = async (_event: any) => {
+      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Rescan Wallet", "There is not an active Wallet to perform the action.");
       } else {
@@ -202,10 +271,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     };
 
     const addnewwallet = (_event: any) => {
+      if (!active) return;
       history.push(routes.ADDNEWWALLET, { mode: "addnew" });
     };
 
     const settingswallet = (_event: any) => {
+      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Settings", "There is not an active Wallet to perform the action.");
       } else {
@@ -214,6 +285,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     };
 
     const deletewallet = (_event: any) => {
+      if (!active) return;
       if (!currentWalletRef.current) {
         openErrorModal("Delete Wallet", "There is not an active Wallet to perform the action.");
       } else {
@@ -231,6 +303,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     ipcRenderer.on("deletewallet", deletewallet);
 
     return () => {
+      active = false;
       ipcRenderer.off("about", about);
       ipcRenderer.off("payuri", payuri);
       ipcRenderer.off("blockexplorer", blockexplorer);
@@ -296,6 +369,9 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
     history.push(routes.SEND);
   };
+
+  // Keep the ref pointing at the latest closure so the IPC handler never goes stale.
+  payURIRef.current = payURI;
 
   return (
     <div>

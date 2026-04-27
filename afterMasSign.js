@@ -44,8 +44,7 @@ module.exports = async function afterSign(context) {
   console.log(`[afterMasSign] appOutDir=${appOutDir}`);
   console.log(`[afterMasSign] electronPlatformName=${context.electronPlatformName}`);
 
-  const isMas =
-    context.electronPlatformName === "mas" || appOutDir.includes("mas");
+  const isMas = context.electronPlatformName === "mas" || appOutDir.includes("mas");
   if (!isMas) {
     console.log("[afterMasSign] Not a MAS build, skipping.");
     return;
@@ -53,23 +52,16 @@ module.exports = async function afterSign(context) {
   console.log("[afterMasSign] MAS build confirmed.");
 
   // Find the MAS signing identity in keychain.
-  const identityResult = spawnSync(
-    "security",
-    ["find-identity", "-v", "-p", "codesigning"],
-    { encoding: "utf-8" }
-  );
+  const identityResult = spawnSync("security", ["find-identity", "-v", "-p", "codesigning"], { encoding: "utf-8" });
   console.log("[afterMasSign] find-identity stdout:", identityResult.stdout);
   if (identityResult.stderr) {
     console.log("[afterMasSign] find-identity stderr:", identityResult.stderr);
   }
 
-  const identityMatch = identityResult.stdout.match(
-    /"(3rd Party Mac Developer Application:[^"]+)"/
-  );
+  const identityMatch = identityResult.stdout.match(/"(3rd Party Mac Developer Application:[^"]+)"/);
   if (!identityMatch) {
     throw new Error(
-      "[afterMasSign] FATAL: '3rd Party Mac Developer Application' certificate not found.\n" +
-        identityResult.stdout
+      "[afterMasSign] FATAL: '3rd Party Mac Developer Application' certificate not found.\n" + identityResult.stdout,
     );
   }
   const identity = identityMatch[1];
@@ -99,7 +91,7 @@ module.exports = async function afterSign(context) {
     try {
       execSync(
         `codesign --force --sign "${identity}" --entitlements "${emptyEntitlementsPath}" --timestamp "${filePath}"`,
-        { stdio: "pipe" }
+        { stdio: "pipe" },
       );
     } catch (err) {
       const out = err.stdout ? err.stdout.toString() : "";
@@ -124,9 +116,7 @@ module.exports = async function afterSign(context) {
     }
   }
 
-  console.log(
-    `[afterMasSign] Frameworks: ${frameworkBundles.length}, framework binaries: ${frameworkBinaries.length}`
-  );
+  console.log(`[afterMasSign] Frameworks: ${frameworkBundles.length}, framework binaries: ${frameworkBinaries.length}`);
 
   for (const bin of frameworkBinaries) resignNoEntitlements(bin);
   for (const fw of frameworkBundles) resignNoEntitlements(fw);
@@ -153,10 +143,9 @@ module.exports = async function afterSign(context) {
   const entitlementsPath = path.join(__dirname, "configs", "entitlements.mas.plist");
   console.log("[afterMasSign] Re-sealing app bundle with explicit MAS entitlements...");
   try {
-    execSync(
-      `codesign --force --sign "${identity}" --entitlements "${entitlementsPath}" --timestamp "${appPath}"`,
-      { stdio: "pipe" }
-    );
+    execSync(`codesign --force --sign "${identity}" --entitlements "${entitlementsPath}" --timestamp "${appPath}"`, {
+      stdio: "pipe",
+    });
   } catch (err) {
     const out = err.stdout ? err.stdout.toString() : "";
     const errStr = err.stderr ? err.stderr.toString() : "";

@@ -32,7 +32,7 @@ class MenuBuilder {
       { role: "selectall" },
     ]);
 
-    this.mainWindow.webContents.on("context-menu", (e, props) => {
+    this.mainWindow.webContents.on("context-menu", (_e, props) => {
       const { selectionText, isEditable } = props;
       if (isEditable) {
         inputMenu.popup(this.mainWindow);
@@ -409,6 +409,50 @@ async function saveWallets(wallets) {
 let waitingForClose = false;
 let proceedToClose = false;
 
+// zcash: URI received before the renderer is ready (cold start or wallet not yet loaded)
+let pendingZcashUri = null;
+
+function handleZcashUri(uri) {
+  if (!uri || !uri.startsWith("zcash:")) return;
+  const win = BrowserWindow.getAllWindows()[0];
+  if (win) {
+    win.webContents.send("payuri", uri);
+  } else {
+    pendingZcashUri = uri;
+  }
+}
+
+// Mac/MAS only: the OS routes zcash: links here whether the app is open or closed.
+// Must be registered before app.whenReady() to catch cold-start links.
+// On Windows/Linux, URIs arrive via second-instance argv — open-url is not fired there.
+if (process.platform === "darwin") {
+  app.on("open-url", (event, url) => {
+    event.preventDefault();
+    handleZcashUri(url);
+  });
+}
+
+// Windows/Linux: enforce single instance and receive the URI from the second argv.
+// Not used on macOS — the OS handles single-instance for URL schemes via open-url.
+if (process.platform !== "darwin") {
+  const gotLock = app.requestSingleInstanceLock();
+  if (!gotLock) {
+    // Exit immediately — app.quit() is graceful and can briefly show a white
+    // window before the process terminates, which is visible to the user.
+    app.exit(0);
+  } else {
+    app.on("second-instance", (_event, argv) => {
+      const uri = argv.find((a) => a.startsWith("zcash:"));
+      if (uri) handleZcashUri(uri);
+      const win = BrowserWindow.getAllWindows()[0];
+      if (win) {
+        if (win.isMinimized()) win.restore();
+        win.focus();
+      }
+    });
+  }
+}
+
 // Register all IPC handlers once — calling ipcMain.handle twice for the same channel throws
 ipcMain.handle("loadSettings", async () => settings.get("all"));
 ipcMain.handle("saveSettings", async (_e, kv) => settings.set(`all.${kv.key}`, kv.value));
@@ -419,6 +463,13 @@ ipcMain.handle("wallets:update", async (_e, wallet) => updateWallet(wallet));
 ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
+
+// Renderer calls this once the wallet is loaded to claim any pending zcash: URI.
+ipcMain.handle("get-pending-uri", () => {
+  const uri = pendingZcashUri;
+  pendingZcashUri = null;
+  return uri;
+});
 
 ipcMain.on("apprestart", () => {
   app.relaunch({ args: process.argv.slice(1).concat(["--relaunch"]) });
@@ -498,10 +549,32 @@ function createWindow() {
 
 app.commandLine.appendSwitch("in-process-gpu");
 
+// Windows/Linux cold start: the zcash: URI is passed as a command-line argument.
+if (process.platform !== "darwin") {
+  const coldStartUri = process.argv.find((a) => a.startsWith("zcash:"));
+  if (coldStartUri) pendingZcashUri = coldStartUri;
+}
+
 // Create a new browser window by invoking the createWindow
 // function once the Electron application is initialized.
 // Install REACT_DEVELOPER_TOOLS as well if isDev
 app.whenReady().then(async () => {
+  // Register zcash: protocol handler at runtime.
+  // - MAS: handled declaratively via protocols in package.json (sandbox forbids this call).
+  // - Flatpak: handled declaratively via the manifest .desktop file (sandbox forbids this call).
+  // - Windows/Linux packaged: the installer registers it, but calling this too doesn't hurt.
+  // - Dev mode on any platform: needed because electron-builder hasn't run.
+  const isInSandbox = process.mas || !!process.env.FLATPAK_ID;
+  if (!isInSandbox) {
+    if (process.defaultApp) {
+      // Dev mode: electron.exe is the executable, so we must pass the app path explicitly
+      // so the OS knows where to find the app when the protocol is invoked.
+      app.setAsDefaultProtocolClient("zcash", process.execPath, [app.getAppPath()]);
+    } else {
+      app.setAsDefaultProtocolClient("zcash");
+    }
+  }
+
   if (isDev) {
     try {
       // v4: export nombrado
