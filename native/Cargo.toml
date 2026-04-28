@@ -58,5 +58,8 @@ default-features = true
 [target.'cfg(target_os = "windows")'.dependencies]
 windows = { version = "0.61", features = ["Security_Credentials_UI"] }
 
+[build-dependencies]
+cc = "1"
+
 [profile.release]
 debug = 1

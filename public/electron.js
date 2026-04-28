@@ -432,8 +432,15 @@ ipcMain.handle("auth:check", async () => {
       return "not_supported";
     }
   } else if (process.platform === "darwin") {
-    const { systemPreferences } = require("electron");
-    return systemPreferences.canPromptTouchID() ? "available" : "not_supported";
+    try {
+      const nativePath = app.isPackaged
+        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
+        : path.join(__dirname, "../src/native.node");
+      const native = require(nativePath);
+      return native.checkMacAuth();
+    } catch {
+      return "not_supported";
+    }
   }
   return "not_supported";
 });
@@ -448,7 +455,7 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
       const native = require(nativePath);
       // Blur the Electron window so the Windows Hello dialog can take foreground focus.
       if (win) win.blur();
-      const result = await native.verifyUser(String(reason));
+      const result = await native.verifyWindowsUser(String(reason));
       if (win) win.focus();
       return result;
     } catch {
@@ -456,10 +463,12 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
       return { success: false };
     }
   } else if (process.platform === "darwin") {
-    const { systemPreferences } = require("electron");
     try {
-      await systemPreferences.promptTouchID(String(reason));
-      return { success: true };
+      const nativePath = app.isPackaged
+        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
+        : path.join(__dirname, "../src/native.node");
+      const native = require(nativePath);
+      return await native.verifyMacUser(String(reason));
     } catch {
       return { success: false };
     }
