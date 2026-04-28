@@ -21,6 +21,7 @@ const ALLOWED_RECEIVE = new Set([
   "settingswallet",
   "deletewallet",
   "appquitting",
+  "appsecurity",
 ]);
 
 // Allowed IPC channels that renderer → main can invoke/send.
@@ -37,6 +38,8 @@ const ALLOWED_INVOKE = new Set([
   "get-pending-uri",
   "apprestart",
   "appquitdone",
+  "auth:check",
+  "auth:verify",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {

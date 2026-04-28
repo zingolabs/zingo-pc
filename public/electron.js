@@ -108,7 +108,7 @@ class MenuBuilder {
         },
       ],
     };
-    const subMenuViewDev = {
+    const subMenuWallet = {
       label: "Wallet",
       submenu: [
         {
@@ -153,71 +153,26 @@ class MenuBuilder {
           accelerator: "Ctrl+P",
           click: () => {
             mainWindow.webContents.send("payuri");
-          },
-        },
-        { type: "separator" },
-        {
-          label: "Select Block &Explorer",
-          accelerator: "Ctrl+E",
-          click: () => {
-            mainWindow.webContents.send("blockexplorer");
           },
         },
       ],
     };
-    const subMenuViewProd = {
-      label: "Wallet",
+    const subMenuSettings = {
+      label: "Settings",
       submenu: [
-        {
-          label: "&Add new Wallet",
-          accelerator: "Ctrl+A",
-          click: () => {
-            mainWindow.webContents.send("addnewwallet");
-          },
-        },
-        { type: "separator" },
-        {
-          label: "Wallet &Seed Phrase / Viewing Key",
-          accelerator: "Ctrl+S",
-          click: () => {
-            mainWindow.webContents.send("seed");
-          },
-        },
-        {
-          label: "&Rescan Wallet",
-          accelerator: "Ctrl+R",
-          click: () => {
-            mainWindow.webContents.send("rescan");
-          },
-        },
-        {
-          label: "&Wallet Settings",
-          accelerator: "Ctrl+W",
-          click: () => {
-            mainWindow.webContents.send("settingswallet");
-          },
-        },
-        {
-          label: "&Delete Wallet",
-          accelerator: "Ctrl+D",
-          click: () => {
-            mainWindow.webContents.send("deletewallet");
-          },
-        },
-        { type: "separator" },
-        {
-          label: "&Pay URI",
-          accelerator: "Ctrl+P",
-          click: () => {
-            mainWindow.webContents.send("payuri");
-          },
-        },
-        { type: "separator" },
         {
           label: "Select Block &Explorer",
           accelerator: "Ctrl+E",
           click: () => {
             mainWindow.webContents.send("blockexplorer");
+          },
+        },
+        { type: "separator" },
+        {
+          label: "App &Security",
+          accelerator: "Ctrl+Shift+S",
+          click: () => {
+            mainWindow.webContents.send("appsecurity");
           },
         },
       ],
@@ -253,9 +208,7 @@ class MenuBuilder {
       ],
     };
 
-    const subMenuView = process.env.NODE_ENV === "development" ? subMenuViewDev : subMenuViewProd;
-
-    return [subMenuAbout, subMenuEdit, subMenuView, subMenuWindow, subMenuHelp];
+    return [subMenuAbout, subMenuEdit, subMenuWallet, subMenuSettings, subMenuWindow, subMenuHelp];
   }
 
   buildDefaultTemplate() {
@@ -321,12 +274,24 @@ class MenuBuilder {
               mainWindow.webContents.send("deletewallet");
             },
           },
-          { type: "separator" },
+        ],
+      },
+      {
+        label: "&Settings",
+        submenu: [
           {
             label: "Select Block &Explorer",
             accelerator: "Ctrl+E",
             click: () => {
               mainWindow.webContents.send("blockexplorer");
+            },
+          },
+          { type: "separator" },
+          {
+            label: "App &Security",
+            accelerator: "Ctrl+Shift+S",
+            click: () => {
+              mainWindow.webContents.send("appsecurity");
             },
           },
         ],
@@ -454,6 +419,79 @@ if (process.platform !== "darwin") {
 }
 
 // Register all IPC handlers once — calling ipcMain.handle twice for the same channel throws
+
+ipcMain.handle("auth:check", async () => {
+  if (process.platform === "win32") {
+    try {
+      const nativePath = app.isPackaged
+        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
+        : path.join(__dirname, "../src/native.node");
+      const native = require(nativePath);
+      return native.checkWindowsHello();
+    } catch {
+      return "not_supported";
+    }
+  } else if (process.platform === "darwin") {
+    try {
+      const nativePath = app.isPackaged
+        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
+        : path.join(__dirname, "../src/native.node");
+      const native = require(nativePath);
+      return native.checkMacAuth();
+    } catch {
+      return "not_supported";
+    }
+  } else if (process.platform === "linux") {
+    return new Promise((resolve) => {
+      const { execFile } = require("child_process");
+      execFile("pkaction", ["--action-id", "co.zingo.pc.authenticate"], (err) => {
+        resolve(err ? "not_installed_linux" : "available");
+      });
+    });
+  }
+  return "not_supported";
+});
+
+ipcMain.handle("auth:verify", async (_e, reason) => {
+  if (process.platform === "win32") {
+    const win = BrowserWindow.getAllWindows()[0] ?? null;
+    try {
+      const nativePath = app.isPackaged
+        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
+        : path.join(__dirname, "../src/native.node");
+      const native = require(nativePath);
+      // Blur the Electron window so the Windows Hello dialog can take foreground focus.
+      if (win) win.blur();
+      const result = await native.verifyWindowsUser(String(reason));
+      if (win) win.focus();
+      return result;
+    } catch {
+      if (win) win.focus();
+      return { success: false };
+    }
+  } else if (process.platform === "darwin") {
+    try {
+      const nativePath = app.isPackaged
+        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
+        : path.join(__dirname, "../src/native.node");
+      const native = require(nativePath);
+      return await native.verifyMacUser(String(reason));
+    } catch {
+      return { success: false };
+    }
+  } else if (process.platform === "linux") {
+    return new Promise((resolve) => {
+      const { execFile } = require("child_process");
+      execFile(
+        "pkcheck",
+        ["--action-id", "co.zingo.pc.authenticate", "--process", String(process.pid), "--allow-user-interaction"],
+        (err) => resolve({ success: !err }),
+      );
+    });
+  }
+  return { success: false };
+});
+
 ipcMain.handle("loadSettings", async () => settings.get("all"));
 ipcMain.handle("saveSettings", async (_e, kv) => settings.set(`all.${kv.key}`, kv.value));
 ipcMain.handle("wallets:all", async () => getWallets());

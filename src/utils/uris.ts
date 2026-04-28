@@ -6,7 +6,6 @@ import Utils from "./utils";
 import { native } from "../electronBridge";
 import { AddressKindEnum, ServerChainNameEnum } from "../components/appstate";
 
-
 export class ZcashURITarget {
   address?: string;
   amount?: number;
@@ -49,9 +48,9 @@ export const parseZcashURI = async (
   const address: string = parsedUri.pathname;
   if (address) {
     addressKind = await Utils.getAddressKind(address, serverChainName);
-    console.log('URIIIIIIIIIIIIIIIIII', address, serverChainName, addressKind);
+    console.log("URIIIIIIIIIIIIIIIIII", address, serverChainName, addressKind);
     if (addressKind === undefined) {
-      return `Error: "${address || ""}" was not a valid zcash address`; 
+      return `Error: "${address || ""}" was not a valid zcash address`;
     }
   }
 

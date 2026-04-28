@@ -39,6 +39,10 @@ import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
 import { ConfirmModal } from "../components/confirmModal";
 import ShieldResultContent from "./ShieldResultContent";
+import LockScreen from "../components/lockScreen/LockScreen";
+import AppSecurityModal from "../components/appSecurity/AppSecurityModal";
+
+const { ipcRenderer } = window.electronAPI;
 
 type Props = {};
 
@@ -46,14 +50,20 @@ function deepEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-class Routes extends React.Component<Props & RouteComponentProps, AppState> {
+type RoutesState = AppState & {
+  locked: boolean;
+  securityModalOpen: boolean;
+};
+
+class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
   rpc: RPC;
   fetchErrorTimer: ReturnType<typeof setTimeout> | null = null;
+  private _appsecurityListener: (() => void) | null = null;
 
   constructor(props: Props & RouteComponentProps) {
     super(props);
 
-    this.state = defaultAppState;
+    this.state = { ...defaultAppState, locked: false, securityModalOpen: false };
 
     // Set the Modal's app element
     ReactModal.setAppElement("#root");
@@ -78,10 +88,21 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
     if (addressBook && addressBook.length > 0) {
       this.setState({ addressBook });
     }
+
+    const allSettings = await ipcRenderer.invoke("loadSettings");
+    if (allSettings?.requireDeviceAuth) {
+      this.setState({ locked: true });
+    }
+
+    this._appsecurityListener = () => this.setState({ securityModalOpen: true });
+    ipcRenderer.on("appsecurity", this._appsecurityListener);
   };
 
   componentWillUnmount = () => {
     if (this.fetchErrorTimer) clearTimeout(this.fetchErrorTimer);
+    if (this._appsecurityListener) {
+      ipcRenderer.off("appsecurity", this._appsecurityListener);
+    }
   };
 
   openErrorModal = (title: string, body: string | JSX.Element) => {
@@ -501,6 +522,13 @@ class Routes extends React.Component<Props & RouteComponentProps, AppState> {
 
     return (
       <ContextAppProvider value={contextAppState}>
+        {this.state.locked && <LockScreen onUnlock={() => this.setState({ locked: false })} />}
+
+        <AppSecurityModal
+          isOpen={this.state.securityModalOpen}
+          onClose={() => this.setState({ securityModalOpen: false })}
+        />
+
         {this.state.confirmModal.modalIsOpen && <ConfirmModal closeModal={this.closeConfirmModal} />}
         {this.state.errorModal.modalIsOpen && <ErrorModal closeModal={this.closeErrorModal} />}
 

@@ -8087,6 +8087,7 @@ name = "zingolib-native"
 version = "0.1.0"
 dependencies = [
  "bip0039",
+ "cc",
  "hex",
  "http",
  "json",
@@ -8100,6 +8101,7 @@ dependencies = [
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "windows",
  "zcash_address",
  "zcash_client_backend",
  "zcash_encoding",
