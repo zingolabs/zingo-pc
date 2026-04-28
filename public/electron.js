@@ -421,35 +421,50 @@ if (process.platform !== "darwin") {
 // Register all IPC handlers once — calling ipcMain.handle twice for the same channel throws
 
 ipcMain.handle("auth:check", async () => {
-  if (process.platform !== "win32") return "not_supported";
-  try {
-    const nativePath = app.isPackaged
-      ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
-      : path.join(__dirname, "../src/native.node");
-    const native = require(nativePath);
-    return native.checkWindowsHello();
-  } catch {
-    return "not_supported";
+  if (process.platform === "win32") {
+    try {
+      const nativePath = app.isPackaged
+        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
+        : path.join(__dirname, "../src/native.node");
+      const native = require(nativePath);
+      return native.checkWindowsHello();
+    } catch {
+      return "not_supported";
+    }
+  } else if (process.platform === "darwin") {
+    const { systemPreferences } = require("electron");
+    return systemPreferences.canPromptTouchID() ? "available" : "not_supported";
   }
+  return "not_supported";
 });
 
 ipcMain.handle("auth:verify", async (_e, reason) => {
-  if (process.platform !== "win32") return { success: false };
-  const win = BrowserWindow.getAllWindows()[0] ?? null;
-  try {
-    const nativePath = app.isPackaged
-      ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
-      : path.join(__dirname, "../src/native.node");
-    const native = require(nativePath);
-    // Blur the Electron window so the Windows Hello dialog can take foreground focus.
-    if (win) win.blur();
-    const result = await native.verifyUser(String(reason));
-    if (win) win.focus();
-    return result;
-  } catch {
-    if (win) win.focus();
-    return { success: false };
+  if (process.platform === "win32") {
+    const win = BrowserWindow.getAllWindows()[0] ?? null;
+    try {
+      const nativePath = app.isPackaged
+        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
+        : path.join(__dirname, "../src/native.node");
+      const native = require(nativePath);
+      // Blur the Electron window so the Windows Hello dialog can take foreground focus.
+      if (win) win.blur();
+      const result = await native.verifyUser(String(reason));
+      if (win) win.focus();
+      return result;
+    } catch {
+      if (win) win.focus();
+      return { success: false };
+    }
+  } else if (process.platform === "darwin") {
+    const { systemPreferences } = require("electron");
+    try {
+      await systemPreferences.promptTouchID(String(reason));
+      return { success: true };
+    } catch {
+      return { success: false };
+    }
   }
+  return { success: false };
 });
 
 ipcMain.handle("loadSettings", async () => settings.get("all"));

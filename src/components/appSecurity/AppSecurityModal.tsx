@@ -75,7 +75,7 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
           <div>
             <div className={cstyles.small}>Require device authentication</div>
             <div className={cstyles.small} style={{ opacity: 0.6, marginTop: 4 }}>
-              Prompt for Windows Hello when opening the app and when sending funds.
+              Prompt for device authentication when opening the app and when sending funds.
             </div>
           </div>
           <input
