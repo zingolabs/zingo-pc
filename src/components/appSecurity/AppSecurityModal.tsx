@@ -11,10 +11,13 @@ type Props = {
 
 const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [requireAuth, setRequireAuth] = useState(false);
+  const [savedRequireAuth, setSavedRequireAuth] = useState(false);
   const [availability, setAvailability] = useState<"checking" | "available" | "not_configured" | "not_supported">(
     "checking",
   );
   const [saving, setSaving] = useState(false);
+
+  const hasChanges = requireAuth !== savedRequireAuth;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -24,7 +27,9 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
         ipcRenderer.invoke("loadSettings"),
         ipcRenderer.invoke("auth:check"),
       ]);
-      setRequireAuth(allSettings?.requireDeviceAuth ?? false);
+      const saved = allSettings?.requireDeviceAuth ?? false;
+      setRequireAuth(saved);
+      setSavedRequireAuth(saved);
       setAvailability(avail as typeof availability);
     })();
   }, [isOpen]);
@@ -114,7 +119,7 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
           type="button"
           className={cstyles.primarybutton}
           onClick={handleSave}
-          disabled={saving || availability === "checking"}
+          disabled={saving || availability === "checking" || !hasChanges}
         >
           {saving ? "Saving..." : "Save"}
         </button>
