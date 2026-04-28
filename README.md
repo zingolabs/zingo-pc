@@ -17,26 +17,6 @@ Pre-built binaries for each release are available on the [Releases page](https:/
 
 ---
 
-## Zcash payment links (`zcash:`)
-
-Zingo PC registers itself as the default handler for `zcash:` URIs ([ZIP-321](https://zips.z.cash/zip-0321)), so clicking a payment link in a browser or any app opens the Send screen with address, amount, and memo pre-filled.
-
-### App already open
-Clicking a `zcash:` link while the app is running works on all platforms and both Linux package formats.
-
-### App closed (cold start)
-
-| Platform / Format | Works on first click? | Notes |
-|-------------------|-----------------------|-------|
-| Windows `.msi` | ✅ | Registered at install time |
-| Windows `.zip` | ✅ after first run | `setAsDefaultProtocolClient` runs on first launch |
-| macOS `.dmg` | ✅ | Registered via Info.plist |
-| macOS App Store | ✅ | Registered via Info.plist (MAS entitlements) |
-| Linux `.deb` | ✅ | Registered by the package manager at install time |
-| Linux `.AppImage` | ✅ after first run | The AppImage must be launched at least once — `setAsDefaultProtocolClient` then registers the handler in `~/.local/share/applications/`. If you later move the AppImage to a different path, run it once from the new location to re-register. |
-
----
-
 ## Compiling from source
 
 Zingo PC is written in Electron/JavaScript and can be built from source. It will also automatically compile the Rust SDK.
@@ -82,3 +62,11 @@ yarn dist:mac-mas      # macOS universal (MAS / TestFlight)
 ```
 
 Binaries are output to the `dist/` directory.
+
+---
+
+## Troubleshooting
+
+**Q: Clicking a `zcash:` payment link doesn't open Zingo PC (Linux AppImage)**
+
+A: The AppImage must be launched at least once from its current location before the OS registers it as the handler for `zcash:` links. After the first launch, cold-start links work automatically. If you move the AppImage to a new path, launch it once from the new location to re-register it.
