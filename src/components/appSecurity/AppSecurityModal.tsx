@@ -12,9 +12,9 @@ type Props = {
 const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [requireAuth, setRequireAuth] = useState(false);
   const [savedRequireAuth, setSavedRequireAuth] = useState(false);
-  const [availability, setAvailability] = useState<"checking" | "available" | "not_configured" | "not_supported">(
-    "checking",
-  );
+  const [availability, setAvailability] = useState<
+    "checking" | "available" | "not_configured" | "not_installed_linux" | "not_supported"
+  >("checking");
   const [saving, setSaving] = useState(false);
 
   const hasChanges = requireAuth !== savedRequireAuth;
@@ -30,7 +30,9 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
       const saved = allSettings?.requireDeviceAuth ?? false;
       setRequireAuth(saved);
       setSavedRequireAuth(saved);
-      setAvailability(avail as typeof availability);
+      setAvailability(
+        avail as "checking" | "available" | "not_configured" | "not_installed_linux" | "not_supported",
+      );
     })();
   }, [isOpen]);
 
@@ -44,9 +46,11 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const unavailableMessage =
     availability === "not_configured"
       ? "Windows Hello is not configured on this device. Go to Windows Settings → Accounts → Sign-in options to set it up."
-      : availability === "not_supported"
-        ? "Device authentication is not supported on this platform."
-        : null;
+      : availability === "not_installed_linux"
+        ? "Device authentication via polkit is not available. Install the Zingo PC .deb package to enable this feature."
+        : availability === "not_supported"
+          ? "Device authentication is not supported on this platform."
+          : null;
 
   const isAvailable = availability === "available";
 

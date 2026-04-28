@@ -252,12 +252,22 @@
         "msi"
       ]
     },
+    "deb": {
+      "afterInstall": "scripts/postinstall.sh",
+      "afterRemove": "scripts/postremove.sh"
+    },
     "linux": {
       "category": "Development",
       "icon": "./resources/icons",
       "target": [
         "AppImage",
         "deb"
+      ],
+      "extraResources": [
+        {
+          "from": "resources/linux/co.zingo.pc.policy",
+          "to": "co.zingo.pc.policy"
+        }
       ],
       "mimeTypes": [
         "x-scheme-handler/zcash"

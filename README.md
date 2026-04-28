@@ -70,3 +70,24 @@ Binaries are output to the `dist/` directory.
 **Q: Clicking a `zcash:` payment link doesn't open Zingo PC (Linux AppImage)**
 
 A: The AppImage must be launched at least once from its current location before the OS registers it as the handler for `zcash:` links. After the first launch, cold-start links work automatically. If you move the AppImage to a new path, launch it once from the new location to re-register it.
+
+---
+
+**Q: "Require device authentication" is greyed out on Linux**
+
+A: Device authentication on Linux relies on [polkit](https://www.freedesktop.org/software/polkit/docs/latest/) and a policy file that must be installed at the system level. This is only supported by the `.deb` package, which installs the policy automatically via its post-install script.
+
+If you are running the **AppImage**, device authentication is not available and the option will remain disabled. Use the `.deb` package instead if you need this feature.
+
+If you installed the `.deb` package and the option is still greyed out, verify the policy file is in place:
+
+```bash
+ls /usr/share/polkit-1/actions/co.zingo.pc.policy
+```
+
+If the file is missing, reinstall the package or copy it manually:
+
+```bash
+sudo cp /opt/Zingo\ PC/resources/co.zingo.pc.policy /usr/share/polkit-1/actions/
+sudo chmod 644 /usr/share/polkit-1/actions/co.zingo.pc.policy
+```

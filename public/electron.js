@@ -441,6 +441,13 @@ ipcMain.handle("auth:check", async () => {
     } catch {
       return "not_supported";
     }
+  } else if (process.platform === "linux") {
+    return new Promise((resolve) => {
+      const { execFile } = require("child_process");
+      execFile("pkaction", ["--action-id", "co.zingo.pc.authenticate"], (err) => {
+        resolve(err ? "not_installed_linux" : "available");
+      });
+    });
   }
   return "not_supported";
 });
@@ -472,6 +479,15 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
     } catch {
       return { success: false };
     }
+  } else if (process.platform === "linux") {
+    return new Promise((resolve) => {
+      const { execFile } = require("child_process");
+      execFile(
+        "pkcheck",
+        ["--action-id", "co.zingo.pc.authenticate", "--process", String(process.pid), "--allow-user-interaction"],
+        (err) => resolve({ success: !err }),
+      );
+    });
   }
   return { success: false };
 });
