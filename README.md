@@ -1,67 +1,84 @@
 ## Zingo PC
 
+Zingo PC is a shielded Zcash light-client wallet for desktop (Windows, macOS, Linux), built with Electron and powered by the [Zingolib](https://github.com/zingolabs/zingolib) Rust SDK.
+
+---
+
+## Download
+
+Pre-built binaries for each release are available on the [Releases page](https://github.com/zingolabs/zingo-pc/releases).
+
+| Platform | Format |
+|----------|--------|
+| Windows | `.msi` installer, `.zip` portable |
+| macOS | `.dmg` |
+| macOS (App Store / TestFlight) | `.pkg` via [TestFlight](https://testflight.apple.com) |
+| Linux | `.deb`, `.AppImage` |
+
+---
+
+## Zcash payment links (`zcash:`)
+
+Zingo PC registers itself as the default handler for `zcash:` URIs ([ZIP-321](https://zips.z.cash/zip-0321)), so clicking a payment link in a browser or any app opens the Send screen with address, amount, and memo pre-filled.
+
+### App already open
+Clicking a `zcash:` link while the app is running works on all platforms and both Linux package formats.
+
+### App closed (cold start)
+
+| Platform / Format | Works on first click? | Notes |
+|-------------------|-----------------------|-------|
+| Windows `.msi` | ✅ | Registered at install time |
+| Windows `.zip` | ✅ after first run | `setAsDefaultProtocolClient` runs on first launch |
+| macOS `.dmg` | ✅ | Registered via Info.plist |
+| macOS App Store | ✅ | Registered via Info.plist (MAS entitlements) |
+| Linux `.deb` | ✅ | Registered by the package manager at install time |
+| Linux `.AppImage` | ✅ after first run | The AppImage must be launched at least once — `setAsDefaultProtocolClient` then registers the handler in `~/.local/share/applications/`. If you later move the AppImage to a different path, run it once from the new location to re-register. |
+
+---
+
 ## Compiling from source
-Zingo PC is written in Electron/Javascript and can be build from source. It will also automatically compile the Rust SDK needed to run zingo-pc.
 
-### Pre-Requisites
-You need to have the following software installed before you can build Zingo PC
+Zingo PC is written in Electron/JavaScript and can be built from source. It will also automatically compile the Rust SDK.
 
-* [Nodejs (>= 18.0.0) recommended version: v22.18.0 (current) ](https://nodejs.org/en/blog/release/v22.18.0)
+### Pre-requisites
+
+* [Node.js >= 18.0.0 (recommended: v22.18.0)](https://nodejs.org/en/blog/release/v22.18.0)
 * [Yarn](https://yarnpkg.com)
-* [Rust stable/nightly version](https://www.rust-lang.org/tools/install)
+* [Rust (stable)](https://www.rust-lang.org/tools/install)
+* [OpenSSL](https://docs.openssl.org/3.2/man7/ossl-guide-introduction/#getting-and-installing-openssl)
+* [Protobuf compiler](https://grpc.io/docs/protoc-installation/)
 
-#### Best Practices to install the NodeJs
-It is recommended that you install a version manager instead of just installing NodeJs on you computer.
+#### Node.js version manager (recommended)
 
-User Node Version Manager to ensure you can specifically install arbitrary versions across projecs 
-without losing your mind and polluting your PC with installs.
+Using a version manager avoids polluting your system with multiple Node.js installs.
 
-
-NOTE:  To ensure node 22.18.0 on Arch:
+```bash
+# Example on Arch Linux
 paru -S nvm
-And follow "Alternate Installations" for 22.18.0 https://wiki.archlinux.org/title/node.js_ I.E.:
-
-```
 nvm install 22.18.0
 nvm use 22.18.0
 ```
 
-### OpenSSL 
+### Build and run
 
-This project requires OpenSSL. [Official OpenSSL installation guidelines](https://docs.openssl.org/3.2/man7/ossl-guide-introduction/#getting-and-installing-openssl)
-
-
-### Protobuf Compiler.
-
-Zingo-PC uses grpc and protocol buffers. See [how to install the protobuf compiler](https://grpc.io/docs/protoc-installation/).
-
-
-### Building Zingo-PC from source
-
-```
+```bash
 git clone https://github.com/zingolabs/zingo-pc.git
 cd zingo-pc
-
 yarn install
 yarn build
-```
-
-To start in locally, run
-```
 yarn start
 ```
 
-If for some reason, you couldn't run zingo-pc using the above command, so I compiled the binary instead:
-```
-yarn dist:linux
-or
-yarn dist:win-arm64
-or
-yarn dist:win-x64
-or
-yarn dist:mac-arm64
-or
-yarn dist:mac-x64
+### Build distributable binaries
+
+```bash
+yarn dist:linux        # Linux (AppImage + deb)
+yarn dist:win-x64      # Windows x64
+yarn dist:win-arm64    # Windows ARM64
+yarn dist:mac-x64      # macOS x64 (DMG)
+yarn dist:mac-arm64    # macOS ARM64 (DMG)
+yarn dist:mac-mas      # macOS universal (MAS / TestFlight)
 ```
 
-The binaries should be in the *dist* directory.
+Binaries are output to the `dist/` directory.
