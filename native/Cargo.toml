@@ -55,5 +55,8 @@ lazy_static = "1.4.0"
 version = "1"
 default-features = true
 
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.61", features = ["Security_Credentials_UI"] }
+
 [profile.release]
 debug = 1
