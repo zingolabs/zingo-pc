@@ -27,6 +27,7 @@
     "electron-settings": "^4.0.4",
     "fs-extra": "^9.0.1",
     "js-base64": "^3.7.7",
+    "keytar": "^7.9.0",
     "minimatch": "^10.0.3",
     "progress-stream": "^2.0.0",
     "qrcode.react": "^4.2.0",
@@ -138,9 +139,9 @@
     "babel-preset-react-app": "^10.0.1",
     "bfj": "^7.0.2",
     "camelcase": "^6.3.0",
-    "chalk": "^4.1.2",
     "cargo-cp-artifact": "^0.1.9",
     "case-sensitive-paths-webpack-plugin": "^2.4.0",
+    "chalk": "^4.1.2",
     "concurrently": "^9.2.0",
     "cross-env": "^7.0.3",
     "css-loader": "^6.11.0",
@@ -209,7 +210,8 @@
       "node_modules/**/*"
     ],
     "asarUnpack": [
-      "build/native.node"
+      "build/native.node",
+      "node_modules/keytar/**/*.node"
     ],
     "directories": {
       "buildResources": "public"
@@ -224,7 +226,14 @@
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "protocols": [{ "name": "Zcash", "schemes": ["zcash"] }],
+      "protocols": [
+        {
+          "name": "Zcash",
+          "schemes": [
+            "zcash"
+          ]
+        }
+      ],
       "target": [
         "dmg"
       ],
@@ -239,7 +248,14 @@
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "protocols": [{ "name": "Zcash", "schemes": ["zcash"] }],
+      "protocols": [
+        {
+          "name": "Zcash",
+          "schemes": [
+            "zcash"
+          ]
+        }
+      ],
       "icon": "./resources/icon.icns",
       "target": [
         "mas"
