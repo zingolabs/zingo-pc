@@ -445,8 +445,10 @@ ipcMain.handle("auth:check", async () => {
   } else if (process.platform === "linux") {
     return new Promise((resolve) => {
       const { execFile } = require("child_process");
-      execFile("pkaction", ["--action-id", "co.zingo.pc.authenticate"], (err) => {
-        resolve(err ? "not_installed_linux" : "available");
+      // polkit 0.105 (Linux Mint / Ubuntu) exits with code 1 even when the
+      // action exists, so check stdout instead of the exit code.
+      execFile("pkaction", ["--action-id", "co.zingo.pc.authenticate"], (_err, stdout) => {
+        resolve(stdout && stdout.includes("co.zingo.pc.authenticate") ? "available" : "not_installed_linux");
       });
     });
   }
