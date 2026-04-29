@@ -89,8 +89,11 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
       this.setState({ addressBook });
     }
 
-    const allSettings = await ipcRenderer.invoke("loadSettings");
-    if (allSettings?.requireDeviceAuth) {
+    const [allSettings, authAvailability] = await Promise.all([
+      ipcRenderer.invoke("loadSettings"),
+      ipcRenderer.invoke("auth:check"),
+    ]);
+    if (allSettings?.requireDeviceAuth && authAvailability === "available") {
       this.setState({ locked: true });
     }
 

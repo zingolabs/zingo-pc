@@ -10,8 +10,8 @@ type Props = {
 };
 
 const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
-  const [requireAuth, setRequireAuth] = useState(false);
-  const [savedRequireAuth, setSavedRequireAuth] = useState(false);
+  const [requireAuth, setRequireAuth] = useState(true);
+  const [savedRequireAuth, setSavedRequireAuth] = useState(true);
   const [availability, setAvailability] = useState<
     "checking" | "available" | "not_configured" | "not_installed_linux" | "not_supported"
   >("checking");

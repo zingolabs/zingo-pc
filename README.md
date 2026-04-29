@@ -91,3 +91,24 @@ If the file is missing, reinstall the package or copy it manually:
 sudo cp /opt/Zingo\ PC/resources/co.zingo.pc.policy /usr/share/polkit-1/actions/
 sudo chmod 644 /usr/share/polkit-1/actions/co.zingo.pc.policy
 ```
+
+---
+
+**Q: The app security setting is not being saved securely on Linux (falls back to a plain file)**
+
+A: Zingo PC stores the "Require device authentication" setting in the OS credential store via the [Secret Service API](https://specifications.freedesktop.org/secret-service/latest/) (libsecret). This requires a secrets daemon to be running — typically **GNOME Keyring** or **KDE Wallet**.
+
+If neither is available (e.g. a minimal desktop environment or a headless system), the setting falls back to a plain configuration file, which offers no tamper protection.
+
+To fix this, install and start a compatible secrets daemon:
+
+```bash
+# Debian / Ubuntu / Arch (GNOME Keyring)
+sudo apt install gnome-keyring        # Debian/Ubuntu
+paru -S gnome-keyring                 # Arch
+
+# or KDE Wallet (if using a KDE-based desktop)
+sudo apt install kwalletmanager
+```
+
+After installing, log out and back in so the daemon starts with your session.

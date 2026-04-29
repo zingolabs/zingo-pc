@@ -495,8 +495,46 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
   return { success: false };
 });
 
-ipcMain.handle("loadSettings", async () => settings.get("all"));
-ipcMain.handle("saveSettings", async (_e, kv) => settings.set(`all.${kv.key}`, kv.value));
+// ── Keychain-backed requireDeviceAuth ─────────────────────────────────────
+// Missing or deleted entry is treated as true (auth required by default).
+// Only an explicit "false" stored by the user disables the feature.
+const KEYTAR_SERVICE = "Zingo PC";
+const KEYTAR_ACCOUNT = "requireDeviceAuth";
+
+async function getRequireAuth() {
+  try {
+    const keytar = require("keytar");
+    const value = await keytar.getPassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT);
+    if (value === null) return true;
+    return value === "true";
+  } catch {
+    // libsecret unavailable (Linux AppImage, etc.) → fall back to settings.json, default true
+    return settings.get("all.requireDeviceAuth") ?? true;
+  }
+}
+
+async function setRequireAuth(value) {
+  try {
+    const keytar = require("keytar");
+    await keytar.setPassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT, value ? "true" : "false");
+    settings.delete("all.requireDeviceAuth");
+  } catch {
+    settings.set("all.requireDeviceAuth", value);
+  }
+}
+
+ipcMain.handle("loadSettings", async () => {
+  const all = settings.get("all");
+  const requireDeviceAuth = await getRequireAuth();
+  return { ...all, requireDeviceAuth };
+});
+ipcMain.handle("saveSettings", async (_e, kv) => {
+  if (kv.key === "requireDeviceAuth") {
+    await setRequireAuth(kv.value);
+  } else {
+    settings.set(`all.${kv.key}`, kv.value);
+  }
+});
 ipcMain.handle("wallets:all", async () => getWallets());
 ipcMain.handle("wallets:get", async (_e, id) => getWallet(id));
 ipcMain.handle("wallets:add", async (_e, wallet) => addWallet(wallet));
