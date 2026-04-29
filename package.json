@@ -267,6 +267,10 @@
         {
           "from": "resources/linux/co.zingo.pc.policy",
           "to": "co.zingo.pc.policy"
+        },
+        {
+          "from": "resources/linux/zingo-pc-uri.sh",
+          "to": "zingo-pc-uri.sh"
         }
       ],
       "mimeTypes": [
