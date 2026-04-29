@@ -1,5 +1,6 @@
 const { app, BrowserWindow, Menu, shell, ipcMain } = require("electron");
 const path = require("path");
+const fs = require("fs");
 const settings = require("electron-settings");
 const storage = require("electron-json-storage");
 
@@ -587,9 +588,15 @@ function createWindow() {
 
 app.commandLine.appendSwitch("in-process-gpu");
 
-// Windows/Linux cold start: the zcash: URI is passed as a command-line argument.
+// Windows/Linux cold start: the zcash: URI arrives via env var (set by the
+// zingo-pc-uri.sh wrapper on Linux, which avoids passing it as a positional
+// argv that Electron's runtime misinterprets as the app-module path) or as a
+// direct argv entry on Windows.
 if (process.platform !== "darwin") {
-  const coldStartUri = process.argv.find((a) => a.startsWith("zcash:"));
+  const envUri = process.env.ZINGO_PC_URI;
+  const coldStartUri = envUri && envUri.startsWith("zcash:")
+    ? envUri
+    : process.argv.find((a) => a.startsWith("zcash:"));
   if (coldStartUri) pendingZcashUri = coldStartUri;
 }
 
@@ -612,7 +619,21 @@ app.whenReady().then(async () => {
         app.setAsDefaultProtocolClient("zcash", process.execPath, [app.getAppPath()]);
       }
     } else {
-      app.setAsDefaultProtocolClient("zcash");
+      // On Linux, the packaged Electron binary treats any positional argument
+      // as the app-module path (defaultApp mode), so passing the zcash: URI
+      // directly as argv causes a crash.  Register the wrapper script instead;
+      // it forwards the URI via the ZINGO_PC_URI env var and starts the binary
+      // with no positional arguments.
+      if (process.platform === "linux") {
+        const wrapperPath = path.join(path.dirname(process.execPath), "resources", "zingo-pc-uri.sh");
+        if (fs.existsSync(wrapperPath)) {
+          app.setAsDefaultProtocolClient("zcash", wrapperPath);
+        } else {
+          app.setAsDefaultProtocolClient("zcash");
+        }
+      } else {
+        app.setAsDefaultProtocolClient("zcash");
+      }
     }
   }
 
