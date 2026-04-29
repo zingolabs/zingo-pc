@@ -20,7 +20,5 @@
     <array>
       <string>group.co.zingo.pc</string>
     </array>
-    <key>com.apple.security.device.biometrics</key>
-    <true/>
   </dict>
 </plist>
