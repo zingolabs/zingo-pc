@@ -112,3 +112,17 @@ sudo apt install kwalletmanager
 ```
 
 After installing, log out and back in so the daemon starts with your session.
+
+---
+
+**Q: The app shows a blank blue screen and never loads (Linux — Ubuntu 22.04+, Debian 11+, Linux Mint)**
+
+A: Ubuntu 22.04 and later restrict unprivileged user namespaces at the kernel level, which breaks Chromium's built-in process sandbox that Electron depends on.
+
+- **`.deb` package**: This is fixed automatically by the post-install script, which sets the `chrome-sandbox` binary as SUID root (the same technique used by the official Google Chrome `.deb`). If you installed the `.deb` and still see the issue, try reinstalling.
+
+- **AppImage**: The AppImage detects the restriction automatically and disables the Chromium sandbox when needed. If you are on Ubuntu 24.04 or a system where AppArmor blocks user namespaces and the automatic detection does not work, you can launch the AppImage manually with:
+
+  ```bash
+  ./ZingoPC.AppImage --no-sandbox
+  ```

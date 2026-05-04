@@ -1,5 +1,6 @@
 #import <LocalAuthentication/LocalAuthentication.h>
 #import <Foundation/Foundation.h>
+#import <AppKit/AppKit.h>
 
 int check_mac_auth_available(void) {
     @autoreleasepool {
@@ -27,5 +28,26 @@ int verify_mac_auth_sync(const char *reason_utf8) {
 
         dispatch_semaphore_wait(sema, DISPATCH_TIME_FOREVER);
         return result ? 1 : 0;
+    }
+}
+
+// Resolves a security-scoped bookmark (base64) and starts accessing the resource.
+// Must be called in the process that needs file access (renderer/preload).
+// Returns 1 on success, 0 on error.
+int start_security_scoped_access(const char *bookmark_b64) {
+    @autoreleasepool {
+        if (!bookmark_b64) return 0;
+        NSString *b64str = [NSString stringWithUTF8String:bookmark_b64];
+        NSData *bookmarkData = [[NSData alloc] initWithBase64EncodedString:b64str options:0];
+        if (!bookmarkData) return 0;
+        NSError *error = nil;
+        BOOL isStale = NO;
+        NSURL *url = [NSURL URLByResolvingBookmarkData:bookmarkData
+                                               options:NSURLBookmarkResolutionWithSecurityScope
+                                         relativeToURL:nil
+                                   bookmarkDataIsStale:&isStale
+                                                 error:&error];
+        if (!url || error) return 0;
+        return [url startAccessingSecurityScopedResource] ? 1 : 0;
     }
 }

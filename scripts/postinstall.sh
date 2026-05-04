@@ -13,6 +13,14 @@ if [ -f "$WRAPPER" ]; then
     chmod +x "$WRAPPER"
 fi
 
+# Make chrome-sandbox SUID root so Chromium's process sandbox works on
+# Ubuntu 22.04+ / Debian 11+ which restrict unprivileged user namespaces.
+CHROME_SANDBOX='/opt/Zingo PC/chrome-sandbox'
+if [ -f "$CHROME_SANDBOX" ]; then
+    chown root "$CHROME_SANDBOX"
+    chmod 4755 "$CHROME_SANDBOX"
+fi
+
 # Patch the system .desktop file so the zcash: handler uses the wrapper script
 # from the very first click, before the user has ever opened the app manually.
 DESKTOP='/usr/share/applications/zingo-pc.desktop'

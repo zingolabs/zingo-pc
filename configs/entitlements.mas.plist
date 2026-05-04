@@ -12,10 +12,6 @@
     <true/>
     <key>com.apple.security.files.downloads.read-write</key>
     <true/>
-    <key>com.apple.security.temporary-exception.files.home-relative-path.read-write</key>
-    <array>
-      <string>/Library/Application Support/Zcash/</string>
-    </array>
     <key>com.apple.security.application-groups</key>
     <array>
       <string>group.co.zingo.pc</string>

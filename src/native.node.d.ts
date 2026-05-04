@@ -95,3 +95,5 @@ export function delete_wallet(
   min_confirmations: number,
   wallet_name: string,
 ): Promise<string>;
+export function set_wallet_base_dir(path: string): boolean;
+export function start_security_scoped_access(bookmark_b64: string): boolean;
