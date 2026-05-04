@@ -5,7 +5,10 @@ extern crate lazy_static;
 extern "C" {
     fn check_mac_auth_available() -> std::ffi::c_int;
     fn verify_mac_auth_sync(reason: *const std::ffi::c_char) -> std::ffi::c_int;
+    fn start_security_scoped_access(bookmark_b64: *const std::ffi::c_char) -> std::ffi::c_int;
 }
+
+static WALLET_BASE_DIR: once_cell::sync::OnceCell<std::path::PathBuf> = once_cell::sync::OnceCell::new();
 
 use neon::prelude::*;
 
@@ -58,6 +61,8 @@ use zingo_common_components::protocol::activation_heights::for_test;
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
     install_panic_hook_once();
 
+    cx.export_function("set_wallet_base_dir", set_wallet_base_dir)?;
+    cx.export_function("start_security_scoped_access", neon_start_security_scoped_access)?;
     cx.export_function("deinitialize", deinitialize)?;
     cx.export_function("wallet_exists", wallet_exists)?;
     cx.export_function("init_new", init_new)?;
@@ -381,6 +386,27 @@ fn store_client(lightclient: LightClient) -> Result<(), ZingolibError> {
     Ok(())
 }
 
+fn set_wallet_base_dir(mut cx: FunctionContext) -> JsResult<JsBoolean> {
+    let path_str = cx.argument::<JsString>(0)?.value(&mut cx);
+    let _ = WALLET_BASE_DIR.set(std::path::PathBuf::from(path_str));
+    Ok(cx.boolean(true))
+}
+
+fn neon_start_security_scoped_access(mut cx: FunctionContext) -> JsResult<JsBoolean> {
+    #[cfg(target_os = "macos")]
+    {
+        let bookmark_b64 = cx.argument::<JsString>(0)?.value(&mut cx);
+        let c_str = match std::ffi::CString::new(bookmark_b64) {
+            Ok(s) => s,
+            Err(_) => return Ok(cx.boolean(false)),
+        };
+        let result = unsafe { start_security_scoped_access(c_str.as_ptr()) };
+        return Ok(cx.boolean(result == 1));
+    }
+    #[cfg(not(target_os = "macos"))]
+    Ok(cx.boolean(true))
+}
+
 fn construct_uri_load_config(
     uri: String,
     chain_hint: String,
@@ -406,7 +432,7 @@ fn construct_uri_load_config(
     };
     let config = match zingolib::config::load_clientconfig(
         lightwalletd_uri.clone(),
-        None,
+        WALLET_BASE_DIR.get().cloned(),
         chaintype,
         WalletSettings {
             sync_config: SyncConfig {

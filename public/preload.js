@@ -40,6 +40,7 @@ const ALLOWED_INVOKE = new Set([
   "appquitdone",
   "auth:check",
   "auth:verify",
+  "wallet-dir:request",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {

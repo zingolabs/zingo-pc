@@ -1,4 +1,5 @@
-const { app, BrowserWindow, Menu, shell, ipcMain } = require("electron");
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require("electron");
+const os = require("os");
 const path = require("path");
 const fs = require("fs");
 const settings = require("electron-settings");
@@ -388,6 +389,21 @@ function handleZcashUri(uri) {
   }
 }
 
+// On Linux, detect kernel-level user namespace restrictions (Ubuntu 22.04+, Debian 11+)
+// and disable Chromium's process sandbox when they are in place. Without this the app
+// shows a blank blue screen on affected distros (issues #206, #266).
+// Note: Ubuntu 24.04 uses AppArmor instead of this sysctl — the .deb postinstall
+// fixes that case via chrome-sandbox SUID. AppImage users on 24.04 may still need
+// to run with --no-sandbox manually if AppArmor blocks user namespaces.
+if (process.platform === "linux") {
+  try {
+    const val = fs.readFileSync("/proc/sys/kernel/unprivileged_userns_clone", "utf8").trim();
+    if (val === "0") app.commandLine.appendSwitch("no-sandbox");
+  } catch {
+    /* sysctl not present — sandbox should work */
+  }
+}
+
 // Mac/MAS only: the OS routes zcash: links here whether the app is open or closed.
 // Must be registered before app.whenReady() to catch cold-start links.
 // On Windows/Linux, URIs arrive via second-instance argv — open-url is not fired there.
@@ -463,6 +479,8 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
         ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
         : path.join(__dirname, "../src/native.node");
       const native = require(nativePath);
+      // If Windows Hello is not configured, skip verification rather than hanging.
+      if (native.checkWindowsHello() !== "available") return { success: true };
       // Blur the Electron window so the Windows Hello dialog can take foreground focus.
       if (win) win.blur();
       const result = await native.verifyWindowsUser(String(reason));
@@ -542,6 +560,78 @@ ipcMain.handle("wallets:update", async (_e, wallet) => updateWallet(wallet));
 ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
+
+ipcMain.handle("wallet-dir:request", async () => {
+  if (process.platform !== "darwin" || !process.env.APP_SANDBOX_CONTAINER_ID) return null;
+
+  const zcashDir = path.join(os.homedir(), "Library", "Application Support", "Zcash");
+  const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
+
+  // Return stored bookmark if available (subsequent launches)
+  const storedBookmark = settings.get("all.walletDirBookmark");
+  if (storedBookmark) {
+    return { path: settings.get("all.walletDirPath"), bookmark: storedBookmark };
+  }
+
+  // First launch: info dialog → folder picker loop
+  while (true) {
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: "information",
+      title: "Acceso a billeteras",
+      message: "Zingo necesita acceder a la carpeta de billeteras",
+      detail: `Tus billeteras se guardan en:\n${zcashDir}\n\nEn la siguiente pantalla, selecciona esa carpeta y haz clic en "Confirmar".`,
+      buttons: ["Continuar", "Cerrar Zingo"],
+      defaultId: 0,
+      cancelId: 1,
+    });
+
+    if (response === 1) {
+      app.quit();
+      return null;
+    }
+
+    const { canceled, filePaths, bookmarks } = await dialog.showOpenDialog(mainWindow, {
+      title: "Seleccionar carpeta de billeteras",
+      message: 'Selecciona la carpeta "Zcash" y haz clic en "Confirmar"',
+      buttonLabel: "Confirmar",
+      defaultPath: zcashDir,
+      properties: ["openDirectory", "createDirectory"],
+      securityScopedBookmarks: true,
+    });
+
+    if (canceled || filePaths.length === 0) {
+      const { response: r2 } = await dialog.showMessageBox(mainWindow, {
+        type: "warning",
+        title: "Acceso necesario",
+        message: "Zingo no puede funcionar sin acceso a la carpeta de billeteras.",
+        buttons: ["Reintentar", "Cerrar Zingo"],
+        defaultId: 0,
+        cancelId: 1,
+      });
+      if (r2 === 1) {
+        app.quit();
+        return null;
+      }
+      continue;
+    }
+
+    const selectedPath = filePaths[0];
+    if (path.basename(selectedPath) !== "Zcash") {
+      await dialog.showMessageBox(mainWindow, {
+        type: "error",
+        title: "Carpeta incorrecta",
+        message: `Por favor selecciona la carpeta "Zcash", no "${path.basename(selectedPath)}".`,
+        buttons: ["Reintentar"],
+      });
+      continue;
+    }
+
+    const bookmark = bookmarks[0];
+    settings.set("all.walletDirBookmark", bookmark);
+    settings.set("all.walletDirPath", selectedPath);
+    return { path: selectedPath, bookmark };
+  }
+});
 
 // Renderer calls this once the wallet is loaded to claim any pending zcash: URI.
 ipcMain.handle("get-pending-uri", () => {
@@ -634,9 +724,8 @@ app.commandLine.appendSwitch("in-process-gpu");
 // direct argv entry on Windows.
 if (process.platform !== "darwin") {
   const envUri = process.env.ZINGO_PC_URI;
-  const coldStartUri = envUri && envUri.startsWith("zcash:")
-    ? envUri
-    : process.argv.find((a) => a.startsWith("zcash:"));
+  const coldStartUri =
+    envUri && envUri.startsWith("zcash:") ? envUri : process.argv.find((a) => a.startsWith("zcash:"));
   if (coldStartUri) pendingZcashUri = coldStartUri;
 }
 

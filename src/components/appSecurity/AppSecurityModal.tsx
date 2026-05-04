@@ -30,9 +30,7 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
       const saved = allSettings?.requireDeviceAuth ?? false;
       setRequireAuth(saved);
       setSavedRequireAuth(saved);
-      setAvailability(
-        avail as "checking" | "available" | "not_configured" | "not_installed_linux" | "not_supported",
-      );
+      setAvailability(avail as "checking" | "available" | "not_configured" | "not_installed_linux" | "not_supported");
     })();
   }, [isOpen]);
 
