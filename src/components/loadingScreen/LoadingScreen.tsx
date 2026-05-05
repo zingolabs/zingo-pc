@@ -652,10 +652,14 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   doFirstTimeSetup = async () => {
     // On macOS MAS builds, request security-scoped access to the wallet directory
     // before any native wallet calls. On other platforms this returns null (no-op).
-    const walletDirResult: { path: string; bookmark: string } | null = await ipcRenderer.invoke("wallet-dir:request");
-    if (walletDirResult !== null) {
-      native.start_security_scoped_access(walletDirResult.bookmark);
-      native.set_wallet_base_dir(walletDirResult.path);
+    try {
+      const walletDirResult: { path: string; bookmark: string } | null = await ipcRenderer.invoke("wallet-dir:request");
+      if (walletDirResult !== null && typeof native.start_security_scoped_access === "function") {
+        native.start_security_scoped_access(walletDirResult.bookmark);
+        native.set_wallet_base_dir(walletDirResult.path);
+      }
+    } catch (e) {
+      console.error("wallet-dir:request failed, continuing without security-scoped access:", e);
     }
 
     let { currentWallet, wallets } = await this.loadCurrentWallet();

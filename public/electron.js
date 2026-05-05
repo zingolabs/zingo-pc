@@ -562,74 +562,79 @@ ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 
 ipcMain.handle("wallet-dir:request", async () => {
-  if (process.platform !== "darwin" || !process.env.APP_SANDBOX_CONTAINER_ID) return null;
+  try {
+    if (process.platform !== "darwin" || !process.env.APP_SANDBOX_CONTAINER_ID) return null;
 
-  const zcashDir = path.join(os.homedir(), "Library", "Application Support", "Zcash");
-  const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
+    const zcashDir = path.join(os.homedir(), "Library", "Application Support", "Zcash");
+    const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
 
-  // Return stored bookmark if available (subsequent launches)
-  const storedBookmark = settings.get("all.walletDirBookmark");
-  if (storedBookmark) {
-    return { path: settings.get("all.walletDirPath"), bookmark: storedBookmark };
-  }
-
-  // First launch: info dialog → folder picker loop
-  while (true) {
-    const { response } = await dialog.showMessageBox(mainWindow, {
-      type: "information",
-      title: "Acceso a billeteras",
-      message: "Zingo necesita acceder a la carpeta de billeteras",
-      detail: `Tus billeteras se guardan en:\n${zcashDir}\n\nEn la siguiente pantalla, selecciona esa carpeta y haz clic en "Confirmar".`,
-      buttons: ["Continuar", "Cerrar Zingo"],
-      defaultId: 0,
-      cancelId: 1,
-    });
-
-    if (response === 1) {
-      app.quit();
-      return null;
+    // Return stored bookmark if available (subsequent launches)
+    const storedBookmark = settings.get("all.walletDirBookmark");
+    if (storedBookmark) {
+      return { path: settings.get("all.walletDirPath"), bookmark: storedBookmark };
     }
 
-    const { canceled, filePaths, bookmarks } = await dialog.showOpenDialog(mainWindow, {
-      title: "Seleccionar carpeta de billeteras",
-      message: 'Selecciona la carpeta "Zcash" y haz clic en "Confirmar"',
-      buttonLabel: "Confirmar",
-      defaultPath: zcashDir,
-      properties: ["openDirectory", "createDirectory"],
-      securityScopedBookmarks: true,
-    });
-
-    if (canceled || filePaths.length === 0) {
-      const { response: r2 } = await dialog.showMessageBox(mainWindow, {
-        type: "warning",
-        title: "Acceso necesario",
-        message: "Zingo no puede funcionar sin acceso a la carpeta de billeteras.",
-        buttons: ["Reintentar", "Cerrar Zingo"],
+    // First launch: info dialog → folder picker loop
+    while (true) {
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: "information",
+        title: "Acceso a billeteras",
+        message: "Zingo necesita acceder a la carpeta de billeteras",
+        detail: `Tus billeteras se guardan en:\n${zcashDir}\n\nEn la siguiente pantalla, selecciona esa carpeta y haz clic en "Confirmar".`,
+        buttons: ["Continuar", "Cerrar Zingo"],
         defaultId: 0,
         cancelId: 1,
       });
-      if (r2 === 1) {
+
+      if (response === 1) {
         app.quit();
         return null;
       }
-      continue;
-    }
 
-    const selectedPath = filePaths[0];
-    if (path.basename(selectedPath) !== "Zcash") {
-      await dialog.showMessageBox(mainWindow, {
-        type: "error",
-        title: "Carpeta incorrecta",
-        message: `Por favor selecciona la carpeta "Zcash", no "${path.basename(selectedPath)}".`,
-        buttons: ["Reintentar"],
+      const { canceled, filePaths, bookmarks } = await dialog.showOpenDialog(mainWindow, {
+        title: "Seleccionar carpeta de billeteras",
+        message: 'Selecciona la carpeta "Zcash" y haz clic en "Confirmar"',
+        buttonLabel: "Confirmar",
+        defaultPath: zcashDir,
+        properties: ["openDirectory", "createDirectory"],
+        securityScopedBookmarks: true,
       });
-      continue;
-    }
 
-    const bookmark = bookmarks[0];
-    settings.set("all.walletDirBookmark", bookmark);
-    settings.set("all.walletDirPath", selectedPath);
-    return { path: selectedPath, bookmark };
+      if (canceled || filePaths.length === 0) {
+        const { response: r2 } = await dialog.showMessageBox(mainWindow, {
+          type: "warning",
+          title: "Acceso necesario",
+          message: "Zingo no puede funcionar sin acceso a la carpeta de billeteras.",
+          buttons: ["Reintentar", "Cerrar Zingo"],
+          defaultId: 0,
+          cancelId: 1,
+        });
+        if (r2 === 1) {
+          app.quit();
+          return null;
+        }
+        continue;
+      }
+
+      const selectedPath = filePaths[0];
+      if (path.basename(selectedPath) !== "Zcash") {
+        await dialog.showMessageBox(mainWindow, {
+          type: "error",
+          title: "Carpeta incorrecta",
+          message: `Por favor selecciona la carpeta "Zcash", no "${path.basename(selectedPath)}".`,
+          buttons: ["Reintentar"],
+        });
+        continue;
+      }
+
+      const bookmark = bookmarks[0];
+      settings.set("all.walletDirBookmark", bookmark);
+      settings.set("all.walletDirPath", selectedPath);
+      return { path: selectedPath, bookmark };
+    }
+  } catch (e) {
+    console.error("wallet-dir:request handler error:", e);
+    return null;
   }
 });
 
