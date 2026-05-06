@@ -130,6 +130,7 @@ jobs:
         if: matrix.platform == 'mas'
         env:
           LZMA_API_STATIC: 1
+          CSC_NAME: "3rd Party Mac Developer Application: Distheirs LLC (788KRST4S8)"
         run: yarn ${{ matrix.dist_script }}
 
       - name: Build (Windows)

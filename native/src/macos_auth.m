@@ -21,7 +21,7 @@ int verify_mac_auth_sync(const char *reason_utf8) {
 
         [ctx evaluatePolicy:LAPolicyDeviceOwnerAuthentication
             localizedReason:reason
-                      reply:^(BOOL success, NSError *error) {
+                      reply:^(BOOL success, NSError * __unused error) {
             result = success;
             dispatch_semaphore_signal(sema);
         }];

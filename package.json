@@ -64,7 +64,7 @@
     "dist:linux": "rimraf dist && yarn build && electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
     "dist:linux-only-build": "electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-arm64": "rimraf dist && yarn build-mac-arm64 && electron-builder -m --arm64 -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:mac-mas": "rimraf dist && yarn neon-mac-x64 && cp src/native.node src/native-x64.node && yarn neon-mac-arm64 && lipo -create -output src/native.node src/native-x64.node src/native.node && rm src/native-x64.node && cross-env node scripts/build.js && electron-builder --mac mas --universal -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:mac-mas": "rimraf dist && yarn cargo:clean && yarn neon-mac-x64 && cp src/native.node src/native-x64.node && yarn neon-mac-arm64 && lipo -create -output src/native.node src/native-x64.node src/native.node && rm src/native-x64.node && cross-env node scripts/build.js && electron-builder --mac mas --universal -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-x64": "rimraf dist && yarn build-mac-x64 && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-x64": "rimraf dist && yarn build-win-x64 && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
