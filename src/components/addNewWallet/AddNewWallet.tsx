@@ -129,10 +129,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
       const currServer: string = currentWallet ? currentWallet.uri : settings.serveruri;
       const currChain: ServerChainNameEnum = currentWallet ? currentWallet.chain_name : settings.serverchain_name;
       const currSelection: ServerSelectionEnum = currentWallet ? currentWallet.selection : settings.serverselection;
-      initialServerValue(currServer, currChain, currSelection);
-      setSelectedServer(currServer);
-      setSelectedChain(currChain);
-      setSelectedSelection(currSelection);
+      const safeChain = currChain || "";
+      const safeServer = currServer || "";
+      const safeSelection = currSelection || "";
+      initialServerValue(safeServer, safeChain, safeSelection as ServerSelectionEnum | "");
+      setSelectedServer(safeServer);
+      setSelectedChain(safeChain);
+      setSelectedSelection(safeSelection as ServerSelectionEnum | "");
       setServers(servers);
       if (mode !== "addnew" && !!currentWallet) {
         setAlias(currentWallet.alias);
@@ -820,7 +823,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             </div>
           )}
 
-          {mode !== "delete" && (
+          {mode !== "delete" && selectedChain !== "" && (
             <>
               <div
                 style={{
