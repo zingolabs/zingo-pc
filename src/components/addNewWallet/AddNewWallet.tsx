@@ -578,7 +578,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
     isSubmittingRef.current = true;
 
-    if (selectedSelection !== ServerSelectionEnum.auto && (!selectedServer || !selectedChain || !selectedSelection)) {
+    if (!selectedChain) {
+      openErrorModal("Create Wallet", "Please select a Network before creating a wallet.");
+      isSubmittingRef.current = false;
+      return;
+    }
+    if (selectedSelection !== ServerSelectionEnum.auto && (!selectedServer || !selectedSelection)) {
+      openErrorModal("Create Wallet", "Please select a server before creating a wallet.");
       isSubmittingRef.current = false;
       return;
     }
@@ -703,7 +709,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                     } else {
                       const ls: string = servers.filter((s) => s.chain_name === e.target.value)[0].uri;
                       setListServer(ls);
-                      if (selectedSelection === ServerSelectionEnum.list) {
+                      if (selectedSelection === ServerSelectionEnum.list || selectedSelection === "") {
+                        setSelectedSelection(ServerSelectionEnum.list);
                         setSelectedServer(ls);
                       }
                     }

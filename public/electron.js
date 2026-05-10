@@ -389,6 +389,32 @@ function handleZcashUri(uri) {
   }
 }
 
+// Electron 37+ (Chromium 137+) initialises CoreLocation in every process when running
+// under MAS sandbox. The sandbox denies com.apple.locationd.desktop.registration,
+// causing startup hangs of varying lengths across processes:
+//   - main thread deadlock  → fixed by NetworkServiceInProcess (moves Network Service
+//     out of the main process so CL is no longer initialised on the main thread)
+//   - ~91 s renderer delay  → fixed by disable-geolocation (prevents CL in renderer)
+//   - ~57 s renderer delay  → fixed by NetworkLocationProvider (prevents CL in the
+//     separate Network Service process, which was still timing out and blocking the
+//     renderer's Mojo IPC connection to it)
+//   - ~10 s remaining delay → fixed by com.apple.security.personal-information.location
+//     entitlement (v128): allows CL to connect to locationd immediately instead of
+//     waiting for the 10 s registration timeout.
+//   DO NOT add "Geolocation" to disable-features — it forces CL to initialise
+//   synchronously on the main thread (dispatch_once deadlock, v126 lesson).
+//   DO NOT use show:false+ready-to-show — macOS state restoration bypasses it and
+//   shows the window before the renderer is ready, breaking the React render pipeline
+//   (v126/v127 lesson).
+// Zingo PC does not use location services, so all three flags can be safely disabled.
+if (process.platform === "darwin") {
+  app.commandLine.appendSwitch(
+    "disable-features",
+    "NetworkServiceInProcess,NetworkLocationProvider",
+  );
+  app.commandLine.appendSwitch("disable-geolocation");
+}
+
 // On Linux, detect kernel-level user namespace restrictions (Ubuntu 22.04+, Debian 11+)
 // and disable Chromium's process sandbox when they are in place. Without this the app
 // shows a blank blue screen on affected distros (issues #206, #266).
@@ -527,7 +553,7 @@ async function getRequireAuth() {
     return value === "true";
   } catch {
     // libsecret unavailable (Linux AppImage, etc.) → fall back to settings.json, default true
-    return settings.get("all.requireDeviceAuth") ?? true;
+    return settings.getSync("all.requireDeviceAuth") ?? true;
   }
 }
 
@@ -535,22 +561,22 @@ async function setRequireAuth(value) {
   try {
     const keytar = require("keytar");
     await keytar.setPassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT, value ? "true" : "false");
-    settings.delete("all.requireDeviceAuth");
+    settings.unsetSync("all.requireDeviceAuth");
   } catch {
-    settings.set("all.requireDeviceAuth", value);
+    settings.setSync("all.requireDeviceAuth", value);
   }
 }
 
 ipcMain.handle("loadSettings", async () => {
-  const all = settings.get("all");
+  const all = settings.getSync("all");
   const requireDeviceAuth = await getRequireAuth();
-  return { ...all, requireDeviceAuth };
+  return { ...(all ?? {}), requireDeviceAuth };
 });
 ipcMain.handle("saveSettings", async (_e, kv) => {
   if (kv.key === "requireDeviceAuth") {
     await setRequireAuth(kv.value);
   } else {
-    settings.set(`all.${kv.key}`, kv.value);
+    settings.setSync(`all.${kv.key}`, kv.value);
   }
 });
 ipcMain.handle("wallets:all", async () => getWallets());
@@ -561,27 +587,66 @@ ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 
+// Activates a security-scoped bookmark from the main process, which has
+// com.apple.security.files.bookmarks.app-scope explicitly. Apple docs say
+// app-scoped bookmark access applies to all processes in the app sandbox.
+let _mainNative = null;
+function activateBookmarkInMainProcess(bookmarkB64, wdLog) {
+  if (!_mainNative) {
+    try { _mainNative = require(path.join(__dirname, "native.node")); } catch (_) {}
+  }
+  if (_mainNative && typeof _mainNative.start_security_scoped_access === "function") {
+    const ok = _mainNative.start_security_scoped_access(bookmarkB64);
+    wdLog(`main-process start_security_scoped_access=${ok}`);
+  }
+}
+
 ipcMain.handle("wallet-dir:request", async () => {
+  const wdLog = (msg) => {
+    try {
+      const logPath = require("path").join(app.getPath("userData"), "startup.log");
+      require("fs").appendFileSync(logPath, `${new Date().toISOString()} [wallet-dir] ${msg}\n`);
+    } catch (_) {}
+  };
   try {
-    if (process.platform !== "darwin" || !process.env.APP_SANDBOX_CONTAINER_ID) return null;
+    // process.mas is set by Electron in ALL processes (main + renderer) for MAS/TestFlight builds.
+    // APP_SANDBOX_CONTAINER_ID is only reliable in renderer processes, not in the main process.
+    wdLog(`handler entered — process.mas=${process.mas} platform=${process.platform}`);
+    if (process.platform !== "darwin" || !process.mas) {
+      wdLog("returning null (not MAS darwin)");
+      return null;
+    }
 
-    const zcashDir = path.join(os.homedir(), "Library", "Application Support", "Zcash");
+    // os.homedir() inside MAS sandbox returns the container home, not the real user home.
+    // os.userInfo().username is reliable regardless of sandbox and gives the real username.
+    const realHome = path.join("/Users", os.userInfo().username);
+    const zcashDir = path.join(realHome, "Library", "Application Support", "Zcash");
     const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
+    wdLog(`zcashDir=${zcashDir} mainWindow=${mainWindow ? "ok" : "null"}`);
 
-    // Return stored bookmark if available (subsequent launches)
-    const storedBookmark = settings.get("all.walletDirBookmark");
-    if (storedBookmark) {
-      return { path: settings.get("all.walletDirPath"), bookmark: storedBookmark };
+    // Return stored bookmark if available (subsequent launches).
+    // settings.get() is async in electron-settings v4 — always use getSync() here to
+    // avoid returning an unresolved Promise which fails IPC structured clone.
+    const storedBookmark = settings.getSync("all.walletDirBookmark");
+    wdLog(`storedBookmark type=${typeof storedBookmark} hasValue=${typeof storedBookmark === "string" && storedBookmark.length > 0}`);
+    if (typeof storedBookmark === "string" && storedBookmark.length > 0) {
+      wdLog("returning stored bookmark");
+      activateBookmarkInMainProcess(storedBookmark, wdLog);
+      return {
+        path: String(settings.getSync("all.walletDirPath") ?? ""),
+        bookmark: storedBookmark,
+      };
     }
 
     // First launch: info dialog → folder picker loop
+    wdLog("showing first-launch dialog");
     while (true) {
       const { response } = await dialog.showMessageBox(mainWindow, {
-        type: "information",
-        title: "Acceso a billeteras",
-        message: "Zingo necesita acceder a la carpeta de billeteras",
-        detail: `Tus billeteras se guardan en:\n${zcashDir}\n\nEn la siguiente pantalla, selecciona esa carpeta y haz clic en "Confirmar".`,
-        buttons: ["Continuar", "Cerrar Zingo"],
+        type: "info",
+        title: "Wallet folder access",
+        message: "Zingo needs access to the wallet folder",
+        detail: `Your wallets are stored in:\n${zcashDir}\n\nIn the next screen, select that folder and click "Confirm".`,
+        buttons: ["Continue", "Quit Zingo"],
         defaultId: 0,
         cancelId: 1,
       });
@@ -592,9 +657,9 @@ ipcMain.handle("wallet-dir:request", async () => {
       }
 
       const { canceled, filePaths, bookmarks } = await dialog.showOpenDialog(mainWindow, {
-        title: "Seleccionar carpeta de billeteras",
-        message: 'Selecciona la carpeta "Zcash" y haz clic en "Confirmar"',
-        buttonLabel: "Confirmar",
+        title: "Select wallet folder",
+        message: 'Select the "Zcash" folder and click "Confirm"',
+        buttonLabel: "Confirm",
         defaultPath: zcashDir,
         properties: ["openDirectory", "createDirectory"],
         securityScopedBookmarks: true,
@@ -603,9 +668,9 @@ ipcMain.handle("wallet-dir:request", async () => {
       if (canceled || filePaths.length === 0) {
         const { response: r2 } = await dialog.showMessageBox(mainWindow, {
           type: "warning",
-          title: "Acceso necesario",
-          message: "Zingo no puede funcionar sin acceso a la carpeta de billeteras.",
-          buttons: ["Reintentar", "Cerrar Zingo"],
+          title: "Access required",
+          message: "Zingo cannot run without access to the wallet folder.",
+          buttons: ["Retry", "Quit Zingo"],
           defaultId: 0,
           cancelId: 1,
         });
@@ -620,19 +685,22 @@ ipcMain.handle("wallet-dir:request", async () => {
       if (path.basename(selectedPath) !== "Zcash") {
         await dialog.showMessageBox(mainWindow, {
           type: "error",
-          title: "Carpeta incorrecta",
-          message: `Por favor selecciona la carpeta "Zcash", no "${path.basename(selectedPath)}".`,
-          buttons: ["Reintentar"],
+          title: "Wrong folder",
+          message: `Please select the "Zcash" folder, not "${path.basename(selectedPath)}".`,
+          buttons: ["Retry"],
         });
         continue;
       }
 
       const bookmark = bookmarks[0];
-      settings.set("all.walletDirBookmark", bookmark);
-      settings.set("all.walletDirPath", selectedPath);
+      settings.setSync("all.walletDirBookmark", bookmark);
+      settings.setSync("all.walletDirPath", selectedPath);
+      wdLog(`bookmark stored, path=${selectedPath}`);
+      activateBookmarkInMainProcess(bookmark, wdLog);
       return { path: selectedPath, bookmark };
     }
   } catch (e) {
+    wdLog(`ERROR: ${e}`);
     console.error("wallet-dir:request handler error:", e);
     return null;
   }
@@ -685,6 +753,33 @@ function createWindow() {
   // Otherwise load index.html file
   mainWindow.loadURL(isDev ? "http://localhost:3000" : `file://${path.join(__dirname, "../build/index.html")}`);
 
+  // Diagnostic logging for MAS/sandbox builds — writes to userData so we can
+  // read it from ~/Library/Containers/co.zingo.pc/Data/Library/Application Support/Zingo PC/startup.log
+  if (!isDev) {
+    const logPath = path.join(app.getPath("userData"), "startup.log");
+    const ts = () => new Date().toISOString();
+    const log = (msg) => {
+      try { require("fs").appendFileSync(logPath, `${ts()} ${msg}\n`); } catch (_) {}
+    };
+    log(`=== startup bundleVersion=${app.getVersion()} ===`);
+    mainWindow.webContents.on("did-start-loading", () => log("did-start-loading"));
+    mainWindow.webContents.on("did-finish-load", () => log("did-finish-load OK"));
+    mainWindow.webContents.on("did-fail-load", (_e, code, desc, url) =>
+      log(`did-fail-load code=${code} desc=${desc} url=${url}`),
+    );
+    mainWindow.webContents.on("dom-ready", () => log("dom-ready"));
+    mainWindow.webContents.on("render-process-gone", (_e, details) =>
+      log(`render-process-gone reason=${details.reason} exitCode=${details.exitCode}`),
+    );
+    app.on("render-process-gone", (_e, _wc, details) =>
+      log(`app render-process-gone reason=${details.reason} exitCode=${details.exitCode}`),
+    );
+    mainWindow.webContents.on("console-message", (_e, level, message, line, sourceId) => {
+      const src = sourceId ? sourceId.split("/").slice(-1)[0] : "?";
+      log(`console[${level}] ${src}:${line} ${message}`);
+    });
+  }
+
   const menuBuilder = new MenuBuilder(mainWindow);
   menuBuilder.buildMenu();
 
@@ -706,13 +801,13 @@ function createWindow() {
 
     mainWindow.webContents.send("appquitting");
 
-    // Failsafe, timeout after 5 seconds
+    // Failsafe: if the renderer doesn't respond within 3s, force quit.
     setTimeout(() => {
       waitingForClose = false;
       proceedToClose = true;
       console.log("Timeout, quitting");
       app.quit();
-    }, 5 * 1000);
+    }, 3 * 1000);
   });
 
   // Open DevTools if in dev mode

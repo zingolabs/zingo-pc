@@ -59,6 +59,7 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
   rpc: RPC;
   fetchErrorTimer: ReturnType<typeof setTimeout> | null = null;
   private _appsecurityListener: (() => void) | null = null;
+  private _appquittingListener: (() => void) | null = null;
 
   constructor(props: Props & RouteComponentProps) {
     super(props);
@@ -99,12 +100,23 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
 
     this._appsecurityListener = () => this.setState({ securityModalOpen: true });
     ipcRenderer.on("appsecurity", this._appsecurityListener);
+
+    this._appquittingListener = async () => {
+      try {
+        await native.save_wallet_file();
+      } catch (_) {}
+      ipcRenderer.send("appquitdone");
+    };
+    ipcRenderer.on("appquitting", this._appquittingListener);
   };
 
   componentWillUnmount = () => {
     if (this.fetchErrorTimer) clearTimeout(this.fetchErrorTimer);
     if (this._appsecurityListener) {
       ipcRenderer.off("appsecurity", this._appsecurityListener);
+    }
+    if (this._appquittingListener) {
+      ipcRenderer.off("appquitting", this._appquittingListener);
     }
   };
 

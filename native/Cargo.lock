@@ -8092,6 +8092,7 @@ dependencies = [
  "http",
  "json",
  "lazy_static",
+ "liblzma",
  "log",
  "neon",
  "once_cell",

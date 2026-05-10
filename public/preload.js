@@ -45,6 +45,7 @@ const ALLOWED_INVOKE = new Set([
 
 contextBridge.exposeInMainWorld("electronAPI", {
   native,
+  isSandboxed: process.platform === "darwin" && process.mas === true,
 
   clipboard: {
     writeText: (text) => clipboard.writeText(text),
