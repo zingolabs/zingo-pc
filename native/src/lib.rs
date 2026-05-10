@@ -430,9 +430,16 @@ fn construct_uri_load_config(
         "Low" => PerformanceLevel::Low,
         _ => return Err("Error: Not a valid performance level!".to_string()),
     };
+    let wallet_dir = WALLET_BASE_DIR.get().cloned().map(|mut dir| {
+        match chaintype {
+            ChainType::Testnet => { dir.push("testnet3"); dir }
+            ChainType::Regtest(_) => { dir.push("regtest"); dir }
+            ChainType::Mainnet => dir,
+        }
+    });
     let config = match zingolib::config::load_clientconfig(
         lightwalletd_uri.clone(),
-        WALLET_BASE_DIR.get().cloned(),
+        wallet_dir,
         chaintype,
         WalletSettings {
             sync_config: SyncConfig {

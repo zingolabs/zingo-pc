@@ -4,6 +4,7 @@ declare global {
   interface Window {
     electronAPI: {
       native: typeof NativeAPI;
+      isSandboxed: boolean;
       clipboard: {
         writeText: (text: string) => void;
       };

@@ -1,6 +1,6 @@
 import React, { Component } from "react";
 import { RouteComponentProps, withRouter } from "react-router";
-import { native, ipcRenderer } from "../../electronBridge";
+import { native, ipcRenderer, isSandboxed } from "../../electronBridge";
 import {
   CreationTypeEnum,
   InfoClass,
@@ -654,12 +654,30 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // before any native wallet calls. On other platforms this returns null (no-op).
     try {
       const walletDirResult: { path: string; bookmark: string } | null = await ipcRenderer.invoke("wallet-dir:request");
+      console.log(`[wallet-dir] result=${walletDirResult !== null ? "ok path=" + walletDirResult.path : "null"} isSandboxed=${isSandboxed}`);
       if (walletDirResult !== null && typeof native.start_security_scoped_access === "function") {
-        native.start_security_scoped_access(walletDirResult.bookmark);
-        native.set_wallet_base_dir(walletDirResult.path);
+        const accessGranted = native.start_security_scoped_access(walletDirResult.bookmark);
+        const baseDirSet = native.set_wallet_base_dir(walletDirResult.path);
+        console.log(`[wallet-dir] start_security_scoped_access=${accessGranted} set_wallet_base_dir=${baseDirSet}`);
+      } else if (walletDirResult === null && isSandboxed) {
+        // On MAS sandbox the handler only returns null if the user quit the app via the
+        // dialog, which calls app.quit() before reaching here. If we somehow land here
+        // it means an unexpected failure — don't silently proceed with the empty container dir.
+        this.props.setCurrentWalletOpenError(
+          "Could not access the wallet folder. Please restart the application.",
+        );
+        this.setState({ loadingDone: true });
+        return;
       }
     } catch (e) {
-      console.error("wallet-dir:request failed, continuing without security-scoped access:", e);
+      console.error("wallet-dir:request failed:", e);
+      if (isSandboxed) {
+        this.props.setCurrentWalletOpenError(
+          `Could not access the wallet folder: ${e}`,
+        );
+        this.setState({ loadingDone: true });
+        return;
+      }
     }
 
     let { currentWallet, wallets } = await this.loadCurrentWallet();
