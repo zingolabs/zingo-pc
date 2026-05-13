@@ -361,7 +361,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         3,
         wallet_name,
       );
-      console.log(`Initialization: ${result}`);
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Restoring wallet from file", result);
         // restore the previous wallet

@@ -234,7 +234,6 @@ export default class RPC {
       }
       if (confirmJSON.txids && confirmJSON.txids.length > 0) {
         const txids: string = confirmJSON.txids.join(", ");
-        console.log(txids);
         return txids;
       }
 

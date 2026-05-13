@@ -338,7 +338,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   };
 
   const payURI = async (uri: string) => {
-    console.log(`Paying ${uri}`);
 
     const errTitle: string = "URI Error";
     const getErrorBody = (explain: string): ReactElement => {

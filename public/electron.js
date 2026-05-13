@@ -418,10 +418,14 @@ if (process.platform === "darwin") {
 // Note: Ubuntu 24.04 uses AppArmor instead of this sysctl — the .deb postinstall
 // fixes that case via chrome-sandbox SUID. AppImage users on 24.04 may still need
 // to run with --no-sandbox manually if AppArmor blocks user namespaces.
+let sandboxDisabled = false;
 if (process.platform === "linux") {
   try {
     const val = fs.readFileSync("/proc/sys/kernel/unprivileged_userns_clone", "utf8").trim();
-    if (val === "0") app.commandLine.appendSwitch("no-sandbox");
+    if (val === "0") {
+      app.commandLine.appendSwitch("no-sandbox");
+      sandboxDisabled = true;
+    }
   } catch {
     /* sysctl not present — sandbox should work */
   }
@@ -937,6 +941,25 @@ function createWindow() {
 
   const menuBuilder = new MenuBuilder(mainWindow);
   menuBuilder.buildMenu();
+
+  if (sandboxDisabled) {
+    // Log to startup.log if available (log() is only defined in the !isDev block above).
+    if (typeof log === "function") log("WARNING: Chromium sandbox disabled (unprivileged_userns_clone=0)");
+    mainWindow.webContents.once("did-finish-load", () => {
+      dialog.showMessageBox(mainWindow, {
+        type: "warning",
+        title: "Security Warning",
+        message: "Chromium sandbox is disabled",
+        detail:
+          "Zingo PC is running without the Chromium process sandbox because your system " +
+          "has user namespaces disabled (unprivileged_userns_clone=0).\n\n" +
+          "This reduces the security isolation of the application. " +
+          "For full security, install the .deb package instead of the AppImage — " +
+          "it enables the sandbox automatically via the chrome-sandbox SUID helper.",
+        buttons: ["OK"],
+      });
+    });
+  }
 
   mainWindow.on("close", (event) => {
     // If we are clear to close, then return and allow everything to close
