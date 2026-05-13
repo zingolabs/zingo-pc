@@ -640,14 +640,17 @@ export default class RPC {
   }
 
   // Fetch all T and Z and O value transfers
-  async fetchTandZandOValueTransfers() {
+  private async fetchValueTransferData(
+    fetchLabel: string,
+    fetcher: () => Promise<RPCValueTransferType[]>,
+    setter: (list: ValueTransferClass[]) => void,
+  ): Promise<void> {
     try {
-      // first to get the last server block.
       let latestBlockHeight: number = 0;
       const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : "");
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith("error")) {
-          this.fnSetFetchError("ValueTransfers", `Error server height ${heightStr}`);
+          this.fnSetFetchError(fetchLabel, `Error server height ${heightStr}`);
           console.error(`Error server height ${heightStr}`);
         } else {
           latestBlockHeight = Number(heightStr);
@@ -656,20 +659,17 @@ export default class RPC {
         console.error("Internal Error server height");
       }
 
-      const valueTransfersJSON: RPCValueTransferType[] = await this.zingolibValueTransfers();
-
-      let vtList: ValueTransferClass[] = [];
-
+      const txsJSON: RPCValueTransferType[] = await fetcher();
       const walletHeight: number = await RPC.fetchWalletHeight();
 
-      valueTransfersJSON.forEach((tx: RPCValueTransferType) => {
-        let currentVtList: ValueTransferClass = {} as ValueTransferClass;
+      const list: ValueTransferClass[] = txsJSON.map((tx: RPCValueTransferType) => {
+        const vt: ValueTransferClass = {} as ValueTransferClass;
 
-        currentVtList.txid = tx.txid;
-        currentVtList.time = tx.datetime;
-        currentVtList.type = tx.kind;
-        currentVtList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
-        currentVtList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
+        vt.txid = tx.txid;
+        vt.time = tx.datetime;
+        vt.type = tx.kind;
+        vt.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
+        vt.zec_price = !tx.zec_price ? 0 : tx.zec_price;
 
         // unconfirmed means 0 confirmations, the tx is mining already.
         // 'pending' is obsolete
@@ -679,108 +679,47 @@ export default class RPC {
           tx.status === ValueTransferStatusEnum.mempool ||
           tx.status === ValueTransferStatusEnum.failed
         ) {
-          currentVtList.confirmations = 0;
+          vt.confirmations = 0;
         } else if (tx.status === ValueTransferStatusEnum.confirmed) {
-          currentVtList.confirmations =
+          vt.confirmations =
             latestBlockHeight && latestBlockHeight >= walletHeight
               ? latestBlockHeight - tx.blockheight + 1
               : walletHeight - tx.blockheight + 1;
         } else {
-          // impossible case... I guess.
-          currentVtList.confirmations = 0;
+          // impossible case
+          vt.confirmations = 0;
         }
 
-        currentVtList.blockheight = tx.blockheight;
-        currentVtList.status = tx.status;
-        currentVtList.address = !tx.recipient_address ? undefined : tx.recipient_address;
-        currentVtList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
-        currentVtList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
-        currentVtList.pool = !tx.pool_received ? undefined : tx.pool_received;
+        vt.blockheight = tx.blockheight;
+        vt.status = tx.status;
+        vt.address = !tx.recipient_address ? undefined : tx.recipient_address;
+        vt.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
+        vt.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
+        vt.pool = !tx.pool_received ? undefined : tx.pool_received;
 
-        if (currentVtList.confirmations < 0) {
-        }
-        //if (tx.txid.startsWith('426e')) {
-        //}
-
-        vtList.push(currentVtList);
+        return vt;
       });
 
-      this.fnSetValueTransfersList(vtList);
+      setter(list);
     } catch (error) {
-      console.error(`Critical Error value transfers ${error}`);
+      console.error(`Critical Error ${fetchLabel.toLowerCase()} ${error}`);
     }
   }
 
-  // Fetch all T and Z and O value transfers
+  async fetchTandZandOValueTransfers() {
+    await this.fetchValueTransferData(
+      "ValueTransfers",
+      () => this.zingolibValueTransfers(),
+      (list) => this.fnSetValueTransfersList(list),
+    );
+  }
+
   async fetchTandZandOMessages() {
-    try {
-      // first to get the last server block.
-      let latestBlockHeight: number = 0;
-      const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : "");
-      if (heightStr) {
-        if (heightStr.toLowerCase().startsWith("error")) {
-          this.fnSetFetchError("Messages", `Error server height ${heightStr}`);
-          console.error(`Error server height ${heightStr}`);
-        } else {
-          latestBlockHeight = Number(heightStr);
-        }
-      } else {
-        console.error("Internal Error server height");
-      }
-
-      const MessagesJSON: RPCValueTransferType[] = await this.zingolibMessages();
-
-      let mList: ValueTransferClass[] = [];
-
-      const walletHeight: number = await RPC.fetchWalletHeight();
-
-      MessagesJSON.forEach((tx: RPCValueTransferType) => {
-        let currentMList: ValueTransferClass = {} as ValueTransferClass;
-
-        currentMList.txid = tx.txid;
-        currentMList.time = tx.datetime;
-        currentMList.type = tx.kind;
-        currentMList.fee = (!tx.transaction_fee ? 0 : tx.transaction_fee) / 10 ** 8;
-        currentMList.zec_price = !tx.zec_price ? 0 : tx.zec_price;
-
-        // unconfirmed means 0 confirmations, the tx is mining already.
-        // 'pending' is obsolete
-        if (
-          tx.status === ValueTransferStatusEnum.calculated ||
-          tx.status === ValueTransferStatusEnum.transmitted ||
-          tx.status === ValueTransferStatusEnum.mempool ||
-          tx.status === ValueTransferStatusEnum.failed
-        ) {
-          currentMList.confirmations = 0;
-        } else if (tx.status === ValueTransferStatusEnum.confirmed) {
-          currentMList.confirmations =
-            latestBlockHeight && latestBlockHeight >= walletHeight
-              ? latestBlockHeight - tx.blockheight + 1
-              : walletHeight - tx.blockheight + 1;
-        } else {
-          // impossible case... I guess.
-          currentMList.confirmations = 0;
-        }
-
-        currentMList.blockheight = tx.blockheight;
-        currentMList.status = tx.status;
-        currentMList.address = !tx.recipient_address ? undefined : tx.recipient_address;
-        currentMList.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
-        currentMList.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
-        currentMList.pool = !tx.pool_received ? undefined : tx.pool_received;
-
-        if (currentMList.confirmations < 0) {
-        }
-        //if (tx.txid.startsWith('426e')) {
-        //}
-
-        mList.push(currentMList);
-      });
-
-      this.fnSetMessagesList(mList);
-    } catch (error) {
-      console.error(`Critical Error messages ${error}`);
-    }
+    await this.fetchValueTransferData(
+      "Messages",
+      () => this.zingolibMessages(),
+      (list) => this.fnSetMessagesList(list),
+    );
   }
 
   // Send a transaction using the already constructed sendJson structure
