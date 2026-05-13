@@ -156,7 +156,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const nextWalletName = () => {
+  const nextWalletName = async () => {
     let maxId = !!wallets && wallets.length > 0 ? Math.max(...wallets.map((w) => w.id)) : 3;
     if (maxId < 3) {
       maxId = 3;
@@ -167,7 +167,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
     while (true) {
       console.log(next, nextWalletName);
-      const walletExistsResult: boolean = native.wallet_exists(
+      const walletExistsResult: boolean = await native.wallet_exists(
         selectedServer,
         selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
         performanceLevel,
@@ -212,8 +212,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   const doCreateNewWallet = async () => {
     try {
-      const { next: id, nextWalletName: wallet_name } = nextWalletName();
-      const result: string = native.init_new(
+      const { next: id, nextWalletName: wallet_name } = await nextWalletName();
+      const result: string = await native.init_new(
         selectedServer,
         selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
         performanceLevel,
@@ -250,8 +250,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   const doRestoreSeedWallet = async () => {
     try {
-      const { next: id, nextWalletName: wallet_name } = nextWalletName();
-      const result: string = native.init_from_seed(
+      const { next: id, nextWalletName: wallet_name } = await nextWalletName();
+      const result: string = await native.init_from_seed(
         seedPhrase,
         Number(birthday),
         selectedServer,
@@ -312,8 +312,8 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         openErrorModal("Parsing UFVK", "The prefix of the Unified Full Viewing Key is not valid");
         return;
       }
-      const { next: id, nextWalletName: wallet_name } = nextWalletName();
-      const result: string = native.init_from_ufvk(
+      const { next: id, nextWalletName: wallet_name } = await nextWalletName();
+      const result: string = await native.init_from_ufvk(
         ufvk,
         Number(birthday),
         selectedServer,
@@ -352,9 +352,9 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   const doRestoreFileWallet = async () => {
     try {
       // only needs the id, it have the wallet_name already
-      const { next: id } = nextWalletName();
+      const { next: id } = await nextWalletName();
       const wallet_name: string = file;
-      const result: string = native.init_from_b64(
+      const result: string = await native.init_from_b64(
         selectedServer,
         selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
         performanceLevel,
@@ -398,7 +398,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   const loadCurrentWallet = async () => {
     if (currentWallet) {
-      const result: string = native.init_from_b64(
+      const result: string = await native.init_from_b64(
         currentWallet.uri,
         currentWallet.chain_name,
         currentWallet.performanceLevel,
@@ -513,7 +513,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     if (!!currentWallet) {
       try {
         await clearTimers();
-        const walletExistsResult: boolean = native.wallet_exists(
+        const walletExistsResult: boolean = await native.wallet_exists(
           currentWallet.uri,
           currentWallet.chain_name,
           currentWallet.performanceLevel,
@@ -533,7 +533,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
               console.log(`Stopping sync Error ${error}`);
             }
           }
-          RPC.deinitialize();
+          await RPC.deinitialize();
 
           // remove the actual wallet
           await ipcRenderer.invoke("wallets:remove", currentWallet.id);

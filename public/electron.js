@@ -408,10 +408,7 @@ function handleZcashUri(uri) {
 //   (v126/v127 lesson).
 // Zingo PC does not use location services, so all three flags can be safely disabled.
 if (process.platform === "darwin") {
-  app.commandLine.appendSwitch(
-    "disable-features",
-    "NetworkServiceInProcess,NetworkLocationProvider",
-  );
+  app.commandLine.appendSwitch("disable-features", "NetworkServiceInProcess,NetworkLocationProvider");
   app.commandLine.appendSwitch("disable-geolocation");
 }
 
@@ -587,19 +584,141 @@ ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 
+// Lazily loads native.node in the main process (shared across all IPC handlers).
+// Path mirrors preload.js: inside an asar, Electron redirects .node loads to
+// app.asar.unpacked/ automatically (asarUnpack: ["build/native.node"]).
+const _nativePath = __dirname.includes(".asar")
+  ? path.join(__dirname, "native.node")
+  : path.join(__dirname, "../src/native.node");
+
+let _mainNative = null;
+function getNative() {
+  if (!_mainNative) {
+    try {
+      _mainNative = require(_nativePath);
+    } catch (_) {}
+  }
+  return _mainNative;
+}
+
 // Activates a security-scoped bookmark from the main process, which has
 // com.apple.security.files.bookmarks.app-scope explicitly. Apple docs say
 // app-scoped bookmark access applies to all processes in the app sandbox.
-let _mainNative = null;
 function activateBookmarkInMainProcess(bookmarkB64, wdLog) {
-  if (!_mainNative) {
-    try { _mainNative = require(path.join(__dirname, "native.node")); } catch (_) {}
-  }
-  if (_mainNative && typeof _mainNative.start_security_scoped_access === "function") {
-    const ok = _mainNative.start_security_scoped_access(bookmarkB64);
+  const native = getNative();
+  if (native && typeof native.start_security_scoped_access === "function") {
+    const ok = native.start_security_scoped_access(bookmarkB64);
     wdLog(`main-process start_security_scoped_access=${ok}`);
   }
 }
+
+// ── zingolib native IPC handlers (async no-param methods) ─────────────────
+// These route native.node calls from the renderer through the main process.
+// Sync no-param methods (deinitialize, set_crypto_default_provider_to_ring, etc.)
+// and methods with parameters are handled in subsequent refactor phases.
+const _NATIVE_NO_PARAM_METHODS = [
+  "save_wallet_file",
+  "check_save_error",
+  "get_seed",
+  "get_ufvk",
+  "get_latest_block_wallet",
+  "get_value_transfers",
+  "poll_sync",
+  "run_sync",
+  "pause_sync",
+  "stop_sync",
+  "status_sync",
+  "run_rescan",
+  "info_server",
+  "wallet_kind",
+  "get_version",
+  "get_balance",
+  "get_total_memobytes_to_address",
+  "get_total_value_to_address",
+  "get_total_spends_to_address",
+  "get_spendable_balance_total",
+  "set_option_wallet",
+  "get_option_wallet",
+  "remove_tor_client",
+  "get_unified_addresses",
+  "get_transparent_addresses",
+  "create_new_transparent_address",
+  "check_my_address",
+  "get_wallet_save_required",
+  "set_config_wallet_to_test",
+  "get_config_wallet_performance",
+  "get_wallet_version",
+  "shield",
+  "confirm",
+];
+
+for (const method of _NATIVE_NO_PARAM_METHODS) {
+  ipcMain.handle(`native:${method}`, () => {
+    const native = getNative();
+    if (!native || typeof native[method] !== "function") {
+      throw new Error(`native.${method} not available`);
+    }
+    return native[method]();
+  });
+}
+
+// Sync no-param methods (also routed to main — become async over IPC)
+for (const method of [
+  "deinitialize",
+  "get_developer_donation_address",
+  "get_zennies_for_zingo_donation_address",
+  "set_crypto_default_provider_to_ring",
+]) {
+  ipcMain.handle(`native:${method}`, () => {
+    const native = getNative();
+    if (!native || typeof native[method] !== "function") {
+      throw new Error(`native.${method} not available`);
+    }
+    return native[method]();
+  });
+}
+
+// Methods with parameters
+ipcMain.handle("native:wallet_exists", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
+  getNative().wallet_exists(server_uri, chain_hint, perf, min_conf, wallet_name),
+);
+ipcMain.handle("native:init_new", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
+  getNative().init_new(server_uri, chain_hint, perf, min_conf, wallet_name),
+);
+ipcMain.handle("native:init_from_seed", (_e, seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) =>
+  getNative().init_from_seed(seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name),
+);
+ipcMain.handle("native:init_from_ufvk", (_e, ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) =>
+  getNative().init_from_ufvk(ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name),
+);
+ipcMain.handle("native:init_from_b64", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
+  getNative().init_from_b64(server_uri, chain_hint, perf, min_conf, wallet_name),
+);
+ipcMain.handle("native:set_wallet_base_dir", (_e, dirPath) => getNative().set_wallet_base_dir(dirPath));
+ipcMain.handle("native:start_security_scoped_access", (_e, bookmark_b64) =>
+  getNative().start_security_scoped_access(bookmark_b64),
+);
+ipcMain.handle("native:get_latest_block_server", (_e, server_uri) => getNative().get_latest_block_server(server_uri));
+ipcMain.handle("native:parse_address", (_e, address) => getNative().parse_address(address));
+ipcMain.handle("native:parse_ufvk", (_e, ufvk) => getNative().parse_ufvk(ufvk));
+ipcMain.handle("native:get_messages", (_e, address) => getNative().get_messages(address));
+ipcMain.handle("native:zec_price", (_e, tor) => getNative().zec_price(tor));
+ipcMain.handle("native:remove_transaction", (_e, txid) => getNative().remove_transaction(txid));
+ipcMain.handle("native:get_spendable_balance_with_address", (_e, address, zennies) =>
+  getNative().get_spendable_balance_with_address(address, zennies),
+);
+ipcMain.handle("native:create_new_unified_address", (_e, receivers) =>
+  getNative().create_new_unified_address(receivers),
+);
+ipcMain.handle("native:set_config_wallet_to_prod", (_e, perf, min_conf) =>
+  getNative().set_config_wallet_to_prod(perf, min_conf),
+);
+ipcMain.handle("native:send", (_e, send_json) => getNative().send(send_json));
+ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
+  getNative().delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name),
+);
+ipcMain.handle("native:create_tor_client", (_e, data_dir) => getNative().create_tor_client(data_dir));
+ipcMain.handle("native:change_server", (_e, server_uri) => getNative().change_server(server_uri));
 
 ipcMain.handle("wallet-dir:request", async () => {
   const wdLog = (msg) => {
@@ -628,7 +747,9 @@ ipcMain.handle("wallet-dir:request", async () => {
     // settings.get() is async in electron-settings v4 — always use getSync() here to
     // avoid returning an unresolved Promise which fails IPC structured clone.
     const storedBookmark = settings.getSync("all.walletDirBookmark");
-    wdLog(`storedBookmark type=${typeof storedBookmark} hasValue=${typeof storedBookmark === "string" && storedBookmark.length > 0}`);
+    wdLog(
+      `storedBookmark type=${typeof storedBookmark} hasValue=${typeof storedBookmark === "string" && storedBookmark.length > 0}`,
+    );
     if (typeof storedBookmark === "string" && storedBookmark.length > 0) {
       wdLog("returning stored bookmark");
       activateBookmarkInMainProcess(storedBookmark, wdLog);
@@ -759,7 +880,9 @@ function createWindow() {
     const logPath = path.join(app.getPath("userData"), "startup.log");
     const ts = () => new Date().toISOString();
     const log = (msg) => {
-      try { require("fs").appendFileSync(logPath, `${ts()} ${msg}\n`); } catch (_) {}
+      try {
+        require("fs").appendFileSync(logPath, `${ts()} ${msg}\n`);
+      } catch (_) {}
     };
     log(`=== startup bundleVersion=${app.getVersion()} ===`);
     mainWindow.webContents.on("did-start-loading", () => log("did-start-loading"));

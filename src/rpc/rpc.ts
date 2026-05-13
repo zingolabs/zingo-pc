@@ -147,9 +147,9 @@ export default class RPC {
     }
   }
 
-  static deinitialize() {
+  static async deinitialize() {
     try {
-      const str: string = native.deinitialize();
+      const str: string = await native.deinitialize();
       console.log(`Deinitialize status: ${str}`);
     } catch (error) {
       console.log(`Critical Error de-initialize ${error}`);

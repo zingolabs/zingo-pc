@@ -52,6 +52,7 @@ function deepEqual(a: unknown, b: unknown): boolean {
 
 type RoutesState = AppState & {
   locked: boolean;
+  lockChecked: boolean;
   securityModalOpen: boolean;
 };
 
@@ -64,7 +65,7 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
   constructor(props: Props & RouteComponentProps) {
     super(props);
 
-    this.state = { ...defaultAppState, locked: false, securityModalOpen: false };
+    this.state = { ...defaultAppState, locked: false, lockChecked: false, securityModalOpen: false };
 
     // Set the Modal's app element
     ReactModal.setAppElement("#root");
@@ -94,9 +95,8 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
       ipcRenderer.invoke("loadSettings"),
       ipcRenderer.invoke("auth:check"),
     ]);
-    if (allSettings?.requireDeviceAuth && authAvailability === "available") {
-      this.setState({ locked: true });
-    }
+    const locked = !!(allSettings?.requireDeviceAuth && authAvailability === "available");
+    this.setState({ locked, lockChecked: true });
 
     this._appsecurityListener = () => this.setState({ securityModalOpen: true });
     ipcRenderer.on("appsecurity", this._appsecurityListener);
@@ -535,10 +535,20 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
       blockExplorerTestnetTransactionCustom: this.state.blockExplorerTestnetTransactionCustom,
     };
 
+    if (!this.state.lockChecked) {
+      return null;
+    }
+
+    if (this.state.locked) {
+      return (
+        <ContextAppProvider value={contextAppState}>
+          <LockScreen onUnlock={() => this.setState({ locked: false })} />
+        </ContextAppProvider>
+      );
+    }
+
     return (
       <ContextAppProvider value={contextAppState}>
-        {this.state.locked && <LockScreen onUnlock={() => this.setState({ locked: false })} />}
-
         <AppSecurityModal
           isOpen={this.state.securityModalOpen}
           onClose={() => this.setState({ securityModalOpen: false })}
