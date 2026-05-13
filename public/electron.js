@@ -588,6 +588,11 @@ function assertFsPath(p) {
     throw new Error(`fs access denied: ${p}`);
   }
 }
+function assertWalletName(name) {
+  if (typeof name === "string" && name.length > 0 && !/^[\w.-]+$/.test(name)) {
+    throw new Error(`wallet_name rejected: invalid characters`);
+  }
+}
 
 ipcMain.handle("fs:existsSync", (_e, p) => {
   assertFsPath(p);
@@ -701,21 +706,26 @@ for (const method of [
 }
 
 // Methods with parameters
-ipcMain.handle("native:wallet_exists", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().wallet_exists(server_uri, chain_hint, perf, min_conf, wallet_name),
-);
-ipcMain.handle("native:init_new", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().init_new(server_uri, chain_hint, perf, min_conf, wallet_name),
-);
-ipcMain.handle("native:init_from_seed", (_e, seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().init_from_seed(seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name),
-);
-ipcMain.handle("native:init_from_ufvk", (_e, ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().init_from_ufvk(ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name),
-);
-ipcMain.handle("native:init_from_b64", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().init_from_b64(server_uri, chain_hint, perf, min_conf, wallet_name),
-);
+ipcMain.handle("native:wallet_exists", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().wallet_exists(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:init_new", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().init_new(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:init_from_seed", (_e, seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().init_from_seed(seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:init_from_ufvk", (_e, ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().init_from_ufvk(ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:init_from_b64", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().init_from_b64(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
 ipcMain.handle("native:set_wallet_base_dir", (_e, dirPath) => getNative().set_wallet_base_dir(dirPath));
 ipcMain.handle("native:start_security_scoped_access", (_e, bookmark_b64) =>
   getNative().start_security_scoped_access(bookmark_b64),
@@ -736,9 +746,10 @@ ipcMain.handle("native:set_config_wallet_to_prod", (_e, perf, min_conf) =>
   getNative().set_config_wallet_to_prod(perf, min_conf),
 );
 ipcMain.handle("native:send", (_e, send_json) => getNative().send(send_json));
-ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name),
-);
+ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
 ipcMain.handle("native:create_tor_client", (_e, data_dir) => getNative().create_tor_client(data_dir));
 ipcMain.handle("native:change_server", (_e, server_uri) => getNative().change_server(server_uri));
 
