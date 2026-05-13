@@ -568,10 +568,41 @@ ipcMain.handle("wallets:update", async (_e, wallet) => updateWallet(wallet));
 ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
-ipcMain.handle("fs:existsSync", (_e, p) => fs.existsSync(p));
-ipcMain.handle("fs:mkdir", (_e, p, opts) => fs.promises.mkdir(p, opts));
-ipcMain.handle("fs:writeFile", (_e, p, data) => fs.promises.writeFile(p, data));
-ipcMain.handle("fs:readFile", (_e, p) => fs.promises.readFile(p, "utf8"));
+
+// Lazy: app.getPath() requires app.ready — IPC handlers only fire after ready so this is safe.
+// In MAS the containerized path (~/Library/Containers/co.zingo.pc/...) is resolved at runtime.
+let _fsAllowedBases = null;
+function getFsAllowedBases() {
+  if (!_fsAllowedBases) {
+    _fsAllowedBases = [app.getPath("appData"), app.getPath("userData")].map(
+      (p) => path.resolve(p) + path.sep,
+    );
+  }
+  return _fsAllowedBases;
+}
+function assertFsPath(p) {
+  const resolved = path.resolve(p) + path.sep;
+  if (!getFsAllowedBases().some((base) => resolved.startsWith(base))) {
+    throw new Error(`fs access denied: ${p}`);
+  }
+}
+
+ipcMain.handle("fs:existsSync", (_e, p) => {
+  assertFsPath(p);
+  return fs.existsSync(p);
+});
+ipcMain.handle("fs:mkdir", (_e, p, opts) => {
+  assertFsPath(p);
+  return fs.promises.mkdir(p, opts);
+});
+ipcMain.handle("fs:writeFile", (_e, p, data) => {
+  assertFsPath(p);
+  return fs.promises.writeFile(p, data);
+});
+ipcMain.handle("fs:readFile", (_e, p) => {
+  assertFsPath(p);
+  return fs.promises.readFile(p, "utf8");
+});
 
 // Lazily loads native.node in the main process (shared across all IPC handlers).
 // Path mirrors preload.js: inside an asar, Electron redirects .node loads to

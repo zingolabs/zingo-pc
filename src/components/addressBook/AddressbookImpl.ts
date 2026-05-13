@@ -8,9 +8,6 @@ export default class AddressbookImpl {
   static async getFileName(): Promise<string> {
     const relativePath: string = await ipcRenderer.invoke("get-app-data-path");
     const dir: string = path.join(relativePath, "Zingo PC");
-    if (!dir.startsWith(relativePath)) {
-      throw new Error("Invalid app data path");
-    }
     if (!(await fs.existsSync(dir))) {
       await fs.promises.mkdir(dir);
     }
