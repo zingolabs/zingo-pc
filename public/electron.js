@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog, session } = require("electron");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
@@ -574,9 +574,7 @@ ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 let _fsAllowedBases = null;
 function getFsAllowedBases() {
   if (!_fsAllowedBases) {
-    _fsAllowedBases = [app.getPath("appData"), app.getPath("userData")].map(
-      (p) => path.resolve(p) + path.sep,
-    );
+    _fsAllowedBases = [app.getPath("appData"), app.getPath("userData")].map((p) => path.resolve(p) + path.sep);
   }
   return _fsAllowedBases;
 }
@@ -1026,6 +1024,33 @@ app.whenReady().then(async () => {
       console.warn("Devtools not installed (ok in prod):", e?.message ?? e);
     }
   }
+
+  // CSP via HTTP headers — takes priority over the meta-tag in index.html.
+  // Production is strict (no unsafe-inline). Dev keeps HMR working.
+  const CSP_PRODUCTION = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+  ].join("; ");
+
+  const CSP_DEVELOPMENT = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "connect-src 'self' http://localhost:* ws://localhost:*",
+  ].join("; ");
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [isDev ? CSP_DEVELOPMENT : CSP_PRODUCTION],
+      },
+    });
+  });
 
   createWindow();
 });
