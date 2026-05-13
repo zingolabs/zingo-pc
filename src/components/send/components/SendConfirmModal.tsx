@@ -60,6 +60,8 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
   const [smallPart, setSmallPart] = useState<string>("");
   const [privacyLevel, setPrivacyLevel] = useState<string>("");
 
+  const currentChainName = currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName;
+
   const getPrivacyLevel = useCallback(
     async (toaddr: ToAddrClass) => {
       if (!toaddr.to) {
@@ -101,7 +103,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
         return "-";
       }
 
-      const currChain = currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName;
+      const currChain = currentChainName;
 
       if (
         !(
@@ -180,7 +182,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
       // whatever else
       return "-";
     },
-    [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance, currentWallet],
+    [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance, currentChainName],
   );
 
   useEffect(() => {
