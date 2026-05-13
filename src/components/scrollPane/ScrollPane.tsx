@@ -46,8 +46,6 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
     }
   }, [initialScrollType]);
 
-  //console.log('scroll pane', isInitialLoad.current, containerRef.current);
-
   return (
     <div ref={containerRef} className={className} style={{ overflowY: "auto", overflowX: "hidden", height }}>
       {children}

@@ -159,14 +159,11 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
 
   setTotalBalance = (totalBalance: TotalBalanceClass) => {
     if (!deepEqual(totalBalance, this.state.totalBalance)) {
-      //console.log('=============== total SPENDABLE balance', totalBalance.totalSpendableBalance);
-      //console.log('=============== total balance', totalBalance);
       this.setState({ totalBalance });
     }
   };
 
   setFetchError = (command: string, error: string) => {
-    console.log("=============== fetch error", command, error);
     this.setState({
       fetchError: {
         command,
@@ -182,39 +179,33 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
 
   setAddressesUnified = (addressesUnified: UnifiedAddressClass[]) => {
     if (!deepEqual(addressesUnified, this.state.addressesUnified)) {
-      console.log("=============== addresses UA", addressesUnified.length);
       this.setState({ addressesUnified });
     }
   };
 
   setAddressesTransparent = (addressesTransparent: TransparentAddressClass[]) => {
     if (!deepEqual(addressesTransparent, this.state.addressesTransparent)) {
-      console.log("=============== addresses T", addressesTransparent.length);
       this.setState({ addressesTransparent });
     }
   };
 
   setValueTransferList = (valueTransfers: ValueTransferClass[]) => {
     if (!deepEqual(valueTransfers, this.state.valueTransfers)) {
-      console.log("=============== ValueTransfer list", valueTransfers.length);
       this.setState({ valueTransfers });
     }
   };
 
   setMessagesList = (messages: ValueTransferClass[]) => {
     if (!deepEqual(messages, this.state.messages)) {
-      console.log("=============== ValueTransfer Messages list", messages.length);
       this.setState({ messages });
     }
   };
 
   setSendPageState = (sendPageState: SendPageStateClass) => {
-    console.log("=============== send page state", sendPageState);
     this.setState({ sendPageState });
   };
 
   setSendTo = (target: ZcashURITarget): void => {
-    console.log("=============== send to", target);
     // Clear the existing send page state and set up the new one
     const newSendPageState = new SendPageStateClass();
 
@@ -235,18 +226,14 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
   };
 
   setAddLabel = (ab: AddressBookEntryClass): void => {
-    console.log("=============== add label state", ab);
     this.setState({ addLabelState: ab });
   };
 
   runRPCConfigure = () => {
-    console.log("=============== rpc configure");
-
     this.rpc.configure();
   };
 
   setZecPrice = (price?: number) => {
-    console.log("=============== price", price);
     if (!!price && price !== this.state.info.zecPrice) {
       const { info } = this.state;
 
@@ -268,7 +255,6 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
 
   setInfo = (newInfo: InfoClass) => {
     if (!deepEqual(newInfo, this.state.info)) {
-      console.log("=============== info", newInfo);
       // If the price is not set in this object, copy it over from the current object
       const { info } = this.state;
       if (!newInfo.zecPrice) {
@@ -349,7 +335,7 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
 
       return result;
     } catch (err) {
-      console.log("route sendtx error", err);
+      console.error("route sendtx error", err);
       throw err;
     }
   };
@@ -379,7 +365,6 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
   calculateShieldFee = async (): Promise<number> => {
     try {
       const result: string = await native.shield();
-      //console.log(result);
       if (!result || result.toLowerCase().startsWith("error")) {
         return 0;
       } else {
@@ -393,7 +378,7 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
         }
       }
     } catch (error) {
-      console.log(`Critical Error calculate shield fee ${error}`);
+      console.error(`Critical Error calculate shield fee ${error}`);
       return 0;
     }
   };

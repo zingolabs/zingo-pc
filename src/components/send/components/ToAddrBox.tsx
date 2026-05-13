@@ -181,8 +181,6 @@ const ToAddrBox = ({
     return labelStr;
   };
 
-  //console.log(sendFeeError);
-
   return (
     <div>
       <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>

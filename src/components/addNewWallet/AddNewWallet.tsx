@@ -241,7 +241,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
-      console.log(`Critical Error create new wallet ${error}`);
+      console.error(`Critical Error create new wallet ${error}`);
       openErrorModal("Creating New wallet", `${error}`);
       // restore the previous wallet
       loadCurrentWallet();
@@ -280,7 +280,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
-      console.log(`Critical Error restore from seed ${error}`);
+      console.error(`Critical Error restore from seed ${error}`);
       openErrorModal("Restoring wallet from seed", `${error}`);
       // restore the previous wallet
       loadCurrentWallet();
@@ -342,7 +342,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
-      console.log(`Critical Error restore from ufvk ${error}`);
+      console.error(`Critical Error restore from ufvk ${error}`);
       openErrorModal("Restoring wallet from ufvk", `${error}`);
       // restore the previous wallet
       loadCurrentWallet();
@@ -389,7 +389,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
-      console.log(`Critical Error restore from file ${error}`);
+      console.error(`Critical Error restore from file ${error}`);
       openErrorModal("Restoring wallet from file", `${error}`);
       // restore the previous wallet
       loadCurrentWallet();
@@ -425,7 +425,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
       console.log("Checking SERVER", server, latency);
     } catch (error) {
-      console.log(`Critical Error calculate server latency ${error}`);
+      console.error(`Critical Error calculate server latency ${error}`);
     }
 
     return latency;
@@ -530,7 +530,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
               const resultInterrupt: string = await native.stop_sync();
               console.log("Stopping sync ...", resultInterrupt);
             } catch (error) {
-              console.log(`Stopping sync Error ${error}`);
+              console.error(`Stopping sync Error ${error}`);
             }
           }
           await RPC.deinitialize();
@@ -564,7 +564,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           }
         }
       } catch (error) {
-        console.log(`Critical Error delete wallet ${error}`);
+        console.error(`Critical Error delete wallet ${error}`);
         openErrorModal("Error Delete Wallet", `${error}`);
         return;
       }
@@ -661,8 +661,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   const updateAlias = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAlias(e.target.value);
   };
-
-  //console.log('render modal server', servers, selectedServer, selectedChain, selectedSelection);
 
   return (
     <ScrollPaneTop offsetHeight={20}>

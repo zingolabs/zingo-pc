@@ -104,14 +104,12 @@ export default class RPC {
     if (this.updateTimerID) {
       clearInterval(this.updateTimerID);
       this.updateTimerID = undefined;
-      //console.log('kill update timer', this.updateVTTimerID);
     }
 
     // and now the array of timers...
     while (this.timers.length > 0) {
       const inter = this.timers.pop();
       clearInterval(inter);
-      //console.log('kill item array timers', inter);
     }
   }
 
@@ -124,7 +122,6 @@ export default class RPC {
       } else {
         clearInterval(this.timers[i]);
         deleted.push(i);
-        //console.log('sanitize - kill item array timers', this.timers[i]);
       }
     }
     // remove the cleared timers.
@@ -137,12 +134,11 @@ export default class RPC {
     try {
       // no need to check this status anymore
       //const saveRequiredStr: string = await native.get_wallet_save_required();
-      //console.log(`Save required? ${saveRequiredStr}`);
       const syncstr: string = await native.check_save_error();
       console.log(`wallet check saved: ${syncstr}`);
       return syncstr;
     } catch (error: any) {
-      console.log(`Critical Error check save wallet ${error}`);
+      console.error(`Critical Error check save wallet ${error}`);
       return error;
     }
   }
@@ -152,7 +148,7 @@ export default class RPC {
       const str: string = await native.deinitialize();
       console.log(`Deinitialize status: ${str}`);
     } catch (error) {
-      console.log(`Critical Error de-initialize ${error}`);
+      console.error(`Critical Error de-initialize ${error}`);
     }
   }
 
@@ -161,18 +157,18 @@ export default class RPC {
       const walletVersionStr: string = await native.get_wallet_version();
       if (walletVersionStr) {
         if (walletVersionStr.toLowerCase().startsWith("error")) {
-          console.log(`Error wallet version ${walletVersionStr}`);
+          console.error(`Error wallet version ${walletVersionStr}`);
           return;
         }
       } else {
-        console.log("Internal Error wallet version");
+        console.error("Internal Error wallet version");
         return;
       }
       const walletVersionJSON = JSON.parse(walletVersionStr);
 
       return walletVersionJSON.read_version;
     } catch (error) {
-      console.log(`Critical Error wallet version ${error}`);
+      console.error(`Critical Error wallet version ${error}`);
       return;
     }
   }
@@ -182,11 +178,10 @@ export default class RPC {
     try {
       // PROPOSING
       const shieldResult: string = await native.shield();
-      //console.log('shield proposal', shieldResult);
       if (shieldResult) {
         if (shieldResult.toLowerCase().startsWith("error")) {
           // error
-          console.log(`Error shield ${shieldResult}`);
+          console.error(`Error shield ${shieldResult}`);
           return shieldResult;
         }
       } else {
@@ -208,14 +203,13 @@ export default class RPC {
         console.log(err);
         return err;
       }
-      //console.log(shieldJSON);
 
       // SHIELDING
       const confirmResult: string = await native.confirm();
       if (confirmResult) {
         if (confirmResult.toLowerCase().startsWith("error")) {
           // error
-          console.log(`Error Shield Confirm ${confirmResult}`);
+          console.error(`Error Shield Confirm ${confirmResult}`);
           return confirmResult;
         }
       } else {
@@ -242,7 +236,6 @@ export default class RPC {
         console.log(txids);
         return txids;
       }
-      //console.log(confirmJSON);
 
       // weird case, I want to see the JSON in the error.
       return JSON.stringify(confirmJSON);
@@ -257,7 +250,6 @@ export default class RPC {
   static async getInfoObject(): Promise<InfoClass> {
     try {
       const infostr: string = await native.info_server();
-      //console.log(infostr);
       if (!infostr || infostr.toLowerCase().startsWith("error")) {
         console.log("server info Failed", infostr);
         return new InfoClass(infostr);
@@ -276,23 +268,21 @@ export default class RPC {
 
       // Also set `zecPrice` manually
       const resultStr: string = await native.zec_price("false");
-      //console.log(resultStr);
       if (resultStr) {
         if (resultStr.toLowerCase().startsWith("error")) {
-          console.log(`Error fetching price Info ${resultStr}`);
+          console.error(`Error fetching price Info ${resultStr}`);
           info.zecPrice = 0;
         } else {
           const resultJSON = JSON.parse(resultStr);
           info.zecPrice = resultJSON.current_price;
         }
       } else {
-        console.log(`Error fetching price Info ${resultStr}`);
+        console.error(`Error fetching price Info ${resultStr}`);
         info.zecPrice = 0;
       }
 
       // zingolib version
       let zingolibStr: string = await native.get_version();
-      //console.log(zingolibStr);
       if (zingolibStr) {
         if (zingolibStr.toLowerCase().startsWith("error")) {
           zingolibStr = "<error>";
@@ -304,12 +294,11 @@ export default class RPC {
 
       // we want to update the wallet last block
       const walletHeight: number = await RPC.fetchWalletHeight();
-      //console.log(walletHeight);
       info.walletHeight = walletHeight;
 
       return info;
     } catch (err) {
-      console.log("Error: to parse info ", err);
+      console.error("Error: to parse info ", err);
       return new InfoClass("Error: to parse info " + err);
     }
   }
@@ -333,18 +322,18 @@ export default class RPC {
       const walletSaveRequiredStr: string = await native.get_wallet_save_required();
       if (walletSaveRequiredStr) {
         if (walletSaveRequiredStr.toLowerCase().startsWith("error")) {
-          console.log(`Error wallet save required ${walletSaveRequiredStr}`);
+          console.error(`Error wallet save required ${walletSaveRequiredStr}`);
           return false;
         }
       } else {
-        console.log("Internal Error wallet save required");
+        console.error("Internal Error wallet save required");
         return false;
       }
       const walletSaveRequiredJSON = JSON.parse(walletSaveRequiredStr);
 
       return walletSaveRequiredJSON.save_required;
     } catch (error) {
-      console.log(`Critical Error wallet save required ${error}`);
+      console.error(`Critical Error wallet save required ${error}`);
       return false;
     }
   }
@@ -353,7 +342,7 @@ export default class RPC {
     try {
       const returnPoll: string = await native.poll_sync();
       if (!returnPoll || returnPoll.toLowerCase().startsWith("error")) {
-        console.log("SYNC POLL ERROR", returnPoll);
+        console.error("SYNC POLL ERROR", returnPoll);
         this.lastPollSyncError = returnPoll;
         return;
       }
@@ -379,7 +368,7 @@ export default class RPC {
       try {
         sp = JSON.parse(returnPoll);
       } catch (error) {
-        console.log("SYNC POLL ERROR - PARSE JSON", returnPoll, error);
+        console.error("SYNC POLL ERROR - PARSE JSON", returnPoll, error);
         return;
       }
 
@@ -388,7 +377,7 @@ export default class RPC {
       console.log("SYNC POLL -> FETCH STATUS");
       void this.fetchSyncStatus();
     } catch (error) {
-      console.log(`Critical Error sync poll ${error}`);
+      console.error(`Critical Error sync poll ${error}`);
     }
   }
 
@@ -416,20 +405,18 @@ export default class RPC {
         // 1. stop the sync.
         // 2. launch the rescan.
         const rescanStr: string = await native.run_rescan();
-        //console.log('rescan RUN', rescanStr);
         if (!rescanStr || rescanStr.toLowerCase().startsWith("error")) {
-          console.log(`Error rescan ${rescanStr}`);
+          console.error(`Error rescan ${rescanStr}`);
         }
         await this.configure();
       } else {
         const syncStr: string = await native.run_sync();
-        //console.log('sync RUN', syncStr);
         if (!syncStr || syncStr.toLowerCase().startsWith("error")) {
-          console.log(`Error sync ${syncStr}`);
+          console.error(`Error sync ${syncStr}`);
         }
       }
     } catch (error) {
-      console.log(`Critical Error run sync/rescan ${error}`);
+      console.error(`Critical Error run sync/rescan ${error}`);
     }
   }
 
@@ -437,7 +424,7 @@ export default class RPC {
     try {
       const returnStatus: string = await native.status_sync();
       if (!returnStatus || returnStatus.toLowerCase().startsWith("error")) {
-        console.log("SYNC STATUS ERROR", returnStatus);
+        console.error("SYNC STATUS ERROR", returnStatus);
         return;
       }
       let ss = {} as SyncStatusType;
@@ -445,7 +432,7 @@ export default class RPC {
         ss = JSON.parse(returnStatus);
         ss.lastError = this.lastPollSyncError;
       } catch (error) {
-        console.log("SYNC STATUS ERROR - PARSE JSON", returnStatus, error);
+        console.error("SYNC STATUS ERROR - PARSE JSON", returnStatus, error);
         return;
       }
 
@@ -483,7 +470,7 @@ export default class RPC {
       this.fnSetSyncStatus(ss);
       this.fnSetVerificationProgress(ss.percentage_total_outputs_scanned ?? ss.percentage_total_blocks_scanned ?? 0);
     } catch (error) {
-      console.log(`Critical Error sync status ${error}`);
+      console.error(`Critical Error sync status ${error}`);
     }
   }
 
@@ -493,12 +480,12 @@ export default class RPC {
       const txValueTransfersStr: string = await native.get_value_transfers();
       if (txValueTransfersStr) {
         if (txValueTransfersStr.toLowerCase().startsWith("error")) {
-          console.log(`Error txs ValueTransfers ${txValueTransfersStr}`);
+          console.error(`Error txs ValueTransfers ${txValueTransfersStr}`);
           this.fnSetFetchError("ValueTransfers", txValueTransfersStr);
           return [];
         }
       } else {
-        console.log("Internal Error txs ValueTransfers");
+        console.error("Internal Error txs ValueTransfers");
         this.fnSetFetchError("ValueTransfers", "Error: Internal RPC Error");
         return [];
       }
@@ -507,7 +494,7 @@ export default class RPC {
       return txValueTransfersJSON.value_transfers;
     } catch (error) {
       this.fnSetFetchError("ValueTransfers", `Critical Error value transfers ${error}`);
-      console.log(`Critical Error value transfers ${error}`);
+      console.error(`Critical Error value transfers ${error}`);
       return [];
     }
   }
@@ -518,12 +505,12 @@ export default class RPC {
       const txMessagesStr: string = await native.get_messages("");
       if (txMessagesStr) {
         if (txMessagesStr.toLowerCase().startsWith("error")) {
-          console.log(`Error txs Messages ${txMessagesStr}`);
+          console.error(`Error txs Messages ${txMessagesStr}`);
           this.fnSetFetchError("Messages", txMessagesStr);
           return [];
         }
       } else {
-        console.log("Internal Error txs Messages");
+        console.error("Internal Error txs Messages");
         this.fnSetFetchError("Messages", "Error: Internal RPC Error");
         return [];
       }
@@ -532,7 +519,7 @@ export default class RPC {
       return txMessagesJSON.value_transfers;
     } catch (error) {
       this.fnSetFetchError("Messages", `Critical Error messages ${error}`);
-      console.log(`Critical Error messages ${error}`);
+      console.error(`Critical Error messages ${error}`);
       return [];
     }
   }
@@ -541,31 +528,28 @@ export default class RPC {
   async fetchTotalBalance() {
     try {
       const spendableStr: string = await native.get_spendable_balance_total();
-      //console.log(spendableStr);
       let spendableJSON;
       if (spendableStr) {
         if (spendableStr.toLowerCase().startsWith("error")) {
-          console.log(`Error spendable balance ${spendableStr}`);
+          console.error(`Error spendable balance ${spendableStr}`);
         } else {
           spendableJSON = JSON.parse(spendableStr);
         }
       } else {
-        console.log("Internal Error spendable balance");
+        console.error("Internal Error spendable balance");
       }
 
       const balanceStr: string = await native.get_balance();
       if (balanceStr) {
         if (balanceStr.toLowerCase().startsWith("error")) {
-          console.log(`Error balance ${balanceStr}`);
+          console.error(`Error balance ${balanceStr}`);
           this.fnSetFetchError("balance", balanceStr);
         }
       } else {
-        console.log("Internal Error balance");
+        console.error("Internal Error balance");
         this.fnSetFetchError("balance", "Error: Internal RPC Error");
       }
       const balanceJSON = JSON.parse(balanceStr);
-
-      //console.log(balanceJSON);
 
       // Total Balance
       const balance: TotalBalanceClass = {
@@ -583,7 +567,7 @@ export default class RPC {
       this.fnSetTotalBalance(balance);
     } catch (error) {
       this.fnSetFetchError("balance", `Critical Error balance ${error}`);
-      console.log(`Critical Error balance ${error}`);
+      console.error(`Critical Error balance ${error}`);
     }
   }
 
@@ -593,34 +577,32 @@ export default class RPC {
       const unifiedAddressesStr: string = await native.get_unified_addresses();
       if (unifiedAddressesStr) {
         if (unifiedAddressesStr.toLowerCase().startsWith("error")) {
-          console.log(`Error addresses ${unifiedAddressesStr}`);
+          console.error(`Error addresses ${unifiedAddressesStr}`);
           return;
         }
       } else {
-        console.log("Internal Error addresses");
+        console.error("Internal Error addresses");
         return;
       }
       const unifiedAddressesJSON: UnifiedAddressClass[] = JSON.parse(unifiedAddressesStr) || [];
-      //console.log(unifiedAddressesStr, unifiedAddressesJSON);
 
       // TRANSPARENT
       const transparentAddressStr: string = await native.get_transparent_addresses();
       if (transparentAddressStr) {
         if (transparentAddressStr.toLowerCase().startsWith("error")) {
-          console.log(`Error addresses ${transparentAddressStr}`);
+          console.error(`Error addresses ${transparentAddressStr}`);
           return;
         }
       } else {
-        console.log("Internal Error addresses");
+        console.error("Internal Error addresses");
         return;
       }
       const transparentAddressesJSON: TransparentAddressClass[] = JSON.parse(transparentAddressStr) || [];
-      //console.log(transparentAddressStr, transparentAddressesJSON);
 
       this.fnSetAddressesUnified(unifiedAddressesJSON);
       this.fnSetAddressesTransparent(transparentAddressesJSON);
     } catch (error) {
-      console.log(`Critical Error addresses ${error}`);
+      console.error(`Critical Error addresses ${error}`);
       // relaunch the interval tasks just in case they are aborted.
       return;
     }
@@ -636,7 +618,7 @@ export default class RPC {
       return addrStr;
     } catch (error) {
       const err = `Error: Critical Error new address U ${error}`;
-      console.log(error);
+      console.error(error);
       return err;
     }
   }
@@ -661,7 +643,7 @@ export default class RPC {
 
       return heightJSON.height;
     } catch (error) {
-      console.log(`Critical Error wallet height ${error}`);
+      console.error(`Critical Error wallet height ${error}`);
       return 0;
     }
   }
@@ -671,29 +653,23 @@ export default class RPC {
     try {
       // first to get the last server block.
       let latestBlockHeight: number = 0;
-      //console.log('CUUUUUUURRENT WALLET', this.currentWallet);
       const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : "");
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith("error")) {
           this.fnSetFetchError("ValueTransfers", `Error server height ${heightStr}`);
-          console.log(`Error server height ${heightStr}`);
+          console.error(`Error server height ${heightStr}`);
         } else {
           latestBlockHeight = Number(heightStr);
         }
       } else {
-        console.log("Internal Error server height");
+        console.error("Internal Error server height");
       }
 
-      //console.log('SERVER HEIGHT', latestBlockHeight);
-
       const valueTransfersJSON: any = await this.zingolibValueTransfers();
-
-      //console.log('value transfers antes ', valueTransfersJSON);
 
       let vtList: ValueTransferClass[] = [];
 
       const walletHeight: number = await RPC.fetchWalletHeight();
-      //console.log('WALLET HEIGHT', walletHeight);
 
       valueTransfersJSON.forEach((tx: any) => {
         let currentVtList: ValueTransferClass = {} as ValueTransferClass;
@@ -731,21 +707,16 @@ export default class RPC {
         currentVtList.pool = !tx.pool_received ? undefined : tx.pool_received;
 
         if (currentVtList.confirmations < 0) {
-          console.log("[[[[[[[[[[[[[[[[[[", tx, "server", latestBlockHeight, "wallet", walletHeight);
         }
         //if (tx.txid.startsWith('426e')) {
-        //  console.log('valuetranfer: ', tx);
-        //  console.log('--------------------------------------------------');
         //}
 
         vtList.push(currentVtList);
       });
 
-      //console.log(vtList);
-
       this.fnSetValueTransfersList(vtList);
     } catch (error) {
-      console.log(`Critical Error value transfers ${error}`);
+      console.error(`Critical Error value transfers ${error}`);
     }
   }
 
@@ -754,29 +725,23 @@ export default class RPC {
     try {
       // first to get the last server block.
       let latestBlockHeight: number = 0;
-      //console.log(this.server);
       const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : "");
       if (heightStr) {
         if (heightStr.toLowerCase().startsWith("error")) {
           this.fnSetFetchError("Messages", `Error server height ${heightStr}`);
-          console.log(`Error server height ${heightStr}`);
+          console.error(`Error server height ${heightStr}`);
         } else {
           latestBlockHeight = Number(heightStr);
         }
       } else {
-        console.log("Internal Error server height");
+        console.error("Internal Error server height");
       }
 
-      //console.log('SERVER HEIGHT', latestBlockHeight);
-
       const MessagesJSON: any = await this.zingolibMessages();
-
-      //console.log('value transfers antes ', valueTransfersJSON);
 
       let mList: ValueTransferClass[] = [];
 
       const walletHeight: number = await RPC.fetchWalletHeight();
-      //console.log('WALLET HEIGHT', walletHeight);
 
       MessagesJSON.forEach((tx: any) => {
         let currentMList: ValueTransferClass = {} as ValueTransferClass;
@@ -814,21 +779,16 @@ export default class RPC {
         currentMList.pool = !tx.pool_received ? undefined : tx.pool_received;
 
         if (currentMList.confirmations < 0) {
-          console.log("[[[[[[[[[[[[[[[[[[", tx, "server", latestBlockHeight, "wallet", walletHeight);
         }
         //if (tx.txid.startsWith('426e')) {
-        //  console.log('valuetranfer: ', tx);
-        //  console.log('--------------------------------------------------');
         //}
 
         mList.push(currentMList);
       });
 
-      //console.log(mList);
-
       this.fnSetMessagesList(mList);
     } catch (error) {
-      console.log(`Critical Error messages ${error}`);
+      console.error(`Critical Error messages ${error}`);
     }
   }
 
@@ -844,17 +804,17 @@ export default class RPC {
       const proposeStr: string = await native.send(JSON.stringify(sendJson));
       if (proposeStr) {
         if (proposeStr.toLowerCase().startsWith("error")) {
-          console.log(`Error propose ${proposeStr}`);
+          console.error(`Error propose ${proposeStr}`);
           sendError = proposeStr;
         }
       } else {
-        console.log("Internal Error propose");
+        console.error("Internal Error propose");
         sendError = "Error: Internal RPC Error: propose";
       }
       if (!sendError) {
         const proposeJSON: SendProposeType = JSON.parse(proposeStr);
         if (proposeJSON.error) {
-          console.log(`Error propose ${proposeJSON.error}`);
+          console.error(`Error propose ${proposeJSON.error}`);
           sendError = proposeJSON.error;
         }
         if (!sendError) {
@@ -862,17 +822,17 @@ export default class RPC {
           const sendStr: string = await native.confirm();
           if (sendStr) {
             if (sendStr.toLowerCase().startsWith("error")) {
-              console.log(`Error confirm ${sendStr}`);
+              console.error(`Error confirm ${sendStr}`);
               sendError = sendStr;
             }
           } else {
-            console.log("Internal Error confirm");
+            console.error("Internal Error confirm");
             sendError = "Error: Internal RPC Error: confirm";
           }
           if (!sendError) {
             const sendJSON: SendType = JSON.parse(sendStr);
             if (sendJSON.error) {
-              console.log(`Error confirm ${sendJSON.error}`);
+              console.error(`Error confirm ${sendJSON.error}`);
               sendError = sendJSON.error;
             } else if (sendJSON.txids && sendJSON.txids.length > 0) {
               sendTxids = sendJSON.txids.join(", ");
@@ -881,7 +841,7 @@ export default class RPC {
         }
       }
     } catch (error) {
-      console.log(`Critical Error send ${error}`);
+      console.error(`Critical Error send ${error}`);
       sendError = `Error: send ${error}`;
     }
 
@@ -903,18 +863,18 @@ export default class RPC {
 
       if (resultStr) {
         if (resultStr.toLowerCase().startsWith("error")) {
-          console.log(`Error fetching price ${resultStr}`);
+          console.error(`Error fetching price ${resultStr}`);
           this.fnSetZecPrice(0);
         } else {
           const resultJSON = JSON.parse(resultStr);
           this.fnSetZecPrice(resultJSON.current_price);
         }
       } else {
-        console.log(`Error fetching price ${resultStr}`);
+        console.error(`Error fetching price ${resultStr}`);
         this.fnSetZecPrice(0);
       }
     } catch (error) {
-      console.log(`Critical Error get price ${error}`);
+      console.error(`Critical Error get price ${error}`);
     }
   }
 

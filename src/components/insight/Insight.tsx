@@ -43,19 +43,16 @@ const Insight: React.FC<InsightProps> = () => {
   const fetchDataSent: () => void = async () => {
     try {
       const resultStr: string = await native.get_total_value_to_address();
-      //console.log('################# value', resultStr);
 
       const resultJSON = JSON.parse(resultStr);
       let amounts: { data: number; address: string; tag: string }[] = [];
       const resultJSONEntries: [string, number][] = Object.entries(resultJSON) as [string, number][];
       resultJSONEntries.forEach(([key, value]) => {
         if (value > 0) {
-          //console.log(value, key);
           const tag = addressBook.filter((a: any) => a.address === key);
           amounts.push({ data: value / 10 ** 8, address: key, tag: !!tag && tag.length > 0 ? tag[0].label : "" });
         }
       });
-      //console.log(amounts);
       const randomColors = Utils.generateColorList(amounts.length);
       const newLabels: string[] = [];
       const newBackgroundColor: string[] = [];
@@ -83,14 +80,13 @@ const Insight: React.FC<InsightProps> = () => {
         ],
       } as Data);
     } catch (error) {
-      console.log(`Critical Error insight sent ${error}`);
+      console.error(`Critical Error insight sent ${error}`);
     }
   };
 
   const fetchDataSends: () => void = async () => {
     try {
       const resultStr = await native.get_total_spends_to_address();
-      //console.log('################# sends', resultStr);
 
       const resultJSON = JSON.parse(resultStr);
       let amounts: { data: number; address: string; tag: string }[] = [];
@@ -130,14 +126,13 @@ const Insight: React.FC<InsightProps> = () => {
         ],
       } as Data);
     } catch (error) {
-      console.log(`Critical Error insight sends ${error}`);
+      console.error(`Critical Error insight sends ${error}`);
     }
   };
 
   const fetchDataMemobytes: () => void = async () => {
     try {
       const resultStr = await native.get_total_memobytes_to_address();
-      //console.log('################# memobytes', resultStr);
 
       const resultJSON = JSON.parse(resultStr);
       let amounts: { data: number; address: string; tag: string }[] = [];
@@ -177,7 +172,7 @@ const Insight: React.FC<InsightProps> = () => {
         ],
       } as Data);
     } catch (error) {
-      console.log(`Critical Error insight memo bytes ${error}`);
+      console.error(`Critical Error insight memo bytes ${error}`);
     }
   };
 
@@ -261,8 +256,6 @@ const Insight: React.FC<InsightProps> = () => {
       </div>
     );
   };
-
-  //console.log(dataSent, dataSends, dataMemobytes);
 
   return (
     <div>

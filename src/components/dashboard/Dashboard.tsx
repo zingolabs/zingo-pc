@@ -62,8 +62,6 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
     }
   }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
-  //console.log('Dashborad', birthday, syncingStatus);
-
   return (
     <div>
       {currentWallet !== null && !currentWalletOpenError && (

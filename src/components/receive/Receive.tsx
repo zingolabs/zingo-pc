@@ -87,8 +87,6 @@ const Receive: React.FC<ReceiveProps> = () => {
     setAddressBookMap(_addressBookMap);
   }, [addressBook]);
 
-  //console.log(uaddrs, defaultUaddr, rerenderKey);
-
   return (
     <div>
       <div className={[cstyles.well, styles.containermargin].join(" ")}>

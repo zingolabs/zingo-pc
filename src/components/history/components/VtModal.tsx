@@ -235,8 +235,6 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     try {
       let actionStr: string = await native.remove_transaction(txid);
 
-      //console.log(actionStr);
-
       if (actionStr) {
         if (actionStr.toLowerCase().startsWith("error")) {
           openErrorModal("Remove", "Remove " + actionStr);
@@ -245,7 +243,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
         }
       }
     } catch (error: any) {
-      console.log(`Critical Error Remove ${error}`);
+      console.error(`Critical Error Remove ${error}`);
       openErrorModal("Remove", error);
     }
   };
@@ -265,8 +263,6 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     setAddLabel(new AddressBookEntryClass("", address));
     history.push(routes.ADDRESSBOOK);
   };
-
-  //console.log('render details', isTheFirstMount, showNavigator, totalLength);
 
   return (
     <Modal

@@ -93,15 +93,13 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
         try {
           resultJSON = JSON.parse(result);
         } catch (error) {
-          console.log("parse-address", error);
+          console.error("parse-address", error);
           return "-";
         }
       } catch (error) {
-        console.log(`Critical Error parse address ${error}`);
+        console.error(`Critical Error parse address ${error}`);
         return "-";
       }
-
-      //console.log('parse-address', address, resultJSON.status === 'success');
 
       const currChain = currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName;
 
@@ -120,8 +118,6 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
       if (resultJSON.status !== "success") {
         return "-";
       }
-
-      //console.log(from, result, resultJSON);
 
       // Private -> orchard to orchard (UA with orchard receiver)
       if (

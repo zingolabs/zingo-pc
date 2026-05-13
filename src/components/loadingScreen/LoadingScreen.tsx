@@ -76,9 +76,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     try {
       await native.set_crypto_default_provider_to_ring();
-      //console.log('crypto provider result', r);
     } catch (error) {
-      console.log(`Critical Error crypto provider default ${error}`);
+      console.error(`Critical Error crypto provider default ${error}`);
     }
 
     await this.doFirstTimeSetup();
@@ -87,7 +86,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     if (this.state.walletExists) {
       // warning with the migration from Z1 to Z2
       const version = await RPC.getWalletVersion();
-      //console.log('WALLET VERSION -------------->', version);
       if (version && version < 32) {
         closeErrorModal();
         openErrorModal(
@@ -238,10 +236,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   loadCurrentWallet = async () => {
     // try to read wallets
     let wallets: WalletType[] = await ipcRenderer.invoke("wallets:all");
-    console.log("&&&&&&&&&&&&&&&&& WALLETS", wallets);
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
-    console.log("&&&&&&&&&&&&&&&&& SETTINGS", settings);
     let currentWalletId: number | null = null;
     let currentWallet: WalletType | null = null;
     let { uri, chain_name, selection } = await this.checkCurrentSettings(
@@ -249,7 +245,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       settings && settings.serverchain_name ? settings.serverchain_name : "",
       settings && settings.serverselection ? settings.serverselection : "",
     );
-    console.log("&&&&&&&&&&&&&&&&& CHECKED SETTINGS", uri, chain_name, selection);
 
     // block explorer configuration
     if (settings && settings.hasOwnProperty("blockexplorer")) {
@@ -442,7 +437,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         });
       }
       // check if have the new fields: selection / uri
-      console.log("wwwwwwwwwwwwwwwwwwwallet BEFORE", currentWalletId, currentWallet);
       const {
         uri: currentWalleUri,
         chain_name: currentWalletChain_name,
@@ -477,7 +471,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         if (!currentWallet.hasOwnProperty("performanceLevel")) {
           currentWallet.performanceLevel = PerformanceLevelEnum.High;
         }
-        console.log("wwwwwwwwwwwwwwwwwwwallet STORE", currentWalletId, currentWallet);
         await ipcRenderer.invoke("wallets:update", currentWallet);
         this.setState({
           currentWallet: currentWallet,
@@ -641,8 +634,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: currentWalletId });
 
-    console.log("&&&&&&&&-----------", currentWalletId, uri, chain_name, selection, currentWallet, wallets);
-
     return {
       currentWallet,
       wallets,
@@ -737,9 +728,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           currentWallet.fileName,
         );
         //const result: string = 'Error: ay, ay, ay';
-        //console.log(`Initialization: ${result}`);
         if (!result || result.toLowerCase().startsWith("error")) {
-          console.log(`Initialization Error: ${result}`);
+          console.error(`Initialization Error: ${result}`);
           this.props.setCurrentWalletOpenError(`${result}`);
           this.setState({
             loadingDone: true,
@@ -768,7 +758,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         this.getInfo();
       }
     } catch (error) {
-      console.log("Error initializing", error);
+      console.error("Error initializing", error);
       this.props.setCurrentWalletOpenError(`${error}`);
       this.setState({
         loadingDone: true,
@@ -790,7 +780,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
       console.log("Checking SERVER", server, latency);
     } catch (error) {
-      console.log(`Critical Error calculate server latency ${error}`);
+      console.error(`Critical Error calculate server latency ${error}`);
     }
 
     return latency;
@@ -835,7 +825,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       // This will cause a redirect to the dashboard screen
       this.setState({ loadingDone: true });
     } catch (error) {
-      console.log("Error initializing", error);
+      console.error("Error initializing", error);
       this.props.setFetchError("info", `${error}`);
     }
   };

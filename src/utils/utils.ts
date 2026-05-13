@@ -94,7 +94,7 @@ export default class Utils {
       try {
         resultParseJSON = JSON.parse(resultParse);
       } catch (error) {
-        console.log("parse-address", error);
+        console.error("parse-address", error);
         return;
       }
 
@@ -110,7 +110,7 @@ export default class Utils {
         return;
       }
     } catch (error) {
-      console.log(`Critical Error address kind ${error}`);
+      console.error(`Critical Error address kind ${error}`);
       return;
     }
   }
