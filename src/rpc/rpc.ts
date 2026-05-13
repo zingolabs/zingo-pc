@@ -168,7 +168,7 @@ export default class RPC {
         console.log("Internal Error wallet version");
         return;
       }
-      const walletVersionJSON = await JSON.parse(walletVersionStr);
+      const walletVersionJSON = JSON.parse(walletVersionStr);
 
       return walletVersionJSON.read_version;
     } catch (error) {
@@ -340,7 +340,7 @@ export default class RPC {
         console.log("Internal Error wallet save required");
         return false;
       }
-      const walletSaveRequiredJSON = await JSON.parse(walletSaveRequiredStr);
+      const walletSaveRequiredJSON = JSON.parse(walletSaveRequiredStr);
 
       return walletSaveRequiredJSON.save_required;
     } catch (error) {
@@ -377,7 +377,7 @@ export default class RPC {
 
       let sp;
       try {
-        sp = await JSON.parse(returnPoll);
+        sp = JSON.parse(returnPoll);
       } catch (error) {
         console.log("SYNC POLL ERROR - PARSE JSON", returnPoll, error);
         return;
@@ -442,7 +442,7 @@ export default class RPC {
       }
       let ss = {} as SyncStatusType;
       try {
-        ss = await JSON.parse(returnStatus);
+        ss = JSON.parse(returnStatus);
         ss.lastError = this.lastPollSyncError;
       } catch (error) {
         console.log("SYNC STATUS ERROR - PARSE JSON", returnStatus, error);
@@ -547,7 +547,7 @@ export default class RPC {
         if (spendableStr.toLowerCase().startsWith("error")) {
           console.log(`Error spendable balance ${spendableStr}`);
         } else {
-          spendableJSON = await JSON.parse(spendableStr);
+          spendableJSON = JSON.parse(spendableStr);
         }
       } else {
         console.log("Internal Error spendable balance");
@@ -600,7 +600,7 @@ export default class RPC {
         console.log("Internal Error addresses");
         return;
       }
-      const unifiedAddressesJSON: UnifiedAddressClass[] = (await JSON.parse(unifiedAddressesStr)) || [];
+      const unifiedAddressesJSON: UnifiedAddressClass[] = JSON.parse(unifiedAddressesStr) || [];
       //console.log(unifiedAddressesStr, unifiedAddressesJSON);
 
       // TRANSPARENT
@@ -614,7 +614,7 @@ export default class RPC {
         console.log("Internal Error addresses");
         return;
       }
-      const transparentAddressesJSON: TransparentAddressClass[] = (await JSON.parse(transparentAddressStr)) || [];
+      const transparentAddressesJSON: TransparentAddressClass[] = JSON.parse(transparentAddressStr) || [];
       //console.log(transparentAddressStr, transparentAddressesJSON);
 
       this.fnSetAddressesUnified(unifiedAddressesJSON);

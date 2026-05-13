@@ -226,7 +226,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         // restore the previous wallet
         loadCurrentWallet();
       } else {
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
 
         await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
@@ -265,7 +265,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         // restore the previous wallet
         loadCurrentWallet();
       } else {
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
 
         await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
@@ -327,7 +327,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         // restore the previous wallet
         loadCurrentWallet();
       } else {
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
         const ufvk: string = resultJSON.ufvk;
 
         createNextWallet(id, wallet_name, alias ? alias : `${ufvk.substring(0, 10)}...`);
@@ -367,7 +367,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         // restore the previous wallet
         loadCurrentWallet();
       } else {
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
         const birthday: number = resultJSON.birthday;
 
         if (birthday < activationHeight[selectedChain]) {

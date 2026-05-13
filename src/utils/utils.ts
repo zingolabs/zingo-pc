@@ -92,7 +92,7 @@ export default class Utils {
 
       let resultParseJSON;
       try {
-        resultParseJSON = await JSON.parse(resultParse);
+        resultParseJSON = JSON.parse(resultParse);
       } catch (error) {
         console.log("parse-address", error);
         return;

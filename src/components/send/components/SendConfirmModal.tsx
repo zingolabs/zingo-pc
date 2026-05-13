@@ -91,7 +91,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
         }
 
         try {
-          resultJSON = await JSON.parse(result);
+          resultJSON = JSON.parse(result);
         } catch (error) {
           console.log("parse-address", error);
           return "-";

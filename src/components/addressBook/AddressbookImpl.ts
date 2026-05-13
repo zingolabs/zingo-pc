@@ -43,7 +43,7 @@ export default class AddressbookImpl {
     const fileName: string = await this.getFileName();
 
     try {
-      return await JSON.parse(await fs.promises.readFile(fileName));
+      return JSON.parse(await fs.promises.readFile(fileName));
     } catch (err) {
       // File probably doesn't exist, so return nothing
       console.log("address book", err);

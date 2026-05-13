@@ -747,7 +747,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           return;
         }
 
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
 
         // seed phrase or ufvk
         const walletKindStr: string = await native.wallet_kind();
