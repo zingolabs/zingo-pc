@@ -888,6 +888,20 @@ function createWindow() {
   const ignore = process.platform !== "darwin";
   mainWindow.webContents.setIgnoreMenuShortcuts(ignore);
 
+  // Block new windows — open https:// URLs in the system browser instead.
+  // Prevents a compromised renderer from spawning a window that inherits the preload.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://")) shell.openExternal(url);
+    return { action: "deny" };
+  });
+
+  // Block navigation away from the app URL.
+  // Prevents the renderer from loading an external page inside the Electron window.
+  const appOrigin = isDev ? "http://localhost:3000" : "file://";
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(appOrigin)) event.preventDefault();
+  });
+
   // Load from localhost if in development
   // Otherwise load index.html file
   mainWindow.loadURL(isDev ? "http://localhost:3000" : `file://${path.join(__dirname, "../build/index.html")}`);
