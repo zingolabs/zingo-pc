@@ -1,7 +1,5 @@
 const { contextBridge, ipcRenderer, clipboard } = require("electron");
 const { shell } = require("electron");
-const fs = require("fs");
-const path = require("path");
 
 // All native methods run in the main process — every call is an IPC round-trip.
 // This allows sandbox:true on BrowserWindow and correct security-scoped bookmark handling.
@@ -105,6 +103,10 @@ const ALLOWED_INVOKE = new Set([
   "auth:check",
   "auth:verify",
   "wallet-dir:request",
+  "fs:existsSync",
+  "fs:mkdir",
+  "fs:writeFile",
+  "fs:readFile",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -154,11 +156,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   fs: {
-    existsSync: (p) => fs.existsSync(p),
+    existsSync: (p) => ipcRenderer.invoke("fs:existsSync", p),
     promises: {
-      mkdir: (p, opts) => fs.promises.mkdir(p, opts),
-      writeFile: (p, data) => fs.promises.writeFile(p, data),
-      readFile: (p) => fs.promises.readFile(p, "utf8"),
+      mkdir: (p, opts) => ipcRenderer.invoke("fs:mkdir", p, opts),
+      writeFile: (p, data) => ipcRenderer.invoke("fs:writeFile", p, data),
+      readFile: (p) => ipcRenderer.invoke("fs:readFile", p),
     },
   },
 });

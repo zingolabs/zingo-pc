@@ -29,7 +29,7 @@ declare global {
         send: (channel: string, ...args: any[]) => void;
       };
       fs: {
-        existsSync: (path: string) => boolean;
+        existsSync: (path: string) => Promise<boolean>;
         promises: {
           mkdir: (path: string, options?: any) => Promise<void>;
           writeFile: (path: string, data: string) => Promise<void>;

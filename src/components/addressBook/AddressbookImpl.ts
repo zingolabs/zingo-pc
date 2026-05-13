@@ -11,7 +11,7 @@ export default class AddressbookImpl {
     if (!dir.startsWith(relativePath)) {
       throw new Error("Invalid app data path");
     }
-    if (!fs.existsSync(dir)) {
+    if (!(await fs.existsSync(dir))) {
       await fs.promises.mkdir(dir);
     }
     const fileName: string = path.join(dir, "AddressBook.json");

@@ -583,6 +583,10 @@ ipcMain.handle("wallets:update", async (_e, wallet) => updateWallet(wallet));
 ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
+ipcMain.handle("fs:existsSync", (_e, p) => fs.existsSync(p));
+ipcMain.handle("fs:mkdir", (_e, p, opts) => fs.promises.mkdir(p, opts));
+ipcMain.handle("fs:writeFile", (_e, p, data) => fs.promises.writeFile(p, data));
+ipcMain.handle("fs:readFile", (_e, p) => fs.promises.readFile(p, "utf8"));
 
 // Lazily loads native.node in the main process (shared across all IPC handlers).
 // Path mirrors preload.js: inside an asar, Electron redirects .node loads to
@@ -860,7 +864,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false,
+      sandbox: true,
       nodeIntegrationInWorker: false,
       enableRemoteModule: false,
       preload: path.join(__dirname, "preload.js"),
