@@ -575,7 +575,7 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
                 render={(props) => (
                   <AddNewWallet
                     {...props}
-                    closeModal={() => this.navigateToDashboard()}
+                    closeModal={this.navigateToDashboard}
                     setWallets={this.setWallets}
                     setCurrentWallet={this.setCurrentWallet}
                     navigateToLoadingScreenChangingWallet={this.navigateToLoadingScreenChangingWallet}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import {
   AccordionItem,
   AccordionItemHeading,
@@ -49,7 +49,6 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [creating, setCreating] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
-  const [anyPending, setAnyPending] = useState<boolean>(false);
 
   const [unifiedCreateType, setUnifiedCreateType] = useState<"o" | "z" | "oz">("o");
 
@@ -62,14 +61,10 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     };
   }, []);
 
-  useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
-    const pending: number =
-      valueTransfers.length > 0
-        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
-        : 0;
-    setAnyPending(pending > 0);
-  }, [valueTransfers]);
+  const anyPending: boolean = useMemo(
+    () => valueTransfers.some((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3),
+    [valueTransfers],
+  );
 
   useEffect(() => {
     if (
