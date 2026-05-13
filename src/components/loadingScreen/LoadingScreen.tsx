@@ -56,6 +56,7 @@ const chains = {
 
 class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
   static contextType = ContextApp;
+  private navigationTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(props: LoadingScreenProps & RouteComponentProps) {
     super(props);
@@ -830,12 +831,18 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   };
 
-  render() {
-    const { loadingDone, currentWallet } = this.state;
-
-    if (loadingDone) {
-      setTimeout(() => this.props.navigateToDashboard(), 10);
+  componentDidUpdate(_prevProps: LoadingScreenProps & RouteComponentProps, prevState: LoadingScreenState) {
+    if (!prevState.loadingDone && this.state.loadingDone) {
+      this.navigationTimer = setTimeout(() => this.props.navigateToDashboard(), 10);
     }
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.navigationTimer);
+  }
+
+  render() {
+    const { currentWallet } = this.state;
 
     return (
       <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>

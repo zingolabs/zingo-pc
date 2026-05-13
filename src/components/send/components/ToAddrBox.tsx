@@ -69,6 +69,7 @@ const ToAddrBox = ({
   }, [toaddr.to, toaddr.amount, toaddr.memo]);
 
   useEffect(() => {
+    let buttonTimerId: ReturnType<typeof setTimeout> | undefined;
     (async () => {
       const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(toLocal, serverChainName);
       setAddressKind(_addressKind);
@@ -139,13 +140,14 @@ const ToAddrBox = ({
         buttonstate = false;
       }
 
-      setTimeout(() => {
+      buttonTimerId = setTimeout(() => {
         setSendButtonEnabled(buttonstate);
       }, 10);
 
       const usdValue: string = Utils.getZecToUsdString(zecPrice, amountLocal);
       setUsdValue(usdValue);
     })();
+    return () => clearTimeout(buttonTimerId);
   }, [
     fetchSendFeeAndErrorAndSpendable,
     fromAmount,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import {
   AccordionItem,
   AccordionItemHeading,
@@ -52,6 +52,15 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   const [anyPending, setAnyPending] = useState<boolean>(false);
 
   const [unifiedCreateType, setUnifiedCreateType] = useState<"o" | "z" | "oz">("o");
+
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const creatingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => {
+    return () => {
+      clearTimeout(copiedTimerRef.current);
+      clearTimeout(creatingTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
@@ -133,7 +142,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   onClick={() => {
                     setCopied(true);
                     clipboard.writeText(address_address);
-                    setTimeout(() => setCopied(false), 5000);
+                    copiedTimerRef.current = setTimeout(() => setCopied(false), 5000);
                   }}
                 >
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
@@ -220,7 +229,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     if (!result || result.toLowerCase().startsWith("error")) {
                       openErrorModal("New Address", result ? result : "Error: creating a new address.");
                     }
-                    setTimeout(() => setCreating(false), 5000);
+                    creatingTimerRef.current = setTimeout(() => setCreating(false), 5000);
                   }}
                 >
                   {creating ? <span>Creating...</span> : <span>New Address</span>}

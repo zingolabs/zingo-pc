@@ -115,20 +115,11 @@ export default class RPC {
   }
 
   async sanitizeTimers(): Promise<void> {
-    // and now the array of timers...
-    let deleted: number[] = [];
-    for (var i = 0; i < this.timers.length; i++) {
-      if (this.updateTimerID && this.timers[i] === this.updateTimerID) {
-        // do nothing
-      } else {
-        clearInterval(this.timers[i]);
-        deleted.push(i);
-      }
-    }
-    // remove the cleared timers.
-    for (var ii = 0; ii < deleted.length; ii++) {
-      this.timers.splice(deleted[ii], 1);
-    }
+    this.timers = this.timers.filter((t) => {
+      if (this.updateTimerID && t === this.updateTimerID) return true;
+      clearInterval(t);
+      return false;
+    });
   }
 
   static async doSave() {
