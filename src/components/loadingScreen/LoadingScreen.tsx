@@ -75,7 +75,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { openErrorModal, closeErrorModal } = this.context as React.ContextType<typeof ContextApp>;
 
     try {
-      native.set_crypto_default_provider_to_ring();
+      await native.set_crypto_default_provider_to_ring();
       //console.log('crypto provider result', r);
     } catch (error) {
       console.log(`Critical Error crypto provider default ${error}`);
@@ -271,7 +271,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         testnetWallet_2: WalletType | null = null,
         regtestWallet_3: WalletType | null = null;
       // MAINNET
-      const mainnetWalletExistsResult: boolean = native.wallet_exists(
+      const mainnetWalletExistsResult: boolean = await native.wallet_exists(
         "",
         ServerChainNameEnum.mainChainName,
         PerformanceLevelEnum.High,
@@ -315,7 +315,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }
       }
       // TESTNET
-      const testnetWalletExistsResult: boolean = native.wallet_exists(
+      const testnetWalletExistsResult: boolean = await native.wallet_exists(
         "",
         ServerChainNameEnum.testChainName,
         PerformanceLevelEnum.High,
@@ -359,7 +359,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         }
       }
       // REGTEST
-      const regnetWalletExistsResult: boolean = native.wallet_exists(
+      const regnetWalletExistsResult: boolean = await native.wallet_exists(
         "",
         ServerChainNameEnum.regtestChainName,
         PerformanceLevelEnum.High,
@@ -487,7 +487,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       wallets = await ipcRenderer.invoke("wallets:all");
       // not exists default mainnet wallet
       // trying to recover it
-      const mainnetWalletExistsResult: boolean = native.wallet_exists(
+      const mainnetWalletExistsResult: boolean = await native.wallet_exists(
         "",
         ServerChainNameEnum.mainChainName,
         PerformanceLevelEnum.High,
@@ -536,7 +536,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
       // not exists default testnet wallet
       // trying to recover it
-      const testnetWalletExistsResult: boolean = native.wallet_exists(
+      const testnetWalletExistsResult: boolean = await native.wallet_exists(
         "",
         ServerChainNameEnum.testChainName,
         PerformanceLevelEnum.High,
@@ -585,7 +585,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       }
       // not exists default regtest wallet
       // trying to recover it
-      const regnetWalletExistsResult: boolean = native.wallet_exists(
+      const regnetWalletExistsResult: boolean = await native.wallet_exists(
         "",
         ServerChainNameEnum.regtestChainName,
         PerformanceLevelEnum.High,
@@ -654,27 +654,25 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     // before any native wallet calls. On other platforms this returns null (no-op).
     try {
       const walletDirResult: { path: string; bookmark: string } | null = await ipcRenderer.invoke("wallet-dir:request");
-      console.log(`[wallet-dir] result=${walletDirResult !== null ? "ok path=" + walletDirResult.path : "null"} isSandboxed=${isSandboxed}`);
-      if (walletDirResult !== null && typeof native.start_security_scoped_access === "function") {
-        const accessGranted = native.start_security_scoped_access(walletDirResult.bookmark);
-        const baseDirSet = native.set_wallet_base_dir(walletDirResult.path);
+      console.log(
+        `[wallet-dir] result=${walletDirResult !== null ? "ok path=" + walletDirResult.path : "null"} isSandboxed=${isSandboxed}`,
+      );
+      if (walletDirResult !== null) {
+        const accessGranted = await native.start_security_scoped_access(walletDirResult.bookmark);
+        const baseDirSet = await native.set_wallet_base_dir(walletDirResult.path);
         console.log(`[wallet-dir] start_security_scoped_access=${accessGranted} set_wallet_base_dir=${baseDirSet}`);
       } else if (walletDirResult === null && isSandboxed) {
         // On MAS sandbox the handler only returns null if the user quit the app via the
         // dialog, which calls app.quit() before reaching here. If we somehow land here
         // it means an unexpected failure — don't silently proceed with the empty container dir.
-        this.props.setCurrentWalletOpenError(
-          "Could not access the wallet folder. Please restart the application.",
-        );
+        this.props.setCurrentWalletOpenError("Could not access the wallet folder. Please restart the application.");
         this.setState({ loadingDone: true });
         return;
       }
     } catch (e) {
       console.error("wallet-dir:request failed:", e);
       if (isSandboxed) {
-        this.props.setCurrentWalletOpenError(
-          `Could not access the wallet folder: ${e}`,
-        );
+        this.props.setCurrentWalletOpenError(`Could not access the wallet folder: ${e}`);
         this.setState({ loadingDone: true });
         return;
       }
@@ -706,7 +704,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
 
     try {
-      const walletExistsResult: boolean = native.wallet_exists(
+      const walletExistsResult: boolean = await native.wallet_exists(
         currentWallet.uri,
         currentWallet.chain_name,
         currentWallet.performanceLevel,
@@ -731,7 +729,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       } else {
         this.setState({ walletExists: true });
         // the wallet file YES exists
-        const result: string = native.init_from_b64(
+        const result: string = await native.init_from_b64(
           currentWallet.uri,
           currentWallet.chain_name,
           currentWallet.performanceLevel,
