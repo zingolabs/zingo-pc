@@ -275,6 +275,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
         // save the wallet
+        setSeedPhrase("");
         doSaveWallet();
         await delay(1000);
         navigateToLoadingScreenChangingWallet();
@@ -337,6 +338,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
         // save the wallet
+        setUfvk("");
         doSaveWallet();
         await delay(1000);
         navigateToLoadingScreenChangingWallet();

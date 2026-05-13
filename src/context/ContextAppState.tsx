@@ -36,8 +36,6 @@ export const defaultAppState: AppState = {
   currentWallet: null,
   currentWalletOpenError: "",
   wallets: [] as WalletType[],
-  seed_phrase: "",
-  ufvk: "",
   birthday: 0,
   orchardPool: true,
   saplingPool: true,

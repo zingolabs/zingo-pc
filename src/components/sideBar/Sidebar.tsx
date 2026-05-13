@@ -33,8 +33,6 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
     info,
     verificationProgress,
     readOnly,
-    seed_phrase,
-    ufvk,
     birthday,
     setSendTo,
     openErrorModal,
@@ -208,10 +206,13 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         return;
       }
 
+      const seedStr: string = readOnly ? "" : await ipcRenderer.invoke("native:get_seed");
+      const ufvkStr: string = readOnly ? await ipcRenderer.invoke("native:get_ufvk") : "";
+
       openErrorModal(
         "Wallet Seed Phrase / Viewing Key",
         <div className={cstyles.verticalflex}>
-          {!!seed_phrase && (
+          {!!seedStr && (
             <>
               <div>
                 This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet.
@@ -226,12 +227,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
                   fontWeight: "bolder",
                 }}
               >
-                {seed_phrase}
+                {seedStr}
               </div>
               <hr style={{ width: "100%" }} />
             </>
           )}
-          {!!ufvk && (
+          {!!ufvkStr && (
             <>
               <div>
                 This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
@@ -245,7 +246,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
                   fontWeight: "bolder",
                 }}
               >
-                {ufvk}
+                {ufvkStr}
               </div>
               <hr style={{ width: "100%" }} />
             </>
@@ -313,7 +314,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       ipcRenderer.off("settingswallet", settingswallet);
       ipcRenderer.off("deletewallet", deletewallet);
     };
-  }, [birthday, doRescan, history, openErrorModal, seed_phrase, ufvk]);
+  }, [birthday, doRescan, history, openErrorModal, readOnly]);
 
   const openPayURIModal = (defaultValue: string | null) => {
     const _uriModalInputValue: string = defaultValue || "";

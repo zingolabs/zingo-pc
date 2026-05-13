@@ -38,7 +38,7 @@ type LoadingScreenProps = {
   setReadOnly: (readOnly: boolean) => void;
   setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
-  setRecoveryInfo: (s: string, u: string, b: number) => void;
+  setBirthday: (b: number) => void;
   setPools: (o: boolean, s: boolean, t: boolean) => void;
   setWallets: (ws: WalletType[]) => void;
   setCurrentWallet: (w: WalletType | null) => void;
@@ -745,12 +745,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
         if (walletKindJSON.kind === "Loaded from unified full viewing key" || walletKindJSON.kind === "No keys found") {
           // ufvk
-          this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday);
+          this.props.setBirthday(resultJSON.birthday);
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
           this.props.setReadOnly(true);
         } else {
           // seed phrase
-          this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday);
+          this.props.setBirthday(resultJSON.birthday);
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
           this.props.setReadOnly(false);
         }

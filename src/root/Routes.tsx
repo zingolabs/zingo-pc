@@ -292,12 +292,8 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
     });
   };
 
-  setRecoveryInfo = (seed_phrase: string, ufvk: string, birthday: number) => {
-    this.setState({
-      seed_phrase,
-      ufvk,
-      birthday,
-    });
+  setBirthday = (birthday: number) => {
+    this.setState({ birthday });
   };
 
   setPools = (orchardPool: boolean, saplingPool: boolean, transparentPool: boolean) => {
@@ -493,8 +489,6 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
       currentWallet: this.state.currentWallet,
       currentWalletOpenError: this.state.currentWalletOpenError,
       wallets: this.state.wallets,
-      seed_phrase: this.state.seed_phrase,
-      ufvk: this.state.ufvk,
       birthday: this.state.birthday,
       orchardPool: this.state.orchardPool,
       saplingPool: this.state.saplingPool,
@@ -600,7 +594,7 @@ class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
                     setReadOnly={this.setReadOnly}
                     setServerUris={this.setServerUris}
                     navigateToDashboard={this.navigateToDashboard}
-                    setRecoveryInfo={this.setRecoveryInfo}
+                    setBirthday={this.setBirthday}
                     setPools={this.setPools}
                     setWallets={this.setWallets}
                     setCurrentWallet={this.setCurrentWallet}
