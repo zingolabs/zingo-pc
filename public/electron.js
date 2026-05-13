@@ -463,21 +463,13 @@ if (process.platform !== "darwin") {
 ipcMain.handle("auth:check", async () => {
   if (process.platform === "win32") {
     try {
-      const nativePath = app.isPackaged
-        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
-        : path.join(__dirname, "../src/native.node");
-      const native = require(nativePath);
-      return native.checkWindowsHello();
+      return getNative().checkWindowsHello();
     } catch {
       return "not_supported";
     }
   } else if (process.platform === "darwin") {
     try {
-      const nativePath = app.isPackaged
-        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
-        : path.join(__dirname, "../src/native.node");
-      const native = require(nativePath);
-      return native.checkMacAuth();
+      return getNative().checkMacAuth();
     } catch {
       return "not_supported";
     }
@@ -498,10 +490,7 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
   if (process.platform === "win32") {
     const win = BrowserWindow.getAllWindows()[0] ?? null;
     try {
-      const nativePath = app.isPackaged
-        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
-        : path.join(__dirname, "../src/native.node");
-      const native = require(nativePath);
+      const native = getNative();
       // If Windows Hello is not configured, skip verification rather than hanging.
       if (native.checkWindowsHello() !== "available") return { success: true };
       // Blur the Electron window so the Windows Hello dialog can take foreground focus.
@@ -515,11 +504,7 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
     }
   } else if (process.platform === "darwin") {
     try {
-      const nativePath = app.isPackaged
-        ? path.join(process.resourcesPath, "app.asar.unpacked", "build", "native.node")
-        : path.join(__dirname, "../src/native.node");
-      const native = require(nativePath);
-      return await native.verifyMacUser(String(reason));
+      return await getNative().verifyMacUser(String(reason));
     } catch {
       return { success: false };
     }
