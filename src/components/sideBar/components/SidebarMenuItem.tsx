@@ -23,10 +23,10 @@ const SidebarMenuItem = ({ name, routeName, currentRoute, iconname }: SidebarMen
   }
 
   return (
-    <div className={[styles.sidebarmenuitem, activeColorClass].join(" ")}>
+    <div className={`${styles.sidebarmenuitem} ${activeColorClass}`}>
       <Link to={routeName}>
         <span className={activeColorClass}>
-          <i className={["fas", iconname].join(" ")} />
+          <i className={`${"fas"} ${iconname}`} />
           &nbsp; &nbsp;
           {name}
         </span>

@@ -16,28 +16,28 @@ const BalanceBlock: React.FC<BalanceBlockProps> = ({
 
   return (
     <div className={cstyles.padall}>
-      {topLabel && <div className={[cstyles.small].join(" ")}>{topLabel}</div>}
+      {topLabel && <div className={cstyles.small}>{topLabel}</div>}
 
-      <div className={[cstyles.highlight, cstyles.large].join(" ")}>
+      <div className={`${cstyles.highlight} ${cstyles.large}`}>
         <span>
           {currencyName} {bigPart}
         </span>
-        <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
+        <span className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPart}</span>
       </div>
-      {currencyName === "ZEC" && <div className={[cstyles.sublight, cstyles.small].join(" ")}>{usdValue}</div>}
+      {currencyName === "ZEC" && <div className={`${cstyles.sublight} ${cstyles.small}`}>{usdValue}</div>}
 
       {zecValueConfirmed !== undefined && zecValue !== zecValueConfirmed && (
         <>
-          <div className={[cstyles.small].join(" ")}>{topLabel + " Confirmed"}</div>
+          <div className={cstyles.small}>{topLabel + " Confirmed"}</div>
           <div className={cstyles.horizontalflex}>
-            <div className={[cstyles.highlight, cstyles.small].join(" ")}>
+            <div className={`${cstyles.highlight} ${cstyles.small}`}>
               <span>
                 {currencyName} {bigPartConfirmed}
               </span>
-              <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPartConfirmed}</span>
+              <span className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPartConfirmed}</span>
             </div>
             {currencyName === "ZEC" && (
-              <div style={{ marginLeft: 5 }} className={[cstyles.sublight, cstyles.small].join(" ")}>
+              <div style={{ marginLeft: 5 }} className={`${cstyles.sublight} ${cstyles.small}`}>
                 {usdValueConfirmed}
               </div>
             )}

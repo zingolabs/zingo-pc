@@ -105,7 +105,7 @@ const History: React.FC<HistoryProps> = () => {
 
   return (
     <div>
-      <div className={[cstyles.well, styles.containermargin].join(" ")}>
+      <div className={`${cstyles.well} ${styles.containermargin}`}>
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
@@ -149,13 +149,13 @@ const History: React.FC<HistoryProps> = () => {
         <div className={cstyles.balancebox}>
           {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
             <>
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
               </button>
             </>
           )}
           {!!anyPending && (
-            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
               Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
             </div>
           )}
@@ -170,18 +170,15 @@ const History: React.FC<HistoryProps> = () => {
         )}
       </div>
 
-      <div
-        style={{ marginBottom: 5 }}
-        className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}
-      >
+      <div style={{ marginBottom: 5 }} className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>
         History
       </div>
 
       <ScrollPaneTop offsetHeight={180}>
-        {!valueTransfersSorted && <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>}
+        {!valueTransfersSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
         {valueTransfersSorted && valueTransfersSorted.length === 0 && (
-          <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
+          <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
         )}
 
         {valueTransfersSorted &&

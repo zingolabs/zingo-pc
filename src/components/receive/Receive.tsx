@@ -89,7 +89,7 @@ const Receive: React.FC<ReceiveProps> = () => {
 
   return (
     <div>
-      <div className={[cstyles.well, styles.containermargin].join(" ")}>
+      <div className={`${cstyles.well} ${styles.containermargin}`}>
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
@@ -149,13 +149,13 @@ const Receive: React.FC<ReceiveProps> = () => {
         <div className={cstyles.balancebox}>
           {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
             <>
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
               </button>
             </>
           )}
           {!!anyPending && (
-            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
               Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
             </div>
           )}
@@ -169,7 +169,7 @@ const Receive: React.FC<ReceiveProps> = () => {
           </>
         )}
       </div>
-      <div className={[styles.containermargin].join(" ")} style={{ marginLeft: 20 }}>
+      <div className={styles.containermargin} style={{ marginLeft: 20 }}>
         <Tabs>
           <TabList>
             {(orchardPool || saplingPool) && <Tab>Unified</Tab>}

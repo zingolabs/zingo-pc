@@ -95,29 +95,29 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
   return (
     <div>
-      <AccordionItem key={copied ? 1 : 0} className={[styles.receiveblock].join(" ")} uuid={address_address}>
+      <AccordionItem key={copied ? 1 : 0} className={styles.receiveblock} uuid={address_address}>
         <AccordionItemHeading>
           <AccordionItemButton className={cstyles.accordionHeader}>
-            <div className={[cstyles.verticalflex].join(" ")}>
+            <div className={cstyles.verticalflex}>
               {!!address_address && address_address.length < 80
                 ? address_address
                 : Utils.splitStringIntoChunks(address_address, 3).map((item) => <div key={item}>{item}</div>)}
             </div>
           </AccordionItemButton>
         </AccordionItemHeading>
-        <AccordionItemPanel className={[styles.receiveDetail].join(" ")}>
-          <div className={[cstyles.flexspacebetween].join(" ")}>
-            <div className={[cstyles.verticalflex, cstyles.marginleft].join(" ")}>
+        <AccordionItemPanel className={styles.receiveDetail}>
+          <div className={cstyles.flexspacebetween}>
+            <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`}>
               {label && (
                 <div className={cstyles.margintoplarge}>
-                  <div className={[cstyles.sublight].join(" ")}>Label</div>
-                  <div className={[cstyles.padtopsmall, cstyles.fixedfont].join(" ")}>{label}</div>
+                  <div className={cstyles.sublight}>Label</div>
+                  <div className={`${cstyles.padtopsmall} ${cstyles.fixedfont}`}>{label}</div>
                 </div>
               )}
 
               {type === "u" && (
                 <div>
-                  <div className={[cstyles.sublight].join(" ")}>
+                  <div className={cstyles.sublight}>
                     Address type: {Utils.getReceivers(address as UnifiedAddressClass).join(" + ")}
                   </div>
                 </div>
@@ -125,14 +125,14 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
               {type === "t" && (
                 <div>
-                  <div className={[cstyles.sublight].join(" ")}>Address type: Transparent</div>
+                  <div className={cstyles.sublight}>Address type: Transparent</div>
                 </div>
               )}
 
               <div>
                 <button
                   disabled={copied}
-                  className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                   type="button"
                   onClick={() => {
                     setCopied(true);
@@ -145,7 +145,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                   <button
-                    className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                    className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                     type="button"
                     onClick={() =>
                       Utils.openAddress(
@@ -160,7 +160,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                       )
                     }
                   >
-                    View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    View on explorer <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
                   </button>
                 )}
                 {type === "t" &&
@@ -170,7 +170,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   !anyPending && (
                     <>
                       <button
-                        className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                        className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                         type="button"
                         onClick={handleShieldButton}
                       >
@@ -211,7 +211,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 )}
                 <button
                   disabled={creating}
-                  className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                   type="button"
                   onClick={async () => {
                     setCreating(true);
@@ -238,7 +238,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 includeMargin={true}
                 size={300}
                 value={address_address}
-                className={[styles.receiveQrcode].join(" ")}
+                className={styles.receiveQrcode}
                 onClick={handleQRCodeClick}
               />
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", opacity: 0.5 }}>

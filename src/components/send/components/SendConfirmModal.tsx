@@ -261,7 +261,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
                     }
                   >
                     View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
                   </div>
                   {txids.length > 1 && (
                     <div
@@ -281,7 +281,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
                       }
                     >
                       View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                      <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
                     </div>
                   )}
                   {txids.length > 2 && (
@@ -302,7 +302,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
                       }
                     >
                       View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                      <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
                     </div>
                   )}
                 </div>
@@ -329,25 +329,19 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
       className={styles.confirmModal}
       overlayClassName={styles.confirmOverlay}
     >
-      <div className={[cstyles.verticalflex].join(" ")}>
-        <div className={[cstyles.marginbottomlarge, cstyles.center].join(" ")}>Confirm Transaction</div>
+      <div className={cstyles.verticalflex}>
+        <div className={`${cstyles.marginbottomlarge} ${cstyles.center}`}>Confirm Transaction</div>
         <div className={cstyles.flex}>
           <div
-            className={[
-              cstyles.highlight,
-              cstyles.xlarge,
-              cstyles.flexspacebetween,
-              cstyles.well,
-              cstyles.maxwidth,
-            ].join(" ")}
+            className={`${cstyles.highlight} ${cstyles.xlarge} ${cstyles.flexspacebetween} ${cstyles.well} ${cstyles.maxwidth}`}
           >
             <div>Total</div>
-            <div className={[cstyles.right, cstyles.verticalflex].join(" ")}>
+            <div className={`${cstyles.right} ${cstyles.verticalflex}`}>
               <div>
                 <span>
                   {info.currencyName} {bigPart}
                 </span>
-                <span className={[cstyles.small, styles.zecsmallpart].join(" ")}>{smallPart}</span>
+                <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{smallPart}</span>
               </div>
               {info.currencyName === "ZEC" && (
                 <div className={cstyles.normal}>{Utils.getZecToUsdString(info.zecPrice, sendingTotal)}</div>
@@ -356,9 +350,9 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
           </div>
         </div>
 
-        <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
+        <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
           <ScrollPaneTop offsetHeight={350}>
-            <div className={[cstyles.verticalflex].join(" ")}>
+            <div className={cstyles.verticalflex}>
               {[sendPageState.toaddr].map((t) => (
                 <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
               ))}
@@ -366,9 +360,9 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
             <ConfirmModalToAddr toaddr={{ to: "Fee", amount: sendFee, memo: "", memoReplyTo: "" }} info={info} />
 
             <div className={cstyles.well}>
-              <div className={[cstyles.flexspacebetween, cstyles.margintoplarge].join(" ")}>
-                <div className={[styles.confirmModalAddress].join(" ")}>Privacy Level</div>
-                <div className={[cstyles.verticalflex, cstyles.right].join(" ")}>
+              <div className={`${cstyles.flexspacebetween} ${cstyles.margintoplarge}`}>
+                <div className={styles.confirmModalAddress}>Privacy Level</div>
+                <div className={`${cstyles.verticalflex} ${cstyles.right}`}>
                   <div className={cstyles.large}>
                     <div>
                       <span>{privacyLevel}</span>

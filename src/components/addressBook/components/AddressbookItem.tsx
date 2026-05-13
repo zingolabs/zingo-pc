@@ -33,12 +33,12 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
   return (
     <AccordionItem
       key={item.label.replace(/\s/g, "")}
-      className={[cstyles.well, cstyles.margintopsmall].join(" ")}
+      className={`${cstyles.well} ${cstyles.margintopsmall}`}
       uuid={item.label.replace(/\s/g, "")}
     >
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
-          <div className={[cstyles.flexspacebetween].join(" ")}>
+          <div className={cstyles.flexspacebetween}>
             <div>{item.label}</div>
             {!!item.address && (
               <div
@@ -66,7 +66,7 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
         </AccordionItemButton>
       </AccordionItemHeading>
       <AccordionItemPanel>
-        <div className={[cstyles.well, styles.addressbookentrybuttons].join(" ")}>
+        <div className={`${cstyles.well} ${styles.addressbookentrybuttons}`}>
           {!readOnly && (
             <button
               type="button"

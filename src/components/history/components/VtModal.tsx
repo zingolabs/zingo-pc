@@ -274,51 +274,51 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
       {showNavigator && (
         <div
           style={{ position: "absolute", alignItems: "center", top: 15, left: 40 }}
-          className={[cstyles.horizontalflex].join(" ")}
+          className={cstyles.horizontalflex}
         >
           {valueTransferIndex === 0 ? (
             <div style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}>
-              <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
+              <i className={`${"fas"} ${"fa-arrow-up"} ${"fa-2x"}`} />
             </div>
           ) : (
             <div
               style={{ marginRight: 25, cursor: "pointer" }}
               onClick={() => moveValueTransferDetail(valueTransferIndex, -1)}
             >
-              <i className={["fas", "fa-arrow-up", "fa-2x"].join(" ")} />
+              <i className={`${"fas"} ${"fa-arrow-up"} ${"fa-2x"}`} />
             </div>
           )}
           <div>{(valueTransferIndex + 1).toString()}</div>
           {valueTransferIndex === length - 1 ? (
             <div style={{ marginLeft: 25, cursor: "pointer", opacity: 0.5 }}>
-              <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
+              <i className={`${"fas"} ${"fa-arrow-down"} ${"fa-2x"}`} />
             </div>
           ) : (
             <div
               style={{ marginLeft: 25, cursor: "pointer" }}
               onClick={() => moveValueTransferDetail(valueTransferIndex, 1)}
             >
-              <i className={["fas", "fa-arrow-down", "fa-2x"].join(" ")} />
+              <i className={`${"fas"} ${"fa-arrow-down"} ${"fa-2x"}`} />
             </div>
           )}
         </div>
       )}
-      <div className={[cstyles.verticalflex].join(" ")}>
-        <div className={[cstyles.center].join(" ")}>Transaction Status</div>
+      <div className={cstyles.verticalflex}>
+        <div className={cstyles.center}>Transaction Status</div>
 
         <div
-          className={[cstyles.center, cstyles.horizontalflex].join(" ")}
+          className={`${cstyles.center} ${cstyles.horizontalflex}`}
           style={{ width: "100%", alignItems: "center", justifyContent: "center" }}
         >
           <div
-            className={[cstyles.center, cstyles.verticalflex].join(" ")}
+            className={`${cstyles.center} ${cstyles.verticalflex}`}
             style={{ alignItems: "center", justifyContent: "center" }}
           >
-            <i className={["fas", typeIcon].join(" ")} style={{ fontSize: "35px", color: typeColor }} />
+            <i className={`${"fas"} ${typeIcon}`} style={{ fontSize: "35px", color: typeColor }} />
             {typeText}
           </div>
 
-          <div className={[cstyles.center].join(" ")} style={{ marginLeft: 20 }}>
+          <div className={cstyles.center} style={{ marginLeft: 20 }}>
             <BalanceBlockHighlight
               zecValue={amount}
               usdValue={priceString}
@@ -335,7 +335,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
                 <hr style={{ width: "100%" }} />
 
                 <div
-                  className={[cstyles.center, cstyles.horizontalflex].join(" ")}
+                  className={`${cstyles.center} ${cstyles.horizontalflex}`}
                   style={{ width: "100%", alignItems: "center", justifyContent: "center" }}
                 >
                   <button type="button" className={cstyles.primarybutton} onClick={() => runAction()}>
@@ -349,7 +349,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         {confirmations >= 0 && confirmations < 3 && (
           <div
-            className={[cstyles.center, cstyles.horizontalflex].join(" ")}
+            className={`${cstyles.center} ${cstyles.horizontalflex}`}
             style={{ width: "100%", alignItems: "center", justifyContent: "center", marginTop: 10 }}
           >
             {(status === ValueTransferStatusEnum.transmitted || status === ValueTransferStatusEnum.calculated) && (
@@ -403,9 +403,9 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-        <div className={[cstyles.flexspacebetween].join(" ")}>
+        <div className={cstyles.flexspacebetween}>
           <div>
-            <div className={[cstyles.sublight].join(" ")}>Time</div>
+            <div className={cstyles.sublight}>Time</div>
             <div>
               {datePart} {timePart}
             </div>
@@ -413,13 +413,13 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
           {fees > 0 && (
             <div>
-              <div className={[cstyles.sublight].join(" ")}>Transaction Fee</div>
+              <div className={cstyles.sublight}>Transaction Fee</div>
               <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
             </div>
           )}
 
           <div>
-            <div className={[cstyles.sublight].join(" ")}>Confirmations</div>
+            <div className={cstyles.sublight}>Confirmations</div>
             <div>{confirmations}</div>
           </div>
 
@@ -428,7 +428,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
             status === ValueTransferStatusEnum.mempool ||
             status === ValueTransferStatusEnum.failed) && (
             <div>
-              <div className={[cstyles.sublight].join(" ")}>Status</div>
+              <div className={cstyles.sublight}>Status</div>
               <div
                 style={{
                   color:
@@ -456,9 +456,9 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
         <div className={cstyles.margintoplarge} />
 
         {!!txid && (
-          <div className={[cstyles.flexspacebetween].join(" ")}>
+          <div className={cstyles.flexspacebetween}>
             <div>
-              <div className={[cstyles.sublight].join(" ")}>TXID</div>
+              <div className={cstyles.sublight}>TXID</div>
               <div
                 style={{ cursor: "pointer" }}
                 onClick={() => {
@@ -498,7 +498,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
                 }
               >
                 View TXID &nbsp;
-                <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
               </div>
             )}
           </div>
@@ -507,15 +507,15 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
         <hr style={{ width: "100%" }} />
 
         {!!address && (
-          <div className={[cstyles.flexspacebetween].join(" ")}>
+          <div className={cstyles.flexspacebetween}>
             <div>
-              <div className={[cstyles.sublight].join(" ")}>Address</div>
+              <div className={cstyles.sublight}>Address</div>
               {!!label && (
                 <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
                   {label}
                 </div>
               )}
-              <div className={[cstyles.verticalflex].join(" ")}>
+              <div className={cstyles.verticalflex}>
                 <div
                   style={{ cursor: "pointer" }}
                   onClick={() => {
@@ -559,28 +559,28 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         <div className={cstyles.margintoplarge} />
 
-        <div className={[cstyles.flexspacebetween].join(" ")}>
-          <div className={[cstyles.verticalflex].join(" ")}>
-            <div className={[cstyles.sublight].join(" ")}>Amount</div>
-            <div className={[cstyles.verticalflex].join(" ")}>
-              <div className={[cstyles.verticalflex].join(" ")}>
+        <div className={cstyles.flexspacebetween}>
+          <div className={cstyles.verticalflex}>
+            <div className={cstyles.sublight}>Amount</div>
+            <div className={cstyles.verticalflex}>
+              <div className={cstyles.verticalflex}>
                 <div>
                   <span>
                     {currencyName} {bigPart}
                   </span>
-                  <span className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</span>
+                  <span className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPart}</span>
                 </div>
               </div>
-              <div className={[cstyles.verticalflex].join(" ")}>
-                <div className={[cstyles.sublight].join(" ")}>{priceString}</div>
+              <div className={cstyles.verticalflex}>
+                <div className={cstyles.sublight}>{priceString}</div>
               </div>
             </div>
           </div>
 
           {pool && (
-            <div className={[cstyles.verticalflex].join(" ")}>
-              <div className={[cstyles.sublight].join(" ")}>Pool</div>
-              <div className={[cstyles.flexspacebetween].join(" ")}>
+            <div className={cstyles.verticalflex}>
+              <div className={cstyles.sublight}>Pool</div>
+              <div className={cstyles.flexspacebetween}>
                 <div>{pool}</div>
               </div>
             </div>
@@ -591,8 +591,8 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         {memos && memos.length > 0 && !!memos.join("") && (
           <div>
-            <div className={[cstyles.sublight].join(" ")}>Memo</div>
-            <div className={[cstyles.flexspacebetween].join(" ")}>
+            <div className={cstyles.sublight}>Memo</div>
+            <div className={cstyles.flexspacebetween}>
               <div
                 className={[cstyles.small, cstyles.sublight, cstyles.padtopsmall, cstyles.memodiv, styles.txmemo].join(
                   " ",
@@ -606,7 +606,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-        <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>
+        <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
           <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>
             Close
           </button>

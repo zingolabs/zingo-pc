@@ -72,7 +72,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
               ? Utils.getCssVariable("--color-primary-disable")
               : Utils.getCssVariable("--color-primary"),
         }}
-        className={[cstyles.well, styles.txbox].join(" ")}
+        className={`${cstyles.well} ${styles.txbox}`}
         onClick={() => {
           setValueTransferDetail(vt);
           setValueTransferDetailIndex(index);
@@ -83,10 +83,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           <div className={styles.txaddress}>
             {!!label && <div style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }}>{label}</div>}
             {!!address && !label && (
-              <div
-                style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }}
-                className={[cstyles.verticalflex].join(" ")}
-              >
+              <div style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }} className={cstyles.verticalflex}>
                 <div
                   style={{ cursor: "pointer" }}
                   onClick={() => {
@@ -111,7 +108,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
               </div>
             )}
           </div>
-          <div className={[cstyles.padtopsmall, cstyles.memodiv, styles.txmemo].join(" ")}>{memos ? memos : null}</div>
+          <div className={`${cstyles.padtopsmall} ${cstyles.memodiv} ${styles.txmemo}`}>{memos ? memos : null}</div>
         </div>
       </div>
       <div
@@ -122,7 +119,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           marginBottom: 15,
           marginTop: 5,
         }}
-        className={[cstyles.horizontalflex].join(" ")}
+        className={cstyles.horizontalflex}
       >
         {amount >= 0.01 ? (
           <>
@@ -135,25 +132,22 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
                 " ",
               )}
             >
-              <div
-                style={{ alignItems: "baseline" }}
-                className={[cstyles.padtopsmall, cstyles.horizontalflex].join(" ")}
-              >
+              <div style={{ alignItems: "baseline" }} className={`${cstyles.padtopsmall} ${cstyles.horizontalflex}`}>
                 <div>
                   {currencyName} {bigPart}
                 </div>
-                <div className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</div>
+                <div className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPart}</div>
               </div>
             </div>
-            <div style={{ opacity: 0.4 }} className={[cstyles.horizontalflex].join(" ")}>
-              <div className={[].join(" ")}>{datePart + " ,"}</div>
-              <div className={[].join(" ")}>{timePart}</div>
+            <div style={{ opacity: 0.4 }} className={cstyles.horizontalflex}>
+              <div className={""}>{datePart + " ,"}</div>
+              <div className={""}>{timePart}</div>
             </div>
           </>
         ) : (
-          <div style={{ opacity: 0.4, marginLeft: 20, marginRight: 20 }} className={[cstyles.horizontalflex].join(" ")}>
-            <div className={[].join(" ")}>{datePart + " ,"}</div>
-            <div className={[].join(" ")}>{timePart}</div>
+          <div style={{ opacity: 0.4, marginLeft: 20, marginRight: 20 }} className={cstyles.horizontalflex}>
+            <div className={""}>{datePart + " ,"}</div>
+            <div className={""}>{timePart}</div>
           </div>
         )}
         {vt.status === ValueTransferStatusEnum.failed && (

@@ -75,9 +75,9 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
         },
       }}
     >
-      <div className={[cstyles.xlarge, cstyles.center].join(" ")}>App Security</div>
+      <div className={`${cstyles.xlarge} ${cstyles.center}`}>App Security</div>
 
-      <div className={[cstyles.well, cstyles.margintopsmall].join(" ")} style={{ marginTop: 24 }}>
+      <div className={`${cstyles.well} ${cstyles.margintopsmall}`} style={{ marginTop: 24 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
             <div className={cstyles.small}>Require device authentication</div>
@@ -101,13 +101,13 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {unavailableMessage && (
-          <div className={[cstyles.small, cstyles.margintopsmall].join(" ")} style={{ opacity: 0.7, marginTop: 12 }}>
+          <div className={`${cstyles.small} ${cstyles.margintopsmall}`} style={{ opacity: 0.7, marginTop: 12 }}>
             {unavailableMessage}
           </div>
         )}
 
         {availability === "checking" && (
-          <div className={[cstyles.small, cstyles.margintopsmall].join(" ")} style={{ opacity: 0.6, marginTop: 12 }}>
+          <div className={`${cstyles.small} ${cstyles.margintopsmall}`} style={{ opacity: 0.6, marginTop: 12 }}>
             Checking device authentication availability...
           </div>
         )}

@@ -665,12 +665,12 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
   return (
     <ScrollPaneTop offsetHeight={20}>
-      <div className={[cstyles.xlarge, cstyles.margintopsmall, cstyles.center].join(" ")}>
+      <div className={`${cstyles.xlarge} ${cstyles.margintopsmall} ${cstyles.center}`}>
         {mode === "addnew" ? "Add a New Wallet" : mode === "settings" ? "Wallet Settings" : "Delete Wallet"}
       </div>
 
       <div className={styles.addnewwalletcontainer}>
-        <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
+        <div className={`${cstyles.well} ${cstyles.verticalflex}`}>
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
             <div className={cstyles.sublight}>Wallet Alias/Description</div>
             <input
@@ -753,14 +753,14 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
           {newWalletType === "seed" && mode === "addnew" && (
             <div style={{ margin: "10px" }}>
-              <div className={[cstyles.sublight].join(" ")}>Please enter your seed phrase</div>
+              <div className={cstyles.sublight}>Please enter your seed phrase</div>
               <TextareaAutosize
                 placeholder="Enter your 24 recovery words"
                 className={cstyles.inputbox}
                 value={seedPhrase}
                 onChange={(e) => updateSeedPhrase(e)}
               />
-              <div className={[cstyles.sublight].join(" ")}>
+              <div className={cstyles.sublight}>
                 {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
               </div>
               <input
@@ -775,14 +775,14 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
           {newWalletType === "ufvk" && mode === "addnew" && (
             <div style={{ margin: "10px" }}>
-              <div className={[cstyles.sublight].join(" ")}>Please enter your Unified Full Viewing Key</div>
+              <div className={cstyles.sublight}>Please enter your Unified Full Viewing Key</div>
               <TextareaAutosize
                 placeholder="Ex: uview..."
                 className={cstyles.inputbox}
                 value={ufvk}
                 onChange={(e) => updateUfvk(e)}
               />
-              <div className={[cstyles.sublight].join(" ")}>
+              <div className={cstyles.sublight}>
                 {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
               </div>
               <input
@@ -797,9 +797,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
           {newWalletType === "file" && mode === "addnew" && (
             <div style={{ margin: "10px" }}>
-              <div className={[cstyles.sublight].join(" ")}>
-                Please enter your Wallet File Name stored in the Zcash folder
-              </div>
+              <div className={cstyles.sublight}>Please enter your Wallet File Name stored in the Zcash folder</div>
               <input
                 placeholder="Ex: zingo-wallet-renamed....dat"
                 type="text"
@@ -813,10 +811,10 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
           {mode !== "addnew" && (
             <div
-              className={[cstyles.horizontalflex].join(" ")}
+              className={cstyles.horizontalflex}
               style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}
             >
-              <div className={[cstyles.sublight].join(" ")}>File Name</div>
+              <div className={cstyles.sublight}>File Name</div>
               <input
                 disabled={true}
                 type="text"
@@ -846,7 +844,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                 {!serverExpanded ? (
                   <div className={cstyles.horizontalflex}>
                     <div
-                      className={[cstyles.sublight].join(" ")}
+                      className={cstyles.sublight}
                       style={{ marginRight: "25px", cursor: "pointer" }}
                       onClick={() => setServerExpanded(!serverExpanded)}
                     >
@@ -856,7 +854,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                       style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
                       onClick={() => setServerExpanded(!serverExpanded)}
                     >
-                      <i className={["fas", "fa-chevron-down", "fa-1x"].join(" ")} />
+                      <i className={`${"fas"} ${"fa-chevron-down"} ${"fa-1x"}`} />
                     </div>
                     <div style={{ cursor: "pointer" }} onClick={() => setServerExpanded(!serverExpanded)}>
                       {selectedServer}
@@ -866,7 +864,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                   <>
                     <div className={cstyles.horizontalflex}>
                       <div
-                        className={[cstyles.sublight].join(" ")}
+                        className={cstyles.sublight}
                         style={{ marginRight: "25px", cursor: "pointer" }}
                         onClick={() => setServerExpanded(!serverExpanded)}
                       >
@@ -876,7 +874,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                         style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
                         onClick={() => setServerExpanded(!serverExpanded)}
                       >
-                        <i className={["fas", "fa-chevron-up", "fa-1x"].join(" ")} />
+                        <i className={`${"fas"} ${"fa-chevron-up"} ${"fa-1x"}`} />
                       </div>
                     </div>
                     {mode === "settings" && (
@@ -964,7 +962,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                         }}
                       />
                       Custom
-                      <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
+                      <div className={`${cstyles.well} ${cstyles.horizontalflex}`}>
                         <div style={{ width: "75%", padding: 0, margin: 0, flexWrap: "nowrap" }}>
                           URI
                           <input
@@ -1000,7 +998,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           />
 
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
-            <div className={[cstyles.sublight].join(" ")}>Sync Performance Level</div>
+            <div className={cstyles.sublight}>Sync Performance Level</div>
             <select
               disabled={mode === "delete"}
               className={cstyles.inputbox}

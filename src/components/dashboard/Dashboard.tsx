@@ -65,7 +65,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
   return (
     <div>
       {currentWallet !== null && !currentWalletOpenError && (
-        <div className={[cstyles.well, styles.containermargin].join(" ")}>
+        <div className={`${cstyles.well} ${styles.containermargin}`}>
           <div className={cstyles.balancebox}>
             <BalanceBlockHighlight
               topLabel="All Funds"
@@ -127,13 +127,13 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
           <div className={cstyles.balancebox}>
             {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
               <>
-                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+                <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
                   Shield Transparent Balance To Orchard (Fee: {shieldFee})
                 </button>
               </>
             )}
             {!!anyPending && (
-              <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+              <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
                 Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
               </div>
             )}
@@ -148,7 +148,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
           )}
         </div>
       )}
-      <div className={[styles.horizontalcontainer].join(" ")}>
+      <div className={styles.horizontalcontainer}>
         {currentWallet !== null && !currentWalletOpenError && birthday >= 0 && !!syncingStatus.scan_ranges && (
           <div style={{ justifyContent: "center", alignItems: "center", textAlign: "center" }}>
             Nonlinear Scanning Map
@@ -323,7 +323,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
         )}
       </div>
 
-      <div className={[styles.detailcontainer].join(" ")}>
+      <div className={styles.detailcontainer}>
         <div className={cstyles.containermargin}>
           <ScrollPaneTop offsetHeight={260}>
             <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", padding: 20 }}>

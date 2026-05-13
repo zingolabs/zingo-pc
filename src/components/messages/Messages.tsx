@@ -89,7 +89,7 @@ const Messages: React.FC<MessagesProps> = () => {
 
   return (
     <div>
-      <div className={[cstyles.well, styles.containermargin].join(" ")}>
+      <div className={`${cstyles.well} ${styles.containermargin}`}>
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
@@ -149,13 +149,13 @@ const Messages: React.FC<MessagesProps> = () => {
         <div className={cstyles.balancebox}>
           {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
             <>
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
               </button>
             </>
           )}
           {!!anyPending && (
-            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
               Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
             </div>
           )}
@@ -170,18 +170,15 @@ const Messages: React.FC<MessagesProps> = () => {
         )}
       </div>
 
-      <div
-        style={{ marginBottom: 5 }}
-        className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}
-      >
+      <div style={{ marginBottom: 5 }} className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>
         Messages
       </div>
 
       <ScrollPaneBottom offsetHeight={180} initialScrollType="bottom">
-        {!messagesSorted && <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>}
+        {!messagesSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
         {messagesSorted && messagesSorted.length === 0 && (
-          <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>No Transactions Yet</div>
+          <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
         )}
 
         {messagesSorted && messagesSorted.length > 0 && isLoadMoreEnabled && (

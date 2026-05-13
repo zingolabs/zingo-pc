@@ -43,17 +43,17 @@ const LockScreen: React.FC<Props> = ({ onUnlock }) => {
       }}
     >
       <i className="fas fa-lock" style={{ fontSize: 48, marginBottom: 24, opacity: 0.7 }} />
-      <div className={[cstyles.large, cstyles.center, cstyles.margintopsmall].join(" ")}>Zingo PC is locked</div>
-      <div className={[cstyles.sublight, cstyles.center].join(" ")} style={{ opacity: 0.5, marginTop: 4 }}>
+      <div className={`${cstyles.large} ${cstyles.center} ${cstyles.margintopsmall}`}>Zingo PC is locked</div>
+      <div className={`${cstyles.sublight} ${cstyles.center}`} style={{ opacity: 0.5, marginTop: 4 }}>
         v{APP_VERSION}
       </div>
       <div
-        className={[cstyles.small, cstyles.center, cstyles.margintopsmall].join(" ")}
+        className={`${cstyles.small} ${cstyles.center} ${cstyles.margintopsmall}`}
         style={{ opacity: 0.6, maxWidth: 320 }}
       >
         Device authentication is required to access this wallet.
       </div>
-      {error && <div className={[cstyles.small, cstyles.red, cstyles.margintopsmall].join(" ")}>{error}</div>}
+      {error && <div className={`${cstyles.small} ${cstyles.red} ${cstyles.margintopsmall}`}>{error}</div>}
       <button
         type="button"
         className={cstyles.primarybutton}

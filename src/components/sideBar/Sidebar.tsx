@@ -401,7 +401,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         modalTitle="Select Block Explorer"
       />
 
-      <div className={[cstyles.center, styles.sidebarlogobg].join(" ")}>
+      <div className={`${cstyles.center} ${styles.sidebarlogobg}`}>
         <Logo readOnly={readOnly} onlyVersion={false} />
       </div>
 
@@ -463,12 +463,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
 
       <div className={cstyles.center}>
         {stateSync === "CONNECTED" && (
-          <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
+          <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
             <div>
               {info.latestBlock === info.walletHeight ? (
-                <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
+                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
               ) : (
-                <i className={[cstyles.yellow, "fas", "fa-check"].join(" ")} />
+                <i className={`${cstyles.yellow} ${"fas"} ${"fa-check"}`} />
               )}
               &nbsp; {info.walletHeight} &nbsp;
             </div>
@@ -476,23 +476,23 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
           </div>
         )}
         {stateSync === "SYNCING" && (
-          <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
+          <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
             <div>
-              <i className={[cstyles.yellow, "fas", "fa-sync"].join(" ")} />
+              <i className={`${cstyles.yellow} ${"fas"} ${"fa-sync"}`} />
               &nbsp; Syncing
             </div>
             <div>{`${progress}%`}</div>
           </div>
         )}
         {stateSync === "DISCONNECTED" && (
-          <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
-            <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
+          <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
+            <i className={`${cstyles.yellow} ${"fas"} ${"fa-times-circle"}`} />
             &nbsp; Not Connected
           </div>
         )}
         {stateSync === "CONNECTING" && (
-          <div className={[cstyles.padsmallall, cstyles.margintopsmall, cstyles.blackbg].join(" ")}>
-            <i className={[cstyles.yellow, "fas", "fa-times-circle"].join(" ")} />
+          <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
+            <i className={`${cstyles.yellow} ${"fas"} ${"fa-times-circle"}`} />
             &nbsp; Connecting...
           </div>
         )}

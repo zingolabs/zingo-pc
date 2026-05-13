@@ -268,8 +268,8 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         currencyName={info.currencyName}
       />
 
-      <div className={[cstyles.well, styles.containermargin].join(" ")}>
-        <div className={[cstyles.balancebox].join(" ")}>
+      <div className={`${cstyles.well} ${styles.containermargin}`}>
+        <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
             zecValue={
@@ -294,13 +294,13 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         <div className={cstyles.balancebox}>
           {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
             <>
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
               </button>
             </>
           )}
           {!!anyPending && (
-            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
               Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
             </div>
           )}
@@ -315,9 +315,9 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         )}
       </div>
 
-      <div className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Send</div>
+      <div className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>Send</div>
 
-      <div className={[styles.horizontalcontainer].join(" ")}>
+      <div className={styles.horizontalcontainer}>
         <div className={cstyles.containermarginleft}>
           <ScrollPaneTop offsetHeight={260}>
             <ToAddrBox

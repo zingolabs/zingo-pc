@@ -31,7 +31,7 @@ const PayURIModal = ({
       className={cstyles.modal}
       overlayClassName={cstyles.modalOverlay}
     >
-      <div className={[cstyles.verticalflex].join(" ")}>
+      <div className={cstyles.verticalflex}>
         <div className={cstyles.marginbottomlarge} style={{ textAlign: "center" }}>
           {modalTitle}
         </div>

@@ -45,7 +45,7 @@ const ShieldResultContent: React.FC<ShieldResultContentProps> = ({
               onClick={() => Utils.openTxid(txid, chainName, blockExplorerTransaction, blockExplorerTransactionCustom)}
             >
               View TXID &nbsp;
-              <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+              <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
             </div>
           ))}
         </div>

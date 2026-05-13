@@ -63,12 +63,12 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
   return (
     <div>
       {!previousLineWithSameTxid ? (
-        <div className={[cstyles.small, cstyles.sublight, styles.txdate].join(" ")}>{datePart}</div>
+        <div className={`${cstyles.small} ${cstyles.sublight} ${styles.txdate}`}>{datePart}</div>
       ) : (
         <div style={{ marginLeft: 25, marginRight: 25, height: 1, background: "white", opacity: 0.4 }}></div>
       )}
       <div
-        className={[cstyles.well, styles.txbox].join(" ")}
+        className={`${cstyles.well} ${styles.txbox}`}
         onClick={() => {
           setValueTransferDetail(vt);
           setValueTransferDetailIndex(index);
@@ -88,7 +88,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
           >
             {Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
           </div>
-          <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
+          <div className={`${cstyles.padtopsmall} ${cstyles.sublight}`}>{timePart}</div>
           {(vt.status === ValueTransferStatusEnum.calculated ||
             vt.status === ValueTransferStatusEnum.transmitted ||
             vt.status === ValueTransferStatusEnum.mempool ||
@@ -125,7 +125,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                 </div>
               )}
               {!!address ? (
-                <div className={[cstyles.verticalflex].join(" ")}>
+                <div className={cstyles.verticalflex}>
                   <div
                     style={{ cursor: "pointer" }}
                     onClick={() => {
@@ -180,16 +180,16 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               {memos ? memos : null}
             </div>
           </div>
-          <div className={[styles.txfeeamount, cstyles.right].join(" ")}>
+          <div className={`${styles.txfeeamount} ${cstyles.right}`}>
             {fees > 0 && (
-              <div className={[styles.txfee, cstyles.right].join(" ")}>
+              <div className={`${styles.txfee} ${cstyles.right}`}>
                 <div>Transaction Fee</div>
-                <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
+                <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
                   <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
                 </div>
               </div>
             )}
-            <div className={[styles.txamount, cstyles.right, cstyles.padtopsmall].join(" ")}>
+            <div className={`${styles.txamount} ${cstyles.right} ${cstyles.padtopsmall}`}>
               <div className={cstyles.padtopsmall}>
                 <span
                   style={{
@@ -204,7 +204,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                     color:
                       vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
                   }}
-                  className={[cstyles.small, cstyles.zecsmallpart].join(" ")}
+                  className={`${cstyles.small} ${cstyles.zecsmallpart}`}
                 >
                   {smallPart}
                 </span>
@@ -214,7 +214,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                   color:
                     vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
                 }}
-                className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}
+                className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}
               >
                 {priceString}
               </div>

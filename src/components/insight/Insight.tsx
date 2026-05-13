@@ -232,21 +232,15 @@ const Insight: React.FC<InsightProps> = () => {
               justifyContent: "center",
             }}
           >
-            <div
-              className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}
-              style={{ marginRight: 10 }}
-            >
+            <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`} style={{ marginRight: 10 }}>
               {getPercent(percent)}
             </div>
             {type === "sent" ? (
-              <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
+              <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
                 <div>ZEC {Utils.maxPrecisionTrimmed(value)}</div>
               </div>
             ) : (
-              <div
-                className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}
-                style={{ marginLeft: 10 }}
-              >
+              <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`} style={{ marginLeft: 10 }}>
                 {"# " + value.toString() + (type === "sends" ? " sends" : " bytes")}
               </div>
             )}
@@ -259,43 +253,37 @@ const Insight: React.FC<InsightProps> = () => {
 
   return (
     <div>
-      <div className={[cstyles.xlarge, cstyles.margintopsmall, cstyles.center].join(" ")}>Financial Insight</div>
+      <div className={`${cstyles.xlarge} ${cstyles.margintopsmall} ${cstyles.center}`}>Financial Insight</div>
 
       <div className={styles.insightcontainer}>
-        <div
-          className={[cstyles.well].join(" ")}
-          style={{ display: "flex", flexDirection: "row", justifyContent: "stretch" }}
-        >
+        <div className={cstyles.well} style={{ display: "flex", flexDirection: "row", justifyContent: "stretch" }}>
           <div className={cstyles.balancebox} style={{ width: "30%", marginRight: 5 }}>
             <div style={{ flexDirection: "column", width: "100%" }}>
-              <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Sent amounts</div>
+              <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Sent amounts</div>
               <hr />
             </div>
           </div>
           <div className={cstyles.balancebox} style={{ width: "30%", marginRight: 5 }}>
             <div style={{ flexDirection: "column", width: "100%" }}>
-              <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Number of sends</div>
+              <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Number of sends</div>
               <hr />
             </div>
           </div>
           <div className={cstyles.balancebox} style={{ width: "30%" }}>
             <div style={{ flexDirection: "column", width: "100%" }}>
-              <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Number of bytes</div>
+              <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Number of bytes</div>
               <hr />
             </div>
           </div>
         </div>
         <ScrollPaneTop offsetHeight={150}>
           {!loading && (
-            <div
-              className={[cstyles.well].join(" ")}
-              style={{ display: "flex", flexDirection: "row", justifyContent: "stretch" }}
-            >
+            <div className={cstyles.well} style={{ display: "flex", flexDirection: "row", justifyContent: "stretch" }}>
               <div className={cstyles.balancebox} style={{ width: "30%", marginRight: 5 }}>
                 {dataSent && dataSent.datasets && dataSent.datasets[0].data.length === 0 && (
                   <div
                     style={{ alignSelf: "center", width: "100%" }}
-                    className={[cstyles.center, cstyles.margintoplarge].join(" ")}
+                    className={`${cstyles.center} ${cstyles.margintoplarge}`}
                   >
                     No Transactions Yet
                   </div>
@@ -363,7 +351,7 @@ const Insight: React.FC<InsightProps> = () => {
                 {dataSends && dataSends.datasets && dataSends.datasets[0].data.length === 0 && (
                   <div
                     style={{ alignSelf: "center", width: "100%" }}
-                    className={[cstyles.center, cstyles.margintoplarge].join(" ")}
+                    className={`${cstyles.center} ${cstyles.margintoplarge}`}
                   >
                     No Transactions Yet
                   </div>
@@ -409,7 +397,7 @@ const Insight: React.FC<InsightProps> = () => {
                 {dataMemobytes && dataMemobytes.datasets && dataMemobytes.datasets[0].data.length === 0 && (
                   <div
                     style={{ alignSelf: "center", width: "100%" }}
-                    className={[cstyles.center, cstyles.margintoplarge].join(" ")}
+                    className={`${cstyles.center} ${cstyles.margintoplarge}`}
                   >
                     No Transactions Yet
                   </div>
@@ -453,7 +441,7 @@ const Insight: React.FC<InsightProps> = () => {
               </div>
             </div>
           )}
-          {loading && <div className={[cstyles.center, cstyles.margintoplarge].join(" ")}>Loading...</div>}
+          {loading && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
         </ScrollPaneTop>
       </div>
     </div>

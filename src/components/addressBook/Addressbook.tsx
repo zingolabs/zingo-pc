@@ -98,15 +98,15 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
 
   return (
     <div>
-      <div className={[cstyles.xlarge, cstyles.margintoplarge, cstyles.center].join(" ")}>Address Book</div>
+      <div className={`${cstyles.xlarge} ${cstyles.margintoplarge} ${cstyles.center}`}>Address Book</div>
 
       <div className={styles.addressbookcontainer}>
-        <div className={[cstyles.well, cstyles.center].join(" ")}>
-          <div className={[cstyles.flexspacebetween].join(" ")}>
+        <div className={`${cstyles.well} ${cstyles.center}`}>
+          <div className={cstyles.flexspacebetween}>
             <div className={cstyles.sublight}>Label</div>
             <div className={cstyles.validationerror}>
               {!labelError ? (
-                <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
+                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
               ) : (
                 <span className={cstyles.red}>{labelError}</span>
               )}
@@ -115,15 +115,15 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           <input
             type="text"
             value={currentLabel}
-            className={[cstyles.inputbox, cstyles.margintopsmall].join(" ")}
+            className={`${cstyles.inputbox} ${cstyles.margintopsmall}`}
             onChange={(e) => updateLabel(e.target.value)}
           />
 
           <div className={cstyles.margintoplarge} />
 
-          <div className={[cstyles.flexspacebetween].join(" ")}>
+          <div className={cstyles.flexspacebetween}>
             <div className={cstyles.sublight}>Address</div>
-            <div className={[cstyles.sublight, cstyles.green].join(" ")}>
+            <div className={`${cstyles.sublight} ${cstyles.green}`}>
               {addressKind !== undefined && addressKind === AddressKindEnum.tex && "TEX"}
               {addressKind !== undefined && addressKind === AddressKindEnum.transparent && "Transparent"}
               {addressKind !== undefined && addressKind === AddressKindEnum.sapling && "Sapling"}
@@ -131,7 +131,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
             </div>
             <div className={cstyles.validationerror}>
               {!addressError ? (
-                <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />
+                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
               ) : (
                 <span className={cstyles.red}>{addressError}</span>
               )}
@@ -141,14 +141,14 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
             type="text"
             placeholder="Unified | Sapling | Transparent | TEX address"
             value={currentAddress}
-            className={[cstyles.inputbox, cstyles.margintopsmall].join(" ")}
+            className={`${cstyles.inputbox} ${cstyles.margintopsmall}`}
             onChange={(e) => updateAddress(e.target.value)}
           />
         </div>
 
         <div className={cstyles.margintoplarge} />
 
-        <div className={[cstyles.center].join(" ")}>
+        <div className={cstyles.center}>
           <button
             type="button"
             className={cstyles.primarybutton}
@@ -163,7 +163,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
         </div>
 
         {addressBookSorted && addressBookSorted.length > 0 && (
-          <div className={[cstyles.flexspacebetween, cstyles.xlarge, cstyles.marginnegativetitle].join(" ")}>
+          <div className={`${cstyles.flexspacebetween} ${cstyles.xlarge} ${cstyles.marginnegativetitle}`}>
             <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>
             <div style={{ marginRight: 100, marginBottom: 15 }}>Address</div>
           </div>

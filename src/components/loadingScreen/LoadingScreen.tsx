@@ -845,7 +845,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     const { currentWallet } = this.state;
 
     return (
-      <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
+      <div className={`${cstyles.verticalflex} ${cstyles.center} ${styles.loadingcontainer}`}>
         <div style={{ marginTop: "50px", marginBottom: "20px" }}>
           <Logo readOnly={false} onlyVersion={false} />
         </div>
