@@ -34,8 +34,8 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
   const timePart: string = dateformat(txDate, "hh:MM tt");
 
   const amount: number = vt.amount;
-  const label: string | undefined = addressBookMap.get(vt.address);
-  const address: string = vt.address;
+  const label: string | undefined = vt.address ? addressBookMap.get(vt.address) : undefined;
+  const address: string | undefined = vt.address;
   const memos: string = vt.memos && vt.memos.length > 0 && !!vt.memos.join("") ? vt.memos.join("\n") : "";
 
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(amount);

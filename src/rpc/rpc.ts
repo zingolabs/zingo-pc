@@ -15,6 +15,7 @@ import {
 
 import { native } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
+import { RPCValueTransferType } from "./components/RPCValueTransferType";
 
 export default class RPC {
   fnSetTotalBalance: (tb: TotalBalanceClass) => void;
@@ -474,7 +475,7 @@ export default class RPC {
     }
   }
 
-  async zingolibValueTransfers(): Promise<any> {
+  async zingolibValueTransfers(): Promise<RPCValueTransferType[]> {
     try {
       // fetch value transfers
       const txValueTransfersStr: string = await native.get_value_transfers();
@@ -499,7 +500,7 @@ export default class RPC {
     }
   }
 
-  async zingolibMessages() {
+  async zingolibMessages(): Promise<RPCValueTransferType[]> {
     try {
       // fetch value transfers
       const txMessagesStr: string = await native.get_messages("");
@@ -665,13 +666,13 @@ export default class RPC {
         console.error("Internal Error server height");
       }
 
-      const valueTransfersJSON: any = await this.zingolibValueTransfers();
+      const valueTransfersJSON: RPCValueTransferType[] = await this.zingolibValueTransfers();
 
       let vtList: ValueTransferClass[] = [];
 
       const walletHeight: number = await RPC.fetchWalletHeight();
 
-      valueTransfersJSON.forEach((tx: any) => {
+      valueTransfersJSON.forEach((tx: RPCValueTransferType) => {
         let currentVtList: ValueTransferClass = {} as ValueTransferClass;
 
         currentVtList.txid = tx.txid;
@@ -737,13 +738,13 @@ export default class RPC {
         console.error("Internal Error server height");
       }
 
-      const MessagesJSON: any = await this.zingolibMessages();
+      const MessagesJSON: RPCValueTransferType[] = await this.zingolibMessages();
 
       let mList: ValueTransferClass[] = [];
 
       const walletHeight: number = await RPC.fetchWalletHeight();
 
-      MessagesJSON.forEach((tx: any) => {
+      MessagesJSON.forEach((tx: RPCValueTransferType) => {
         let currentMList: ValueTransferClass = {} as ValueTransferClass;
 
         currentMList.txid = tx.txid;

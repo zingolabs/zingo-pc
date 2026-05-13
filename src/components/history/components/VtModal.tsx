@@ -151,7 +151,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   let typeColor: string = "";
   let confirmations: number = 0;
   let status: ValueTransferStatusEnum | "" = "";
-  let address: string = "";
+  let address: string | undefined = undefined;
   let memos: string[] = [];
   let pool: ValueTransferPoolEnum | "" = "";
   let amount: number = 0;
@@ -202,7 +202,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(amount);
 
-  const label: string = addressBookMap.get(address) || "";
+  const label: string = (address ? addressBookMap.get(address) : undefined) || "";
 
   const memoTotal = memos ? memos.join("") : "";
   if (memoTotal.includes("\nReply to: \n")) {
@@ -260,7 +260,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     // first close the current modal
     localCloseModal();
 
-    setAddLabel(new AddressBookEntryClass("", address));
+    setAddLabel(new AddressBookEntryClass("", address ?? ""));
     history.push(routes.ADDRESSBOOK);
   };
 

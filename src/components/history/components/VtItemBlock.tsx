@@ -36,8 +36,8 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
 
   const fees: number = vt && vt.fee ? vt.fee : 0;
   const amount: number = vt.amount;
-  const label: string | undefined = addressBookMap.get(vt.address);
-  const address: string = vt.address;
+  const label: string | undefined = vt.address ? addressBookMap.get(vt.address) : undefined;
+  const address: string | undefined = vt.address;
   const txid: string = vt.txid;
   const memos: string = vt.memos && vt.memos.length > 0 && !!vt.memos.join("") ? vt.memos.join("\n") : "";
 
