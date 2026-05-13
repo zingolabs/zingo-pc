@@ -204,6 +204,7 @@ const ToAddrBox = ({
         </div>
         <input
           type="text"
+          aria-label="Recipient address"
           placeholder="Unified | Sapling | Transparent | TEX address"
           className={cstyles.inputbox}
           value={toLocal}
@@ -230,6 +231,7 @@ const ToAddrBox = ({
             <div className={cstyles.flexspacebetween}>
               <input
                 type="number"
+                aria-label="Amount"
                 step="any"
                 className={cstyles.inputbox}
                 value={isNaN(amountLocal) ? "" : amountLocal}
@@ -238,12 +240,14 @@ const ToAddrBox = ({
                   updateToField(null, e.target.value, null);
                 }}
               />
-              <img
-                className={styles.toaddrbutton}
-                src={ArrowUpLight}
-                alt="Max"
+              <button
+                type="button"
+                aria-label="Set maximum amount"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
                 onClick={() => setMaxAmount(fromAmount)}
-              />
+              >
+                <img className={styles.toaddrbutton} src={ArrowUpLight} alt="" />
+              </button>
             </div>
           </div>
           <div style={{ width: "30%" }} className={cstyles.verticalflex}>
@@ -273,6 +277,7 @@ const ToAddrBox = ({
             <div className={cstyles.flexspacebetween}>
               <input
                 type="number"
+                aria-label="Transaction fee"
                 step="any"
                 className={cstyles.inputbox}
                 value={isNaN(sendFee) ? "" : sendFee}

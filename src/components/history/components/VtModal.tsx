@@ -541,17 +541,17 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
 
             {!label && (
               <div>
-                <div className={cstyles.primarybutton} onClick={() => addLabel()}>
+                <button type="button" className={cstyles.primarybutton} onClick={() => addLabel()}>
                   Add Label
-                </div>
+                </button>
               </div>
             )}
 
             {!readOnly && (
               <div>
-                <div className={cstyles.primarybutton} onClick={() => sendMore()}>
+                <button type="button" className={cstyles.primarybutton} onClick={() => sendMore()}>
                   Send More
-                </div>
+                </button>
               </div>
             )}
           </div>

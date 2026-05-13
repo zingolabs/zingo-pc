@@ -45,6 +45,7 @@ const PayURIModal = ({
           <div className={cstyles.well} style={{ textAlign: "center" }}>
             <input
               type="text"
+              aria-label="Payment URI"
               className={cstyles.inputbox}
               placeholder="URI"
               value={modalInput}

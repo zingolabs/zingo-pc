@@ -191,6 +191,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               >
                 {type === "u" && (
                   <select
+                    aria-label="New address type"
                     className={cstyles.inputbox}
                     style={{ marginLeft: 10 }}
                     value={unifiedCreateType}
@@ -232,18 +233,24 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               </div>
             </div>
             <div style={{ marginRight: 10 }}>
-              {/* 
-              // @ts-ignore */}
-              <QRCodeCanvas
-                includeMargin={true}
-                size={300}
-                value={address_address}
-                className={styles.receiveQrcode}
+              <button
+                type="button"
+                aria-label="Download QR code"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "block" }}
                 onClick={handleQRCodeClick}
-              />
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", opacity: 0.5 }}>
-                {"Click to download"}
-              </div>
+              >
+                {/*
+                // @ts-ignore */}
+                <QRCodeCanvas
+                  includeMargin={true}
+                  size={300}
+                  value={address_address}
+                  className={styles.receiveQrcode}
+                />
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", opacity: 0.5 }}>
+                  {"Click to download"}
+                </div>
+              </button>
             </div>
           </div>
         </AccordionItemPanel>

@@ -182,13 +182,14 @@ const Messages: React.FC<MessagesProps> = () => {
         )}
 
         {messagesSorted && messagesSorted.length > 0 && isLoadMoreEnabled && (
-          <div
+          <button
+            type="button"
             style={{ marginLeft: "45%", width: "100px", marginTop: 15, marginBottom: 15 }}
             className={cstyles.primarybutton}
             onClick={show100MoreVtns}
           >
             Load more
-          </div>
+          </button>
         )}
 
         {messagesSorted &&

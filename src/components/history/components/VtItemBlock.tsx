@@ -68,11 +68,21 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
         <div style={{ marginLeft: 25, marginRight: 25, height: 1, background: "white", opacity: 0.4 }}></div>
       )}
       <div
+        role="button"
+        tabIndex={0}
         className={`${cstyles.well} ${styles.txbox}`}
         onClick={() => {
           setValueTransferDetail(vt);
           setValueTransferDetailIndex(index);
           setModalIsOpen(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setValueTransferDetail(vt);
+            setValueTransferDetailIndex(index);
+            setModalIsOpen(true);
+          }
         }}
       >
         <div className={styles.txtype} style={{ marginRight: 10 }}>
@@ -127,11 +137,23 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               {!!address ? (
                 <div className={cstyles.verticalflex}>
                   <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Copy address"
                     style={{ cursor: "pointer" }}
                     onClick={() => {
                       if (address) {
                         clipboard.writeText(address);
                         setExpandAddress(true);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        if (address) {
+                          clipboard.writeText(address);
+                          setExpandAddress(true);
+                        }
                       }
                     }}
                   >
@@ -150,11 +172,23 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                 </div>
               ) : (
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Copy transaction ID"
                   style={{ cursor: "pointer" }}
                   onClick={() => {
                     if (txid) {
                       clipboard.writeText(txid);
                       setExpandTxid(true);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      if (txid) {
+                        clipboard.writeText(txid);
+                        setExpandTxid(true);
+                      }
                     }
                   }}
                 >

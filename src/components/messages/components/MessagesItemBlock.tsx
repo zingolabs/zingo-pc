@@ -72,11 +72,21 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
               ? Utils.getCssVariable("--color-primary-disable")
               : Utils.getCssVariable("--color-primary"),
         }}
+        role="button"
+        tabIndex={0}
         className={`${cstyles.well} ${styles.txbox}`}
         onClick={() => {
           setValueTransferDetail(vt);
           setValueTransferDetailIndex(index);
           setModalIsOpen(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setValueTransferDetail(vt);
+            setValueTransferDetailIndex(index);
+            setModalIsOpen(true);
+          }
         }}
       >
         <div className={styles.txaddressmemo}>
@@ -85,11 +95,23 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
             {!!address && !label && (
               <div style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }} className={cstyles.verticalflex}>
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Copy address"
                   style={{ cursor: "pointer" }}
                   onClick={() => {
                     if (address) {
                       clipboard.writeText(address);
                       setExpandAddress(true);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      if (address) {
+                        clipboard.writeText(address);
+                        setExpandAddress(true);
+                      }
                     }
                   }}
                 >

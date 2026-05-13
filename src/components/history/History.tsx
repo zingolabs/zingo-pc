@@ -200,13 +200,14 @@ const History: React.FC<HistoryProps> = () => {
           })}
 
         {isLoadMoreEnabled && (
-          <div
+          <button
+            type="button"
             style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
             className={cstyles.primarybutton}
             onClick={show100MoreVtns}
           >
             Load more
-          </div>
+          </button>
         )}
       </ScrollPaneTop>
 

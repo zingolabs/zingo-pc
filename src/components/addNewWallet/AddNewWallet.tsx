@@ -674,6 +674,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
             <div className={cstyles.sublight}>Wallet Alias/Description</div>
             <input
+              aria-label="Wallet alias"
               disabled={mode === "delete"}
               placeholder="Ex: My Zcash Wallet"
               type="text"
@@ -685,6 +686,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center" }}>
               Network
               <select
+                aria-label="Network"
                 disabled={mode !== "addnew"}
                 className={cstyles.inputbox}
                 style={{
@@ -733,6 +735,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             >
               <div className={cstyles.sublight}>Type of Wallet creation</div>
               <select
+                aria-label="Type of wallet creation"
                 className={cstyles.inputbox}
                 style={{ width: "80%", marginLeft: "20px" }}
                 value={newWalletType}
@@ -755,6 +758,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             <div style={{ margin: "10px" }}>
               <div className={cstyles.sublight}>Please enter your seed phrase</div>
               <TextareaAutosize
+                aria-label="Seed phrase"
                 placeholder="Enter your 24 recovery words"
                 className={cstyles.inputbox}
                 value={seedPhrase}
@@ -764,6 +768,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                 {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
               </div>
               <input
+                aria-label="Wallet birthday"
                 placeholder={`>= ${activationHeight[selectedChain]}`}
                 type="number"
                 className={cstyles.inputbox}
@@ -777,6 +782,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             <div style={{ margin: "10px" }}>
               <div className={cstyles.sublight}>Please enter your Unified Full Viewing Key</div>
               <TextareaAutosize
+                aria-label="Unified Full Viewing Key"
                 placeholder="Ex: uview..."
                 className={cstyles.inputbox}
                 value={ufvk}
@@ -786,6 +792,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                 {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
               </div>
               <input
+                aria-label="Wallet birthday"
                 placeholder={`>= ${activationHeight[selectedChain]}`}
                 type="number"
                 className={cstyles.inputbox}
@@ -799,6 +806,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             <div style={{ margin: "10px" }}>
               <div className={cstyles.sublight}>Please enter your Wallet File Name stored in the Zcash folder</div>
               <input
+                aria-label="Wallet file name"
                 placeholder="Ex: zingo-wallet-renamed....dat"
                 type="text"
                 className={cstyles.inputbox}
@@ -816,6 +824,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             >
               <div className={cstyles.sublight}>File Name</div>
               <input
+                aria-label="File name"
                 disabled={true}
                 type="text"
                 className={cstyles.inputbox}
@@ -920,6 +929,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                         />
                         List
                         <select
+                          aria-label="Server list"
                           disabled={selectedSelection !== "list"}
                           className={cstyles.inputbox}
                           style={{ marginLeft: "20px" }}
@@ -966,6 +976,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                         <div style={{ width: "75%", padding: 0, margin: 0, flexWrap: "nowrap" }}>
                           URI
                           <input
+                            aria-label="Custom server URI"
                             placeholder="https://------.---:---"
                             disabled={selectedSelection !== "custom"}
                             type="text"
@@ -1000,6 +1011,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
             <div className={cstyles.sublight}>Sync Performance Level</div>
             <select
+              aria-label="Sync performance level"
               disabled={mode === "delete"}
               className={cstyles.inputbox}
               style={{ width: "80%", marginLeft: "20px" }}

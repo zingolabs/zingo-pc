@@ -114,6 +114,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </div>
           <input
             type="text"
+            aria-label="Label"
             value={currentLabel}
             className={`${cstyles.inputbox} ${cstyles.margintopsmall}`}
             onChange={(e) => updateLabel(e.target.value)}
@@ -139,6 +140,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </div>
           <input
             type="text"
+            aria-label="Address"
             placeholder="Unified | Sapling | Transparent | TEX address"
             value={currentAddress}
             className={`${cstyles.inputbox} ${cstyles.margintopsmall}`}

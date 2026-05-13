@@ -345,18 +345,23 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
                                 />
                               ))}
                           </div>
-                          <div
+                          <button
+                            type="button"
                             style={{
                               width: "100%",
                               textAlign: "right",
                               color: Utils.getCssVariable("--color-primary"),
                               marginTop: 20,
                               cursor: "pointer",
+                              background: "none",
+                              border: "none",
+                              padding: 0,
+                              font: "inherit",
                             }}
                             onClick={() => navigateToHistory()}
                           >
                             See more...
-                          </div>
+                          </button>
                         </>
                       ) : (
                         <div className={styles.detaillines}>No Transactions Yet</div>

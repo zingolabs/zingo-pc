@@ -85,19 +85,22 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
               Prompt for device authentication when opening the app and when sending funds.
             </div>
           </div>
-          <input
-            type="checkbox"
-            checked={requireAuth}
-            disabled={!isAvailable}
-            onChange={(e) => setRequireAuth(e.target.checked)}
-            style={{
-              width: 18,
-              height: 18,
-              marginLeft: 16,
-              cursor: isAvailable ? "pointer" : "not-allowed",
-              accentColor: "var(--color-primary)",
-            }}
-          />
+          <label style={{ display: "contents" }}>
+            <input
+              type="checkbox"
+              aria-label="Require device authentication"
+              checked={requireAuth}
+              disabled={!isAvailable}
+              onChange={(e) => setRequireAuth(e.target.checked)}
+              style={{
+                width: 18,
+                height: 18,
+                marginLeft: 16,
+                cursor: isAvailable ? "pointer" : "not-allowed",
+                accentColor: "var(--color-primary)",
+              }}
+            />
+          </label>
         </div>
 
         {unavailableMessage && (

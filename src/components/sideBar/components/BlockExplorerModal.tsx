@@ -65,6 +65,7 @@ const BlockExplorerModal = ({
               Block Explorer (MAINNET - Transactions)
             </div>
             <select
+              aria-label="Block explorer for mainnet transactions"
               className={cstyles.inputbox}
               style={{
                 width: "60%",
@@ -86,6 +87,7 @@ const BlockExplorerModal = ({
             </select>
             {blockExplorerMainnetTransaction === BlockExplorerEnum.Custom && (
               <input
+                aria-label="Custom mainnet transaction explorer URL"
                 style={{ marginLeft: "20px" }}
                 placeholder={"https://mainnet.block-explorer/tx/"}
                 type="text"
@@ -104,6 +106,7 @@ const BlockExplorerModal = ({
               Block Explorer (MAINNET - Addresses)
             </div>
             <select
+              aria-label="Block explorer for mainnet addresses"
               className={cstyles.inputbox}
               style={{
                 width: "60%",
@@ -125,6 +128,7 @@ const BlockExplorerModal = ({
             </select>
             {blockExplorerMainnetAddress === BlockExplorerEnum.Custom && (
               <input
+                aria-label="Custom mainnet address explorer URL"
                 style={{ marginLeft: "20px" }}
                 placeholder={"https://mainnet.block-explorer/address/"}
                 type="text"
@@ -145,6 +149,7 @@ const BlockExplorerModal = ({
               Block Explorer (TESTNET - Transactions)
             </div>
             <select
+              aria-label="Block explorer for testnet transactions"
               className={cstyles.inputbox}
               style={{
                 width: "60%",
@@ -166,6 +171,7 @@ const BlockExplorerModal = ({
             </select>
             {blockExplorerTestnetTransaction === BlockExplorerEnum.Custom && (
               <input
+                aria-label="Custom testnet transaction explorer URL"
                 style={{ marginLeft: "20px" }}
                 placeholder={"https://testnet.block-explorer/tx/"}
                 type="text"
@@ -184,6 +190,7 @@ const BlockExplorerModal = ({
               Block Explorer (TESTNET - Addresses)
             </div>
             <select
+              aria-label="Block explorer for testnet addresses"
               className={cstyles.inputbox}
               style={{
                 width: "60%",
@@ -205,6 +212,7 @@ const BlockExplorerModal = ({
             </select>
             {blockExplorerTestnetAddress === BlockExplorerEnum.Custom && (
               <input
+                aria-label="Custom testnet address explorer URL"
                 style={{ marginLeft: "20px" }}
                 placeholder={"https://testnet.block-explorer/address/"}
                 type="text"

@@ -42,11 +42,23 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
             <div>{item.label}</div>
             {!!item.address && (
               <div
+                role="button"
+                tabIndex={0}
+                aria-label="Copy address"
                 style={{ cursor: "pointer" }}
                 onClick={() => {
                   if (item.address) {
                     clipboard.writeText(item.address);
                     setExpandAddress(true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    if (item.address) {
+                      clipboard.writeText(item.address);
+                      setExpandAddress(true);
+                    }
                   }
                 }}
               >
