@@ -834,75 +834,67 @@ export default class RPC {
 
   // Send a transaction using the already constructed sendJson structure
   async sendTransaction(sendJson: Array<SendJsonToTypeType>): Promise<string> {
-    const sendTxPromise = new Promise<string>(async (resolve, reject) => {
-      // clear the timers - Tasks.
-      await this.clearTimers();
-      // sending
-      let sendError: string = "";
-      let sendTxids: string = "";
-      try {
-        //console.log('send JSON', sendJson);
-        // creating the propose
-        const proposeStr: string = await native.send(JSON.stringify(sendJson));
-        if (proposeStr) {
-          if (proposeStr.toLowerCase().startsWith("error")) {
-            console.log(`Error propose ${proposeStr}`);
-            sendError = proposeStr;
-          }
-        } else {
-          console.log("Internal Error propose");
-          sendError = "Error: Internal RPC Error: propose";
+    // clear the timers - Tasks.
+    await this.clearTimers();
+    // sending
+    let sendError: string = "";
+    let sendTxids: string = "";
+    try {
+      // creating the propose
+      const proposeStr: string = await native.send(JSON.stringify(sendJson));
+      if (proposeStr) {
+        if (proposeStr.toLowerCase().startsWith("error")) {
+          console.log(`Error propose ${proposeStr}`);
+          sendError = proposeStr;
+        }
+      } else {
+        console.log("Internal Error propose");
+        sendError = "Error: Internal RPC Error: propose";
+      }
+      if (!sendError) {
+        const proposeJSON: SendProposeType = JSON.parse(proposeStr);
+        if (proposeJSON.error) {
+          console.log(`Error propose ${proposeJSON.error}`);
+          sendError = proposeJSON.error;
         }
         if (!sendError) {
-          const proposeJSON: SendProposeType = await JSON.parse(proposeStr);
-          if (proposeJSON.error) {
-            console.log(`Error propose ${proposeJSON.error}`);
-            sendError = proposeJSON.error;
+          // creating the transaction
+          const sendStr: string = await native.confirm();
+          if (sendStr) {
+            if (sendStr.toLowerCase().startsWith("error")) {
+              console.log(`Error confirm ${sendStr}`);
+              sendError = sendStr;
+            }
+          } else {
+            console.log("Internal Error confirm");
+            sendError = "Error: Internal RPC Error: confirm";
           }
           if (!sendError) {
-            // creating the transaction
-            const sendStr: string = await native.confirm();
-            if (sendStr) {
-              if (sendStr.toLowerCase().startsWith("error")) {
-                console.log(`Error confirm ${sendStr}`);
-                sendError = sendStr;
-              }
-            } else {
-              console.log("Internal Error confirm");
-              sendError = "Error: Internal RPC Error: confirm";
-            }
-            if (!sendError) {
-              const sendJSON: SendType = await JSON.parse(sendStr);
-              if (sendJSON.error) {
-                console.log(`Error confirm ${sendJSON.error}`);
-                sendError = sendJSON.error;
-              } else if (sendJSON.txids && sendJSON.txids.length > 0) {
-                sendTxids = sendJSON.txids.join(", ");
-              }
+            const sendJSON: SendType = JSON.parse(sendStr);
+            if (sendJSON.error) {
+              console.log(`Error confirm ${sendJSON.error}`);
+              sendError = sendJSON.error;
+            } else if (sendJSON.txids && sendJSON.txids.length > 0) {
+              sendTxids = sendJSON.txids.join(", ");
             }
           }
         }
-      } catch (error) {
-        console.log(`Critical Error send ${error}`);
-        sendError = `Error: send ${error}`;
       }
+    } catch (error) {
+      console.log(`Critical Error send ${error}`);
+      sendError = `Error: send ${error}`;
+    }
 
-      // create the tasks
-      await this.configure();
+    // create the tasks
+    await this.configure();
 
-      if (sendTxids) {
-        //console.log('00000000 RESOLVE send');
-        resolve(sendTxids);
-        return;
-      }
-      if (sendError) {
-        //console.log('00000000 REJECT send');
-        reject(sendError);
-        return;
-      }
-    });
-
-    return sendTxPromise;
+    if (sendTxids) {
+      return sendTxids;
+    }
+    if (sendError) {
+      throw new Error(sendError);
+    }
+    throw new Error("send returned neither txids nor error");
   }
 
   async getZecPrice() {

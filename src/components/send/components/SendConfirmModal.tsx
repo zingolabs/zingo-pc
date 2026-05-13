@@ -321,7 +321,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
         history.push(routes.DASHBOARD);
       } catch (err) {
         // If there was an error, show the error modal
-        openErrorModal("Error Sending Transaction", `${err}`);
+        openErrorModal("Error Sending Transaction", err instanceof Error ? err.message : `${err}`);
       }
     }, 10);
   };
