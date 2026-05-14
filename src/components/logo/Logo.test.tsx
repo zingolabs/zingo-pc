@@ -1,9 +1,9 @@
 import React from "react";
 import { render, screen } from "../../test-utils";
-
-jest.mock("../../electronBridge");
 import Logo from "./Logo";
 import APP_VERSION from "../../version";
+
+jest.mock("../../electronBridge");
 
 describe("Logo", () => {
   it("always shows the version string", () => {

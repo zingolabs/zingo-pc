@@ -20,14 +20,13 @@ describe("SidebarMenuItem", () => {
     expect(screen.getByRole("link")).toHaveAttribute("href", "/dashboard");
   });
 
-  it("is not active when currentRoute differs", () => {
-    const { container } = render(<SidebarMenuItem {...baseProps} currentRoute="/send" />);
-    // active class should NOT be applied
-    expect(container.querySelector(".sidebarmenuitemactive")).toBeNull();
+  it("does not have aria-current when route does not match", () => {
+    render(<SidebarMenuItem {...baseProps} currentRoute="/send" />);
+    expect(screen.getByRole("link")).not.toHaveAttribute("aria-current");
   });
 
-  it("is active when currentRoute matches routeName", () => {
-    const { container } = render(<SidebarMenuItem {...baseProps} currentRoute="/dashboard" />);
-    expect(container.querySelector(".sidebarmenuitemactive")).not.toBeNull();
+  it("has aria-current='page' when route matches", () => {
+    render(<SidebarMenuItem {...baseProps} currentRoute="/dashboard" />);
+    expect(screen.getByRole("link")).toHaveAttribute("aria-current", "page");
   });
 });

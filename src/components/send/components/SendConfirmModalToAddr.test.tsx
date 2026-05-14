@@ -1,9 +1,9 @@
 import React from "react";
 import { render, screen } from "../../../test-utils";
-
-jest.mock("../../../electronBridge");
 import SendConfirmModalToAddr from "./SendConfirmModalToAddr";
 import { InfoClass, ToAddrClass } from "../../appstate";
+
+jest.mock("../../../electronBridge");
 
 const makeToAddr = (overrides: Partial<ToAddrClass> = {}): ToAddrClass =>
   Object.assign(new ToAddrClass(), {

@@ -24,7 +24,7 @@ const SidebarMenuItem = ({ name, routeName, currentRoute, iconname }: SidebarMen
 
   return (
     <div className={`${styles.sidebarmenuitem} ${activeColorClass}`}>
-      <Link to={routeName}>
+      <Link to={routeName} aria-current={isActive ? "page" : undefined}>
         <span className={activeColorClass}>
           <i className={`${"fas"} ${iconname}`} />
           &nbsp; &nbsp;

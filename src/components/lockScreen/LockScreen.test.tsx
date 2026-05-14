@@ -41,17 +41,13 @@ describe("LockScreen", () => {
     mockInvoke.mockResolvedValue({ success: false });
     render(<LockScreen onUnlock={jest.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /unlock/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/authentication was not completed/i)).toBeInTheDocument(),
-    );
+    await screen.findByText(/authentication was not completed/i);
   });
 
   it("shows error message when authentication throws", async () => {
     mockInvoke.mockRejectedValue(new Error("biometric error"));
     render(<LockScreen onUnlock={jest.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: /unlock/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/authentication failed/i)).toBeInTheDocument(),
-    );
+    await screen.findByText(/authentication failed/i);
   });
 });

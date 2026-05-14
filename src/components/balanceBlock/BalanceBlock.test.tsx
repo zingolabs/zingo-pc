@@ -1,10 +1,10 @@
 import React from "react";
 import { render, screen } from "../../test-utils";
-
-jest.mock("../../electronBridge");
 import BalanceBlock from "./BalanceBlock";
 import BalanceBlockHighlight from "./BalanceBlockHighlight";
 import { ValueTransferStatusEnum } from "../appstate";
+
+jest.mock("../../electronBridge");
 
 // ---------------------------------------------------------------------------
 // BalanceBlock
@@ -41,26 +41,12 @@ describe("BalanceBlock", () => {
   });
 
   it("shows confirmed balance row when zecValueConfirmed differs from zecValue", () => {
-    render(
-      <BalanceBlock
-        {...baseProps}
-        topLabel="Orchard"
-        zecValueConfirmed={1.0}
-        usdValueConfirmed="$ 100.00"
-      />,
-    );
+    render(<BalanceBlock {...baseProps} topLabel="Orchard" zecValueConfirmed={1.0} usdValueConfirmed="$ 100.00" />);
     expect(screen.getByText("Orchard Confirmed")).toBeInTheDocument();
   });
 
   it("does not show confirmed row when values match", () => {
-    render(
-      <BalanceBlock
-        {...baseProps}
-        topLabel="Orchard"
-        zecValueConfirmed={1.5}
-        usdValueConfirmed="$ 150.00"
-      />,
-    );
+    render(<BalanceBlock {...baseProps} topLabel="Orchard" zecValueConfirmed={1.5} usdValueConfirmed="$ 150.00" />);
     expect(screen.queryByText("Orchard Confirmed")).not.toBeInTheDocument();
   });
 });
@@ -93,12 +79,7 @@ describe("BalanceBlockHighlight", () => {
 
   it("shows confirmed row when zecValueConfirmed differs", () => {
     render(
-      <BalanceBlockHighlight
-        {...baseProps}
-        topLabel="Balance"
-        zecValueConfirmed={1.0}
-        usdValueConfirmed="$ 100.00"
-      />,
+      <BalanceBlockHighlight {...baseProps} topLabel="Balance" zecValueConfirmed={1.0} usdValueConfirmed="$ 100.00" />,
     );
     expect(screen.getByText("Balance Confirmed")).toBeInTheDocument();
   });
