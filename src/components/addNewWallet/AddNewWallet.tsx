@@ -63,9 +63,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
 
-  //const [customChain, setCustomChain] = useState<ServerChainNameEnum | ''>("");
-  //const [autoChain, setAutoChain] = useState<ServerChainNameEnum | ''>("");
-
   const [servers, setServers] = useState<ServerClass[]>(
     serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false),
   );
@@ -95,7 +92,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   };
 
   const initialServerValue = useCallback(
-    (server: string, chain_name: ServerChainNameEnum | "", selection: ServerSelectionEnum | "") => {
+    (server: string, _chain_name: ServerChainNameEnum | "", selection: ServerSelectionEnum | "") => {
       if (selection === ServerSelectionEnum.custom) {
         setCustomServer(server);
 
@@ -700,7 +697,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                   if (servers.filter((s) => s.chain_name === e.target.value).length === 0) {
                     setSelectedSelection(ServerSelectionEnum.custom);
                     setSelectedServer(customServer);
-                    //setListServer('');
                   } else {
                     if (!customServer && selectedSelection === ServerSelectionEnum.custom) {
                       setSelectedSelection(ServerSelectionEnum.list);
@@ -894,11 +890,11 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                           type="radio"
                           name="selection"
                           value={ServerSelectionEnum.auto}
-                          onClick={(e) => {
+                          onClick={() => {
                             setSelectedSelection(ServerSelectionEnum.auto);
                             setSelectedServer(autoServer);
                           }}
-                          onChange={(e) => {
+                          onChange={() => {
                             setSelectedSelection(ServerSelectionEnum.auto);
                             setSelectedServer(autoServer);
                           }}
@@ -914,13 +910,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                           type="radio"
                           name="selection"
                           value={ServerSelectionEnum.list}
-                          onClick={(e) => {
+                          onClick={() => {
                             setSelectedSelection(ServerSelectionEnum.list);
                             const ls: string = servers.filter((s) => s.chain_name === selectedChain)[0].uri;
                             setListServer(ls);
                             setSelectedServer(ls);
                           }}
-                          onChange={(e) => {
+                          onChange={() => {
                             setSelectedSelection(ServerSelectionEnum.list);
                             const ls: string = servers.filter((s) => s.chain_name === selectedChain)[0].uri;
                             setListServer(ls);
@@ -962,11 +958,11 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                         type="radio"
                         name="selection"
                         value={"custom"}
-                        onClick={(e) => {
+                        onClick={() => {
                           setSelectedSelection(ServerSelectionEnum.custom);
                           setSelectedServer(customServer);
                         }}
-                        onChange={(e) => {
+                        onChange={() => {
                           setSelectedSelection(ServerSelectionEnum.custom);
                           setSelectedServer(customServer);
                         }}

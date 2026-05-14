@@ -124,8 +124,6 @@ export default class RPC {
 
   static async doSave() {
     try {
-      // no need to check this status anymore
-      //const saveRequiredStr: string = await native.get_wallet_save_required();
       const syncstr: string = await native.check_save_error();
       console.log(`wallet check saved: ${syncstr}`);
       return syncstr;
@@ -295,8 +293,6 @@ export default class RPC {
   }
 
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
-    // unimplemented.
-    //const r: string = await native.("setoption", `${name}=${value}`);
     const r: string = await native.set_option_wallet();
 
     return r;

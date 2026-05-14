@@ -95,7 +95,7 @@ const Insight: React.FC<InsightProps> = () => {
         if (key !== "fee" && value > 0) {
           const tag = addressBook.filter((a: any) => a.address === key);
           amounts.push({
-            data: false ? value / 10 ** 8 : value,
+            data: value,
             address: key,
             tag: !!tag && tag.length > 0 ? tag[0].label : "",
           });
@@ -141,7 +141,7 @@ const Insight: React.FC<InsightProps> = () => {
         if (key !== "fee" && value > 0) {
           const tag = addressBook.filter((a: any) => a.address === key);
           amounts.push({
-            data: false ? value / 10 ** 8 : value,
+            data: value,
             address: key,
             tag: !!tag && tag.length > 0 ? tag[0].label : "",
           });

@@ -206,8 +206,10 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         return;
       }
 
-      const seedStr: string = readOnly ? "" : await ipcRenderer.invoke("native:get_seed");
-      const ufvkStr: string = readOnly ? await ipcRenderer.invoke("native:get_ufvk") : "";
+      const seedRaw: string = readOnly ? "" : await ipcRenderer.invoke("native:get_seed");
+      const ufvkRaw: string = readOnly ? await ipcRenderer.invoke("native:get_ufvk") : "";
+      const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
+      const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
 
       openErrorModal(
         "Wallet Seed Phrase / Viewing Key",

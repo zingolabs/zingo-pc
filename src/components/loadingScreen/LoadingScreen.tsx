@@ -728,7 +728,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           3,
           currentWallet.fileName,
         );
-        //const result: string = 'Error: ay, ay, ay';
         if (!result || result.toLowerCase().startsWith("error")) {
           console.error(`Initialization Error: ${result}`);
           this.props.setCurrentWalletOpenError(`${result}`);

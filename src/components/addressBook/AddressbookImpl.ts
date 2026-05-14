@@ -39,10 +39,13 @@ export default class AddressbookImpl {
   static async readAddressBook(): Promise<AddressBookEntryClass[]> {
     const fileName: string = await this.getFileName();
 
+    if (!(await fs.existsSync(fileName))) {
+      return [] as AddressBookEntryClass[];
+    }
+
     try {
       return JSON.parse(await fs.promises.readFile(fileName));
     } catch (err) {
-      // File probably doesn't exist, so return nothing
       console.log("address book", err);
       return [] as AddressBookEntryClass[];
     }
