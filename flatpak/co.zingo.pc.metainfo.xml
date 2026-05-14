@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>co.zingo.pc</id>
+
+  <name>Zingo PC</name>
+  <summary>Shielded light client wallet for Zcash</summary>
+
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+
+  <description>
+    <p>
+      Zingo PC is a fully shielded light client wallet for the Zcash blockchain.
+      It connects to a lightwalletd server so you never need to download the full
+      chain, while keeping your transaction history and addresses private through
+      Zcash's shielded (Sapling and Orchard) protocol.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Send and receive shielded (private) Zcash transactions</li>
+      <li>Full Orchard and Sapling shielded pool support</li>
+      <li>Unified addresses (UA) support</li>
+      <li>Transparent address support</li>
+      <li>BIP-39 seed phrase backup and restore</li>
+      <li>zcash: URI scheme handler for payment requests</li>
+      <li>Optional Tor support for enhanced network privacy</li>
+    </ul>
+  </description>
+
+  <url type="homepage">https://github.com/zingolabs/zingo-pc</url>
+  <url type="bugtracker">https://github.com/zingolabs/zingo-pc/issues</url>
+  <url type="vcs-browser">https://github.com/zingolabs/zingo-pc</url>
+
+  <launchable type="desktop-id">co.zingo.pc.desktop</launchable>
+
+  <categories>
+    <category>Finance</category>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>zcash</keyword>
+    <keyword>zingo</keyword>
+    <keyword>wallet</keyword>
+    <keyword>crypto</keyword>
+    <keyword>privacy</keyword>
+    <keyword>shielded</keyword>
+    <keyword>blockchain</keyword>
+  </keywords>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="money-purchasing">mild</content_attribute>
+  </content_rating>
+
+  <releases>
+    <release version="2.0.14" date="2025-05-01">
+      <description>
+        <p>Latest stable release of Zingo PC.</p>
+      </description>
+    </release>
+  </releases>
+
+  <provides>
+    <binary>zingo-pc</binary>
+  </provides>
+</component>
