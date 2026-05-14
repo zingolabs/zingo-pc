@@ -13,7 +13,7 @@ import SelectWallet from "./components/SelectWallet";
 import { WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
 
-import { ipcRenderer } from "../../electronBridge";
+import { ipcRenderer, native } from "../../electronBridge";
 
 type SidebarProps = {
   doRescan: () => void;
@@ -206,8 +206,8 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         return;
       }
 
-      const seedRaw: string = readOnly ? "" : await ipcRenderer.invoke("native:get_seed");
-      const ufvkRaw: string = readOnly ? await ipcRenderer.invoke("native:get_ufvk") : "";
+      const seedRaw: string = readOnly ? "" : await native.get_seed();
+      const ufvkRaw: string = readOnly ? await native.get_ufvk() : "";
       const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
       const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
 

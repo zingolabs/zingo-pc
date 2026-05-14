@@ -88,8 +88,6 @@ const ALLOWED_RECEIVE = new Set([
 
 // Allowed IPC channels that renderer → main can invoke/send.
 const ALLOWED_INVOKE = new Set([
-  "native:get_seed",
-  "native:get_ufvk",
   "loadSettings",
   "saveSettings",
   "wallets:all",
