@@ -32,21 +32,20 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
   }, [updateDimensions]);
 
   useLayoutEffect(() => {
-    if (isInitialLoad.current && containerRef.current) {
-      const scrollToBottom = () => {
-        if (containerRef.current) {
-          containerRef.current.scrollTop = initialScrollType === "top" ? 0 : containerRef.current.scrollHeight;
-          isInitialLoad.current = false;
-        }
-      };
+    if (!isInitialLoad.current || !containerRef.current) return;
 
-      setTimeout(() => {
-        requestAnimationFrame(scrollToBottom);
-      }, 10);
-    }
+    const scrollToBottom = () => {
+      if (containerRef.current) {
+        containerRef.current.scrollTop = initialScrollType === "top" ? 0 : containerRef.current.scrollHeight;
+        isInitialLoad.current = false;
+      }
+    };
+
+    const id = setTimeout(() => {
+      requestAnimationFrame(scrollToBottom);
+    }, 10);
+    return () => clearTimeout(id);
   }, [initialScrollType]);
-
-  //console.log('scroll pane', isInitialLoad.current, containerRef.current);
 
   return (
     <div ref={containerRef} className={className} style={{ overflowY: "auto", overflowX: "hidden", height }}>

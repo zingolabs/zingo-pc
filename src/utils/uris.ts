@@ -44,11 +44,9 @@ export const parseZcashURI = async (
   const targets: Map<number, ZcashURITarget> = new Map();
 
   // The first address is special, it can be the "host" part of the URI
-  //console.log(parsedUri);
   const address: string = parsedUri.pathname;
   if (address) {
     addressKind = await Utils.getAddressKind(address, serverChainName);
-    console.log("URIIIIIIIIIIIIIIIIII", address, serverChainName, addressKind);
     if (addressKind === undefined) {
       return `Error: "${address || ""}" was not a valid zcash address`;
     }
@@ -207,7 +205,7 @@ export const checkServerURI = async (uri: string, oldUri: string): Promise<boole
       }
     }
   } catch (error: any) {
-    console.log("catch", error);
+    console.error("catch", error);
     // I have to restore the old server again. Just in case.
     await native.change_server(oldUri);
     // error, YES timeout

@@ -1,5 +1,5 @@
 import React, { useContext, useState } from "react";
-import { withRouter, RouteComponentProps } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   AccordionItemButton,
   AccordionItem,
@@ -20,12 +20,8 @@ type AddressBookItemProps = {
   removeAddressBookEntry: (label: string) => void;
 };
 
-// Internal because we're using withRouter just below
-const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemProps> = ({
-  item,
-  removeAddressBookEntry,
-  history,
-}) => {
+const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeAddressBookEntry }) => {
+  const navigate = useNavigate();
   const context = useContext(ContextApp);
   const { readOnly, setSendTo } = context;
   const [expandAddress, setExpandAddress] = useState<boolean>(false);
@@ -33,20 +29,32 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
   return (
     <AccordionItem
       key={item.label.replace(/\s/g, "")}
-      className={[cstyles.well, cstyles.margintopsmall].join(" ")}
+      className={`${cstyles.well} ${cstyles.margintopsmall}`}
       uuid={item.label.replace(/\s/g, "")}
     >
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
-          <div className={[cstyles.flexspacebetween].join(" ")}>
+          <div className={cstyles.flexspacebetween}>
             <div>{item.label}</div>
             {!!item.address && (
               <div
+                role="button"
+                tabIndex={0}
+                aria-label="Copy address"
                 style={{ cursor: "pointer" }}
                 onClick={() => {
                   if (item.address) {
                     clipboard.writeText(item.address);
                     setExpandAddress(true);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    if (item.address) {
+                      clipboard.writeText(item.address);
+                      setExpandAddress(true);
+                    }
                   }
                 }}
               >
@@ -66,14 +74,14 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
         </AccordionItemButton>
       </AccordionItemHeading>
       <AccordionItemPanel>
-        <div className={[cstyles.well, styles.addressbookentrybuttons].join(" ")}>
+        <div className={`${cstyles.well} ${styles.addressbookentrybuttons}`}>
           {!readOnly && (
             <button
               type="button"
               className={cstyles.primarybutton}
               onClick={() => {
                 setSendTo(new ZcashURITarget(item.address, undefined, undefined));
-                history.push(routes.SEND);
+                navigate(routes.SEND);
               }}
             >
               Send To
@@ -88,6 +96,4 @@ const AddressBookItemInternal: React.FC<RouteComponentProps & AddressBookItemPro
   );
 };
 
-const AddressBookItem = withRouter(AddressBookItemInternal);
-
-export default AddressBookItem;
+export default AddressBookItemInternal;

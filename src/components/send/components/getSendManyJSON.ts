@@ -29,9 +29,6 @@ function getSendManyJSON(sendPageState: SendPageStateClass): SendManyJsonType[] 
     }
   });
 
-  //console.log("Sending:");
-  //console.log('JSON', json);
-
   return json;
 }
 

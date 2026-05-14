@@ -31,7 +31,7 @@ const PayURIModal = ({
       className={cstyles.modal}
       overlayClassName={cstyles.modalOverlay}
     >
-      <div className={[cstyles.verticalflex].join(" ")}>
+      <div className={cstyles.verticalflex}>
         <div className={cstyles.marginbottomlarge} style={{ textAlign: "center" }}>
           {modalTitle}
         </div>
@@ -45,6 +45,7 @@ const PayURIModal = ({
           <div className={cstyles.well} style={{ textAlign: "center" }}>
             <input
               type="text"
+              aria-label="Payment URI"
               className={cstyles.inputbox}
               placeholder="URI"
               value={modalInput}
@@ -55,6 +56,10 @@ const PayURIModal = ({
       </div>
 
       <div className={cstyles.buttoncontainer}>
+        <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          Close
+        </button>
+
         {actionButtonName && !readOnly && (
           <button
             type="button"
@@ -70,10 +75,6 @@ const PayURIModal = ({
             {actionButtonName}
           </button>
         )}
-
-        <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-          Close
-        </button>
       </div>
     </Modal>
   );

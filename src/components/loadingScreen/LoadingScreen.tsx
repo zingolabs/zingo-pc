@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { RouteComponentProps, withRouter } from "react-router";
+import { useLocation } from "react-router-dom";
 import { native, ipcRenderer, isSandboxed } from "../../electronBridge";
 import {
   CreationTypeEnum,
@@ -33,12 +33,13 @@ class LoadingScreenState {
 }
 
 type LoadingScreenProps = {
+  location: { state: unknown };
   runRPCConfigure: () => void;
   setInfo: (info: InfoClass) => void;
   setReadOnly: (readOnly: boolean) => void;
   setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
-  setRecoveryInfo: (s: string, u: string, b: number) => void;
+  setBirthday: (b: number) => void;
   setPools: (o: boolean, s: boolean, t: boolean) => void;
   setWallets: (ws: WalletType[]) => void;
   setCurrentWallet: (w: WalletType | null) => void;
@@ -54,10 +55,11 @@ const chains = {
   "": "",
 };
 
-class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
+class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
   static contextType = ContextApp;
+  private navigationTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(props: LoadingScreenProps & RouteComponentProps) {
+  constructor(props: LoadingScreenProps) {
     super(props);
 
     let serverUris: ServerClass[] = [];
@@ -76,9 +78,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
     try {
       await native.set_crypto_default_provider_to_ring();
-      //console.log('crypto provider result', r);
     } catch (error) {
-      console.log(`Critical Error crypto provider default ${error}`);
+      console.error(`Critical Error crypto provider default ${error}`);
     }
 
     await this.doFirstTimeSetup();
@@ -87,7 +88,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     if (this.state.walletExists) {
       // warning with the migration from Z1 to Z2
       const version = await RPC.getWalletVersion();
-      //console.log('WALLET VERSION -------------->', version);
       if (version && version < 32) {
         closeErrorModal();
         openErrorModal(
@@ -238,10 +238,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   loadCurrentWallet = async () => {
     // try to read wallets
     let wallets: WalletType[] = await ipcRenderer.invoke("wallets:all");
-    console.log("&&&&&&&&&&&&&&&&& WALLETS", wallets);
     // Try to read the default server
     const settings = await ipcRenderer.invoke("loadSettings");
-    console.log("&&&&&&&&&&&&&&&&& SETTINGS", settings);
     let currentWalletId: number | null = null;
     let currentWallet: WalletType | null = null;
     let { uri, chain_name, selection } = await this.checkCurrentSettings(
@@ -249,7 +247,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       settings && settings.serverchain_name ? settings.serverchain_name : "",
       settings && settings.serverselection ? settings.serverselection : "",
     );
-    console.log("&&&&&&&&&&&&&&&&& CHECKED SETTINGS", uri, chain_name, selection);
 
     // block explorer configuration
     if (settings && settings.hasOwnProperty("blockexplorer")) {
@@ -442,7 +439,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         });
       }
       // check if have the new fields: selection / uri
-      console.log("wwwwwwwwwwwwwwwwwwwallet BEFORE", currentWalletId, currentWallet);
       const {
         uri: currentWalleUri,
         chain_name: currentWalletChain_name,
@@ -477,7 +473,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         if (!currentWallet.hasOwnProperty("performanceLevel")) {
           currentWallet.performanceLevel = PerformanceLevelEnum.High;
         }
-        console.log("wwwwwwwwwwwwwwwwwwwallet STORE", currentWalletId, currentWallet);
         await ipcRenderer.invoke("wallets:update", currentWallet);
         this.setState({
           currentWallet: currentWallet,
@@ -641,8 +636,6 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
     await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: currentWalletId });
 
-    console.log("&&&&&&&&-----------", currentWalletId, uri, chain_name, selection, currentWallet, wallets);
-
     return {
       currentWallet,
       wallets,
@@ -736,10 +729,8 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           3,
           currentWallet.fileName,
         );
-        //const result: string = 'Error: ay, ay, ay';
-        //console.log(`Initialization: ${result}`);
         if (!result || result.toLowerCase().startsWith("error")) {
-          console.log(`Initialization Error: ${result}`);
+          console.error(`Initialization Error: ${result}`);
           this.props.setCurrentWalletOpenError(`${result}`);
           this.setState({
             loadingDone: true,
@@ -747,7 +738,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
           return;
         }
 
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
 
         // seed phrase or ufvk
         const walletKindStr: string = await native.wallet_kind();
@@ -755,12 +746,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
         if (walletKindJSON.kind === "Loaded from unified full viewing key" || walletKindJSON.kind === "No keys found") {
           // ufvk
-          this.props.setRecoveryInfo("", resultJSON.ufvk, resultJSON.birthday);
+          this.props.setBirthday(resultJSON.birthday);
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
           this.props.setReadOnly(true);
         } else {
           // seed phrase
-          this.props.setRecoveryInfo(resultJSON.seed_phrase, "", resultJSON.birthday);
+          this.props.setBirthday(resultJSON.birthday);
           this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
           this.props.setReadOnly(false);
         }
@@ -768,7 +759,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
         this.getInfo();
       }
     } catch (error) {
-      console.log("Error initializing", error);
+      console.error("Error initializing", error);
       this.props.setCurrentWalletOpenError(`${error}`);
       this.setState({
         loadingDone: true,
@@ -790,7 +781,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
 
       console.log("Checking SERVER", server, latency);
     } catch (error) {
-      console.log(`Critical Error calculate server latency ${error}`);
+      console.error(`Critical Error calculate server latency ${error}`);
     }
 
     return latency;
@@ -835,20 +826,26 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
       // This will cause a redirect to the dashboard screen
       this.setState({ loadingDone: true });
     } catch (error) {
-      console.log("Error initializing", error);
+      console.error("Error initializing", error);
       this.props.setFetchError("info", `${error}`);
     }
   };
 
-  render() {
-    const { loadingDone, currentWallet } = this.state;
-
-    if (loadingDone) {
-      setTimeout(() => this.props.navigateToDashboard(), 10);
+  componentDidUpdate(_prevProps: LoadingScreenProps, prevState: LoadingScreenState) {
+    if (!prevState.loadingDone && this.state.loadingDone) {
+      this.navigationTimer = setTimeout(() => this.props.navigateToDashboard(), 10);
     }
+  }
+
+  componentWillUnmount() {
+    clearTimeout(this.navigationTimer);
+  }
+
+  render() {
+    const { currentWallet } = this.state;
 
     return (
-      <div className={[cstyles.verticalflex, cstyles.center, styles.loadingcontainer].join(" ")}>
+      <div className={`${cstyles.verticalflex} ${cstyles.center} ${styles.loadingcontainer}`}>
         <div style={{ marginTop: "50px", marginBottom: "20px" }}>
           <Logo readOnly={false} onlyVersion={false} />
         </div>
@@ -878,5 +875,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   }
 }
 
-// @ts-ignore
-export default withRouter(LoadingScreen);
+type LoadingScreenPublicProps = Omit<LoadingScreenProps, "location">;
+
+const LoadingScreenWithLocation: React.FC<LoadingScreenPublicProps> = (props) => {
+  const location = useLocation();
+  return <LoadingScreen {...props} location={location} />;
+};
+
+export { LoadingScreenWithLocation as LoadingScreen };
+export default LoadingScreenWithLocation;

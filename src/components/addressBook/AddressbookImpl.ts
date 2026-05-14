@@ -8,9 +8,6 @@ export default class AddressbookImpl {
   static async getFileName(): Promise<string> {
     const relativePath: string = await ipcRenderer.invoke("get-app-data-path");
     const dir: string = path.join(relativePath, "Zingo PC");
-    if (!dir.startsWith(relativePath)) {
-      throw new Error("Invalid app data path");
-    }
     if (!(await fs.existsSync(dir))) {
       await fs.promises.mkdir(dir);
     }
@@ -42,10 +39,13 @@ export default class AddressbookImpl {
   static async readAddressBook(): Promise<AddressBookEntryClass[]> {
     const fileName: string = await this.getFileName();
 
+    if (!(await fs.existsSync(fileName))) {
+      return [] as AddressBookEntryClass[];
+    }
+
     try {
-      return await JSON.parse(await fs.promises.readFile(fileName));
+      return JSON.parse(await fs.promises.readFile(fileName));
     } catch (err) {
-      // File probably doesn't exist, so return nothing
       console.log("address book", err);
       return [] as AddressBookEntryClass[];
     }

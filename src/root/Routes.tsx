@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ReactModal from "react-modal";
-import { Switch, Route, withRouter, RouteComponentProps } from "react-router";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { ErrorModal } from "../components/errorModal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json";
@@ -44,594 +44,536 @@ import AppSecurityModal from "../components/appSecurity/AppSecurityModal";
 
 const { ipcRenderer } = window.electronAPI;
 
-type Props = {};
-
 function deepEqual(a: unknown, b: unknown): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-type RoutesState = AppState & {
-  locked: boolean;
-  lockChecked: boolean;
-  securityModalOpen: boolean;
-};
+const AppRoutes: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
 
-class Routes extends React.Component<Props & RouteComponentProps, RoutesState> {
-  rpc: RPC;
-  fetchErrorTimer: ReturnType<typeof setTimeout> | null = null;
-  private _appsecurityListener: (() => void) | null = null;
-  private _appquittingListener: (() => void) | null = null;
+  // --- state ---
+  const [totalBalance, setTotalBalanceState] = useState(defaultAppState.totalBalance);
+  const [addressesUnified, setAddressesUnifiedState] = useState(defaultAppState.addressesUnified);
+  const [addressesTransparent, setAddressesTransparentState] = useState(defaultAppState.addressesTransparent);
+  const [addressBook, setAddressBookState] = useState(defaultAppState.addressBook);
+  const [valueTransfers, setValueTransfersState] = useState(defaultAppState.valueTransfers);
+  const [messages, setMessagesState] = useState(defaultAppState.messages);
+  const [sendPageState, setSendPageStateState] = useState(defaultAppState.sendPageState);
+  const [info, setInfoState] = useState(defaultAppState.info);
+  const [syncingStatus, setSyncingStatusState] = useState(defaultAppState.syncingStatus);
+  const [verificationProgress, setVerificationProgressState] = useState(defaultAppState.verificationProgress);
+  const [readOnly, setReadOnlyState] = useState(defaultAppState.readOnly);
+  const [serverUris, setServerUrisState] = useState(defaultAppState.serverUris);
+  const [fetchError, setFetchErrorState] = useState(defaultAppState.fetchError);
+  const [currentWallet, setCurrentWalletState] = useState(defaultAppState.currentWallet);
+  const [currentWalletOpenError, setCurrentWalletOpenErrorState] = useState(defaultAppState.currentWalletOpenError);
+  const [wallets, setWalletsState] = useState(defaultAppState.wallets);
+  const [birthday, setBirthdayState] = useState(defaultAppState.birthday);
+  const [orchardPool, setOrchardPoolState] = useState(defaultAppState.orchardPool);
+  const [saplingPool, setSaplingPoolState] = useState(defaultAppState.saplingPool);
+  const [transparentPool, setTransparentPoolState] = useState(defaultAppState.transparentPool);
+  const [addLabelState, setAddLabelStateState] = useState(defaultAppState.addLabelState);
+  const [errorModal, setErrorModalState] = useState(defaultAppState.errorModal);
+  const [confirmModal, setConfirmModalState] = useState(defaultAppState.confirmModal);
+  const [locked, setLocked] = useState(false);
+  const [lockChecked, setLockChecked] = useState(false);
+  const [securityModalOpen, setSecurityModalOpen] = useState(false);
 
-  constructor(props: Props & RouteComponentProps) {
-    super(props);
+  // --- timers ---
+  const fetchErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    this.state = { ...defaultAppState, locked: false, lockChecked: false, securityModalOpen: false };
+  // --- setters (stable, with deepEqual guards) ---
+  const setTotalBalance = useCallback((val: TotalBalanceClass) => {
+    setTotalBalanceState((prev) => (deepEqual(prev, val) ? prev : val));
+  }, []);
 
-    // Set the Modal's app element
+  const setAddressesUnified = useCallback((val: UnifiedAddressClass[]) => {
+    setAddressesUnifiedState((prev) => (deepEqual(prev, val) ? prev : val));
+  }, []);
+
+  const setAddressesTransparent = useCallback((val: TransparentAddressClass[]) => {
+    setAddressesTransparentState((prev) => (deepEqual(prev, val) ? prev : val));
+  }, []);
+
+  const setValueTransferList = useCallback((val: ValueTransferClass[]) => {
+    setValueTransfersState((prev) => (deepEqual(prev, val) ? prev : val));
+  }, []);
+
+  const setMessagesList = useCallback((val: ValueTransferClass[]) => {
+    setMessagesState((prev) => (deepEqual(prev, val) ? prev : val));
+  }, []);
+
+  const setInfo = useCallback((newInfo: InfoClass) => {
+    setInfoState((prev) => {
+      if (deepEqual(prev, newInfo)) return prev;
+      if (!newInfo.zecPrice) newInfo.zecPrice = prev.zecPrice;
+      return newInfo;
+    });
+  }, []);
+
+  const setSyncStatus = useCallback((val: SyncStatusType) => {
+    setSyncingStatusState((prev) => (deepEqual(prev, val) ? prev : val));
+  }, []);
+
+  const setVerificationProgress = useCallback((val: number | null) => {
+    setVerificationProgressState(val);
+  }, []);
+
+  const setFetchError = useCallback((command: string, error: string) => {
+    setFetchErrorState({ command, error });
+    if (fetchErrorTimer.current) clearTimeout(fetchErrorTimer.current);
+    fetchErrorTimer.current = setTimeout(() => {
+      fetchErrorTimer.current = null;
+      setFetchErrorState({} as FetchErrorTypeClass);
+    }, 5000);
+  }, []);
+
+  const setZecPrice = useCallback((price?: number) => {
+    if (!price) return;
+    setInfoState((prev) => {
+      if (price === prev.zecPrice) return prev;
+      const newInfo = new InfoClass();
+      Object.assign(newInfo, prev);
+      newInfo.zecPrice = price;
+      return newInfo;
+    });
+  }, []);
+
+  const setReadOnly = useCallback((val: boolean) => setReadOnlyState(val), []);
+  const setServerUris = useCallback((val: ServerClass[]) => setServerUrisState(val), []);
+  const setWallets = useCallback((val: WalletType[]) => setWalletsState(val), []);
+  const setBirthday = useCallback((val: number) => setBirthdayState(val), []);
+
+  const setCurrentWallet = useCallback((val: WalletType | null) => {
+    if (val !== null) rpcRef.current?.setCurrentWallet(val);
+    setCurrentWalletState(val);
+  }, []);
+
+  const setCurrentWalletOpenError = useCallback((val: string) => setCurrentWalletOpenErrorState(val), []);
+
+  const setPools = useCallback((orchard: boolean, sapling: boolean, transparent: boolean) => {
+    setOrchardPoolState(orchard);
+    setSaplingPoolState(sapling);
+    setTransparentPoolState(transparent);
+  }, []);
+
+  const setSendPageState = useCallback((val: SendPageStateClass) => setSendPageStateState(val), []);
+
+  const setBlockExplorer = useCallback((blockExplorer: any) => {
+    // blockExplorer object is spread into individual state fields via addLabelState workaround —
+    // simpler to keep them in one object; here we use a spread onto named setters.
+    // Since these are simple values, no deepEqual needed.
+    setAddLabelStateState((prev) => prev); // trigger re-read; actual set below
+    // Store block explorer fields inside a dedicated state slice would be cleaner,
+    // but to match the original class field-by-field setState we set each individually.
+    setBlockExplorerState(blockExplorer);
+  }, []);
+
+  // Block explorer fields kept in a single object to avoid 8 useState
+  const [blockExplorerConfig, setBlockExplorerState] = useState({
+    blockExplorerMainnetAddress: defaultAppState.blockExplorerMainnetAddress,
+    blockExplorerMainnetAddressCustom: defaultAppState.blockExplorerMainnetAddressCustom,
+    blockExplorerMainnetTransaction: defaultAppState.blockExplorerMainnetTransaction,
+    blockExplorerMainnetTransactionCustom: defaultAppState.blockExplorerMainnetTransactionCustom,
+    blockExplorerTestnetAddress: defaultAppState.blockExplorerTestnetAddress,
+    blockExplorerTestnetAddressCustom: defaultAppState.blockExplorerTestnetAddressCustom,
+    blockExplorerTestnetTransaction: defaultAppState.blockExplorerTestnetTransaction,
+    blockExplorerTestnetTransactionCustom: defaultAppState.blockExplorerTestnetTransactionCustom,
+  });
+
+  // --- RPC instance (stable ref, lazy init) ---
+  const rpcRef = useRef<RPC | null>(null);
+  if (!rpcRef.current) {
     ReactModal.setAppElement("#root");
-
-    this.rpc = new RPC(
-      this.setTotalBalance,
-      this.setAddressesUnified,
-      this.setAddressesTransparent,
-      this.setValueTransferList,
-      this.setMessagesList,
-      this.setInfo,
-      this.setZecPrice,
-      this.setSyncStatus,
-      this.setVerificationProgress,
-      this.setFetchError,
-      this.state.currentWallet,
+    rpcRef.current = new RPC(
+      setTotalBalance,
+      setAddressesUnified,
+      setAddressesTransparent,
+      setValueTransferList,
+      setMessagesList,
+      setInfo,
+      setZecPrice,
+      setSyncStatus,
+      setVerificationProgress,
+      setFetchError,
+      defaultAppState.currentWallet,
     );
   }
 
-  componentDidMount = async () => {
-    const addressBook: AddressBookEntryClass[] = await AddressbookImpl.readAddressBook();
-    if (addressBook && addressBook.length > 0) {
-      this.setState({ addressBook });
-    }
+  // --- lifecycle ---
+  useEffect(() => {
+    (async () => {
+      const book = await AddressbookImpl.readAddressBook();
+      if (book && book.length > 0) setAddressBookState(book);
 
-    const [allSettings, authAvailability] = await Promise.all([
-      ipcRenderer.invoke("loadSettings"),
-      ipcRenderer.invoke("auth:check"),
-    ]);
-    const locked = !!(allSettings?.requireDeviceAuth && authAvailability === "available");
-    this.setState({ locked, lockChecked: true });
+      const [allSettings, authAvailability] = await Promise.all([
+        ipcRenderer.invoke("loadSettings"),
+        ipcRenderer.invoke("auth:check"),
+      ]);
+      const isLocked = !!(allSettings?.requireDeviceAuth && authAvailability === "available");
+      setLocked(isLocked);
+      setLockChecked(true);
+    })();
 
-    this._appsecurityListener = () => this.setState({ securityModalOpen: true });
-    ipcRenderer.on("appsecurity", this._appsecurityListener);
+    const appsecurityListener = () => setSecurityModalOpen(true);
+    ipcRenderer.on("appsecurity", appsecurityListener);
 
-    this._appquittingListener = async () => {
+    const appquittingListener = async () => {
       try {
         await native.save_wallet_file();
       } catch (_) {}
       ipcRenderer.send("appquitdone");
     };
-    ipcRenderer.on("appquitting", this._appquittingListener);
-  };
+    ipcRenderer.on("appquitting", appquittingListener);
 
-  componentWillUnmount = () => {
-    if (this.fetchErrorTimer) clearTimeout(this.fetchErrorTimer);
-    if (this._appsecurityListener) {
-      ipcRenderer.off("appsecurity", this._appsecurityListener);
-    }
-    if (this._appquittingListener) {
-      ipcRenderer.off("appquitting", this._appquittingListener);
-    }
-  };
+    return () => {
+      if (fetchErrorTimer.current) clearTimeout(fetchErrorTimer.current);
+      ipcRenderer.off("appsecurity", appsecurityListener);
+      ipcRenderer.off("appquitting", appquittingListener);
+    };
+  }, []);
 
-  openErrorModal = (title: string, body: string | JSX.Element) => {
-    const errorModal = new ErrorModalClass();
-    errorModal.modalIsOpen = true;
-    errorModal.title = title;
-    errorModal.body = body;
+  // --- modals ---
+  const openErrorModal = useCallback((title: string, body: string | JSX.Element) => {
+    const modal = new ErrorModalClass();
+    modal.modalIsOpen = true;
+    modal.title = title;
+    modal.body = body;
+    setErrorModalState(modal);
+  }, []);
 
-    this.setState({ errorModal });
-  };
+  const closeErrorModal = useCallback(() => {
+    const modal = new ErrorModalClass();
+    modal.modalIsOpen = false;
+    setErrorModalState(modal);
+  }, []);
 
-  closeErrorModal = () => {
-    const errorModal = new ErrorModalClass();
-    errorModal.modalIsOpen = false;
+  const openConfirmModal = useCallback((title: string, body: string | JSX.Element, runAction: () => void) => {
+    const modal = new ConfirmModalClass();
+    modal.modalIsOpen = true;
+    modal.title = title;
+    modal.body = body;
+    modal.runAction = runAction;
+    setConfirmModalState(modal);
+  }, []);
 
-    this.setState({ errorModal });
-  };
+  const closeConfirmModal = useCallback(() => {
+    const modal = new ConfirmModalClass();
+    modal.modalIsOpen = false;
+    setConfirmModalState(modal);
+  }, []);
 
-  openConfirmModal = (title: string, body: string | JSX.Element, runAction: () => void) => {
-    const confirmModal = new ConfirmModalClass();
-    confirmModal.modalIsOpen = true;
-    confirmModal.title = title;
-    confirmModal.body = body;
-    confirmModal.runAction = runAction;
+  // --- navigation ---
+  const navigateToDashboard = useCallback(() => {
+    navigate(routes.DASHBOARD, { replace: true, state: {} });
+  }, [navigate]);
 
-    this.setState({ confirmModal });
-  };
+  const navigateToHistory = useCallback(() => {
+    navigate(routes.HISTORY, { replace: true, state: {} });
+  }, [navigate]);
 
-  closeConfirmModal = () => {
-    const confirmModal = new ConfirmModalClass();
-    confirmModal.modalIsOpen = false;
+  const navigateToLoadingScreen = useCallback(
+    (uris: ServerClass[]) => {
+      navigate(routes.LOADING, { replace: true, state: { serverUris: uris } });
+    },
+    [navigate],
+  );
 
-    this.setState({ confirmModal });
-  };
+  const navigateToLoadingScreenChangingWallet = useCallback(async () => {
+    setTotalBalance(new TotalBalanceClass());
+    setAddressesUnified([]);
+    setAddressesTransparent([]);
+    setValueTransferList([]);
+    setMessagesList([]);
+    setInfo(new InfoClass());
+    setZecPrice(0);
+    setSyncStatus({} as SyncStatusType);
+    setVerificationProgress(null);
+    setFetchError("", "");
+    setCurrentWalletOpenError("");
+    setSendPageState(new SendPageStateClass());
 
-  doSaveWallet = () => {
-    RPC.doSave();
-  };
+    await rpcRef.current?.clearTimers();
 
-  setTotalBalance = (totalBalance: TotalBalanceClass) => {
-    if (!deepEqual(totalBalance, this.state.totalBalance)) {
-      //console.log('=============== total SPENDABLE balance', totalBalance.totalSpendableBalance);
-      //console.log('=============== total balance', totalBalance);
-      this.setState({ totalBalance });
-    }
-  };
+    navigateToLoadingScreen(serverUris);
+  }, [
+    navigateToLoadingScreen,
+    serverUris,
+    setTotalBalance,
+    setAddressesUnified,
+    setAddressesTransparent,
+    setValueTransferList,
+    setMessagesList,
+    setInfo,
+    setZecPrice,
+    setSyncStatus,
+    setVerificationProgress,
+    setFetchError,
+    setCurrentWalletOpenError,
+    setSendPageState,
+  ]);
 
-  setFetchError = (command: string, error: string) => {
-    console.log("=============== fetch error", command, error);
-    this.setState({
-      fetchError: {
-        command,
-        error,
-      },
-    });
-    if (this.fetchErrorTimer) clearTimeout(this.fetchErrorTimer);
-    this.fetchErrorTimer = setTimeout(() => {
-      this.fetchErrorTimer = null;
-      this.setState({ fetchError: {} as FetchErrorTypeClass });
-    }, 5000);
-  };
+  // --- address book ---
+  const addAddressBookEntry = useCallback((label: string, address: string) => {
+    setAddressBookState((prev) => AddressbookImpl.addEntry(prev, label, address));
+  }, []);
 
-  setAddressesUnified = (addressesUnified: UnifiedAddressClass[]) => {
-    if (!deepEqual(addressesUnified, this.state.addressesUnified)) {
-      console.log("=============== addresses UA", addressesUnified.length);
-      this.setState({ addressesUnified });
-    }
-  };
+  const removeAddressBookEntry = useCallback((label: string) => {
+    setAddressBookState((prev) => AddressbookImpl.removeEntry(prev, label));
+  }, []);
 
-  setAddressesTransparent = (addressesTransparent: TransparentAddressClass[]) => {
-    if (!deepEqual(addressesTransparent, this.state.addressesTransparent)) {
-      console.log("=============== addresses T", addressesTransparent.length);
-      this.setState({ addressesTransparent });
-    }
-  };
-
-  setValueTransferList = (valueTransfers: ValueTransferClass[]) => {
-    if (!deepEqual(valueTransfers, this.state.valueTransfers)) {
-      console.log("=============== ValueTransfer list", valueTransfers.length);
-      this.setState({ valueTransfers });
-    }
-  };
-
-  setMessagesList = (messages: ValueTransferClass[]) => {
-    if (!deepEqual(messages, this.state.messages)) {
-      console.log("=============== ValueTransfer Messages list", messages.length);
-      this.setState({ messages });
-    }
-  };
-
-  setSendPageState = (sendPageState: SendPageStateClass) => {
-    console.log("=============== send page state", sendPageState);
-    this.setState({ sendPageState });
-  };
-
-  setSendTo = (target: ZcashURITarget): void => {
-    console.log("=============== send to", target);
-    // Clear the existing send page state and set up the new one
-    const newSendPageState = new SendPageStateClass();
-
+  // --- context actions ---
+  const setSendTo = useCallback((target: ZcashURITarget): void => {
+    const newState = new SendPageStateClass();
     const to = new ToAddrClass();
-    if (target.address) {
-      to.to = target.address;
-    }
-    if (target.amount) {
-      to.amount = target.amount;
-    }
-    if (target.memoString) {
-      to.memo = target.memoString;
-    }
+    if (target.address) to.to = target.address;
+    if (target.amount) to.amount = target.amount;
+    if (target.memoString) to.memo = target.memoString;
+    newState.toaddr = to;
+    setSendPageStateState(newState);
+  }, []);
 
-    newSendPageState.toaddr = to;
+  const setAddLabel = useCallback((ab: AddressBookEntryClass): void => {
+    setAddLabelStateState(ab);
+  }, []);
 
-    this.setState({ sendPageState: newSendPageState });
-  };
-
-  setAddLabel = (ab: AddressBookEntryClass): void => {
-    console.log("=============== add label state", ab);
-    this.setState({ addLabelState: ab });
-  };
-
-  runRPCConfigure = () => {
-    console.log("=============== rpc configure");
-
-    this.rpc.configure();
-  };
-
-  setZecPrice = (price?: number) => {
-    console.log("=============== price", price);
-    if (!!price && price !== this.state.info.zecPrice) {
-      const { info } = this.state;
-
-      const newInfo = new InfoClass();
-      Object.assign(newInfo, info);
-      newInfo.zecPrice = price;
-
-      this.setState({ info: newInfo });
-    }
-  };
-
-  setReadOnly = (readOnly: boolean) => {
-    this.setState({ readOnly });
-  };
-
-  setServerUris = (serverUris: ServerClass[]) => {
-    this.setState({ serverUris });
-  };
-
-  setInfo = (newInfo: InfoClass) => {
-    if (!deepEqual(newInfo, this.state.info)) {
-      console.log("=============== info", newInfo);
-      // If the price is not set in this object, copy it over from the current object
-      const { info } = this.state;
-      if (!newInfo.zecPrice) {
-        newInfo.zecPrice = info.zecPrice;
-      }
-
-      this.setState({ info: newInfo });
-    }
-  };
-
-  setSyncStatus = (syncingStatus: SyncStatusType) => {
-    if (!deepEqual(this.state.syncingStatus, syncingStatus)) {
-      this.setState({ syncingStatus });
-    }
-  };
-
-  setWallets = (wallets: WalletType[]) => {
-    this.setState({
-      wallets,
-    });
-  };
-
-  setCurrentWallet = (currentWallet: WalletType | null) => {
-    if (currentWallet !== null) {
-      this.rpc.setCurrentWallet(currentWallet);
-    }
-    this.setState({
-      currentWallet,
-    });
-  };
-
-  setCurrentWalletOpenError = (error: string) => {
-    this.setState({
-      currentWalletOpenError: error,
-    });
-  };
-
-  setRecoveryInfo = (seed_phrase: string, ufvk: string, birthday: number) => {
-    this.setState({
-      seed_phrase,
-      ufvk,
-      birthday,
-    });
-  };
-
-  setPools = (orchardPool: boolean, saplingPool: boolean, transparentPool: boolean) => {
-    this.setState({
-      orchardPool,
-      saplingPool,
-      transparentPool,
-    });
-  };
-
-  setVerificationProgress = (verificationProgress: number | null) => {
-    this.setState({ verificationProgress });
-  };
-
-  setBlockExplorer = (blockExplorer: any) => {
-    this.setState({
-      blockExplorerMainnetAddress: blockExplorer.blockExplorerMainnetAddress,
-      blockExplorerMainnetAddressCustom: blockExplorer.blockExplorerMainnetAddressCustom,
-      blockExplorerMainnetTransaction: blockExplorer.blockExplorerMainnetTransaction,
-      blockExplorerMainnetTransactionCustom: blockExplorer.blockExplorerMainnetTransactionCustom,
-      blockExplorerTestnetAddress: blockExplorer.blockExplorerTestnetAddress,
-      blockExplorerTestnetAddressCustom: blockExplorer.blockExplorerTestnetAddressCustom,
-      blockExplorerTestnetTransaction: blockExplorer.blockExplorerTestnetTransaction,
-      blockExplorerTestnetTransactionCustom: blockExplorer.blockExplorerTestnetTransactionCustom,
-    });
-  };
-
-  runRPCSendTransaction = async (sendJson: SendManyJsonType[]): Promise<string> => {
-    try {
-      const result: string = await this.rpc.sendTransaction(sendJson);
-
-      if (!result || result.toLowerCase().startsWith("error")) {
-        throw result;
-      }
-
-      return result;
-    } catch (err) {
-      console.log("route sendtx error", err);
-      throw err;
-    }
-  };
-
-  addAddressBookEntry = (label: string, address: string): void => {
-    this.setState({ addressBook: AddressbookImpl.addEntry(this.state.addressBook, label, address) });
-  };
-
-  removeAddressBookEntry = (label: string): void => {
-    this.setState({ addressBook: AddressbookImpl.removeEntry(this.state.addressBook, label) });
-  };
-
-  runRPCfectchInfo = () => {
-    this.rpc.fetchInfo();
-  };
-
-  runRPCRescan = () => {
-    this.openConfirmModal("Rescan Wallet", "Please confirm the Action", async () => {
-      await this.rpc.refreshSync(true);
-    });
-  };
-
-  runRPCClearTimers = async () => {
-    await this.rpc.clearTimers();
-  };
-
-  calculateShieldFee = async (): Promise<number> => {
+  const calculateShieldFee = useCallback(async (): Promise<number> => {
     try {
       const result: string = await native.shield();
-      //console.log(result);
-      if (!result || result.toLowerCase().startsWith("error")) {
-        return 0;
-      } else {
-        const resultJSON = JSON.parse(result);
-        if (resultJSON.error) {
-          return 0;
-        } else if (resultJSON.fee) {
-          return resultJSON.fee / 10 ** 8;
-        } else {
-          return 0;
-        }
-      }
+      if (!result || result.toLowerCase().startsWith("error")) return 0;
+      const resultJSON = JSON.parse(result);
+      if (resultJSON.error) return 0;
+      return resultJSON.fee ? resultJSON.fee / 10 ** 8 : 0;
     } catch (error) {
-      console.log(`Critical Error calculate shield fee ${error}`);
+      console.error(`Critical Error calculate shield fee ${error}`);
       return 0;
     }
-  };
+  }, []);
 
-  runRPCShieldTransparentBalanceToOrchard = async (): Promise<string> => {
-    const result: string = await this.rpc.shieldTransparentBalanceToOrchard();
-    return result;
-  };
+  const runRPCShieldTransparentBalanceToOrchard = useCallback(async (): Promise<string> => {
+    return rpcRef.current!.shieldTransparentBalanceToOrchard();
+  }, []);
 
-  handleShieldButton = () => {
-    this.openConfirmModal("Shield Transparent Funds", "Please confirm the Action", () =>
-      this.handleShieldButtonConfirmed(),
-    );
-  };
-
-  handleShieldButtonConfirmed = () => {
-    // This will be replaced by either a success TXID or error message that the user
-    // has to close manually.
-    this.openErrorModal("Computing Transaction", "Please wait...This could take a while");
-
+  const handleShieldButtonConfirmed = useCallback(async () => {
+    openErrorModal("Computing Transaction", "Please wait...This could take a while");
     setTimeout(async () => {
       try {
-        const txidsResult: string = await this.runRPCShieldTransparentBalanceToOrchard();
-
+        const txidsResult: string = await runRPCShieldTransparentBalanceToOrchard();
         if (!txidsResult || txidsResult.toLocaleLowerCase().startsWith("error")) {
-          this.openErrorModal("Error Shielding Transaction", `${txidsResult}`);
+          openErrorModal("Error Shielding Transaction", `${txidsResult}`);
           return;
         }
-
         const txids: string[] = txidsResult.split(", ");
-        const isMainnet = this.state.currentWallet?.chain_name === ServerChainNameEnum.mainChainName;
-        this.openErrorModal(
+        const isMainnet = currentWallet?.chain_name === ServerChainNameEnum.mainChainName;
+        openErrorModal(
           "Successfully Broadcast Transaction",
           <ShieldResultContent
             txids={txids}
-            chainName={this.state.currentWallet?.chain_name}
+            chainName={currentWallet?.chain_name}
             blockExplorerTransaction={
-              isMainnet ? this.state.blockExplorerMainnetTransaction : this.state.blockExplorerTestnetTransaction
+              isMainnet
+                ? blockExplorerConfig.blockExplorerMainnetTransaction
+                : blockExplorerConfig.blockExplorerTestnetTransaction
             }
             blockExplorerTransactionCustom={
               isMainnet
-                ? this.state.blockExplorerMainnetTransactionCustom
-                : this.state.blockExplorerTestnetTransactionCustom
+                ? blockExplorerConfig.blockExplorerMainnetTransactionCustom
+                : blockExplorerConfig.blockExplorerTestnetTransactionCustom
             }
           />,
         );
       } catch (err) {
-        this.openErrorModal("Error Shielding Transaction", `${err}`);
+        openErrorModal("Error Shielding Transaction", `${err}`);
       }
     }, 10);
-  };
+  }, [currentWallet, blockExplorerConfig, openErrorModal, runRPCShieldTransparentBalanceToOrchard]);
 
-  navigateToDashboard = () => {
-    this.props.history.replace({
-      pathname: routes.DASHBOARD,
-      state: {},
+  const handleShieldButton = useCallback(() => {
+    openConfirmModal("Shield Transparent Funds", "Please confirm the Action", handleShieldButtonConfirmed);
+  }, [openConfirmModal, handleShieldButtonConfirmed]);
+
+  const runRPCRescan = useCallback(() => {
+    openConfirmModal("Rescan Wallet", "Please confirm the Action", async () => {
+      await rpcRef.current?.refreshSync(true);
     });
-  };
+  }, [openConfirmModal]);
 
-  navigateToHistory = () => {
-    this.props.history.replace({
-      pathname: routes.HISTORY,
-      state: {},
-    });
-  };
-
-  navigateToLoadingScreen = () => {
-    this.props.history.replace({
-      pathname: routes.LOADING,
-      state: {
-        serverUris: this.state.serverUris,
-      },
-    });
-  };
-
-  navigateToLoadingScreenChangingWallet = async () => {
-    // To change to another wallet, we reset the wallet loading
-    // and redirect to the loading screen
-    this.setTotalBalance(new TotalBalanceClass());
-    this.setAddressesUnified([]);
-    this.setAddressesTransparent([]);
-    this.setValueTransferList([]);
-    this.setMessagesList([]);
-    this.setInfo(new InfoClass());
-    this.setZecPrice(0);
-    this.setSyncStatus({} as SyncStatusType);
-    this.setVerificationProgress(null);
-    this.setFetchError("", "");
-    this.setCurrentWalletOpenError("");
-    this.setSendPageState(new SendPageStateClass());
-
-    await this.rpc.clearTimers();
-
-    this.navigateToLoadingScreen();
-  };
-
-  render() {
-    const contextAppState: AppState = {
-      totalBalance: this.state.totalBalance,
-      addressesUnified: this.state.addressesUnified,
-      addressesTransparent: this.state.addressesTransparent,
-      addressBook: this.state.addressBook,
-      valueTransfers: this.state.valueTransfers,
-      messages: this.state.messages,
-      sendPageState: this.state.sendPageState,
-      info: this.state.info,
-      syncingStatus: this.state.syncingStatus,
-      verificationProgress: this.state.verificationProgress,
-      readOnly: this.state.readOnly,
-      serverUris: this.state.serverUris,
-      fetchError: this.state.fetchError,
-      currentWallet: this.state.currentWallet,
-      currentWalletOpenError: this.state.currentWalletOpenError,
-      wallets: this.state.wallets,
-      seed_phrase: this.state.seed_phrase,
-      ufvk: this.state.ufvk,
-      birthday: this.state.birthday,
-      orchardPool: this.state.orchardPool,
-      saplingPool: this.state.saplingPool,
-      transparentPool: this.state.transparentPool,
-      addLabelState: this.state.addLabelState,
-      errorModal: this.state.errorModal,
-      confirmModal: this.state.confirmModal,
-      openErrorModal: this.openErrorModal,
-      closeErrorModal: this.closeErrorModal,
-      openConfirmModal: this.openConfirmModal,
-      closeConfirmModal: this.state.closeConfirmModal,
-      setSendTo: this.setSendTo,
-      calculateShieldFee: this.calculateShieldFee,
-      handleShieldButton: this.handleShieldButton,
-      setAddLabel: this.setAddLabel,
-      blockExplorerMainnetAddress: this.state.blockExplorerMainnetAddress,
-      blockExplorerMainnetAddressCustom: this.state.blockExplorerMainnetAddressCustom,
-      blockExplorerMainnetTransaction: this.state.blockExplorerMainnetTransaction,
-      blockExplorerMainnetTransactionCustom: this.state.blockExplorerMainnetTransactionCustom,
-      blockExplorerTestnetAddress: this.state.blockExplorerTestnetAddress,
-      blockExplorerTestnetAddressCustom: this.state.blockExplorerTestnetAddressCustom,
-      blockExplorerTestnetTransaction: this.state.blockExplorerTestnetTransaction,
-      blockExplorerTestnetTransactionCustom: this.state.blockExplorerTestnetTransactionCustom,
-    };
-
-    if (!this.state.lockChecked) {
-      return null;
+  const runRPCSendTransaction = useCallback(async (sendJson: SendManyJsonType[]): Promise<string> => {
+    try {
+      const result: string = await rpcRef.current!.sendTransaction(sendJson);
+      if (!result || result.toLowerCase().startsWith("error")) throw result;
+      return result;
+    } catch (err) {
+      console.error("route sendtx error", err);
+      throw err;
     }
+  }, []);
 
-    if (this.state.locked) {
-      return (
-        <ContextAppProvider value={contextAppState}>
-          <LockScreen onUnlock={() => this.setState({ locked: false })} />
-        </ContextAppProvider>
-      );
-    }
+  // --- P4: memoized context value ---
+  const contextAppState = useMemo<AppState>(
+    () => ({
+      totalBalance,
+      addressesUnified,
+      addressesTransparent,
+      addressBook,
+      valueTransfers,
+      messages,
+      sendPageState,
+      info,
+      syncingStatus,
+      verificationProgress,
+      readOnly,
+      serverUris,
+      fetchError,
+      currentWallet,
+      currentWalletOpenError,
+      wallets,
+      birthday,
+      orchardPool,
+      saplingPool,
+      transparentPool,
+      addLabelState,
+      errorModal,
+      confirmModal,
+      openErrorModal,
+      closeErrorModal,
+      openConfirmModal,
+      closeConfirmModal,
+      setSendTo,
+      calculateShieldFee,
+      handleShieldButton,
+      setAddLabel,
+      blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
+      blockExplorerMainnetAddressCustom: blockExplorerConfig.blockExplorerMainnetAddressCustom,
+      blockExplorerMainnetTransaction: blockExplorerConfig.blockExplorerMainnetTransaction,
+      blockExplorerMainnetTransactionCustom: blockExplorerConfig.blockExplorerMainnetTransactionCustom,
+      blockExplorerTestnetAddress: blockExplorerConfig.blockExplorerTestnetAddress,
+      blockExplorerTestnetAddressCustom: blockExplorerConfig.blockExplorerTestnetAddressCustom,
+      blockExplorerTestnetTransaction: blockExplorerConfig.blockExplorerTestnetTransaction,
+      blockExplorerTestnetTransactionCustom: blockExplorerConfig.blockExplorerTestnetTransactionCustom,
+    }),
+    [
+      totalBalance,
+      addressesUnified,
+      addressesTransparent,
+      addressBook,
+      valueTransfers,
+      messages,
+      sendPageState,
+      info,
+      syncingStatus,
+      verificationProgress,
+      readOnly,
+      serverUris,
+      fetchError,
+      currentWallet,
+      currentWalletOpenError,
+      wallets,
+      birthday,
+      orchardPool,
+      saplingPool,
+      transparentPool,
+      addLabelState,
+      errorModal,
+      confirmModal,
+      openErrorModal,
+      closeErrorModal,
+      openConfirmModal,
+      closeConfirmModal,
+      setSendTo,
+      calculateShieldFee,
+      handleShieldButton,
+      setAddLabel,
+      blockExplorerConfig,
+    ],
+  );
 
+  if (!lockChecked) return null;
+
+  if (locked) {
     return (
       <ContextAppProvider value={contextAppState}>
-        <AppSecurityModal
-          isOpen={this.state.securityModalOpen}
-          onClose={() => this.setState({ securityModalOpen: false })}
-        />
-
-        {this.state.confirmModal.modalIsOpen && <ConfirmModal closeModal={this.closeConfirmModal} />}
-        {this.state.errorModal.modalIsOpen && <ErrorModal closeModal={this.closeErrorModal} />}
-
-        <div style={{ overflow: "hidden" }}>
-          {this.props.location.pathname !== "/" && !this.props.location.pathname.toLowerCase().includes("zingo") && (
-            <div className={cstyles.sidebarcontainer}>
-              <Sidebar
-                doRescan={this.runRPCRescan}
-                navigateToLoadingScreenChangingWallet={this.navigateToLoadingScreenChangingWallet}
-                setBlockExplorer={this.setBlockExplorer}
-              />
-            </div>
-          )}
-
-          <div className={cstyles.contentcontainer}>
-            <Switch>
-              <Route
-                path={routes.SEND}
-                render={() => (
-                  <Send sendTransaction={this.runRPCSendTransaction} setSendPageState={this.setSendPageState} />
-                )}
-              />
-              <Route path={routes.RECEIVE} render={() => <Receive />} />
-              <Route
-                path={routes.ADDRESSBOOK}
-                render={() => (
-                  <AddressBook
-                    addAddressBookEntry={this.addAddressBookEntry}
-                    removeAddressBookEntry={this.removeAddressBookEntry}
-                  />
-                )}
-              />
-              <Route path={routes.DASHBOARD} render={() => <Dashboard navigateToHistory={this.navigateToHistory} />} />
-              <Route path={routes.INSIGHT} render={() => <Insight />} />
-              <Route path={routes.HISTORY} render={() => <History />} />
-              <Route path={routes.MESSAGES} render={() => <Messages />} />
-
-              <Route
-                path={routes.ADDNEWWALLET}
-                render={(props) => (
-                  <AddNewWallet
-                    {...props}
-                    closeModal={() => this.navigateToDashboard()}
-                    setWallets={this.setWallets}
-                    setCurrentWallet={this.setCurrentWallet}
-                    navigateToLoadingScreenChangingWallet={this.navigateToLoadingScreenChangingWallet}
-                    doSaveWallet={this.doSaveWallet}
-                    clearTimers={this.runRPCClearTimers}
-                  />
-                )}
-              />
-
-              <Route
-                path={routes.LOADING}
-                render={() => (
-                  <LoadingScreen
-                    runRPCConfigure={this.runRPCConfigure}
-                    setInfo={this.setInfo}
-                    setReadOnly={this.setReadOnly}
-                    setServerUris={this.setServerUris}
-                    navigateToDashboard={this.navigateToDashboard}
-                    setRecoveryInfo={this.setRecoveryInfo}
-                    setPools={this.setPools}
-                    setWallets={this.setWallets}
-                    setCurrentWallet={this.setCurrentWallet}
-                    setCurrentWalletOpenError={this.setCurrentWalletOpenError}
-                    setFetchError={this.setFetchError}
-                    setBlockExplorer={this.setBlockExplorer}
-                  />
-                )}
-              />
-            </Switch>
-          </div>
-        </div>
+        <LockScreen onUnlock={() => setLocked(false)} />
       </ContextAppProvider>
     );
   }
-}
 
-// @ts-ignore
-export default withRouter(Routes);
+  return (
+    <ContextAppProvider value={contextAppState}>
+      <AppSecurityModal isOpen={securityModalOpen} onClose={() => setSecurityModalOpen(false)} />
+
+      {confirmModal.modalIsOpen && <ConfirmModal closeModal={closeConfirmModal} />}
+      {errorModal.modalIsOpen && <ErrorModal closeModal={closeErrorModal} />}
+
+      <div style={{ overflow: "hidden" }}>
+        {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
+          <div className={cstyles.sidebarcontainer}>
+            <Sidebar
+              doRescan={runRPCRescan}
+              navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
+              setBlockExplorer={setBlockExplorer}
+            />
+          </div>
+        )}
+
+        <div className={cstyles.contentcontainer}>
+          <Routes>
+            <Route
+              path={routes.SEND}
+              element={<Send sendTransaction={runRPCSendTransaction} setSendPageState={setSendPageState} />}
+            />
+            <Route path={routes.RECEIVE} element={<Receive />} />
+            <Route
+              path={routes.ADDRESSBOOK}
+              element={
+                <AddressBook
+                  addAddressBookEntry={addAddressBookEntry}
+                  removeAddressBookEntry={removeAddressBookEntry}
+                />
+              }
+            />
+            <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
+            <Route path={routes.INSIGHT} element={<Insight />} />
+            <Route path={routes.HISTORY} element={<History />} />
+            <Route path={routes.MESSAGES} element={<Messages />} />
+            <Route
+              path={routes.ADDNEWWALLET}
+              element={
+                <AddNewWallet
+                  closeModal={navigateToDashboard}
+                  setWallets={setWallets}
+                  setCurrentWallet={setCurrentWallet}
+                  navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
+                  doSaveWallet={() => RPC.doSave()}
+                  clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
+                />
+              }
+            />
+            <Route
+              path={routes.LOADING}
+              element={
+                <LoadingScreen
+                  runRPCConfigure={() => rpcRef.current?.configure()}
+                  setInfo={setInfo}
+                  setReadOnly={setReadOnly}
+                  setServerUris={setServerUris}
+                  navigateToDashboard={navigateToDashboard}
+                  setBirthday={setBirthday}
+                  setPools={setPools}
+                  setWallets={setWallets}
+                  setCurrentWallet={setCurrentWallet}
+                  setCurrentWalletOpenError={setCurrentWalletOpenError}
+                  setFetchError={setFetchError}
+                  setBlockExplorer={setBlockExplorer}
+                />
+              }
+            />
+          </Routes>
+        </div>
+      </div>
+    </ContextAppProvider>
+  );
+};
+
+export default AppRoutes;

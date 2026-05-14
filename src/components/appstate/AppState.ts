@@ -65,8 +65,6 @@ export default class AppState {
   // list of wallets
   wallets: WalletType[];
 
-  seed_phrase: string;
-  ufvk: string;
   birthday: number;
 
   // pools
@@ -116,8 +114,6 @@ export default class AppState {
     this.currentWallet = {} as WalletType;
     this.currentWalletOpenError = "";
     this.wallets = [] as WalletType[];
-    this.seed_phrase = "";
-    this.ufvk = "";
     this.birthday = 0;
     this.orchardPool = true;
     this.saplingPool = true;

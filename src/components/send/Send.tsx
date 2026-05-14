@@ -199,7 +199,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
     try {
       if (sendPageState.toaddr.to) {
         const result: string = await native.get_spendable_balance_with_address(sendPageState.toaddr.to, "false");
-        console.log("SPENDABLEBALANCE", result);
         if (!result || result.toLowerCase().startsWith("error")) {
           _error = result;
           _spendable = 0;
@@ -214,9 +213,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
       }
       if (sendPageState.toaddr.amount >= 0 && sendPageState.toaddr.to && !_error) {
         const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
-        //console.log(sendJson);
         const result: string = await native.send(JSON.stringify(sendJson));
-        console.log("SEND", result);
         if (!result || result.toLowerCase().startsWith("error")) {
           _error = result;
         } else {
@@ -243,7 +240,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
 
   const fetchSendFeeAndErrorAndSpendable = async (): Promise<void> => {
     const { fee, error, spendable } = await calculateSendFee();
-    console.log("AMOUNTS CALCULATION: fee", fee, "spendable", spendable, "error", error);
+    console.error("AMOUNTS CALCULATION: fee", fee, "spendable", spendable, "error", error);
     setSendFee(fee);
     setSendFeeError(error);
     setTotalAmountAvailable(spendable);
@@ -271,8 +268,8 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         currencyName={info.currencyName}
       />
 
-      <div className={[cstyles.well, styles.containermargin].join(" ")}>
-        <div className={[cstyles.balancebox].join(" ")}>
+      <div className={`${cstyles.well} ${styles.containermargin}`}>
+        <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
             zecValue={
@@ -297,13 +294,13 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         <div className={cstyles.balancebox}>
           {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
             <>
-              <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
                 Shield Transparent Balance To Orchard (Fee: {shieldFee})
               </button>
             </>
           )}
           {!!anyPending && (
-            <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
               Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
             </div>
           )}
@@ -318,9 +315,9 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         )}
       </div>
 
-      <div className={[cstyles.xlarge, cstyles.marginnegativetitle, cstyles.center].join(" ")}>Send</div>
+      <div className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>Send</div>
 
-      <div className={[styles.horizontalcontainer].join(" ")}>
+      <div className={styles.horizontalcontainer}>
         <div className={cstyles.containermarginleft}>
           <ScrollPaneTop offsetHeight={260}>
             <ToAddrBox

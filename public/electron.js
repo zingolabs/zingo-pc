@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog, session } = require("electron");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
@@ -418,10 +418,14 @@ if (process.platform === "darwin") {
 // Note: Ubuntu 24.04 uses AppArmor instead of this sysctl — the .deb postinstall
 // fixes that case via chrome-sandbox SUID. AppImage users on 24.04 may still need
 // to run with --no-sandbox manually if AppArmor blocks user namespaces.
+let sandboxDisabled = false;
 if (process.platform === "linux") {
   try {
     const val = fs.readFileSync("/proc/sys/kernel/unprivileged_userns_clone", "utf8").trim();
-    if (val === "0") app.commandLine.appendSwitch("no-sandbox");
+    if (val === "0") {
+      app.commandLine.appendSwitch("no-sandbox");
+      sandboxDisabled = true;
+    }
   } catch {
     /* sysctl not present — sandbox should work */
   }
@@ -568,10 +572,44 @@ ipcMain.handle("wallets:update", async (_e, wallet) => updateWallet(wallet));
 ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
-ipcMain.handle("fs:existsSync", (_e, p) => fs.existsSync(p));
-ipcMain.handle("fs:mkdir", (_e, p, opts) => fs.promises.mkdir(p, opts));
-ipcMain.handle("fs:writeFile", (_e, p, data) => fs.promises.writeFile(p, data));
-ipcMain.handle("fs:readFile", (_e, p) => fs.promises.readFile(p, "utf8"));
+
+// Lazy: app.getPath() requires app.ready — IPC handlers only fire after ready so this is safe.
+// In MAS the containerized path (~/Library/Containers/co.zingo.pc/...) is resolved at runtime.
+let _fsAllowedBases = null;
+function getFsAllowedBases() {
+  if (!_fsAllowedBases) {
+    _fsAllowedBases = [app.getPath("appData"), app.getPath("userData")].map((p) => path.resolve(p) + path.sep);
+  }
+  return _fsAllowedBases;
+}
+function assertFsPath(p) {
+  const resolved = path.resolve(p) + path.sep;
+  if (!getFsAllowedBases().some((base) => resolved.startsWith(base))) {
+    throw new Error(`fs access denied: ${p}`);
+  }
+}
+function assertWalletName(name) {
+  if (typeof name === "string" && name.length > 0 && !/^[\w.-]+$/.test(name)) {
+    throw new Error(`wallet_name rejected: invalid characters`);
+  }
+}
+
+ipcMain.handle("fs:existsSync", (_e, p) => {
+  assertFsPath(p);
+  return fs.existsSync(p);
+});
+ipcMain.handle("fs:mkdir", (_e, p, opts) => {
+  assertFsPath(p);
+  return fs.promises.mkdir(p, opts);
+});
+ipcMain.handle("fs:writeFile", (_e, p, data) => {
+  assertFsPath(p);
+  return fs.promises.writeFile(p, data);
+});
+ipcMain.handle("fs:readFile", (_e, p) => {
+  assertFsPath(p);
+  return fs.promises.readFile(p, "utf8");
+});
 
 // Lazily loads native.node in the main process (shared across all IPC handlers).
 // Path mirrors preload.js: inside an asar, Electron redirects .node loads to
@@ -668,21 +706,26 @@ for (const method of [
 }
 
 // Methods with parameters
-ipcMain.handle("native:wallet_exists", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().wallet_exists(server_uri, chain_hint, perf, min_conf, wallet_name),
-);
-ipcMain.handle("native:init_new", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().init_new(server_uri, chain_hint, perf, min_conf, wallet_name),
-);
-ipcMain.handle("native:init_from_seed", (_e, seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().init_from_seed(seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name),
-);
-ipcMain.handle("native:init_from_ufvk", (_e, ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().init_from_ufvk(ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name),
-);
-ipcMain.handle("native:init_from_b64", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().init_from_b64(server_uri, chain_hint, perf, min_conf, wallet_name),
-);
+ipcMain.handle("native:wallet_exists", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().wallet_exists(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:init_new", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().init_new(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:init_from_seed", (_e, seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().init_from_seed(seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:init_from_ufvk", (_e, ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().init_from_ufvk(ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:init_from_b64", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().init_from_b64(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
 ipcMain.handle("native:set_wallet_base_dir", (_e, dirPath) => getNative().set_wallet_base_dir(dirPath));
 ipcMain.handle("native:start_security_scoped_access", (_e, bookmark_b64) =>
   getNative().start_security_scoped_access(bookmark_b64),
@@ -703,9 +746,10 @@ ipcMain.handle("native:set_config_wallet_to_prod", (_e, perf, min_conf) =>
   getNative().set_config_wallet_to_prod(perf, min_conf),
 );
 ipcMain.handle("native:send", (_e, send_json) => getNative().send(send_json));
-ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) =>
-  getNative().delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name),
-);
+ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return getNative().delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
 ipcMain.handle("native:create_tor_client", (_e, data_dir) => getNative().create_tor_client(data_dir));
 ipcMain.handle("native:change_server", (_e, server_uri) => getNative().change_server(server_uri));
 
@@ -859,6 +903,20 @@ function createWindow() {
   const ignore = process.platform !== "darwin";
   mainWindow.webContents.setIgnoreMenuShortcuts(ignore);
 
+  // Block new windows — open https:// URLs in the system browser instead.
+  // Prevents a compromised renderer from spawning a window that inherits the preload.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://")) shell.openExternal(url);
+    return { action: "deny" };
+  });
+
+  // Block navigation away from the app URL.
+  // Prevents the renderer from loading an external page inside the Electron window.
+  const appOrigin = isDev ? "http://localhost:3000" : "file://";
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(appOrigin)) event.preventDefault();
+  });
+
   // Load from localhost if in development
   // Otherwise load index.html file
   mainWindow.loadURL(isDev ? "http://localhost:3000" : `file://${path.join(__dirname, "../build/index.html")}`);
@@ -894,6 +952,25 @@ function createWindow() {
 
   const menuBuilder = new MenuBuilder(mainWindow);
   menuBuilder.buildMenu();
+
+  if (sandboxDisabled) {
+    // Log to startup.log if available (log() is only defined in the !isDev block above).
+    if (typeof log === "function") log("WARNING: Chromium sandbox disabled (unprivileged_userns_clone=0)");
+    mainWindow.webContents.once("did-finish-load", () => {
+      dialog.showMessageBox(mainWindow, {
+        type: "warning",
+        title: "Security Warning",
+        message: "Chromium sandbox is disabled",
+        detail:
+          "Zingo PC is running without the Chromium process sandbox because your system " +
+          "has user namespaces disabled (unprivileged_userns_clone=0).\n\n" +
+          "This reduces the security isolation of the application. " +
+          "For full security, install the .deb package instead of the AppImage — " +
+          "it enables the sandbox automatically via the chrome-sandbox SUID helper.",
+        buttons: ["OK"],
+      });
+    });
+  }
 
   mainWindow.on("close", (event) => {
     // If we are clear to close, then return and allow everything to close
@@ -995,6 +1072,33 @@ app.whenReady().then(async () => {
       console.warn("Devtools not installed (ok in prod):", e?.message ?? e);
     }
   }
+
+  // CSP via HTTP headers — takes priority over the meta-tag in index.html.
+  // Production is strict (no unsafe-inline). Dev keeps HMR working.
+  const CSP_PRODUCTION = [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self'",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+  ].join("; ");
+
+  const CSP_DEVELOPMENT = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "connect-src 'self' http://localhost:* ws://localhost:*",
+  ].join("; ");
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        "Content-Security-Policy": [isDev ? CSP_DEVELOPMENT : CSP_PRODUCTION],
+      },
+    });
+  });
 
   createWindow();
 });

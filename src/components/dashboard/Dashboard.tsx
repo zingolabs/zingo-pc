@@ -9,7 +9,7 @@ import routes from "../../constants/routes.json";
 import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import DetailLine from "../detailLine/DetailLine";
-import { RouteComponentProps, withRouter } from "react-router";
+import { useNavigate } from "react-router-dom";
 
 type DashboardProps = {
   navigateToHistory: () => void;
@@ -22,7 +22,8 @@ const chains = {
   "": "",
 };
 
-const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToHistory, history }) => {
+const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
+  const navigate = useNavigate();
   const context = useContext(ContextApp);
   const {
     totalBalance,
@@ -62,12 +63,10 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
     }
   }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
-  //console.log('Dashborad', birthday, syncingStatus);
-
   return (
     <div>
       {currentWallet !== null && !currentWalletOpenError && (
-        <div className={[cstyles.well, styles.containermargin].join(" ")}>
+        <div className={`${cstyles.well} ${styles.containermargin}`}>
           <div className={cstyles.balancebox}>
             <BalanceBlockHighlight
               topLabel="All Funds"
@@ -129,13 +128,13 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
           <div className={cstyles.balancebox}>
             {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
               <>
-                <button className={[cstyles.primarybutton].join(" ")} type="button" onClick={handleShieldButton}>
+                <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
                   Shield Transparent Balance To Orchard (Fee: {shieldFee})
                 </button>
               </>
             )}
             {!!anyPending && (
-              <div className={[cstyles.red, cstyles.small, cstyles.padtopsmall].join(" ")}>
+              <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
                 Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
               </div>
             )}
@@ -150,7 +149,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
           )}
         </div>
       )}
-      <div className={[styles.horizontalcontainer].join(" ")}>
+      <div className={styles.horizontalcontainer}>
         {currentWallet !== null && !currentWalletOpenError && birthday >= 0 && !!syncingStatus.scan_ranges && (
           <div style={{ justifyContent: "center", alignItems: "center", textAlign: "center" }}>
             Nonlinear Scanning Map
@@ -325,7 +324,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
         )}
       </div>
 
-      <div className={[styles.detailcontainer].join(" ")}>
+      <div className={styles.detailcontainer}>
         <div className={cstyles.containermargin}>
           <ScrollPaneTop offsetHeight={260}>
             <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", padding: 20 }}>
@@ -347,18 +346,23 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
                                 />
                               ))}
                           </div>
-                          <div
+                          <button
+                            type="button"
                             style={{
                               width: "100%",
                               textAlign: "right",
                               color: Utils.getCssVariable("--color-primary"),
                               marginTop: 20,
                               cursor: "pointer",
+                              background: "none",
+                              border: "none",
+                              padding: 0,
+                              font: "inherit",
                             }}
                             onClick={() => navigateToHistory()}
                           >
                             See more...
-                          </div>
+                          </button>
                         </>
                       ) : (
                         <div className={styles.detaillines}>No Transactions Yet</div>
@@ -420,7 +424,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
                     type="button"
                     className={cstyles.primarybutton}
                     onClick={() => {
-                      history.push(routes.ADDNEWWALLET, { mode: "addnew" });
+                      navigate(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
                     }}
                   >
                     Add New Wallet
@@ -456,7 +460,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
                       type="button"
                       className={cstyles.primarybutton}
                       onClick={() => {
-                        history.push(routes.ADDNEWWALLET, { mode: "settings" });
+                        navigate(routes.ADDNEWWALLET, { state: { mode: "settings" } });
                       }}
                     >
                       Wallet Settings
@@ -465,7 +469,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
                       type="button"
                       className={cstyles.primarybutton}
                       onClick={() => {
-                        history.push(routes.ADDNEWWALLET, { mode: "delete" });
+                        navigate(routes.ADDNEWWALLET, { state: { mode: "delete" } });
                       }}
                     >
                       Delete Wallet
@@ -481,4 +485,4 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
   );
 };
 
-export default withRouter(Dashboard);
+export default Dashboard;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import {
   AccordionItem,
   AccordionItemHeading,
@@ -49,18 +49,22 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
   const [creating, setCreating] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
-  const [anyPending, setAnyPending] = useState<boolean>(false);
 
   const [unifiedCreateType, setUnifiedCreateType] = useState<"o" | "z" | "oz">("o");
 
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const creatingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
-    const pending: number =
-      valueTransfers.length > 0
-        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
-        : 0;
-    setAnyPending(pending > 0);
-  }, [valueTransfers]);
+    return () => {
+      clearTimeout(copiedTimerRef.current);
+      clearTimeout(creatingTimerRef.current);
+    };
+  }, []);
+
+  const anyPending: boolean = useMemo(
+    () => valueTransfers.some((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3),
+    [valueTransfers],
+  );
 
   useEffect(() => {
     if (
@@ -77,7 +81,6 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   }, [calculateShieldFee, address, anyPending, readOnly, totalBalance.confirmedTransparentBalance, type]);
 
   const handleQRCodeClick = async () => {
-    //console.log('____________ click processed');
     const canvas: HTMLCanvasElement | null = document.querySelector("canvas");
     if (canvas) {
       const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
@@ -92,29 +95,29 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
   return (
     <div>
-      <AccordionItem key={copied ? 1 : 0} className={[styles.receiveblock].join(" ")} uuid={address_address}>
+      <AccordionItem key={copied ? 1 : 0} className={styles.receiveblock} uuid={address_address}>
         <AccordionItemHeading>
           <AccordionItemButton className={cstyles.accordionHeader}>
-            <div className={[cstyles.verticalflex].join(" ")}>
+            <div className={cstyles.verticalflex}>
               {!!address_address && address_address.length < 80
                 ? address_address
                 : Utils.splitStringIntoChunks(address_address, 3).map((item) => <div key={item}>{item}</div>)}
             </div>
           </AccordionItemButton>
         </AccordionItemHeading>
-        <AccordionItemPanel className={[styles.receiveDetail].join(" ")}>
-          <div className={[cstyles.flexspacebetween].join(" ")}>
-            <div className={[cstyles.verticalflex, cstyles.marginleft].join(" ")}>
+        <AccordionItemPanel className={styles.receiveDetail}>
+          <div className={cstyles.flexspacebetween}>
+            <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`}>
               {label && (
                 <div className={cstyles.margintoplarge}>
-                  <div className={[cstyles.sublight].join(" ")}>Label</div>
-                  <div className={[cstyles.padtopsmall, cstyles.fixedfont].join(" ")}>{label}</div>
+                  <div className={cstyles.sublight}>Label</div>
+                  <div className={`${cstyles.padtopsmall} ${cstyles.fixedfont}`}>{label}</div>
                 </div>
               )}
 
               {type === "u" && (
                 <div>
-                  <div className={[cstyles.sublight].join(" ")}>
+                  <div className={cstyles.sublight}>
                     Address type: {Utils.getReceivers(address as UnifiedAddressClass).join(" + ")}
                   </div>
                 </div>
@@ -122,19 +125,19 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
               {type === "t" && (
                 <div>
-                  <div className={[cstyles.sublight].join(" ")}>Address type: Transparent</div>
+                  <div className={cstyles.sublight}>Address type: Transparent</div>
                 </div>
               )}
 
               <div>
                 <button
                   disabled={copied}
-                  className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                   type="button"
                   onClick={() => {
                     setCopied(true);
                     clipboard.writeText(address_address);
-                    setTimeout(() => setCopied(false), 5000);
+                    copiedTimerRef.current = setTimeout(() => setCopied(false), 5000);
                   }}
                 >
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
@@ -142,7 +145,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                   <button
-                    className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                    className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                     type="button"
                     onClick={() =>
                       Utils.openAddress(
@@ -157,7 +160,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                       )
                     }
                   >
-                    View on explorer <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    View on explorer <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
                   </button>
                 )}
                 {type === "t" &&
@@ -167,7 +170,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   !anyPending && (
                     <>
                       <button
-                        className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                        className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                         type="button"
                         onClick={handleShieldButton}
                       >
@@ -188,6 +191,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               >
                 {type === "u" && (
                   <select
+                    aria-label="New address type"
                     className={cstyles.inputbox}
                     style={{ marginLeft: 10 }}
                     value={unifiedCreateType}
@@ -208,7 +212,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 )}
                 <button
                   disabled={creating}
-                  className={[cstyles.primarybutton, cstyles.margintoplarge].join(" ")}
+                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                   type="button"
                   onClick={async () => {
                     setCreating(true);
@@ -221,7 +225,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     if (!result || result.toLowerCase().startsWith("error")) {
                       openErrorModal("New Address", result ? result : "Error: creating a new address.");
                     }
-                    setTimeout(() => setCreating(false), 5000);
+                    creatingTimerRef.current = setTimeout(() => setCreating(false), 5000);
                   }}
                 >
                   {creating ? <span>Creating...</span> : <span>New Address</span>}
@@ -229,18 +233,24 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               </div>
             </div>
             <div style={{ marginRight: 10 }}>
-              {/* 
-              // @ts-ignore */}
-              <QRCodeCanvas
-                includeMargin={true}
-                size={300}
-                value={address_address}
-                className={[styles.receiveQrcode].join(" ")}
+              <button
+                type="button"
+                aria-label="Download QR code"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "block" }}
                 onClick={handleQRCodeClick}
-              />
-              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", opacity: 0.5 }}>
-                {"Click to download"}
-              </div>
+              >
+                {/*
+                // @ts-ignore */}
+                <QRCodeCanvas
+                  includeMargin={true}
+                  size={300}
+                  value={address_address}
+                  className={styles.receiveQrcode}
+                />
+                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", opacity: 0.5 }}>
+                  {"Click to download"}
+                </div>
+              </button>
             </div>
           </div>
         </AccordionItemPanel>

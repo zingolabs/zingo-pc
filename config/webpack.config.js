@@ -215,14 +215,6 @@ module.exports = function (webpackEnv) {
                   [require.resolve("babel-preset-react-app"), { runtime: hasJsxRuntime ? "automatic" : "classic" }],
                 ],
                 plugins: [
-                  [
-                    require.resolve("babel-plugin-named-asset-import"),
-                    {
-                      loaderMap: {
-                        svg: { ReactComponent: "@svgr/webpack?-svgo,+titleProp,+ref![path]" },
-                      },
-                    },
-                  ],
                   require.resolve("@babel/plugin-transform-class-properties"),
                   require.resolve("@babel/plugin-transform-private-methods"),
                   require.resolve("@babel/plugin-transform-private-property-in-object"),

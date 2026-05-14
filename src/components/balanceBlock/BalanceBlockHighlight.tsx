@@ -20,18 +20,18 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
   return (
     <div style={{ padding: "1em" }} title={tooltip}>
       {topLabel && (
-        <div className={[cstyles.small].join(" ")}>
+        <div className={cstyles.small}>
           {topLabel}
           {tooltip && (
             <span>
               &nbsp;
-              <i className={[cstyles.green, "fas", "fa-info-circle"].join(" ")} />
+              <i className={`${cstyles.green} ${"fas"} ${"fa-info-circle"}`} />
             </span>
           )}
         </div>
       )}
 
-      <div className={[cstyles.highlight, cstyles.xlarge].join(" ")}>
+      <div className={`${cstyles.highlight} ${cstyles.xlarge}`}>
         <span
           style={{
             color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
@@ -43,7 +43,7 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
           style={{
             color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
           }}
-          className={[cstyles.small, cstyles.zecsmallpart].join(" ")}
+          className={`${cstyles.small} ${cstyles.zecsmallpart}`}
         >
           {smallPart}
         </span>
@@ -53,7 +53,7 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
           style={{
             color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
           }}
-          className={[cstyles.sublight, cstyles.small].join(" ")}
+          className={`${cstyles.sublight} ${cstyles.small}`}
         >
           {usdValue}
         </div>
@@ -61,9 +61,9 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
 
       {zecValueConfirmed !== undefined && zecValue !== zecValueConfirmed && (
         <>
-          <div className={[cstyles.small].join(" ")}>{topLabel + " Confirmed"}</div>
+          <div className={cstyles.small}>{topLabel + " Confirmed"}</div>
           <div className={cstyles.horizontalflex}>
-            <div className={[cstyles.highlight, cstyles.small].join(" ")}>
+            <div className={`${cstyles.highlight} ${cstyles.small}`}>
               <span
                 style={{
                   color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
@@ -75,7 +75,7 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
                 style={{
                   color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
                 }}
-                className={[cstyles.small, cstyles.zecsmallpart].join(" ")}
+                className={`${cstyles.small} ${cstyles.zecsmallpart}`}
               >
                 {smallPartConfirmed}
               </span>
@@ -86,7 +86,7 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
                   color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
                   marginLeft: 5,
                 }}
-                className={[cstyles.sublight, cstyles.small].join(" ")}
+                className={`${cstyles.sublight} ${cstyles.small}`}
               >
                 {usdValueConfirmed}
               </div>

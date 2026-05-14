@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import Modal from "react-modal";
-import { RouteComponentProps, withRouter } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
 import {
@@ -34,7 +34,7 @@ type SendConfirmModalProps = {
   currencyName: string;
 };
 
-const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = ({
+const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   sendPageState,
   totalBalance,
   info,
@@ -42,9 +42,9 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
   clearToAddrs,
   closeModal,
   modalIsOpen,
-  history,
   sendFee,
 }) => {
+  const navigate = useNavigate();
   const context = useContext(ContextApp);
   const {
     currentWallet,
@@ -59,6 +59,8 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
   const [bigPart, setBigPart] = useState<string>("");
   const [smallPart, setSmallPart] = useState<string>("");
   const [privacyLevel, setPrivacyLevel] = useState<string>("");
+
+  const currentChainName = currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName;
 
   const getPrivacyLevel = useCallback(
     async (toaddr: ToAddrClass) => {
@@ -91,19 +93,17 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
         }
 
         try {
-          resultJSON = await JSON.parse(result);
+          resultJSON = JSON.parse(result);
         } catch (error) {
-          console.log("parse-address", error);
+          console.error("parse-address", error);
           return "-";
         }
       } catch (error) {
-        console.log(`Critical Error parse address ${error}`);
+        console.error(`Critical Error parse address ${error}`);
         return "-";
       }
 
-      //console.log('parse-address', address, resultJSON.status === 'success');
-
-      const currChain = currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName;
+      const currChain = currentChainName;
 
       if (
         !(
@@ -120,8 +120,6 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
       if (resultJSON.status !== "success") {
         return "-";
       }
-
-      //console.log(from, result, resultJSON);
 
       // Private -> orchard to orchard (UA with orchard receiver)
       if (
@@ -184,7 +182,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
       // whatever else
       return "-";
     },
-    [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance, currentWallet],
+    [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance, currentChainName],
   );
 
   useEffect(() => {
@@ -265,7 +263,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
                     }
                   >
                     View TXID &nbsp;
-                    <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                    <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
                   </div>
                   {txids.length > 1 && (
                     <div
@@ -285,7 +283,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
                       }
                     >
                       View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                      <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
                     </div>
                   )}
                   {txids.length > 2 && (
@@ -306,7 +304,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
                       }
                     >
                       View TXID &nbsp;
-                      <i className={["fas", "fa-external-link-square-alt"].join(" ")} />
+                      <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
                     </div>
                   )}
                 </div>
@@ -318,10 +316,10 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
         clearToAddrs();
 
         // Redirect to dashboard after
-        history.push(routes.DASHBOARD);
+        navigate(routes.DASHBOARD);
       } catch (err) {
         // If there was an error, show the error modal
-        openErrorModal("Error Sending Transaction", `${err}`);
+        openErrorModal("Error Sending Transaction", err instanceof Error ? err.message : `${err}`);
       }
     }, 10);
   };
@@ -333,25 +331,19 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
       className={styles.confirmModal}
       overlayClassName={styles.confirmOverlay}
     >
-      <div className={[cstyles.verticalflex].join(" ")}>
-        <div className={[cstyles.marginbottomlarge, cstyles.center].join(" ")}>Confirm Transaction</div>
+      <div className={cstyles.verticalflex}>
+        <div className={`${cstyles.marginbottomlarge} ${cstyles.center}`}>Confirm Transaction</div>
         <div className={cstyles.flex}>
           <div
-            className={[
-              cstyles.highlight,
-              cstyles.xlarge,
-              cstyles.flexspacebetween,
-              cstyles.well,
-              cstyles.maxwidth,
-            ].join(" ")}
+            className={`${cstyles.highlight} ${cstyles.xlarge} ${cstyles.flexspacebetween} ${cstyles.well} ${cstyles.maxwidth}`}
           >
             <div>Total</div>
-            <div className={[cstyles.right, cstyles.verticalflex].join(" ")}>
+            <div className={`${cstyles.right} ${cstyles.verticalflex}`}>
               <div>
                 <span>
                   {info.currencyName} {bigPart}
                 </span>
-                <span className={[cstyles.small, styles.zecsmallpart].join(" ")}>{smallPart}</span>
+                <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{smallPart}</span>
               </div>
               {info.currencyName === "ZEC" && (
                 <div className={cstyles.normal}>{Utils.getZecToUsdString(info.zecPrice, sendingTotal)}</div>
@@ -360,9 +352,9 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
           </div>
         </div>
 
-        <div className={[cstyles.verticalflex, cstyles.margintoplarge].join(" ")}>
+        <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
           <ScrollPaneTop offsetHeight={350}>
-            <div className={[cstyles.verticalflex].join(" ")}>
+            <div className={cstyles.verticalflex}>
               {[sendPageState.toaddr].map((t) => (
                 <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
               ))}
@@ -370,9 +362,9 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
             <ConfirmModalToAddr toaddr={{ to: "Fee", amount: sendFee, memo: "", memoReplyTo: "" }} info={info} />
 
             <div className={cstyles.well}>
-              <div className={[cstyles.flexspacebetween, cstyles.margintoplarge].join(" ")}>
-                <div className={[styles.confirmModalAddress].join(" ")}>Privacy Level</div>
-                <div className={[cstyles.verticalflex, cstyles.right].join(" ")}>
+              <div className={`${cstyles.flexspacebetween} ${cstyles.margintoplarge}`}>
+                <div className={styles.confirmModalAddress}>Privacy Level</div>
+                <div className={`${cstyles.verticalflex} ${cstyles.right}`}>
                   <div className={cstyles.large}>
                     <div>
                       <span>{privacyLevel}</span>
@@ -385,11 +377,11 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
         </div>
 
         <div className={cstyles.buttoncontainer}>
-          <button type="button" className={cstyles.primarybutton} onClick={() => sendButton()}>
-            Send
-          </button>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
             Cancel
+          </button>
+          <button type="button" className={cstyles.primarybutton} onClick={() => sendButton()}>
+            Send
           </button>
         </div>
       </div>
@@ -397,4 +389,4 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
   );
 };
 
-export default withRouter(SendConfirmModal);
+export default SendConfirmModal;

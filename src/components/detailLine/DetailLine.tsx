@@ -10,7 +10,7 @@ type DetailLineProps = {
 const DetailLine = ({ label, value }: DetailLineProps) => {
   return (
     <div className={styles.detailline}>
-      <div className={[cstyles.sublight].join(" ")}>{label} :</div>
+      <div className={cstyles.sublight}>{label} :</div>
       <div className={cstyles.breakword}>{value}</div>
     </div>
   );

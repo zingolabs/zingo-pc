@@ -69,6 +69,7 @@ const ToAddrBox = ({
   }, [toaddr.to, toaddr.amount, toaddr.memo]);
 
   useEffect(() => {
+    let buttonTimerId: ReturnType<typeof setTimeout> | undefined;
     (async () => {
       const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(toLocal, serverChainName);
       setAddressKind(_addressKind);
@@ -139,13 +140,14 @@ const ToAddrBox = ({
         buttonstate = false;
       }
 
-      setTimeout(() => {
+      buttonTimerId = setTimeout(() => {
         setSendButtonEnabled(buttonstate);
       }, 10);
 
       const usdValue: string = Utils.getZecToUsdString(zecPrice, amountLocal);
       setUsdValue(usdValue);
     })();
+    return () => clearTimeout(buttonTimerId);
   }, [
     fetchSendFeeAndErrorAndSpendable,
     fromAmount,
@@ -181,29 +183,28 @@ const ToAddrBox = ({
     return labelStr;
   };
 
-  //console.log(sendFeeError);
-
   return (
     <div>
-      <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
-        <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
+      <div className={`${cstyles.well} ${cstyles.verticalflex}`}>
+        <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
           <div className={cstyles.horizontalflex}>
             <div className={cstyles.sublight}>To </div>
             <div style={{ fontWeight: 900, marginLeft: 20 }}>{getLabelAddressBook(toLocal)}</div>
           </div>
-          <div className={[cstyles.sublight, cstyles.green].join(" ")}>
+          <div className={`${cstyles.sublight} ${cstyles.green}`}>
             {addressKind !== undefined && addressKind === AddressKindEnum.tex && "TEX"}
             {addressKind !== undefined && addressKind === AddressKindEnum.transparent && "Transparent"}
             {addressKind !== undefined && addressKind === AddressKindEnum.sapling && "Sapling"}
             {addressKind !== undefined && addressKind === AddressKindEnum.unified && "Unified"}
           </div>
           <div className={cstyles.validationerror}>
-            {addressIsValid === 1 && <i className={[cstyles.green, "fas", "fa-check"].join(" ")} />}
+            {addressIsValid === 1 && <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />}
             {addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
           </div>
         </div>
         <input
           type="text"
+          aria-label="Recipient address"
           placeholder="Unified | Sapling | Transparent | TEX address"
           className={cstyles.inputbox}
           value={toLocal}
@@ -215,9 +216,9 @@ const ToAddrBox = ({
 
         <Spacer />
 
-        <div className={[cstyles.well, cstyles.flexspacebetween].join(" ")}>
-          <div style={{ width: "60%" }} className={[cstyles.verticalflex].join(" ")}>
-            <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
+        <div className={`${cstyles.well} ${cstyles.flexspacebetween}`}>
+          <div style={{ width: "60%" }} className={cstyles.verticalflex}>
+            <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
               <div className={cstyles.sublight}>Amount</div>
               <div className={cstyles.validationerror}>
                 {amountError ? (
@@ -227,9 +228,10 @@ const ToAddrBox = ({
                 ) : null}
               </div>
             </div>
-            <div className={[cstyles.flexspacebetween].join(" ")}>
+            <div className={cstyles.flexspacebetween}>
               <input
                 type="number"
+                aria-label="Amount"
                 step="any"
                 className={cstyles.inputbox}
                 value={isNaN(amountLocal) ? "" : amountLocal}
@@ -238,16 +240,18 @@ const ToAddrBox = ({
                   updateToField(null, e.target.value, null);
                 }}
               />
-              <img
-                className={styles.toaddrbutton}
-                src={ArrowUpLight}
-                alt="Max"
+              <button
+                type="button"
+                aria-label="Set maximum amount"
+                style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
                 onClick={() => setMaxAmount(fromAmount)}
-              />
+              >
+                <img className={styles.toaddrbutton} src={ArrowUpLight} alt="" />
+              </button>
             </div>
           </div>
-          <div style={{ width: "30%" }} className={[cstyles.verticalflex].join(" ")}>
-            <div style={{ marginBottom: 5 }} className={[cstyles.horizontalflex].join(" ")}>
+          <div style={{ width: "30%" }} className={cstyles.verticalflex}>
+            <div style={{ marginBottom: 5 }} className={cstyles.horizontalflex}>
               <div
                 style={{
                   color:
@@ -260,19 +264,20 @@ const ToAddrBox = ({
                 Fee
               </div>
               <div style={{ paddingTop: 3, paddingLeft: 10 }} title={sendFeeError}>
-                <div className={[cstyles.small].join(" ")}>
+                <div className={cstyles.small}>
                   {sendFeeError && !amountError && addressIsValid !== -1 && (
                     <span>
                       &nbsp;
-                      <i className={[cstyles.red, "fas", "fa-info-circle"].join(" ")} />
+                      <i className={`${cstyles.red} ${"fas"} ${"fa-info-circle"}`} />
                     </span>
                   )}
                 </div>
               </div>
             </div>
-            <div className={[cstyles.flexspacebetween].join(" ")}>
+            <div className={cstyles.flexspacebetween}>
               <input
                 type="number"
+                aria-label="Transaction fee"
                 step="any"
                 className={cstyles.inputbox}
                 value={isNaN(sendFee) ? "" : sendFee}
@@ -288,7 +293,7 @@ const ToAddrBox = ({
 
         {!isMemoDisabled && (
           <div className={cstyles.verticalflex}>
-            <div style={{ marginBottom: 5 }} className={[cstyles.flexspacebetween].join(" ")}>
+            <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
               <div className={cstyles.sublight}>Memo</div>
               <div className={cstyles.validationerror}>
                 {memoError ? (
@@ -299,7 +304,7 @@ const ToAddrBox = ({
               </div>
             </div>
             <TextareaAutosize
-              className={[cstyles.inputbox].join(" ")}
+              className={cstyles.inputbox}
               value={memoLocal}
               disabled={isMemoDisabled}
               onChange={(e) => {
@@ -311,7 +316,7 @@ const ToAddrBox = ({
             />
             {toaddr.memoReplyTo && (
               <TextareaAutosize
-                className={[cstyles.inputbox].join(" ")}
+                className={cstyles.inputbox}
                 value={toaddr.memoReplyTo}
                 disabled={true}
                 minRows={2}

@@ -34,8 +34,8 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
   const timePart: string = dateformat(txDate, "hh:MM tt");
 
   const amount: number = vt.amount;
-  const label: string | undefined = addressBookMap.get(vt.address);
-  const address: string = vt.address;
+  const label: string | undefined = vt.address ? addressBookMap.get(vt.address) : undefined;
+  const address: string | undefined = vt.address;
   const memos: string = vt.memos && vt.memos.length > 0 && !!vt.memos.join("") ? vt.memos.join("\n") : "";
 
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(amount);
@@ -72,27 +72,46 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
               ? Utils.getCssVariable("--color-primary-disable")
               : Utils.getCssVariable("--color-primary"),
         }}
-        className={[cstyles.well, styles.txbox].join(" ")}
+        role="button"
+        tabIndex={0}
+        className={`${cstyles.well} ${styles.txbox}`}
         onClick={() => {
           setValueTransferDetail(vt);
           setValueTransferDetailIndex(index);
           setModalIsOpen(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setValueTransferDetail(vt);
+            setValueTransferDetailIndex(index);
+            setModalIsOpen(true);
+          }
         }}
       >
         <div className={styles.txaddressmemo}>
           <div className={styles.txaddress}>
             {!!label && <div style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }}>{label}</div>}
             {!!address && !label && (
-              <div
-                style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }}
-                className={[cstyles.verticalflex].join(" ")}
-              >
+              <div style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }} className={cstyles.verticalflex}>
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Copy address"
                   style={{ cursor: "pointer" }}
                   onClick={() => {
                     if (address) {
                       clipboard.writeText(address);
                       setExpandAddress(true);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      if (address) {
+                        clipboard.writeText(address);
+                        setExpandAddress(true);
+                      }
                     }
                   }}
                 >
@@ -111,7 +130,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
               </div>
             )}
           </div>
-          <div className={[cstyles.padtopsmall, cstyles.memodiv, styles.txmemo].join(" ")}>{memos ? memos : null}</div>
+          <div className={`${cstyles.padtopsmall} ${cstyles.memodiv} ${styles.txmemo}`}>{memos ? memos : null}</div>
         </div>
       </div>
       <div
@@ -122,7 +141,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           marginBottom: 15,
           marginTop: 5,
         }}
-        className={[cstyles.horizontalflex].join(" ")}
+        className={cstyles.horizontalflex}
       >
         {amount >= 0.01 ? (
           <>
@@ -135,25 +154,22 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
                 " ",
               )}
             >
-              <div
-                style={{ alignItems: "baseline" }}
-                className={[cstyles.padtopsmall, cstyles.horizontalflex].join(" ")}
-              >
+              <div style={{ alignItems: "baseline" }} className={`${cstyles.padtopsmall} ${cstyles.horizontalflex}`}>
                 <div>
                   {currencyName} {bigPart}
                 </div>
-                <div className={[cstyles.small, cstyles.zecsmallpart].join(" ")}>{smallPart}</div>
+                <div className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPart}</div>
               </div>
             </div>
-            <div style={{ opacity: 0.4 }} className={[cstyles.horizontalflex].join(" ")}>
-              <div className={[].join(" ")}>{datePart + " ,"}</div>
-              <div className={[].join(" ")}>{timePart}</div>
+            <div style={{ opacity: 0.4 }} className={cstyles.horizontalflex}>
+              <div className={""}>{datePart + " ,"}</div>
+              <div className={""}>{timePart}</div>
             </div>
           </>
         ) : (
-          <div style={{ opacity: 0.4, marginLeft: 20, marginRight: 20 }} className={[cstyles.horizontalflex].join(" ")}>
-            <div className={[].join(" ")}>{datePart + " ,"}</div>
-            <div className={[].join(" ")}>{timePart}</div>
+          <div style={{ opacity: 0.4, marginLeft: 20, marginRight: 20 }} className={cstyles.horizontalflex}>
+            <div className={""}>{datePart + " ,"}</div>
+            <div className={""}>{timePart}</div>
           </div>
         )}
         {vt.status === ValueTransferStatusEnum.failed && (

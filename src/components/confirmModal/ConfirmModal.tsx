@@ -19,7 +19,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
       className={cstyles.modal}
       overlayClassName={cstyles.modalOverlay}
     >
-      <div className={[cstyles.verticalflex].join(" ")}>
+      <div className={cstyles.verticalflex}>
         <div className={cstyles.marginbottomlarge} style={{ textAlign: "center" }}>
           {title}
         </div>
@@ -35,6 +35,11 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
       <div className={cstyles.verticalflex} style={{ justifyContent: "center", alignItems: "center" }}>
         <div className={cstyles.horizontalflex}>
           <div className={cstyles.buttoncontainer}>
+            <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+              Close
+            </button>
+          </div>
+          <div className={cstyles.buttoncontainer}>
             <button
               type="button"
               className={cstyles.primarybutton}
@@ -44,11 +49,6 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
               }}
             >
               Confirm
-            </button>
-          </div>
-          <div className={cstyles.buttoncontainer}>
-            <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-              Close
             </button>
           </div>
         </div>

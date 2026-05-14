@@ -14,7 +14,7 @@ import {
 import serverUrisList from "../../utils/serverUrisList";
 import Utils from "../../utils/utils";
 import { native, ipcRenderer } from "../../electronBridge";
-import { RouteComponentProps } from "react-router";
+import { useLocation } from "react-router-dom";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import RPC from "../../rpc/rpc";
 
@@ -27,15 +27,15 @@ type AddNewWalletProps = {
   clearTimers: () => Promise<void>;
 };
 
-const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
+const AddNewWallet: React.FC<AddNewWalletProps> = ({
   closeModal,
   setWallets,
   setCurrentWallet,
   navigateToLoadingScreenChangingWallet,
   doSaveWallet,
   clearTimers,
-  location,
 }) => {
+  const location = useLocation();
   let mode: "addnew" | "settings" | "delete" = "addnew";
   if (location.state) {
     const locationState = location.state as {
@@ -62,9 +62,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   const [autoServer, setAutoServer] = useState<string>("");
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
-
-  //const [customChain, setCustomChain] = useState<ServerChainNameEnum | ''>("");
-  //const [autoChain, setAutoChain] = useState<ServerChainNameEnum | ''>("");
 
   const [servers, setServers] = useState<ServerClass[]>(
     serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false),
@@ -95,7 +92,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
   };
 
   const initialServerValue = useCallback(
-    (server: string, chain_name: ServerChainNameEnum | "", selection: ServerSelectionEnum | "") => {
+    (server: string, _chain_name: ServerChainNameEnum | "", selection: ServerSelectionEnum | "") => {
       if (selection === ServerSelectionEnum.custom) {
         setCustomServer(server);
 
@@ -226,7 +223,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         // restore the previous wallet
         loadCurrentWallet();
       } else {
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
 
         await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
@@ -241,7 +238,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
-      console.log(`Critical Error create new wallet ${error}`);
+      console.error(`Critical Error create new wallet ${error}`);
       openErrorModal("Creating New wallet", `${error}`);
       // restore the previous wallet
       loadCurrentWallet();
@@ -265,7 +262,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         // restore the previous wallet
         loadCurrentWallet();
       } else {
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
         const seed_phrase: string = resultJSON.seed_phrase;
 
         await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
@@ -275,12 +272,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
         // save the wallet
+        setSeedPhrase("");
         doSaveWallet();
         await delay(1000);
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
-      console.log(`Critical Error restore from seed ${error}`);
+      console.error(`Critical Error restore from seed ${error}`);
       openErrorModal("Restoring wallet from seed", `${error}`);
       // restore the previous wallet
       loadCurrentWallet();
@@ -327,7 +325,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         // restore the previous wallet
         loadCurrentWallet();
       } else {
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
         const ufvk: string = resultJSON.ufvk;
 
         createNextWallet(id, wallet_name, alias ? alias : `${ufvk.substring(0, 10)}...`);
@@ -337,12 +335,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
         await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
         // save the wallet
+        setUfvk("");
         doSaveWallet();
         await delay(1000);
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
-      console.log(`Critical Error restore from ufvk ${error}`);
+      console.error(`Critical Error restore from ufvk ${error}`);
       openErrorModal("Restoring wallet from ufvk", `${error}`);
       // restore the previous wallet
       loadCurrentWallet();
@@ -361,13 +360,12 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         3,
         wallet_name,
       );
-      console.log(`Initialization: ${result}`);
       if (!result || result.toLowerCase().startsWith("error")) {
         openErrorModal("Restoring wallet from file", result);
         // restore the previous wallet
         loadCurrentWallet();
       } else {
-        const resultJSON = await JSON.parse(result);
+        const resultJSON = JSON.parse(result);
         const birthday: number = resultJSON.birthday;
 
         if (birthday < activationHeight[selectedChain]) {
@@ -389,7 +387,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         navigateToLoadingScreenChangingWallet();
       }
     } catch (error) {
-      console.log(`Critical Error restore from file ${error}`);
+      console.error(`Critical Error restore from file ${error}`);
       openErrorModal("Restoring wallet from file", `${error}`);
       // restore the previous wallet
       loadCurrentWallet();
@@ -425,7 +423,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
       console.log("Checking SERVER", server, latency);
     } catch (error) {
-      console.log(`Critical Error calculate server latency ${error}`);
+      console.error(`Critical Error calculate server latency ${error}`);
     }
 
     return latency;
@@ -530,7 +528,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
               const resultInterrupt: string = await native.stop_sync();
               console.log("Stopping sync ...", resultInterrupt);
             } catch (error) {
-              console.log(`Stopping sync Error ${error}`);
+              console.error(`Stopping sync Error ${error}`);
             }
           }
           await RPC.deinitialize();
@@ -564,7 +562,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           }
         }
       } catch (error) {
-        console.log(`Critical Error delete wallet ${error}`);
+        console.error(`Critical Error delete wallet ${error}`);
         openErrorModal("Error Delete Wallet", `${error}`);
         return;
       }
@@ -662,19 +660,18 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
     setAlias(e.target.value);
   };
 
-  //console.log('render modal server', servers, selectedServer, selectedChain, selectedSelection);
-
   return (
     <ScrollPaneTop offsetHeight={20}>
-      <div className={[cstyles.xlarge, cstyles.margintopsmall, cstyles.center].join(" ")}>
+      <div className={`${cstyles.xlarge} ${cstyles.margintopsmall} ${cstyles.center}`}>
         {mode === "addnew" ? "Add a New Wallet" : mode === "settings" ? "Wallet Settings" : "Delete Wallet"}
       </div>
 
       <div className={styles.addnewwalletcontainer}>
-        <div className={[cstyles.well, cstyles.verticalflex].join(" ")}>
+        <div className={`${cstyles.well} ${cstyles.verticalflex}`}>
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
             <div className={cstyles.sublight}>Wallet Alias/Description</div>
             <input
+              aria-label="Wallet alias"
               disabled={mode === "delete"}
               placeholder="Ex: My Zcash Wallet"
               type="text"
@@ -686,6 +683,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center" }}>
               Network
               <select
+                aria-label="Network"
                 disabled={mode !== "addnew"}
                 className={cstyles.inputbox}
                 style={{
@@ -699,7 +697,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                   if (servers.filter((s) => s.chain_name === e.target.value).length === 0) {
                     setSelectedSelection(ServerSelectionEnum.custom);
                     setSelectedServer(customServer);
-                    //setListServer('');
                   } else {
                     if (!customServer && selectedSelection === ServerSelectionEnum.custom) {
                       setSelectedSelection(ServerSelectionEnum.list);
@@ -734,6 +731,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
             >
               <div className={cstyles.sublight}>Type of Wallet creation</div>
               <select
+                aria-label="Type of wallet creation"
                 className={cstyles.inputbox}
                 style={{ width: "80%", marginLeft: "20px" }}
                 value={newWalletType}
@@ -754,17 +752,19 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
           {newWalletType === "seed" && mode === "addnew" && (
             <div style={{ margin: "10px" }}>
-              <div className={[cstyles.sublight].join(" ")}>Please enter your seed phrase</div>
+              <div className={cstyles.sublight}>Please enter your seed phrase</div>
               <TextareaAutosize
+                aria-label="Seed phrase"
                 placeholder="Enter your 24 recovery words"
                 className={cstyles.inputbox}
                 value={seedPhrase}
                 onChange={(e) => updateSeedPhrase(e)}
               />
-              <div className={[cstyles.sublight].join(" ")}>
+              <div className={cstyles.sublight}>
                 {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
               </div>
               <input
+                aria-label="Wallet birthday"
                 placeholder={`>= ${activationHeight[selectedChain]}`}
                 type="number"
                 className={cstyles.inputbox}
@@ -776,17 +776,19 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
           {newWalletType === "ufvk" && mode === "addnew" && (
             <div style={{ margin: "10px" }}>
-              <div className={[cstyles.sublight].join(" ")}>Please enter your Unified Full Viewing Key</div>
+              <div className={cstyles.sublight}>Please enter your Unified Full Viewing Key</div>
               <TextareaAutosize
+                aria-label="Unified Full Viewing Key"
                 placeholder="Ex: uview..."
                 className={cstyles.inputbox}
                 value={ufvk}
                 onChange={(e) => updateUfvk(e)}
               />
-              <div className={[cstyles.sublight].join(" ")}>
+              <div className={cstyles.sublight}>
                 {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
               </div>
               <input
+                aria-label="Wallet birthday"
                 placeholder={`>= ${activationHeight[selectedChain]}`}
                 type="number"
                 className={cstyles.inputbox}
@@ -798,10 +800,9 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
           {newWalletType === "file" && mode === "addnew" && (
             <div style={{ margin: "10px" }}>
-              <div className={[cstyles.sublight].join(" ")}>
-                Please enter your Wallet File Name stored in the Zcash folder
-              </div>
+              <div className={cstyles.sublight}>Please enter your Wallet File Name stored in the Zcash folder</div>
               <input
+                aria-label="Wallet file name"
                 placeholder="Ex: zingo-wallet-renamed....dat"
                 type="text"
                 className={cstyles.inputbox}
@@ -814,11 +815,12 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
 
           {mode !== "addnew" && (
             <div
-              className={[cstyles.horizontalflex].join(" ")}
+              className={cstyles.horizontalflex}
               style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}
             >
-              <div className={[cstyles.sublight].join(" ")}>File Name</div>
+              <div className={cstyles.sublight}>File Name</div>
               <input
+                aria-label="File name"
                 disabled={true}
                 type="text"
                 className={cstyles.inputbox}
@@ -847,7 +849,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                 {!serverExpanded ? (
                   <div className={cstyles.horizontalflex}>
                     <div
-                      className={[cstyles.sublight].join(" ")}
+                      className={cstyles.sublight}
                       style={{ marginRight: "25px", cursor: "pointer" }}
                       onClick={() => setServerExpanded(!serverExpanded)}
                     >
@@ -857,7 +859,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                       style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
                       onClick={() => setServerExpanded(!serverExpanded)}
                     >
-                      <i className={["fas", "fa-chevron-down", "fa-1x"].join(" ")} />
+                      <i className={`${"fas"} ${"fa-chevron-down"} ${"fa-1x"}`} />
                     </div>
                     <div style={{ cursor: "pointer" }} onClick={() => setServerExpanded(!serverExpanded)}>
                       {selectedServer}
@@ -867,7 +869,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                   <>
                     <div className={cstyles.horizontalflex}>
                       <div
-                        className={[cstyles.sublight].join(" ")}
+                        className={cstyles.sublight}
                         style={{ marginRight: "25px", cursor: "pointer" }}
                         onClick={() => setServerExpanded(!serverExpanded)}
                       >
@@ -877,7 +879,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                         style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
                         onClick={() => setServerExpanded(!serverExpanded)}
                       >
-                        <i className={["fas", "fa-chevron-up", "fa-1x"].join(" ")} />
+                        <i className={`${"fas"} ${"fa-chevron-up"} ${"fa-1x"}`} />
                       </div>
                     </div>
                     {mode === "settings" && (
@@ -888,11 +890,11 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                           type="radio"
                           name="selection"
                           value={ServerSelectionEnum.auto}
-                          onClick={(e) => {
+                          onClick={() => {
                             setSelectedSelection(ServerSelectionEnum.auto);
                             setSelectedServer(autoServer);
                           }}
-                          onChange={(e) => {
+                          onChange={() => {
                             setSelectedSelection(ServerSelectionEnum.auto);
                             setSelectedServer(autoServer);
                           }}
@@ -908,13 +910,13 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                           type="radio"
                           name="selection"
                           value={ServerSelectionEnum.list}
-                          onClick={(e) => {
+                          onClick={() => {
                             setSelectedSelection(ServerSelectionEnum.list);
                             const ls: string = servers.filter((s) => s.chain_name === selectedChain)[0].uri;
                             setListServer(ls);
                             setSelectedServer(ls);
                           }}
-                          onChange={(e) => {
+                          onChange={() => {
                             setSelectedSelection(ServerSelectionEnum.list);
                             const ls: string = servers.filter((s) => s.chain_name === selectedChain)[0].uri;
                             setListServer(ls);
@@ -923,6 +925,7 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                         />
                         List
                         <select
+                          aria-label="Server list"
                           disabled={selectedSelection !== "list"}
                           className={cstyles.inputbox}
                           style={{ marginLeft: "20px" }}
@@ -955,20 +958,21 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
                         type="radio"
                         name="selection"
                         value={"custom"}
-                        onClick={(e) => {
+                        onClick={() => {
                           setSelectedSelection(ServerSelectionEnum.custom);
                           setSelectedServer(customServer);
                         }}
-                        onChange={(e) => {
+                        onChange={() => {
                           setSelectedSelection(ServerSelectionEnum.custom);
                           setSelectedServer(customServer);
                         }}
                       />
                       Custom
-                      <div className={[cstyles.well, cstyles.horizontalflex].join(" ")}>
+                      <div className={`${cstyles.well} ${cstyles.horizontalflex}`}>
                         <div style={{ width: "75%", padding: 0, margin: 0, flexWrap: "nowrap" }}>
                           URI
                           <input
+                            aria-label="Custom server URI"
                             placeholder="https://------.---:---"
                             disabled={selectedSelection !== "custom"}
                             type="text"
@@ -1001,8 +1005,9 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
           />
 
           <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
-            <div className={[cstyles.sublight].join(" ")}>Sync Performance Level</div>
+            <div className={cstyles.sublight}>Sync Performance Level</div>
             <select
+              aria-label="Sync performance level"
               disabled={mode === "delete"}
               className={cstyles.inputbox}
               style={{ width: "80%", marginLeft: "20px" }}
@@ -1023,6 +1028,9 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         </div>
 
         <div style={{ marginBottom: "20px" }} className={cstyles.buttoncontainer}>
+          <button type="button" className={cstyles.primarybutton} onClick={() => closeModal()}>
+            Close
+          </button>
           <button type="button" className={cstyles.primarybutton} onClick={async () => await submitAction()}>
             {mode === "addnew"
               ? newWalletType === "new"
@@ -1031,9 +1039,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
               : mode === "settings"
                 ? "Save Wallet Settings"
                 : "Delete Wallet"}
-          </button>
-          <button type="button" className={cstyles.primarybutton} onClick={() => closeModal()}>
-            Close
           </button>
         </div>
       </div>

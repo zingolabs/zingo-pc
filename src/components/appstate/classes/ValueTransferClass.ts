@@ -11,7 +11,7 @@ export default class ValueTransferClass {
   txid: string;
   time: number;
   zec_price?: number;
-  address: string;
+  address?: string;
   amount: number;
   memos?: string[];
   pool?: ValueTransferPoolEnum;
@@ -23,8 +23,8 @@ export default class ValueTransferClass {
     status: ValueTransferStatusEnum,
     txid: string,
     time: number,
-    address: string,
     amount: number,
+    address?: string,
   ) {
     this.type = type;
     this.confirmations = confirmations;
@@ -32,7 +32,7 @@ export default class ValueTransferClass {
     this.status = status;
     this.txid = txid;
     this.time = time;
-    this.address = address;
     this.amount = amount;
+    this.address = address;
   }
 }

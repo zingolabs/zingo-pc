@@ -36,8 +36,8 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
 
   const fees: number = vt && vt.fee ? vt.fee : 0;
   const amount: number = vt.amount;
-  const label: string | undefined = addressBookMap.get(vt.address);
-  const address: string = vt.address;
+  const label: string | undefined = vt.address ? addressBookMap.get(vt.address) : undefined;
+  const address: string | undefined = vt.address;
   const txid: string = vt.txid;
   const memos: string = vt.memos && vt.memos.length > 0 && !!vt.memos.join("") ? vt.memos.join("\n") : "";
 
@@ -63,16 +63,26 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
   return (
     <div>
       {!previousLineWithSameTxid ? (
-        <div className={[cstyles.small, cstyles.sublight, styles.txdate].join(" ")}>{datePart}</div>
+        <div className={`${cstyles.small} ${cstyles.sublight} ${styles.txdate}`}>{datePart}</div>
       ) : (
         <div style={{ marginLeft: 25, marginRight: 25, height: 1, background: "white", opacity: 0.4 }}></div>
       )}
       <div
-        className={[cstyles.well, styles.txbox].join(" ")}
+        role="button"
+        tabIndex={0}
+        className={`${cstyles.well} ${styles.txbox}`}
         onClick={() => {
           setValueTransferDetail(vt);
           setValueTransferDetailIndex(index);
           setModalIsOpen(true);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setValueTransferDetail(vt);
+            setValueTransferDetailIndex(index);
+            setModalIsOpen(true);
+          }
         }}
       >
         <div className={styles.txtype} style={{ marginRight: 10 }}>
@@ -88,7 +98,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
           >
             {Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
           </div>
-          <div className={[cstyles.padtopsmall, cstyles.sublight].join(" ")}>{timePart}</div>
+          <div className={`${cstyles.padtopsmall} ${cstyles.sublight}`}>{timePart}</div>
           {(vt.status === ValueTransferStatusEnum.calculated ||
             vt.status === ValueTransferStatusEnum.transmitted ||
             vt.status === ValueTransferStatusEnum.mempool ||
@@ -125,13 +135,25 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                 </div>
               )}
               {!!address ? (
-                <div className={[cstyles.verticalflex].join(" ")}>
+                <div className={cstyles.verticalflex}>
                   <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Copy address"
                     style={{ cursor: "pointer" }}
                     onClick={() => {
                       if (address) {
                         clipboard.writeText(address);
                         setExpandAddress(true);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        if (address) {
+                          clipboard.writeText(address);
+                          setExpandAddress(true);
+                        }
                       }
                     }}
                   >
@@ -150,11 +172,23 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                 </div>
               ) : (
                 <div
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Copy transaction ID"
                   style={{ cursor: "pointer" }}
                   onClick={() => {
                     if (txid) {
                       clipboard.writeText(txid);
                       setExpandTxid(true);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      if (txid) {
+                        clipboard.writeText(txid);
+                        setExpandTxid(true);
+                      }
                     }
                   }}
                 >
@@ -180,16 +214,16 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               {memos ? memos : null}
             </div>
           </div>
-          <div className={[styles.txfeeamount, cstyles.right].join(" ")}>
+          <div className={`${styles.txfeeamount} ${cstyles.right}`}>
             {fees > 0 && (
-              <div className={[styles.txfee, cstyles.right].join(" ")}>
+              <div className={`${styles.txfee} ${cstyles.right}`}>
                 <div>Transaction Fee</div>
-                <div className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}>
+                <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
                   <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
                 </div>
               </div>
             )}
-            <div className={[styles.txamount, cstyles.right, cstyles.padtopsmall].join(" ")}>
+            <div className={`${styles.txamount} ${cstyles.right} ${cstyles.padtopsmall}`}>
               <div className={cstyles.padtopsmall}>
                 <span
                   style={{
@@ -204,7 +238,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                     color:
                       vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
                   }}
-                  className={[cstyles.small, cstyles.zecsmallpart].join(" ")}
+                  className={`${cstyles.small} ${cstyles.zecsmallpart}`}
                 >
                   {smallPart}
                 </span>
@@ -214,7 +248,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                   color:
                     vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
                 }}
-                className={[cstyles.sublight, cstyles.small, cstyles.padtopsmall].join(" ")}
+                className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}
               >
                 {priceString}
               </div>
