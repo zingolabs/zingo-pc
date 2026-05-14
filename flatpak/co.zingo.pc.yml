@@ -50,8 +50,9 @@ modules:
       # Pre-built AppImage from GitHub Releases.
       # Update url, sha256 and dest-filename on every release.
       - type: file
-        url: https://github.com/zingolabs/zingo-pc/releases/download/v2.0.14/Zingo%20PC-2.0.14.AppImage
-        sha256: FILL_IN_SHA256_HERE
+        # url and sha256 are patched automatically by CI on every release
+        url: https://github.com/zingolabs/zingo-pc/releases/download/PLACEHOLDER/PLACEHOLDER.AppImage
+        sha256: 0000000000000000000000000000000000000000000000000000000000000000
         dest-filename: zingo-pc.AppImage
 
       - type: file
