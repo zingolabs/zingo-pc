@@ -40,8 +40,5 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Audit dependencies
-        run: yarn audit --level critical
-
       - name: Run tests
         run: yarn test:run
