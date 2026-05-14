@@ -2,8 +2,11 @@ import React from "react";
 import { render, screen } from "@testing-library/react";
 import App from "./App";
 
-test("renders title", () => {
+test("renders without crashing", () => {
   render(<App />);
-  const title = screen.getByText(/Built using CRA electron-builder-typescript Template/i);
-  expect(title).toBeInTheDocument();
+});
+
+test("displays app version string", () => {
+  render(<App />);
+  expect(screen.getByText(/Zingo PC v/i)).toBeInTheDocument();
 });
