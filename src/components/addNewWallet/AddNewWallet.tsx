@@ -14,7 +14,7 @@ import {
 import serverUrisList from "../../utils/serverUrisList";
 import Utils from "../../utils/utils";
 import { native, ipcRenderer } from "../../electronBridge";
-import { RouteComponentProps } from "react-router";
+import { useLocation } from "react-router-dom";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import RPC from "../../rpc/rpc";
 
@@ -27,15 +27,15 @@ type AddNewWalletProps = {
   clearTimers: () => Promise<void>;
 };
 
-const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
+const AddNewWallet: React.FC<AddNewWalletProps> = ({
   closeModal,
   setWallets,
   setCurrentWallet,
   navigateToLoadingScreenChangingWallet,
   doSaveWallet,
   clearTimers,
-  location,
 }) => {
+  const location = useLocation();
   let mode: "addnew" | "settings" | "delete" = "addnew";
   if (location.state) {
     const locationState = location.state as {
@@ -1028,6 +1028,9 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
         </div>
 
         <div style={{ marginBottom: "20px" }} className={cstyles.buttoncontainer}>
+          <button type="button" className={cstyles.primarybutton} onClick={() => closeModal()}>
+            Close
+          </button>
           <button type="button" className={cstyles.primarybutton} onClick={async () => await submitAction()}>
             {mode === "addnew"
               ? newWalletType === "new"
@@ -1036,9 +1039,6 @@ const AddNewWallet: React.FC<AddNewWalletProps & RouteComponentProps> = ({
               : mode === "settings"
                 ? "Save Wallet Settings"
                 : "Delete Wallet"}
-          </button>
-          <button type="button" className={cstyles.primarybutton} onClick={() => closeModal()}>
-            Close
           </button>
         </div>
       </div>

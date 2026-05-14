@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
-import { RouteComponentProps, withRouter } from "react-router";
+import { useNavigate } from "react-router-dom";
 import { BalanceBlockHighlight } from "../../balanceBlock";
 import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
@@ -36,7 +36,7 @@ type VtModalInternalProps = {
   valueTransfersSliced: ValueTransferClass[];
 };
 
-const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
+const VtModalInternal: React.FC<VtModalInternalProps> = ({
   index,
   length,
   totalLength,
@@ -44,10 +44,10 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   modalIsOpen,
   closeModal,
   currencyName,
-  history,
   addressBookMap,
   valueTransfersSliced,
 }) => {
+  const navigate = useNavigate();
   const context = useContext(ContextApp);
   const {
     addressBook,
@@ -253,7 +253,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     localCloseModal();
 
     setSendTo(new ZcashURITarget(address, undefined, undefined));
-    history.push(routes.SEND);
+    navigate(routes.SEND);
   };
 
   const addLabel = () => {
@@ -261,7 +261,7 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
     localCloseModal();
 
     setAddLabel(new AddressBookEntryClass("", address ?? ""));
-    history.push(routes.ADDRESSBOOK);
+    navigate(routes.ADDRESSBOOK);
   };
 
   return (
@@ -616,4 +616,4 @@ const VtModalInternal: React.FC<RouteComponentProps & VtModalInternalProps> = ({
   );
 };
 
-export default withRouter(VtModalInternal);
+export default VtModalInternal;

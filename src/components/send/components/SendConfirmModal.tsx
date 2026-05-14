@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useState } from "react";
 import Modal from "react-modal";
-import { RouteComponentProps, withRouter } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
 import {
@@ -34,7 +34,7 @@ type SendConfirmModalProps = {
   currencyName: string;
 };
 
-const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = ({
+const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   sendPageState,
   totalBalance,
   info,
@@ -42,9 +42,9 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
   clearToAddrs,
   closeModal,
   modalIsOpen,
-  history,
   sendFee,
 }) => {
+  const navigate = useNavigate();
   const context = useContext(ContextApp);
   const {
     currentWallet,
@@ -316,7 +316,7 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
         clearToAddrs();
 
         // Redirect to dashboard after
-        history.push(routes.DASHBOARD);
+        navigate(routes.DASHBOARD);
       } catch (err) {
         // If there was an error, show the error modal
         openErrorModal("Error Sending Transaction", err instanceof Error ? err.message : `${err}`);
@@ -377,11 +377,11 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
         </div>
 
         <div className={cstyles.buttoncontainer}>
-          <button type="button" className={cstyles.primarybutton} onClick={() => sendButton()}>
-            Send
-          </button>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
             Cancel
+          </button>
+          <button type="button" className={cstyles.primarybutton} onClick={() => sendButton()}>
+            Send
           </button>
         </div>
       </div>
@@ -389,4 +389,4 @@ const SendConfirmModal: React.FC<RouteComponentProps & SendConfirmModalProps> = 
   );
 };
 
-export default withRouter(SendConfirmModal);
+export default SendConfirmModal;

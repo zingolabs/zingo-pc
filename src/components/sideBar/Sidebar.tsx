@@ -1,5 +1,5 @@
 import React, { ReactElement, useContext, useEffect, useRef, useState } from "react";
-import { RouteComponentProps, withRouter } from "react-router";
+import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
@@ -21,13 +21,9 @@ type SidebarProps = {
   setBlockExplorer: (be: any) => void;
 };
 
-const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
-  doRescan,
-  history,
-  location,
-  navigateToLoadingScreenChangingWallet,
-  setBlockExplorer,
-}) => {
+const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChangingWallet, setBlockExplorer }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const context = useContext(ContextApp);
   const {
     info,
@@ -58,6 +54,8 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   const currentWalletOpenErrorRef = useRef<string>("");
   const walletsRef = useRef<WalletType[]>([]);
   const readOnlyRef = useRef<boolean>(false);
+  const birthdayRef = useRef<number>(birthday);
+  const doRescanRef = useRef<() => void>(doRescan);
   const payURIRef = useRef<(uri: string) => Promise<void>>(async () => {});
   // Stores a zcash: URI that arrived via IPC before the wallet was ready.
   const pendingUriRef = useRef<string | null>(null);
@@ -94,6 +92,12 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   useEffect(() => {
     readOnlyRef.current = readOnly;
   }, [readOnly]);
+  useEffect(() => {
+    birthdayRef.current = birthday;
+  }, [birthday]);
+  useEffect(() => {
+    doRescanRef.current = doRescan;
+  }, [doRescan]);
 
   // Consume any pending zcash: URI once the app knows its wallet state.
   // Fires when: wallet finishes loading (go to Send) or no wallets configured (show error).
@@ -206,8 +210,8 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
         return;
       }
 
-      const seedRaw: string = readOnly ? "" : await native.get_seed();
-      const ufvkRaw: string = readOnly ? await native.get_ufvk() : "";
+      const seedRaw: string = readOnlyRef.current ? "" : await native.get_seed();
+      const ufvkRaw: string = readOnlyRef.current ? await native.get_ufvk() : "";
       const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
       const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
 
@@ -258,7 +262,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
               fontFamily: "monospace, Roboto",
             }}
           >
-            {"Birthday: " + birthday}
+            {"Birthday: " + birthdayRef.current}
           </div>
         </div>,
       );
@@ -269,13 +273,13 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Rescan Wallet", "There is not an active Wallet to perform the action.");
       } else {
-        doRescan();
+        doRescanRef.current();
       }
     };
 
     const addnewwallet = (_event: any) => {
       if (!active) return;
-      history.push(routes.ADDNEWWALLET, { mode: "addnew" });
+      navigate(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
     };
 
     const settingswallet = (_event: any) => {
@@ -283,7 +287,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Settings", "There is not an active Wallet to perform the action.");
       } else {
-        history.push(routes.ADDNEWWALLET, { mode: "settings" });
+        navigate(routes.ADDNEWWALLET, { state: { mode: "settings" } });
       }
     };
 
@@ -292,7 +296,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       if (!currentWalletRef.current) {
         openErrorModal("Delete Wallet", "There is not an active Wallet to perform the action.");
       } else {
-        history.push(routes.ADDNEWWALLET, { mode: "delete" });
+        navigate(routes.ADDNEWWALLET, { state: { mode: "delete" } });
       }
     };
 
@@ -316,7 +320,8 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       ipcRenderer.off("settingswallet", settingswallet);
       ipcRenderer.off("deletewallet", deletewallet);
     };
-  }, [birthday, doRescan, history, openErrorModal, readOnly]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openPayURIModal = (defaultValue: string | null) => {
     const _uriModalInputValue: string = defaultValue || "";
@@ -368,7 +373,7 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
       setSendTo(parsedUri);
     }
 
-    history.push(routes.SEND);
+    navigate(routes.SEND);
   };
 
   // Keep the ref pointing at the latest closure so the IPC handler never goes stale.
@@ -503,5 +508,4 @@ const Sidebar: React.FC<SidebarProps & RouteComponentProps> = ({
   );
 };
 
-// @ts-ignore
-export default withRouter(Sidebar);
+export default Sidebar;

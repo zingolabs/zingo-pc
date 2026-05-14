@@ -9,7 +9,7 @@ import routes from "../../constants/routes.json";
 import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import DetailLine from "../detailLine/DetailLine";
-import { RouteComponentProps, withRouter } from "react-router";
+import { useNavigate } from "react-router-dom";
 
 type DashboardProps = {
   navigateToHistory: () => void;
@@ -22,7 +22,8 @@ const chains = {
   "": "",
 };
 
-const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToHistory, history }) => {
+const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
+  const navigate = useNavigate();
   const context = useContext(ContextApp);
   const {
     totalBalance,
@@ -423,7 +424,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
                     type="button"
                     className={cstyles.primarybutton}
                     onClick={() => {
-                      history.push(routes.ADDNEWWALLET, { mode: "addnew" });
+                      navigate(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
                     }}
                   >
                     Add New Wallet
@@ -459,7 +460,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
                       type="button"
                       className={cstyles.primarybutton}
                       onClick={() => {
-                        history.push(routes.ADDNEWWALLET, { mode: "settings" });
+                        navigate(routes.ADDNEWWALLET, { state: { mode: "settings" } });
                       }}
                     >
                       Wallet Settings
@@ -468,7 +469,7 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
                       type="button"
                       className={cstyles.primarybutton}
                       onClick={() => {
-                        history.push(routes.ADDNEWWALLET, { mode: "delete" });
+                        navigate(routes.ADDNEWWALLET, { state: { mode: "delete" } });
                       }}
                     >
                       Delete Wallet
@@ -484,4 +485,4 @@ const Dashboard: React.FC<DashboardProps & RouteComponentProps> = ({ navigateToH
   );
 };
 
-export default withRouter(Dashboard);
+export default Dashboard;

@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { RouteComponentProps, withRouter } from "react-router";
+import { useLocation } from "react-router-dom";
 import { native, ipcRenderer, isSandboxed } from "../../electronBridge";
 import {
   CreationTypeEnum,
@@ -33,6 +33,7 @@ class LoadingScreenState {
 }
 
 type LoadingScreenProps = {
+  location: { state: unknown };
   runRPCConfigure: () => void;
   setInfo: (info: InfoClass) => void;
   setReadOnly: (readOnly: boolean) => void;
@@ -54,11 +55,11 @@ const chains = {
   "": "",
 };
 
-class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, LoadingScreenState> {
+class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
   static contextType = ContextApp;
   private navigationTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(props: LoadingScreenProps & RouteComponentProps) {
+  constructor(props: LoadingScreenProps) {
     super(props);
 
     let serverUris: ServerClass[] = [];
@@ -830,7 +831,7 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
     }
   };
 
-  componentDidUpdate(_prevProps: LoadingScreenProps & RouteComponentProps, prevState: LoadingScreenState) {
+  componentDidUpdate(_prevProps: LoadingScreenProps, prevState: LoadingScreenState) {
     if (!prevState.loadingDone && this.state.loadingDone) {
       this.navigationTimer = setTimeout(() => this.props.navigateToDashboard(), 10);
     }
@@ -874,5 +875,12 @@ class LoadingScreen extends Component<LoadingScreenProps & RouteComponentProps, 
   }
 }
 
-// @ts-ignore
-export default withRouter(LoadingScreen);
+type LoadingScreenPublicProps = Omit<LoadingScreenProps, "location">;
+
+const LoadingScreenWithLocation: React.FC<LoadingScreenPublicProps> = (props) => {
+  const location = useLocation();
+  return <LoadingScreen {...props} location={location} />;
+};
+
+export { LoadingScreenWithLocation as LoadingScreen };
+export default LoadingScreenWithLocation;
