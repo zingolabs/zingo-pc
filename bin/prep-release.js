@@ -75,5 +75,5 @@ console.log(`  git diff`);
 console.log(`  git add -A`);
 console.log(`  git commit -m "fix: new release ${version} (${build})"`);
 console.log(`  git push`);
-console.log(`  git tag zingo-pc-${version}-${build}`);
+console.log(`  git tag -m "release ${version} (${build})" zingo-pc-${version}-${build}`);
 console.log(`  git push origin zingo-pc-${version}-${build}`);
