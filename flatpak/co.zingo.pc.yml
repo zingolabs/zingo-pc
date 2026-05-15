@@ -47,12 +47,10 @@ modules:
       - install -Dm644 co.zingo.pc.metainfo.xml /app/share/metainfo/co.zingo.pc.metainfo.xml
 
     sources:
-      # Pre-built AppImage from GitHub Releases.
-      # Update url, sha256 and dest-filename on every release.
+      # Pre-built AppImage — url and sha256 are patched by CI at build time
       - type: file
-        # url and sha256 are patched automatically by CI on every release
-        url: https://github.com/zingolabs/zingo-pc/releases/download/PLACEHOLDER/PLACEHOLDER.AppImage
-        sha256: 0000000000000000000000000000000000000000000000000000000000000000
+        url: ""
+        sha256: ""
         dest-filename: zingo-pc.AppImage
 
       - type: file

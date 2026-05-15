@@ -194,10 +194,9 @@ jobs:
           VERSION=$(echo "$TAG" | grep -oP '\d+\.\d+\.\d+')
           APPIMAGE=$(basename flatpak/*.AppImage)
           echo "bundle=Zingo.PC-${VERSION}.flatpak" >> $GITHUB_OUTPUT
-          # Switch from placeholder URL+sha256 to the local artifact path
-          sed -i "s|url:.*\.AppImage|path: ${APPIMAGE}|" flatpak/co.zingo.pc.yml
+          # Replace empty url+sha256 with the local artifact path
+          sed -i "s|url:.*|path: ${APPIMAGE}|" flatpak/co.zingo.pc.yml
           sed -i "/sha256:/d" flatpak/co.zingo.pc.yml
-          sed -i "/# url and sha256/d" flatpak/co.zingo.pc.yml
 
       - name: Build Flatpak bundle
         uses: flatpak/flatpak-github-actions/flatpak-builder@v6
