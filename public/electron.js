@@ -946,8 +946,17 @@ ipcMain.handle("wallet-dir:change", async () => {
     settings.setSync("all.walletDirBookmark", bookmarks[0]);
     settings.setSync("all.walletDirPath", selectedPath);
 
-    app.relaunch();
-    app.exit(0);
+    // app.relaunch() is unreliable in MAS sandbox (can leave the container in a
+    // broken state that crashes the next launch at _libsecinit_appsandbox).
+    // Ask the user to reopen the app manually instead.
+    await dialog.showMessageBox(mainWindow, {
+      type: "info",
+      title: "Restart required",
+      message: "Wallet folder updated.",
+      detail: "Zingo PC will now close. Please reopen it to use the new wallet folder.",
+      buttons: ["Quit"],
+    });
+    app.quit();
     return { ok: true };
   }
 });
@@ -1122,8 +1131,16 @@ ipcMain.handle("import:apply", async (_e, { sourceDir, choices }) => {
 
   logImp(`from=${sourceDir} ${JSON.stringify(results)}`);
 
-  app.relaunch();
-  app.exit(0);
+  // app.relaunch() is unreliable in MAS sandbox — ask the user to reopen instead.
+  const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
+  await dialog.showMessageBox(mainWindow, {
+    type: "info",
+    title: "Import complete",
+    message: "Data imported.",
+    detail: "Zingo PC will now close. Please reopen it to use the imported data.",
+    buttons: ["Quit"],
+  });
+  app.quit();
   return { ok: true, results };
 });
 

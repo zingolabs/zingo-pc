@@ -45,7 +45,10 @@ const today = new Date().toISOString().slice(0, 10);
 // 4. bin/printversion.ps1
 {
   const p = path.join(root, "bin", "printversion.ps1");
-  fs.writeFileSync(p, `echo "VERSION=${version}-${build}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append\n`);
+  fs.writeFileSync(
+    p,
+    `echo "VERSION=${version}-${build}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append\n`,
+  );
   console.log(`  bin/printversion.ps1 -> ${version}-${build}`);
 }
 

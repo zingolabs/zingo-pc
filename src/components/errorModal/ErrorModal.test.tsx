@@ -31,12 +31,12 @@ describe("ErrorModal", () => {
     expect(screen.getByText("Please try again later.")).toBeInTheDocument();
   });
 
-  it("calls closeModal when Close button is clicked", () => {
+  it("calls closeModal when Cancel button is clicked", () => {
     const closeModal = jest.fn();
     render(<ErrorModal closeModal={closeModal} />, {
       contextOverrides: { errorModal: openModal },
     });
-    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(closeModal).toHaveBeenCalledTimes(1);
   });
 

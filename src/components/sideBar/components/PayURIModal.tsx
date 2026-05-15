@@ -57,7 +57,7 @@ const PayURIModal = ({
 
       <div className={cstyles.buttoncontainer}>
         <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-          Close
+          Cancel
         </button>
 
         {actionButtonName && !readOnly && (
