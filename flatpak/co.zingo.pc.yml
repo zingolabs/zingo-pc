@@ -1,0 +1,60 @@
+app-id: co.zingo.pc
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+base: org.electronjs.Electron2.BaseApp
+base-version: '24.08'
+command: zingo-pc
+separate-locales: false
+
+finish-args:
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --socket=pulseaudio
+  - --share=network
+  - --device=dri
+  - --filesystem=home
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.kde.kwalletd5
+  - --talk-name=org.freedesktop.Notifications
+  - --env=ELECTRON_IS_DEV=0
+  - --env=ELECTRON_FORCE_IS_PACKAGED=true
+
+modules:
+  - name: zingo-pc
+    buildsystem: simple
+    build-commands:
+      # Extract AppImage (no FUSE needed, uses unsquashfs internally)
+      - chmod +x zingo-pc.AppImage
+      - ./zingo-pc.AppImage --appimage-extract
+
+      # Install Electron app to /app/lib/zingo-pc/
+      - install -d /app/lib/zingo-pc
+      - cp -a squashfs-root/usr/lib/zingo-pc/. /app/lib/zingo-pc/
+
+      # Wrapper script that uses zypak to handle Chrome sandbox inside Flatpak
+      - install -Dm755 zingo-pc-wrapper.sh /app/bin/zingo-pc
+
+      # Desktop file — fix Exec to point to our wrapper
+      - install -Dm644 squashfs-root/co.zingo.pc.desktop /app/share/applications/co.zingo.pc.desktop
+      - desktop-file-edit --set-key=Exec --set-value='zingo-pc %U' /app/share/applications/co.zingo.pc.desktop
+
+      # App icon
+      - install -Dm644 squashfs-root/zingo-pc.png /app/share/icons/hicolor/512x512/apps/co.zingo.pc.png
+
+      # AppStream metadata (required by Flathub)
+      - install -Dm644 co.zingo.pc.metainfo.xml /app/share/metainfo/co.zingo.pc.metainfo.xml
+
+    sources:
+      # Pre-built AppImage — url and sha256 are patched by CI at build time
+      - type: file
+        url: ""
+        sha256: ""
+        dest-filename: zingo-pc.AppImage
+
+      - type: file
+        path: zingo-pc-wrapper.sh
+
+      - type: file
+        path: co.zingo.pc.metainfo.xml

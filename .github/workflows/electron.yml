@@ -169,8 +169,50 @@ jobs:
             dist/*.msi
             dist/*.zip
 
-  release:
+  flatpak:
     needs: build
+    runs-on: ubuntu-latest
+    container:
+      image: bilelmoussaoui/flatpak-github-actions:freedesktop-24.08
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Linux AppImage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: zingo-pc-linux-x64
+          path: flatpak/
+
+      - name: Add Flathub remote (for Electron BaseApp)
+        run: flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+
+      - name: Resolve bundle name and patch manifest to use local AppImage
+        id: meta
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=$(echo "$TAG" | grep -oP '\d+\.\d+\.\d+')
+          APPIMAGE=$(basename flatpak/*.AppImage)
+          echo "bundle=Zingo.PC-${VERSION}.flatpak" >> $GITHUB_OUTPUT
+          # Replace empty url+sha256 with the local artifact path
+          sed -i "s|url:.*|path: ${APPIMAGE}|" flatpak/co.zingo.pc.yml
+          sed -i "/sha256:/d" flatpak/co.zingo.pc.yml
+
+      - name: Build Flatpak bundle
+        uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: ${{ steps.meta.outputs.bundle }}
+          manifest-path: flatpak/co.zingo.pc.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+
+      - name: Upload Flatpak as CI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zingo-pc-flatpak
+          path: ${{ steps.meta.outputs.bundle }}
+
+  release:
+    needs: [build, flatpak]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
