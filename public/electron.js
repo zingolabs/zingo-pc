@@ -1046,7 +1046,10 @@ ipcMain.handle("import:apply", async (_e, { sourceDir, choices }) => {
     results.settings = "skipped";
   }
 
-  // wallets.json: replace, merge (dedupe by fileName, keep existing on duplicate), or skip
+  // wallets.json: replace, merge (dedupe by fileName, keep existing on duplicate), or skip.
+  // electron-json-storage stores a plain array on disk: [WalletType, ...]
+  // (older code used a {wallets:[...]} wrapper — handle both for safety).
+  const toList = (parsed) => (Array.isArray(parsed) ? parsed : Array.isArray(parsed?.wallets) ? parsed.wallets : []);
   if (choices.wallets === "replace") {
     try {
       copyResolved("wallets.json");
@@ -1056,13 +1059,10 @@ ipcMain.handle("import:apply", async (_e, { sourceDir, choices }) => {
     }
   } else if (choices.wallets === "merge") {
     try {
-      const src = JSON.parse(fs.readFileSync(resolveDataFile(sourceDir, "wallets.json"), "utf8"));
-      // wallets.json from electron-json-storage stores { wallets: WalletType[] }
-      const srcList = Array.isArray(src?.wallets) ? src.wallets : [];
+      const srcList = toList(JSON.parse(fs.readFileSync(resolveDataFile(sourceDir, "wallets.json"), "utf8")));
 
       const destPath = resolveDataFile(userData, "wallets.json");
-      const dest = fs.existsSync(destPath) ? JSON.parse(fs.readFileSync(destPath, "utf8")) : { wallets: [] };
-      const destList = Array.isArray(dest?.wallets) ? dest.wallets : [];
+      const destList = fs.existsSync(destPath) ? toList(JSON.parse(fs.readFileSync(destPath, "utf8"))) : [];
 
       const existingFileNames = new Set(destList.map((w) => w.fileName));
       const nextId = (destList.reduce((max, w) => Math.max(max, w.id ?? 0), 0) || 0) + 1;
@@ -1080,7 +1080,8 @@ ipcMain.handle("import:apply", async (_e, { sourceDir, choices }) => {
       }
 
       fs.mkdirSync(path.dirname(destPath), { recursive: true });
-      fs.writeFileSync(destPath, JSON.stringify({ wallets: destList }));
+      // Write as a plain array — that's the format electron-json-storage reads.
+      fs.writeFileSync(destPath, JSON.stringify(destList));
       results.wallets = `merged: ${added} added, ${skipped} duplicates skipped`;
     } catch (err) {
       results.wallets = `failed: ${err?.message ?? err}`;
