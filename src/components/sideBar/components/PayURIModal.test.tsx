@@ -33,10 +33,10 @@ describe("PayURIModal", () => {
     expect(screen.getByRole("textbox", { name: /payment uri/i })).toBeInTheDocument();
   });
 
-  it("calls closeModal when Close is clicked", () => {
+  it("calls closeModal when Cancel is clicked", () => {
     const closeModal = jest.fn();
     render(<PayURIModal {...baseProps} closeModal={closeModal} />);
-    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }));
     expect(closeModal).toHaveBeenCalledTimes(1);
   });
 

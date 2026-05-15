@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog, session } = require("electron");
+const { app, BrowserWindow, Menu, shell, ipcMain, dialog, session, clipboard } = require("electron");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
@@ -177,6 +177,20 @@ class MenuBuilder {
             mainWindow.webContents.send("appsecurity");
           },
         },
+        {
+          label: "Change &Wallets Folder Location…",
+          visible: process.mas === true,
+          click: () => {
+            mainWindow.webContents.send("change-wallet-dir");
+          },
+        },
+        {
+          label: "&Import Data from Another Installation…",
+          visible: process.mas === true || !!process.env.FLATPAK_ID,
+          click: () => {
+            mainWindow.webContents.send("import-data");
+          },
+        },
       ],
     };
     const subMenuWindow = {
@@ -294,6 +308,13 @@ class MenuBuilder {
             accelerator: "Ctrl+Shift+S",
             click: () => {
               mainWindow.webContents.send("appsecurity");
+            },
+          },
+          {
+            label: "&Import Data from Another Installation…",
+            visible: !!process.env.FLATPAK_ID,
+            click: () => {
+              mainWindow.webContents.send("import-data");
             },
           },
         ],
@@ -552,6 +573,20 @@ async function setRequireAuth(value) {
     settings.setSync("all.requireDeviceAuth", value);
   }
 }
+
+// shell.openExternal and clipboard.writeText are not available in sandboxed preload —
+// route them through IPC so the main process performs the action.
+ipcMain.handle("shell:openExternal", (_e, url) => {
+  if (typeof url === "string" && url.startsWith("https://")) {
+    return shell.openExternal(url);
+  }
+});
+
+ipcMain.handle("clipboard:writeText", (_e, text) => {
+  if (typeof text === "string") {
+    clipboard.writeText(text);
+  }
+});
 
 ipcMain.handle("loadSettings", async () => {
   const all = settings.getSync("all");
@@ -860,6 +895,256 @@ ipcMain.handle("wallet-dir:request", async () => {
   }
 });
 
+// MAS only: let the user re-pick the wallet folder (e.g. they picked the wrong one).
+// Stores the new bookmark, then restarts so the wallet is reloaded from the new path.
+ipcMain.handle("wallet-dir:change", async () => {
+  if (process.platform !== "darwin" || !process.mas) return { ok: false, reason: "not-mas" };
+
+  const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
+
+  const { response } = await dialog.showMessageBox(mainWindow, {
+    type: "warning",
+    title: "Change wallet folder",
+    message: "Change wallet folder location?",
+    detail:
+      "Zingo PC will close and reopen with the new wallet folder. " +
+      "Make sure your wallets exist in the folder you select.",
+    buttons: ["Continue", "Cancel"],
+    defaultId: 0,
+    cancelId: 1,
+  });
+  if (response !== 0) return { ok: false, reason: "cancelled" };
+
+  const realHome = path.join("/Users", os.userInfo().username);
+  const defaultPath = path.join(realHome, "Library", "Application Support", "Zcash");
+
+  while (true) {
+    const { canceled, filePaths, bookmarks } = await dialog.showOpenDialog(mainWindow, {
+      title: "Select wallet folder",
+      message: 'Select the "Zcash" folder and click "Confirm"',
+      buttonLabel: "Confirm",
+      defaultPath,
+      properties: ["openDirectory", "createDirectory"],
+      securityScopedBookmarks: true,
+    });
+
+    if (canceled || !filePaths || filePaths.length === 0 || !bookmarks || bookmarks.length === 0) {
+      return { ok: false, reason: "cancelled" };
+    }
+
+    const selectedPath = filePaths[0];
+    if (path.basename(selectedPath) !== "Zcash") {
+      await dialog.showMessageBox(mainWindow, {
+        type: "error",
+        title: "Wrong folder",
+        message: `Please select the "Zcash" folder, not "${path.basename(selectedPath)}".`,
+        buttons: ["Retry"],
+      });
+      continue;
+    }
+
+    settings.setSync("all.walletDirBookmark", bookmarks[0]);
+    settings.setSync("all.walletDirPath", selectedPath);
+
+    // app.relaunch() is unreliable in MAS sandbox (can leave the container in a
+    // broken state that crashes the next launch at _libsecinit_appsandbox).
+    // Ask the user to reopen the app manually instead.
+    await dialog.showMessageBox(mainWindow, {
+      type: "info",
+      title: "Restart required",
+      message: "Wallet folder updated.",
+      detail: "Zingo PC will now close. Please reopen it to use the new wallet folder.",
+      buttons: ["Quit"],
+    });
+    app.quit();
+    return { ok: true };
+  }
+});
+
+// Import data from another installation: open folder picker and list which of the
+// 3 known files (settings.json, wallets.json, AddressBook.json) are present.
+ipcMain.handle("import:scan", async () => {
+  const isInSandbox = process.mas || !!process.env.FLATPAK_ID;
+  if (!isInSandbox) return { ok: false, reason: "not-sandboxed" };
+
+  const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
+
+  let defaultPath;
+  if (process.mas) {
+    const realHome = path.join("/Users", os.userInfo().username);
+    defaultPath = path.join(realHome, "Library", "Application Support", "Zingo PC");
+  } else {
+    // Flatpak: the standard Linux Electron userData for .deb / AppImage
+    defaultPath = path.join(os.homedir(), ".config", "Zingo PC");
+  }
+
+  const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
+    title: "Select source folder",
+    message: "Select the data folder from your previous Zingo PC installation.",
+    buttonLabel: "Open",
+    defaultPath,
+    properties: ["openDirectory"],
+  });
+
+  if (canceled || !filePaths || filePaths.length === 0) {
+    return { ok: false, reason: "cancelled" };
+  }
+
+  const sourceDir = filePaths[0];
+  const userData = app.getPath("userData");
+
+  if (path.resolve(sourceDir) === path.resolve(userData)) {
+    return { ok: false, reason: "same-folder" };
+  }
+
+  const fileNames = ["settings.json", "wallets.json", "AddressBook.json"];
+  const present = fileNames.filter((f) => fs.existsSync(resolveDataFile(sourceDir, f)));
+
+  if (present.length === 0) {
+    return { ok: false, reason: "no-data-found", sourceDir };
+  }
+
+  return { ok: true, sourceDir, present };
+});
+
+// Apply user's per-file choices (replace / merge / skip). Restarts the app on success.
+ipcMain.handle("import:apply", async (_e, { sourceDir, choices }) => {
+  const isInSandbox = process.mas || !!process.env.FLATPAK_ID;
+  if (!isInSandbox) return { ok: false, reason: "not-sandboxed" };
+
+  if (typeof sourceDir !== "string" || !sourceDir) return { ok: false, reason: "bad-source" };
+  if (!choices || typeof choices !== "object") return { ok: false, reason: "bad-choices" };
+
+  const userData = app.getPath("userData");
+  if (path.resolve(sourceDir) === path.resolve(userData)) {
+    return { ok: false, reason: "same-folder" };
+  }
+
+  const logImp = (msg) => {
+    try {
+      fs.appendFileSync(path.join(userData, "startup.log"), `${new Date().toISOString()} [import] ${msg}\n`);
+    } catch (_) {}
+  };
+
+  const results = {};
+
+  const copyResolved = (name) => {
+    const dest = resolveDataFile(userData, name);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.copyFileSync(resolveDataFile(sourceDir, name), dest);
+  };
+
+  // settings.json: replace or skip (merging a config object doesn't make sense)
+  if (choices.settings === "replace") {
+    try {
+      copyResolved("settings.json");
+      results.settings = "replaced";
+    } catch (err) {
+      results.settings = `failed: ${err?.message ?? err}`;
+    }
+  } else {
+    results.settings = "skipped";
+  }
+
+  // wallets.json: replace, merge (dedupe by fileName, keep existing on duplicate), or skip.
+  // electron-json-storage stores a plain array on disk: [WalletType, ...]
+  // (older code used a {wallets:[...]} wrapper — handle both for safety).
+  const toList = (parsed) => (Array.isArray(parsed) ? parsed : Array.isArray(parsed?.wallets) ? parsed.wallets : []);
+  if (choices.wallets === "replace") {
+    try {
+      copyResolved("wallets.json");
+      results.wallets = "replaced";
+    } catch (err) {
+      results.wallets = `failed: ${err?.message ?? err}`;
+    }
+  } else if (choices.wallets === "merge") {
+    try {
+      const srcList = toList(JSON.parse(fs.readFileSync(resolveDataFile(sourceDir, "wallets.json"), "utf8")));
+
+      const destPath = resolveDataFile(userData, "wallets.json");
+      const destList = fs.existsSync(destPath) ? toList(JSON.parse(fs.readFileSync(destPath, "utf8"))) : [];
+
+      const existingFileNames = new Set(destList.map((w) => w.fileName));
+      const nextId = (destList.reduce((max, w) => Math.max(max, w.id ?? 0), 0) || 0) + 1;
+      let added = 0;
+      let skipped = 0;
+      for (const w of srcList) {
+        if (!w || !w.fileName) continue;
+        if (existingFileNames.has(w.fileName)) {
+          skipped++;
+          continue;
+        }
+        destList.push({ ...w, id: nextId + added });
+        existingFileNames.add(w.fileName);
+        added++;
+      }
+
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      // Write as a plain array — that's the format electron-json-storage reads.
+      fs.writeFileSync(destPath, JSON.stringify(destList));
+      results.wallets = `merged: ${added} added, ${skipped} duplicates skipped`;
+    } catch (err) {
+      results.wallets = `failed: ${err?.message ?? err}`;
+    }
+  } else {
+    results.wallets = "skipped";
+  }
+
+  // AddressBook.json: replace, merge (dedupe by address, keep existing on duplicate), or skip
+  if (choices.addressBook === "replace") {
+    try {
+      copyResolved("AddressBook.json");
+      results.addressBook = "replaced";
+    } catch (err) {
+      results.addressBook = `failed: ${err?.message ?? err}`;
+    }
+  } else if (choices.addressBook === "merge") {
+    try {
+      const src = JSON.parse(fs.readFileSync(resolveDataFile(sourceDir, "AddressBook.json"), "utf8"));
+      const srcList = Array.isArray(src) ? src : [];
+
+      const destPath = resolveDataFile(userData, "AddressBook.json");
+      const dest = fs.existsSync(destPath) ? JSON.parse(fs.readFileSync(destPath, "utf8")) : [];
+      const destList = Array.isArray(dest) ? dest : [];
+
+      const existingAddrs = new Set(destList.map((e) => e?.address));
+      let added = 0;
+      let skipped = 0;
+      for (const e of srcList) {
+        if (!e || !e.address) continue;
+        if (existingAddrs.has(e.address)) {
+          skipped++;
+          continue;
+        }
+        destList.push(e);
+        existingAddrs.add(e.address);
+        added++;
+      }
+
+      fs.writeFileSync(destPath, JSON.stringify(destList));
+      results.addressBook = `merged: ${added} added, ${skipped} duplicates skipped`;
+    } catch (err) {
+      results.addressBook = `failed: ${err?.message ?? err}`;
+    }
+  } else {
+    results.addressBook = "skipped";
+  }
+
+  logImp(`from=${sourceDir} ${JSON.stringify(results)}`);
+
+  // app.relaunch() is unreliable in MAS sandbox — ask the user to reopen instead.
+  const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
+  await dialog.showMessageBox(mainWindow, {
+    type: "info",
+    title: "Import complete",
+    message: "Data imported.",
+    detail: "Zingo PC will now close. Please reopen it to use the imported data.",
+    buttons: ["Quit"],
+  });
+  app.quit();
+  return { ok: true, results };
+});
+
 // Renderer calls this once the wallet is loaded to claim any pending zcash: URI.
 ipcMain.handle("get-pending-uri", () => {
   const uri = pendingZcashUri;
@@ -1018,6 +1303,150 @@ if (process.platform !== "darwin") {
   if (coldStartUri) pendingZcashUri = coldStartUri;
 }
 
+// Resolves the on-disk path for a known data file.
+// wallets.json lives in electron-json-storage's "storage" subdirectory; the rest
+// are at the userData root.
+function resolveDataFile(rootDir, name) {
+  if (name === "wallets.json") return path.join(rootDir, "storage", "wallets.json");
+  return path.join(rootDir, name);
+}
+
+// One-shot migration from a previous DMG (non-sandboxed) install:
+// copies settings.json / wallets.json / AddressBook.json into the MAS container.
+// MAS sandbox cannot read the DMG userData silently — the user picks the folder
+// via NSOpenPanel (the default path is pre-set so it's effectively one click).
+async function maybeRunDmgToMasMigration() {
+  if (process.platform !== "darwin" || !process.mas) return;
+
+  const userData = app.getPath("userData");
+  const marker = path.join(userData, ".dmg-migration-checked");
+  const fileNames = ["settings.json", "wallets.json", "AddressBook.json"];
+
+  if (fs.existsSync(marker)) return;
+
+  // Container already has data: write the marker and skip (handles upgrades from
+  // a prior MAS build that pre-dates this migration code).
+  if (fileNames.some((f) => fs.existsSync(resolveDataFile(userData, f)))) {
+    try {
+      fs.writeFileSync(marker, new Date().toISOString());
+    } catch (_) {}
+    return;
+  }
+
+  const markChecked = () => {
+    try {
+      fs.writeFileSync(marker, new Date().toISOString());
+    } catch (_) {}
+  };
+  const logMig = (msg) => {
+    try {
+      fs.appendFileSync(path.join(userData, "startup.log"), `${new Date().toISOString()} [migration] ${msg}\n`);
+    } catch (_) {}
+  };
+
+  const { response: choice } = await dialog.showMessageBox(null, {
+    type: "question",
+    title: "Migrate from previous installation?",
+    message: "Did you previously use Zingo PC?",
+    detail:
+      "If you used a previous version of Zingo PC (installed from the website's DMG), " +
+      "click Migrate to import your wallets, address book, and settings.\n\n" +
+      "If this is a fresh install, click Skip.",
+    buttons: ["Migrate", "Skip"],
+    defaultId: 0,
+    cancelId: 1,
+  });
+
+  if (choice !== 0) {
+    markChecked();
+    logMig("user chose skip");
+    return;
+  }
+
+  const realHome = path.join("/Users", os.userInfo().username);
+  const defaultPath = path.join(realHome, "Library", "Application Support", "Zingo PC");
+
+  while (true) {
+    const { canceled, filePaths } = await dialog.showOpenDialog(null, {
+      title: "Select your previous Zingo PC data folder",
+      message: 'Select the "Zingo PC" folder inside ~/Library/Application Support and click "Open".',
+      buttonLabel: "Open",
+      defaultPath,
+      properties: ["openDirectory"],
+    });
+
+    if (canceled || !filePaths || filePaths.length === 0) {
+      markChecked();
+      logMig("user cancelled folder picker");
+      return;
+    }
+
+    const sourceDir = filePaths[0];
+
+    if (path.resolve(sourceDir) === path.resolve(userData)) {
+      await dialog.showMessageBox(null, {
+        type: "warning",
+        title: "Invalid folder",
+        message: "Cannot migrate from the current installation's own folder.",
+        detail: "Please select your previous DMG installation's data folder.",
+        buttons: ["OK"],
+      });
+      continue;
+    }
+
+    const present = fileNames.filter((f) => fs.existsSync(resolveDataFile(sourceDir, f)));
+
+    if (present.length === 0) {
+      const { response: retry } = await dialog.showMessageBox(null, {
+        type: "warning",
+        title: "No Zingo PC data found",
+        message: "Selected folder does not contain Zingo PC data.",
+        detail:
+          "None of settings.json, wallets.json or AddressBook.json was found. " +
+          "Try selecting your previous Zingo PC data folder, or click Skip.",
+        buttons: ["Try again", "Skip"],
+        defaultId: 0,
+        cancelId: 1,
+      });
+      if (retry !== 0) {
+        markChecked();
+        logMig("user gave up after empty folder");
+        return;
+      }
+      continue;
+    }
+
+    const copied = [];
+    const failed = [];
+    for (const f of present) {
+      try {
+        const destPath = resolveDataFile(userData, f);
+        fs.mkdirSync(path.dirname(destPath), { recursive: true });
+        fs.copyFileSync(resolveDataFile(sourceDir, f), destPath);
+        copied.push(f);
+      } catch (err) {
+        failed.push(`${f} (${err?.message ?? err})`);
+      }
+    }
+
+    markChecked();
+    logMig(`from=${sourceDir} copied=${copied.join(",")} failed=${failed.join(",")}`);
+
+    await dialog.showMessageBox(null, {
+      type: copied.length > 0 ? "info" : "error",
+      title: "Migration result",
+      message: copied.length > 0 ? "Migration complete." : "Migration failed.",
+      detail:
+        (copied.length > 0 ? `Imported: ${copied.join(", ")}\n` : "") +
+        (failed.length > 0 ? `Failed: ${failed.join(", ")}\n` : "") +
+        "\nZingo PC will now ask for access to your Zcash wallet folder.",
+      buttons: ["OK"],
+    });
+
+    return;
+  }
+}
+
 // Create a new browser window by invoking the createWindow
 // function once the Electron application is initialized.
 // Install REACT_DEVELOPER_TOOLS as well if isDev
@@ -1099,6 +1528,8 @@ app.whenReady().then(async () => {
       },
     });
   });
+
+  await maybeRunDmgToMasMigration();
 
   createWindow();
 });

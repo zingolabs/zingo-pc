@@ -34,7 +34,7 @@ const ErrorModal: React.FC<ErrorModalProps> = ({ closeModal }) => {
 
       <div className={cstyles.buttoncontainer}>
         <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-          Close
+          Cancel
         </button>
       </div>
     </Modal>

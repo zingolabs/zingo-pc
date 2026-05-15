@@ -1,7 +1,7 @@
 {
   "name": "zingo-pc",
   "productName": "Zingo PC",
-  "version": "2.0.14",
+  "version": "2.0.15",
   "private": true,
   "description": "Zingo PC",
   "license": "MIT",
@@ -44,6 +44,7 @@
   },
   "scripts": {
     "postinstall": "node set-resolutions-macos.js && (electron-builder install-app-deps || true) && patch-package",
+    "release:prep": "node bin/prep-release.js",
     "lint": "cross-env NODE_ENV=production eslint . --fix --ext .js,.jsx,.ts,.tsx",
     "prettier": "prettier './**/*.{js,jsx,ts,tsx}' -w",
     "start": "cross-env RUST_BACKTRACE=1 ELECTRON_ENABLE_LOGGING=1 NODE_OPTIONS=--trace-uncaught concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
@@ -216,7 +217,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "141",
+      "bundleVersion": "143",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -238,7 +239,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "141",
+      "bundleVersion": "143",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationUsageDescription": "Zingo PC does not use your location. This permission is required by a system framework (Chromium) that initializes location services internally."

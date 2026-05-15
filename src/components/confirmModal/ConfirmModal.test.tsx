@@ -35,12 +35,12 @@ describe("ConfirmModal", () => {
     expect(screen.getByText("This action cannot be undone.")).toBeInTheDocument();
   });
 
-  it("calls closeModal when Close is clicked", () => {
+  it("calls closeModal when Cancel is clicked", () => {
     const closeModal = jest.fn();
     render(<ConfirmModal closeModal={closeModal} />, {
       contextOverrides: { confirmModal: makeOpenModal() },
     });
-    fireEvent.click(screen.getByRole("button", { name: /^close$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
     expect(closeModal).toHaveBeenCalledTimes(1);
   });
 

@@ -608,7 +608,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
 
         <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
           <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>
-            Close
+            Cancel
           </button>
         </div>
       </div>

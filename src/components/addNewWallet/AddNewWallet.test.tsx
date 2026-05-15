@@ -51,11 +51,11 @@ describe("AddNewWallet modes", () => {
     expect(screen.getAllByText("Delete Wallet").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("shows Close button before action button", () => {
+  it("shows Cancel button before action button", () => {
     render(<AddNewWallet {...baseProps} />, { initialRoute: "/addnewwallet" });
     const buttons = screen.getAllByRole("button");
-    const closeIdx = buttons.findIndex((b) => /^close$/i.test(b.textContent ?? ""));
+    const cancelIdx = buttons.findIndex((b) => /^cancel$/i.test(b.textContent ?? ""));
     const actionIdx = buttons.findIndex((b) => /create wallet/i.test(b.textContent ?? ""));
-    expect(closeIdx).toBeLessThan(actionIdx);
+    expect(cancelIdx).toBeLessThan(actionIdx);
   });
 });
