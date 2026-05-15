@@ -29,15 +29,24 @@ modules:
       - chmod +x zingo-pc.AppImage
       - ./zingo-pc.AppImage --appimage-extract
 
-      # Install Electron app to /app/lib/zingo-pc/
+      # electron-builder AppImages keep the binary + Electron libs + app.asar at
+      # the squashfs root (not under usr/lib). Copy everything there.
       - install -d /app/lib/zingo-pc
-      - cp -a squashfs-root/usr/lib/zingo-pc/. /app/lib/zingo-pc/
+      - cp -a squashfs-root/. /app/lib/zingo-pc/
+
+      # Drop AppRun — we launch via zypak-wrapper instead.
+      - rm -f /app/lib/zingo-pc/AppRun
+
+      # chrome-sandbox is setuid in AppImages; Flatpak/zypak handles sandboxing
+      # so strip the setuid bit to avoid Flatpak build errors.
+      - chmod u-s /app/lib/zingo-pc/chrome-sandbox || true
 
       # Wrapper script that uses zypak to handle Chrome sandbox inside Flatpak
       - install -Dm755 zingo-pc-wrapper.sh /app/bin/zingo-pc
 
-      # Desktop file — fix Exec to point to our wrapper
-      - install -Dm644 squashfs-root/co.zingo.pc.desktop /app/share/applications/co.zingo.pc.desktop
+      # Desktop file is named after the binary in electron-builder output;
+      # install it under the appId-based filename Flathub requires.
+      - install -Dm644 squashfs-root/zingo-pc.desktop /app/share/applications/co.zingo.pc.desktop
       - desktop-file-edit --set-key=Exec --set-value='zingo-pc %U' /app/share/applications/co.zingo.pc.desktop
 
       # App icon
