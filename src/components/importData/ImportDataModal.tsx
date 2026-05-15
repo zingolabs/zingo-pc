@@ -1,0 +1,177 @@
+import React, { useState } from "react";
+import Modal from "react-modal";
+import cstyles from "../common/Common.module.css";
+
+const { ipcRenderer } = window.electronAPI;
+
+export type ImportScanResult = {
+  sourceDir: string;
+  present: string[];
+};
+
+type Props = {
+  isOpen: boolean;
+  onClose: () => void;
+  scanResult: ImportScanResult | null;
+};
+
+type SettingsChoice = "replace" | "skip";
+type FileChoice = "replace" | "merge" | "skip";
+
+const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
+  const hasSettings = !!scanResult?.present.includes("settings.json");
+  const hasWallets = !!scanResult?.present.includes("wallets.json");
+  const hasAddressBook = !!scanResult?.present.includes("AddressBook.json");
+
+  const [settingsChoice, setSettingsChoice] = useState<SettingsChoice>("skip");
+  const [walletsChoice, setWalletsChoice] = useState<FileChoice>("merge");
+  const [addressBookChoice, setAddressBookChoice] = useState<FileChoice>("merge");
+  const [applying, setApplying] = useState(false);
+
+  const handleApply = async () => {
+    if (!scanResult) return;
+    setApplying(true);
+    // Main process restarts the app on success — this call won't normally return.
+    await ipcRenderer.invoke("import:apply", {
+      sourceDir: scanResult.sourceDir,
+      choices: {
+        settings: hasSettings ? settingsChoice : "skip",
+        wallets: hasWallets ? walletsChoice : "skip",
+        addressBook: hasAddressBook ? addressBookChoice : "skip",
+      },
+    });
+    setApplying(false);
+  };
+
+  const nothingSelected =
+    (!hasSettings || settingsChoice === "skip") &&
+    (!hasWallets || walletsChoice === "skip") &&
+    (!hasAddressBook || addressBookChoice === "skip");
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onRequestClose={onClose}
+      className={cstyles.modalOverlay}
+      overlayClassName={cstyles.modalOverlay}
+      style={{
+        content: {
+          background: "var(--bg-color, #1a1a2e)",
+          border: "1px solid #444",
+          borderRadius: 8,
+          padding: 32,
+          maxWidth: 560,
+          margin: "auto",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          position: "absolute",
+          right: "auto",
+          bottom: "auto",
+        },
+      }}
+    >
+      <div className={`${cstyles.xlarge} ${cstyles.center}`}>Import Data</div>
+
+      <div className={`${cstyles.small} ${cstyles.margintopsmall}`} style={{ opacity: 0.7, marginTop: 12 }}>
+        Source folder:
+        <div style={{ wordBreak: "break-all", marginTop: 4 }}>{scanResult?.sourceDir ?? ""}</div>
+      </div>
+
+      <div className={`${cstyles.well} ${cstyles.margintopsmall}`} style={{ marginTop: 24 }}>
+        {hasSettings && (
+          <FileRow
+            label="settings.json"
+            description="Block explorer, server selection, app preferences."
+            value={settingsChoice}
+            onChange={(v) => setSettingsChoice(v as SettingsChoice)}
+            options={[
+              { value: "replace", label: "Replace" },
+              { value: "skip", label: "Skip" },
+            ]}
+          />
+        )}
+
+        {hasWallets && (
+          <FileRow
+            label="wallets.json"
+            description="Your wallet list. Merge keeps existing wallets and adds new ones (deduped by file name)."
+            value={walletsChoice}
+            onChange={(v) => setWalletsChoice(v as FileChoice)}
+            options={[
+              { value: "replace", label: "Replace" },
+              { value: "merge", label: "Merge (skip duplicates)" },
+              { value: "skip", label: "Skip" },
+            ]}
+          />
+        )}
+
+        {hasAddressBook && (
+          <FileRow
+            label="AddressBook.json"
+            description="Saved contacts. Merge keeps existing entries and adds new ones (deduped by address)."
+            value={addressBookChoice}
+            onChange={(v) => setAddressBookChoice(v as FileChoice)}
+            options={[
+              { value: "replace", label: "Replace" },
+              { value: "merge", label: "Merge (skip duplicates)" },
+              { value: "skip", label: "Skip" },
+            ]}
+          />
+        )}
+      </div>
+
+      <div className={`${cstyles.small} ${cstyles.margintopsmall}`} style={{ opacity: 0.7, marginTop: 12 }}>
+        Zingo PC will restart after import to load the new data.
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+        <button type="button" className={cstyles.primarybutton} onClick={onClose} disabled={applying}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={cstyles.primarybutton}
+          onClick={handleApply}
+          disabled={applying || nothingSelected}
+        >
+          {applying ? "Importing…" : "Apply & Restart"}
+        </button>
+      </div>
+    </Modal>
+  );
+};
+
+type FileRowProps = {
+  label: string;
+  description: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+};
+
+const FileRow: React.FC<FileRowProps> = ({ label, description, value, onChange, options }) => (
+  <div style={{ marginBottom: 16 }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div>
+        <div className={cstyles.small}>{label}</div>
+        <div className={cstyles.small} style={{ opacity: 0.6, marginTop: 4 }}>
+          {description}
+        </div>
+      </div>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        style={{ marginLeft: 16, padding: "4px 8px", minWidth: 200 }}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  </div>
+);
+
+export default ImportDataModal;

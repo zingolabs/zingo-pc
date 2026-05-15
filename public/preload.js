@@ -1,5 +1,7 @@
-const { contextBridge, ipcRenderer, clipboard } = require("electron");
-const { shell } = require("electron");
+// With sandbox: true on BrowserWindow, only a subset of Electron's API is available
+// in the preload — `shell` and `clipboard` are NOT available here, so they are
+// proxied to the main process via IPC (see ALLOWED_INVOKE below).
+const { contextBridge, ipcRenderer } = require("electron");
 
 // All native methods run in the main process — every call is an IPC round-trip.
 // This allows sandbox:true on BrowserWindow and correct security-scoped bookmark handling.
@@ -84,6 +86,8 @@ const ALLOWED_RECEIVE = new Set([
   "deletewallet",
   "appquitting",
   "appsecurity",
+  "change-wallet-dir",
+  "import-data",
 ]);
 
 // Allowed IPC channels that renderer → main can invoke/send.
@@ -107,6 +111,11 @@ const ALLOWED_INVOKE = new Set([
   "fs:mkdir",
   "fs:writeFile",
   "fs:readFile",
+  "shell:openExternal",
+  "clipboard:writeText",
+  "wallet-dir:change",
+  "import:scan",
+  "import:apply",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -114,14 +123,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   isSandboxed: process.platform === "darwin" && process.mas === true,
 
   clipboard: {
-    writeText: (text) => clipboard.writeText(text),
+    writeText: (text) => ipcRenderer.invoke("clipboard:writeText", text),
   },
 
   shell: {
     openExternal: (url) => {
       // Only allow https:// URLs to prevent protocol injection.
+      // Main process re-validates as defense in depth.
       if (typeof url === "string" && url.startsWith("https://")) {
-        shell.openExternal(url);
+        return ipcRenderer.invoke("shell:openExternal", url);
       }
     },
   },

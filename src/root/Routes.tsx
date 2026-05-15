@@ -41,6 +41,7 @@ import { ConfirmModal } from "../components/confirmModal";
 import ShieldResultContent from "./ShieldResultContent";
 import LockScreen from "../components/lockScreen/LockScreen";
 import AppSecurityModal from "../components/appSecurity/AppSecurityModal";
+import ImportDataModal, { ImportScanResult } from "../components/importData/ImportDataModal";
 
 const { ipcRenderer } = window.electronAPI;
 
@@ -79,6 +80,8 @@ const AppRoutes: React.FC = () => {
   const [locked, setLocked] = useState(false);
   const [lockChecked, setLockChecked] = useState(false);
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importScanResult, setImportScanResult] = useState<ImportScanResult | null>(null);
 
   // --- timers ---
   const fetchErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -219,6 +222,24 @@ const AppRoutes: React.FC = () => {
     const appsecurityListener = () => setSecurityModalOpen(true);
     ipcRenderer.on("appsecurity", appsecurityListener);
 
+    // Change wallet folder location — main process handles the dialog, picker, and restart.
+    const changeWalletDirListener = () => {
+      ipcRenderer.invoke("wallet-dir:change");
+    };
+    ipcRenderer.on("change-wallet-dir", changeWalletDirListener);
+
+    // Import data from another installation — kick off the folder picker, then open the modal.
+    const importDataListener = async () => {
+      const result = await ipcRenderer.invoke("import:scan");
+      if (result?.ok) {
+        setImportScanResult(result as ImportScanResult);
+        setImportModalOpen(true);
+      }
+      // Cancellation / no-data / same-folder errors are surfaced by main-process dialogs
+      // or simply do nothing here — keep the renderer flow quiet.
+    };
+    ipcRenderer.on("import-data", importDataListener);
+
     const appquittingListener = async () => {
       try {
         await native.save_wallet_file();
@@ -230,6 +251,8 @@ const AppRoutes: React.FC = () => {
     return () => {
       if (fetchErrorTimer.current) clearTimeout(fetchErrorTimer.current);
       ipcRenderer.off("appsecurity", appsecurityListener);
+      ipcRenderer.off("change-wallet-dir", changeWalletDirListener);
+      ipcRenderer.off("import-data", importDataListener);
       ipcRenderer.off("appquitting", appquittingListener);
     };
   }, []);
@@ -502,6 +525,14 @@ const AppRoutes: React.FC = () => {
   return (
     <ContextAppProvider value={contextAppState}>
       <AppSecurityModal isOpen={securityModalOpen} onClose={() => setSecurityModalOpen(false)} />
+      <ImportDataModal
+        isOpen={importModalOpen}
+        scanResult={importScanResult}
+        onClose={() => {
+          setImportModalOpen(false);
+          setImportScanResult(null);
+        }}
+      />
 
       {confirmModal.modalIsOpen && <ConfirmModal closeModal={closeConfirmModal} />}
       {errorModal.modalIsOpen && <ErrorModal closeModal={closeErrorModal} />}
