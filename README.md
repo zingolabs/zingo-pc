@@ -14,6 +14,7 @@ Pre-built binaries for each release are available on the [Releases page](https:/
 | macOS | `.dmg` |
 | macOS (App Store / TestFlight) | `.pkg` via [TestFlight](https://testflight.apple.com) |
 | Linux | `.deb`, `.AppImage` |
+| Linux (Flatpak) | `.flatpak` |
 
 ---
 
@@ -62,6 +63,18 @@ yarn dist:mac-mas      # macOS universal (MAS / TestFlight)
 ```
 
 Binaries are output to the `dist/` directory.
+
+### Preparing a release
+
+The version and build number live in several files (`package.json`,
+`src/version.ts`, `bin/printversion.{sh,ps1}`, plus the AppStream metainfo for
+Flatpak). To bump them all in one shot:
+
+```bash
+yarn release:prep <X.Y.Z> <BUILD>
+# e.g.
+yarn release:prep 2.0.15 142
+```
 
 ---
 
