@@ -998,13 +998,33 @@ ipcMain.handle("import:scan", async () => {
   const userData = app.getPath("userData");
 
   if (path.resolve(sourceDir) === path.resolve(userData)) {
+    await dialog.showMessageBox(mainWindow, {
+      type: "warning",
+      title: "Invalid folder",
+      message: "Cannot import from the current installation's own folder.",
+      detail: "Please select a different Zingo PC data folder.",
+      buttons: ["OK"],
+    });
     return { ok: false, reason: "same-folder" };
   }
 
-  const fileNames = ["settings.json", "wallets.json", "AddressBook.json"];
+  // Only count files that are actually importable from the interactive modal.
+  // settings.json is migrated only on first-launch (with currentwalletid nulled),
+  // not via this flow — so a folder with just settings.json should be treated as
+  // having nothing to import.
+  const fileNames = ["wallets.json", "AddressBook.json"];
   const present = fileNames.filter((f) => fs.existsSync(resolveDataFile(sourceDir, f)));
 
   if (present.length === 0) {
+    await dialog.showMessageBox(mainWindow, {
+      type: "info",
+      title: "Nothing to import",
+      message: "No importable data found in this folder.",
+      detail:
+        "The selected folder doesn't contain a wallets.json or AddressBook.json " +
+        "from a previous Zingo PC installation.",
+      buttons: ["OK"],
+    });
     return { ok: false, reason: "no-data-found", sourceDir };
   }
 
