@@ -41,6 +41,13 @@ modules:
       # so strip the setuid bit to avoid Flatpak build errors.
       - chmod u-s /app/lib/zingo-pc/chrome-sandbox || true
 
+      # Diagnostic: list every .so ldconfig finds in our lib dir.
+      # The line "ldconfig: <file>: <reason>" tells us which library is making
+      # the host's post-install hook return exit 1 (visible as "Algo salió mal").
+      # The `|| true` keeps the build going even if ldconfig itself returns 1.
+      - echo "=== ldconfig diagnostic ===" && ldconfig -v -N /app/lib/zingo-pc/ 2>&1 || true
+      - echo "=== end ldconfig diagnostic ==="
+
       # Wrapper script that uses zypak to handle Chrome sandbox inside Flatpak
       - install -Dm755 zingo-pc-wrapper.sh /app/bin/zingo-pc
 

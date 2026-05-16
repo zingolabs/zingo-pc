@@ -1329,7 +1329,13 @@ function createWindow() {
   }
 }
 
-app.commandLine.appendSwitch("in-process-gpu");
+// "in-process-gpu" forced the GPU into the browser process — historically added
+// in 2022 to work around an old issue, but in modern Electron + sandbox:true
+// renderers it causes:
+//   - Windows: blank white/blue windows (GPU paint never initializes)
+//   - macOS:   shutdown crash in Chrome_InProcGpuThread (rust_png/fontations)
+// Removing it puts Chromium back on its default out-of-process GPU.
+// app.commandLine.appendSwitch("in-process-gpu");
 
 // Windows/Linux cold start: the zcash: URI arrives via env var (set by the
 // zingo-pc-uri.sh wrapper on Linux, which avoids passing it as a positional
