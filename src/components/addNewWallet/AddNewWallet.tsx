@@ -135,9 +135,21 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       setSelectedSelection(safeSelection as ServerSelectionEnum | "");
       setServers(servers);
       if (mode !== "addnew" && !!currentWallet) {
+        // settings / delete: pre-fill with current wallet's data
         setAlias(currentWallet.alias);
         setPerformanceLevel(currentWallet.performanceLevel);
         setFile(currentWallet.fileName);
+      } else if (mode === "addnew") {
+        // addnew: this component instance may be reused after the user was on
+        // settings or delete (same route, only location.state changes). Reset
+        // the wallet-specific fields so values from the previous mode don't bleed in.
+        setAlias("");
+        setPerformanceLevel(PerformanceLevelEnum.High);
+        setFile("");
+        setNewWalletType("new");
+        setSeedPhrase("");
+        setBirthday("");
+        setUfvk("");
       }
     })();
   }, [
