@@ -33,6 +33,8 @@
 
   <launchable type="desktop-id">co.zingo.pc.desktop</launchable>
 
+  <icon type="stock">co.zingo.pc</icon>
+
   <categories>
     <category>Finance</category>
     <category>Utility</category>
@@ -53,7 +55,7 @@
   </content_rating>
 
   <releases>
-    <release version="2.0.15" date="2026-05-15">
+    <release version="2.0.15" date="2026-05-16">
       <description>
         <p>Latest stable release of Zingo PC.</p>
       </description>

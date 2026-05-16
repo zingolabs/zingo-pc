@@ -1064,18 +1064,23 @@ ipcMain.handle("import:apply", async (_e, { sourceDir, choices }) => {
       const destPath = resolveDataFile(userData, "wallets.json");
       const destList = fs.existsSync(destPath) ? toList(JSON.parse(fs.readFileSync(destPath, "utf8"))) : [];
 
-      const existingFileNames = new Set(destList.map((w) => w.fileName));
+      // Dedup key combines chain_name + fileName: the same fileName in different
+      // network subfolders (mainnet/, testnet3/, regtest/) refers to physically
+      // distinct .dat files and must NOT be treated as a duplicate.
+      const walletKey = (w) => `${w?.chain_name ?? "main"}:${w?.fileName}`;
+      const existingKeys = new Set(destList.map(walletKey));
       const nextId = (destList.reduce((max, w) => Math.max(max, w.id ?? 0), 0) || 0) + 1;
       let added = 0;
       let skipped = 0;
       for (const w of srcList) {
         if (!w || !w.fileName) continue;
-        if (existingFileNames.has(w.fileName)) {
+        const k = walletKey(w);
+        if (existingKeys.has(k)) {
           skipped++;
           continue;
         }
         destList.push({ ...w, id: nextId + added });
-        existingFileNames.add(w.fileName);
+        existingKeys.add(k);
         added++;
       }
 
@@ -1422,7 +1427,17 @@ async function maybeRunDmgToMasMigration() {
       try {
         const destPath = resolveDataFile(userData, f);
         fs.mkdirSync(path.dirname(destPath), { recursive: true });
-        fs.copyFileSync(resolveDataFile(sourceDir, f), destPath);
+        if (f === "settings.json") {
+          // currentwalletid from the old install points to a wallet id that may not
+          // exist in this install — null it so the app opens the first wallet found.
+          const parsed = JSON.parse(fs.readFileSync(resolveDataFile(sourceDir, f), "utf8"));
+          if (parsed && parsed.all && "currentwalletid" in parsed.all) {
+            parsed.all.currentwalletid = null;
+          }
+          fs.writeFileSync(destPath, JSON.stringify(parsed));
+        } else {
+          fs.copyFileSync(resolveDataFile(sourceDir, f), destPath);
+        }
         copied.push(f);
       } catch (err) {
         failed.push(`${f} (${err?.message ?? err})`);

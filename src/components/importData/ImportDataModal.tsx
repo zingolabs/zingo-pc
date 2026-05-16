@@ -15,15 +15,16 @@ type Props = {
   scanResult: ImportScanResult | null;
 };
 
-type SettingsChoice = "replace" | "skip";
 type FileChoice = "replace" | "merge" | "skip";
 
+// settings.json is intentionally NOT importable here: replacing it would clobber
+// MAS-only fields (walletDirBookmark, requireDeviceAuth) and the migrated
+// currentwalletid would point to a wallet ID that doesn't exist in this install.
+// It's only migrated on first launch (when the container is empty).
 const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
-  const hasSettings = !!scanResult?.present.includes("settings.json");
   const hasWallets = !!scanResult?.present.includes("wallets.json");
   const hasAddressBook = !!scanResult?.present.includes("AddressBook.json");
 
-  const [settingsChoice, setSettingsChoice] = useState<SettingsChoice>("skip");
   const [walletsChoice, setWalletsChoice] = useState<FileChoice>("merge");
   const [addressBookChoice, setAddressBookChoice] = useState<FileChoice>("merge");
   const [applying, setApplying] = useState(false);
@@ -35,7 +36,7 @@ const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
     await ipcRenderer.invoke("import:apply", {
       sourceDir: scanResult.sourceDir,
       choices: {
-        settings: hasSettings ? settingsChoice : "skip",
+        settings: "skip",
         wallets: hasWallets ? walletsChoice : "skip",
         addressBook: hasAddressBook ? addressBookChoice : "skip",
       },
@@ -44,9 +45,7 @@ const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
   };
 
   const nothingSelected =
-    (!hasSettings || settingsChoice === "skip") &&
-    (!hasWallets || walletsChoice === "skip") &&
-    (!hasAddressBook || addressBookChoice === "skip");
+    (!hasWallets || walletsChoice === "skip") && (!hasAddressBook || addressBookChoice === "skip");
 
   return (
     <Modal
@@ -79,19 +78,6 @@ const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
       </div>
 
       <div className={`${cstyles.well} ${cstyles.margintopsmall}`} style={{ marginTop: 24 }}>
-        {hasSettings && (
-          <FileRow
-            label="settings.json"
-            description="Block explorer, server selection, app preferences."
-            value={settingsChoice}
-            onChange={(v) => setSettingsChoice(v as SettingsChoice)}
-            options={[
-              { value: "replace", label: "Replace" },
-              { value: "skip", label: "Skip" },
-            ]}
-          />
-        )}
-
         {hasWallets && (
           <FileRow
             label="wallets.json"

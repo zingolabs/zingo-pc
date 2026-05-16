@@ -46,8 +46,10 @@ modules:
 
       # Desktop file is named after the binary in electron-builder output;
       # install it under the appId-based filename Flathub requires.
+      # Also point Icon= at the appId-based icon name so AppStream resolves it.
       - install -Dm644 squashfs-root/zingo-pc.desktop /app/share/applications/co.zingo.pc.desktop
       - desktop-file-edit --set-key=Exec --set-value='zingo-pc %U' /app/share/applications/co.zingo.pc.desktop
+      - desktop-file-edit --set-icon=co.zingo.pc /app/share/applications/co.zingo.pc.desktop
 
       # App icon
       - install -Dm644 squashfs-root/zingo-pc.png /app/share/icons/hicolor/512x512/apps/co.zingo.pc.png
