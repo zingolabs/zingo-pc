@@ -462,9 +462,13 @@ if (process.platform === "darwin") {
   });
 }
 
-// Windows/Linux: enforce single instance and receive the URI from the second argv.
-// Not used on macOS — the OS handles single-instance for URL schemes via open-url.
-if (process.platform !== "darwin") {
+// Enforce single instance across all platforms.
+// On macOS, the OS usually focuses the existing instance via Launch Services,
+// but two copies of the app at different paths (e.g. DMG + MAS) can both run
+// and end up sharing native/GPU resources — which has caused shutdown crashes
+// in the InProc GPU thread (rust_png / fontations).
+// Windows/Linux also use this to receive zcash: URIs from second-instance argv.
+{
   const gotLock = app.requestSingleInstanceLock();
   if (!gotLock) {
     // Exit immediately — app.quit() is graceful and can briefly show a white

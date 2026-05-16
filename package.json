@@ -217,7 +217,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "144",
+      "bundleVersion": "145",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -239,7 +239,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "144",
+      "bundleVersion": "145",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationUsageDescription": "Zingo PC does not use your location. This permission is required by a system framework (Chromium) that initializes location services internally."
