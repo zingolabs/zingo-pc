@@ -132,10 +132,20 @@ After installing, log out and back in so the daemon starts with your session.
 
 A: Ubuntu 22.04 and later restrict unprivileged user namespaces at the kernel level, which breaks Chromium's built-in process sandbox that Electron depends on.
 
-- **`.deb` package**: This is fixed automatically by the post-install script, which sets the `chrome-sandbox` binary as SUID root (the same technique used by the official Google Chrome `.deb`). If you installed the `.deb` and still see the issue, try reinstalling.
+In order of preference:
 
-- **AppImage**: The AppImage detects the restriction automatically and disables the Chromium sandbox when needed. If you are on Ubuntu 24.04 or a system where AppArmor blocks user namespaces and the automatic detection does not work, you can launch the AppImage manually with:
+- **Flatpak** (recommended): Flatpak runs the app inside its own bubblewrap sandbox, so it does not depend on Chromium's namespace-based sandbox at all. Install the `.flatpak` from the [Releases page](https://github.com/zingolabs/zingo-pc/releases):
 
   ```bash
-  ./ZingoPC.AppImage --no-sandbox
+  flatpak install Zingo.PC-<version>.flatpak
   ```
+
+- **`.deb` package**: The post-install script sets the `chrome-sandbox` binary as SUID root (the same technique used by the official Google Chrome `.deb`), which restores Chromium's sandbox without relying on user namespaces. If you installed the `.deb` and still see the issue, try reinstalling.
+
+- **AppImage**: The AppImage detects the restriction automatically and disables the Chromium sandbox when needed (a warning is shown). On Ubuntu 24.04 or systems where AppArmor blocks user namespaces and the automatic detection does not catch it, you can launch the AppImage manually with `--no-sandbox`:
+
+  ```bash
+  ./Zingo.PC-<version>.AppImage --no-sandbox
+  ```
+
+  ⚠️ Note: `--no-sandbox` disables Chromium's process isolation. For a wallet this is a real security concern — prefer the Flatpak or the `.deb` if either is available on your system.
