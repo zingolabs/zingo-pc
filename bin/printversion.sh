@@ -1,3 +1,3 @@
 #!/bin/bash
-VERSION="2.0.15-145"
+VERSION="2.0.15-146"
 echo "VERSION=$VERSION" >> $GITHUB_ENV

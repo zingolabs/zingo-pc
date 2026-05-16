@@ -1169,7 +1169,12 @@ ipcMain.on("apprestart", () => {
 ipcMain.on("appquitdone", () => {
   waitingForClose = false;
   proceedToClose = true;
-  app.quit();
+  // app.quit() triggers the full Electron teardown, which in Electron 40 crashes
+  // the InProc GPU thread during cleanup of the rust_png/fontations subsystem
+  // (a known upstream bug). The wallet has already been saved by the renderer
+  // before sending appquitdone, so a hard exit here is safe and avoids the
+  // user-visible crash dialog.
+  app.exit(0);
 });
 
 function createWindow() {
