@@ -490,27 +490,32 @@ if (process.platform === "darwin") {
 // Register all IPC handlers once — calling ipcMain.handle twice for the same channel throws
 
 ipcMain.handle("auth:check", async () => {
+  // Race any platform probe against a 3s timeout so a hung native call
+  // (e.g. Windows Hello on a system without it configured) doesn't block
+  // the renderer's lock-check forever and leave a white screen.
+  const withTimeout = (probe, fallback = "not_supported", ms = 3000) =>
+    Promise.race([
+      Promise.resolve().then(() => probe()),
+      new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+    ]).catch(() => fallback);
+
   if (process.platform === "win32") {
-    try {
-      return getNative().checkWindowsHello();
-    } catch {
-      return "not_supported";
-    }
+    return withTimeout(() => getNative().checkWindowsHello());
   } else if (process.platform === "darwin") {
-    try {
-      return getNative().checkMacAuth();
-    } catch {
-      return "not_supported";
-    }
+    return withTimeout(() => getNative().checkMacAuth());
   } else if (process.platform === "linux") {
-    return new Promise((resolve) => {
-      const { execFile } = require("child_process");
-      // polkit 0.105 (Linux Mint / Ubuntu) exits with code 1 even when the
-      // action exists, so check stdout instead of the exit code.
-      execFile("pkaction", ["--action-id", "co.zingo.pc.authenticate"], (_err, stdout) => {
-        resolve(stdout && stdout.includes("co.zingo.pc.authenticate") ? "available" : "not_installed_linux");
-      });
-    });
+    return withTimeout(
+      () =>
+        new Promise((resolve) => {
+          const { execFile } = require("child_process");
+          // polkit 0.105 (Linux Mint / Ubuntu) exits with code 1 even when the
+          // action exists, so check stdout instead of the exit code.
+          execFile("pkaction", ["--action-id", "co.zingo.pc.authenticate"], (_err, stdout) => {
+            resolve(stdout && stdout.includes("co.zingo.pc.authenticate") ? "available" : "not_installed_linux");
+          });
+        }),
+      "not_installed_linux",
+    );
   }
   return "not_supported";
 });
