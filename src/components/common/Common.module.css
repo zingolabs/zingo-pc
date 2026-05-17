@@ -101,14 +101,21 @@
   text-align: center;
   font-weight: bold;
   font-size: 16px;
-  padding-top: 8px;
-  padding-bottom: 8px;
-  padding-left: 16px;
-  padding-right: 16px;
+  padding: 10px 20px;
   border-radius: 4px;
   border-color: var(--color-primary);
   margin-left: 8px;
   margin-right: 8px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.primarybutton:hover {
+  filter: brightness(1.15);
+}
+
+.primarybutton:active {
+  filter: brightness(0.9);
 }
 
 .primarybutton:disabled,
@@ -116,10 +123,8 @@
   border: 1px solid var(--color-primary);
   background-color: var(--color-primary-disable);
   color: var(--color-text);
-}
-
-.primarybutton:hover {
-  cursor: pointer;
+  cursor: not-allowed;
+  filter: none;
 }
 
 .marginnegativetitle {

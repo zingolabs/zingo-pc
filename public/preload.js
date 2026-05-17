@@ -116,6 +116,7 @@ const ALLOWED_INVOKE = new Set([
   "wallet-dir:change",
   "import:scan",
   "import:apply",
+  "zns:resolve",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {

@@ -1,7 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "../../test-utils";
 import AddressBook from "./Addressbook";
-import { AddressBookEntryClass } from "../appstate";
+import { AddressBookEntryClass, ServerChainNameEnum } from "../appstate";
 
 jest.mock("../../electronBridge");
 
@@ -25,7 +25,11 @@ describe("AddressBook", () => {
   });
 
   it("renders existing address book entries", () => {
-    const entry = new AddressBookEntryClass("Alice", "u1fakeaddr000000000000000000000");
+    const entry = new AddressBookEntryClass(
+      "Alice",
+      "u1fakeaddr000000000000000000000",
+      ServerChainNameEnum.mainChainName,
+    );
     render(<AddressBook {...baseProps} />, {
       contextOverrides: { addressBook: [entry] },
     });
@@ -33,7 +37,11 @@ describe("AddressBook", () => {
   });
 
   it("shows a duplicate label error when label already exists", async () => {
-    const entry = new AddressBookEntryClass("Alice", "u1fakeaddr000000000000000000000");
+    const entry = new AddressBookEntryClass(
+      "Alice",
+      "u1fakeaddr000000000000000000000",
+      ServerChainNameEnum.mainChainName,
+    );
     render(<AddressBook {...baseProps} />, {
       contextOverrides: { addressBook: [entry] },
     });

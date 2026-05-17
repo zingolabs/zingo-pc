@@ -597,6 +597,41 @@ ipcMain.handle("clipboard:writeText", (_e, text) => {
   }
 });
 
+// Zcash Names Service (ZNS) resolver.
+// Lives in the main process for three reasons that all apply on every platform:
+//   1. The renderer's CSP `connect-src 'self'` blocks fetch() to external hosts.
+//   2. CORS from a file:// origin breaks cross-origin requests.
+//   3. MAS / Flatpak sandboxes grant network access at the app level — main is
+//      the natural place to consume it.
+// The SDK auto-handles endpoint selection and the ZIP-321 protocol details.
+// Clients are cached per chain so we don't reconstruct on every keystroke.
+const znsClients = new Map();
+function getZnsClient(chain) {
+  if (znsClients.has(chain)) return znsClients.get(chain);
+  const network = chain === "main" ? "mainnet" : chain === "test" ? "testnet" : null;
+  if (!network) return null;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { ZNS } = require("zcashname-sdk");
+  const client = new ZNS({ network });
+  znsClients.set(chain, client);
+  return client;
+}
+
+ipcMain.handle("zns:resolve", async (_e, name, chain) => {
+  if (typeof name !== "string" || !/^[a-z0-9]{1,62}$/.test(name)) {
+    return { ok: false, reason: "invalid-name" };
+  }
+  const client = getZnsClient(chain);
+  if (!client) return { ok: false, reason: "unsupported-chain" };
+  try {
+    const reg = await client.resolveName(name);
+    if (!reg || typeof reg.address !== "string") return { ok: false, reason: "not-found" };
+    return { ok: true, address: reg.address };
+  } catch {
+    return { ok: false, reason: "network" };
+  }
+});
+
 ipcMain.handle("loadSettings", async () => {
   const all = settings.getSync("all");
   const requireDeviceAuth = await getRequireAuth();

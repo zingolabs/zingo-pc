@@ -359,7 +359,10 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                 <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
               ))}
             </div>
-            <ConfirmModalToAddr toaddr={{ to: "Fee", amount: sendFee, memo: "", memoReplyTo: "" }} info={info} />
+            <ConfirmModalToAddr
+              toaddr={{ to: "Fee", amount: sendFee, memo: "", memoReplyTo: "", znsAlias: "" }}
+              info={info}
+            />
 
             <div className={cstyles.well}>
               <div className={`${cstyles.flexspacebetween} ${cstyles.margintoplarge}`}>

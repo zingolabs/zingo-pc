@@ -11,6 +11,7 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof ToAddrBox>> = 
     toaddr,
     zecPrice: 100,
     updateToField: jest.fn(),
+    updateZnsAlias: jest.fn(),
     fromAmount: 10,
     fromAmountDefault: 10,
     setSendButtonEnabled: jest.fn(),

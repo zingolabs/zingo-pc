@@ -15,13 +15,6 @@ type DashboardProps = {
   navigateToHistory: () => void;
 };
 
-const chains = {
-  main: "Mainnet",
-  test: "Testnet",
-  regtest: "Regtest",
-  "": "",
-};
-
 const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   const navigate = useNavigate();
   const context = useContext(ContextApp);
@@ -384,7 +377,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                       <div className={styles.detailcontainer}>
                         <div className={styles.detaillines}>
                           <DetailLine label="Server URI" value={info ? info.serverUri : ""} />
-                          <DetailLine label="Server Network" value={chains[info.chainName]} />
+                          <DetailLine label="Server Network" value={Utils.chainDisplayName(info.chainName)} />
                           <DetailLine label="Server Version" value={info.version} />
                           <DetailLine label="Zingolib Version" value={info.zingolib} />
                           <DetailLine label="Block Height" value={`${info.latestBlock}`} />

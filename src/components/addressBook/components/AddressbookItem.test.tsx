@@ -2,11 +2,19 @@ import React from "react";
 import { Accordion } from "react-accessible-accordion";
 import { render, screen, fireEvent } from "../../../test-utils";
 import AddressBookItem from "./AddressbookItem";
-import { AddressBookEntryClass } from "../../appstate";
+import { AddressBookEntryClass, ServerChainNameEnum } from "../../appstate";
 
 jest.mock("../../../electronBridge");
 
-const item = new AddressBookEntryClass("Alice", "u1fakeaddress0000000000000000000000000000");
+const item = new AddressBookEntryClass(
+  "Alice",
+  "u1fakeaddress0000000000000000000000000000",
+  ServerChainNameEnum.mainChainName,
+);
+
+// "Send To" is only shown when the active wallet is on the same network as the
+// entry — provide a mainnet wallet override so the button is reachable.
+const mainnetWallet = { chain_name: ServerChainNameEnum.mainChainName } as never;
 
 const baseProps = {
   item,
@@ -31,7 +39,9 @@ describe("AddressbookItem", () => {
   });
 
   it("shows Send To and Delete buttons when expanded (not readOnly)", async () => {
-    renderInAccordion(<AddressBookItem {...baseProps} />);
+    renderInAccordion(<AddressBookItem {...baseProps} />, {
+      contextOverrides: { currentWallet: mainnetWallet },
+    });
     // click the accordion heading to expand
     fireEvent.click(screen.getByText("Alice"));
     expect(screen.getByRole("button", { name: /send to/i })).toBeInTheDocument();
@@ -40,7 +50,17 @@ describe("AddressbookItem", () => {
 
   it("hides Send To button when readOnly", () => {
     renderInAccordion(<AddressBookItem {...baseProps} />, {
-      contextOverrides: { readOnly: true },
+      contextOverrides: { readOnly: true, currentWallet: mainnetWallet },
+    });
+    fireEvent.click(screen.getByText("Alice"));
+    expect(screen.queryByRole("button", { name: /send to/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /delete/i })).toBeInTheDocument();
+  });
+
+  it("hides Send To button when the active wallet is on a different network", () => {
+    const testnetWallet = { chain_name: ServerChainNameEnum.testChainName } as never;
+    renderInAccordion(<AddressBookItem {...baseProps} />, {
+      contextOverrides: { currentWallet: testnetWallet },
     });
     fireEvent.click(screen.getByText("Alice"));
     expect(screen.queryByRole("button", { name: /send to/i })).not.toBeInTheDocument();
