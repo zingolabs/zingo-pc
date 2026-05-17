@@ -561,16 +561,24 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
 const KEYTAR_SERVICE = "Zingo PC";
 const KEYTAR_ACCOUNT = "requireDeviceAuth";
 
+// In-process cache of the value so we only hit Keychain ONCE per session.
+// Repeated accesses (loadSettings is called several times across pages) used
+// to make macOS prompt for the Keychain password intermittently — especially
+// across TestFlight builds whose signature differs slightly run-to-run.
+// Updated by setRequireAuth so the cache and Keychain stay in sync.
+let _requireAuthCache = null; // null = not loaded yet, true/false = loaded
+
 async function getRequireAuth() {
+  if (_requireAuthCache !== null) return _requireAuthCache;
   try {
     const keytar = require("keytar");
     const value = await keytar.getPassword(KEYTAR_SERVICE, KEYTAR_ACCOUNT);
-    if (value === null) return true;
-    return value === "true";
+    _requireAuthCache = value === null ? true : value === "true";
   } catch {
     // libsecret unavailable (Linux AppImage, etc.) → fall back to settings.json, default true
-    return settings.getSync("all.requireDeviceAuth") ?? true;
+    _requireAuthCache = settings.getSync("all.requireDeviceAuth") ?? true;
   }
+  return _requireAuthCache;
 }
 
 async function setRequireAuth(value) {
@@ -581,6 +589,7 @@ async function setRequireAuth(value) {
   } catch {
     settings.setSync("all.requireDeviceAuth", value);
   }
+  _requireAuthCache = value;
 }
 
 // shell.openExternal and clipboard.writeText are not available in sandboxed preload —
