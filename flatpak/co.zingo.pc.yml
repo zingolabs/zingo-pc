@@ -41,12 +41,22 @@ modules:
       # so strip the setuid bit to avoid Flatpak build errors.
       - chmod u-s /app/lib/zingo-pc/chrome-sandbox || true
 
-      # Diagnostic: list every .so ldconfig finds in our lib dir.
-      # The line "ldconfig: <file>: <reason>" tells us which library is making
-      # the host's post-install hook return exit 1 (visible as "Algo salió mal").
-      # The `|| true` keeps the build going even if ldconfig itself returns 1.
-      - echo "=== ldconfig diagnostic ===" && ldconfig -v -N /app/lib/zingo-pc/ 2>&1 || true
-      - echo "=== end ldconfig diagnostic ==="
+      # Diagnostic: probe every .so individually so we ONLY see noise from our
+      # libs (not the system ones). When a file makes ldconfig return non-zero,
+      # we print "FAILED: <file>" + the actual stderr message.
+      - |
+        echo "=== ldconfig diagnostic on /app/lib/zingo-pc ==="
+        for f in /app/lib/zingo-pc/*.so /app/lib/zingo-pc/*.so.[0-9]*; do
+          [ -e "$f" ] || continue
+          out=$(ldconfig -N -v "$f" 2>&1 1>/dev/null) || rc=$?
+          if [ -n "$out" ] || [ "${rc:-0}" -ne 0 ]; then
+            echo "PROBLEM: $f"
+            [ -n "$out" ] && echo "  stderr: $out"
+            [ "${rc:-0}" -ne 0 ] && echo "  exit: ${rc}"
+          fi
+          rc=0
+        done
+        echo "=== end ldconfig diagnostic ==="
 
       # Wrapper script that uses zypak to handle Chrome sandbox inside Flatpak
       - install -Dm755 zingo-pc-wrapper.sh /app/bin/zingo-pc

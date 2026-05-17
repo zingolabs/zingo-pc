@@ -633,8 +633,19 @@ function assertFsPath(p) {
   }
 }
 function assertWalletName(name) {
-  if (typeof name === "string" && name.length > 0 && !/^[\w.-]+$/.test(name)) {
+  if (typeof name !== "string" || name.length === 0) return;
+  // Reject only what's actually unsafe as a filename across platforms:
+  //   - path separators: / \
+  //   - Windows-invalid chars: : * ? " < > |
+  //   - control chars and DEL: \x00-\x1f \x7f
+  // Everything else (spaces, parentheses, accented letters, etc.) is allowed
+  // because it's a valid filename character on all major OSes.
+  if (/[/\\:*?"<>|\x00-\x1f\x7f]/.test(name)) {
     throw new Error(`wallet_name rejected: invalid characters`);
+  }
+  // "." and ".." would resolve to current/parent dir — reject those literally.
+  if (name === "." || name === "..") {
+    throw new Error(`wallet_name rejected: invalid name`);
   }
 }
 
