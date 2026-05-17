@@ -43,10 +43,10 @@ describe("BlockExplorerModal", () => {
     expect(screen.queryByText("Block Explorer Settings")).not.toBeInTheDocument();
   });
 
-  it("calls closeModal when Close is clicked", () => {
+  it("calls closeModal when Cancel is clicked", () => {
     const closeModal = jest.fn();
     render(<BlockExplorerModal {...baseProps} closeModal={closeModal} />);
-    fireEvent.click(screen.getByRole("button", { name: /close/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
     expect(closeModal).toHaveBeenCalledTimes(1);
   });
 });
