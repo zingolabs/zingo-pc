@@ -70,13 +70,6 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
 
   const isSubmittingRef = useRef(false);
 
-  const chains = {
-    main: "Mainnet",
-    test: "Testnet",
-    regtest: "Regtest",
-    "": "",
-  };
-
   const news = {
     new: "Create a New Wallet",
     seed: "Restore Wallet from Seed Phrase",
@@ -729,9 +722,9 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                 <option value="" disabled hidden>
                   Select...
                 </option>
-                <option value="main">{chains["main"]}</option>
-                <option value="test">{chains["test"]}</option>
-                <option value="regtest">{chains["regtest"]}</option>
+                <option value="main">{Utils.chainDisplayName(ServerChainNameEnum.mainChainName)}</option>
+                <option value="test">{Utils.chainDisplayName(ServerChainNameEnum.testChainName)}</option>
+                <option value="regtest">{Utils.chainDisplayName(ServerChainNameEnum.regtestChainName)}</option>
               </select>
             </div>
           </div>
@@ -954,7 +947,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                               <option key={s.uri} value={s.uri}>
                                 {s.uri +
                                   " - " +
-                                  chains[s.chain_name] +
+                                  Utils.chainDisplayName(s.chain_name) +
                                   " - " +
                                   s.region +
                                   (s.latency ? " _ " + s.latency + " ms." : "")}

@@ -193,18 +193,32 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
 
         <div
           className={cstyles.margintoplarge}
-          style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8 }}
+          style={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 12,
+            // The Label/Address column header below uses `marginnegativetitle`
+            // (-20px top) and was overlapping this row, eating the clicks.
+            // Keep clear of it with a stacking context + extra bottom space.
+            position: "relative",
+            zIndex: 1,
+            marginBottom: 24,
+          }}
         >
-          <label className={cstyles.small} style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-            <input
-              type="checkbox"
-              aria-label="Show contacts from all networks"
-              checked={showAllNetworks}
-              onChange={(e) => setShowAllNetworks(e.target.checked)}
-              style={{ accentColor: "var(--color-primary)" }}
-            />
-            Show contacts from all networks
-          </label>
+          <input
+            type="checkbox"
+            aria-label="Show contacts from all networks"
+            checked={showAllNetworks}
+            onChange={(e) => setShowAllNetworks(e.target.checked)}
+            style={{
+              width: 18,
+              height: 18,
+              cursor: "pointer",
+              accentColor: "var(--color-primary)",
+            }}
+          />
+          <span className={cstyles.small}>Show contacts from all networks</span>
         </div>
 
         {addressBookSorted && addressBookSorted.length > 0 && (

@@ -27,8 +27,14 @@ type AddressBookItemProps = {
 const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeAddressBookEntry, showChain }) => {
   const navigate = useNavigate();
   const context = useContext(ContextApp);
-  const { readOnly, setSendTo } = context;
+  const { readOnly, setSendTo, currentWallet } = context;
   const [expandAddress, setExpandAddress] = useState<boolean>(false);
+
+  // "Send To" only makes sense when the active wallet is on the same network as
+  // the contact — sending a mainnet address from a testnet wallet would fail.
+  // The entry is still visible (when "Show all networks" is enabled) but the
+  // action is hidden to avoid mistakes.
+  const sendIsAvailable = !!currentWallet && currentWallet.chain_name === item.chain;
 
   return (
     <AccordionItem
@@ -43,7 +49,7 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
               {item.label}
               {showChain && item.chain && (
                 <span className={`${cstyles.small} ${cstyles.sublight}`} style={{ marginLeft: 8 }}>
-                  [{item.chain}]
+                  [{Utils.chainDisplayName(item.chain)}]
                 </span>
               )}
             </div>
@@ -94,7 +100,7 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
       </AccordionItemHeading>
       <AccordionItemPanel>
         <div className={`${cstyles.well} ${styles.addressbookentrybuttons}`}>
-          {!readOnly && (
+          {!readOnly && sendIsAvailable && (
             <button
               type="button"
               className={cstyles.primarybutton}

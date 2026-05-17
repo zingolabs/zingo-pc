@@ -15,6 +15,7 @@ import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
+import Utils from "../../utils/utils";
 import { Logo } from "../logo";
 import DetailLine from "../detailLine/DetailLine";
 
@@ -46,13 +47,6 @@ type LoadingScreenProps = {
   setCurrentWalletOpenError: (e: string) => void;
   setFetchError: (command: string, error: string) => void;
   setBlockExplorer: (be: any) => void;
-};
-
-const chains = {
-  main: "Mainnet",
-  test: "Testnet",
-  regtest: "Regtest",
-  "": "",
 };
 
 class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
@@ -864,7 +858,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
               <div className={styles.detaillines}>
                 <DetailLine label="Wallet" value={currentWallet.alias} />
                 <DetailLine label="Wallet created by" value={currentWallet.creationType} />
-                <DetailLine label="Network" value={chains[currentWallet.chain_name]} />
+                <DetailLine label="Network" value={Utils.chainDisplayName(currentWallet.chain_name)} />
                 <DetailLine label="Server" value={currentWallet.uri} />
               </div>
             </div>

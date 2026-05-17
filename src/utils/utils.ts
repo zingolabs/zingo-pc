@@ -116,6 +116,26 @@ export default class Utils {
   }
 
   /**
+   * Human-readable display name for a network — used wherever the chain is
+   * shown to the user (address book entries, server selector, dashboards…).
+   * Single source of truth so we don't drift across components.
+   * Returns an empty string for empty / undefined / unknown values so callers
+   * can drop it straight into JSX without a guard.
+   */
+  static chainDisplayName(chain: string | undefined): string {
+    switch (chain) {
+      case ServerChainNameEnum.mainChainName:
+        return "Mainnet";
+      case ServerChainNameEnum.testChainName:
+        return "Testnet";
+      case ServerChainNameEnum.regtestChainName:
+        return "Regtest";
+      default:
+        return "";
+    }
+  }
+
+  /**
    * Tries each Zcash network in turn and returns the one for which `addr` parses
    * as a valid address. Used by the address-book migration (entries created
    * before chain tagging) to back-fill the `chain` field without guessing.
