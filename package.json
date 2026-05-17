@@ -40,7 +40,8 @@
     "react-textarea-autosize": "^8.5.9",
     "typeface-roboto": "^1.1.13",
     "url-parse": "^1.5.10",
-    "uuid": "^11.1.0"
+    "uuid": "^11.1.0",
+    "zcashname-sdk": "^0.8.7"
   },
   "scripts": {
     "postinstall": "node set-resolutions-macos.js && (electron-builder install-app-deps || true) && patch-package",

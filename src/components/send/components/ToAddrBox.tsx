@@ -1,4 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
@@ -6,15 +7,27 @@ import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum, ToAddrClas
 import Utils from "../../../utils/utils";
 import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
 import { ContextApp } from "../../../context/ContextAppState";
+import { isZnsAlias, extractZnsName, resolveZnsAlias } from "../../../utils/zns";
+import { shell } from "../../../electronBridge";
+import routes from "../../../constants/routes.json";
 
 const Spacer = () => {
   return <div style={{ marginTop: "24px" }} />;
+};
+
+const iconButtonStyle: React.CSSProperties = {
+  background: "none",
+  border: "none",
+  color: "inherit",
+  cursor: "pointer",
+  padding: 0,
 };
 
 type ToAddrBoxProps = {
   toaddr: ToAddrClass;
   zecPrice: number;
   updateToField: (address: string | null, amount: string | null, memo: string | null) => void;
+  updateZnsAlias: (znsAlias: string) => void;
   fromAmount: number;
   fromAmountDefault: number;
   setSendButtonEnabled: (sendButtonEnabled: boolean) => void;
@@ -34,6 +47,7 @@ const ToAddrBox = ({
   toaddr,
   zecPrice,
   updateToField,
+  updateZnsAlias,
   fromAmount,
   fromAmountDefault,
   setMaxAmount,
@@ -49,7 +63,8 @@ const ToAddrBox = ({
   currencyName,
 }: ToAddrBoxProps) => {
   const context = useContext(ContextApp);
-  const { addressBook } = context;
+  const { addressBook, setAddLabel } = context;
+  const navigate = useNavigate();
 
   const [toLocal, setToLocal] = useState<string>(toaddr.to);
   const [amountLocal, setAmountLocal] = useState<number>(toaddr.amount);
@@ -62,11 +77,63 @@ const ToAddrBox = ({
   const [usdValue, setUsdValue] = useState<string>("");
   const [memoError, setMemoError] = useState<string | null>(null);
 
+  // ZNS resolution state. `znsAlias` is persisted via `toaddr.znsAlias` so the
+  // badge survives Send ↔ AddressBook navigation. `znsStatus` is purely transient.
+  const [znsAlias, setZnsAliasLocal] = useState<string>(toaddr.znsAlias);
+  const [znsStatus, setZnsStatus] = useState<"idle" | "resolving" | "not-found" | "network">("idle");
+  // Wrap the setter so every local change is mirrored to the parent state.
+  const setZnsAlias = (alias: string) => {
+    setZnsAliasLocal(alias);
+    updateZnsAlias(alias);
+  };
+
   useEffect(() => {
     setToLocal(toaddr.to);
     setAmountLocal(toaddr.amount);
     setMemoLocal(toaddr.memo);
-  }, [toaddr.to, toaddr.amount, toaddr.memo]);
+    setZnsAliasLocal(toaddr.znsAlias);
+  }, [toaddr.to, toaddr.amount, toaddr.memo, toaddr.znsAlias]);
+
+  // Debounced ZNS resolver — kicks in 500ms after the user stops typing
+  // a "*.zcash" alias, swaps the input to the resolved UA on success.
+  useEffect(() => {
+    if (!isZnsAlias(toLocal)) {
+      // Either an explicit UA was entered, or a previous resolution finished
+      // and put the UA in the input. Either way, no resolution to do here;
+      // clear any leftover status so the badge disappears.
+      if (znsStatus !== "idle") setZnsStatus("idle");
+      return;
+    }
+    setZnsStatus("resolving");
+    const id = setTimeout(async () => {
+      const result = await resolveZnsAlias(toLocal, serverChainName);
+      if (result.ok) {
+        setZnsAlias(toLocal);
+        setZnsStatus("idle");
+        setToLocal(result.address);
+        updateToField(result.address, null, null);
+      } else if (result.reason === "not-found") {
+        setZnsStatus("not-found");
+      } else if (result.reason === "network") {
+        setZnsStatus("network");
+      } else {
+        // unsupported-chain or invalid-name — silently drop, treated as plain text
+        setZnsStatus("idle");
+      }
+    }, 500);
+    return () => clearTimeout(id);
+    // updateToField is stable enough that adding it as a dep just causes spurious reruns
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [toLocal, serverChainName]);
+
+  // Generic "clear the recipient field" — handles both the ZNS-resolved case
+  // (where znsAlias is set) and the contact-match case (where it isn't).
+  const clearToAddress = () => {
+    setZnsAlias("");
+    setZnsStatus("idle");
+    setToLocal("");
+    updateToField("", null, null);
+  };
 
   useEffect(() => {
     let buttonTimerId: ReturnType<typeof setTimeout> | undefined;
@@ -170,18 +237,19 @@ const ToAddrBox = ({
     toaddr.memoReplyTo,
   ]);
 
-  const getLabelAddressBook = (addr: string) => {
-    if (!addr) {
-      return "";
-    }
-    // Find the addr in addresses
-    const label: AddressBookEntryClass | undefined = addressBook.find(
-      (ab: AddressBookEntryClass) => ab.address === addr,
+  // Returns the contact label for `addr` if it matches an address-book entry
+  // ON THE CURRENT NETWORK. Cross-network matches are filtered out so the user
+  // never sees "Contact: Alice" when Alice belongs to a different chain.
+  // Suppressed while the input looks like a ZNS alias that's about to resolve —
+  // otherwise the badge briefly shows "Contact: …" and then flips to "ZNS: …".
+  const getContactLabel = (addr: string): string | null => {
+    if (!addr || isZnsAlias(addr)) return null;
+    const entry: AddressBookEntryClass | undefined = addressBook.find(
+      (ab: AddressBookEntryClass) => ab.address === addr && ab.chain === serverChainName,
     );
-    const labelStr: string = label ? ` [ ${label.label} ]` : "";
-
-    return labelStr;
+    return entry ? entry.label : null;
   };
+  const contactLabel = getContactLabel(toLocal);
 
   return (
     <div>
@@ -189,7 +257,91 @@ const ToAddrBox = ({
         <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
           <div className={cstyles.horizontalflex}>
             <div className={cstyles.sublight}>To </div>
-            <div style={{ fontWeight: 900, marginLeft: 20 }}>{getLabelAddressBook(toLocal)}</div>
+            <div style={{ fontWeight: 900, marginLeft: 20 }}>
+              {znsAlias ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span className={cstyles.green}>
+                    {addressBook.some(
+                      (ab: AddressBookEntryClass) => ab.address === znsAlias && ab.chain === serverChainName,
+                    )
+                      ? "Contact & ZNS"
+                      : "ZNS"}
+                    {": "}
+                    {znsAlias}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="View on zcashnames.com"
+                    title="View on zcashnames.com"
+                    onClick={() => {
+                      const name = encodeURIComponent(extractZnsName(znsAlias) ?? "");
+                      const env = serverChainName === ServerChainNameEnum.testChainName ? "&env=testnet" : "";
+                      shell.openExternal(`https://www.zcashnames.com/explorer?name=${name}${env}`);
+                    }}
+                    style={iconButtonStyle}
+                  >
+                    <i className={`${"fas"} ${"fa-external-link-square-alt"} ${"fa-lg"}`} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Clear ZNS alias"
+                    title="Clear ZNS alias"
+                    onClick={clearToAddress}
+                    style={iconButtonStyle}
+                  >
+                    <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
+                  </button>
+                  {!addressBook.some(
+                    (ab: AddressBookEntryClass) => ab.address === znsAlias && ab.chain === serverChainName,
+                  ) && (
+                    <button
+                      type="button"
+                      aria-label="Save as contact"
+                      title="Save as contact"
+                      onClick={() => {
+                        // Save the ALIAS (not the resolved UA) so the contact re-resolves
+                        // every time it's used — matches the ZNS philosophy.
+                        setAddLabel(new AddressBookEntryClass("", znsAlias));
+                        navigate(routes.ADDRESSBOOK);
+                      }}
+                      style={iconButtonStyle}
+                    >
+                      <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
+                    </button>
+                  )}
+                </span>
+              ) : contactLabel ? (
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <span className={cstyles.green}>Contact: {contactLabel}</span>
+                  <button
+                    type="button"
+                    aria-label="Clear recipient"
+                    title="Clear recipient"
+                    onClick={clearToAddress}
+                    style={iconButtonStyle}
+                  >
+                    <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
+                  </button>
+                </span>
+              ) : toLocal && addressIsValid === 1 ? (
+                // Valid pasted/typed address that isn't yet in the contacts list —
+                // offer to save it. We store the resolved UA verbatim.
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                  <button
+                    type="button"
+                    aria-label="Save as contact"
+                    title="Save as contact"
+                    onClick={() => {
+                      setAddLabel(new AddressBookEntryClass("", toLocal));
+                      navigate(routes.ADDRESSBOOK);
+                    }}
+                    style={iconButtonStyle}
+                  >
+                    <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
+                  </button>
+                </span>
+              ) : null}
+            </div>
           </div>
           <div className={`${cstyles.sublight} ${cstyles.green}`}>
             {addressKind !== undefined && addressKind === AddressKindEnum.tex && "TEX"}
@@ -198,16 +350,22 @@ const ToAddrBox = ({
             {addressKind !== undefined && addressKind === AddressKindEnum.unified && "Unified"}
           </div>
           <div className={cstyles.validationerror}>
-            {addressIsValid === 1 && <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />}
-            {addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
+            {znsStatus === "resolving" && <span className={cstyles.sublight}>Resolving ZNS…</span>}
+            {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
+            {znsStatus === "network" && <span className={cstyles.red}>ZNS lookup failed</span>}
+            {znsStatus === "idle" && addressIsValid === 1 && (
+              <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
+            )}
+            {znsStatus === "idle" && addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
           </div>
         </div>
         <input
           type="text"
           aria-label="Recipient address"
-          placeholder="Unified | Sapling | Transparent | TEX address"
+          placeholder="Unified | Sapling | Transparent | TEX address | name.zcash"
           className={cstyles.inputbox}
           value={toLocal}
+          readOnly={!!znsAlias}
           onChange={(e) => {
             setToLocal(e.target.value);
             updateToField(e.target.value, null, null);

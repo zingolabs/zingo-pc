@@ -115,6 +115,26 @@ export default class Utils {
     }
   }
 
+  /**
+   * Tries each Zcash network in turn and returns the one for which `addr` parses
+   * as a valid address. Used by the address-book migration (entries created
+   * before chain tagging) to back-fill the `chain` field without guessing.
+   * Returns null if no network recognizes the address — caller should fall back.
+   */
+  static async detectAddressChain(addr: string): Promise<ServerChainNameEnum | null> {
+    if (!addr) return null;
+    const chains: ServerChainNameEnum[] = [
+      ServerChainNameEnum.mainChainName,
+      ServerChainNameEnum.testChainName,
+      ServerChainNameEnum.regtestChainName,
+    ];
+    for (const chain of chains) {
+      const kind = await Utils.getAddressKind(addr, chain);
+      if (kind !== undefined) return chain;
+    }
+    return null;
+  }
+
   static isValidSaplingPrivateKey(key: string): boolean {
     return (
       new RegExp("^secret-extended-key-test[0-9a-z]{278}$").test(key) ||

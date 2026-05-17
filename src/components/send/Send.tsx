@@ -168,6 +168,14 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
     setSendPageState(newState);
   };
 
+  const updateZnsAlias = (znsAlias: string) => {
+    const toAddr: ToAddrClass = sendPageState.toaddr;
+    toAddr.znsAlias = znsAlias;
+    const newState = new SendPageStateClass();
+    newState.toaddr = toAddr;
+    setSendPageState(newState);
+  };
+
   const setMaxAmount = async (total: number) => {
     // Find the correct toAddr
     const toAddr: ToAddrClass = sendPageState.toaddr;
@@ -324,6 +332,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
               toaddr={sendPageState.toaddr}
               zecPrice={info.zecPrice}
               updateToField={updateToField}
+              updateZnsAlias={updateZnsAlias}
               fromAmount={totalAmountAvailable}
               fromAmountDefault={totalBalance.totalSpendableBalance}
               setMaxAmount={setMaxAmount}

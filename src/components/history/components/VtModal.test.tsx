@@ -1,11 +1,7 @@
 import React from "react";
 import { render, screen, fireEvent } from "../../../test-utils";
 import VtModalInternal from "./VtModal";
-import {
-  ValueTransferClass,
-  ValueTransferKindEnum,
-  ValueTransferStatusEnum,
-} from "../../appstate";
+import { ValueTransferClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../../appstate";
 
 jest.mock("../../../electronBridge");
 

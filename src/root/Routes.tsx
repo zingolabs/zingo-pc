@@ -338,8 +338,8 @@ const AppRoutes: React.FC = () => {
   ]);
 
   // --- address book ---
-  const addAddressBookEntry = useCallback((label: string, address: string) => {
-    setAddressBookState((prev) => AddressbookImpl.addEntry(prev, label, address));
+  const addAddressBookEntry = useCallback((label: string, address: string, chain: ServerChainNameEnum) => {
+    setAddressBookState((prev) => AddressbookImpl.addEntry(prev, label, address, chain));
   }, []);
 
   const removeAddressBookEntry = useCallback((label: string) => {

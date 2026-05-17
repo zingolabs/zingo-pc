@@ -12,26 +12,26 @@ describe("ScrollPane", () => {
     expect(screen.getByText("inner content")).toBeInTheDocument();
   });
 
-  it("applies the className prop to the container", () => {
-    const { container } = render(
+  it("applies the className prop to the container wrapping its children", () => {
+    render(
       <ScrollPaneTop offsetHeight={50} className="my-pane">
-        <span />
+        <span>marker</span>
       </ScrollPaneTop>,
     );
-    expect(container.querySelector(".my-pane")).not.toBeNull();
+    expect(screen.getByText("marker").parentElement).toHaveClass("my-pane");
   });
 
   it("computes height as window.innerHeight - offsetHeight", () => {
     const original = window.innerHeight;
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 800 });
     try {
-      const { container } = render(
+      render(
         <ScrollPaneTop offsetHeight={120}>
-          <span />
+          <span>height marker</span>
         </ScrollPaneTop>,
       );
-      const div = container.firstChild as HTMLDivElement;
-      expect(div.style.height).toBe("680px");
+      const wrapper = screen.getByText("height marker").parentElement as HTMLDivElement;
+      expect(wrapper.style.height).toBe("680px");
     } finally {
       Object.defineProperty(window, "innerHeight", { configurable: true, value: original });
     }

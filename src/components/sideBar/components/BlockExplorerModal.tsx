@@ -65,14 +65,20 @@ const BlockExplorerModal = ({
   const handleSave = async () => {
     const toSave = {
       blockExplorerMainnetAddress,
-      blockExplorerMainnetAddressCustom: normalizeCustom(blockExplorerMainnetAddress, blockExplorerMainnetAddressCustom),
+      blockExplorerMainnetAddressCustom: normalizeCustom(
+        blockExplorerMainnetAddress,
+        blockExplorerMainnetAddressCustom,
+      ),
       blockExplorerMainnetTransaction,
       blockExplorerMainnetTransactionCustom: normalizeCustom(
         blockExplorerMainnetTransaction,
         blockExplorerMainnetTransactionCustom,
       ),
       blockExplorerTestnetAddress,
-      blockExplorerTestnetAddressCustom: normalizeCustom(blockExplorerTestnetAddress, blockExplorerTestnetAddressCustom),
+      blockExplorerTestnetAddressCustom: normalizeCustom(
+        blockExplorerTestnetAddress,
+        blockExplorerTestnetAddressCustom,
+      ),
       blockExplorerTestnetTransaction,
       blockExplorerTestnetTransactionCustom: normalizeCustom(
         blockExplorerTestnetTransaction,

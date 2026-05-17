@@ -14,13 +14,17 @@ import routes from "../../../constants/routes.json";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
 import { clipboard } from "../../../electronBridge";
+import { isZnsAlias } from "../../../utils/zns";
 
 type AddressBookItemProps = {
   item: AddressBookEntryClass;
   removeAddressBookEntry: (label: string) => void;
+  // When true (parent shows "all networks"), the entry shows its chain inline
+  // so the user can tell mainnet/testnet/regtest contacts apart at a glance.
+  showChain?: boolean;
 };
 
-const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeAddressBookEntry }) => {
+const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeAddressBookEntry, showChain }) => {
   const navigate = useNavigate();
   const context = useContext(ContextApp);
   const { readOnly, setSendTo } = context;
@@ -35,7 +39,14 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={cstyles.flexspacebetween}>
-            <div>{item.label}</div>
+            <div>
+              {item.label}
+              {showChain && item.chain && (
+                <span className={`${cstyles.small} ${cstyles.sublight}`} style={{ marginLeft: 8 }}>
+                  [{item.chain}]
+                </span>
+              )}
+            </div>
             {!!item.address && (
               <div
                 role="button"
@@ -59,12 +70,20 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
                 }}
               >
                 <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                  {!expandAddress && Utils.trimToSmall(item.address, 10)}
-                  {expandAddress && (
+                  {/* ZNS aliases are short and human-readable — show them in full
+                      without any trimming, both collapsed and expanded. */}
+                  {isZnsAlias(item.address) ? (
+                    item.address
+                  ) : (
                     <>
-                      {item.address.length < 80
-                        ? item.address
-                        : Utils.splitStringIntoChunks(item.address, 3).map((item) => <div key={item}>{item}</div>)}
+                      {!expandAddress && Utils.trimToSmall(item.address, 10)}
+                      {expandAddress && (
+                        <>
+                          {item.address.length < 80
+                            ? item.address
+                            : Utils.splitStringIntoChunks(item.address, 3).map((item) => <div key={item}>{item}</div>)}
+                        </>
+                      )}
                     </>
                   )}
                 </div>
