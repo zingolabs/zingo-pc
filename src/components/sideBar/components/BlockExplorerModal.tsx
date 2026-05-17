@@ -3,6 +3,7 @@ import cstyles from "../../common/Common.module.css";
 import { BlockExplorerEnum } from "../../appstate";
 import { useState } from "react";
 import { ipcRenderer } from "../../../electronBridge";
+import ExplorerRow from "./ExplorerRow";
 
 type BlockExplorerModalProps = {
   modalIsOpen: boolean;
@@ -10,6 +11,11 @@ type BlockExplorerModalProps = {
   setModalInput: (be: any) => void;
   closeModal: () => void;
   modalTitle: string;
+};
+
+const normalizeCustom = (selected: BlockExplorerEnum, value: string) => {
+  if (selected !== BlockExplorerEnum.Custom) return "";
+  return value.endsWith("/") || value.endsWith("=") ? value : `${value}/`;
 };
 
 const BlockExplorerModal = ({
@@ -44,282 +50,128 @@ const BlockExplorerModal = ({
     modalInput.blockExplorerTestnetAddressCustom,
   );
 
+  const handleCancel = () => {
+    setBlockExplorerMainnetAddress(modalInput.blockExplorerMainnetAddress);
+    setBlockExplorerMainnetAddressCustom(modalInput.blockExplorerMainnetAddressCustom);
+    setBlockExplorerMainnetTransaction(modalInput.blockExplorerMainnetTransaction);
+    setBlockExplorerMainnetTransactionCustom(modalInput.blockExplorerMainnetTransactionCustom);
+    setBlockExplorerTestnetAddress(modalInput.blockExplorerTestnetAddress);
+    setBlockExplorerTestnetAddressCustom(modalInput.blockExplorerTestnetAddressCustom);
+    setBlockExplorerTestnetTransaction(modalInput.blockExplorerTestnetTransaction);
+    setBlockExplorerTestnetTransactionCustom(modalInput.blockExplorerTestnetTransactionCustom);
+    closeModal();
+  };
+
+  const handleSave = async () => {
+    const toSave = {
+      blockExplorerMainnetAddress,
+      blockExplorerMainnetAddressCustom: normalizeCustom(blockExplorerMainnetAddress, blockExplorerMainnetAddressCustom),
+      blockExplorerMainnetTransaction,
+      blockExplorerMainnetTransactionCustom: normalizeCustom(
+        blockExplorerMainnetTransaction,
+        blockExplorerMainnetTransactionCustom,
+      ),
+      blockExplorerTestnetAddress,
+      blockExplorerTestnetAddressCustom: normalizeCustom(blockExplorerTestnetAddress, blockExplorerTestnetAddressCustom),
+      blockExplorerTestnetTransaction,
+      blockExplorerTestnetTransactionCustom: normalizeCustom(
+        blockExplorerTestnetTransaction,
+        blockExplorerTestnetTransactionCustom,
+      ),
+    };
+    setBlockExplorerMainnetAddressCustom(toSave.blockExplorerMainnetAddressCustom);
+    setBlockExplorerMainnetTransactionCustom(toSave.blockExplorerMainnetTransactionCustom);
+    setBlockExplorerTestnetAddressCustom(toSave.blockExplorerTestnetAddressCustom);
+    setBlockExplorerTestnetTransactionCustom(toSave.blockExplorerTestnetTransactionCustom);
+    setModalInput(toSave);
+    await ipcRenderer.invoke("saveSettings", { key: "blockexplorer", value: toSave });
+    closeModal();
+  };
+
+  const saveDisabled =
+    (blockExplorerMainnetAddress === BlockExplorerEnum.Custom && !blockExplorerMainnetAddressCustom) ||
+    (blockExplorerMainnetTransaction === BlockExplorerEnum.Custom && !blockExplorerMainnetTransactionCustom) ||
+    (blockExplorerTestnetAddress === BlockExplorerEnum.Custom && !blockExplorerTestnetAddressCustom) ||
+    (blockExplorerTestnetTransaction === BlockExplorerEnum.Custom && !blockExplorerTestnetTransactionCustom);
+
   return (
     <Modal
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
-      className={cstyles.modal}
+      className={cstyles.modalOverlay}
       overlayClassName={cstyles.modalOverlay}
+      style={{
+        content: {
+          background: "var(--bg-color, #1a1a2e)",
+          border: "1px solid #444",
+          borderRadius: 8,
+          padding: 32,
+          maxWidth: 640,
+          margin: "auto",
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
+          position: "absolute",
+          right: "auto",
+          bottom: "auto",
+        },
+      }}
     >
-      <div className={cstyles.verticalflex}>
-        <div className={cstyles.marginbottomlarge} style={{ textAlign: "center" }}>
-          {modalTitle}
-        </div>
+      <div className={`${cstyles.xlarge} ${cstyles.center}`}>{modalTitle}</div>
 
-        <div className={cstyles.well} style={{ textAlign: "center" }}>
-          <div
-            className={cstyles.horizontalflex}
-            style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap", justifyContent: "space-between" }}
-          >
-            <div style={{ minWidth: "300px" }} className={cstyles.sublight}>
-              Block Explorer (MAINNET - Transactions)
-            </div>
-            <select
-              aria-label="Block explorer for mainnet transactions"
-              className={cstyles.inputbox}
-              style={{
-                width: "60%",
-                marginLeft: "20px",
-                maxWidth: blockExplorerMainnetTransaction === BlockExplorerEnum.Custom ? "160px" : undefined,
-              }}
-              value={blockExplorerMainnetTransaction}
-              onChange={(e) => {
-                setBlockExplorerMainnetTransaction(e.target.value as BlockExplorerEnum);
-              }}
-            >
-              <option value="" disabled hidden>
-                Select...
-              </option>
-              <option value={BlockExplorerEnum.Zcashexplorer}>Zcash Explorer App</option>
-              <option value={BlockExplorerEnum.Cipherscan}>Cipher Scan App</option>
-              <option value={BlockExplorerEnum.Zypherscan}>Zypher Scan Com</option>
-              <option value={BlockExplorerEnum.Custom}>Custom</option>
-            </select>
-            {blockExplorerMainnetTransaction === BlockExplorerEnum.Custom && (
-              <input
-                aria-label="Custom mainnet transaction explorer URL"
-                style={{ marginLeft: "20px" }}
-                placeholder={"https://mainnet.block-explorer/tx/"}
-                type="text"
-                className={cstyles.inputbox}
-                value={blockExplorerMainnetTransactionCustom}
-                onChange={(e) => setBlockExplorerMainnetTransactionCustom(e.target.value)}
-              />
-            )}
-          </div>
-
-          <div
-            className={cstyles.horizontalflex}
-            style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap", justifyContent: "space-between" }}
-          >
-            <div style={{ minWidth: "300px" }} className={cstyles.sublight}>
-              Block Explorer (MAINNET - Addresses)
-            </div>
-            <select
-              aria-label="Block explorer for mainnet addresses"
-              className={cstyles.inputbox}
-              style={{
-                width: "60%",
-                marginLeft: "20px",
-                maxWidth: blockExplorerMainnetAddress === BlockExplorerEnum.Custom ? "160px" : undefined,
-              }}
-              value={blockExplorerMainnetAddress}
-              onChange={(e) => {
-                setBlockExplorerMainnetAddress(e.target.value as BlockExplorerEnum);
-              }}
-            >
-              <option value="" disabled hidden>
-                Select...
-              </option>
-              <option value={BlockExplorerEnum.Zcashexplorer}>Zcash Explorer App</option>
-              <option value={BlockExplorerEnum.Cipherscan}>Cipher Scan App</option>
-              <option value={BlockExplorerEnum.Zypherscan}>Zypher Scan Com</option>
-              <option value={BlockExplorerEnum.Custom}>Custom</option>
-            </select>
-            {blockExplorerMainnetAddress === BlockExplorerEnum.Custom && (
-              <input
-                aria-label="Custom mainnet address explorer URL"
-                style={{ marginLeft: "20px" }}
-                placeholder={"https://mainnet.block-explorer/address/"}
-                type="text"
-                className={cstyles.inputbox}
-                value={blockExplorerMainnetAddressCustom}
-                onChange={(e) => setBlockExplorerMainnetAddressCustom(e.target.value)}
-              />
-            )}
-          </div>
+      <div className={`${cstyles.well} ${cstyles.margintopsmall}`} style={{ marginTop: 24 }}>
+        <div className={cstyles.small} style={{ opacity: 0.6, marginBottom: 12 }}>
+          Mainnet
         </div>
-        <div style={{ height: "20px" }} />
-        <div className={cstyles.well} style={{ textAlign: "center" }}>
-          <div
-            className={cstyles.horizontalflex}
-            style={{ margin: "10px", alignItems: "center", justifyContent: "space-between" }}
-          >
-            <div style={{ minWidth: "300px" }} className={cstyles.sublight}>
-              Block Explorer (TESTNET - Transactions)
-            </div>
-            <select
-              aria-label="Block explorer for testnet transactions"
-              className={cstyles.inputbox}
-              style={{
-                width: "60%",
-                marginLeft: "20px",
-                maxWidth: blockExplorerTestnetTransaction === BlockExplorerEnum.Custom ? "160px" : undefined,
-              }}
-              value={blockExplorerTestnetTransaction}
-              onChange={(e) => {
-                setBlockExplorerTestnetTransaction(e.target.value as BlockExplorerEnum);
-              }}
-            >
-              <option value="" disabled hidden>
-                Select...
-              </option>
-              <option value={BlockExplorerEnum.Zcashexplorer}>Zcash Explorer App</option>
-              <option value={BlockExplorerEnum.Cipherscan}>Cipher Scan App</option>
-              <option value={BlockExplorerEnum.Zypherscan}>Zypher Scan Com</option>
-              <option value={BlockExplorerEnum.Custom}>Custom</option>
-            </select>
-            {blockExplorerTestnetTransaction === BlockExplorerEnum.Custom && (
-              <input
-                aria-label="Custom testnet transaction explorer URL"
-                style={{ marginLeft: "20px" }}
-                placeholder={"https://testnet.block-explorer/tx/"}
-                type="text"
-                className={cstyles.inputbox}
-                value={blockExplorerTestnetTransactionCustom}
-                onChange={(e) => setBlockExplorerTestnetTransactionCustom(e.target.value)}
-              />
-            )}
-          </div>
-
-          <div
-            className={cstyles.horizontalflex}
-            style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap", justifyContent: "space-between" }}
-          >
-            <div style={{ minWidth: "300px" }} className={cstyles.sublight}>
-              Block Explorer (TESTNET - Addresses)
-            </div>
-            <select
-              aria-label="Block explorer for testnet addresses"
-              className={cstyles.inputbox}
-              style={{
-                width: "60%",
-                marginLeft: "20px",
-                maxWidth: blockExplorerTestnetAddress === BlockExplorerEnum.Custom ? "160px" : undefined,
-              }}
-              value={blockExplorerTestnetAddress}
-              onChange={(e) => {
-                setBlockExplorerTestnetAddress(e.target.value as BlockExplorerEnum);
-              }}
-            >
-              <option value="" disabled hidden>
-                Select...
-              </option>
-              <option value={BlockExplorerEnum.Zcashexplorer}>Zcash Explorer App</option>
-              <option value={BlockExplorerEnum.Cipherscan}>Cipher Scan App</option>
-              <option value={BlockExplorerEnum.Zypherscan}>Zypher Scan Com</option>
-              <option value={BlockExplorerEnum.Custom}>Custom</option>
-            </select>
-            {blockExplorerTestnetAddress === BlockExplorerEnum.Custom && (
-              <input
-                aria-label="Custom testnet address explorer URL"
-                style={{ marginLeft: "20px" }}
-                placeholder={"https://testnet.block-explorer/address/"}
-                type="text"
-                className={cstyles.inputbox}
-                value={blockExplorerTestnetAddressCustom}
-                onChange={(e) => setBlockExplorerTestnetAddressCustom(e.target.value)}
-              />
-            )}
-          </div>
-        </div>
+        <ExplorerRow
+          label="Transactions"
+          ariaLabel="Block explorer for mainnet transactions"
+          customPlaceholder="https://mainnet.block-explorer/tx/"
+          value={blockExplorerMainnetTransaction}
+          onChange={setBlockExplorerMainnetTransaction}
+          customValue={blockExplorerMainnetTransactionCustom}
+          onCustomChange={setBlockExplorerMainnetTransactionCustom}
+        />
+        <ExplorerRow
+          label="Addresses"
+          ariaLabel="Block explorer for mainnet addresses"
+          customPlaceholder="https://mainnet.block-explorer/address/"
+          value={blockExplorerMainnetAddress}
+          onChange={setBlockExplorerMainnetAddress}
+          customValue={blockExplorerMainnetAddressCustom}
+          onCustomChange={setBlockExplorerMainnetAddressCustom}
+        />
       </div>
 
-      <div className={cstyles.buttoncontainer}>
-        <button
-          type="button"
-          className={cstyles.primarybutton}
-          onClick={() => {
-            setBlockExplorerMainnetAddress(modalInput.blockExplorerMainnetAddress);
-            setBlockExplorerMainnetAddressCustom(modalInput.blockExplorerMainnetAddressCustom);
-            setBlockExplorerMainnetTransaction(modalInput.blockExplorerMainnetTransaction);
-            setBlockExplorerMainnetTransactionCustom(modalInput.blockExplorerMainnetTransactionCustom);
-            setBlockExplorerTestnetAddress(modalInput.blockExplorerTestnetAddress);
-            setBlockExplorerTestnetAddressCustom(modalInput.blockExplorerTestnetAddressCustom);
-            setBlockExplorerTestnetTransaction(modalInput.blockExplorerTestnetTransaction);
-            setBlockExplorerTestnetTransactionCustom(modalInput.blockExplorerTestnetTransactionCustom);
-            closeModal();
-          }}
-        >
-          Close
+      <div className={cstyles.well} style={{ marginTop: 16 }}>
+        <div className={cstyles.small} style={{ opacity: 0.6, marginBottom: 12 }}>
+          Testnet
+        </div>
+        <ExplorerRow
+          label="Transactions"
+          ariaLabel="Block explorer for testnet transactions"
+          customPlaceholder="https://testnet.block-explorer/tx/"
+          value={blockExplorerTestnetTransaction}
+          onChange={setBlockExplorerTestnetTransaction}
+          customValue={blockExplorerTestnetTransactionCustom}
+          onCustomChange={setBlockExplorerTestnetTransactionCustom}
+        />
+        <ExplorerRow
+          label="Addresses"
+          ariaLabel="Block explorer for testnet addresses"
+          customPlaceholder="https://testnet.block-explorer/address/"
+          value={blockExplorerTestnetAddress}
+          onChange={setBlockExplorerTestnetAddress}
+          customValue={blockExplorerTestnetAddressCustom}
+          onCustomChange={setBlockExplorerTestnetAddressCustom}
+        />
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
+        <button type="button" className={cstyles.primarybutton} onClick={handleCancel}>
+          Cancel
         </button>
-        <button
-          disabled={
-            (blockExplorerMainnetAddress === BlockExplorerEnum.Custom && !blockExplorerMainnetAddressCustom) ||
-            (blockExplorerMainnetTransaction === BlockExplorerEnum.Custom && !blockExplorerMainnetTransactionCustom) ||
-            (blockExplorerTestnetAddress === BlockExplorerEnum.Custom && !blockExplorerTestnetAddressCustom) ||
-            (blockExplorerTestnetTransaction === BlockExplorerEnum.Custom && !blockExplorerMainnetTransactionCustom)
-          }
-          type="button"
-          className={cstyles.primarybutton}
-          onClick={async () => {
-            setBlockExplorerMainnetAddressCustom(
-              blockExplorerMainnetAddress === BlockExplorerEnum.Custom
-                ? blockExplorerMainnetAddressCustom.endsWith("/") || blockExplorerMainnetAddressCustom.endsWith("=")
-                  ? blockExplorerMainnetAddressCustom
-                  : `${blockExplorerMainnetAddressCustom}/`
-                : "",
-            );
-            setBlockExplorerMainnetTransactionCustom(
-              blockExplorerMainnetTransaction === BlockExplorerEnum.Custom
-                ? blockExplorerMainnetTransactionCustom.endsWith("/") ||
-                  blockExplorerMainnetTransactionCustom.endsWith("=")
-                  ? blockExplorerMainnetTransactionCustom
-                  : `${blockExplorerMainnetTransactionCustom}/`
-                : "",
-            );
-            setBlockExplorerTestnetAddressCustom(
-              blockExplorerTestnetAddress === BlockExplorerEnum.Custom
-                ? blockExplorerTestnetAddressCustom.endsWith("/") || blockExplorerTestnetAddressCustom.endsWith("=")
-                  ? blockExplorerTestnetAddressCustom
-                  : `${blockExplorerTestnetAddressCustom}/`
-                : "",
-            );
-            setBlockExplorerTestnetTransactionCustom(
-              blockExplorerTestnetTransaction === BlockExplorerEnum.Custom
-                ? blockExplorerTestnetTransactionCustom.endsWith("/") ||
-                  blockExplorerTestnetTransactionCustom.endsWith("=")
-                  ? blockExplorerTestnetTransactionCustom
-                  : `${blockExplorerTestnetTransactionCustom}/`
-                : "",
-            );
-            const toSave = {
-              blockExplorerMainnetAddress,
-              blockExplorerMainnetAddressCustom:
-                blockExplorerMainnetAddress === BlockExplorerEnum.Custom
-                  ? blockExplorerMainnetAddressCustom.endsWith("/") || blockExplorerMainnetAddressCustom.endsWith("=")
-                    ? blockExplorerMainnetAddressCustom
-                    : `${blockExplorerMainnetAddressCustom}/`
-                  : "",
-              blockExplorerMainnetTransaction,
-              blockExplorerMainnetTransactionCustom:
-                blockExplorerMainnetTransaction === BlockExplorerEnum.Custom
-                  ? blockExplorerMainnetTransactionCustom.endsWith("/") ||
-                    blockExplorerMainnetTransactionCustom.endsWith("=")
-                    ? blockExplorerMainnetTransactionCustom
-                    : `${blockExplorerMainnetTransactionCustom}/`
-                  : "",
-              blockExplorerTestnetAddress,
-              blockExplorerTestnetAddressCustom:
-                blockExplorerTestnetAddress === BlockExplorerEnum.Custom
-                  ? blockExplorerTestnetAddressCustom.endsWith("/") || blockExplorerTestnetAddressCustom.endsWith("=")
-                    ? blockExplorerTestnetAddressCustom
-                    : `${blockExplorerTestnetAddressCustom}/`
-                  : "",
-              blockExplorerTestnetTransaction,
-              blockExplorerTestnetTransactionCustom:
-                blockExplorerTestnetTransaction === BlockExplorerEnum.Custom
-                  ? blockExplorerTestnetTransactionCustom.endsWith("/") ||
-                    blockExplorerTestnetTransactionCustom.endsWith("=")
-                    ? blockExplorerTestnetTransactionCustom
-                    : `${blockExplorerTestnetTransactionCustom}/`
-                  : "",
-            };
-            setModalInput(toSave);
-            await ipcRenderer.invoke("saveSettings", { key: "blockexplorer", value: toSave });
-            closeModal();
-          }}
-        >
+        <button type="button" className={cstyles.primarybutton} onClick={handleSave} disabled={saveDisabled}>
           Save
         </button>
       </div>
