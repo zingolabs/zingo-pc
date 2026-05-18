@@ -1,9 +1,42 @@
 import React from "react";
-import { render, screen, fireEvent } from "../../../test-utils";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { render } from "../../../test-utils";
 import ToAddrBox from "./ToAddrBox";
-import { ToAddrClass, ServerChainNameEnum } from "../../appstate";
+import { ToAddrClass, ServerChainNameEnum, AddressBookEntryClass, AddressKindEnum } from "../../appstate";
 
 jest.mock("../../../electronBridge");
+
+// Provide a controllable ZNS resolver — `mock` prefix avoids jest hoist restriction.
+let mockResolveImpl: (alias: string, chain: string) =>
+  | Promise<{ ok: true; address: string }>
+  | Promise<{ ok: false; reason: "not-found" | "network" | "unsupported-chain" | "invalid-name" }> =
+  async () => ({ ok: false, reason: "not-found" });
+jest.mock("../../../utils/zns", () => {
+  const actual = jest.requireActual("../../../utils/zns");
+  return {
+    ...actual,
+    resolveZnsAlias: (alias: string, chain: string) => mockResolveImpl(alias, chain),
+  };
+});
+
+const mockNavigate = jest.fn();
+jest.mock("react-router-dom", () => {
+  const actual = jest.requireActual("react-router-dom");
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { native, shell } = require("../../../electronBridge");
+
+beforeEach(() => {
+  mockResolveImpl = async () => ({ ok: false, reason: "not-found" });
+  mockNavigate.mockReset();
+  (shell.openExternal as jest.Mock).mockReset();
+  (native.parse_address as jest.Mock).mockReset();
+});
 
 const makeProps = (overrides: Partial<React.ComponentProps<typeof ToAddrBox>> = {}) => {
   const toaddr = new ToAddrClass();
@@ -67,5 +100,243 @@ describe("ToAddrBox", () => {
   it("renders the fee input as disabled (fee is computed, not user-entered)", () => {
     render(<ToAddrBox {...makeProps()} />);
     expect(screen.getByRole("spinbutton", { name: /transaction fee/i })).toBeDisabled();
+  });
+
+  it("shows memo when the address is sapling or unified", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc" });
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+    });
+    await waitFor(() => {
+      // The Memo textarea is rendered when not disabled. We can check that the
+      // "memos only..." copy is NOT shown.
+      expect(screen.queryByText(/Memos only for Unified or Sapling addresses/i)).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows 'memos only for sapling/unified' when address is transparent", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "" });
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+    });
+    // Empty address → addressKind undefined → isMemoDisabled true → message visible.
+    expect(screen.getByText(/Memos only for Unified or Sapling addresses/i)).toBeInTheDocument();
+  });
+
+  it("displays 'Resolving ZNS…' while a *.zcash alias is being resolved", async () => {
+    let releaseResolve: (v: any) => void = () => {};
+    mockResolveImpl = () => new Promise((res) => (releaseResolve = res));
+    const toaddr = Object.assign(new ToAddrClass(), { to: "" });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
+    const addressInput = screen.getByRole("textbox", { name: /recipient address/i });
+    await act(async () => {
+      fireEvent.change(addressInput, { target: { value: "alice.zcash" } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Resolving ZNS/i)).toBeInTheDocument();
+    });
+    releaseResolve({ ok: false, reason: "not-found" });
+  });
+
+  it("shows the 'ZNS name not found' error", async () => {
+    mockResolveImpl = async () => ({ ok: false, reason: "not-found" });
+    const toaddr = Object.assign(new ToAddrClass(), { to: "" });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
+    const addressInput = screen.getByRole("textbox", { name: /recipient address/i });
+    await act(async () => {
+      fireEvent.change(addressInput, { target: { value: "ghost.zcash" } });
+      await new Promise((r) => setTimeout(r, 600));
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/ZNS name not found/i)).toBeInTheDocument();
+    });
+  });
+
+  it("shows the 'ZNS lookup failed' network error", async () => {
+    mockResolveImpl = async () => ({ ok: false, reason: "network" });
+    const toaddr = Object.assign(new ToAddrClass(), { to: "" });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
+    const addressInput = screen.getByRole("textbox", { name: /recipient address/i });
+    await act(async () => {
+      fireEvent.change(addressInput, { target: { value: "down.zcash" } });
+      await new Promise((r) => setTimeout(r, 600));
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/ZNS lookup failed/i)).toBeInTheDocument();
+    });
+  });
+
+  it("renders the ZNS badge after a successful resolve", async () => {
+    mockResolveImpl = async () => ({ ok: true, address: "u1resolved" });
+    const updateToField = jest.fn();
+    const updateZnsAlias = jest.fn();
+    const toaddr = Object.assign(new ToAddrClass(), { to: "" });
+    render(<ToAddrBox {...makeProps({ toaddr, updateToField, updateZnsAlias })} />);
+    const addressInput = screen.getByRole("textbox", { name: /recipient address/i });
+    await act(async () => {
+      fireEvent.change(addressInput, { target: { value: "alice.zcash" } });
+      await new Promise((r) => setTimeout(r, 600));
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/ZNS: alice\.zcash/)).toBeInTheDocument();
+    });
+    expect(updateToField).toHaveBeenCalledWith("u1resolved", null, null);
+    expect(updateZnsAlias).toHaveBeenCalledWith("alice.zcash");
+  });
+
+  it("opens zcashnames.com explorer when the external-link button is clicked (mainnet)", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
+    fireEvent.click(screen.getByLabelText(/View on zcashnames\.com/i));
+    expect(shell.openExternal).toHaveBeenCalledWith("https://www.zcashnames.com/explorer?name=alice");
+  });
+
+  it("opens the testnet explorer with env=testnet", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    render(<ToAddrBox {...makeProps({ toaddr, serverChainName: ServerChainNameEnum.testChainName })} />);
+    fireEvent.click(screen.getByLabelText(/View on zcashnames\.com/i));
+    expect(shell.openExternal).toHaveBeenCalledWith("https://www.zcashnames.com/explorer?name=alice&env=testnet");
+  });
+
+  it("clears the ZNS alias when the X button is clicked", async () => {
+    const updateZnsAlias = jest.fn();
+    const updateToField = jest.fn();
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    render(<ToAddrBox {...makeProps({ toaddr, updateZnsAlias, updateToField })} />);
+    fireEvent.click(screen.getByLabelText(/Clear ZNS alias/i));
+    expect(updateZnsAlias).toHaveBeenCalledWith("");
+    expect(updateToField).toHaveBeenCalledWith("", null, null);
+  });
+
+  it("triggers Save Contact for a ZNS alias", async () => {
+    const setAddLabel = jest.fn();
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { setAddLabel } });
+    fireEvent.click(screen.getByLabelText(/Save as contact/i));
+    expect(setAddLabel).toHaveBeenCalledWith(new AddressBookEntryClass("", "alice.zcash"));
+    expect(mockNavigate).toHaveBeenCalled();
+  });
+
+  it("renders 'Contact & ZNS: ...' when the alias already matches an existing contact", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    const ab = new AddressBookEntryClass("Alice ZNS", "alice.zcash");
+    ab.chain = ServerChainNameEnum.mainChainName;
+    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
+    expect(screen.getByText(/Contact & ZNS: alice\.zcash/)).toBeInTheDocument();
+  });
+
+  it("shows 'Contact: <label>' when address matches an address-book entry", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1someaddr" });
+    const ab = new AddressBookEntryClass("Bob", "u1someaddr");
+    ab.chain = ServerChainNameEnum.mainChainName;
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
+    });
+    await waitFor(() => {
+      expect(screen.getByText("Contact: Bob")).toBeInTheDocument();
+    });
+  });
+
+  it("filters address-book contacts by chain (no match when chain differs)", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1someaddr" });
+    const ab = new AddressBookEntryClass("BobOnTest", "u1someaddr");
+    ab.chain = ServerChainNameEnum.testChainName;
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
+    });
+    expect(screen.queryByText("Contact: BobOnTest")).not.toBeInTheDocument();
+  });
+
+  it("clears the 'Contact' badge when the X button is clicked", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    const updateToField = jest.fn();
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1someaddr" });
+    const ab = new AddressBookEntryClass("Bob", "u1someaddr");
+    ab.chain = ServerChainNameEnum.mainChainName;
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr, updateToField })} />, { contextOverrides: { addressBook: [ab] } });
+    });
+    fireEvent.click(screen.getByLabelText(/Clear recipient/i));
+    expect(updateToField).toHaveBeenCalledWith("", null, null);
+  });
+
+  it("shows error label when amount is too small", async () => {
+    // Negative amounts both trigger "Amount cannot be negative" and
+    // "Amount is too small" — the latter wins because it's the last branch.
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: -1 });
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Amount is too small/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows error label when amount exceeds balance", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 100 });
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr, fromAmount: 1 })} />);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Amount Exceeds Balance/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows error label when amount has too many decimals", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 0.123456789 });
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Too Many Decimals/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows memo error when memo exceeds 511 chars", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", memo: "x".repeat(512) });
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Memo is too long/)).toBeInTheDocument();
+    });
+  });
+
+  it("shows 'Invalid Address' when parse_address returns nothing for a non-alias", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue("");
+    const toaddr = Object.assign(new ToAddrClass(), { to: "garbage" });
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid Address/)).toBeInTheDocument();
+    });
+  });
+
+  it("renders a Save-Contact button for a valid pasted address not yet in the book", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1neverseen" });
+    await act(async () => {
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+    });
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Save as contact/i)).toBeInTheDocument();
+    });
   });
 });
