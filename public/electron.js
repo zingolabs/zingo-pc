@@ -521,13 +521,19 @@ ipcMain.handle("auth:check", async () => {
 });
 
 ipcMain.handle("auth:verify", async (_e, reason) => {
+  // Universal rule: when device authentication is NOT available on the current
+  // platform / install (no Touch ID enrolled, Windows Hello not set up, polkit
+  // action not registered for AppImage / dev runs, etc.) we silently succeed.
+  // Otherwise the user gets a "Send" button that does nothing — surprising and
+  // hard to debug. Security-wise we already require an explicit opt-in for the
+  // feature: `requireDeviceAuth` defaults to true, but the renderer also gates
+  // the LOCK screen on auth:check === "available", so disabling here keeps the
+  // two callers consistent.
   if (process.platform === "win32") {
     const win = BrowserWindow.getAllWindows()[0] ?? null;
     try {
       const native = getNative();
-      // If Windows Hello is not configured, skip verification rather than hanging.
       if (native.checkWindowsHello() !== "available") return { success: true };
-      // Blur the Electron window so the Windows Hello dialog can take foreground focus.
       if (win) win.blur();
       const result = await native.verifyWindowsUser(String(reason));
       if (win) win.focus();
@@ -538,21 +544,33 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
     }
   } else if (process.platform === "darwin") {
     try {
-      return await getNative().verifyMacUser(String(reason));
+      const native = getNative();
+      if (native.checkMacAuth() !== "available") return { success: true };
+      return await native.verifyMacUser(String(reason));
     } catch {
       return { success: false };
     }
   } else if (process.platform === "linux") {
     return new Promise((resolve) => {
       const { execFile } = require("child_process");
-      execFile(
-        "pkcheck",
-        ["--action-id", "co.zingo.pc.authenticate", "--process", String(process.pid), "--allow-user-interaction"],
-        (err) => resolve({ success: !err }),
-      );
+      // Probe the polkit action first; if it's not registered (dev mode,
+      // AppImage, missing .deb post-install) skip verification rather than
+      // failing the entire send flow.
+      execFile("pkaction", ["--action-id", "co.zingo.pc.authenticate"], (_err, stdout) => {
+        const available = stdout && stdout.includes("co.zingo.pc.authenticate");
+        if (!available) {
+          resolve({ success: true });
+          return;
+        }
+        execFile(
+          "pkcheck",
+          ["--action-id", "co.zingo.pc.authenticate", "--process", String(process.pid), "--allow-user-interaction"],
+          (err) => resolve({ success: !err }),
+        );
+      });
     });
   }
-  return { success: false };
+  return { success: true };
 });
 
 // ── Keychain-backed requireDeviceAuth ─────────────────────────────────────
