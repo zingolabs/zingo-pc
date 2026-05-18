@@ -252,6 +252,18 @@ describe("Sidebar", () => {
       expect(mockGetUfvk).toHaveBeenCalled();
     });
 
+    it("'seed' on a normal wallet also fetches the UFVK so users can share view-only access", async () => {
+      const openErrorModal = jest.fn();
+      mockGetSeed.mockResolvedValue(JSON.stringify({ seed_phrase: "abandon ability …" }));
+      mockGetUfvk.mockResolvedValue(JSON.stringify({ ufvk: "uview1abc" }));
+      renderSidebar({ openErrorModal });
+      await act(async () => {
+        await getListener("seed")?.({});
+      });
+      expect(mockGetSeed).toHaveBeenCalled();
+      expect(mockGetUfvk).toHaveBeenCalled();
+    });
+
     it("'rescan' delegates to doRescan when wallet is loaded", async () => {
       const doRescan = jest.fn();
       render(
