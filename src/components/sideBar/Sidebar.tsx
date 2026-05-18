@@ -210,8 +210,11 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         return;
       }
 
+      // Always fetch the UFVK — for seed wallets it's derived from the seed, and
+      // showing it alongside the seed lets the user share view-only access without
+      // exposing spend authority.
       const seedRaw: string = readOnlyRef.current ? "" : await native.get_seed();
-      const ufvkRaw: string = readOnlyRef.current ? await native.get_ufvk() : "";
+      const ufvkRaw: string = await native.get_ufvk();
       const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
       const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
 
