@@ -18,8 +18,6 @@
     <array>
       <string>group.co.zingo.pc</string>
     </array>
-    <key>com.apple.security.personal-information.location</key>
-    <true/>
     <key>com.apple.security.automation.apple-events</key>
     <true/>
   </dict>
