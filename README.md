@@ -78,6 +78,52 @@ yarn release:prep 2.0.15 142
 
 ---
 
+## Features
+
+**Wallet**
+- Light client — no full chain download, syncs from a `lightwalletd` server
+- Multi-wallet support — manage several wallets in the same install
+- Multi-network — Mainnet, Testnet and Regtest, switchable per wallet
+- Create from a fresh BIP-39 seed, restore from seed, or import from a Unified Full Viewing Key (read-only mode)
+- Wallet seed phrase / UFVK backup viewer
+- Per-wallet performance profiles
+
+**Transactions**
+- Full Zcash address support — Unified, Sapling, Transparent and TEX
+- Shielded transactions by default (Orchard / Sapling)
+- Encrypted memos
+- "Shield Transparent → Orchard" one-click action
+- `zcash:` URI scheme handler (ZIP-321 payment requests)
+
+**Address book**
+- Save contacts per network (Mainnet / Testnet / Regtest) — the list filters by the active wallet's network
+- "Show contacts from all networks" toggle to see everything at once
+- Stores ZNS aliases verbatim so the address always re-resolves at send time
+
+**Zcash Names (ZNS)** *(experimental)*
+- Type `alice.zcash` in the recipient field — auto-resolves to the unified address via the public ZNS indexer
+- Network-aware (`Mainnet` / `Testnet`), with a one-click link to the public ZNS explorer page
+- Save the alias as a contact (the resolution stays current as the owner updates it on-chain)
+
+**Block explorers**
+- User-selectable per-network explorer for transactions and addresses
+  (Zcashexplorer, Cipherscan, Zypherscan, or a custom URL)
+
+**Security**
+- Hardened Electron renderer (sandboxed, CSP, no node integration)
+- Optional device authentication for opening the wallet and signing sends:
+  - macOS: Touch ID
+  - Windows: Windows Hello
+  - Linux (`.deb`): polkit
+- Encrypted credential storage (Keychain / Credential Manager / libsecret) for the auth setting itself
+
+**Data portability**
+- DMG ↔ MAS first-launch migration assistant (macOS) — imports wallets, address book and settings from a previous DMG install
+- Manual "Import data from another installation" from the Settings menu (MAS / Flatpak), with per-file Replace / Merge / Skip choices
+- "Change wallets folder location" from the Settings menu (MAS)
+
+---
+
 ## Troubleshooting
 
 **Q: Clicking a `zcash:` payment link doesn't open Zingo PC (Linux AppImage)**
