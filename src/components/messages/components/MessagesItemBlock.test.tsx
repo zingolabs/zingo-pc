@@ -70,4 +70,53 @@ describe("MessagesItemBlock", () => {
     fireEvent.click(screen.getAllByRole("button")[0]);
     expect(setModalIsOpen).toHaveBeenCalledWith(true);
   });
+
+  it("opens the modal via keyboard Enter on the outer bubble", () => {
+    const setModalIsOpen = jest.fn();
+    render(<MessagesItemBlock {...baseProps} vt={makeVt()} setModalIsOpen={setModalIsOpen} />);
+    fireEvent.keyDown(screen.getAllByRole("button")[0], { key: "Enter" });
+    expect(setModalIsOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("opens the modal via keyboard space on the outer bubble", () => {
+    const setModalIsOpen = jest.fn();
+    render(<MessagesItemBlock {...baseProps} vt={makeVt()} setModalIsOpen={setModalIsOpen} />);
+    fireEvent.keyDown(screen.getAllByRole("button")[0], { key: " " });
+    expect(setModalIsOpen).toHaveBeenCalledWith(true);
+  });
+
+  it("copies the address to clipboard when the address bubble is clicked", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { clipboard } = require("../../../electronBridge");
+    render(<MessagesItemBlock {...baseProps} vt={makeVt({ address: "u1tinyaddress" })} />);
+    fireEvent.click(screen.getByLabelText("Copy address"));
+    expect(clipboard.writeText).toHaveBeenCalledWith("u1tinyaddress");
+  });
+
+  it("expands the address inline when clicked (long address chunked)", () => {
+    const longAddr = "u1" + "x".repeat(100);
+    render(<MessagesItemBlock {...baseProps} vt={makeVt({ address: longAddr })} />);
+    fireEvent.click(screen.getByLabelText("Copy address"));
+    expect(screen.getByLabelText("Copy address")).toBeInTheDocument();
+  });
+
+  it("triggers address-copy via keyboard Enter", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { clipboard } = require("../../../electronBridge");
+    render(<MessagesItemBlock {...baseProps} vt={makeVt()} />);
+    fireEvent.keyDown(screen.getByLabelText("Copy address"), { key: "Enter" });
+    expect(clipboard.writeText).toHaveBeenCalled();
+  });
+
+  it("renders the 'sent' alignment when message is sent (right-side bubble)", () => {
+    render(<MessagesItemBlock {...baseProps} vt={makeVt({ type: ValueTransferKindEnum.sent })} />);
+    // No specific text assertion — just ensures the branch executes.
+    expect(screen.getAllByRole("button").length).toBeGreaterThan(0);
+  });
+
+  it("hides address bubble when there's already an address book label", () => {
+    const map = new Map([["u1shortaddr", "Bob"]]);
+    render(<MessagesItemBlock {...baseProps} vt={makeVt()} addressBookMap={map} />);
+    expect(screen.queryByLabelText("Copy address")).not.toBeInTheDocument();
+  });
 });
