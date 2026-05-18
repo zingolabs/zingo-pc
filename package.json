@@ -309,23 +309,7 @@
     ],
     "collectCoverageFrom": [
       "src/**/*.{js,jsx,ts,tsx}",
-      "!src/**/*.d.ts",
-      "!src/native.node",
-      "!src/electronBridge.ts",
-      "!src/__mocks__/**",
-      "!src/test-utils.tsx",
-      "!src/setupTests.ts",
-      "!src/version.ts",
-      "!src/**/index.ts",
-      "!src/components/appstate/enums/**",
-      "!src/components/appstate/types/**",
-      "!src/rpc/components/**",
-      "!src/components/send/components/SendManyJSONType.ts",
-      "!src/components/balanceBlock/components/**",
-      "!src/root/Routes.tsx",
-      "!src/rpc/rpc.ts",
-      "!src/components/loadingScreen/LoadingScreen.tsx",
-      "!src/components/addNewWallet/AddNewWallet.tsx"
+      "!src/**/*.d.ts"
     ],
     "setupFiles": [
       "react-app-polyfill/jsdom"
