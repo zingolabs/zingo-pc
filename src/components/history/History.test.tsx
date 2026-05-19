@@ -88,9 +88,7 @@ describe("History", () => {
     const VtModalMock = require("./components/VtModal").default as jest.Mock;
     const vt = makeVt({ txid: "tx1" });
     render(<History />, { contextOverrides: { valueTransfers: [vt] } });
-    await act(async () => {
-      fireEvent.click(screen.getAllByRole("button")[0]);
-    });
+    fireEvent.click(screen.getAllByRole("button")[0]);
     await waitFor(() => {
       const lastProps = VtModalMock.mock.calls[VtModalMock.mock.calls.length - 1][0] as { modalIsOpen: boolean };
       expect(lastProps.modalIsOpen).toBe(true);
@@ -102,10 +100,8 @@ describe("History", () => {
     const VtModalMock = require("./components/VtModal").default as jest.Mock;
     const vt = makeVt({ txid: "tx1" });
     render(<History />, { contextOverrides: { valueTransfers: [vt] } });
-    await act(async () => {
-      fireEvent.click(screen.getAllByRole("button")[0]);
-    });
-    await waitFor(() => expect(screen.getByTestId("vt-modal-open")).toBeInTheDocument());
+    fireEvent.click(screen.getAllByRole("button")[0]);
+    await screen.findByTestId("vt-modal-open");
     const props = VtModalMock.mock.calls[VtModalMock.mock.calls.length - 1][0] as { closeModal: () => void };
     await act(async () => {
       props.closeModal();

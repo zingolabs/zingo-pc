@@ -277,11 +277,16 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
           className={cstyles.horizontalflex}
         >
           {valueTransferIndex === 0 ? (
-            <div style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}>
+            <div
+              aria-label="Previous transaction (disabled)"
+              style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
+            >
               <i className={`${"fas"} ${"fa-arrow-up"} ${"fa-2x"}`} />
             </div>
           ) : (
             <div
+              role="button"
+              aria-label="Previous transaction"
               style={{ marginRight: 25, cursor: "pointer" }}
               onClick={() => moveValueTransferDetail(valueTransferIndex, -1)}
             >
@@ -290,11 +295,13 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
           )}
           <div>{(valueTransferIndex + 1).toString()}</div>
           {valueTransferIndex === length - 1 ? (
-            <div style={{ marginLeft: 25, cursor: "pointer", opacity: 0.5 }}>
+            <div aria-label="Next transaction (disabled)" style={{ marginLeft: 25, cursor: "pointer", opacity: 0.5 }}>
               <i className={`${"fas"} ${"fa-arrow-down"} ${"fa-2x"}`} />
             </div>
           ) : (
             <div
+              role="button"
+              aria-label="Next transaction"
               style={{ marginLeft: 25, cursor: "pointer" }}
               onClick={() => moveValueTransferDetail(valueTransferIndex, 1)}
             >

@@ -62,9 +62,7 @@ describe("BlockExplorerModal", () => {
     (ipcRenderer.invoke as jest.Mock).mockResolvedValue(undefined);
     const setModalInput = jest.fn();
     const closeModal = jest.fn();
-    render(
-      <BlockExplorerModal {...baseProps} setModalInput={setModalInput} closeModal={closeModal} />,
-    );
+    render(<BlockExplorerModal {...baseProps} setModalInput={setModalInput} closeModal={closeModal} />);
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
     // setModalInput is called synchronously before the async invoke
     expect(setModalInput).toHaveBeenCalled();

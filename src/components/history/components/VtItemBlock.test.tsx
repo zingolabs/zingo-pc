@@ -99,20 +99,14 @@ describe("VtItemBlock", () => {
 
   it("shows the 'Calculated' label", () => {
     render(
-      <VtItemBlock
-        {...baseProps}
-        vt={makeVt({ status: ValueTransferStatusEnum.calculated, confirmations: 0 })}
-      />,
+      <VtItemBlock {...baseProps} vt={makeVt({ status: ValueTransferStatusEnum.calculated, confirmations: 0 })} />,
     );
     expect(screen.getByText("Calculated")).toBeInTheDocument();
   });
 
   it("shows the 'Transmitted' label", () => {
     render(
-      <VtItemBlock
-        {...baseProps}
-        vt={makeVt({ status: ValueTransferStatusEnum.transmitted, confirmations: 0 })}
-      />,
+      <VtItemBlock {...baseProps} vt={makeVt({ status: ValueTransferStatusEnum.transmitted, confirmations: 0 })} />,
     );
     expect(screen.getByText("Transmitted")).toBeInTheDocument();
   });

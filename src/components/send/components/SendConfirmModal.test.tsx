@@ -1,14 +1,8 @@
 import React from "react";
-import { act, screen, fireEvent, waitFor } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { render } from "../../../test-utils";
 import SendConfirmModal from "./SendConfirmModal";
-import {
-  SendPageStateClass,
-  ToAddrClass,
-  InfoClass,
-  TotalBalanceClass,
-  ServerChainNameEnum,
-} from "../../appstate";
+import { SendPageStateClass, ToAddrClass, InfoClass, TotalBalanceClass, ServerChainNameEnum } from "../../appstate";
 
 jest.mock("../../../electronBridge");
 
@@ -46,15 +40,17 @@ const installElectronAPI = (overrides: { loadSettings?: any; authVerify?: any } 
   return invoke;
 };
 
-const makeProps = (overrides: Partial<{
-  closeModal: () => void;
-  sendTransaction: () => Promise<string>;
-  clearToAddrs: () => void;
-  modalIsOpen: boolean;
-  toaddr: Partial<ToAddrClass>;
-  balance: Partial<TotalBalanceClass>;
-  sendFee: number;
-}> = {}) => {
+const makeProps = (
+  overrides: Partial<{
+    closeModal: () => void;
+    sendTransaction: () => Promise<string>;
+    clearToAddrs: () => void;
+    modalIsOpen: boolean;
+    toaddr: Partial<ToAddrClass>;
+    balance: Partial<TotalBalanceClass>;
+    sendFee: number;
+  }> = {},
+) => {
   const sendPageState = new SendPageStateClass();
   sendPageState.toaddr = Object.assign(new ToAddrClass(), {
     to: "u1fakeaddress0000000000000000000000000000000000000000",
@@ -126,7 +122,7 @@ describe("SendConfirmModal", () => {
   describe("getPrivacyLevel", () => {
     it("returns '-' when address has no 'to' value", async () => {
       render(<SendConfirmModal {...makeProps({ toaddr: { to: "", amount: 0 } })} />);
-      await waitFor(() => expect(screen.getByText("Privacy Level")).toBeInTheDocument());
+      await screen.findByText("Privacy Level");
       // privacy level text appears as "-" when blank
     });
 
@@ -170,10 +166,9 @@ describe("SendConfirmModal", () => {
           receivers_available: ["orchard"],
         }),
       );
-      render(
-        <SendConfirmModal {...makeProps({ toaddr: { amount: 1 }, balance: { confirmedOrchardBalance: 10 } })} />,
-        { contextOverrides: { currentWallet: mainnetWallet } },
-      );
+      render(<SendConfirmModal {...makeProps({ toaddr: { amount: 1 }, balance: { confirmedOrchardBalance: 10 } })} />, {
+        contextOverrides: { currentWallet: mainnetWallet },
+      });
       expect(await screen.findByText("Private")).toBeInTheDocument();
     });
 
@@ -188,7 +183,10 @@ describe("SendConfirmModal", () => {
       );
       render(
         <SendConfirmModal
-          {...makeProps({ toaddr: { amount: 1 }, balance: { confirmedOrchardBalance: 0, confirmedSaplingBalance: 10 } })}
+          {...makeProps({
+            toaddr: { amount: 1 },
+            balance: { confirmedOrchardBalance: 0, confirmedSaplingBalance: 10 },
+          })}
         />,
         { contextOverrides: { currentWallet: mainnetWallet } },
       );
@@ -204,10 +202,9 @@ describe("SendConfirmModal", () => {
           receivers_available: ["sapling"],
         }),
       );
-      render(
-        <SendConfirmModal {...makeProps({ toaddr: { amount: 1 }, balance: { confirmedOrchardBalance: 10 } })} />,
-        { contextOverrides: { currentWallet: mainnetWallet } },
-      );
+      render(<SendConfirmModal {...makeProps({ toaddr: { amount: 1 }, balance: { confirmedOrchardBalance: 10 } })} />, {
+        contextOverrides: { currentWallet: mainnetWallet },
+      });
       expect(await screen.findByText("Amount Revealed")).toBeInTheDocument();
     });
 
@@ -222,7 +219,10 @@ describe("SendConfirmModal", () => {
       );
       render(
         <SendConfirmModal
-          {...makeProps({ toaddr: { amount: 1 }, balance: { confirmedOrchardBalance: 0, confirmedSaplingBalance: 10 } })}
+          {...makeProps({
+            toaddr: { amount: 1 },
+            balance: { confirmedOrchardBalance: 0, confirmedSaplingBalance: 10 },
+          })}
         />,
         { contextOverrides: { currentWallet: mainnetWallet } },
       );
@@ -260,10 +260,9 @@ describe("SendConfirmModal", () => {
           receivers_available: [],
         }),
       );
-      render(
-        <SendConfirmModal {...makeProps({ toaddr: { amount: 1 }, balance: { confirmedOrchardBalance: 10 } })} />,
-        { contextOverrides: { currentWallet: mainnetWallet } },
-      );
+      render(<SendConfirmModal {...makeProps({ toaddr: { amount: 1 }, balance: { confirmedOrchardBalance: 10 } })} />, {
+        contextOverrides: { currentWallet: mainnetWallet },
+      });
       expect(await screen.findByText("Deshielded")).toBeInTheDocument();
     });
 
@@ -278,7 +277,10 @@ describe("SendConfirmModal", () => {
       );
       render(
         <SendConfirmModal
-          {...makeProps({ toaddr: { amount: 100 }, balance: { confirmedOrchardBalance: 5, confirmedSaplingBalance: 5 } })}
+          {...makeProps({
+            toaddr: { amount: 100 },
+            balance: { confirmedOrchardBalance: 5, confirmedSaplingBalance: 5 },
+          })}
         />,
         { contextOverrides: { currentWallet: mainnetWallet } },
       );
@@ -293,11 +295,9 @@ describe("SendConfirmModal", () => {
       const sendTransaction = jest.fn();
       const closeModal = jest.fn();
       render(<SendConfirmModal {...makeProps({ sendTransaction, closeModal })} />);
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
-      });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await waitFor(() => expect(invoke).toHaveBeenCalledWith("auth:verify", "Authorize transaction"));
       expect(invoke).toHaveBeenCalledWith("loadSettings");
-      expect(invoke).toHaveBeenCalledWith("auth:verify", "Authorize transaction");
       expect(sendTransaction).not.toHaveBeenCalled();
       expect(closeModal).not.toHaveBeenCalled();
     });
@@ -307,123 +307,79 @@ describe("SendConfirmModal", () => {
       const sendTransaction = jest.fn().mockResolvedValue("txid-1");
       const closeModal = jest.fn();
       const openErrorModal = jest.fn();
-      render(
-        <SendConfirmModal {...makeProps({ sendTransaction, closeModal })} />,
-        { contextOverrides: { openErrorModal } },
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      render(<SendConfirmModal {...makeProps({ sendTransaction, closeModal })} />, {
+        contextOverrides: { openErrorModal },
       });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await waitFor(() =>
+        expect(openErrorModal).toHaveBeenCalledWith("Computing Transaction", "Please wait...This could take a while"),
+      );
       expect(invoke).not.toHaveBeenCalledWith("auth:verify", expect.anything());
       expect(closeModal).toHaveBeenCalled();
-      expect(openErrorModal).toHaveBeenCalledWith("Computing Transaction", "Please wait...This could take a while");
     });
 
     it("opens an error modal when sendTransaction returns an error string", async () => {
-      jest.useFakeTimers();
       installElectronAPI();
       const sendTransaction = jest.fn().mockResolvedValue("Error: insufficient");
       const openErrorModal = jest.fn();
       const clearToAddrs = jest.fn();
-      render(
-        <SendConfirmModal {...makeProps({ sendTransaction, clearToAddrs })} />,
-        { contextOverrides: { openErrorModal, currentWallet: mainnetWallet } },
+      render(<SendConfirmModal {...makeProps({ sendTransaction, clearToAddrs })} />, {
+        contextOverrides: { openErrorModal, currentWallet: mainnetWallet },
+      });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await waitFor(() =>
+        expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "Error: insufficient"),
       );
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
-      });
-      await act(async () => {
-        jest.advanceTimersByTime(15);
-      });
-      await act(async () => {
-        await Promise.resolve();
-      });
-      jest.useRealTimers();
-      expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "Error: insufficient");
       expect(clearToAddrs).toHaveBeenCalled();
       expect(mockNavigate).toHaveBeenCalled();
     });
 
     it("opens the success modal with a single TXID", async () => {
-      jest.useFakeTimers();
       installElectronAPI();
       const sendTransaction = jest.fn().mockResolvedValue("txid-one");
       const openErrorModal = jest.fn();
-      render(
-        <SendConfirmModal {...makeProps({ sendTransaction })} />,
-        { contextOverrides: { openErrorModal, currentWallet: mainnetWallet } },
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      render(<SendConfirmModal {...makeProps({ sendTransaction })} />, {
+        contextOverrides: { openErrorModal, currentWallet: mainnetWallet },
       });
-      await act(async () => {
-        jest.advanceTimersByTime(15);
-        await Promise.resolve();
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await waitFor(() => {
+        const successCall = openErrorModal.mock.calls.find((c) => c[0] === "Successfully Broadcast Transaction");
+        expect(successCall).toBeDefined();
       });
-      jest.useRealTimers();
-      const successCall = openErrorModal.mock.calls.find((c) => c[0] === "Successfully Broadcast Transaction");
-      expect(successCall).toBeDefined();
     });
 
     it("opens the success modal with multiple TXIDs", async () => {
-      jest.useFakeTimers();
       installElectronAPI();
       const sendTransaction = jest.fn().mockResolvedValue("txid-one, txid-two, txid-three");
       const openErrorModal = jest.fn();
-      render(
-        <SendConfirmModal {...makeProps({ sendTransaction })} />,
-        { contextOverrides: { openErrorModal, currentWallet: mainnetWallet } },
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      render(<SendConfirmModal {...makeProps({ sendTransaction })} />, {
+        contextOverrides: { openErrorModal, currentWallet: mainnetWallet },
       });
-      await act(async () => {
-        jest.advanceTimersByTime(15);
-        await Promise.resolve();
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await waitFor(() => {
+        const successCall = openErrorModal.mock.calls.find((c) => c[0] === "Successfully Broadcast Transaction");
+        expect(successCall).toBeDefined();
       });
-      jest.useRealTimers();
-      const successCall = openErrorModal.mock.calls.find((c) => c[0] === "Successfully Broadcast Transaction");
-      expect(successCall).toBeDefined();
     });
 
     it("opens an error modal when sendTransaction throws", async () => {
-      jest.useFakeTimers();
       installElectronAPI();
       const sendTransaction = jest.fn().mockRejectedValue(new Error("network is down"));
       const openErrorModal = jest.fn();
-      render(
-        <SendConfirmModal {...makeProps({ sendTransaction })} />,
-        { contextOverrides: { openErrorModal } },
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
-      });
-      await act(async () => {
-        jest.advanceTimersByTime(15);
-        await Promise.resolve();
-      });
-      jest.useRealTimers();
-      expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "network is down");
+      render(<SendConfirmModal {...makeProps({ sendTransaction })} />, { contextOverrides: { openErrorModal } });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await waitFor(() => expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "network is down"));
     });
 
     it("handles non-Error thrown values from sendTransaction", async () => {
-      jest.useFakeTimers();
       installElectronAPI();
       const sendTransaction = jest.fn().mockRejectedValue("plain string error");
       const openErrorModal = jest.fn();
-      render(
-        <SendConfirmModal {...makeProps({ sendTransaction })} />,
-        { contextOverrides: { openErrorModal } },
+      render(<SendConfirmModal {...makeProps({ sendTransaction })} />, { contextOverrides: { openErrorModal } });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await waitFor(() =>
+        expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "plain string error"),
       );
-      await act(async () => {
-        fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
-      });
-      await act(async () => {
-        jest.advanceTimersByTime(15);
-        await Promise.resolve();
-      });
-      jest.useRealTimers();
-      expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "plain string error");
     });
   });
 });

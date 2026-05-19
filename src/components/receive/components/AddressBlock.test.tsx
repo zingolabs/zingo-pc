@@ -1,6 +1,6 @@
 import React from "react";
 import { Accordion } from "react-accessible-accordion";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../../test-utils";
 import AddressBlock from "./AddressBlock";
 import {
@@ -80,9 +80,7 @@ describe("AddressBlock — Unified", () => {
   it("creates a new unified address via RPC", async () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />);
     fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /new address/i }));
-    });
+    fireEvent.click(screen.getByRole("button", { name: /new address/i }));
     expect(RPC.createNewAddressUnified).toHaveBeenCalledWith("o");
   });
 
@@ -90,9 +88,7 @@ describe("AddressBlock — Unified", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />);
     fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
     fireEvent.change(screen.getByRole("combobox", { name: /new address type/i }), { target: { value: "z" } });
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /new address/i }));
-    });
+    fireEvent.click(screen.getByRole("button", { name: /new address/i }));
     expect(RPC.createNewAddressUnified).toHaveBeenCalledWith("z");
   });
 
@@ -103,10 +99,8 @@ describe("AddressBlock — Unified", () => {
       contextOverrides: { openErrorModal },
     });
     fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /new address/i }));
-    });
-    expect(openErrorModal).toHaveBeenCalledWith("New Address", "Error: rate limit");
+    fireEvent.click(screen.getByRole("button", { name: /new address/i }));
+    await waitFor(() => expect(openErrorModal).toHaveBeenCalledWith("New Address", "Error: rate limit"));
   });
 
   it("opens the error modal when RPC returns empty", async () => {
@@ -116,10 +110,8 @@ describe("AddressBlock — Unified", () => {
       contextOverrides: { openErrorModal },
     });
     fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /new address/i }));
-    });
-    expect(openErrorModal).toHaveBeenCalledWith("New Address", "Error: creating a new address.");
+    fireEvent.click(screen.getByRole("button", { name: /new address/i }));
+    await waitFor(() => expect(openErrorModal).toHaveBeenCalledWith("New Address", "Error: creating a new address."));
   });
 
   it("hides 'View on explorer' button on regtest", () => {
@@ -179,9 +171,7 @@ describe("AddressBlock — Transparent", () => {
   it("creates a new transparent address via RPC", async () => {
     renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />);
     fireEvent.click(screen.getByText("t1shortaddr"));
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /new address/i }));
-    });
+    fireEvent.click(screen.getByRole("button", { name: /new address/i }));
     expect(RPC.createNewAddressTransparent).toHaveBeenCalled();
   });
 
@@ -208,10 +198,9 @@ describe("AddressBlock — Transparent", () => {
 
   it("hides Shield button when readOnly is true", async () => {
     const totalBalance = Object.assign(new TotalBalanceClass(), { confirmedTransparentBalance: 1 });
-    renderInAccordion(
-      <AddressBlock {...baseProps} address={tAddr} type="t" />,
-      { contextOverrides: { totalBalance, readOnly: true, currentWallet: mainnetWallet } },
-    );
+    renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />, {
+      contextOverrides: { totalBalance, readOnly: true, currentWallet: mainnetWallet },
+    });
     fireEvent.click(screen.getByText("t1shortaddr"));
     // Wait briefly to allow any effects to flush.
     await new Promise((r) => setTimeout(r, 30));
@@ -230,10 +219,9 @@ describe("AddressBlock — Transparent", () => {
       1,
       "addr",
     );
-    renderInAccordion(
-      <AddressBlock {...baseProps} address={tAddr} type="t" />,
-      { contextOverrides: { totalBalance, valueTransfers: [pending], currentWallet: mainnetWallet } },
-    );
+    renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />, {
+      contextOverrides: { totalBalance, valueTransfers: [pending], currentWallet: mainnetWallet },
+    });
     fireEvent.click(screen.getByText("t1shortaddr"));
     expect(screen.queryByRole("button", { name: /shield balance to orchard/i })).not.toBeInTheDocument();
   });

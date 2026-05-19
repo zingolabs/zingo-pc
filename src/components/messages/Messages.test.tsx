@@ -79,9 +79,7 @@ describe("Messages", () => {
     render(<Messages />, { contextOverrides: { messages: [vt] } });
     // The outer message bubble has role="button". The inner address bubble is also
     // role=button. Either click bubbles into the outer handler.
-    await act(async () => {
-      fireEvent.click(screen.getAllByRole("button")[0]);
-    });
+    fireEvent.click(screen.getAllByRole("button")[0]);
     await waitFor(() => {
       const lastProps = VtModalMock.mock.calls[VtModalMock.mock.calls.length - 1][0] as { modalIsOpen: boolean };
       expect(lastProps.modalIsOpen).toBe(true);
@@ -178,9 +176,7 @@ describe("Messages", () => {
     const VtModalMock = require("../history/components/VtModal").default as jest.Mock;
     const vt = makeVt({ txid: "tx1" });
     render(<Messages />, { contextOverrides: { messages: [vt] } });
-    await act(async () => {
-      fireEvent.click(screen.getAllByRole("button")[0]);
-    });
+    fireEvent.click(screen.getAllByRole("button")[0]);
     await waitFor(() => {
       const lastProps = VtModalMock.mock.calls[VtModalMock.mock.calls.length - 1][0] as { modalIsOpen: boolean };
       expect(lastProps.modalIsOpen).toBe(true);

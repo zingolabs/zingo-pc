@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../test-utils";
 import AddressBook from "./Addressbook";
 import { AddressBookEntryClass, ServerChainNameEnum } from "../appstate";
@@ -7,8 +7,7 @@ import { AddressBookEntryClass, ServerChainNameEnum } from "../appstate";
 jest.mock("../../electronBridge");
 
 // Provide a controllable ZNS resolver — `mock` prefix avoids jest hoist restriction.
-let mockResolveImpl: (alias: string, chain: string) => Promise<any> = async () =>
-  ({ ok: false, reason: "not-found" });
+let mockResolveImpl: (alias: string, chain: string) => Promise<any> = async () => ({ ok: false, reason: "not-found" });
 jest.mock("../../utils/zns", () => {
   const actual = jest.requireActual("../../utils/zns");
   return {
@@ -125,11 +124,7 @@ describe("AddressBook", () => {
     (native.parse_address as jest.Mock).mockResolvedValue(
       JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
     );
-    const entry = new AddressBookEntryClass(
-      "Bob",
-      "u1existing",
-      ServerChainNameEnum.mainChainName,
-    );
+    const entry = new AddressBookEntryClass("Bob", "u1existing", ServerChainNameEnum.mainChainName);
     render(<AddressBook {...baseProps} />, { contextOverrides: { addressBook: [entry] } });
     fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "u1existing" } });
     expect(await screen.findByText("Duplicate Address")).toBeInTheDocument();
@@ -149,9 +144,7 @@ describe("AddressBook", () => {
     (native.parse_address as jest.Mock).mockResolvedValue(
       JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
     );
-    render(
-      <AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />,
-    );
+    render(<AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />);
     fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Alice" } });
     fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "u1valid" } });
     await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
@@ -204,9 +197,7 @@ describe("AddressBook", () => {
       contextOverrides: { addressBook: [main, test] },
     });
     expect(screen.queryByText("Tester")).not.toBeInTheDocument();
-    await act(async () => {
-      fireEvent.click(screen.getByLabelText(/Show contacts from all networks/i));
-    });
+    fireEvent.click(screen.getByLabelText(/Show contacts from all networks/i));
     expect(screen.getByText("Tester")).toBeInTheDocument();
   });
 });

@@ -20,8 +20,7 @@ jest.mock("../../rpc/rpc", () => ({ __esModule: true, default: {} }));
 const Receive = require("./Receive").default;
 
 const makeUAddr = (addr: string, idx = 0) => new UnifiedAddressClass(0, idx, addr, true, true, false);
-const makeTAddr = (addr: string, idx = 0) =>
-  new TransparentAddressClass(0, idx, AddressScopeEnum.external, addr);
+const makeTAddr = (addr: string, idx = 0) => new TransparentAddressClass(0, idx, AddressScopeEnum.external, addr);
 const makeInternalTAddr = (addr: string, idx = 0) =>
   new TransparentAddressClass(0, idx, AddressScopeEnum.internal, addr);
 const makeBalance = (overrides: Partial<TotalBalanceClass> = {}) => Object.assign(new TotalBalanceClass(), overrides);

@@ -671,6 +671,28 @@ ipcMain.handle("saveSettings", async (_e, kv) => {
     settings.setSync(`all.${kv.key}`, kv.value);
   }
 });
+
+// Save a PNG via the user-selected save dialog. The renderer used to do this
+// with an `<a download>` link, which required `files.downloads.read-write`.
+// Apple flagged that entitlement as unused (2.4.5(i)) because we can achieve
+// the same UX through the standard save panel — which only needs the
+// `files.user-selected.read-write` entitlement we already have.
+ipcMain.handle("save-png", async (_e, { dataUrl, suggestedName }) => {
+  const mainWindow = BrowserWindow.getAllWindows()[0] ?? null;
+  const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
+    title: "Save QR code",
+    defaultPath: suggestedName,
+    filters: [{ name: "PNG image", extensions: ["png"] }],
+  });
+  if (canceled || !filePath) return { ok: false, reason: "cancelled" };
+  try {
+    const base64 = String(dataUrl).replace(/^data:image\/[a-z+-]+;base64,/, "");
+    fs.writeFileSync(filePath, Buffer.from(base64, "base64"));
+    return { ok: true, filePath };
+  } catch (e) {
+    return { ok: false, reason: String(e) };
+  }
+});
 ipcMain.handle("wallets:all", async () => getWallets());
 ipcMain.handle("wallets:get", async (_e, id) => getWallet(id));
 ipcMain.handle("wallets:add", async (_e, wallet) => addWallet(wallet));
@@ -953,22 +975,78 @@ ipcMain.handle("wallet-dir:request", async () => {
       }
 
       const selectedPath = filePaths[0];
+      let finalPath = selectedPath;
+      let finalBookmark = bookmarks[0];
       if (path.basename(selectedPath) !== "Zcash") {
-        await dialog.showMessageBox(mainWindow, {
-          type: "error",
-          title: "Wrong folder",
-          message: `Please select the "Zcash" folder, not "${path.basename(selectedPath)}".`,
-          buttons: ["Retry"],
+        // First-launch MAS users don't have a `Zcash` folder yet (the DMG version
+        // would auto-create it; in sandbox we can't write there until the user
+        // grants a bookmark). Offer to create it inside whatever they picked,
+        // using their bookmark as the trusted access root.
+        const { response } = await dialog.showMessageBox(mainWindow, {
+          type: "question",
+          title: "Create the Zcash folder?",
+          message: `"${path.basename(selectedPath)}" is not the Zcash folder.`,
+          detail:
+            `Zingo PC stores its wallets in a folder called "Zcash" — typically inside Application Support, ` +
+            `shared with other Zcash apps. ` +
+            `You can either create one inside "${path.basename(selectedPath)}" now, or go back and pick a different folder.`,
+          buttons: ["Create Zcash folder here", "Pick a different folder"],
+          defaultId: 0,
+          cancelId: 1,
         });
-        continue;
+        if (response !== 0) {
+          continue;
+        }
+        if (finalBookmark) {
+          activateBookmarkInMainProcess(finalBookmark, wdLog);
+        }
+        const newZcashPath = path.join(selectedPath, "Zcash");
+        try {
+          fs.mkdirSync(newZcashPath, { recursive: true });
+        } catch (e) {
+          wdLog(`mkdir failed: ${e}`);
+          await dialog.showMessageBox(mainWindow, {
+            type: "error",
+            title: "Could not create the Zcash folder",
+            message: `Failed to create "${newZcashPath}".`,
+            detail: String(e),
+            buttons: ["Retry"],
+          });
+          continue;
+        }
+        finalPath = newZcashPath;
       }
 
-      const bookmark = bookmarks[0];
-      settings.setSync("all.walletDirBookmark", bookmark);
-      settings.setSync("all.walletDirPath", selectedPath);
-      wdLog(`bookmark stored, path=${selectedPath}`);
-      activateBookmarkInMainProcess(bookmark, wdLog);
-      return { path: selectedPath, bookmark };
+      // If the user landed somewhere other than the canonical shared location
+      // (e.g. they created a Zcash folder on the Desktop, or have a custom setup),
+      // surface that explicitly: other Zcash apps won't share wallets from here,
+      // and they may want to go back and pick again.
+      if (finalPath !== zcashDir) {
+        const { response } = await dialog.showMessageBox(mainWindow, {
+          type: "warning",
+          title: "Non-standard wallet folder",
+          message: "This is not the standard Zcash wallet folder.",
+          detail:
+            `You selected:\n${finalPath}\n\n` +
+            `The standard location used by Zcash apps is:\n${zcashDir}\n\n` +
+            `Wallets stored elsewhere won't be shared with other Zcash apps (zecwallet, etc.). ` +
+            `You can continue with your choice, or go back and pick a different folder.`,
+          buttons: ["Continue with this folder", "Pick a different folder"],
+          defaultId: 1,
+          cancelId: 1,
+        });
+        if (response !== 0) {
+          continue;
+        }
+      }
+
+      if (finalBookmark) {
+        activateBookmarkInMainProcess(finalBookmark, wdLog);
+      }
+      settings.setSync("all.walletDirBookmark", finalBookmark);
+      settings.setSync("all.walletDirPath", finalPath);
+      wdLog(`bookmark stored, path=${finalPath}`);
+      return { path: finalPath, bookmark: finalBookmark };
     }
   } catch (e) {
     wdLog(`ERROR: ${e}`);
@@ -1015,18 +1093,65 @@ ipcMain.handle("wallet-dir:change", async () => {
     }
 
     const selectedPath = filePaths[0];
+    let finalPath = selectedPath;
+    let finalBookmark = bookmarks[0];
     if (path.basename(selectedPath) !== "Zcash") {
-      await dialog.showMessageBox(mainWindow, {
-        type: "error",
-        title: "Wrong folder",
-        message: `Please select the "Zcash" folder, not "${path.basename(selectedPath)}".`,
-        buttons: ["Retry"],
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: "question",
+        title: "Create the Zcash folder?",
+        message: `"${path.basename(selectedPath)}" is not the Zcash folder.`,
+        detail:
+          `Zingo PC stores its wallets in a folder called "Zcash". ` +
+          `You can either create one inside "${path.basename(selectedPath)}" now, or go back and pick a different folder.`,
+        buttons: ["Create Zcash folder here", "Pick a different folder"],
+        defaultId: 0,
+        cancelId: 1,
       });
-      continue;
+      if (response !== 0) {
+        continue;
+      }
+      if (finalBookmark) {
+        activateBookmarkInMainProcess(finalBookmark, () => {});
+      }
+      const newZcashPath = path.join(selectedPath, "Zcash");
+      try {
+        fs.mkdirSync(newZcashPath, { recursive: true });
+      } catch (e) {
+        await dialog.showMessageBox(mainWindow, {
+          type: "error",
+          title: "Could not create the Zcash folder",
+          message: `Failed to create "${newZcashPath}".`,
+          detail: String(e),
+          buttons: ["Retry"],
+        });
+        continue;
+      }
+      finalPath = newZcashPath;
     }
 
-    settings.setSync("all.walletDirBookmark", bookmarks[0]);
-    settings.setSync("all.walletDirPath", selectedPath);
+    // Same non-canonical safeguard as on first launch: if the user landed
+    // outside ~/Library/Application Support/Zcash, ask explicitly before saving.
+    if (finalPath !== defaultPath) {
+      const { response } = await dialog.showMessageBox(mainWindow, {
+        type: "warning",
+        title: "Non-standard wallet folder",
+        message: "This is not the standard Zcash wallet folder.",
+        detail:
+          `You selected:\n${finalPath}\n\n` +
+          `The standard location used by Zcash apps is:\n${defaultPath}\n\n` +
+          `Wallets stored elsewhere won't be shared with other Zcash apps (zecwallet, etc.). ` +
+          `You can continue with your choice, or go back and pick a different folder.`,
+        buttons: ["Continue with this folder", "Pick a different folder"],
+        defaultId: 1,
+        cancelId: 1,
+      });
+      if (response !== 0) {
+        continue;
+      }
+    }
+
+    settings.setSync("all.walletDirBookmark", finalBookmark);
+    settings.setSync("all.walletDirPath", finalPath);
 
     // app.relaunch() is unreliable in MAS sandbox (can leave the container in a
     // broken state that crashes the next launch at _libsecinit_appsandbox).

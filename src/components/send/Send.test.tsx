@@ -2,7 +2,6 @@ import React from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../test-utils";
 import {
-  InfoClass,
   TotalBalanceClass,
   ValueTransferClass,
   ValueTransferKindEnum,
@@ -63,11 +62,6 @@ const lastSendConfirmModalProps = (): any => {
 const makeBalance = (overrides: Partial<TotalBalanceClass> = {}): TotalBalanceClass => {
   const b = new TotalBalanceClass();
   return Object.assign(b, overrides);
-};
-
-const makeInfo = (overrides: Partial<InfoClass> = {}): InfoClass => {
-  const i = new InfoClass();
-  return Object.assign(i, overrides);
 };
 
 const makeValueTransfer = (confirmations: number): ValueTransferClass => {

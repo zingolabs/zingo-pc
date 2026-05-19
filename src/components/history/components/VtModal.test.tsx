@@ -1,5 +1,5 @@
 import React from "react";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { render } from "../../../test-utils";
 import VtModalInternal from "./VtModal";
 import {
@@ -88,10 +88,9 @@ describe("VtModal", () => {
   it("calls closeModal when Cancel is clicked", () => {
     const vt = makeVt();
     const closeModal = jest.fn();
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} closeModal={closeModal} />,
-      { contextOverrides: { valueTransfers: [vt] } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} closeModal={closeModal} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
     fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
     expect(closeModal).toHaveBeenCalled();
   });
@@ -133,10 +132,9 @@ describe("VtModal", () => {
   it("triggers Add Label flow when label is empty", () => {
     const vt = makeVt({ address: "u1noLabel" });
     const setAddLabel = jest.fn();
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />,
-      { contextOverrides: { valueTransfers: [vt], setAddLabel } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt], setAddLabel },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Add Label/i }));
     expect(setAddLabel).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith(routes.ADDRESSBOOK);
@@ -159,10 +157,9 @@ describe("VtModal", () => {
   it("triggers Send More flow when clicked", () => {
     const vt = makeVt({ address: "u1somerecipient" });
     const setSendTo = jest.fn();
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />,
-      { contextOverrides: { valueTransfers: [vt], setSendTo } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt], setSendTo },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Send More/i }));
     expect(setSendTo).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith(routes.SEND);
@@ -170,10 +167,9 @@ describe("VtModal", () => {
 
   it("hides Send More when readOnly is true", () => {
     const vt = makeVt({ address: "u1somerecipient" });
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />,
-      { contextOverrides: { valueTransfers: [vt], readOnly: true } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt], readOnly: true },
+    });
     expect(screen.queryByRole("button", { name: /Send More/i })).not.toBeInTheDocument();
   });
 
@@ -196,10 +192,9 @@ describe("VtModal", () => {
   it("shows the Remove button for failed transactions and triggers openConfirmModal", () => {
     const vt = makeVt({ confirmations: 0, status: ValueTransferStatusEnum.failed });
     const openConfirmModal = jest.fn();
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />,
-      { contextOverrides: { valueTransfers: [vt], openConfirmModal } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt], openConfirmModal },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Remove/i }));
     expect(openConfirmModal).toHaveBeenCalled();
   });
@@ -212,10 +207,9 @@ describe("VtModal", () => {
       capturedConfirmCallback = cb;
     });
     (native.remove_transaction as jest.Mock).mockResolvedValue("Success");
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />,
-      { contextOverrides: { valueTransfers: [vt], openConfirmModal, openErrorModal } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt], openConfirmModal, openErrorModal },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Remove/i }));
     await act(async () => {
       await capturedConfirmCallback();
@@ -232,10 +226,9 @@ describe("VtModal", () => {
       capturedConfirmCallback = cb;
     });
     (native.remove_transaction as jest.Mock).mockResolvedValue("Error: not allowed");
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />,
-      { contextOverrides: { valueTransfers: [vt], openConfirmModal, openErrorModal } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt], openConfirmModal, openErrorModal },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Remove/i }));
     await act(async () => {
       await capturedConfirmCallback();
@@ -252,10 +245,9 @@ describe("VtModal", () => {
     });
     (native.remove_transaction as jest.Mock).mockRejectedValue(new Error("boom"));
     const consoleErrorSpy = jest.spyOn(console, "error").mockImplementation(() => {});
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />,
-      { contextOverrides: { valueTransfers: [vt], openConfirmModal, openErrorModal } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt], openConfirmModal, openErrorModal },
+    });
     fireEvent.click(screen.getByRole("button", { name: /Remove/i }));
     await act(async () => {
       await capturedConfirmCallback();
@@ -267,43 +259,37 @@ describe("VtModal", () => {
   it("navigates forward when arrow-down is clicked", () => {
     const vt0 = makeVt({ txid: "tx0", address: "u1a" });
     const vt1 = makeVt({ txid: "tx1", address: "u1b" });
-    render(
-      <VtModalInternal {...baseProps} vt={vt0} valueTransfersSliced={[vt0, vt1]} length={2} index={0} />,
-      { contextOverrides: { valueTransfers: [vt0, vt1] } },
-    );
-    // arrow-down button is the second icon in the navigator
-    const arrows = document.querySelectorAll(".fa-arrow-down");
-    fireEvent.click(arrows[0].parentElement!);
+    render(<VtModalInternal {...baseProps} vt={vt0} valueTransfersSliced={[vt0, vt1]} length={2} index={0} />, {
+      contextOverrides: { valueTransfers: [vt0, vt1] },
+    });
+    fireEvent.click(screen.getByLabelText("Next transaction"));
     // After move, the index in the navigator should be "2"
     expect(screen.getByText("2")).toBeInTheDocument();
   });
 
   it("does NOT navigate forward when on the last item", () => {
     const vt0 = makeVt({ txid: "tx0" });
-    render(
-      <VtModalInternal {...baseProps} vt={vt0} valueTransfersSliced={[vt0]} length={1} index={0} />,
-      { contextOverrides: { valueTransfers: [vt0] } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt0} valueTransfersSliced={[vt0]} length={1} index={0} />, {
+      contextOverrides: { valueTransfers: [vt0] },
+    });
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
   it("handles ArrowDown keyboard navigation", () => {
     const vt0 = makeVt({ txid: "tx0", address: "u1a" });
     const vt1 = makeVt({ txid: "tx1", address: "u1b" });
-    render(
-      <VtModalInternal {...baseProps} vt={vt0} valueTransfersSliced={[vt0, vt1]} length={2} index={0} />,
-      { contextOverrides: { valueTransfers: [vt0, vt1] } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt0} valueTransfersSliced={[vt0, vt1]} length={2} index={0} />, {
+      contextOverrides: { valueTransfers: [vt0, vt1] },
+    });
     fireEvent.keyDown(window, { key: "ArrowDown" });
   });
 
   it("handles ArrowUp keyboard navigation", () => {
     const vt0 = makeVt({ txid: "tx0", address: "u1a" });
     const vt1 = makeVt({ txid: "tx1", address: "u1b" });
-    render(
-      <VtModalInternal {...baseProps} vt={vt1} valueTransfersSliced={[vt0, vt1]} length={2} index={1} />,
-      { contextOverrides: { valueTransfers: [vt0, vt1] } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt1} valueTransfersSliced={[vt0, vt1]} length={2} index={1} />, {
+      contextOverrides: { valueTransfers: [vt0, vt1] },
+    });
     fireEvent.keyDown(window, { key: "ArrowUp" });
   });
 
@@ -317,20 +303,18 @@ describe("VtModal", () => {
 
   it("renders memos and reply-to label when present", () => {
     const vt = makeVt({ memos: ["Hello!\nReply to: \nu1somerecipient"] });
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />,
-      { contextOverrides: { valueTransfers: [vt] } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
     expect(screen.getByText("Memo")).toBeInTheDocument();
   });
 
   it("closes the modal when valueTransfers no longer contains the vt (sync mismatch)", () => {
     const vt = makeVt();
     const closeModal = jest.fn();
-    render(
-      <VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} closeModal={closeModal} />,
-      { contextOverrides: { valueTransfers: [] } },
-    );
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} closeModal={closeModal} />, {
+      contextOverrides: { valueTransfers: [] },
+    });
     expect(closeModal).toHaveBeenCalled();
   });
 });

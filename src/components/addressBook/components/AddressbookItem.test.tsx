@@ -108,11 +108,7 @@ describe("AddressbookItem", () => {
   });
 
   it("expands long addresses into chunks when clicked", () => {
-    const longItem = new AddressBookEntryClass(
-      "Long",
-      "u1" + "y".repeat(100),
-      ServerChainNameEnum.mainChainName,
-    );
+    const longItem = new AddressBookEntryClass("Long", "u1" + "y".repeat(100), ServerChainNameEnum.mainChainName);
     renderInAccordion(<AddressBookItem item={longItem} removeAddressBookEntry={jest.fn()} />);
     fireEvent.click(screen.getByLabelText("Copy address"));
     // After expand, the address is split into chunks — at least one chunk present

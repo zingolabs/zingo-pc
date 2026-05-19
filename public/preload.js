@@ -117,6 +117,7 @@ const ALLOWED_INVOKE = new Set([
   "import:scan",
   "import:apply",
   "zns:resolve",
+  "save-png",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {

@@ -1,16 +1,18 @@
 import React from "react";
-import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../../test-utils";
 import ToAddrBox from "./ToAddrBox";
-import { ToAddrClass, ServerChainNameEnum, AddressBookEntryClass, AddressKindEnum } from "../../appstate";
+import { ToAddrClass, ServerChainNameEnum, AddressBookEntryClass } from "../../appstate";
 
 jest.mock("../../../electronBridge");
 
 // Provide a controllable ZNS resolver — `mock` prefix avoids jest hoist restriction.
-let mockResolveImpl: (alias: string, chain: string) =>
-  | Promise<{ ok: true; address: string }>
-  | Promise<{ ok: false; reason: "not-found" | "network" | "unsupported-chain" | "invalid-name" }> =
-  async () => ({ ok: false, reason: "not-found" });
+let mockResolveImpl: (
+  alias: string,
+  chain: string,
+) => Promise<
+  { ok: true; address: string } | { ok: false; reason: "not-found" | "network" | "unsupported-chain" | "invalid-name" }
+> = async () => ({ ok: false, reason: "not-found" });
 jest.mock("../../../utils/zns", () => {
   const actual = jest.requireActual("../../../utils/zns");
   return {
@@ -107,9 +109,7 @@ describe("ToAddrBox", () => {
       JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
     );
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc" });
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr })} />);
-    });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
     await waitFor(() => {
       // The Memo textarea is rendered when not disabled. We can check that the
       // "memos only..." copy is NOT shown.
@@ -119,11 +119,10 @@ describe("ToAddrBox", () => {
 
   it("shows 'memos only for sapling/unified' when address is transparent", async () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "" });
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr })} />);
-    });
-    // Empty address → addressKind undefined → isMemoDisabled true → message visible.
-    expect(screen.getByText(/Memos only for Unified or Sapling addresses/i)).toBeInTheDocument();
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
+    // Empty address → addressKind undefined → isMemoDisabled true → message visible
+    // (after the addressKind useEffect resolves).
+    expect(await screen.findByText(/Memos only for Unified or Sapling addresses/i)).toBeInTheDocument();
   });
 
   it("displays 'Resolving ZNS…' while a *.zcash alias is being resolved", async () => {
@@ -132,9 +131,7 @@ describe("ToAddrBox", () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "" });
     render(<ToAddrBox {...makeProps({ toaddr })} />);
     const addressInput = screen.getByRole("textbox", { name: /recipient address/i });
-    await act(async () => {
-      fireEvent.change(addressInput, { target: { value: "alice.zcash" } });
-    });
+    fireEvent.change(addressInput, { target: { value: "alice.zcash" } });
     await waitFor(() => {
       expect(screen.getByText(/Resolving ZNS/i)).toBeInTheDocument();
     });
@@ -146,10 +143,8 @@ describe("ToAddrBox", () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "" });
     render(<ToAddrBox {...makeProps({ toaddr })} />);
     const addressInput = screen.getByRole("textbox", { name: /recipient address/i });
-    await act(async () => {
-      fireEvent.change(addressInput, { target: { value: "ghost.zcash" } });
-      await new Promise((r) => setTimeout(r, 600));
-    });
+    fireEvent.change(addressInput, { target: { value: "ghost.zcash" } });
+    await new Promise((r) => setTimeout(r, 600));
     await waitFor(() => {
       expect(screen.getByText(/ZNS name not found/i)).toBeInTheDocument();
     });
@@ -160,10 +155,8 @@ describe("ToAddrBox", () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "" });
     render(<ToAddrBox {...makeProps({ toaddr })} />);
     const addressInput = screen.getByRole("textbox", { name: /recipient address/i });
-    await act(async () => {
-      fireEvent.change(addressInput, { target: { value: "down.zcash" } });
-      await new Promise((r) => setTimeout(r, 600));
-    });
+    fireEvent.change(addressInput, { target: { value: "down.zcash" } });
+    await new Promise((r) => setTimeout(r, 600));
     await waitFor(() => {
       expect(screen.getByText(/ZNS lookup failed/i)).toBeInTheDocument();
     });
@@ -176,10 +169,8 @@ describe("ToAddrBox", () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "" });
     render(<ToAddrBox {...makeProps({ toaddr, updateToField, updateZnsAlias })} />);
     const addressInput = screen.getByRole("textbox", { name: /recipient address/i });
-    await act(async () => {
-      fireEvent.change(addressInput, { target: { value: "alice.zcash" } });
-      await new Promise((r) => setTimeout(r, 600));
-    });
+    fireEvent.change(addressInput, { target: { value: "alice.zcash" } });
+    await new Promise((r) => setTimeout(r, 600));
     await waitFor(() => {
       expect(screen.getByText(/ZNS: alice\.zcash/)).toBeInTheDocument();
     });
@@ -235,9 +226,7 @@ describe("ToAddrBox", () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1someaddr" });
     const ab = new AddressBookEntryClass("Bob", "u1someaddr");
     ab.chain = ServerChainNameEnum.mainChainName;
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
-    });
+    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
     await waitFor(() => {
       expect(screen.getByText("Contact: Bob")).toBeInTheDocument();
     });
@@ -250,9 +239,7 @@ describe("ToAddrBox", () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1someaddr" });
     const ab = new AddressBookEntryClass("BobOnTest", "u1someaddr");
     ab.chain = ServerChainNameEnum.testChainName;
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
-    });
+    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
     expect(screen.queryByText("Contact: BobOnTest")).not.toBeInTheDocument();
   });
 
@@ -264,9 +251,7 @@ describe("ToAddrBox", () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1someaddr" });
     const ab = new AddressBookEntryClass("Bob", "u1someaddr");
     ab.chain = ServerChainNameEnum.mainChainName;
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr, updateToField })} />, { contextOverrides: { addressBook: [ab] } });
-    });
+    render(<ToAddrBox {...makeProps({ toaddr, updateToField })} />, { contextOverrides: { addressBook: [ab] } });
     fireEvent.click(screen.getByLabelText(/Clear recipient/i));
     expect(updateToField).toHaveBeenCalledWith("", null, null);
   });
@@ -275,9 +260,7 @@ describe("ToAddrBox", () => {
     // Negative amounts both trigger "Amount cannot be negative" and
     // "Amount is too small" — the latter wins because it's the last branch.
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: -1 });
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr })} />);
-    });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
     await waitFor(() => {
       expect(screen.getByText(/Amount is too small/)).toBeInTheDocument();
     });
@@ -285,9 +268,7 @@ describe("ToAddrBox", () => {
 
   it("shows error label when amount exceeds balance", async () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 100 });
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr, fromAmount: 1 })} />);
-    });
+    render(<ToAddrBox {...makeProps({ toaddr, fromAmount: 1 })} />);
     await waitFor(() => {
       expect(screen.getByText(/Amount Exceeds Balance/)).toBeInTheDocument();
     });
@@ -295,9 +276,7 @@ describe("ToAddrBox", () => {
 
   it("shows error label when amount has too many decimals", async () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 0.123456789 });
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr })} />);
-    });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
     await waitFor(() => {
       expect(screen.getByText(/Too Many Decimals/)).toBeInTheDocument();
     });
@@ -308,9 +287,7 @@ describe("ToAddrBox", () => {
       JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
     );
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", memo: "x".repeat(512) });
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr })} />);
-    });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
     await waitFor(() => {
       expect(screen.getByText(/Memo is too long/)).toBeInTheDocument();
     });
@@ -319,9 +296,7 @@ describe("ToAddrBox", () => {
   it("shows 'Invalid Address' when parse_address returns nothing for a non-alias", async () => {
     (native.parse_address as jest.Mock).mockResolvedValue("");
     const toaddr = Object.assign(new ToAddrClass(), { to: "garbage" });
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr })} />);
-    });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
     await waitFor(() => {
       expect(screen.getByText(/Invalid Address/)).toBeInTheDocument();
     });
@@ -332,9 +307,7 @@ describe("ToAddrBox", () => {
       JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
     );
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1neverseen" });
-    await act(async () => {
-      render(<ToAddrBox {...makeProps({ toaddr })} />);
-    });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
     await waitFor(() => {
       expect(screen.getByLabelText(/Save as contact/i)).toBeInTheDocument();
     });

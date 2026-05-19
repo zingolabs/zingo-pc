@@ -13,7 +13,7 @@ import { ContextApp } from "../../../context/ContextAppState";
 import { ServerChainNameEnum, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../../appstate";
 import RPC from "../../../rpc/rpc";
 
-import { clipboard } from "../../../electronBridge";
+import { clipboard, ipcRenderer, isSandboxed } from "../../../electronBridge";
 
 type AddressBlockProps = {
   address: UnifiedAddressClass | TransparentAddressClass;
@@ -82,15 +82,33 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
   const handleQRCodeClick = async () => {
     const canvas: HTMLCanvasElement | null = document.querySelector("canvas");
-    if (canvas) {
-      const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
-      let downloadLink = document.createElement("a");
-      downloadLink.href = pngUrl;
-      downloadLink.download = "QR_" + type + "_Zingo_PC.png";
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+    if (!canvas) return;
+    // Append the wallet alias so users with multiple wallets can tell the QR
+    // files apart at a glance. Strip filesystem-unfriendly characters.
+    const walletSuffix = currentWallet?.alias ? "_" + currentWallet.alias.replace(/[\\/:*?"<>|]/g, "_") : "";
+    const suggestedName = "QR_" + type + "_Zingo_PC" + walletSuffix + ".png";
+
+    // MAS sandbox can't write to the Downloads folder without the
+    // `files.downloads.read-write` entitlement (which Apple flagged as unused
+    // under 2.4.5(i)). Route through the main-process save dialog instead —
+    // that uses the `files.user-selected.read-write` entitlement we already
+    // declare and lets the user pick any location.
+    if (isSandboxed) {
+      const dataUrl = canvas.toDataURL("image/png");
+      await ipcRenderer.invoke("save-png", { dataUrl, suggestedName });
+      return;
     }
+
+    // Non-MAS builds (DMG / Linux / Windows) still use the native browser
+    // download flow — it lands in ~/Downloads (or the OS default) without a
+    // prompt, which is the long-standing UX.
+    const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
+    let downloadLink = document.createElement("a");
+    downloadLink.href = pngUrl;
+    downloadLink.download = suggestedName;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
   };
 
   return (
@@ -247,7 +265,14 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   value={address_address}
                   className={styles.receiveQrcode}
                 />
-                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", opacity: 0.5 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    color: Utils.getCssVariable("--color-zingo"),
+                  }}
+                >
                   {"Click to download"}
                 </div>
               </button>

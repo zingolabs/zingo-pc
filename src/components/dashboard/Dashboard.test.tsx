@@ -27,7 +27,7 @@ jest.mock("react-router-dom", () => {
 const Dashboard = require("./Dashboard").default;
 
 const makeWallet = (chain = ServerChainNameEnum.mainChainName) =>
-  ({ id: 0, fileName: "z.dat", alias: "w", chain_name: chain } as any);
+  ({ id: 0, fileName: "z.dat", alias: "w", chain_name: chain }) as any;
 
 const makeBalance = (overrides: Partial<TotalBalanceClass> = {}): TotalBalanceClass => {
   const b = new TotalBalanceClass();
@@ -243,9 +243,7 @@ describe("Dashboard", () => {
         info: makeInfo(),
         birthday: 100,
         syncingStatus: {
-          scan_ranges: [
-            { start_block: 100, end_block: 110, priority: "bogus-priority" as any },
-          ] as any,
+          scan_ranges: [{ start_block: 100, end_block: 110, priority: "bogus-priority" as any }] as any,
         } as any,
       },
     });

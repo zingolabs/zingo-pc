@@ -1,5 +1,5 @@
 import React from "react";
-import { act, cleanup, fireEvent, screen } from "@testing-library/react";
+import { act, cleanup, screen } from "@testing-library/react";
 import { render } from "../../test-utils";
 import { InfoClass, ServerChainNameEnum } from "../appstate";
 import routes from "../../constants/routes.json";
@@ -79,7 +79,7 @@ const installIpcCapture = () => {
 };
 
 const makeWallet = (chain = ServerChainNameEnum.mainChainName) =>
-  ({ id: 1, fileName: "z.dat", alias: "w", chain_name: chain } as any);
+  ({ id: 1, fileName: "z.dat", alias: "w", chain_name: chain }) as any;
 
 const renderSidebar = (overrides: any = {}) => {
   return render(
