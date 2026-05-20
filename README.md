@@ -61,7 +61,7 @@ yarn dist:win-x64      # Windows x64
 yarn dist:win-arm64    # Windows ARM64
 yarn dist:mac-x64      # macOS x64 (DMG)
 yarn dist:mac-arm64    # macOS ARM64 (DMG)
-yarn dist:mac-mas      # macOS universal (MAS / TestFlight)
+yarn dist:mac-mas      # macOS universal (Mac App Store)
 ```
 
 Binaries are output to the `dist/` directory.
