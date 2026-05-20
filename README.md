@@ -2,6 +2,8 @@
 
 Zingo PC is a shielded Zcash light-client wallet for desktop (Windows, macOS, Linux), built with Electron and powered by the [Zingolib](https://github.com/zingolabs/zingolib) Rust SDK.
 
+App Store: [https://apps.apple.com/app/zingo-pc/id6763584326](https://apps.apple.com/app/zingo-pc/id6763584326)
+
 ---
 
 ## Download
@@ -12,7 +14,7 @@ Pre-built binaries for each release are available on the [Releases page](https:/
 |----------|--------|
 | Windows | `.msi` installer, `.zip` portable |
 | macOS | `.dmg` |
-| macOS (App Store / TestFlight) | `.pkg` via [TestFlight](https://testflight.apple.com) |
+| macOS (App Store) | [App Store link](https://apps.apple.com/app/zingo-pc/id6763584326) |
 | Linux | `.deb`, `.AppImage` |
 | Linux (Flatpak) | `.flatpak` |
 
