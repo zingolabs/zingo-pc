@@ -1417,7 +1417,6 @@ function createWindow() {
       contextIsolation: true,
       sandbox: true,
       nodeIntegrationInWorker: false,
-      enableRemoteModule: false,
       preload: path.join(__dirname, "preload.js"),
     },
   });
@@ -1763,6 +1762,10 @@ app.whenReady().then(async () => {
     "style-src 'self'",
     "img-src 'self' data:",
     "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'none'",
+    "frame-src 'none'",
   ].join("; ");
 
   const CSP_DEVELOPMENT = [
@@ -1771,6 +1774,10 @@ app.whenReady().then(async () => {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "connect-src 'self' http://localhost:* ws://localhost:*",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'none'",
+    "frame-src 'none'",
   ].join("; ");
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -1781,6 +1788,16 @@ app.whenReady().then(async () => {
       },
     });
   });
+
+  // Deny all renderer permission requests by default. Zingo PC does not use
+  // camera, microphone, geolocation, notifications, MIDI, USB, clipboard-read,
+  // or any other web-platform permission. Explicit deny-all is defense in depth
+  // on top of MAS sandbox entitlements (which already restrict these at the OS
+  // level on the App Store build).
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false);
+  });
+  session.defaultSession.setPermissionCheckHandler(() => false);
 
   await maybeRunDmgToMasMigration();
 
