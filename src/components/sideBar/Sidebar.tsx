@@ -210,6 +210,20 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         return;
       }
 
+      // Re-authenticate before exposing seed/UFVK, even mid-session. The
+      // startup lock screen gates app entry but a long-running session would
+      // otherwise let anyone with screen access reveal the spend authority
+      // (seed) or the viewing key (full tx history + balance). Matches the
+      // pattern in SendConfirmModal.sendButton.
+      const allSettings = await ipcRenderer.invoke("loadSettings");
+      if (allSettings?.requireDeviceAuth) {
+        const authResult: { success: boolean } = await ipcRenderer.invoke(
+          "auth:verify",
+          "Show seed phrase / viewing key",
+        );
+        if (!authResult.success) return;
+      }
+
       // Always fetch the UFVK — for seed wallets it's derived from the seed, and
       // showing it alongside the seed lets the user share view-only access without
       // exposing spend authority.
