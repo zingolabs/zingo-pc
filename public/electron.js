@@ -400,6 +400,12 @@ let proceedToClose = false;
 // zcash: URI received before the renderer is ready (cold start or wallet not yet loaded)
 let pendingZcashUri = null;
 
+// Last sourceDir confirmed by the user through the system "Open" dialog in
+// import:scan. import:apply rejects any sourceDir that doesn't exactly match —
+// the renderer must not be able to fabricate this path. Resolved to canonical
+// form so the comparison is path-separator and "."/".." agnostic.
+let _lastScanSourceDir = null;
+
 function handleZcashUri(uri) {
   if (!uri || !uri.startsWith("zcash:")) return;
   const win = BrowserWindow.getAllWindows()[0];
@@ -1231,6 +1237,10 @@ ipcMain.handle("import:scan", async () => {
     return { ok: false, reason: "no-data-found", sourceDir };
   }
 
+  // Remember the user-confirmed path so import:apply can verify it wasn't
+  // swapped by the renderer. Only set on the success path — a "no-data-found"
+  // return does not authorize an apply.
+  _lastScanSourceDir = path.resolve(sourceDir);
   return { ok: true, sourceDir, present };
 });
 
@@ -1241,6 +1251,14 @@ ipcMain.handle("import:apply", async (_e, { sourceDir, choices }) => {
 
   if (typeof sourceDir !== "string" || !sourceDir) return { ok: false, reason: "bad-source" };
   if (!choices || typeof choices !== "object") return { ok: false, reason: "bad-choices" };
+
+  // sourceDir MUST match what the user selected in import:scan's system dialog.
+  // Without this check a compromised renderer could pass an arbitrary directory
+  // and have its wallets.json / AddressBook.json / settings.json copied into
+  // userData, overwriting the user's data with attacker-supplied content.
+  if (_lastScanSourceDir === null || path.resolve(sourceDir) !== _lastScanSourceDir) {
+    return { ok: false, reason: "not-scanned" };
+  }
 
   const userData = app.getPath("userData");
   if (path.resolve(sourceDir) === path.resolve(userData)) {
