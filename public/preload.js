@@ -28,12 +28,10 @@ const _ALL_NATIVE_METHODS = [
   "get_total_spends_to_address",
   "get_spendable_balance_total",
   "set_option_wallet",
-  "get_option_wallet",
   "remove_tor_client",
   "get_unified_addresses",
   "get_transparent_addresses",
   "create_new_transparent_address",
-  "check_my_address",
   "get_wallet_save_required",
   "set_config_wallet_to_test",
   "get_config_wallet_performance",
@@ -65,8 +63,6 @@ const _ALL_NATIVE_METHODS = [
   "init_from_seed",
   "init_from_ufvk",
   "init_from_b64",
-  "set_wallet_base_dir",
-  "start_security_scoped_access",
 ];
 
 const nativeForRenderer = {};

@@ -784,6 +784,17 @@ function activateBookmarkInMainProcess(bookmarkB64, wdLog) {
   }
 }
 
+// Sets the wallet base directory in the native (Rust) side directly from main.
+// Done here instead of letting the renderer call set_wallet_base_dir over IPC so
+// a compromised renderer cannot redirect wallet storage to an arbitrary path.
+function setWalletBaseDirInMainProcess(walletPath, wdLog) {
+  const native = getNative();
+  if (native && typeof native.set_wallet_base_dir === "function") {
+    const ok = native.set_wallet_base_dir(walletPath);
+    wdLog(`main-process set_wallet_base_dir=${ok}`);
+  }
+}
+
 // ── zingolib native IPC handlers (async no-param methods) ─────────────────
 // These route native.node calls from the renderer through the main process.
 // Sync no-param methods (deinitialize, set_crypto_default_provider_to_ring, etc.)
@@ -810,12 +821,10 @@ const _NATIVE_NO_PARAM_METHODS = [
   "get_total_spends_to_address",
   "get_spendable_balance_total",
   "set_option_wallet",
-  "get_option_wallet",
   "remove_tor_client",
   "get_unified_addresses",
   "get_transparent_addresses",
   "create_new_transparent_address",
-  "check_my_address",
   "get_wallet_save_required",
   "set_config_wallet_to_test",
   "get_config_wallet_performance",
@@ -871,10 +880,6 @@ ipcMain.handle("native:init_from_b64", (_e, server_uri, chain_hint, perf, min_co
   assertWalletName(wallet_name);
   return getNative().init_from_b64(server_uri, chain_hint, perf, min_conf, wallet_name);
 });
-ipcMain.handle("native:set_wallet_base_dir", (_e, dirPath) => getNative().set_wallet_base_dir(dirPath));
-ipcMain.handle("native:start_security_scoped_access", (_e, bookmark_b64) =>
-  getNative().start_security_scoped_access(bookmark_b64),
-);
 ipcMain.handle("native:get_latest_block_server", (_e, server_uri) => getNative().get_latest_block_server(server_uri));
 ipcMain.handle("native:parse_address", (_e, address) => getNative().parse_address(address));
 ipcMain.handle("native:parse_ufvk", (_e, ufvk) => getNative().parse_ufvk(ufvk));
@@ -895,7 +900,15 @@ ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_co
   assertWalletName(wallet_name);
   return getNative().delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);
 });
-ipcMain.handle("native:create_tor_client", (_e, data_dir) => getNative().create_tor_client(data_dir));
+// Tor data_dir is derived in the main process from userData, not accepted from
+// the renderer. This means a compromised renderer cannot redirect Tor's working
+// directory to an arbitrary filesystem path. userData is writable on all
+// platforms (MAS container, non-MAS user dir) and Tor state is technical
+// client data, not user wallet data — natural place to keep it.
+ipcMain.handle("native:create_tor_client", () => {
+  const torDir = path.join(app.getPath("userData"), "tor-data");
+  return getNative().create_tor_client(torDir);
+});
 ipcMain.handle("native:change_server", (_e, server_uri) => getNative().change_server(server_uri));
 
 ipcMain.handle("wallet-dir:request", async () => {
@@ -931,10 +944,9 @@ ipcMain.handle("wallet-dir:request", async () => {
     if (typeof storedBookmark === "string" && storedBookmark.length > 0) {
       wdLog("returning stored bookmark");
       activateBookmarkInMainProcess(storedBookmark, wdLog);
-      return {
-        path: String(settings.getSync("all.walletDirPath") ?? ""),
-        bookmark: storedBookmark,
-      };
+      const storedPath = String(settings.getSync("all.walletDirPath") ?? "");
+      setWalletBaseDirInMainProcess(storedPath, wdLog);
+      return { path: storedPath };
     }
 
     // First launch: info dialog → folder picker loop
@@ -1051,8 +1063,9 @@ ipcMain.handle("wallet-dir:request", async () => {
       }
       settings.setSync("all.walletDirBookmark", finalBookmark);
       settings.setSync("all.walletDirPath", finalPath);
+      setWalletBaseDirInMainProcess(finalPath, wdLog);
       wdLog(`bookmark stored, path=${finalPath}`);
-      return { path: finalPath, bookmark: finalBookmark };
+      return { path: finalPath };
     }
   } catch (e) {
     wdLog(`ERROR: ${e}`);

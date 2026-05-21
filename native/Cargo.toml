@@ -67,3 +67,15 @@ cc = "1"
 
 [profile.release]
 debug = 1
+# panic strategy: intentionally left at the default ("unwind").
+#
+# Switching to `panic = "abort"` would shrink the MAS binary slightly and is
+# tempting from a security-hardening angle, but it is incompatible with the
+# `with_panic_guard` infrastructure used throughout this crate. That guard
+# wraps every FFI entry point in `panic::catch_unwind`, converting transient
+# panics (zingolib internal bugs, lock poisoning, etc.) into a recoverable
+# `ZingolibError::Panic` returned to JS. With `abort`, those panics would
+# instead terminate the wallet process. The unwind/resilience trade-off was
+# made deliberately at the architecture level — do not flip this flag without
+# first removing `with_panic_guard` everywhere and propagating errors via
+# `Result` only.

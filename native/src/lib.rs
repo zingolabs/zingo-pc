@@ -42,10 +42,7 @@ use zingolib::config::{ChainType, ZingoConfig, construct_lightwalletd_uri};
 use zingolib::data::PollReport;
 use zingolib::lightclient::LightClient;
 use zingolib::utils::{conversion::address_from_str, conversion::txid_from_hex_encoded_str};
-use zingolib::wallet::keys::{
-    WalletAddressRef,
-    unified::{ReceiverSelection, UnifiedKeyStore},
-};
+use zingolib::wallet::keys::unified::{ReceiverSelection, UnifiedKeyStore};
 use zingolib::wallet::{LightWallet, WalletBase, WalletSettings};
 use zingolib::data::receivers::Receivers;
 use zcash_address::ZcashAddress;
@@ -101,14 +98,12 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_spendable_balance_with_address", get_spendable_balance_with_address)?;
     cx.export_function("get_spendable_balance_total", get_spendable_balance_total)?;
     cx.export_function("set_option_wallet", set_option_wallet)?;
-    cx.export_function("get_option_wallet", get_option_wallet)?;
     cx.export_function("create_tor_client", create_tor_client)?;
     cx.export_function("remove_tor_client", remove_tor_client)?;
     cx.export_function("get_unified_addresses", get_unified_addresses)?;
     cx.export_function("get_transparent_addresses", get_transparent_addresses)?;
     cx.export_function("create_new_unified_address", create_new_unified_address)?;
     cx.export_function("create_new_transparent_address", create_new_transparent_address)?;
-    cx.export_function("check_my_addressv", check_my_address)?;
     cx.export_function("get_wallet_save_required", get_wallet_save_required)?;
     cx.export_function("set_config_wallet_to_test", set_config_wallet_to_test)?;
     cx.export_function("set_config_wallet_to_prod", set_config_wallet_to_prod)?;
@@ -446,7 +441,11 @@ fn construct_uri_load_config(
                 transparent_address_discovery: TransparentAddressDiscovery::minimal(),
                 performance_level: performancetype,
             },
-            min_confirmations: NonZeroU32::try_from(min_confirmations as u32).unwrap(),
+            // `min_confirmations` comes from the renderer through IPC. Reject 0 (and
+            // anything that casts to 0 — negatives, NaN, fractional values <1) instead
+            // of unwrapping, which would panic and abort the wallet process.
+            min_confirmations: NonZeroU32::try_from(min_confirmations as u32)
+                .map_err(|_| "Error: min_confirmations must be >= 1".to_string())?,
         },
         NonZeroU32::try_from(1).expect("hard-coded integer"),
         wallet_name,
@@ -770,6 +769,8 @@ fn check_save_error(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
+// feature; review input validation here when the JS caller is wired up.
 fn get_developer_donation_address(mut cx: FunctionContext) -> JsResult<JsString> {
     let res: Result<String, ZingolibError> = with_panic_guard(|| {
         let resp = zingolib::config::DEVELOPER_DONATION_ADDRESS.to_string();
@@ -783,6 +784,8 @@ fn get_developer_donation_address(mut cx: FunctionContext) -> JsResult<JsString>
     }
 }
 
+// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
+// feature; review input validation here when the JS caller is wired up.
 fn get_zennies_for_zingo_donation_address(mut cx: FunctionContext) -> JsResult<JsString> {
     let res: Result<String, ZingolibError> = with_panic_guard(|| {
         let resp = zingolib::config::ZENNIES_FOR_ZINGO_DONATION_ADDRESS.to_string();
@@ -1042,6 +1045,8 @@ fn run_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
+// feature; review input validation here when the JS caller is wired up.
 fn pause_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
@@ -1342,6 +1347,8 @@ fn parse_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
+// feature; review input validation here when the JS caller is wired up.
 fn parse_ufvk(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let ufvk = cx.argument::<JsString>(0)?.value(&mut cx);
 
@@ -1719,21 +1726,8 @@ fn set_option_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
-fn get_option_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let promise = cx
-        .task(move || -> Result<String, ZingolibError> {
-            with_panic_guard(|| {
-                Ok("Error: unimplemented".to_string())
-            })
-        })
-        .promise(move |mut cx, result| match result {
-            Ok(msg) => Ok(cx.string(msg)),
-            Err(err) => cx.throw_error(err.to_string()),
-        });
-
-    Ok(promise)
-}
-
+// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
+// feature; review input validation here when the JS caller is wired up.
 fn create_tor_client(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let data_dir = cx.argument::<JsString>(0)?.value(&mut cx);
 
@@ -1764,6 +1758,8 @@ fn create_tor_client(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
+// feature; review input validation here when the JS caller is wired up.
 fn remove_tor_client(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
@@ -1906,93 +1902,6 @@ fn create_new_transparent_address(mut cx: FunctionContext) -> JsResult<JsPromise
     Ok(promise)
 }
 
-fn check_my_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let address = cx.argument::<JsString>(0)?.value(&mut cx);
-
-    let promise = cx
-        .task(move || -> Result<String, ZingolibError> {
-            with_panic_guard(|| {
-                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
-                if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
-                        match lightclient
-                            .wallet
-                            .read()
-                            .await
-                            .is_address_derived_by_keys(&address) {
-                            Ok(address_ref) => address_ref.map_or(
-                                json::object! { "is_wallet_address" => false },
-                                |address_ref| match address_ref {
-                                    WalletAddressRef::Unified {
-                                        account_id,
-                                        address_index,
-                                        has_orchard,
-                                        has_sapling,
-                                        has_transparent,
-                                        encoded_address,
-                                    } => json::object! {
-                                        "is_wallet_address" => true,
-                                        "address_type" => "unified".to_string(),
-                                        "address_index" => address_index,
-                                        "account_id" => u32::from(account_id),
-                                        "has_orchard" => has_orchard,
-                                        "has_sapling" => has_sapling,
-                                        "has_transparent" => has_transparent,
-                                        "encoded_address" => encoded_address,
-                                    },
-                                    WalletAddressRef::OrchardInternal {
-                                        account_id,
-                                        diversifier_index,
-                                        encoded_address,
-                                    } => json::object! {
-                                        "is_wallet_address" => true,
-                                        "address_type" => "orchard_internal".to_string(),
-                                        "account_id" => u32::from(account_id),
-                                        "diversifier_index" => u128::from(diversifier_index).to_string(),
-                                        "encoded_address" => encoded_address,
-                                    },
-                                    WalletAddressRef::SaplingExternal {
-                                        account_id,
-                                        diversifier_index,
-                                        encoded_address,
-                                    } => json::object! {
-                                        "is_wallet_address" => true,
-                                        "address_type" => "sapling".to_string(),
-                                        "account_id" => u32::from(account_id),
-                                        "diversifier_index" => u128::from(diversifier_index).to_string(),
-                                        "encoded_address" => encoded_address,
-                                    },
-                                    WalletAddressRef::Transparent {
-                                        account_id,
-                                        scope,
-                                        address_index,
-                                        encoded_address,
-                                    } => json::object! {
-                                        "is_wallet_address" => true,
-                                        "address_type" => "transparent".to_string(),
-                                        "account_id" => u32::from(account_id),
-                                        "scope" => scope.to_string(),
-                                        "address_index" => address_index.index(),
-                                        "encoded_address" => encoded_address,
-                                    },
-                                },
-                            ).pretty(2),
-                            Err(e) => format!("Error: {e}"),
-                        }
-                    }))
-                } else {
-                    Err(ZingolibError::LightclientNotInitialized)
-                }
-            })
-        })
-        .promise(move |mut cx, result| match result {
-            Ok(msg) => Ok(cx.string(msg)),
-            Err(err) => cx.throw_error(err.to_string()),
-        });
-
-    Ok(promise)
-}
-
 fn get_wallet_save_required(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
@@ -2016,6 +1925,8 @@ fn get_wallet_save_required(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
+// feature; review input validation here when the JS caller is wired up.
 fn set_config_wallet_to_test(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
@@ -2042,6 +1953,8 @@ fn set_config_wallet_to_test(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
+// feature; review input validation here when the JS caller is wired up.
 fn set_config_wallet_to_prod(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let performance_level = cx.argument::<JsString>(0)?.value(&mut cx);
     let min_confirmations = cx.argument::<JsNumber>(1)?.value(&mut cx);
@@ -2059,8 +1972,16 @@ fn set_config_wallet_to_prod(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             "Low" => PerformanceLevel::Low,
                             _ => return "Error: Not a valid performance level!".to_string(),
                         };
+                        // `min_confirmations` comes from the renderer through IPC. Reject 0
+                        // (and anything that casts to 0) instead of unwrapping — panic in this
+                        // async block would unwind into Neon's panic guard but corrupt wallet
+                        // state mid-write since we already hold the write lock.
+                        let min_conf_nonzero = match NonZeroU32::try_from(min_confirmations as u32) {
+                            Ok(n) => n,
+                            Err(_) => return "Error: min_confirmations must be >= 1".to_string(),
+                        };
                         let mut wallet = lightclient.wallet.write().await;
-                        wallet.wallet_settings.min_confirmations = NonZeroU32::try_from(min_confirmations as u32).unwrap();
+                        wallet.wallet_settings.min_confirmations = min_conf_nonzero;
                         wallet.wallet_settings.sync_config.performance_level = performancetype;
                         wallet.save_required = true;
                         "Successfully set config wallet to prod.".to_string()
@@ -2078,6 +1999,8 @@ fn set_config_wallet_to_prod(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
+// feature; review input validation here when the JS caller is wired up.
 fn get_config_wallet_performance(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {

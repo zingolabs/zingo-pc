@@ -72,14 +72,14 @@ export function remove_transaction(txid: string): Promise<string>;
 export function get_spendable_balance_with_address(address: string, zennies: string): Promise<string>;
 export function get_spendable_balance_total(): Promise<string>;
 export function set_option_wallet(): Promise<string>;
-export function get_option_wallet(): Promise<string>;
-export function create_tor_client(data_dir: string): Promise<string>;
+// The renderer calls this with no args; the main process derives the Tor data
+// directory from userData and passes it to Rust. See electron.js handler.
+export function create_tor_client(): Promise<string>;
 export function remove_tor_client(): Promise<string>;
 export function get_unified_addresses(): Promise<string>;
 export function get_transparent_addresses(): Promise<string>;
 export function create_new_unified_address(receivers: string): Promise<string>;
 export function create_new_transparent_address(): Promise<string>;
-export function check_my_address(): Promise<string>;
 export function get_wallet_save_required(): Promise<string>;
 export function set_config_wallet_to_test(): Promise<string>;
 export function set_config_wallet_to_prod(performance_level: string, min_confirmations: number): Promise<string>;
@@ -95,5 +95,3 @@ export function delete_wallet(
   min_confirmations: number,
   wallet_name: string,
 ): Promise<string>;
-export function set_wallet_base_dir(path: string): boolean;
-export function start_security_scoped_access(bookmark_b64: string): boolean;

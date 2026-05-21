@@ -640,15 +640,14 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     // On macOS MAS builds, request security-scoped access to the wallet directory
     // before any native wallet calls. On other platforms this returns null (no-op).
     try {
-      const walletDirResult: { path: string; bookmark: string } | null = await ipcRenderer.invoke("wallet-dir:request");
+      // The handler activates the security-scoped bookmark and calls
+      // set_wallet_base_dir on the Rust side directly. The renderer no longer
+      // touches either — see electron.js wallet-dir:request.
+      const walletDirResult: { path: string } | null = await ipcRenderer.invoke("wallet-dir:request");
       console.log(
         `[wallet-dir] result=${walletDirResult !== null ? "ok path=" + walletDirResult.path : "null"} isSandboxed=${isSandboxed}`,
       );
-      if (walletDirResult !== null) {
-        const accessGranted = await native.start_security_scoped_access(walletDirResult.bookmark);
-        const baseDirSet = await native.set_wallet_base_dir(walletDirResult.path);
-        console.log(`[wallet-dir] start_security_scoped_access=${accessGranted} set_wallet_base_dir=${baseDirSet}`);
-      } else if (walletDirResult === null && isSandboxed) {
+      if (walletDirResult === null && isSandboxed) {
         // On MAS sandbox the handler only returns null if the user quit the app via the
         // dialog, which calls app.quit() before reaching here. If we somehow land here
         // it means an unexpected failure — don't silently proceed with the empty container dir.
