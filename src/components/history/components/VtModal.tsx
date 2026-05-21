@@ -22,7 +22,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
 import routes from "../../../constants/routes.json";
 
-import { native, clipboard } from "../../../electronBridge";
+import { native } from "../../../electronBridge";
+import { useCopy } from "../../common/useCopy";
 
 type VtModalInternalProps = {
   index: number;
@@ -69,6 +70,8 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
   const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
   const [expandAddress, setExpandAddress] = useState(false);
   const [expandTxid, setExpandTxid] = useState(false);
+  const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
+  const { copied: txidCopied, copy: copyTxid } = useCopy(1500);
   const [showNavigator, setShowNavigator] = useState<boolean>(true);
   const isTheFirstMount = useRef(true);
 
@@ -465,12 +468,19 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
         {!!txid && (
           <div className={cstyles.flexspacebetween}>
             <div>
-              <div className={cstyles.sublight}>TXID</div>
+              <div className={cstyles.sublight}>
+                TXID
+                {txidCopied && (
+                  <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
+                    Copied!
+                  </span>
+                )}
+              </div>
               <div
                 style={{ cursor: "pointer" }}
                 onClick={() => {
                   if (txid) {
-                    clipboard.writeText(txid);
+                    copyTxid(txid);
                     setExpandTxid(true);
                   }
                 }}
@@ -516,7 +526,14 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
         {!!address && (
           <div className={cstyles.flexspacebetween}>
             <div>
-              <div className={cstyles.sublight}>Address</div>
+              <div className={cstyles.sublight}>
+                Address
+                {addressCopied && (
+                  <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
+                    Copied!
+                  </span>
+                )}
+              </div>
               {!!label && (
                 <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
                   {label}
@@ -527,7 +544,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                   style={{ cursor: "pointer" }}
                   onClick={() => {
                     if (address) {
-                      clipboard.writeText(address);
+                      copyAddress(address);
                       setExpandAddress(true);
                     }
                   }}

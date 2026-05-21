@@ -13,7 +13,8 @@ import { ContextApp } from "../../../context/ContextAppState";
 import { ServerChainNameEnum, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../../appstate";
 import RPC from "../../../rpc/rpc";
 
-import { clipboard, ipcRenderer, isSandboxed } from "../../../electronBridge";
+import { ipcRenderer, isSandboxed } from "../../../electronBridge";
+import { useCopy } from "../../common/useCopy";
 
 type AddressBlockProps = {
   address: UnifiedAddressClass | TransparentAddressClass;
@@ -46,17 +47,15 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   } = context;
   const address_address = address.encoded_address;
 
-  const [copied, setCopied] = useState<boolean>(false);
+  const { copied, copy } = useCopy(5000);
   const [creating, setCreating] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
 
   const [unifiedCreateType, setUnifiedCreateType] = useState<"o" | "z" | "oz">("o");
 
-  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const creatingTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
     return () => {
-      clearTimeout(copiedTimerRef.current);
       clearTimeout(creatingTimerRef.current);
     };
   }, []);
@@ -127,14 +126,14 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
           <div className={cstyles.flexspacebetween}>
             <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`}>
               {label && (
-                <div className={cstyles.margintoplarge}>
+                <div style={{ marginTop: 12 }}>
                   <div className={cstyles.sublight}>Label</div>
                   <div className={`${cstyles.padtopsmall} ${cstyles.fixedfont}`}>{label}</div>
                 </div>
               )}
 
               {type === "u" && (
-                <div>
+                <div style={{ marginTop: 12 }}>
                   <div className={cstyles.sublight}>
                     Address type: {Utils.getReceivers(address as UnifiedAddressClass).join(" + ")}
                   </div>
@@ -142,7 +141,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               )}
 
               {type === "t" && (
-                <div>
+                <div style={{ marginTop: 12 }}>
                   <div className={cstyles.sublight}>Address type: Transparent</div>
                 </div>
               )}
@@ -152,11 +151,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   disabled={copied}
                   className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                   type="button"
-                  onClick={() => {
-                    setCopied(true);
-                    clipboard.writeText(address_address);
-                    copiedTimerRef.current = setTimeout(() => setCopied(false), 5000);
-                  }}
+                  onClick={() => copy(address_address)}
                 >
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
                 </button>

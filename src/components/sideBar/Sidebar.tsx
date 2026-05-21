@@ -12,8 +12,134 @@ import APP_VERSION from "../../version";
 import SelectWallet from "./components/SelectWallet";
 import { WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
+import { useCopy } from "../common/useCopy";
 
 import { ipcRenderer, native } from "../../electronBridge";
+
+// Modal content for "Wallet Seed Phrase / Viewing Key" extracted to its own
+// component because the inline copy feedback for UFVK / birthday relies on
+// useCopy() hooks, which cannot be called inside the event handler that opens
+// the modal. As a component, the content owns its hook state and re-renders
+// in place when the user clicks to copy. Seed phrase is intentionally NOT
+// copyable to the clipboard — see the note in the JSX.
+type SeedUfvkModalContentProps = {
+  seedStr: string;
+  ufvkStr: string;
+  birthday: number | undefined;
+};
+
+const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, ufvkStr, birthday }) => {
+  const { copied: ufvkCopied, copy: copyUfvk } = useCopy(1500);
+  const { copied: birthdayCopied, copy: copyBirthday } = useCopy(1500);
+  const birthdayStr = String(birthday ?? "");
+
+  return (
+    <div className={cstyles.verticalflex}>
+      {!!seedStr && (
+        <>
+          <div style={{ textAlign: "center" }}>
+            This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet. PLEASE KEEP IT SAFE!
+          </div>
+          {/* Seed phrase is intentionally NOT copyable to the system clipboard:
+              any other process running as this user can read the clipboard,
+              which would expose spend authority. */}
+          <div style={{ textAlign: "center", color: "#ff6b6b", fontWeight: "bolder", marginTop: 6 }}>
+            Write this seed phrase down by hand. Do not copy it to the clipboard.
+          </div>
+          <hr style={{ width: "100%" }} />
+          <div
+            style={{
+              textAlign: "center",
+              wordBreak: "break-word",
+              fontFamily: "monospace, Roboto",
+              fontWeight: "bolder",
+            }}
+          >
+            {seedStr}
+          </div>
+          <hr style={{ width: "100%" }} />
+        </>
+      )}
+      {!!ufvkStr && (
+        <>
+          <div style={{ textAlign: "center" }}>
+            This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
+            <br />
+            PLEASE KEEP IT SAFE!
+          </div>
+          <hr style={{ width: "100%" }} />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 8,
+              alignItems: "baseline",
+              marginBottom: 10,
+            }}
+          >
+            <span style={{ color: "white", fontWeight: "bolder" }}>Unified Full Viewing Key</span>
+            {ufvkCopied && <span className={cstyles.highlight}>Copied!</span>}
+          </div>
+
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Copy viewing key"
+            style={{
+              cursor: "pointer",
+              textAlign: "center",
+              wordBreak: "break-word",
+              fontFamily: "monospace, Roboto",
+              fontWeight: "bolder",
+            }}
+            onClick={() => copyUfvk(ufvkStr)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                copyUfvk(ufvkStr);
+              }
+            }}
+          >
+            {ufvkStr}
+          </div>
+          <hr style={{ width: "100%" }} />
+        </>
+      )}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: 8,
+          alignItems: "baseline",
+          marginBottom: 10,
+        }}
+      >
+        <span style={{ color: "white", fontWeight: "bolder" }}>Birthday</span>
+        {birthdayCopied && <span className={cstyles.highlight}>Copied!</span>}
+      </div>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="Copy birthday"
+        style={{
+          cursor: "pointer",
+          textAlign: "center",
+          fontFamily: "monospace, Roboto",
+          fontWeight: "bolder",
+        }}
+        onClick={() => copyBirthday(birthdayStr)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            copyBirthday(birthdayStr);
+          }
+        }}
+      >
+        {birthdayStr}
+      </div>
+    </div>
+  );
+};
 
 type SidebarProps = {
   doRescan: () => void;
@@ -234,54 +360,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
 
       openErrorModal(
         "Wallet Seed Phrase / Viewing Key",
-        <div className={cstyles.verticalflex}>
-          {!!seedStr && (
-            <>
-              <div>
-                This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet.
-                <br />
-                PLEASE KEEP IT SAFE!
-              </div>
-              <hr style={{ width: "100%" }} />
-              <div
-                style={{
-                  wordBreak: "break-word",
-                  fontFamily: "monospace, Roboto",
-                  fontWeight: "bolder",
-                }}
-              >
-                {seedStr}
-              </div>
-              <hr style={{ width: "100%" }} />
-            </>
-          )}
-          {!!ufvkStr && (
-            <>
-              <div>
-                This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
-                <br />
-                PLEASE KEEP IT SAFE!
-              </div>
-              <hr style={{ width: "100%" }} />
-              <div
-                style={{
-                  fontFamily: "monospace, Roboto",
-                  fontWeight: "bolder",
-                }}
-              >
-                {ufvkStr}
-              </div>
-              <hr style={{ width: "100%" }} />
-            </>
-          )}
-          <div
-            style={{
-              fontFamily: "monospace, Roboto",
-            }}
-          >
-            {"Birthday: " + birthdayRef.current}
-          </div>
-        </div>,
+        <SeedUfvkModalContent seedStr={seedStr} ufvkStr={ufvkStr} birthday={birthdayRef.current} />,
       );
     };
 
