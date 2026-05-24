@@ -53,6 +53,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
     blockExplorerTestnetTransaction,
     blockExplorerMainnetTransactionCustom,
     blockExplorerTestnetTransactionCustom,
+    zecPrice,
   } = context;
 
   const [sendingTotal, setSendingTotal] = useState<number>(0);
@@ -346,7 +347,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                 <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{smallPart}</span>
               </div>
               {info.currencyName === "ZEC" && (
-                <div className={cstyles.normal}>{Utils.getZecToUsdString(info.zecPrice, sendingTotal)}</div>
+                <div className={cstyles.normal}>{Utils.getZecToUsdString(zecPrice, sendingTotal)}</div>
               )}
             </div>
           </div>
@@ -356,12 +357,13 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
           <ScrollPaneTop offsetHeight={350}>
             <div className={cstyles.verticalflex}>
               {[sendPageState.toaddr].map((t) => (
-                <ConfirmModalToAddr key={t.to} toaddr={t} info={info} />
+                <ConfirmModalToAddr key={t.to} toaddr={t} info={info} zecPrice={zecPrice} />
               ))}
             </div>
             <ConfirmModalToAddr
               toaddr={{ to: "Fee", amount: sendFee, memo: "", memoReplyTo: "", znsAlias: "" }}
               info={info}
+              zecPrice={zecPrice}
             />
 
             <div className={cstyles.well}>

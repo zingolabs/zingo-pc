@@ -1347,8 +1347,10 @@ fn parse_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
-// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
-// feature; review input validation here when the JS caller is wired up.
+// Validates a Unified Full Viewing Key for the renderer. Called from
+// AddNewWallet.doRestoreUfvkWallet before init_from_ufvk to give the user a
+// specific error (invalid key / wrong network) instead of the generic failure
+// that would otherwise come back from init_from_ufvk after disk writes.
 fn parse_ufvk(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let ufvk = cx.argument::<JsString>(0)?.value(&mut cx);
 

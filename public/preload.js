@@ -75,6 +75,7 @@ const ALLOWED_RECEIVE = new Set([
   "about",
   "payuri",
   "blockexplorer",
+  "pricetor",
   "seed",
   "rescan",
   "addnewwallet",

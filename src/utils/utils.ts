@@ -277,6 +277,17 @@ export default class Utils {
     return `USD ${(price * zecValue).toFixed(2)}`;
   }
 
+  /**
+   * Formats the per-ZEC exchange rate. Returns `USD --` when the price is
+   * missing — matches the fallback of `getZecToUsdString` so the UI is
+   * consistent everywhere a USD figure may not be available. Otherwise
+   * `USD x.xx / ZEC`.
+   */
+  static getZecRateString(price?: number): string {
+    if (!price) return "USD --";
+    return `USD ${price.toFixed(2)} / ZEC`;
+  }
+
   static utf16Split(s: string, chunksize: number): string[] {
     const ans: string[] = [];
 

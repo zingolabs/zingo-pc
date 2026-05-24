@@ -169,6 +169,13 @@ class MenuBuilder {
             mainWindow.webContents.send("blockexplorer");
           },
         },
+        {
+          label: "ZEC Price &Source (Tor)",
+          accelerator: "Ctrl+T",
+          click: () => {
+            mainWindow.webContents.send("pricetor");
+          },
+        },
         { type: "separator" },
         {
           label: "App &Security",

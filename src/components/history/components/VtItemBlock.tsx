@@ -39,11 +39,11 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
 
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(amount);
 
+  // Per-transaction ZEC price snapshot. Unified through `getZecRateString` so
+  // the missing-price fallback (`USD --`) matches the rest of the app — no
+  // more stray `USD -- / ZEC` variants.
   const price: number = vt.zec_price ? vt.zec_price : 0;
-  let priceString: string = "";
-  if (price && currencyName === "ZEC") {
-    priceString = `USD ${price.toFixed(2)} / ZEC`;
-  }
+  const priceString: string = currencyName === "ZEC" ? Utils.getZecRateString(price) : "";
 
   //if (index === 0) {
   //  vt.status = ValueTransferStatusEnum.failed;

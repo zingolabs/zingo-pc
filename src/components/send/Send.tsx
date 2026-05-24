@@ -33,6 +33,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
     setSendTo,
     calculateShieldFee,
     handleShieldButton,
+    zecPrice,
   } = context;
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
@@ -284,7 +285,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
               totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance
             }
             usdValue={Utils.getZecToUsdString(
-              info.zecPrice,
+              zecPrice,
               totalBalance.totalOrchardBalance +
                 totalBalance.totalSaplingBalance +
                 totalBalance.totalTransparentBalance,
@@ -294,7 +295,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
           <BalanceBlockHighlight
             topLabel="Spendable Funds"
             zecValue={totalAmountAvailable}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalAmountAvailable)}
+            usdValue={Utils.getZecToUsdString(zecPrice, totalAmountAvailable)}
             currencyName={info.currencyName}
             tooltip={tooltip}
           />
@@ -330,7 +331,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
           <ScrollPaneTop offsetHeight={260}>
             <ToAddrBox
               toaddr={sendPageState.toaddr}
-              zecPrice={info.zecPrice}
+              zecPrice={zecPrice}
               updateToField={updateToField}
               updateZnsAlias={updateZnsAlias}
               fromAmount={totalAmountAvailable}

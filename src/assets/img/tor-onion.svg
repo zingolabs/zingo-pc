@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Placeholder Tor onion icon. Visually approximates the official Tor Project
+  onion mark (purple, layered) so the dashboard indicator is recognisable.
+  Before shipping a public release, replace this file with the official asset
+  from https://www.torproject.org/about/press/ to honour Tor brand guidelines.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Tor">
+  <defs>
+    <linearGradient id="bulb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#9B4DCA"/>
+      <stop offset="100%" stop-color="#6B26A0"/>
+    </linearGradient>
+  </defs>
+  <!-- sprout -->
+  <path d="M32 4 C 30 10, 30 14, 32 18" fill="none" stroke="#7CC676" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 7 C 36 9, 38 12, 36 16" fill="none" stroke="#7CC676" stroke-width="3" stroke-linecap="round"/>
+  <!-- onion body -->
+  <path d="M32 14
+           C 18 14, 8 28, 8 40
+           C 8 54, 20 60, 32 60
+           C 44 60, 56 54, 56 40
+           C 56 28, 46 14, 32 14 Z"
+        fill="url(#bulb)" stroke="#4A1A6E" stroke-width="1.5"/>
+  <!-- layer lines -->
+  <path d="M16 36 C 22 30, 42 30, 48 36" fill="none" stroke="#4A1A6E" stroke-width="1.2" opacity="0.55"/>
+  <path d="M14 44 C 22 38, 42 38, 50 44" fill="none" stroke="#4A1A6E" stroke-width="1.2" opacity="0.55"/>
+  <path d="M16 52 C 22 48, 42 48, 48 52" fill="none" stroke="#4A1A6E" stroke-width="1.2" opacity="0.55"/>
+</svg>

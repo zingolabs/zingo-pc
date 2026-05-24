@@ -292,35 +292,51 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
 
   const doRestoreUfvkWallet = async () => {
     try {
-      if (!ufvk.startsWith("uview")) {
-        // the ufvk is not correct
-        openErrorModal("Parsing UFVK", "The prefix of the Unified Full Viewing Key is not valid");
+      // Trim user-pasted whitespace before parsing.
+      const ufvkInput = ufvk.trim();
+
+      // Validate the UFVK cryptographically via Rust (`parse_ufvk`). The native
+      // function decodes the key with `Ufvk::decode` and returns either an
+      // "Error:" string (e.g. empty input) or a JSON object with:
+      //   { status, chain_name, address_kind, pools_available }
+      // This replaces the previous prefix-only validation, which accepted
+      // malformed keys with the right prefix and only caught them later inside
+      // init_from_ufvk with a generic error.
+      const parseResult: string = await native.parse_ufvk(ufvkInput);
+      if (!parseResult || parseResult.toLowerCase().startsWith("error")) {
+        openErrorModal("Parsing UFVK", parseResult || "Could not parse the Unified Full Viewing Key.");
         return;
       }
-      if (
-        selectedChain === ServerChainNameEnum.mainChainName &&
-        (ufvk.startsWith("uviewtest") || ufvk.startsWith("uviewregtest"))
-      ) {
-        // the ufvk is not correct
-        openErrorModal("Parsing UFVK", "The prefix of the Unified Full Viewing Key is not valid");
+      let parsed: { status?: string; chain_name?: string };
+      try {
+        parsed = JSON.parse(parseResult);
+      } catch {
+        openErrorModal("Parsing UFVK", "The Unified Full Viewing Key could not be parsed.");
         return;
       }
-      if (selectedChain === ServerChainNameEnum.testChainName && !ufvk.startsWith("uviewtest")) {
-        // the ufvk is not correct
-        openErrorModal("Parsing UFVK", "The prefix of the Unified Full Viewing Key is not valid");
+      if (parsed.status !== "success") {
+        openErrorModal("Parsing UFVK", "This is not a valid Unified Full Viewing Key.");
         return;
       }
-      if (selectedChain === ServerChainNameEnum.regtestChainName && !ufvk.startsWith("uviewregtest")) {
-        // the ufvk is not correct
-        openErrorModal("Parsing UFVK", "The prefix of the Unified Full Viewing Key is not valid");
+      const effectiveChain = selectedChain ? selectedChain : ServerChainNameEnum.mainChainName;
+      if (parsed.chain_name !== effectiveChain) {
+        const friendly = (c: string | undefined) =>
+          c === "main" ? "mainnet" : c === "test" ? "testnet" : c === "regtest" ? "regtest" : c;
+        openErrorModal(
+          "Parsing UFVK",
+          `This Unified Full Viewing Key is for ${friendly(parsed.chain_name)}, ` +
+            `but the selected network is ${friendly(effectiveChain)}. ` +
+            `Switch the network to ${friendly(parsed.chain_name)} and try again.`,
+        );
         return;
       }
+
       const { next: id, nextWalletName: wallet_name } = await nextWalletName();
       const result: string = await native.init_from_ufvk(
-        ufvk,
+        ufvkInput,
         Number(birthday),
         selectedServer,
-        selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
+        effectiveChain,
         performanceLevel,
         3,
         wallet_name,

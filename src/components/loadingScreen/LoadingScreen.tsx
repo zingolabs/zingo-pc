@@ -46,7 +46,6 @@ type LoadingScreenProps = {
   setCurrentWallet: (w: WalletType | null) => void;
   setCurrentWalletOpenError: (e: string) => void;
   setFetchError: (command: string, error: string) => void;
-  setBlockExplorer: (be: any) => void;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
@@ -242,10 +241,9 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
       settings && settings.serverselection ? settings.serverselection : "",
     );
 
-    // block explorer configuration
-    if (settings && settings.hasOwnProperty("blockexplorer")) {
-      this.props.setBlockExplorer(settings.blockexplorer);
-    }
+    // block explorer configuration is now loaded at app boot in Routes.tsx
+    // (same useEffect that calls loadSettings for auth and pricewithtor) and
+    // exposed via context — no per-screen wiring needed here.
 
     // to know the App is magrating to multi-wallet the settings field
     // `currentwalletid` must have not exists.

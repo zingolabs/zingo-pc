@@ -49,6 +49,10 @@ export const defaultAppState: AppState = {
   calculateShieldFee: async () => 0,
   handleShieldButton: () => {},
   setAddLabel: () => {},
+  zecPrice: 0,
+  priceWithTor: false,
+  setPriceWithTor: () => {},
+  lastPriceViaTor: false,
   blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer,
@@ -57,6 +61,7 @@ export const defaultAppState: AppState = {
   blockExplorerTestnetTransactionCustom: "",
   blockExplorerMainnetAddressCustom: "",
   blockExplorerTestnetAddressCustom: "",
+  setBlockExplorer: () => {},
 };
 
 export const ContextApp = React.createContext(defaultAppState);

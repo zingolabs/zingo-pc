@@ -198,8 +198,10 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     memos = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos : [];
     pool = valueTransfer.pool ? valueTransfer.pool : "";
     price = valueTransfer.zec_price ? valueTransfer.zec_price : 0;
-    if (price && currencyName === "ZEC") {
-      priceString = `USD ${price.toFixed(2)} / ZEC`;
+    // Unified through `getZecRateString` so the missing-price fallback
+    // (`USD --`) matches the rest of the app.
+    if (currencyName === "ZEC") {
+      priceString = Utils.getZecRateString(price);
     }
   }
 

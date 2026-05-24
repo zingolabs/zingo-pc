@@ -5,6 +5,7 @@ import Utils from "../../utils/utils";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceBlock";
 import { ContextApp } from "../../context/ContextAppState";
 import routes from "../../constants/routes.json";
+import TorIndicator from "./TorIndicator";
 
 import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
@@ -33,6 +34,9 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     transparentPool,
     calculateShieldFee,
     handleShieldButton,
+    zecPrice,
+    priceWithTor,
+    lastPriceViaTor,
   } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
@@ -69,7 +73,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 totalBalance.totalTransparentBalance
               }
               usdValue={Utils.getZecToUsdString(
-                info.zecPrice,
+                zecPrice,
                 totalBalance.totalOrchardBalance +
                   totalBalance.totalSaplingBalance +
                   totalBalance.totalTransparentBalance,
@@ -81,7 +85,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 totalBalance.confirmedTransparentBalance
               }
               usdValueConfirmed={Utils.getZecToUsdString(
-                info.zecPrice,
+                zecPrice,
                 totalBalance.confirmedOrchardBalance +
                   totalBalance.confirmedSaplingBalance +
                   totalBalance.confirmedTransparentBalance,
@@ -91,30 +95,30 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
               <BalanceBlock
                 topLabel="Orchard"
                 zecValue={totalBalance.totalOrchardBalance}
-                usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
+                usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalOrchardBalance)}
                 currencyName={info.currencyName}
                 zecValueConfirmed={totalBalance.confirmedOrchardBalance}
-                usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
+                usdValueConfirmed={Utils.getZecToUsdString(zecPrice, totalBalance.confirmedOrchardBalance)}
               />
             )}
             {saplingPool && (
               <BalanceBlock
                 topLabel="Sapling"
                 zecValue={totalBalance.totalSaplingBalance}
-                usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
+                usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalSaplingBalance)}
                 currencyName={info.currencyName}
                 zecValueConfirmed={totalBalance.confirmedSaplingBalance}
-                usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
+                usdValueConfirmed={Utils.getZecToUsdString(zecPrice, totalBalance.confirmedSaplingBalance)}
               />
             )}
             {transparentPool && (
               <BalanceBlock
                 topLabel="Transparent"
                 zecValue={totalBalance.totalTransparentBalance}
-                usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
+                usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalTransparentBalance)}
                 currencyName={info.currencyName}
                 zecValueConfirmed={totalBalance.confirmedTransparentBalance}
-                usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
+                usdValueConfirmed={Utils.getZecToUsdString(zecPrice, totalBalance.confirmedTransparentBalance)}
               />
             )}
           </div>
@@ -382,7 +386,15 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                           <DetailLine label="Zingolib Version" value={info.zingolib} />
                           <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                           {info.currencyName === "ZEC" && (
-                            <DetailLine label="ZEC Price" value={`USD ${info.zecPrice.toFixed(2)}`} />
+                            <DetailLine
+                              label="ZEC Price"
+                              value={
+                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                  <TorIndicator intent={priceWithTor} reality={lastPriceViaTor} size={14} />
+                                  {`USD ${zecPrice.toFixed(2)}`}
+                                </span>
+                              }
+                            />
                           )}
                         </div>
                       </div>

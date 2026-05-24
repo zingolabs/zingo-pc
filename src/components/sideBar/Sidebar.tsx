@@ -12,6 +12,7 @@ import APP_VERSION from "../../version";
 import SelectWallet from "./components/SelectWallet";
 import { WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
+import PriceTorModal from "./components/PriceTorModal";
 import { useCopy } from "../common/useCopy";
 
 import { ipcRenderer, native } from "../../electronBridge";
@@ -144,10 +145,9 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
 type SidebarProps = {
   doRescan: () => void;
   navigateToLoadingScreenChangingWallet: () => void;
-  setBlockExplorer: (be: any) => void;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChangingWallet, setBlockExplorer }) => {
+const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChangingWallet }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const context = useContext(ContextApp);
@@ -161,20 +161,14 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     currentWallet,
     currentWalletOpenError,
     wallets,
-    blockExplorerMainnetAddress,
-    blockExplorerMainnetAddressCustom,
-    blockExplorerMainnetTransaction,
-    blockExplorerMainnetTransactionCustom,
-    blockExplorerTestnetAddress,
-    blockExplorerTestnetAddressCustom,
-    blockExplorerTestnetTransaction,
-    blockExplorerTestnetTransactionCustom,
   } = context;
 
   const [payURIModalIsOpen, setPayURIModalIsOpen] = useState<boolean>(false);
   const [payURIModalInputValue, setPayURIModalInputValue] = useState<string | undefined>(undefined);
 
   const [blockExplorerModalIsOpen, setBlockExplorerModalIsOpen] = useState<boolean>(false);
+
+  const [priceTorModalIsOpen, setPriceTorModalIsOpen] = useState<boolean>(false);
 
   const currentWalletRef = useRef<WalletType | null>(null);
   const currentWalletOpenErrorRef = useRef<string>("");
@@ -325,7 +319,14 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     // Block Explorer Selection
     const blockexplorer = (_event: any) => {
       if (!active) return;
-      openBlockExplorerModal();
+      setBlockExplorerModalIsOpen(true);
+    };
+
+    // ZEC Price Source (Tor on/off). The modal reads the current value
+    // directly from context, so we only need to open it.
+    const pricetor = (_event: any) => {
+      if (!active) return;
+      setPriceTorModalIsOpen(true);
     };
 
     // Export Seed
@@ -399,6 +400,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     ipcRenderer.on("about", about);
     ipcRenderer.on("payuri", payuri);
     ipcRenderer.on("blockexplorer", blockexplorer);
+    ipcRenderer.on("pricetor", pricetor);
     ipcRenderer.on("seed", seed);
     ipcRenderer.on("rescan", rescan);
     ipcRenderer.on("addnewwallet", addnewwallet);
@@ -410,6 +412,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       ipcRenderer.off("about", about);
       ipcRenderer.off("payuri", payuri);
       ipcRenderer.off("blockexplorer", blockexplorer);
+      ipcRenderer.off("pricetor", pricetor);
       ipcRenderer.off("seed", seed);
       ipcRenderer.off("rescan", rescan);
       ipcRenderer.off("addnewwallet", addnewwallet);
@@ -431,14 +434,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
 
   const closePayURIModal = () => {
     setPayURIModalIsOpen(false);
-  };
-
-  const openBlockExplorerModal = () => {
-    setBlockExplorerModalIsOpen(true);
-  };
-
-  const closeBlockExplorerModal = () => {
-    setBlockExplorerModalIsOpen(false);
   };
 
   const payURI = async (uri: string) => {
@@ -488,20 +483,15 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       />
 
       <BlockExplorerModal
-        modalInput={{
-          blockExplorerMainnetAddress,
-          blockExplorerMainnetAddressCustom,
-          blockExplorerMainnetTransaction,
-          blockExplorerMainnetTransactionCustom,
-          blockExplorerTestnetAddress,
-          blockExplorerTestnetAddressCustom,
-          blockExplorerTestnetTransaction,
-          blockExplorerTestnetTransactionCustom,
-        }}
-        setModalInput={setBlockExplorer}
         modalIsOpen={blockExplorerModalIsOpen}
-        closeModal={closeBlockExplorerModal}
+        closeModal={() => setBlockExplorerModalIsOpen(false)}
         modalTitle="Select Block Explorer"
+      />
+
+      <PriceTorModal
+        modalIsOpen={priceTorModalIsOpen}
+        closeModal={() => setPriceTorModalIsOpen(false)}
+        modalTitle="ZEC Price Source"
       />
 
       <div className={`${cstyles.center} ${styles.sidebarlogobg}`}>

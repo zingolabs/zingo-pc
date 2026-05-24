@@ -110,7 +110,6 @@ const AppRoutes: React.FC = () => {
   const setInfo = useCallback((newInfo: InfoClass) => {
     setInfoState((prev) => {
       if (deepEqual(prev, newInfo)) return prev;
-      if (!newInfo.zecPrice) newInfo.zecPrice = prev.zecPrice;
       return newInfo;
     });
   }, []);
@@ -132,15 +131,15 @@ const AppRoutes: React.FC = () => {
     }, 5000);
   }, []);
 
-  const setZecPrice = useCallback((price?: number) => {
-    if (!price) return;
-    setInfoState((prev) => {
-      if (price === prev.zecPrice) return prev;
-      const newInfo = new InfoClass();
-      Object.assign(newInfo, prev);
-      newInfo.zecPrice = price;
-      return newInfo;
-    });
+  // ZEC price + reality flag of the last successful fetch. Both live at the
+  // top level (NOT inside InfoClass) because the periodic info-refresh
+  // rebuilds InfoClass and would otherwise clobber them every 5s cycle.
+  // Updated together by RPC.getZecPrice on each fetch via this single setter.
+  const [zecPrice, setZecPriceState] = useState<number>(0);
+  const [lastPriceViaTor, setLastPriceViaTorState] = useState<boolean>(false);
+  const setZecPrice = useCallback((price?: number, viaTor?: boolean) => {
+    if (typeof price === "number") setZecPriceState(price);
+    if (typeof viaTor === "boolean") setLastPriceViaTorState(viaTor);
   }, []);
 
   const setReadOnly = useCallback((val: boolean) => setReadOnlyState(val), []);
@@ -163,14 +162,33 @@ const AppRoutes: React.FC = () => {
 
   const setSendPageState = useCallback((val: SendPageStateClass) => setSendPageStateState(val), []);
 
-  const setBlockExplorer = useCallback((blockExplorer: any) => {
-    // blockExplorer object is spread into individual state fields via addLabelState workaround —
-    // simpler to keep them in one object; here we use a spread onto named setters.
-    // Since these are simple values, no deepEqual needed.
-    setAddLabelStateState((prev) => prev); // trigger re-read; actual set below
-    // Store block explorer fields inside a dedicated state slice would be cleaner,
-    // but to match the original class field-by-field setState we set each individually.
+  // Block explorer config. Source of truth is electron-settings (`blockexplorer`
+  // key); the React state mirrors it for context consumers. The setter writes
+  // both atomically. Loaded at boot inside the existing `loadSettings` effect
+  // below, so consumers (Sidebar, BlockExplorerModal) read it directly from
+  // context with no prop drilling.
+  const setBlockExplorer = useCallback(async (blockExplorer: any) => {
     setBlockExplorerState(blockExplorer);
+    try {
+      await ipcRenderer.invoke("saveSettings", { key: "blockexplorer", value: blockExplorer });
+    } catch (e) {
+      console.warn("setBlockExplorer: could not persist setting", e);
+    }
+  }, []);
+
+  // ZEC price fetch via Tor. The persisted source of truth is electron-settings
+  // (`pricewithtor`); this state mirrors it for React consumers (Dashboard,
+  // PriceTorModal). The setter writes to both and triggers an immediate
+  // price refresh so the dashboard indicator updates without a timer wait.
+  const [priceWithTorState, setPriceWithTorReact] = useState<boolean>(false);
+  const setPriceWithTor = useCallback(async (v: boolean) => {
+    setPriceWithTorReact(v);
+    try {
+      await ipcRenderer.invoke("saveSettings", { key: "pricewithtor", value: v });
+    } catch (e) {
+      console.warn("setPriceWithTor: could not persist setting", e);
+    }
+    rpcRef.current?.getZecPrice();
   }, []);
 
   // Block explorer fields kept in a single object to avoid 8 useState
@@ -217,6 +235,10 @@ const AppRoutes: React.FC = () => {
       const isLocked = !!(allSettings?.requireDeviceAuth && authAvailability === "available");
       setLocked(isLocked);
       setLockChecked(true);
+      setPriceWithTorReact(!!allSettings?.pricewithtor);
+      if (allSettings && Object.prototype.hasOwnProperty.call(allSettings, "blockexplorer")) {
+        setBlockExplorerState(allSettings.blockexplorer);
+      }
     })();
 
     const appsecurityListener = () => setSecurityModalOpen(true);
@@ -467,6 +489,10 @@ const AppRoutes: React.FC = () => {
       calculateShieldFee,
       handleShieldButton,
       setAddLabel,
+      zecPrice,
+      priceWithTor: priceWithTorState,
+      setPriceWithTor,
+      lastPriceViaTor,
       blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
       blockExplorerMainnetAddressCustom: blockExplorerConfig.blockExplorerMainnetAddressCustom,
       blockExplorerMainnetTransaction: blockExplorerConfig.blockExplorerMainnetTransaction,
@@ -475,6 +501,7 @@ const AppRoutes: React.FC = () => {
       blockExplorerTestnetAddressCustom: blockExplorerConfig.blockExplorerTestnetAddressCustom,
       blockExplorerTestnetTransaction: blockExplorerConfig.blockExplorerTestnetTransaction,
       blockExplorerTestnetTransactionCustom: blockExplorerConfig.blockExplorerTestnetTransactionCustom,
+      setBlockExplorer,
     }),
     [
       totalBalance,
@@ -508,7 +535,12 @@ const AppRoutes: React.FC = () => {
       calculateShieldFee,
       handleShieldButton,
       setAddLabel,
+      zecPrice,
+      priceWithTorState,
+      setPriceWithTor,
+      lastPriceViaTor,
       blockExplorerConfig,
+      setBlockExplorer,
     ],
   );
 
@@ -543,7 +575,6 @@ const AppRoutes: React.FC = () => {
             <Sidebar
               doRescan={runRPCRescan}
               navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
-              setBlockExplorer={setBlockExplorer}
             />
           </div>
         )}
@@ -596,7 +627,6 @@ const AppRoutes: React.FC = () => {
                   setCurrentWallet={setCurrentWallet}
                   setCurrentWalletOpenError={setCurrentWalletOpenError}
                   setFetchError={setFetchError}
-                  setBlockExplorer={setBlockExplorer}
                 />
               }
             />

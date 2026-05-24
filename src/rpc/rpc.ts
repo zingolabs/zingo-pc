@@ -13,7 +13,7 @@ import {
   ServerChainNameEnum,
 } from "../components/appstate";
 
-import { native } from "../electronBridge";
+import { native, ipcRenderer } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
 import { RPCValueTransferType } from "./components/RPCValueTransferType";
 
@@ -24,7 +24,7 @@ export default class RPC {
   fnSetValueTransfersList: (t: ValueTransferClass[]) => void;
   fnSetMessagesList: (t: ValueTransferClass[]) => void;
   fnSetInfo: (info: InfoClass) => void;
-  fnSetZecPrice: (p?: number) => void;
+  fnSetZecPrice: (p?: number, viaTor?: boolean) => void;
   fnSetSyncStatus: (ss: SyncStatusType) => void;
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
@@ -46,7 +46,7 @@ export default class RPC {
     fnSetValueTransfersList: (t: ValueTransferClass[]) => void,
     fnSetMessagesList: (t: ValueTransferClass[]) => void,
     fnSetInfo: (info: InfoClass) => void,
-    fnSetZecPrice: (p?: number) => void,
+    fnSetZecPrice: (p?: number, viaTor?: boolean) => void,
     fnSetSyncStatus: (ss: SyncStatusType) => void,
     fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
@@ -79,6 +79,7 @@ export default class RPC {
       this.fetchInfo(),
       this.fetchAddresses(),
       this.fetchTotalBalance(),
+      this.getZecPrice(),
       RPC.doSave(),
       this.fetchTandZandOValueTransfers(),
       this.fetchTandZandOMessages(),
@@ -91,6 +92,7 @@ export default class RPC {
     await this.fetchAddresses();
     await this.fetchTotalBalance();
     await this.fetchInfo();
+    void this.getZecPrice();
     await this.fetchTandZandOMessages();
 
     // every 5 seconds the App update part of the data
@@ -255,20 +257,10 @@ export default class RPC {
       info.currencyName = info.chainName === ServerChainNameEnum.mainChainName ? "ZEC" : "TAZ";
       info.solps = 0;
 
-      // Also set `zecPrice` manually
-      const resultStr: string = await native.zec_price("false");
-      if (resultStr) {
-        if (resultStr.toLowerCase().startsWith("error")) {
-          console.error(`Error fetching price Info ${resultStr}`);
-          info.zecPrice = 0;
-        } else {
-          const resultJSON = JSON.parse(resultStr);
-          info.zecPrice = resultJSON.current_price;
-        }
-      } else {
-        console.error(`Error fetching price Info ${resultStr}`);
-        info.zecPrice = 0;
-      }
+      // ZEC price is no longer fetched here — it lives outside InfoClass
+      // (see `getZecPrice` below, scheduled by `runTaskPromises`). Folding
+      // the price fetch into the info refresh meant that every 5s cycle
+      // overwrote the Tor-fetched value with a hard-coded `false` HTTP call.
 
       // zingolib version
       let zingolibStr: string = await native.get_version();
@@ -784,23 +776,78 @@ export default class RPC {
   }
 
   async getZecPrice() {
+    // Read the user's "fetch price via Tor" preference from persisted
+    // settings. Default off — if the key is missing or anything throws while
+    // loading settings we keep the conventional HTTP path. The Tor client is
+    // created lazily here only when Tor is requested.
+    let withTor = false;
+    let triedTor = false;
     try {
-      const resultStr: string = await native.zec_price("false");
+      const settings = await ipcRenderer.invoke("loadSettings");
+      withTor = !!settings?.pricewithtor;
+    } catch (e) {
+      console.warn(`getZecPrice: could not load settings, falling back to HTTP. ${e}`);
+    }
+
+    if (withTor) {
+      triedTor = true;
+      try {
+        const createRes: string = await native.create_tor_client();
+        // Always dump what the native side actually returned so we can tell
+        // a "client already exists" no-op from a real failure when the user
+        // reports Tor not working.
+        console.log("[Tor] create_tor_client returned:", JSON.stringify(createRes));
+        if (createRes && createRes.toLowerCase().startsWith("error")) {
+          if (!createRes.toLowerCase().includes("already")) {
+            console.error(`[Tor] create failed, falling back to HTTP: ${createRes}`);
+            withTor = false;
+          } else {
+            console.log("[Tor] client already exists — reusing");
+          }
+        }
+      } catch (e) {
+        console.error(`[Tor] create_tor_client threw, falling back to HTTP:`, e);
+        withTor = false;
+      }
+    }
+
+    try {
+      const resultStr: string = await native.zec_price(withTor ? "true" : "false");
+      console.log(`[Tor] zec_price(${withTor ? "true" : "false"}) returned:`, JSON.stringify(resultStr));
 
       if (resultStr) {
         if (resultStr.toLowerCase().startsWith("error")) {
-          console.error(`Error fetching price ${resultStr}`);
-          this.fnSetZecPrice(0);
+          console.error(`[Tor] zec_price error: ${resultStr}`);
+          // If Tor was attempted and the native side complained, retry over
+          // plain HTTP so the user still sees a price. The dashboard
+          // indicator will reflect that we did NOT use Tor for this value.
+          if (withTor) {
+            console.warn("[Tor] retrying without Tor after Tor-path failure");
+            try {
+              const fallback: string = await native.zec_price("false");
+              console.log("[Tor] HTTP fallback returned:", JSON.stringify(fallback));
+              if (fallback && !fallback.toLowerCase().startsWith("error")) {
+                const json = JSON.parse(fallback);
+                this.fnSetZecPrice(json.current_price, false);
+                return;
+              }
+            } catch (e) {
+              console.error(`[Tor] HTTP fallback also failed:`, e);
+            }
+          }
+          this.fnSetZecPrice(0, false);
         } else {
           const resultJSON = JSON.parse(resultStr);
-          this.fnSetZecPrice(resultJSON.current_price);
+          // Reality, not intent: only mark as via-Tor if we actually went
+          // through Tor for this fetch.
+          this.fnSetZecPrice(resultJSON.current_price, triedTor && withTor);
         }
       } else {
-        console.error(`Error fetching price ${resultStr}`);
-        this.fnSetZecPrice(0);
+        console.error(`[Tor] zec_price returned empty result`);
+        this.fnSetZecPrice(0, false);
       }
     } catch (error) {
-      console.error(`Critical Error get price ${error}`);
+      console.error(`[Tor] zec_price threw:`, error);
     }
   }
 
