@@ -2,7 +2,7 @@ import Modal from "react-modal";
 import { useContext, useEffect, useState } from "react";
 import cstyles from "../../common/Common.module.css";
 import { ContextApp } from "../../../context/ContextAppState";
-import torOnion from "../../../assets/img/tor-onion.svg";
+import torOnion from "../../../assets/img/tor-onion-color.svg";
 
 type PriceTorModalProps = {
   modalIsOpen: boolean;

@@ -1,6 +1,6 @@
 import React from "react";
 
-import torOnion from "../../assets/img/tor-onion.svg";
+import torOnion from "../../assets/img/tor-onion-color.svg";
 
 type Props = {
   /** User preference: should the price be fetched via Tor? */
