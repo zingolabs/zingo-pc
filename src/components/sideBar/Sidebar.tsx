@@ -12,16 +12,142 @@ import APP_VERSION from "../../version";
 import SelectWallet from "./components/SelectWallet";
 import { WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
+import PriceTorModal from "./components/PriceTorModal";
+import { useCopy } from "../common/useCopy";
 
 import { ipcRenderer, native } from "../../electronBridge";
+
+// Modal content for "Wallet Seed Phrase / Viewing Key" extracted to its own
+// component because the inline copy feedback for UFVK / birthday relies on
+// useCopy() hooks, which cannot be called inside the event handler that opens
+// the modal. As a component, the content owns its hook state and re-renders
+// in place when the user clicks to copy. Seed phrase is intentionally NOT
+// copyable to the clipboard — see the note in the JSX.
+type SeedUfvkModalContentProps = {
+  seedStr: string;
+  ufvkStr: string;
+  birthday: number | undefined;
+};
+
+const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, ufvkStr, birthday }) => {
+  const { copied: ufvkCopied, copy: copyUfvk } = useCopy(1500);
+  const { copied: birthdayCopied, copy: copyBirthday } = useCopy(1500);
+  const birthdayStr = String(birthday ?? "");
+
+  return (
+    <div className={cstyles.verticalflex}>
+      {!!seedStr && (
+        <>
+          <div style={{ textAlign: "center" }}>
+            This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet. PLEASE KEEP IT SAFE!
+          </div>
+          {/* Seed phrase is intentionally NOT copyable to the system clipboard:
+              any other process running as this user can read the clipboard,
+              which would expose spend authority. */}
+          <div style={{ textAlign: "center", color: "#ff6b6b", fontWeight: "bolder", marginTop: 6 }}>
+            Write this seed phrase down by hand. Do not copy it to the clipboard.
+          </div>
+          <hr style={{ width: "100%" }} />
+          <div
+            style={{
+              textAlign: "center",
+              wordBreak: "break-word",
+              fontFamily: "monospace, Roboto",
+              fontWeight: "bolder",
+            }}
+          >
+            {seedStr}
+          </div>
+          <hr style={{ width: "100%" }} />
+        </>
+      )}
+      {!!ufvkStr && (
+        <>
+          <div style={{ textAlign: "center" }}>
+            This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
+            <br />
+            PLEASE KEEP IT SAFE!
+          </div>
+          <hr style={{ width: "100%" }} />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              gap: 8,
+              alignItems: "baseline",
+              marginBottom: 10,
+            }}
+          >
+            <span style={{ color: "white", fontWeight: "bolder" }}>Unified Full Viewing Key</span>
+            {ufvkCopied && <span className={cstyles.highlight}>Copied!</span>}
+          </div>
+
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Copy viewing key"
+            style={{
+              cursor: "pointer",
+              textAlign: "center",
+              wordBreak: "break-word",
+              fontFamily: "monospace, Roboto",
+              fontWeight: "bolder",
+            }}
+            onClick={() => copyUfvk(ufvkStr)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                copyUfvk(ufvkStr);
+              }
+            }}
+          >
+            {ufvkStr}
+          </div>
+          <hr style={{ width: "100%" }} />
+        </>
+      )}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          gap: 8,
+          alignItems: "baseline",
+          marginBottom: 10,
+        }}
+      >
+        <span style={{ color: "white", fontWeight: "bolder" }}>Birthday</span>
+        {birthdayCopied && <span className={cstyles.highlight}>Copied!</span>}
+      </div>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label="Copy birthday"
+        style={{
+          cursor: "pointer",
+          textAlign: "center",
+          fontFamily: "monospace, Roboto",
+          fontWeight: "bolder",
+        }}
+        onClick={() => copyBirthday(birthdayStr)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            copyBirthday(birthdayStr);
+          }
+        }}
+      >
+        {birthdayStr}
+      </div>
+    </div>
+  );
+};
 
 type SidebarProps = {
   doRescan: () => void;
   navigateToLoadingScreenChangingWallet: () => void;
-  setBlockExplorer: (be: any) => void;
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChangingWallet, setBlockExplorer }) => {
+const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChangingWallet }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const context = useContext(ContextApp);
@@ -35,20 +161,14 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     currentWallet,
     currentWalletOpenError,
     wallets,
-    blockExplorerMainnetAddress,
-    blockExplorerMainnetAddressCustom,
-    blockExplorerMainnetTransaction,
-    blockExplorerMainnetTransactionCustom,
-    blockExplorerTestnetAddress,
-    blockExplorerTestnetAddressCustom,
-    blockExplorerTestnetTransaction,
-    blockExplorerTestnetTransactionCustom,
   } = context;
 
   const [payURIModalIsOpen, setPayURIModalIsOpen] = useState<boolean>(false);
   const [payURIModalInputValue, setPayURIModalInputValue] = useState<string | undefined>(undefined);
 
   const [blockExplorerModalIsOpen, setBlockExplorerModalIsOpen] = useState<boolean>(false);
+
+  const [priceTorModalIsOpen, setPriceTorModalIsOpen] = useState<boolean>(false);
 
   const currentWalletRef = useRef<WalletType | null>(null);
   const currentWalletOpenErrorRef = useRef<string>("");
@@ -199,7 +319,14 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     // Block Explorer Selection
     const blockexplorer = (_event: any) => {
       if (!active) return;
-      openBlockExplorerModal();
+      setBlockExplorerModalIsOpen(true);
+    };
+
+    // ZEC Price Source (Tor on/off). The modal reads the current value
+    // directly from context, so we only need to open it.
+    const pricetor = (_event: any) => {
+      if (!active) return;
+      setPriceTorModalIsOpen(true);
     };
 
     // Export Seed
@@ -208,6 +335,20 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Seed Phrase/Viewing Key", "There is not an active Wallet to perform the action.");
         return;
+      }
+
+      // Re-authenticate before exposing seed/UFVK, even mid-session. The
+      // startup lock screen gates app entry but a long-running session would
+      // otherwise let anyone with screen access reveal the spend authority
+      // (seed) or the viewing key (full tx history + balance). Matches the
+      // pattern in SendConfirmModal.sendButton.
+      const allSettings = await ipcRenderer.invoke("loadSettings");
+      if (allSettings?.requireDeviceAuth) {
+        const authResult: { success: boolean } = await ipcRenderer.invoke(
+          "auth:verify",
+          "Show seed phrase / viewing key",
+        );
+        if (!authResult.success) return;
       }
 
       // Always fetch the UFVK — for seed wallets it's derived from the seed, and
@@ -220,54 +361,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
 
       openErrorModal(
         "Wallet Seed Phrase / Viewing Key",
-        <div className={cstyles.verticalflex}>
-          {!!seedStr && (
-            <>
-              <div>
-                This is your wallet&rsquo;s seed phrase. It can be used to recover your entire wallet.
-                <br />
-                PLEASE KEEP IT SAFE!
-              </div>
-              <hr style={{ width: "100%" }} />
-              <div
-                style={{
-                  wordBreak: "break-word",
-                  fontFamily: "monospace, Roboto",
-                  fontWeight: "bolder",
-                }}
-              >
-                {seedStr}
-              </div>
-              <hr style={{ width: "100%" }} />
-            </>
-          )}
-          {!!ufvkStr && (
-            <>
-              <div>
-                This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
-                <br />
-                PLEASE KEEP IT SAFE!
-              </div>
-              <hr style={{ width: "100%" }} />
-              <div
-                style={{
-                  fontFamily: "monospace, Roboto",
-                  fontWeight: "bolder",
-                }}
-              >
-                {ufvkStr}
-              </div>
-              <hr style={{ width: "100%" }} />
-            </>
-          )}
-          <div
-            style={{
-              fontFamily: "monospace, Roboto",
-            }}
-          >
-            {"Birthday: " + birthdayRef.current}
-          </div>
-        </div>,
+        <SeedUfvkModalContent seedStr={seedStr} ufvkStr={ufvkStr} birthday={birthdayRef.current} />,
       );
     };
 
@@ -306,6 +400,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     ipcRenderer.on("about", about);
     ipcRenderer.on("payuri", payuri);
     ipcRenderer.on("blockexplorer", blockexplorer);
+    ipcRenderer.on("pricetor", pricetor);
     ipcRenderer.on("seed", seed);
     ipcRenderer.on("rescan", rescan);
     ipcRenderer.on("addnewwallet", addnewwallet);
@@ -317,6 +412,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       ipcRenderer.off("about", about);
       ipcRenderer.off("payuri", payuri);
       ipcRenderer.off("blockexplorer", blockexplorer);
+      ipcRenderer.off("pricetor", pricetor);
       ipcRenderer.off("seed", seed);
       ipcRenderer.off("rescan", rescan);
       ipcRenderer.off("addnewwallet", addnewwallet);
@@ -338,14 +434,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
 
   const closePayURIModal = () => {
     setPayURIModalIsOpen(false);
-  };
-
-  const openBlockExplorerModal = () => {
-    setBlockExplorerModalIsOpen(true);
-  };
-
-  const closeBlockExplorerModal = () => {
-    setBlockExplorerModalIsOpen(false);
   };
 
   const payURI = async (uri: string) => {
@@ -395,20 +483,15 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       />
 
       <BlockExplorerModal
-        modalInput={{
-          blockExplorerMainnetAddress,
-          blockExplorerMainnetAddressCustom,
-          blockExplorerMainnetTransaction,
-          blockExplorerMainnetTransactionCustom,
-          blockExplorerTestnetAddress,
-          blockExplorerTestnetAddressCustom,
-          blockExplorerTestnetTransaction,
-          blockExplorerTestnetTransactionCustom,
-        }}
-        setModalInput={setBlockExplorer}
         modalIsOpen={blockExplorerModalIsOpen}
-        closeModal={closeBlockExplorerModal}
+        closeModal={() => setBlockExplorerModalIsOpen(false)}
         modalTitle="Select Block Explorer"
+      />
+
+      <PriceTorModal
+        modalIsOpen={priceTorModalIsOpen}
+        closeModal={() => setPriceTorModalIsOpen(false)}
+        modalTitle="ZEC Price Source"
       />
 
       <div className={`${cstyles.center} ${styles.sidebarlogobg}`}>

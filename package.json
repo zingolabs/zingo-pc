@@ -1,7 +1,7 @@
 {
   "name": "zingo-pc",
   "productName": "Zingo PC",
-  "version": "2.0.16",
+  "version": "2.0.17",
   "private": true,
   "description": "Zingo PC",
   "license": "MIT",
@@ -40,7 +40,7 @@
     "react-textarea-autosize": "^8.5.9",
     "typeface-roboto": "^1.1.13",
     "url-parse": "^1.5.10",
-    "uuid": "^11.1.0",
+    "uuid": "^11.1.1",
     "zcashname-sdk": "^0.8.7"
   },
   "scripts": {
@@ -218,7 +218,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "153",
+      "bundleVersion": "154",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -240,7 +240,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "153",
+      "bundleVersion": "154",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },

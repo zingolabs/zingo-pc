@@ -2,8 +2,7 @@ import React from "react";
 import { render, screen, fireEvent } from "../../../test-utils";
 import BlockExplorerModal from "./BlockExplorerModal";
 import { BlockExplorerEnum } from "../../appstate";
-
-jest.mock("../../../electronBridge");
+import { ContextApp, defaultAppState } from "../../../context/ContextAppState";
 
 beforeAll(() => {
   const div = document.createElement("div");
@@ -13,7 +12,9 @@ beforeAll(() => {
   require("react-modal").setAppElement("#root");
 });
 
-const modalInput = {
+// Default block explorer values used by most tests. Individual tests can
+// override any subset by spreading and overriding when building `contextValue`.
+const defaultBlockExplorerValues = {
   blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer,
@@ -24,131 +25,114 @@ const modalInput = {
   blockExplorerTestnetAddressCustom: "",
 };
 
-const baseProps = {
-  modalIsOpen: true,
-  modalInput,
-  setModalInput: jest.fn(),
-  closeModal: jest.fn(),
-  modalTitle: "Block Explorer Settings",
+type RenderOpts = {
+  modalIsOpen?: boolean;
+  closeModal?: () => void;
+  modalTitle?: string;
+  setBlockExplorer?: jest.Mock;
+  blockExplorerValues?: Partial<typeof defaultBlockExplorerValues>;
+};
+
+const renderModal = (opts: RenderOpts = {}) => {
+  const {
+    modalIsOpen = true,
+    closeModal = jest.fn(),
+    modalTitle = "Block Explorer Settings",
+    setBlockExplorer = jest.fn(),
+    blockExplorerValues = {},
+  } = opts;
+
+  const contextValue = {
+    ...defaultAppState,
+    ...defaultBlockExplorerValues,
+    ...blockExplorerValues,
+    setBlockExplorer,
+  };
+
+  return {
+    setBlockExplorer,
+    closeModal,
+    ...render(
+      <ContextApp.Provider value={contextValue}>
+        <BlockExplorerModal modalIsOpen={modalIsOpen} closeModal={closeModal} modalTitle={modalTitle} />
+      </ContextApp.Provider>,
+    ),
+  };
 };
 
 describe("BlockExplorerModal", () => {
   it("renders the modal title", () => {
-    render(<BlockExplorerModal {...baseProps} />);
+    renderModal();
     expect(screen.getByText("Block Explorer Settings")).toBeInTheDocument();
   });
 
   it("renders when closed without showing content", () => {
-    render(<BlockExplorerModal {...baseProps} modalIsOpen={false} />);
+    renderModal({ modalIsOpen: false });
     expect(screen.queryByText("Block Explorer Settings")).not.toBeInTheDocument();
   });
 
   it("calls closeModal when Cancel is clicked", () => {
-    const closeModal = jest.fn();
-    render(<BlockExplorerModal {...baseProps} closeModal={closeModal} />);
+    const { closeModal } = renderModal();
     fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }));
     expect(closeModal).toHaveBeenCalledTimes(1);
   });
 
   it("renders both Mainnet and Testnet sections", () => {
-    render(<BlockExplorerModal {...baseProps} />);
+    renderModal();
     expect(screen.getByText("Mainnet")).toBeInTheDocument();
     expect(screen.getByText("Testnet")).toBeInTheDocument();
   });
 
-  it("saves explorer choices through ipcRenderer.invoke when Save is clicked", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { ipcRenderer } = require("../../../electronBridge");
-    (ipcRenderer.invoke as jest.Mock).mockResolvedValue(undefined);
-    const setModalInput = jest.fn();
-    const closeModal = jest.fn();
-    render(<BlockExplorerModal {...baseProps} setModalInput={setModalInput} closeModal={closeModal} />);
+  it("calls setBlockExplorer with the form values when Save is clicked", () => {
+    const { setBlockExplorer, closeModal } = renderModal();
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
-    // setModalInput is called synchronously before the async invoke
-    expect(setModalInput).toHaveBeenCalled();
-    // Wait for the async chain
-    await new Promise((r) => setTimeout(r, 30));
-    expect(ipcRenderer.invoke).toHaveBeenCalledWith("saveSettings", expect.any(Object));
+    expect(setBlockExplorer).toHaveBeenCalledTimes(1);
+    expect(setBlockExplorer).toHaveBeenCalledWith(expect.objectContaining(defaultBlockExplorerValues));
     expect(closeModal).toHaveBeenCalled();
   });
 
   it("disables Save when Custom is selected but URL is empty", () => {
-    render(
-      <BlockExplorerModal
-        {...baseProps}
-        modalInput={{ ...modalInput, blockExplorerMainnetTransaction: BlockExplorerEnum.Custom }}
-      />,
-    );
+    renderModal({
+      blockExplorerValues: { blockExplorerMainnetTransaction: BlockExplorerEnum.Custom },
+    });
     expect(screen.getByRole("button", { name: /^save$/i })).toBeDisabled();
   });
 
-  it("normalizes custom URLs to end in '/' on save", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { ipcRenderer } = require("../../../electronBridge");
-    (ipcRenderer.invoke as jest.Mock).mockResolvedValue(undefined);
-    const setModalInput = jest.fn();
-    render(
-      <BlockExplorerModal
-        {...baseProps}
-        modalInput={{
-          ...modalInput,
-          blockExplorerMainnetTransaction: BlockExplorerEnum.Custom,
-          blockExplorerMainnetTransactionCustom: "https://my.explorer/tx",
-        }}
-        setModalInput={setModalInput}
-      />,
-    );
+  it("normalizes custom URLs to end in '/' on save", () => {
+    const { setBlockExplorer } = renderModal({
+      blockExplorerValues: {
+        blockExplorerMainnetTransaction: BlockExplorerEnum.Custom,
+        blockExplorerMainnetTransactionCustom: "https://my.explorer/tx",
+      },
+    });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
-    await new Promise((r) => setTimeout(r, 30));
-    const saved = setModalInput.mock.calls[0][0];
+    const saved = setBlockExplorer.mock.calls[0][0];
     expect(saved.blockExplorerMainnetTransactionCustom).toBe("https://my.explorer/tx/");
   });
 
-  it("preserves custom URLs that already end in '='", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { ipcRenderer } = require("../../../electronBridge");
-    (ipcRenderer.invoke as jest.Mock).mockResolvedValue(undefined);
-    const setModalInput = jest.fn();
-    render(
-      <BlockExplorerModal
-        {...baseProps}
-        modalInput={{
-          ...modalInput,
-          blockExplorerMainnetTransaction: BlockExplorerEnum.Custom,
-          blockExplorerMainnetTransactionCustom: "https://my.explorer/tx?hash=",
-        }}
-        setModalInput={setModalInput}
-      />,
-    );
+  it("preserves custom URLs that already end in '='", () => {
+    const { setBlockExplorer } = renderModal({
+      blockExplorerValues: {
+        blockExplorerMainnetTransaction: BlockExplorerEnum.Custom,
+        blockExplorerMainnetTransactionCustom: "https://my.explorer/tx?hash=",
+      },
+    });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
-    await new Promise((r) => setTimeout(r, 30));
-    const saved = setModalInput.mock.calls[0][0];
+    const saved = setBlockExplorer.mock.calls[0][0];
     expect(saved.blockExplorerMainnetTransactionCustom).toBe("https://my.explorer/tx?hash=");
   });
 
-  it("clears the custom field when the selection is not Custom", async () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { ipcRenderer } = require("../../../electronBridge");
-    (ipcRenderer.invoke as jest.Mock).mockResolvedValue(undefined);
-    const setModalInput = jest.fn();
-    render(
-      <BlockExplorerModal
-        {...baseProps}
-        modalInput={{
-          ...modalInput,
-          blockExplorerMainnetTransactionCustom: "https://leftover.example/",
-        }}
-        setModalInput={setModalInput}
-      />,
-    );
+  it("clears the custom field when the selection is not Custom", () => {
+    const { setBlockExplorer } = renderModal({
+      blockExplorerValues: { blockExplorerMainnetTransactionCustom: "https://leftover.example/" },
+    });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
-    await new Promise((r) => setTimeout(r, 30));
-    const saved = setModalInput.mock.calls[0][0];
+    const saved = setBlockExplorer.mock.calls[0][0];
     expect(saved.blockExplorerMainnetTransactionCustom).toBe("");
   });
 
   it("changes Mainnet Transactions selector to Custom and reveals the custom URL input", () => {
-    render(<BlockExplorerModal {...baseProps} />);
+    renderModal();
     const select = screen.getByLabelText(/Block explorer for mainnet transactions$/i);
     fireEvent.change(select, { target: { value: BlockExplorerEnum.Custom } });
     expect(screen.getByLabelText(/Block explorer for mainnet transactions custom URL/i)).toBeInTheDocument();

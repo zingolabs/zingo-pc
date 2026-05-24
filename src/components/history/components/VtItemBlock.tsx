@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React from "react";
 import dateformat from "dateformat";
 import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
 import { ValueTransferClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../../appstate";
 import Utils from "../../../utils/utils";
-import { clipboard } from "../../../electronBridge";
 
 type VtItemBlockProps = {
   index: number;
@@ -27,9 +26,6 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
   addressBookMap,
   previousLineWithSameTxid,
 }) => {
-  const [expandAddress, setExpandAddress] = useState(false);
-  const [expandTxid, setExpandTxid] = useState(false);
-
   const txDate: Date = new Date(vt.time * 1000);
   const datePart: string = dateformat(txDate, "mmm dd, yyyy");
   const timePart: string = dateformat(txDate, "hh:MM tt");
@@ -43,11 +39,11 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
 
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(amount);
 
+  // Per-transaction ZEC price snapshot. Unified through `getZecRateString` so
+  // the missing-price fallback (`USD --`) matches the rest of the app — no
+  // more stray `USD -- / ZEC` variants.
   const price: number = vt.zec_price ? vt.zec_price : 0;
-  let priceString: string = "";
-  if (price && currencyName === "ZEC") {
-    priceString = `USD ${price.toFixed(2)} / ZEC`;
-  }
+  const priceString: string = currencyName === "ZEC" ? Utils.getZecRateString(price) : "";
 
   //if (index === 0) {
   //  vt.status = ValueTransferStatusEnum.failed;
@@ -134,77 +130,12 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                   {label}
                 </div>
               )}
-              {!!address ? (
-                <div className={cstyles.verticalflex}>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-label="Copy address"
-                    style={{ cursor: "pointer" }}
-                    onClick={() => {
-                      if (address) {
-                        clipboard.writeText(address);
-                        setExpandAddress(true);
-                      }
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        if (address) {
-                          clipboard.writeText(address);
-                          setExpandAddress(true);
-                        }
-                      }
-                    }}
-                  >
-                    <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                      {!address && "Unknown"}
-                      {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
-                      {expandAddress && !!address && (
-                        <>
-                          {address.length < 80
-                            ? address
-                            : Utils.splitStringIntoChunks(address, 3).map((item) => <div key={item}>{item}</div>)}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Copy transaction ID"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => {
-                    if (txid) {
-                      clipboard.writeText(txid);
-                      setExpandTxid(true);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      if (txid) {
-                        clipboard.writeText(txid);
-                        setExpandTxid(true);
-                      }
-                    }
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                    {!txid && "-"}
-                    {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
-                    {expandTxid && !!txid && (
-                      <>
-                        {txid.length < 80
-                          ? txid
-                          : Utils.splitStringIntoChunks(txid, 3).map((item) => <div key={item}>{item}</div>)}
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+              {/* The whole list row (txbox above) is already clickable and opens
+                  VtModal, which shows the full address/txid and offers copy
+                  there. So this is display-only — no click-to-copy here. */}
+              <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
+                {address ? Utils.trimToSmall(address, 10) : txid ? Utils.trimToSmall(txid, 10) : "-"}
+              </div>
             </div>
             <div
               className={[cstyles.small, cstyles.sublight, cstyles.padtopsmall, cstyles.memodiv, styles.txmemo].join(

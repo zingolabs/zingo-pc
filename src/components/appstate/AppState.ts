@@ -85,15 +85,32 @@ export default class AppState {
   handleShieldButton: () => void;
   setAddLabel: (a: AddressBookEntryClass) => void;
 
-  // block explorer selected
-  blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer;
-  blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer;
-  blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer;
-  blockExplorerTestnetAddress: BlockExplorerEnum.Zcashexplorer;
+  // Current USD price per ZEC. Refreshed every 5s by RPC.getZecPrice() via
+  // the runTaskPromises scheduler. Lives at the top level (not inside
+  // InfoClass) because the periodic info-refresh rebuilds InfoClass and
+  // would otherwise clobber the price between cycles. 0 means "no price
+  // available right now" — all USD displays render `--` in that case.
+  zecPrice: number;
+  // Whether the ZEC price should be fetched through Tor. Source of truth
+  // for the UI; persisted in electron-settings and kept in sync by the setter
+  // wired up in Routes.tsx (see `setPriceWithTor` in context).
+  priceWithTor: boolean;
+  setPriceWithTor: (v: boolean) => void;
+  // Whether the last successful price fetch actually went via Tor. Same
+  // reasoning as zecPrice — kept outside InfoClass.
+  lastPriceViaTor: boolean;
+
+  // block explorer selected. Type is the enum (not a literal) so a custom
+  // value can be assigned and the type narrows cleanly.
+  blockExplorerMainnetTransaction: BlockExplorerEnum;
+  blockExplorerTestnetTransaction: BlockExplorerEnum;
+  blockExplorerMainnetAddress: BlockExplorerEnum;
+  blockExplorerTestnetAddress: BlockExplorerEnum;
   blockExplorerMainnetTransactionCustom: string;
   blockExplorerTestnetTransactionCustom: string;
   blockExplorerMainnetAddressCustom: string;
   blockExplorerTestnetAddressCustom: string;
+  setBlockExplorer: (be: any) => void;
 
   constructor() {
     this.totalBalance = new TotalBalanceClass();
@@ -127,6 +144,10 @@ export default class AppState {
     this.calculateShieldFee = async () => 0;
     this.handleShieldButton = () => {};
     this.setAddLabel = () => {};
+    this.zecPrice = 0;
+    this.priceWithTor = false;
+    this.setPriceWithTor = () => {};
+    this.lastPriceViaTor = false;
     this.blockExplorerMainnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerTestnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerMainnetAddress = BlockExplorerEnum.Zcashexplorer;
@@ -135,5 +156,6 @@ export default class AppState {
     this.blockExplorerTestnetTransactionCustom = "";
     this.blockExplorerMainnetAddressCustom = "";
     this.blockExplorerTestnetAddressCustom = "";
+    this.setBlockExplorer = () => {};
   }
 }

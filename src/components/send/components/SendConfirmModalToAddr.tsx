@@ -6,9 +6,10 @@ import cstyles from "../../common/Common.module.css";
 type SendConfirmModalToAddrProps = {
   toaddr: ToAddrClass;
   info: InfoClass;
+  zecPrice: number;
 };
 
-const SendConfirmModalToAddr = ({ toaddr, info }: SendConfirmModalToAddrProps) => {
+const SendConfirmModalToAddr = ({ toaddr, info, zecPrice }: SendConfirmModalToAddrProps) => {
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(
     toaddr.amount,
   );
@@ -35,7 +36,7 @@ const SendConfirmModalToAddr = ({ toaddr, info }: SendConfirmModalToAddrProps) =
               <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{smallPart}</span>
             </div>
           </div>
-          {info.currencyName === "ZEC" && <div>{Utils.getZecToUsdString(info.zecPrice, toaddr.amount)}</div>}
+          {info.currencyName === "ZEC" && <div>{Utils.getZecToUsdString(zecPrice, toaddr.amount)}</div>}
         </div>
       </div>
       <div className={`${cstyles.sublight} ${cstyles.breakword} ${cstyles.memodiv}`}>{memo + memoReplyTo}</div>

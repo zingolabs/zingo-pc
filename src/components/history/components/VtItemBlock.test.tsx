@@ -48,15 +48,16 @@ describe("VtItemBlock", () => {
     expect(screen.queryByText(/\w{3} \d{2}, \d{4}/)).not.toBeInTheDocument();
   });
 
-  it("shows the truncated address when address is present", () => {
+  it("shows the (truncated) address when address is present", () => {
     render(<VtItemBlock {...baseProps} vt={makeVt({ address: "u1shortaddr" })} />);
-    // trimToSmall(addr, 10) shows first + last chars
-    expect(screen.getByLabelText("Copy address")).toBeInTheDocument();
+    // trimToSmall renders the address text inside the row (no per-element copy
+    // button — the whole row is clickable to open VtModal).
+    expect(screen.getByText(/u1short/)).toBeInTheDocument();
   });
 
-  it("shows the txid copy button when there is no address", () => {
+  it("falls back to the (truncated) txid when there is no address", () => {
     render(<VtItemBlock {...baseProps} vt={makeVt({ address: undefined })} />);
-    expect(screen.getByLabelText("Copy transaction ID")).toBeInTheDocument();
+    expect(screen.getByText(/abc123txid/)).toBeInTheDocument();
   });
 
   it("shows address book label when address is in the map", () => {
@@ -114,47 +115,6 @@ describe("VtItemBlock", () => {
   it("shows the USD price when zec_price is set and currency is ZEC", () => {
     render(<VtItemBlock {...baseProps} vt={makeVt({ zec_price: 30 })} />);
     expect(screen.getByText("USD 30.00 / ZEC")).toBeInTheDocument();
-  });
-
-  it("expands the address inline when clicked (short address path)", () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { clipboard } = require("../../../electronBridge");
-    render(<VtItemBlock {...baseProps} vt={makeVt({ address: "u1tinyaddress" })} />);
-    fireEvent.click(screen.getByLabelText("Copy address"));
-    expect(clipboard.writeText).toHaveBeenCalledWith("u1tinyaddress");
-  });
-
-  it("expands a long address into chunks when clicked", () => {
-    const longAddr = "u1" + "x".repeat(100);
-    render(<VtItemBlock {...baseProps} vt={makeVt({ address: longAddr })} />);
-    fireEvent.click(screen.getByLabelText("Copy address"));
-    // chunked rendering uses splitStringIntoChunks(addr, 3) — at least one chunk visible
-    expect(screen.getByLabelText("Copy address")).toBeInTheDocument();
-  });
-
-  it("triggers address-copy via keyboard Enter", () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { clipboard } = require("../../../electronBridge");
-    render(<VtItemBlock {...baseProps} vt={makeVt()} />);
-    fireEvent.keyDown(screen.getByLabelText("Copy address"), { key: "Enter" });
-    expect(clipboard.writeText).toHaveBeenCalled();
-  });
-
-  it("expands the txid inline when address is missing (long txid)", () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { clipboard } = require("../../../electronBridge");
-    const longTxid = "a".repeat(120);
-    render(<VtItemBlock {...baseProps} vt={makeVt({ address: undefined, txid: longTxid })} />);
-    fireEvent.click(screen.getByLabelText("Copy transaction ID"));
-    expect(clipboard.writeText).toHaveBeenCalledWith(longTxid);
-  });
-
-  it("triggers txid-copy via keyboard space", () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { clipboard } = require("../../../electronBridge");
-    render(<VtItemBlock {...baseProps} vt={makeVt({ address: undefined })} />);
-    fireEvent.keyDown(screen.getByLabelText("Copy transaction ID"), { key: " " });
-    expect(clipboard.writeText).toHaveBeenCalled();
   });
 
   it("opens the modal via keyboard Enter on the outer button", () => {

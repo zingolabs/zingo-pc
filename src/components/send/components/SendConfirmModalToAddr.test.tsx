@@ -14,39 +14,45 @@ const makeToAddr = (overrides: Partial<ToAddrClass> = {}): ToAddrClass =>
     ...overrides,
   });
 
-const info = Object.assign(new InfoClass(), { currencyName: "ZEC", zecPrice: 100 });
+const info = Object.assign(new InfoClass(), { currencyName: "ZEC" });
 
 describe("SendConfirmModalToAddr", () => {
   it("renders without crashing", () => {
-    render(<SendConfirmModalToAddr toaddr={makeToAddr()} info={info} />);
+    render(<SendConfirmModalToAddr toaddr={makeToAddr()} info={info} zecPrice={100} />);
   });
 
   it("shows the destination address when shorter than 80 chars", () => {
-    render(<SendConfirmModalToAddr toaddr={makeToAddr({ to: "u1short" })} info={info} />);
+    render(<SendConfirmModalToAddr toaddr={makeToAddr({ to: "u1short" })} info={info} zecPrice={100} />);
     expect(screen.getByText("u1short")).toBeInTheDocument();
   });
 
   it("splits a long address into chunks", () => {
     const longAddr = "u1" + "a".repeat(79);
-    render(<SendConfirmModalToAddr toaddr={makeToAddr({ to: longAddr })} info={info} />);
+    render(<SendConfirmModalToAddr toaddr={makeToAddr({ to: longAddr })} info={info} zecPrice={100} />);
     // splitStringIntoChunks(addr, 3) produces 3 divs — none equals the full address
     expect(screen.queryByText(longAddr)).not.toBeInTheDocument();
   });
 
   it("shows the combined memo", () => {
-    render(<SendConfirmModalToAddr toaddr={makeToAddr({ memo: "Hello", memoReplyTo: " World" })} info={info} />);
+    render(
+      <SendConfirmModalToAddr
+        toaddr={makeToAddr({ memo: "Hello", memoReplyTo: " World" })}
+        info={info}
+        zecPrice={100}
+      />,
+    );
     expect(screen.getByText("Hello World")).toBeInTheDocument();
   });
 
   it("shows USD value for ZEC currency", () => {
-    render(<SendConfirmModalToAddr toaddr={makeToAddr({ amount: 1 })} info={info} />);
+    render(<SendConfirmModalToAddr toaddr={makeToAddr({ amount: 1 })} info={info} zecPrice={100} />);
     // getZecToUsdString(100, 1) = "USD 100.00"
     expect(screen.getByText(/USD 100\.00/)).toBeInTheDocument();
   });
 
   it("hides USD value for non-ZEC currency", () => {
-    const tazInfo = Object.assign(new InfoClass(), { currencyName: "TAZ", zecPrice: 0 });
-    render(<SendConfirmModalToAddr toaddr={makeToAddr({ amount: 1 })} info={tazInfo} />);
+    const tazInfo = Object.assign(new InfoClass(), { currencyName: "TAZ" });
+    render(<SendConfirmModalToAddr toaddr={makeToAddr({ amount: 1 })} info={tazInfo} zecPrice={0} />);
     expect(screen.queryByText(/USD/)).not.toBeInTheDocument();
   });
 });

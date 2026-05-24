@@ -25,6 +25,7 @@ const History: React.FC<HistoryProps> = () => {
     transparentPool,
     calculateShieldFee,
     handleShieldButton,
+    zecPrice,
   } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
@@ -110,39 +111,39 @@ const History: React.FC<HistoryProps> = () => {
           <BalanceBlockHighlight
             topLabel="All Funds"
             zecValue={totalFunds}
-            usdValue={Utils.getZecToUsdString(info.zecPrice, totalFunds)}
+            usdValue={Utils.getZecToUsdString(zecPrice, totalFunds)}
             currencyName={info.currencyName}
             zecValueConfirmed={confirmedFunds}
-            usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, confirmedFunds)}
+            usdValueConfirmed={Utils.getZecToUsdString(zecPrice, confirmedFunds)}
           />
           {orchardPool && (
             <BalanceBlock
               topLabel="Orchard"
               zecValue={totalBalance.totalOrchardBalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalOrchardBalance)}
+              usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalOrchardBalance)}
               currencyName={info.currencyName}
               zecValueConfirmed={totalBalance.confirmedOrchardBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedOrchardBalance)}
+              usdValueConfirmed={Utils.getZecToUsdString(zecPrice, totalBalance.confirmedOrchardBalance)}
             />
           )}
           {saplingPool && (
             <BalanceBlock
               topLabel="Sapling"
               zecValue={totalBalance.totalSaplingBalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalSaplingBalance)}
+              usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalSaplingBalance)}
               currencyName={info.currencyName}
               zecValueConfirmed={totalBalance.confirmedSaplingBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedSaplingBalance)}
+              usdValueConfirmed={Utils.getZecToUsdString(zecPrice, totalBalance.confirmedSaplingBalance)}
             />
           )}
           {transparentPool && (
             <BalanceBlock
               topLabel="Transparent"
               zecValue={totalBalance.totalTransparentBalance}
-              usdValue={Utils.getZecToUsdString(info.zecPrice, totalBalance.totalTransparentBalance)}
+              usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalTransparentBalance)}
               currencyName={info.currencyName}
               zecValueConfirmed={totalBalance.confirmedTransparentBalance}
-              usdValueConfirmed={Utils.getZecToUsdString(info.zecPrice, totalBalance.confirmedTransparentBalance)}
+              usdValueConfirmed={Utils.getZecToUsdString(zecPrice, totalBalance.confirmedTransparentBalance)}
             />
           )}
         </div>
