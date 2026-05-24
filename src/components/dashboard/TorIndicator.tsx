@@ -5,8 +5,13 @@ import torOnion from "../../assets/img/tor-onion.svg";
 type Props = {
   /** User preference: should the price be fetched via Tor? */
   intent: boolean;
-  /** Reality: was the last successful price fetch actually via Tor? */
-  reality: boolean;
+  /**
+   * Reality of the last price fetch:
+   *   null  → no fetch attempted yet with the current intent (don't render)
+   *   true  → last fetch went via Tor
+   *   false → last fetch went over the HTTPS API (Tor failed or not requested)
+   */
+  reality: boolean | null;
   /** Optional size in px (default 16). */
   size?: number;
 };
@@ -24,6 +29,11 @@ type Props = {
  */
 const TorIndicator: React.FC<Props> = ({ intent, reality, size = 16 }) => {
   if (!intent) return null;
+  // Pending: setting was just toggled (or app just booted) and we haven't
+  // completed a price fetch yet. Skip the indicator entirely until reality
+  // resolves — otherwise the user sees a brief red-dot "Tor failed" that's
+  // actually just "Tor hasn't been tried yet".
+  if (reality === null) return null;
 
   const succeeded = reality;
   const tooltip = succeeded ? "Price fetched via Tor" : "Tor configured but failed — fell back to the HTTPS API";

@@ -52,7 +52,7 @@ export const defaultAppState: AppState = {
   zecPrice: 0,
   priceWithTor: false,
   setPriceWithTor: () => {},
-  lastPriceViaTor: false,
+  lastPriceViaTor: null,
   blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer,
