@@ -242,7 +242,7 @@ jobs:
             ${{ steps.notes.outputs.result }}
 
             ## Zingolabs
-            * @Oscar-Pepper @fluidvanadium @AloeareV @idky137 @dorianvp @nachog00 @ala-mode @karentaponte @pacu and @zancas making the magic behind the scenes.
+            * @Oscar-Pepper @fluidvanadium @AloeareV @idky137 @dorianvp @nachog00 @karentaponte and @zancas making the magic behind the scenes.
 
             ## Manual Testing
             * Windows & Linux by @edicksonjga.
