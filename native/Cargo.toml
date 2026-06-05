@@ -12,30 +12,30 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zingolib = { git="https://github.com/zingolabs/zingolib", rev = "zingolib_v3.0.1" }
-pepper-sync = { git="https://github.com/zingolabs/zingolib", rev = "zingolib_v3.0.1" }
+zingolib = { git="https://github.com/zingolabs/zingolib", branch = "chore/nu6-2" }
+pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "chore/nu6-2" }
 
-zcash_address = { version = "0.10" }
-zcash_client_backend = { version = "0.21", features = [
+zcash_address = { version = "0.12" }
+zcash_client_backend = { version = "0.23", features = [
     "lightwalletd-tonic",
     "orchard",
     "transparent-inputs",
     "tor",
 ] }
-zcash_encoding = { version = "0.3" }
-zcash_keys = { version = "0.12", features = [
+zcash_encoding = { version = "0.4" }
+zcash_keys = { version = "0.14", features = [
     "transparent-inputs",
     "sapling",
     "orchard",
 ] }
 zcash_note_encryption = "0.4"
-zcash_proofs = { version = "0.26" }
-zcash_protocol = { version = "0.7" }
-zcash_transparent = { version = "0.6" }
+zcash_proofs = { version = "0.28" }
+zcash_protocol = { version = "0.9" }
+zcash_transparent = { version = "0.8" }
 
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 
-zingo_common_components = { version = "0.2.0", features = ["for_test"] }
+zingo_common_components = { git = "https://github.com/zingolabs/zingo-common.git", tag = "v0_2_with_nu6_2_upgrade", features = [ "for_test" ] }
 
 bip0039 = { version = "0.13", features = [ "rand" ] }
 zip32 = "0.2.0"

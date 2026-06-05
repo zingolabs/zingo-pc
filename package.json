@@ -1,7 +1,7 @@
 {
   "name": "zingo-pc",
   "productName": "Zingo PC",
-  "version": "2.0.17",
+  "version": "2.0.18",
   "private": true,
   "description": "Zingo PC",
   "license": "MIT",
@@ -218,7 +218,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "157",
+      "bundleVersion": "158",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -240,7 +240,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "157",
+      "bundleVersion": "158",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -283,6 +283,10 @@
         {
           "from": "resources/linux/zingo-pc-uri.sh",
           "to": "zingo-pc-uri.sh"
+        },
+        {
+          "from": "resources/linux/apparmor/zingo-pc",
+          "to": "apparmor-zingo-pc"
         }
       ],
       "mimeTypes": [

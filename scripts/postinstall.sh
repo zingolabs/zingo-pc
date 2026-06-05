@@ -21,6 +21,19 @@ if [ -f "$CHROME_SANDBOX" ]; then
     chmod 4755 "$CHROME_SANDBOX"
 fi
 
+# Install AppArmor profile so Chromium can create user namespaces on
+# Ubuntu 24.04+ / Debian 13+ (kernel.apparmor_restrict_unprivileged_userns=1).
+# Without this, the app crashes on launch with zygote_host_impl_linux.cc:207.
+APPARMOR_SRC='/opt/Zingo PC/resources/apparmor-zingo-pc'
+APPARMOR_DST='/etc/apparmor.d/zingo-pc'
+if [ -f "$APPARMOR_SRC" ] && [ -d /etc/apparmor.d ]; then
+    cp "$APPARMOR_SRC" "$APPARMOR_DST"
+    chmod 644 "$APPARMOR_DST"
+    if command -v apparmor_parser >/dev/null 2>&1; then
+        apparmor_parser -r "$APPARMOR_DST" 2>/dev/null || true
+    fi
+fi
+
 # Patch the system .desktop file so the zcash: handler uses the wrapper script
 # from the very first click, before the user has ever opened the app manually.
 DESKTOP='/usr/share/applications/zingo-pc.desktop'

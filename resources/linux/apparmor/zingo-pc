@@ -1,0 +1,22 @@
+# AppArmor profile for Zingo PC.
+#
+# Required on Ubuntu 24.04+ / Debian 13+, where unprivileged user namespaces
+# are restricted by default (kernel.apparmor_restrict_unprivileged_userns=1).
+# Without a profile granting `userns`, Chromium's zygote fails to start and
+# the app crashes immediately on launch with:
+#   FATAL:zygote_host_impl_linux.cc:207 Check failed: . : Invalid argument (22)
+#
+# We use flags=(unconfined) — the profile does not actually sandbox the app,
+# it only opts in to the new userns permission model. Same pattern shipped by
+# VSCode, Brave, Obsidian and other Electron apps for 24.04+.
+#
+# The `abi <abi/4.0>,` line makes older AppArmor parsers (Ubuntu 22.04 and
+# earlier) skip this profile cleanly instead of erroring out.
+
+abi <abi/4.0>,
+include <tunables/global>
+
+profile zingo-pc "/opt/Zingo PC/zingo-pc" flags=(unconfined) {
+  userns,
+  include if exists <local/zingo-pc>
+}
