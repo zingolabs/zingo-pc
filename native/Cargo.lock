@@ -3547,8 +3547,8 @@ dependencies = [
 
 [[package]]
 name = "pepper-sync"
-version = "0.3.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=chore%2Fnu6-2#cdcb89c49d6f6b01fbc3a2689750ed83ee82a584"
+version = "0.4.0"
+source = "git+https://github.com/zingolabs/zingolib?tag=zingolib_v4.0.0#0d9273defa4930a35dac8cd118d0dab617f73107"
 dependencies = [
  "bip32",
  "byteorder",
@@ -8277,8 +8277,9 @@ dependencies = [
 
 [[package]]
 name = "zingo-memo"
-version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=chore%2Fnu6-2#cdcb89c49d6f6b01fbc3a2689750ed83ee82a584"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be89f74c1be1ac061f58921191c005fd2f9d83541e7ef6febfb5c51c0c3f539c"
 dependencies = [
  "zcash_address 0.12.0",
  "zcash_encoding 0.4.0",
@@ -8305,7 +8306,7 @@ dependencies = [
 [[package]]
 name = "zingo-price"
 version = "0.0.1"
-source = "git+https://github.com/zingolabs/zingolib?branch=chore%2Fnu6-2#cdcb89c49d6f6b01fbc3a2689750ed83ee82a584"
+source = "git+https://github.com/zingolabs/zingolib?tag=zingolib_v4.0.0#0d9273defa4930a35dac8cd118d0dab617f73107"
 dependencies = [
  "byteorder",
  "reqwest",
@@ -8319,8 +8320,9 @@ dependencies = [
 
 [[package]]
 name = "zingo-status"
-version = "0.2.0"
-source = "git+https://github.com/zingolabs/zingolib?branch=chore%2Fnu6-2#cdcb89c49d6f6b01fbc3a2689750ed83ee82a584"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fa2f3e473a81f4b9fd3fb34d5e22a2c458ce0d8d3a73460e9aa0a2bbf71967f4"
 dependencies = [
  "byteorder",
  "zcash_primitives 0.28.0",
@@ -8337,8 +8339,8 @@ dependencies = [
 
 [[package]]
 name = "zingolib"
-version = "3.0.1"
-source = "git+https://github.com/zingolabs/zingolib?branch=chore%2Fnu6-2#cdcb89c49d6f6b01fbc3a2689750ed83ee82a584"
+version = "4.0.0"
+source = "git+https://github.com/zingolabs/zingolib?tag=zingolib_v4.0.0#0d9273defa4930a35dac8cd118d0dab617f73107"
 dependencies = [
  "append-only-vec",
  "bech32",
