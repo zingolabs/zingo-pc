@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
-import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
+import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import VtItemBlock from "./components/VtItemBlock";
 import VtModal from "./components/VtModal";
@@ -43,7 +43,9 @@ const History: React.FC<HistoryProps> = () => {
     // set somePending as well here when I know there is something new in ValueTransfers
     const pending: number =
       valueTransfers.length > 0
-        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
+        ? valueTransfers
+            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
+            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
         : 0;
     setAnyPending(pending > 0);
   }, [valueTransfers]);

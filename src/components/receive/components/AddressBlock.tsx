@@ -10,7 +10,13 @@ import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
-import { ServerChainNameEnum, TransparentAddressClass, UnifiedAddressClass, ValueTransferClass } from "../../appstate";
+import {
+  ServerChainNameEnum,
+  TransparentAddressClass,
+  UnifiedAddressClass,
+  ValueTransferClass,
+  ValueTransferStatusEnum,
+} from "../../appstate";
 import RPC from "../../../rpc/rpc";
 
 import { ipcRenderer, isSandboxed } from "../../../electronBridge";
@@ -61,7 +67,10 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   }, []);
 
   const anyPending: boolean = useMemo(
-    () => valueTransfers.some((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3),
+    () =>
+      valueTransfers
+        .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
+        .some((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3),
     [valueTransfers],
   );
 

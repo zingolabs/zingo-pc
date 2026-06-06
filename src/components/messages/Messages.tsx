@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Messages.module.css";
-import { ValueTransferClass, AddressBookEntryClass } from "../appstate";
+import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum } from "../appstate";
 import ScrollPaneBottom from "../scrollPane/ScrollPane";
 import MessagesItemBlock from "./components/MessagesItemBlock";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
@@ -44,7 +44,9 @@ const Messages: React.FC<MessagesProps> = () => {
     // set somePending as well here when I know there is something new in ValueTransfers
     const pending: number =
       valueTransfers.length > 0
-        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
+        ? valueTransfers
+            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
+            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
         : 0;
     setAnyPending(pending > 0);
   }, [valueTransfers]);

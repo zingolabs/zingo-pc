@@ -680,10 +680,18 @@ export default class RPC {
 
         vt.blockheight = tx.blockheight;
         vt.status = tx.status;
+
+        if (tx.status === ValueTransferStatusEnum.failed) {
+          console.log("[RPC] failed value transfer (raw):", tx);
+        }
         vt.address = !tx.recipient_address ? undefined : tx.recipient_address;
         vt.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
         vt.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
         vt.pool = !tx.pool_received ? undefined : tx.pool_received;
+
+        if (vt.status === ValueTransferStatusEnum.failed) {
+          console.log("[RPC] failed value transfer (transformed):", vt);
+        }
 
         return vt;
       });

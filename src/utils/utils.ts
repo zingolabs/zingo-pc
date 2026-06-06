@@ -27,31 +27,33 @@ export default class Utils {
       ? "Send"
       : status === ValueTransferStatusEnum.failed && type === ValueTransferKindEnum.shield
         ? "Shield"
-        : type === ValueTransferKindEnum.sent && confirmations === 0
-          ? "...Sending..."
-          : type === ValueTransferKindEnum.sent && confirmations > 0
-            ? "Sent"
-            : type === ValueTransferKindEnum.received && confirmations === 0
-              ? "...Receiving..."
-              : type === ValueTransferKindEnum.received && confirmations > 0
-                ? "Received"
-                : type === ValueTransferKindEnum.memoToSelf && confirmations === 0
-                  ? "...Sending to self..."
-                  : type === ValueTransferKindEnum.memoToSelf && confirmations > 0
-                    ? "Memo to self"
-                    : type === ValueTransferKindEnum.sendToSelf && confirmations === 0
-                      ? "...Sending to self..."
-                      : type === ValueTransferKindEnum.sendToSelf && confirmations > 0
-                        ? "Send to self"
-                        : type === ValueTransferKindEnum.shield && confirmations === 0
-                          ? "...Shielding..."
-                          : type === ValueTransferKindEnum.shield && confirmations > 0
-                            ? "Shield"
-                            : type === ValueTransferKindEnum.rejection && confirmations === 0
-                              ? "...Sending..."
-                              : type === ValueTransferKindEnum.rejection && confirmations > 0
-                                ? "Rejection"
-                                : "";
+        : status === ValueTransferStatusEnum.failed && type === ValueTransferKindEnum.received
+          ? "Receive"
+          : type === ValueTransferKindEnum.sent && confirmations === 0
+            ? "...Sending..."
+            : type === ValueTransferKindEnum.sent && confirmations > 0
+              ? "Sent"
+              : type === ValueTransferKindEnum.received && confirmations === 0
+                ? "...Receiving..."
+                : type === ValueTransferKindEnum.received && confirmations > 0
+                  ? "Received"
+                  : type === ValueTransferKindEnum.memoToSelf && confirmations === 0
+                    ? "...Sending to self..."
+                    : type === ValueTransferKindEnum.memoToSelf && confirmations > 0
+                      ? "Memo to self"
+                      : type === ValueTransferKindEnum.sendToSelf && confirmations === 0
+                        ? "...Sending to self..."
+                        : type === ValueTransferKindEnum.sendToSelf && confirmations > 0
+                          ? "Send to self"
+                          : type === ValueTransferKindEnum.shield && confirmations === 0
+                            ? "...Shielding..."
+                            : type === ValueTransferKindEnum.shield && confirmations > 0
+                              ? "Shield"
+                              : type === ValueTransferKindEnum.rejection && confirmations === 0
+                                ? "...Sending..."
+                                : type === ValueTransferKindEnum.rejection && confirmations > 0
+                                  ? "Rejection"
+                                  : "";
   }
 
   static trimToSmall(addr?: string, numChars?: number): string {
