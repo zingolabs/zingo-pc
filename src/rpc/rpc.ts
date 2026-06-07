@@ -391,7 +391,16 @@ export default class RPC {
       } else {
         const syncStr: string = await native.run_sync();
         if (!syncStr || syncStr.toLowerCase().startsWith("error")) {
-          console.error(`Error sync ${syncStr}`);
+          // "sync is already running" is the expected outcome of the
+          // defensive run_sync() that fetchSyncPoll() fires while a sync is
+          // mid-flight (see the "is not complete" branch above). It's not a
+          // failure — the existing sync just keeps going. Demote to log so it
+          // doesn't drown the console with red.
+          if (syncStr && syncStr.toLowerCase().includes("already running")) {
+            console.log(`Sync already running: ${syncStr}`);
+          } else {
+            console.error(`Error sync ${syncStr}`);
+          }
         }
       }
     } catch (error) {
@@ -784,6 +793,15 @@ export default class RPC {
   }
 
   async getZecPrice() {
+    // Skip the network call entirely on testnet / regtest: TAZ has no USD
+    // price and the UI doesn't render the value anyway (see BalanceBlock,
+    // which only shows USD when currencyName === "ZEC"). Avoids unnecessary
+    // HTTP / Tor traffic every 5s on a testnet wallet. Wallet switches
+    // already reset the cached price via setZecPrice(0) in Routes.tsx.
+    if (this.currentWallet && this.currentWallet.chain_name !== ServerChainNameEnum.mainChainName) {
+      return;
+    }
+
     // Read the user's "fetch price via Tor" preference from persisted
     // settings. Default off — if the key is missing or anything throws while
     // loading settings we keep the conventional HTTP path. The Tor client is

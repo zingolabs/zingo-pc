@@ -24,8 +24,10 @@ import { ipcRenderer, native } from "../../electronBridge";
 // in place when the user clicks to copy. Seed phrase is intentionally NOT
 // copyable to the clipboard — see the note in the JSX.
 type SeedUfvkModalContentProps = {
-  seedStr: string;
-  ufvkStr: string;
+  // null = the native call is still in flight; render a loading state instead
+  // of empty content so the user gets feedback while get_seed / get_ufvk run.
+  seedStr: string | null;
+  ufvkStr: string | null;
   birthday: number | undefined;
 };
 
@@ -33,6 +35,27 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
   const { copied: ufvkCopied, copy: copyUfvk } = useCopy(1500);
   const { copied: birthdayCopied, copy: copyBirthday } = useCopy(1500);
   const birthdayStr = String(birthday ?? "");
+
+  if (seedStr === null || ufvkStr === null) {
+    return (
+      <div className={cstyles.verticalflex} style={{ alignItems: "center", padding: 24 }}>
+        <div style={{ marginBottom: 12 }}>Retrieving seed phrase / viewing key&hellip;</div>
+        <i className={`${"fas"} ${"fa-sync"} ${"fa-spin"}`} />
+      </div>
+    );
+  }
+
+  // Each sensitive value (seed, UFVK, birthday) lives inside this card so it's
+  // visually distinct from the surrounding explanatory text. Thin accent border
+  // and a slightly smaller font keep the data legible without dominating.
+  const dataBoxStyle: React.CSSProperties = {
+    border: "1px solid var(--color-primary)",
+    borderRadius: 4,
+    padding: 12,
+    marginTop: 8,
+    marginBottom: 16,
+    fontSize: "0.85em",
+  };
 
   return (
     <div className={cstyles.verticalflex}>
@@ -47,9 +70,9 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
           <div style={{ textAlign: "center", color: "#ff6b6b", fontWeight: "bolder", marginTop: 6 }}>
             Write this seed phrase down by hand. Do not copy it to the clipboard.
           </div>
-          <hr style={{ width: "100%" }} />
           <div
             style={{
+              ...dataBoxStyle,
               textAlign: "center",
               wordBreak: "break-word",
               fontFamily: "monospace, Roboto",
@@ -58,7 +81,6 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
           >
             {seedStr}
           </div>
-          <hr style={{ width: "100%" }} />
         </>
       )}
       {!!ufvkStr && (
@@ -68,14 +90,13 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
             <br />
             PLEASE KEEP IT SAFE!
           </div>
-          <hr style={{ width: "100%" }} />
           <div
             style={{
               display: "flex",
               justifyContent: "center",
               gap: 8,
               alignItems: "baseline",
-              marginBottom: 10,
+              marginTop: 10,
             }}
           >
             <span style={{ color: "white", fontWeight: "bolder" }}>Unified Full Viewing Key</span>
@@ -87,6 +108,7 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
             tabIndex={0}
             aria-label="Copy viewing key"
             style={{
+              ...dataBoxStyle,
               cursor: "pointer",
               textAlign: "center",
               wordBreak: "break-word",
@@ -103,7 +125,6 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
           >
             {ufvkStr}
           </div>
-          <hr style={{ width: "100%" }} />
         </>
       )}
       <div
@@ -112,7 +133,6 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
           justifyContent: "center",
           gap: 8,
           alignItems: "baseline",
-          marginBottom: 10,
         }}
       >
         <span style={{ color: "white", fontWeight: "bolder" }}>Birthday</span>
@@ -123,6 +143,10 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
         tabIndex={0}
         aria-label="Copy birthday"
         style={{
+          ...dataBoxStyle,
+          marginBottom: 0,
+          alignSelf: "center",
+          minWidth: 120,
           cursor: "pointer",
           textAlign: "center",
           fontFamily: "monospace, Roboto",
@@ -351,14 +375,26 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         if (!authResult.success) return;
       }
 
+      // Open the modal with a loading state before the native fetches so the
+      // user gets immediate feedback. get_seed / get_ufvk can each take a
+      // noticeable moment, and previously the UI sat silent between the auth
+      // prompt closing and the modal appearing.
+      openErrorModal(
+        "Wallet Seed Phrase / Viewing Key",
+        <SeedUfvkModalContent seedStr={null} ufvkStr={null} birthday={birthdayRef.current} />,
+      );
+
       // Always fetch the UFVK — for seed wallets it's derived from the seed, and
       // showing it alongside the seed lets the user share view-only access without
-      // exposing spend authority.
-      const seedRaw: string = readOnlyRef.current ? "" : await native.get_seed();
-      const ufvkRaw: string = await native.get_ufvk();
+      // exposing spend authority. Run both native calls in parallel.
+      const [seedRaw, ufvkRaw] = await Promise.all([
+        readOnlyRef.current ? Promise.resolve("") : native.get_seed(),
+        native.get_ufvk(),
+      ]);
       const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
       const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
 
+      if (!active) return;
       openErrorModal(
         "Wallet Seed Phrase / Viewing Key",
         <SeedUfvkModalContent seedStr={seedStr} ufvkStr={ufvkStr} birthday={birthdayRef.current} />,
