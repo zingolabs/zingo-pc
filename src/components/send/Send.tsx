@@ -1,7 +1,13 @@
 import React, { useContext, useEffect, useState } from "react";
 import styles from "./Send.module.css";
 import cstyles from "../common/Common.module.css";
-import { ToAddrClass, SendPageStateClass, ValueTransferClass, ServerChainNameEnum } from "../appstate";
+import {
+  ToAddrClass,
+  SendPageStateClass,
+  ValueTransferClass,
+  ServerChainNameEnum,
+  ValueTransferStatusEnum,
+} from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight } from "../balanceBlock";
@@ -50,7 +56,9 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
     // set somePending as well here when I know there is something new in ValueTransfers
     const pending: number =
       valueTransfers.length > 0
-        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
+        ? valueTransfers
+            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
+            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
         : 0;
     setAnyPending(pending > 0);
   }, [valueTransfers]);
@@ -76,7 +84,9 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
     // set somePending as well here when I know there is something new in ValueTransfers
     const pending: number =
       valueTransfers.length > 0
-        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
+        ? valueTransfers
+            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
+            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
         : 0;
     // If there are unverified funds, then show a tooltip
     const unconfirmed: number =

@@ -7,7 +7,12 @@ import { ContextApp } from "../../context/ContextAppState";
 import routes from "../../constants/routes.json";
 import TorIndicator from "./TorIndicator";
 
-import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType, ValueTransferClass } from "../appstate";
+import {
+  SyncStatusScanRangePriorityEnum,
+  SyncStatusScanRangeType,
+  ValueTransferClass,
+  ValueTransferStatusEnum,
+} from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import DetailLine from "../detailLine/DetailLine";
 import { useNavigate } from "react-router-dom";
@@ -44,9 +49,12 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
+    // avoid failed txs because always they have 0 confirmations.
     const pending: number =
       valueTransfers.length > 0
-        ? valueTransfers.filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
+        ? valueTransfers
+            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
+            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
         : 0;
     setAnyPending(pending > 0);
   }, [valueTransfers]);
@@ -340,6 +348,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                   key={index}
                                   label={Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
                                   value={"ZEC " + Utils.maxPrecisionTrimmed(vt.amount)}
+                                  failed={vt.status === ValueTransferStatusEnum.failed}
                                 />
                               ))}
                           </div>
