@@ -1550,11 +1550,15 @@ function createWindow() {
     mainWindow.webContents.send("appquitting");
 
     // Failsafe: if the renderer doesn't respond within 3s, force quit.
+    // Use app.exit(0) for the same reason as the appquitdone path — app.quit()
+    // triggers the full Electron teardown which is slow and can crash the
+    // InProc GPU cleanup on Electron 40. A 3s save_wallet_file is already
+    // longer than what the user is comfortable waiting for at shutdown.
     setTimeout(() => {
       waitingForClose = false;
       proceedToClose = true;
       console.log("Timeout, quitting");
-      app.quit();
+      app.exit(0);
     }, 3 * 1000);
   });
 

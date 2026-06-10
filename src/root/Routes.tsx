@@ -269,9 +269,14 @@ const AppRoutes: React.FC = () => {
     ipcRenderer.on("import-data", importDataListener);
 
     const appquittingListener = async () => {
-      try {
-        await native.save_wallet_file();
-      } catch (_) {}
+      // Best-effort wallet save on shutdown. The wallet is already saved
+      // continuously during the session, so this is a paranoia flush — we
+      // don't block the close on it for more than ~800ms. Whichever finishes
+      // first (the save or the cap) lets us send `appquitdone` and have the
+      // main process exit instantly.
+      const savePromise = native.save_wallet_file().catch(() => {});
+      const cap = new Promise<void>((resolve) => setTimeout(resolve, 800));
+      await Promise.race([savePromise, cap]);
       ipcRenderer.send("appquitdone");
     };
     ipcRenderer.on("appquitting", appquittingListener);
