@@ -209,6 +209,7 @@ const Messages: React.FC<MessagesProps> = () => {
                 currencyName={info.currencyName}
                 addressBookMap={addressBookMap}
                 previousLineWithSameTxid={index === 0 ? false : messagesSorted[index - 1].txid === vt.txid}
+                zecPrice={zecPrice}
               />
             );
           })}

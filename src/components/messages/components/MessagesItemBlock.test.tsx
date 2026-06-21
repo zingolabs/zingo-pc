@@ -28,6 +28,7 @@ const baseProps = {
   currencyName: "ZEC",
   addressBookMap: new Map<string, string>(),
   previousLineWithSameTxid: false,
+  zecPrice: 0,
 };
 
 describe("MessagesItemBlock", () => {

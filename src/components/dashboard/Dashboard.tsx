@@ -343,14 +343,33 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                           <div className={styles.detaillines}>
                             {valueTransfers
                               .filter((_, index: number) => index < 5)
-                              .map((vt: ValueTransferClass, index: number) => (
-                                <DetailLine
-                                  key={index}
-                                  label={Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
-                                  value={"ZEC " + Utils.maxPrecisionTrimmed(vt.amount)}
-                                  failed={vt.status === ValueTransferStatusEnum.failed}
-                                />
-                              ))}
+                              .map((vt: ValueTransferClass, index: number) => {
+                                // Same fallback chain used everywhere else: prefer the
+                                // per-tx price snapshot, fall back to current zecPrice
+                                // so the USD column doesn't read "USD --" while the
+                                // server-info panel right next to it shows a price.
+                                const price: number = vt.zec_price || zecPrice || 0;
+                                const zecPart: string = `ZEC ${Utils.maxPrecisionTrimmed(vt.amount)}`;
+                                const value: React.ReactNode =
+                                  info.currencyName === "ZEC" ? (
+                                    <span>
+                                      {zecPart}{" "}
+                                      <span style={{ color: Utils.getCssVariable("--color-primary") }}>
+                                        {Utils.getZecToUsdString(price, vt.amount)}
+                                      </span>
+                                    </span>
+                                  ) : (
+                                    zecPart
+                                  );
+                                return (
+                                  <DetailLine
+                                    key={index}
+                                    label={Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
+                                    value={value}
+                                    failed={vt.status === ValueTransferStatusEnum.failed}
+                                  />
+                                );
+                              })}
                           </div>
                           <button
                             type="button"

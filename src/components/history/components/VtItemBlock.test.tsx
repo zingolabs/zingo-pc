@@ -28,6 +28,7 @@ const baseProps = {
   currencyName: "ZEC",
   addressBookMap: new Map<string, string>(),
   previousLineWithSameTxid: false,
+  zecPrice: 0,
 };
 
 describe("VtItemBlock", () => {
@@ -112,9 +113,21 @@ describe("VtItemBlock", () => {
     expect(screen.getByText("Transmitted")).toBeInTheDocument();
   });
 
-  it("shows the USD price when zec_price is set and currency is ZEC", () => {
+  it("shows the converted USD value when zec_price is set and currency is ZEC", () => {
+    // makeVt() defaults amount to 0.5 — at zec_price 30, value is 0.5 * 30 = 15.00.
     render(<VtItemBlock {...baseProps} vt={makeVt({ zec_price: 30 })} />);
-    expect(screen.getByText("USD 30.00 / ZEC")).toBeInTheDocument();
+    expect(screen.getByText("USD 15.00")).toBeInTheDocument();
+  });
+
+  it("falls back to the current zecPrice when vt.zec_price is missing", () => {
+    // 0.5 * 42 = 21.00.
+    render(<VtItemBlock {...baseProps} zecPrice={42} vt={makeVt({ zec_price: 0 })} />);
+    expect(screen.getByText("USD 21.00")).toBeInTheDocument();
+  });
+
+  it("renders the USD-- fallback when both vt.zec_price and zecPrice are 0", () => {
+    render(<VtItemBlock {...baseProps} zecPrice={0} vt={makeVt({ zec_price: 0 })} />);
+    expect(screen.getByText("USD --")).toBeInTheDocument();
   });
 
   it("opens the modal via keyboard Enter on the outer button", () => {

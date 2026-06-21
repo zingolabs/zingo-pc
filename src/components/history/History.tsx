@@ -198,6 +198,7 @@ const History: React.FC<HistoryProps> = () => {
                 currencyName={info.currencyName}
                 addressBookMap={addressBookMap}
                 previousLineWithSameTxid={index === 0 ? false : valueTransfersSorted[index - 1].txid === vt.txid}
+                zecPrice={zecPrice}
               />
             );
           })}

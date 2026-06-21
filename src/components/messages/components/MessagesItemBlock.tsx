@@ -15,6 +15,8 @@ type MessagesItemBlockProps = {
   currencyName: string;
   addressBookMap: Map<string, string>;
   previousLineWithSameTxid: boolean;
+  /** Current ZEC price — used as fallback when `vt.zec_price` is missing. */
+  zecPrice: number;
 };
 
 const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
@@ -26,6 +28,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
   currencyName,
   addressBookMap,
   previousLineWithSameTxid,
+  zecPrice,
 }) => {
   const [expandAddress, setExpandAddress] = useState(false);
 
@@ -39,6 +42,11 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
   const memos: string = vt.memos && vt.memos.length > 0 && !!vt.memos.join("") ? vt.memos.join("\n") : "";
 
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(amount);
+
+  // Prefer the per-transaction price snapshot (accurate at the time of the
+  // tx); fall back to the current `zecPrice` when the snapshot is missing.
+  // Mirrors the same fallback used in VtItemBlock / VtModal.
+  const price: number = vt.zec_price || zecPrice || 0;
 
   //if (index === 0) {
   //  vt.status = ValueTransferStatusEnum.failed;
@@ -160,6 +168,11 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
                 </div>
                 <div className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPart}</div>
               </div>
+              {currencyName === "ZEC" && (
+                <div className={`${cstyles.small} ${cstyles.sublight}`} style={{ marginTop: 2 }}>
+                  {Utils.getZecToUsdString(price, amount)}
+                </div>
+              )}
             </div>
             <div style={{ opacity: 0.4 }} className={cstyles.horizontalflex}>
               <div className={""}>{datePart + " ,"}</div>
