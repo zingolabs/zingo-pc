@@ -35,3 +35,31 @@
   border: 1px solid grey;
   padding: 16px;
 }
+
+/* Recent-activity list: aligned columns across all rows — transfer type
+   (left), ZEC amount (left-aligned), USD value (right-aligned). The two
+   empty 1fr spacer columns split the slack evenly, so the gap between the
+   ZEC and USD columns is about half of what a single central 1fr produced.
+   Applied alongside .detaillines so the border/padding are kept. */
+.txgrid {
+  display: grid;
+  grid-template-columns: max-content 1fr max-content 1fr max-content;
+  column-gap: 12px;
+  row-gap: 8px;
+  align-items: baseline;
+}
+
+.txtype {
+  grid-column: 1;
+}
+
+.txzec {
+  grid-column: 3;
+  justify-self: start;
+}
+
+.txusd {
+  grid-column: 5;
+  justify-self: end;
+  font-size: 0.82em;
+}

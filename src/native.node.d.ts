@@ -67,15 +67,11 @@ export function get_balance(): Promise<string>;
 export function get_total_memobytes_to_address(): Promise<string>;
 export function get_total_value_to_address(): Promise<string>;
 export function get_total_spends_to_address(): Promise<string>;
-export function zec_price(tor: string): Promise<string>;
+export function zec_price(): Promise<string>;
 export function remove_transaction(txid: string): Promise<string>;
 export function get_spendable_balance_with_address(address: string, zennies: string): Promise<string>;
 export function get_spendable_balance_total(): Promise<string>;
 export function set_option_wallet(): Promise<string>;
-// The renderer calls this with no args; the main process derives the Tor data
-// directory from userData and passes it to Rust. See electron.js handler.
-export function create_tor_client(): Promise<string>;
-export function remove_tor_client(): Promise<string>;
 export function get_unified_addresses(): Promise<string>;
 export function get_transparent_addresses(): Promise<string>;
 export function create_new_unified_address(receivers: string): Promise<string>;

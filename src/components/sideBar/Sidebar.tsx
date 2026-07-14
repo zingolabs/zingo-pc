@@ -12,7 +12,6 @@ import APP_VERSION from "../../version";
 import SelectWallet from "./components/SelectWallet";
 import { WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
-import PriceTorModal from "./components/PriceTorModal";
 import { useCopy } from "../common/useCopy";
 
 import { ipcRenderer, native } from "../../electronBridge";
@@ -192,8 +191,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
 
   const [blockExplorerModalIsOpen, setBlockExplorerModalIsOpen] = useState<boolean>(false);
 
-  const [priceTorModalIsOpen, setPriceTorModalIsOpen] = useState<boolean>(false);
-
   const currentWalletRef = useRef<WalletType | null>(null);
   const currentWalletOpenErrorRef = useRef<string>("");
   const walletsRef = useRef<WalletType[]>([]);
@@ -346,13 +343,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       setBlockExplorerModalIsOpen(true);
     };
 
-    // ZEC Price Source (Tor on/off). The modal reads the current value
-    // directly from context, so we only need to open it.
-    const pricetor = (_event: any) => {
-      if (!active) return;
-      setPriceTorModalIsOpen(true);
-    };
-
     // Export Seed
     const seed = async (_event: any) => {
       if (!active) return;
@@ -436,7 +426,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     ipcRenderer.on("about", about);
     ipcRenderer.on("payuri", payuri);
     ipcRenderer.on("blockexplorer", blockexplorer);
-    ipcRenderer.on("pricetor", pricetor);
     ipcRenderer.on("seed", seed);
     ipcRenderer.on("rescan", rescan);
     ipcRenderer.on("addnewwallet", addnewwallet);
@@ -448,7 +437,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       ipcRenderer.off("about", about);
       ipcRenderer.off("payuri", payuri);
       ipcRenderer.off("blockexplorer", blockexplorer);
-      ipcRenderer.off("pricetor", pricetor);
       ipcRenderer.off("seed", seed);
       ipcRenderer.off("rescan", rescan);
       ipcRenderer.off("addnewwallet", addnewwallet);
@@ -522,12 +510,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         modalIsOpen={blockExplorerModalIsOpen}
         closeModal={() => setBlockExplorerModalIsOpen(false)}
         modalTitle="Select Block Explorer"
-      />
-
-      <PriceTorModal
-        modalIsOpen={priceTorModalIsOpen}
-        closeModal={() => setPriceTorModalIsOpen(false)}
-        modalTitle="ZEC Price Source"
       />
 
       <div className={`${cstyles.center} ${styles.sidebarlogobg}`}>

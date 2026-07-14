@@ -5,7 +5,6 @@ import Utils from "../../utils/utils";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceBlock";
 import { ContextApp } from "../../context/ContextAppState";
 import routes from "../../constants/routes.json";
-import TorIndicator from "./TorIndicator";
 
 import {
   SyncStatusScanRangePriorityEnum,
@@ -40,8 +39,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     calculateShieldFee,
     handleShieldButton,
     zecPrice,
-    priceWithTor,
-    lastPriceViaTor,
   } = context;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
@@ -340,7 +337,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                     <div className={styles.detailcontainer}>
                       {!!valueTransfers && !!valueTransfers.length ? (
                         <>
-                          <div className={styles.detaillines}>
+                          <div className={`${styles.detaillines} ${styles.txgrid}`}>
                             {valueTransfers
                               .filter((_, index: number) => index < 5)
                               .map((vt: ValueTransferClass, index: number) => {
@@ -349,25 +346,27 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                 // so the USD column doesn't read "USD --" while the
                                 // server-info panel right next to it shows a price.
                                 const price: number = vt.zec_price || zecPrice || 0;
-                                const zecPart: string = `ZEC ${Utils.maxPrecisionTrimmed(vt.amount)}`;
-                                const value: React.ReactNode =
-                                  info.currencyName === "ZEC" ? (
-                                    <span>
-                                      {zecPart}{" "}
-                                      <span style={{ color: Utils.getCssVariable("--color-primary") }}>
-                                        {Utils.getZecToUsdString(price, vt.amount)}
-                                      </span>
-                                    </span>
-                                  ) : (
-                                    zecPart
-                                  );
+                                const failed: boolean = vt.status === ValueTransferStatusEnum.failed;
+                                const failedColor: string | undefined = failed
+                                  ? Utils.getCssVariable("--color-error")
+                                  : undefined;
+                                // Three grid columns (see .txgrid): transfer type on the
+                                // left, ZEC amount left-aligned, smaller USD right-aligned.
                                 return (
-                                  <DetailLine
-                                    key={index}
-                                    label={Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
-                                    value={value}
-                                    failed={vt.status === ValueTransferStatusEnum.failed}
-                                  />
+                                  <React.Fragment key={index}>
+                                    <div className={`${cstyles.sublight} ${styles.txtype}`}>
+                                      {Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)} :
+                                    </div>
+                                    <div className={styles.txzec} style={{ color: failedColor }}>
+                                      ZEC {Utils.maxPrecisionTrimmed(vt.amount)}
+                                    </div>
+                                    <div
+                                      className={styles.txusd}
+                                      style={{ color: failedColor ?? Utils.getCssVariable("--color-primary") }}
+                                    >
+                                      {info.currencyName === "ZEC" ? Utils.getZecToUsdString(price, vt.amount) : ""}
+                                    </div>
+                                  </React.Fragment>
                                 );
                               })}
                           </div>
@@ -414,15 +413,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                           <DetailLine label="Zingolib Version" value={info.zingolib} />
                           <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                           {info.currencyName === "ZEC" && (
-                            <DetailLine
-                              label="ZEC Price"
-                              value={
-                                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                                  <TorIndicator intent={priceWithTor} reality={lastPriceViaTor} size={14} />
-                                  {`USD ${zecPrice.toFixed(2)}`}
-                                </span>
-                              }
-                            />
+                            <DetailLine label="ZEC Price" value={`USD ${zecPrice.toFixed(2)}`} />
                           )}
                         </div>
                       </div>

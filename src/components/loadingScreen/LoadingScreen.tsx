@@ -242,8 +242,8 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     );
 
     // block explorer configuration is now loaded at app boot in Routes.tsx
-    // (same useEffect that calls loadSettings for auth and pricewithtor) and
-    // exposed via context — no per-screen wiring needed here.
+    // (same useEffect that calls loadSettings for auth) and exposed via
+    // context — no per-screen wiring needed here.
 
     // to know the App is magrating to multi-wallet the settings field
     // `currentwalletid` must have not exists.

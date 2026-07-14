@@ -28,7 +28,6 @@ const _ALL_NATIVE_METHODS = [
   "get_total_spends_to_address",
   "get_spendable_balance_total",
   "set_option_wallet",
-  "remove_tor_client",
   "get_unified_addresses",
   "get_transparent_addresses",
   "create_new_transparent_address",
@@ -55,7 +54,6 @@ const _ALL_NATIVE_METHODS = [
   "set_config_wallet_to_prod",
   "send",
   "delete_wallet",
-  "create_tor_client",
   "change_server",
   // sync with params (become async via IPC)
   "wallet_exists",
@@ -75,7 +73,6 @@ const ALLOWED_RECEIVE = new Set([
   "about",
   "payuri",
   "blockexplorer",
-  "pricetor",
   "seed",
   "rescan",
   "addnewwallet",
