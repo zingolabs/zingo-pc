@@ -169,13 +169,6 @@ class MenuBuilder {
             mainWindow.webContents.send("blockexplorer");
           },
         },
-        {
-          label: "ZEC Price &Source (Tor)",
-          accelerator: "Ctrl+T",
-          click: () => {
-            mainWindow.webContents.send("pricetor");
-          },
-        },
         { type: "separator" },
         {
           label: "App &Security",
@@ -828,7 +821,6 @@ const _NATIVE_NO_PARAM_METHODS = [
   "get_total_spends_to_address",
   "get_spendable_balance_total",
   "set_option_wallet",
-  "remove_tor_client",
   "get_unified_addresses",
   "get_transparent_addresses",
   "create_new_transparent_address",
@@ -891,7 +883,7 @@ ipcMain.handle("native:get_latest_block_server", (_e, server_uri) => getNative()
 ipcMain.handle("native:parse_address", (_e, address) => getNative().parse_address(address));
 ipcMain.handle("native:parse_ufvk", (_e, ufvk) => getNative().parse_ufvk(ufvk));
 ipcMain.handle("native:get_messages", (_e, address) => getNative().get_messages(address));
-ipcMain.handle("native:zec_price", (_e, tor) => getNative().zec_price(tor));
+ipcMain.handle("native:zec_price", () => getNative().zec_price());
 ipcMain.handle("native:remove_transaction", (_e, txid) => getNative().remove_transaction(txid));
 ipcMain.handle("native:get_spendable_balance_with_address", (_e, address, zennies) =>
   getNative().get_spendable_balance_with_address(address, zennies),
@@ -906,15 +898,6 @@ ipcMain.handle("native:send", (_e, send_json) => getNative().send(send_json));
 ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
   return getNative().delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);
-});
-// Tor data_dir is derived in the main process from userData, not accepted from
-// the renderer. This means a compromised renderer cannot redirect Tor's working
-// directory to an arbitrary filesystem path. userData is writable on all
-// platforms (MAS container, non-MAS user dir) and Tor state is technical
-// client data, not user wallet data — natural place to keep it.
-ipcMain.handle("native:create_tor_client", () => {
-  const torDir = path.join(app.getPath("userData"), "tor-data");
-  return getNative().create_tor_client(torDir);
 });
 ipcMain.handle("native:change_server", (_e, server_uri) => getNative().change_server(server_uri));
 

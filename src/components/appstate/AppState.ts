@@ -91,21 +91,6 @@ export default class AppState {
   // would otherwise clobber the price between cycles. 0 means "no price
   // available right now" — all USD displays render `--` in that case.
   zecPrice: number;
-  // Whether the ZEC price should be fetched through Tor. Source of truth
-  // for the UI; persisted in electron-settings and kept in sync by the setter
-  // wired up in Routes.tsx (see `setPriceWithTor` in context).
-  priceWithTor: boolean;
-  setPriceWithTor: (v: boolean) => void;
-  // Reality side of the Tor indicator: did the last price fetch actually go
-  // via Tor? Tri-state on purpose:
-  //   null  → no fetch has been attempted with the current intent yet
-  //           (just after toggling the setting, or at app boot before the
-  //            first periodic tick). The indicator stays hidden in this case
-  //            so the user doesn't see a transient red-dot "Tor failed".
-  //   true  → last successful fetch was via Tor
-  //   false → last fetch went over the HTTPS API (either by intent, or
-  //           because Tor was tried and failed)
-  lastPriceViaTor: boolean | null;
 
   // block explorer selected. Type is the enum (not a literal) so a custom
   // value can be assigned and the type narrows cleanly.
@@ -152,9 +137,6 @@ export default class AppState {
     this.handleShieldButton = () => {};
     this.setAddLabel = () => {};
     this.zecPrice = 0;
-    this.priceWithTor = false;
-    this.setPriceWithTor = () => {};
-    this.lastPriceViaTor = null;
     this.blockExplorerMainnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerTestnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerMainnetAddress = BlockExplorerEnum.Zcashexplorer;

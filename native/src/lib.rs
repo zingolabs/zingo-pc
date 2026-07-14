@@ -98,8 +98,6 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_spendable_balance_with_address", get_spendable_balance_with_address)?;
     cx.export_function("get_spendable_balance_total", get_spendable_balance_total)?;
     cx.export_function("set_option_wallet", set_option_wallet)?;
-    cx.export_function("create_tor_client", create_tor_client)?;
-    cx.export_function("remove_tor_client", remove_tor_client)?;
     cx.export_function("get_unified_addresses", get_unified_addresses)?;
     cx.export_function("get_transparent_addresses", get_transparent_addresses)?;
     cx.export_function("create_new_unified_address", create_new_unified_address)?;
@@ -1561,33 +1559,17 @@ fn get_total_spends_to_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
 }
 
 fn zec_price(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let tor = cx.argument::<JsString>(0)?.value(&mut cx);
-
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
                     Ok(RT.block_on(async move {
-                        let Ok(tor_bool) = tor.parse() else {
-                            return "Error: failed to parse tor setting.".to_string();
-                        };
-                        let client_check = match (tor_bool, lightclient.tor_client()) {
-                            (true, Some(tc)) => Ok(Some(tc)),
-                            (true, None) => Err(()),
-                            (false, _) => Ok(None),
-                        };
-                        let tor_client = match client_check {
-                            Ok(tc) => tc,
-                            Err(_) => {
-                                return "Error: no tor client found. please create a tor client.".to_string();
-                            }
-                        };
                         match lightclient
                             .wallet
                             .write()
                             .await
-                            .update_current_price(tor_client)
+                            .update_current_price(None)
                             .await
                         {
                             Ok(price) => object! { "current_price" => price }.pretty(2),
@@ -1728,65 +1710,6 @@ fn set_option_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
-// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
-// feature; review input validation here when the JS caller is wired up.
-fn create_tor_client(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let data_dir = cx.argument::<JsString>(0)?.value(&mut cx);
-
-    let promise = cx
-        .task(move || -> Result<String, ZingolibError> {
-            with_panic_guard(|| {
-                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
-                if let Some(lightclient) = &mut *guard {
-                    if lightclient.tor_client().is_some() {
-                        return Ok("Error: Tor client already exists.".to_string());
-                    }
-                    match RT.block_on(async move {
-                        lightclient.create_tor_client(Some(data_dir.into())).await
-                    }) {
-                        Ok(_) => Ok("Successfully created tor client.".to_string()),
-                        Err(e) => Ok(format!("Error creating tor client: {e}")),
-                    }
-                } else {
-                    Err(ZingolibError::LightclientNotInitialized)
-                }
-            })
-        })
-        .promise(move |mut cx, result| match result {
-            Ok(msg) => Ok(cx.string(msg)),
-            Err(err) => cx.throw_error(err.to_string()),
-        });
-
-    Ok(promise)
-}
-
-// FFI-exposed but currently has no JS caller. Reserved for an upcoming UI
-// feature; review input validation here when the JS caller is wired up.
-fn remove_tor_client(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let promise = cx
-        .task(move || -> Result<String, ZingolibError> {
-            with_panic_guard(|| {
-                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
-                if let Some(lightclient) = &mut *guard {
-                    if lightclient.tor_client().is_none() {
-                        return Ok("Error: Tor client is not active.".to_string());
-                    }
-                    RT.block_on(async move {
-                        lightclient.remove_tor_client().await;
-                    });
-                    Ok("Successfully removed tor client.".to_string())
-                } else {
-                    Err(ZingolibError::LightclientNotInitialized)
-                }
-            })
-        })
-        .promise(move |mut cx, result| match result {
-            Ok(msg) => Ok(cx.string(msg)),
-            Err(err) => cx.throw_error(err.to_string()),
-        });
-
-    Ok(promise)
-}
 
 fn get_unified_addresses(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx

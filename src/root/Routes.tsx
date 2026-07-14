@@ -131,15 +131,12 @@ const AppRoutes: React.FC = () => {
     }, 5000);
   }, []);
 
-  // ZEC price + reality flag of the last successful fetch. Both live at the
-  // top level (NOT inside InfoClass) because the periodic info-refresh
-  // rebuilds InfoClass and would otherwise clobber them every 5s cycle.
-  // Updated together by RPC.getZecPrice on each fetch via this single setter.
+  // ZEC price. Lives at the top level (NOT inside InfoClass) because the
+  // periodic info-refresh rebuilds InfoClass and would otherwise clobber it
+  // every 5s cycle. Updated by RPC.getZecPrice on each fetch.
   const [zecPrice, setZecPriceState] = useState<number>(0);
-  const [lastPriceViaTor, setLastPriceViaTorState] = useState<boolean | null>(null);
-  const setZecPrice = useCallback((price?: number, viaTor?: boolean) => {
+  const setZecPrice = useCallback((price?: number) => {
     if (typeof price === "number") setZecPriceState(price);
-    if (typeof viaTor === "boolean") setLastPriceViaTorState(viaTor);
   }, []);
 
   const setReadOnly = useCallback((val: boolean) => setReadOnlyState(val), []);
@@ -174,27 +171,6 @@ const AppRoutes: React.FC = () => {
     } catch (e) {
       console.warn("setBlockExplorer: could not persist setting", e);
     }
-  }, []);
-
-  // ZEC price fetch via Tor. The persisted source of truth is electron-settings
-  // (`pricewithtor`); this state mirrors it for React consumers (Dashboard,
-  // PriceTorModal). The setter writes to both and triggers an immediate
-  // price refresh so the dashboard indicator updates without a timer wait.
-  const [priceWithTorState, setPriceWithTorReact] = useState<boolean>(false);
-  const setPriceWithTor = useCallback(async (v: boolean) => {
-    setPriceWithTorReact(v);
-    // Reset the "reality" flag to "not attempted yet" so the dashboard
-    // indicator stays hidden until the next fetch actually completes.
-    // Otherwise the user briefly sees a red-dot "Tor failed" between toggling
-    // the setting and the next periodic price refresh — the previous value
-    // (last fetch was HTTPS) would be misread as "tried Tor and fell back".
-    setLastPriceViaTorState(null);
-    try {
-      await ipcRenderer.invoke("saveSettings", { key: "pricewithtor", value: v });
-    } catch (e) {
-      console.warn("setPriceWithTor: could not persist setting", e);
-    }
-    rpcRef.current?.getZecPrice();
   }, []);
 
   // Block explorer fields kept in a single object to avoid 8 useState
@@ -241,7 +217,6 @@ const AppRoutes: React.FC = () => {
       const isLocked = !!(allSettings?.requireDeviceAuth && authAvailability === "available");
       setLocked(isLocked);
       setLockChecked(true);
-      setPriceWithTorReact(!!allSettings?.pricewithtor);
       if (allSettings && Object.prototype.hasOwnProperty.call(allSettings, "blockexplorer")) {
         setBlockExplorerState(allSettings.blockexplorer);
       }
@@ -501,9 +476,6 @@ const AppRoutes: React.FC = () => {
       handleShieldButton,
       setAddLabel,
       zecPrice,
-      priceWithTor: priceWithTorState,
-      setPriceWithTor,
-      lastPriceViaTor,
       blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
       blockExplorerMainnetAddressCustom: blockExplorerConfig.blockExplorerMainnetAddressCustom,
       blockExplorerMainnetTransaction: blockExplorerConfig.blockExplorerMainnetTransaction,
@@ -547,9 +519,6 @@ const AppRoutes: React.FC = () => {
       handleShieldButton,
       setAddLabel,
       zecPrice,
-      priceWithTorState,
-      setPriceWithTor,
-      lastPriceViaTor,
       blockExplorerConfig,
       setBlockExplorer,
     ],

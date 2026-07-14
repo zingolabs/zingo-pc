@@ -13,7 +13,7 @@ import {
   ServerChainNameEnum,
 } from "../components/appstate";
 
-import { native, ipcRenderer } from "../electronBridge";
+import { native } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
 import { RPCValueTransferType } from "./components/RPCValueTransferType";
 
@@ -24,7 +24,7 @@ export default class RPC {
   fnSetValueTransfersList: (t: ValueTransferClass[]) => void;
   fnSetMessagesList: (t: ValueTransferClass[]) => void;
   fnSetInfo: (info: InfoClass) => void;
-  fnSetZecPrice: (p?: number, viaTor?: boolean) => void;
+  fnSetZecPrice: (p?: number) => void;
   fnSetSyncStatus: (ss: SyncStatusType) => void;
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
@@ -46,7 +46,7 @@ export default class RPC {
     fnSetValueTransfersList: (t: ValueTransferClass[]) => void,
     fnSetMessagesList: (t: ValueTransferClass[]) => void,
     fnSetInfo: (info: InfoClass) => void,
-    fnSetZecPrice: (p?: number, viaTor?: boolean) => void,
+    fnSetZecPrice: (p?: number) => void,
     fnSetSyncStatus: (ss: SyncStatusType) => void,
     fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
@@ -796,84 +796,29 @@ export default class RPC {
     // Skip the network call entirely on testnet / regtest: TAZ has no USD
     // price and the UI doesn't render the value anyway (see BalanceBlock,
     // which only shows USD when currencyName === "ZEC"). Avoids unnecessary
-    // HTTP / Tor traffic every 5s on a testnet wallet. Wallet switches
-    // already reset the cached price via setZecPrice(0) in Routes.tsx.
+    // HTTP traffic every 5s on a testnet wallet. Wallet switches already
+    // reset the cached price via setZecPrice(0) in Routes.tsx.
     if (this.currentWallet && this.currentWallet.chain_name !== ServerChainNameEnum.mainChainName) {
       return;
     }
 
-    // Read the user's "fetch price via Tor" preference from persisted
-    // settings. Default off — if the key is missing or anything throws while
-    // loading settings we keep the conventional HTTP path. The Tor client is
-    // created lazily here only when Tor is requested.
-    let withTor = false;
-    let triedTor = false;
     try {
-      const settings = await ipcRenderer.invoke("loadSettings");
-      withTor = !!settings?.pricewithtor;
-    } catch (e) {
-      console.warn(`getZecPrice: could not load settings, falling back to HTTP. ${e}`);
-    }
-
-    if (withTor) {
-      triedTor = true;
-      try {
-        const createRes: string = await native.create_tor_client();
-        // Always dump what the native side actually returned so we can tell
-        // a "client already exists" no-op from a real failure when the user
-        // reports Tor not working.
-        console.log("[Tor] create_tor_client returned:", JSON.stringify(createRes));
-        if (createRes && createRes.toLowerCase().startsWith("error")) {
-          if (!createRes.toLowerCase().includes("already")) {
-            console.error(`[Tor] create failed, falling back to HTTP: ${createRes}`);
-            withTor = false;
-          } else {
-            console.log("[Tor] client already exists — reusing");
-          }
-        }
-      } catch (e) {
-        console.error(`[Tor] create_tor_client threw, falling back to HTTP:`, e);
-        withTor = false;
-      }
-    }
-
-    try {
-      const resultStr: string = await native.zec_price(withTor ? "true" : "false");
-      console.log(`[Tor] zec_price(${withTor ? "true" : "false"}) returned:`, JSON.stringify(resultStr));
+      const resultStr: string = await native.zec_price();
 
       if (resultStr) {
         if (resultStr.toLowerCase().startsWith("error")) {
-          console.error(`[Tor] zec_price error: ${resultStr}`);
-          // If Tor was attempted and the native side complained, retry over
-          // plain HTTP so the user still sees a price. The dashboard
-          // indicator will reflect that we did NOT use Tor for this value.
-          if (withTor) {
-            console.warn("[Tor] retrying without Tor after Tor-path failure");
-            try {
-              const fallback: string = await native.zec_price("false");
-              console.log("[Tor] HTTP fallback returned:", JSON.stringify(fallback));
-              if (fallback && !fallback.toLowerCase().startsWith("error")) {
-                const json = JSON.parse(fallback);
-                this.fnSetZecPrice(json.current_price, false);
-                return;
-              }
-            } catch (e) {
-              console.error(`[Tor] HTTP fallback also failed:`, e);
-            }
-          }
-          this.fnSetZecPrice(0, false);
+          console.error(`zec_price error: ${resultStr}`);
+          this.fnSetZecPrice(0);
         } else {
           const resultJSON = JSON.parse(resultStr);
-          // Reality, not intent: only mark as via-Tor if we actually went
-          // through Tor for this fetch.
-          this.fnSetZecPrice(resultJSON.current_price, triedTor && withTor);
+          this.fnSetZecPrice(resultJSON.current_price);
         }
       } else {
-        console.error(`[Tor] zec_price returned empty result`);
-        this.fnSetZecPrice(0, false);
+        console.error(`zec_price returned empty result`);
+        this.fnSetZecPrice(0);
       }
     } catch (error) {
-      console.error(`[Tor] zec_price threw:`, error);
+      console.error(`zec_price threw:`, error);
     }
   }
 

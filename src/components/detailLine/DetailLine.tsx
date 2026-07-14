@@ -6,7 +6,7 @@ import Utils from "../../utils/utils";
 type DetailLineProps = {
   label: string;
   // ReactNode so callers can interleave inline icons / badges with the text
-  // (e.g. a Tor onion next to the ZEC Price line). String values still work
+  // (e.g. a status badge next to a value). String values still work
   // unchanged because string is assignable to ReactNode.
   value: React.ReactNode;
   failed?: boolean;

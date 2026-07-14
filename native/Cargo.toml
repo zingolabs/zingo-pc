@@ -20,7 +20,6 @@ zcash_client_backend = { version = "0.23", features = [
     "lightwalletd-tonic",
     "orchard",
     "transparent-inputs",
-    "tor",
 ] }
 zcash_encoding = { version = "0.4" }
 zcash_keys = { version = "0.14", features = [
