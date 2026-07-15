@@ -1,7 +1,7 @@
 export enum BlockExplorerEnum {
   Zcashexplorer = "Zcashexplorer",
   Cipherscan = "Cipherscan",
-  Zypherscan = "Zypherscan",
+  Zexplorer = "Zexplorer",
   // user custom
   Custom = "Custom",
 }

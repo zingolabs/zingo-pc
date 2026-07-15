@@ -10,6 +10,8 @@ export default class InfoClass {
   solps: number;
   zcashdVersion: string;
   walletHeight: number;
+  // NU6.3 / Ironwood activation height for this chain, read from zingolib. 0 = unknown.
+  nu63ActivationHeight: number;
   error?: string;
   zingolib: string;
 
@@ -23,6 +25,7 @@ export default class InfoClass {
     this.currencyName = "";
     this.solps = 0;
     this.walletHeight = 0;
+    this.nu63ActivationHeight = 0;
     this.error = error;
     this.zingolib = "";
   }

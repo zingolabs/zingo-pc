@@ -830,6 +830,8 @@ const _NATIVE_NO_PARAM_METHODS = [
   "get_wallet_version",
   "shield",
   "confirm",
+  "drain_orchard_to_ironwood",
+  "get_ironwood_activation_height",
 ];
 
 for (const method of _NATIVE_NO_PARAM_METHODS) {

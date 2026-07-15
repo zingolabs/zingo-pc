@@ -5,10 +5,12 @@ import Utils from "../../utils/utils";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceBlock";
 import { ContextApp } from "../../context/ContextAppState";
 import routes from "../../constants/routes.json";
+import { ironwoodReady } from "../../constants/ironwood";
 
 import {
   SyncStatusScanRangePriorityEnum,
   SyncStatusScanRangeType,
+  TotalBalanceClass,
   ValueTransferClass,
   ValueTransferStatusEnum,
 } from "../appstate";
@@ -41,6 +43,13 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     zecPrice,
   } = context;
 
+  // Ironwood / NU6.3 heads-up. The activation height comes from zingolib
+  // (info.nu63ActivationHeight); 0 means unknown/not scheduled → banner hidden.
+  // Countdown is measured against the wallet's own synced height, so it reaches
+  // zero exactly when the wallet is ready.
+  const nu63Activation: number = info.nu63ActivationHeight;
+  const ironwoodIsReady: boolean = ironwoodReady(nu63Activation, info.walletHeight);
+
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
 
@@ -67,38 +76,71 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
   return (
     <div>
+      {currentWallet !== null &&
+        !currentWalletOpenError &&
+        !readOnly &&
+        !!totalBalance &&
+        totalBalance.confirmedOrchardBalance > 0 &&
+        nu63Activation > 0 && (
+          <div className={`${cstyles.well} ${styles.migratebanner}`}>
+            <div className={styles.migratebannertext}>
+              <span className={cstyles.yellow} style={{ marginRight: 10 }}>
+                &#9888;
+              </span>
+              {ironwoodIsReady ? (
+                <>
+                  After NU6.3 you can no longer move funds inside Orchard.{" "}
+                  <b>
+                    {info.currencyName} {Utils.maxPrecisionTrimmed(totalBalance.confirmedOrchardBalance)}
+                  </b>{" "}
+                  can be migrated to Ironwood.
+                </>
+              ) : (
+                <>
+                  Ironwood (NU6.3) activates at block <b>{nu63Activation.toLocaleString()}</b> &mdash;{" "}
+                  <b>{(nu63Activation - info.walletHeight).toLocaleString()}</b> blocks to go. After that, your{" "}
+                  <b>
+                    {info.currencyName} {Utils.maxPrecisionTrimmed(totalBalance.confirmedOrchardBalance)}
+                  </b>{" "}
+                  in Orchard will need to move to Ironwood.
+                </>
+              )}
+            </div>
+            {ironwoodIsReady && (
+              <button
+                type="button"
+                className={cstyles.primarybutton}
+                onClick={() => navigate(routes.MIGRATION, { replace: true, state: {} })}
+              >
+                Migrate
+              </button>
+            )}
+          </div>
+        )}
       {currentWallet !== null && !currentWalletOpenError && (
         <div className={`${cstyles.well} ${styles.containermargin}`}>
           <div className={cstyles.balancebox}>
             <BalanceBlockHighlight
               topLabel="All Funds"
-              zecValue={
-                totalBalance.totalOrchardBalance +
-                totalBalance.totalSaplingBalance +
-                totalBalance.totalTransparentBalance
-              }
-              usdValue={Utils.getZecToUsdString(
-                zecPrice,
-                totalBalance.totalOrchardBalance +
-                  totalBalance.totalSaplingBalance +
-                  totalBalance.totalTransparentBalance,
-              )}
+              zecValue={TotalBalanceClass.total(totalBalance)}
+              usdValue={Utils.getZecToUsdString(zecPrice, TotalBalanceClass.total(totalBalance))}
               currencyName={info.currencyName}
-              zecValueConfirmed={
-                totalBalance.confirmedOrchardBalance +
-                totalBalance.confirmedSaplingBalance +
-                totalBalance.confirmedTransparentBalance
-              }
-              usdValueConfirmed={Utils.getZecToUsdString(
-                zecPrice,
-                totalBalance.confirmedOrchardBalance +
-                  totalBalance.confirmedSaplingBalance +
-                  totalBalance.confirmedTransparentBalance,
-              )}
+              zecValueConfirmed={TotalBalanceClass.confirmedTotal(totalBalance)}
+              usdValueConfirmed={Utils.getZecToUsdString(zecPrice, TotalBalanceClass.confirmedTotal(totalBalance))}
             />
             {orchardPool && (
               <BalanceBlock
-                topLabel="Orchard"
+                topLabel="Ironwood"
+                zecValue={totalBalance.totalIronwoodBalance}
+                usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalIronwoodBalance)}
+                currencyName={info.currencyName}
+                zecValueConfirmed={totalBalance.confirmedIronwoodBalance}
+                usdValueConfirmed={Utils.getZecToUsdString(zecPrice, totalBalance.confirmedIronwoodBalance)}
+              />
+            )}
+            {orchardPool && totalBalance.totalOrchardBalance > 0 && (
+              <BalanceBlock
+                topLabel="Orchard (legacy)"
                 zecValue={totalBalance.totalOrchardBalance}
                 usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalOrchardBalance)}
                 currencyName={info.currencyName}
@@ -337,7 +379,11 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                     <div className={styles.detailcontainer}>
                       {!!valueTransfers && !!valueTransfers.length ? (
                         <>
-                          <div className={`${styles.detaillines} ${styles.txgrid}`}>
+                          <div
+                            className={`${styles.detaillines} ${styles.txgrid} ${
+                              info.currencyName === "ZEC" ? styles.txgridUsd : styles.txgridNoUsd
+                            }`}
+                          >
                             {valueTransfers
                               .filter((_, index: number) => index < 5)
                               .map((vt: ValueTransferClass, index: number) => {
@@ -358,14 +404,16 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                       {Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)} :
                                     </div>
                                     <div className={styles.txzec} style={{ color: failedColor }}>
-                                      ZEC {Utils.maxPrecisionTrimmed(vt.amount)}
+                                      {info.currencyName} {Utils.maxPrecisionTrimmed(vt.amount)}
                                     </div>
-                                    <div
-                                      className={styles.txusd}
-                                      style={{ color: failedColor ?? Utils.getCssVariable("--color-primary") }}
-                                    >
-                                      {info.currencyName === "ZEC" ? Utils.getZecToUsdString(price, vt.amount) : ""}
-                                    </div>
+                                    {info.currencyName === "ZEC" && (
+                                      <div
+                                        className={styles.txusd}
+                                        style={{ color: failedColor ?? Utils.getCssVariable("--color-primary") }}
+                                      >
+                                        {Utils.getZecToUsdString(price, vt.amount)}
+                                      </div>
+                                    )}
                                   </React.Fragment>
                                 );
                               })}

@@ -37,6 +37,8 @@ const _ALL_NATIVE_METHODS = [
   "get_wallet_version",
   "shield",
   "confirm",
+  "drain_orchard_to_ironwood",
+  "get_ironwood_activation_height",
   // sync no-param (become async via IPC)
   "deinitialize",
   "get_developer_donation_address",
