@@ -9,5 +9,6 @@
   "MESSAGES": "/messages",
   "ADDNEWWALLET": "/addnewwallet",
   "SETTINGSWALLET": "/settingswallet",
-  "INSIGHT": "/insight"
+  "INSIGHT": "/insight",
+  "MIGRATION": "/migration"
 }

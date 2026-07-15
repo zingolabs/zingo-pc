@@ -380,14 +380,14 @@ describe("openTxid", () => {
     expect(mockOpenExternal).toHaveBeenCalledWith(`https://testnet.cipherscan.app/tx/${txid}`);
   });
 
-  it("opens Zypherscan mainnet URL", () => {
-    Utils.openTxid(txid, ServerChainNameEnum.mainChainName, BlockExplorerEnum.Zypherscan, "");
-    expect(mockOpenExternal).toHaveBeenCalledWith(`https://www.zypherscan.com/tx/${txid}`);
+  it("opens Zexplorer mainnet URL", () => {
+    Utils.openTxid(txid, ServerChainNameEnum.mainChainName, BlockExplorerEnum.Zexplorer, "");
+    expect(mockOpenExternal).toHaveBeenCalledWith(`https://zexplorer.app/mainnet/tx/${txid}`);
   });
 
-  it("opens Zypherscan testnet URL", () => {
-    Utils.openTxid(txid, ServerChainNameEnum.testChainName, BlockExplorerEnum.Zypherscan, "");
-    expect(mockOpenExternal).toHaveBeenCalledWith(`https://testnet.zypherscan.com/tx/${txid}`);
+  it("opens Zexplorer testnet URL", () => {
+    Utils.openTxid(txid, ServerChainNameEnum.testChainName, BlockExplorerEnum.Zexplorer, "");
+    expect(mockOpenExternal).toHaveBeenCalledWith(`https://zexplorer.app/testnet/tx/${txid}`);
   });
 
   it("opens custom block explorer URL", () => {
@@ -417,9 +417,9 @@ describe("openAddress", () => {
     expect(mockOpenExternal).toHaveBeenCalledWith(`https://cipherscan.app/address/${address}`);
   });
 
-  it("opens Zypherscan testnet address URL", () => {
-    Utils.openAddress(address, ServerChainNameEnum.testChainName, BlockExplorerEnum.Zypherscan, "");
-    expect(mockOpenExternal).toHaveBeenCalledWith(`https://testnet.zypherscan.com/address/${address}`);
+  it("opens Zexplorer testnet address URL", () => {
+    Utils.openAddress(address, ServerChainNameEnum.testChainName, BlockExplorerEnum.Zexplorer, "");
+    expect(mockOpenExternal).toHaveBeenCalledWith(`https://zexplorer.app/testnet/address/${address}`);
   });
 
   it("opens custom block explorer address URL", () => {

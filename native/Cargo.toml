@@ -12,38 +12,58 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zingolib = { git="https://github.com/zingolabs/zingolib", tag = "zingolib_v4.0.0" }
-pepper-sync = { git="https://github.com/zingolabs/zingolib", tag = "zingolib_v4.0.0" }
+# Ironwood (NU6.3). Versions match the zingolib feat/ironwood lockfile at the
+# commit this resolves to (currently c6987da): it uses the PUBLISHED crates.io
+# zcash crates (no librustzcash/zebra git-rev patches — those belong to an older
+# feat/ironwood commit that zingo-mobile pins). Ground truth = that Cargo.lock,
+# not zingo-mobile's manifest. Build with `yarn neon` (needs `protoc` on PATH).
+zingolib = { git="https://github.com/zingolabs/zingolib", branch = "feat/ironwood" }
+pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "feat/ironwood" }
+zingo-netutils = { git="https://github.com/zingolabs/zingolib", branch = "feat/ironwood" }
 
-zcash_address = { version = "0.12" }
-zcash_client_backend = { version = "0.23", features = [
+zcash_address = "0.13"
+zcash_client_backend = { version = "0.24.0-rc.1", features = [
     "lightwalletd-tonic",
     "orchard",
     "transparent-inputs",
 ] }
-zcash_encoding = { version = "0.4" }
-zcash_keys = { version = "0.14", features = [
+zcash_encoding = "0.4"
+zcash_keys = { version = "0.15", features = [
     "transparent-inputs",
     "sapling",
     "orchard",
 ] }
-zcash_note_encryption = "0.4"
-zcash_proofs = { version = "0.28" }
-zcash_protocol = { version = "0.9" }
-zcash_transparent = { version = "0.8" }
+zcash_note_encryption = "0.4.2"
+zcash_proofs = "0.29"
+zcash_protocol = "0.10"
+zcash_transparent = "0.9"
 
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 
-zingo_common_components = { git = "https://github.com/zingolabs/zingo-common.git", tag = "v0_2_with_nu6_2_upgrade", features = [ "for_test" ] }
+zingo_common_components = "0.4.0"
 
-bip0039 = { version = "0.13", features = [ "rand" ] }
+bip0039 = { version = "0.14", features = [ "rand" ] }
 zip32 = "0.2.0"
 json = "0.12"
 serde_json = "1"
 hex = "0.4"
 http = "1"
 tokio = "1"
-rustls = { version = "0.23", features = ["ring"] }
+# aws_lc_rs, not ring: the zingolib feat/ironwood workspace excised ring and
+# uses aws-lc-rs as its sole rustls CryptoProvider (with prefer-post-quantum).
+# zingo-netutils (sync) and zingo-price (Gemini fetch) both install aws-lc-rs;
+# we must install the same default or the price handshake fails. See lib.rs.
+rustls = { version = "0.23", features = ["aws_lc_rs"] }
+
+# zingo-price fetches the ZEC price over HTTPS with reqwest built as
+# `rustls-tls-no-provider`, which resolves to `rustls-tls-manual-roots` — an
+# EMPTY root-certificate store. It relies on some other crate in the build
+# enabling a reqwest roots feature (cargo unifies reqwest features across the
+# whole graph). Nothing else in zingo-pc's native build does, so the Gemini
+# request fails with no trust anchors. We enable webpki (Mozilla) roots here.
+# The `-no-provider` variant is required: the plain `rustls-tls-webpki-roots`
+# also pulls in the `ring` provider, which the ironwood workspace excised.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls-webpki-roots-no-provider"] }
 thiserror = "2"
 log = "0.4"
 
@@ -63,6 +83,17 @@ windows = { version = "0.61", features = ["Security_Credentials_UI"] }
 
 [build-dependencies]
 cc = "1"
+
+# Only the patches the zingolib feat/ironwood workspace actually needs at this
+# commit (per its Cargo.lock): a dependency's own [patch] table is ignored by
+# cargo, so these two must be replicated here. lightwallet-protocol carries the
+# Ironwood proto fields (its `rebuild-proto` feature needs `protoc` on PATH).
+# NO librustzcash/zebra git-rev patches — this commit uses published crates.io
+# zcash crates; adding them (as zingo-mobile does for an older commit) would
+# force the wrong versions.
+[patch.crates-io]
+time = { git = "https://github.com/time-rs/time", tag = "v0.3.47" }
+lightwallet-protocol = { git = "https://github.com/zingolabs/lightwallet-protocol-rust", rev = "9bdfdc77eb283f2a3d26c27100cc2ac90148cd93" }
 
 [profile.release]
 debug = 1

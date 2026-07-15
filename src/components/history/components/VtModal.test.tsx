@@ -293,12 +293,16 @@ describe("VtModal", () => {
     fireEvent.keyDown(window, { key: "ArrowUp" });
   });
 
-  it("renders the Pool when set", () => {
-    const vt = makeVt({ pool: ValueTransferPoolEnum.orchard });
+  it("renders the Pools line with source → destination when set", () => {
+    const vt = makeVt({
+      poolsSentFrom: [ValueTransferPoolEnum.orchard, ValueTransferPoolEnum.sapling],
+      poolsReceived: [ValueTransferPoolEnum.ironwood],
+    });
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt] },
     });
-    expect(screen.getByText("Pool")).toBeInTheDocument();
+    expect(screen.getByText("Pools")).toBeInTheDocument();
+    expect(screen.getByText("Orchard, Sapling → Ironwood")).toBeInTheDocument();
   });
 
   it("renders memos and reply-to label when present", () => {

@@ -9,6 +9,7 @@ import {
   SendProposeType,
   SendType,
   ValueTransferStatusEnum,
+  ValueTransferPoolEnum,
   WalletType,
   ServerChainNameEnum,
 } from "../components/appstate";
@@ -16,6 +17,17 @@ import {
 import { native } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
 import { RPCValueTransferType } from "./components/RPCValueTransferType";
+import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
+
+// zingolib emits pool names capitalized ("Orchard", "Ironwood", …); normalize them
+// to the lowercase ValueTransferPoolEnum and drop anything unrecognized. Returns
+// undefined for empty/absent lists so the UI can skip the "Pools" line entirely.
+const VALID_POOLS: string[] = Object.values(ValueTransferPoolEnum);
+const parseValueTransferPools = (raw?: string[]): ValueTransferPoolEnum[] | undefined => {
+  if (!raw || raw.length === 0) return undefined;
+  const pools = raw.map((p) => p.toLowerCase()).filter((p) => VALID_POOLS.includes(p)) as ValueTransferPoolEnum[];
+  return pools.length > 0 ? pools : undefined;
+};
 
 export default class RPC {
   fnSetTotalBalance: (tb: TotalBalanceClass) => void;
@@ -277,6 +289,14 @@ export default class RPC {
       const walletHeight: number = await RPC.fetchWalletHeight();
       info.walletHeight = walletHeight;
 
+      // NU6.3 / Ironwood activation height, read from zingolib (source of truth).
+      info.nu63ActivationHeight = await RPC.fetchIronwoodActivationHeight();
+
+      // Happy-path drain plan: how much Orchard can move vs is stranded dust.
+      const drainPlan = await RPC.fetchOrchardDrainPlan();
+      info.orchardMigratable = drainPlan.migratable;
+      info.orchardDust = drainPlan.dust;
+
       return info;
     } catch (err) {
       console.error("Error: to parse info ", err);
@@ -370,10 +390,12 @@ export default class RPC {
         this.fnSetMessagesList([]);
         this.fnSetTotalBalance({
           totalOrchardBalance: 0,
+          totalIronwoodBalance: 0,
           totalSaplingBalance: 0,
           totalTransparentBalance: 0,
           confirmedTransparentBalance: 0,
           confirmedOrchardBalance: 0,
+          confirmedIronwoodBalance: 0,
           confirmedSaplingBalance: 0,
           totalSpendableBalance: 0,
         } as TotalBalanceClass);
@@ -542,9 +564,11 @@ export default class RPC {
       // Total Balance
       const balance: TotalBalanceClass = {
         totalOrchardBalance: (balanceJSON.total_orchard_balance || 0) / 10 ** 8,
+        totalIronwoodBalance: (balanceJSON.total_ironwood_balance || 0) / 10 ** 8,
         totalSaplingBalance: (balanceJSON.total_sapling_balance || 0) / 10 ** 8,
         totalTransparentBalance: (balanceJSON.total_transparent_balance || 0) / 10 ** 8,
         confirmedOrchardBalance: (balanceJSON.confirmed_orchard_balance || 0) / 10 ** 8,
+        confirmedIronwoodBalance: (balanceJSON.confirmed_ironwood_balance || 0) / 10 ** 8,
         confirmedSaplingBalance: (balanceJSON.confirmed_sapling_balance || 0) / 10 ** 8,
         confirmedTransparentBalance: (balanceJSON.confirmed_transparent_balance || 0) / 10 ** 8,
         // header total balance
@@ -636,6 +660,40 @@ export default class RPC {
     }
   }
 
+  // NU6.3 / Ironwood activation height for the wallet's chain (0 if unknown).
+  // Native returns the height as a plain string.
+  static async fetchIronwoodActivationHeight(): Promise<number> {
+    try {
+      const heightStr: string = await native.get_ironwood_activation_height();
+      const height = Number(heightStr);
+      return Number.isFinite(height) ? height : 0;
+    } catch (error) {
+      console.error(`Error ironwood activation height ${error}`);
+      return 0;
+    }
+  }
+
+  // Happy-path Orchard→Ironwood drain plan (plan_orchard_drain): read-only, no
+  // sync. Returns migratable/dust in ZEC (both 0 on error). migratable 0 with an
+  // Orchard balance means the whole balance is dust.
+  static async fetchOrchardDrainPlan(): Promise<{ migratable: number; dust: number }> {
+    try {
+      const str: string = await native.plan_orchard_drain();
+      if (!str || str.toLowerCase().startsWith("error")) {
+        if (str) console.error(`Error orchard drain plan: ${str}`);
+        return { migratable: -1, dust: 0 };
+      }
+      const json = JSON.parse(str);
+      return {
+        migratable: (json.migrated || 0) / 10 ** 8,
+        dust: (json.stranded || 0) / 10 ** 8,
+      };
+    } catch (error) {
+      console.error(`Error orchard drain plan ${error}`);
+      return { migratable: -1, dust: 0 };
+    }
+  }
+
   // Fetch all T and Z and O value transfers
   private async fetchValueTransferData(
     fetchLabel: string,
@@ -696,7 +754,8 @@ export default class RPC {
         vt.address = !tx.recipient_address ? undefined : tx.recipient_address;
         vt.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
         vt.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
-        vt.pool = !tx.pool_received ? undefined : tx.pool_received;
+        vt.poolsSentFrom = parseValueTransferPools(tx.pools_sent_from);
+        vt.poolsReceived = parseValueTransferPools(tx.pools_received);
 
         if (vt.status === ValueTransferStatusEnum.failed) {
           console.log("[RPC] failed value transfer (transformed):", vt);
@@ -790,6 +849,55 @@ export default class RPC {
       throw new Error(sendError);
     }
     throw new Error("send returned neither txids nor error");
+  }
+
+  // Polls poll_sync until the sync task is no longer running (or a timeout).
+  // "Sync task is not complete." is zingolib's only "still running" reply; any
+  // other reply (no handle, or a completed JSON result) means it has stopped.
+  private async waitForSyncStopped(timeoutMs = 30000, intervalMs = 200): Promise<void> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      let poll: string;
+      try {
+        poll = await native.poll_sync();
+      } catch {
+        return;
+      }
+      if (!poll || !poll.toLowerCase().startsWith("sync task is not complete")) {
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  // Happy-path Ironwood migration: one-shot drain of all pre-Ironwood Orchard
+  // notes into the Ironwood pool. The zingolib drain syncs internally
+  // (sync_and_await), which requires no sync running — so we stop our 5s loop
+  // and the in-flight sync, wait until it is actually stopped, drain, then
+  // resume the loop (mirrors how sendTransaction brackets a spend).
+  async drainOrchardToIronwood(): Promise<{ result: RPCIronwoodDrainType | null; error: string }> {
+    await this.clearTimers();
+    try {
+      await native.stop_sync();
+      await this.waitForSyncStopped();
+
+      const resultStr: string = await native.drain_orchard_to_ironwood();
+      if (resultStr) {
+        if (resultStr.toLowerCase().startsWith("error")) {
+          console.error(`Error drain orchard to ironwood: ${resultStr}`);
+          return { result: null, error: resultStr };
+        }
+        const resultJSON: RPCIronwoodDrainType = JSON.parse(resultStr);
+        return { result: resultJSON, error: "" };
+      }
+      return { result: null, error: "Error: Internal RPC Error: drain orchard to ironwood" };
+    } catch (error) {
+      console.error(`Critical error drain orchard to ironwood: ${error}`);
+      return { result: null, error: `Error: ${error}` };
+    } finally {
+      // Always resume the background sync loop.
+      await this.configure();
+    }
   }
 
   async getZecPrice() {

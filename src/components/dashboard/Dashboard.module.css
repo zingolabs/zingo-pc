@@ -36,21 +36,51 @@
   padding: 16px;
 }
 
-/* Recent-activity list: aligned columns across all rows — transfer type
-   (left), ZEC amount (left-aligned), USD value (right-aligned). The two
-   empty 1fr spacer columns split the slack evenly, so the gap between the
-   ZEC and USD columns is about half of what a single central 1fr produced.
-   Applied alongside .detaillines so the border/padding are kept. */
+/* Ironwood migration entry banner (shown when there is Orchard balance). */
+.migratebanner {
+  margin: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid var(--color-warning);
+}
+
+.migratebannertext {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Recent-activity list. Applied alongside .detaillines so the border/padding
+   are kept. Two variants depending on whether the USD column is shown. */
 .txgrid {
   display: grid;
-  grid-template-columns: max-content 1fr max-content 1fr max-content;
   column-gap: 12px;
   row-gap: 8px;
   align-items: baseline;
 }
 
+/* With USD (ZEC): type | spacer | ZEC (left) | spacer | USD (right). The two
+   empty 1fr spacers split the slack so the ZEC–USD gap is about half of what a
+   single central 1fr produced. */
+.txgridUsd {
+  grid-template-columns: max-content 1fr max-content 1fr max-content;
+}
+
+/* Without USD (TAZ): just type on the left and the amount on the right — no
+   empty USD column leaving the amount floating in the middle. */
+.txgridNoUsd {
+  grid-template-columns: max-content 1fr max-content;
+}
+
+.txgridNoUsd .txzec {
+  justify-self: end;
+}
+
 .txtype {
   grid-column: 1;
+  justify-self: start;
+  text-align: left;
 }
 
 .txzec {

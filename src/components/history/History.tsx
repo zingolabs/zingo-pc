@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
-import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum } from "../appstate";
+import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum, TotalBalanceClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import VtItemBlock from "./components/VtItemBlock";
 import VtModal from "./components/VtModal";
@@ -75,22 +75,9 @@ const History: React.FC<HistoryProps> = () => {
     );
   }, [addressBook]);
 
-  const totalFunds = useMemo(
-    () => totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance,
-    [totalBalance.totalOrchardBalance, totalBalance.totalSaplingBalance, totalBalance.totalTransparentBalance],
-  );
+  const totalFunds = useMemo(() => TotalBalanceClass.total(totalBalance), [totalBalance]);
 
-  const confirmedFunds = useMemo(
-    () =>
-      totalBalance.confirmedOrchardBalance +
-      totalBalance.confirmedSaplingBalance +
-      totalBalance.confirmedTransparentBalance,
-    [
-      totalBalance.confirmedOrchardBalance,
-      totalBalance.confirmedSaplingBalance,
-      totalBalance.confirmedTransparentBalance,
-    ],
-  );
+  const confirmedFunds = useMemo(() => TotalBalanceClass.confirmedTotal(totalBalance), [totalBalance]);
 
   const handleSetValueTransferDetail = useCallback((ttt: ValueTransferClass) => setValueTransferDetail(ttt), []);
   const handleSetValueTransferDetailIndex = useCallback((iii: number) => setValueTransferDetailIndex(iii), []);
@@ -120,7 +107,17 @@ const History: React.FC<HistoryProps> = () => {
           />
           {orchardPool && (
             <BalanceBlock
-              topLabel="Orchard"
+              topLabel="Ironwood"
+              zecValue={totalBalance.totalIronwoodBalance}
+              usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalIronwoodBalance)}
+              currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedIronwoodBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(zecPrice, totalBalance.confirmedIronwoodBalance)}
+            />
+          )}
+          {orchardPool && totalBalance.totalOrchardBalance > 0 && (
+            <BalanceBlock
+              topLabel="Orchard (legacy)"
               zecValue={totalBalance.totalOrchardBalance}
               usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalOrchardBalance)}
               currencyName={info.currencyName}

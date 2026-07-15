@@ -351,11 +351,11 @@ export default class Utils {
       } else {
         shell.openExternal(`https://cipherscan.app/tx/${txid}`);
       }
-    } else if (blockExplorer === BlockExplorerEnum.Zypherscan) {
+    } else if (blockExplorer === BlockExplorerEnum.Zexplorer) {
       if (chainName === ServerChainNameEnum.testChainName) {
-        shell.openExternal(`https://testnet.zypherscan.com/tx/${txid}`);
+        shell.openExternal(`https://zexplorer.app/testnet/tx/${txid}`);
       } else {
-        shell.openExternal(`https://www.zypherscan.com/tx/${txid}`);
+        shell.openExternal(`https://zexplorer.app/mainnet/tx/${txid}`);
       }
     } else if (blockExplorer === BlockExplorerEnum.Custom) {
       shell.openExternal(`${blockExplorerCustom}${txid}`);
@@ -380,11 +380,11 @@ export default class Utils {
       } else {
         shell.openExternal(`https://cipherscan.app/address/${address}`);
       }
-    } else if (blockExplorer === BlockExplorerEnum.Zypherscan) {
+    } else if (blockExplorer === BlockExplorerEnum.Zexplorer) {
       if (chainName === ServerChainNameEnum.testChainName) {
-        shell.openExternal(`https://testnet.zypherscan.com/address/${address}`);
+        shell.openExternal(`https://zexplorer.app/testnet/address/${address}`);
       } else {
-        shell.openExternal(`https://www.zypherscan.com/address/${address}`);
+        shell.openExternal(`https://zexplorer.app/mainnet/address/${address}`);
       }
     } else if (blockExplorer === BlockExplorerEnum.Custom) {
       shell.openExternal(`${blockExplorerCustom}${address}`);

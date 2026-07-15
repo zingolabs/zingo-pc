@@ -26,6 +26,7 @@ import {
   ErrorModalClass,
   WalletType,
   ServerChainNameEnum,
+  BlockExplorerEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import { ZcashURITarget } from "../utils/uris";
@@ -37,6 +38,8 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 
 import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
+import { OrchardMigration } from "../components/orchardMigration";
+import { RPCIronwoodDrainType } from "../rpc/components/RPCIronwoodDrainType";
 import { ConfirmModal } from "../components/confirmModal";
 import ShieldResultContent from "./ShieldResultContent";
 import LockScreen from "../components/lockScreen/LockScreen";
@@ -218,7 +221,18 @@ const AppRoutes: React.FC = () => {
       setLocked(isLocked);
       setLockChecked(true);
       if (allSettings && Object.prototype.hasOwnProperty.call(allSettings, "blockexplorer")) {
-        setBlockExplorerState(allSettings.blockexplorer);
+        // A previously-selected explorer may have been removed (e.g. Zypherscan).
+        // Fall any obsolete value back to Zcashexplorer across the 4 explorer fields.
+        const cfg = allSettings.blockexplorer;
+        const fallback = (v: unknown): BlockExplorerEnum =>
+          v === "Zypherscan" ? BlockExplorerEnum.Zcashexplorer : (v as BlockExplorerEnum);
+        setBlockExplorerState({
+          ...cfg,
+          blockExplorerMainnetTransaction: fallback(cfg?.blockExplorerMainnetTransaction),
+          blockExplorerTestnetTransaction: fallback(cfg?.blockExplorerTestnetTransaction),
+          blockExplorerMainnetAddress: fallback(cfg?.blockExplorerMainnetAddress),
+          blockExplorerTestnetAddress: fallback(cfg?.blockExplorerTestnetAddress),
+        });
       }
     })();
 
@@ -441,6 +455,13 @@ const AppRoutes: React.FC = () => {
     }
   }, []);
 
+  const runRPCDrainToIronwood = useCallback(async (): Promise<{
+    result: RPCIronwoodDrainType | null;
+    error: string;
+  }> => {
+    return rpcRef.current!.drainOrchardToIronwood();
+  }, []);
+
   // --- P4: memoized context value ---
   const contextAppState = useMemo<AppState>(
     () => ({
@@ -579,6 +600,7 @@ const AppRoutes: React.FC = () => {
             <Route path={routes.INSIGHT} element={<Insight />} />
             <Route path={routes.HISTORY} element={<History />} />
             <Route path={routes.MESSAGES} element={<Messages />} />
+            <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
             <Route
               path={routes.ADDNEWWALLET}
               element={

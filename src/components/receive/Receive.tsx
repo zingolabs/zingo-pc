@@ -6,6 +6,7 @@ import cstyles from "../common/Common.module.css";
 import {
   AddressBookEntryClass,
   AddressScopeEnum,
+  TotalBalanceClass,
   TransparentAddressClass,
   UnifiedAddressClass,
   ValueTransferClass,
@@ -97,31 +98,25 @@ const Receive: React.FC<ReceiveProps> = () => {
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={
-              totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance
-            }
-            usdValue={Utils.getZecToUsdString(
-              zecPrice,
-              totalBalance.totalOrchardBalance +
-                totalBalance.totalSaplingBalance +
-                totalBalance.totalTransparentBalance,
-            )}
+            zecValue={TotalBalanceClass.total(totalBalance)}
+            usdValue={Utils.getZecToUsdString(zecPrice, TotalBalanceClass.total(totalBalance))}
             currencyName={info.currencyName}
-            zecValueConfirmed={
-              totalBalance.confirmedOrchardBalance +
-              totalBalance.confirmedSaplingBalance +
-              totalBalance.confirmedTransparentBalance
-            }
-            usdValueConfirmed={Utils.getZecToUsdString(
-              zecPrice,
-              totalBalance.confirmedOrchardBalance +
-                totalBalance.confirmedSaplingBalance +
-                totalBalance.confirmedTransparentBalance,
-            )}
+            zecValueConfirmed={TotalBalanceClass.confirmedTotal(totalBalance)}
+            usdValueConfirmed={Utils.getZecToUsdString(zecPrice, TotalBalanceClass.confirmedTotal(totalBalance))}
           />
           {orchardPool && (
             <BalanceBlock
-              topLabel="Orchard"
+              topLabel="Ironwood"
+              zecValue={totalBalance.totalIronwoodBalance}
+              usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalIronwoodBalance)}
+              currencyName={info.currencyName}
+              zecValueConfirmed={totalBalance.confirmedIronwoodBalance}
+              usdValueConfirmed={Utils.getZecToUsdString(zecPrice, totalBalance.confirmedIronwoodBalance)}
+            />
+          )}
+          {orchardPool && totalBalance.totalOrchardBalance > 0 && (
+            <BalanceBlock
+              topLabel="Orchard (legacy)"
               zecValue={totalBalance.totalOrchardBalance}
               usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalOrchardBalance)}
               currencyName={info.currencyName}

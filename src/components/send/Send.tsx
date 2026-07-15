@@ -7,6 +7,7 @@ import {
   ValueTransferClass,
   ServerChainNameEnum,
   ValueTransferStatusEnum,
+  TotalBalanceClass,
 } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
@@ -89,13 +90,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
             .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
         : 0;
     // If there are unverified funds, then show a tooltip
-    const unconfirmed: number =
-      totalBalance.totalOrchardBalance +
-      totalBalance.totalSaplingBalance +
-      totalBalance.totalTransparentBalance -
-      (totalBalance.confirmedOrchardBalance +
-        totalBalance.confirmedSaplingBalance +
-        totalBalance.confirmedTransparentBalance);
+    const unconfirmed: number = TotalBalanceClass.total(totalBalance) - TotalBalanceClass.confirmedTotal(totalBalance);
     const { bigPart, smallPart }: { bigPart: string; smallPart: string } =
       Utils.splitZecAmountIntoBigSmall(unconfirmed);
 
@@ -106,17 +101,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
       _tooltip = `Waiting for confirmation with 3 block (approx 5 minutes)`;
     }
     setTooltip(_tooltip);
-  }, [
-    addressesUnified,
-    totalBalance.totalOrchardBalance,
-    totalBalance.totalSaplingBalance,
-    totalBalance.totalTransparentBalance,
-    totalBalance.confirmedOrchardBalance,
-    totalBalance.confirmedSaplingBalance,
-    totalBalance.confirmedTransparentBalance,
-    totalBalance.totalSpendableBalance,
-    valueTransfers,
-  ]);
+  }, [addressesUnified, totalBalance, valueTransfers]);
 
   const clearToAddrs = () => {
     // Create the new state object
@@ -291,15 +276,8 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
-            zecValue={
-              totalBalance.totalOrchardBalance + totalBalance.totalSaplingBalance + totalBalance.totalTransparentBalance
-            }
-            usdValue={Utils.getZecToUsdString(
-              zecPrice,
-              totalBalance.totalOrchardBalance +
-                totalBalance.totalSaplingBalance +
-                totalBalance.totalTransparentBalance,
-            )}
+            zecValue={TotalBalanceClass.total(totalBalance)}
+            usdValue={Utils.getZecToUsdString(zecPrice, TotalBalanceClass.total(totalBalance))}
             currencyName={info.currencyName}
           />
           <BalanceBlockHighlight
