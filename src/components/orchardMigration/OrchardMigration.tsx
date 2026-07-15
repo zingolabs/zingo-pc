@@ -160,7 +160,9 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
         <div className={`${cstyles.verticalflex} ${cstyles.center}`}>
           <div className={cstyles.xlarge}>Migrating…</div>
           <div className={cstyles.sublight} style={{ marginTop: 12 }}>
-            Proving and broadcasting your transactions. This can take a moment — please keep the app open.
+            Proving and broadcasting your transactions.
+            <br />
+            This can take a moment — please keep the app open.
           </div>
         </div>
       )}

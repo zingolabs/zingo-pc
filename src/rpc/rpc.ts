@@ -680,8 +680,6 @@ export default class RPC {
       const txsJSON: RPCValueTransferType[] = await fetcher();
       const walletHeight: number = await RPC.fetchWalletHeight();
 
-      console.log(txsJSON);
-
       const list: ValueTransferClass[] = txsJSON.map((tx: RPCValueTransferType) => {
         const vt: ValueTransferClass = {} as ValueTransferClass;
 
