@@ -12,7 +12,6 @@ import {
   UnifiedAddressClass,
   ValueTransferClass,
   ValueTransferKindEnum,
-  ValueTransferPoolEnum,
   ValueTransferStatusEnum,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
@@ -24,6 +23,22 @@ import routes from "../../../constants/routes.json";
 
 import { native } from "../../../electronBridge";
 import { useCopy } from "../../common/useCopy";
+
+// zingolib PR #2466 split a VT's single pool into two lists. A VT's identity
+// within a txid now depends on both (used to re-find it after a sync refresh).
+const poolsKey = (vt: ValueTransferClass): string =>
+  `${(vt.poolsSentFrom ?? []).join(",")}|${(vt.poolsReceived ?? []).join(",")}`;
+
+// "Orchard, Sapling → Ironwood": source pools → destination pools. Either side is
+// omitted when empty (a pure receive has no sources; a pure external send no
+// destinations here). Empty string => no "Pools" line is shown.
+const capitalize = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+const buildPoolsText = (vt: ValueTransferClass): string => {
+  const from: string = (vt.poolsSentFrom ?? []).map(capitalize).join(", ");
+  const to: string = (vt.poolsReceived ?? []).map(capitalize).join(", ");
+  if (from && to) return `${from} → ${to}`;
+  return to || from;
+};
 
 type VtModalInternalProps = {
   index: number;
@@ -98,7 +113,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
       return [] as ValueTransferClass[];
     }
     return valueTransfers.filter(
-      (vtt: ValueTransferClass) => vtt.txid === v.txid && vtt.address === v.address && vtt.pool === v.pool,
+      (vtt: ValueTransferClass) => vtt.txid === v.txid && vtt.address === v.address && poolsKey(vtt) === poolsKey(v),
     );
   };
 
@@ -157,7 +172,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
   let status: ValueTransferStatusEnum | "" = "";
   let address: string | undefined = undefined;
   let memos: string[] = [];
-  let pool: ValueTransferPoolEnum | "" = "";
+  let poolsText: string = "";
   let amount: number = 0;
   let fees: number = 0;
   let datePart: string = "";
@@ -197,7 +212,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     fees = valueTransfer.fee ? valueTransfer.fee : 0;
     address = valueTransfer.address;
     memos = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos : [];
-    pool = valueTransfer.pool ? valueTransfer.pool : "";
+    poolsText = buildPoolsText(valueTransfer);
     // What we render in transaction detail is the converted USD value of
     // this transaction (`price * amount`), not the per-ZEC exchange rate
     // — same shape the dashboard uses for balances. Prefer the
@@ -610,11 +625,11 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
             </div>
           </div>
 
-          {pool && (
+          {poolsText && (
             <div className={cstyles.verticalflex}>
-              <div className={cstyles.sublight}>Pool</div>
+              <div className={cstyles.sublight}>Pools</div>
               <div className={cstyles.flexspacebetween}>
-                <div>{pool}</div>
+                <div>{poolsText}</div>
               </div>
             </div>
           )}

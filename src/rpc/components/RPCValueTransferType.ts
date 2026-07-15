@@ -1,4 +1,4 @@
-import { ValueTransferKindEnum, ValueTransferPoolEnum, ValueTransferStatusEnum } from "../../components/appstate";
+import { ValueTransferKindEnum, ValueTransferStatusEnum } from "../../components/appstate";
 
 export type RPCValueTransferType = {
   txid: string;
@@ -11,5 +11,9 @@ export type RPCValueTransferType = {
   recipient_address?: string;
   value?: number;
   memos?: string[];
-  pool_received?: ValueTransferPoolEnum;
+  // zingolib PR #2466: replaced the single `pool_received` with two pool lists.
+  // Raw JSON pool names are capitalized ("Orchard", "Ironwood", …); rpc.ts
+  // normalizes them to the lowercase ValueTransferPoolEnum.
+  pools_sent_from?: string[];
+  pools_received?: string[];
 };

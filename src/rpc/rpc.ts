@@ -9,6 +9,7 @@ import {
   SendProposeType,
   SendType,
   ValueTransferStatusEnum,
+  ValueTransferPoolEnum,
   WalletType,
   ServerChainNameEnum,
 } from "../components/appstate";
@@ -17,6 +18,16 @@ import { native } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
 import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
+
+// zingolib emits pool names capitalized ("Orchard", "Ironwood", …); normalize them
+// to the lowercase ValueTransferPoolEnum and drop anything unrecognized. Returns
+// undefined for empty/absent lists so the UI can skip the "Pools" line entirely.
+const VALID_POOLS: string[] = Object.values(ValueTransferPoolEnum);
+const parseValueTransferPools = (raw?: string[]): ValueTransferPoolEnum[] | undefined => {
+  if (!raw || raw.length === 0) return undefined;
+  const pools = raw.map((p) => p.toLowerCase()).filter((p) => VALID_POOLS.includes(p)) as ValueTransferPoolEnum[];
+  return pools.length > 0 ? pools : undefined;
+};
 
 export default class RPC {
   fnSetTotalBalance: (tb: TotalBalanceClass) => void;
@@ -280,6 +291,11 @@ export default class RPC {
 
       // NU6.3 / Ironwood activation height, read from zingolib (source of truth).
       info.nu63ActivationHeight = await RPC.fetchIronwoodActivationHeight();
+
+      // Happy-path drain plan: how much Orchard can move vs is stranded dust.
+      const drainPlan = await RPC.fetchOrchardDrainPlan();
+      info.orchardMigratable = drainPlan.migratable;
+      info.orchardDust = drainPlan.dust;
 
       return info;
     } catch (err) {
@@ -657,6 +673,27 @@ export default class RPC {
     }
   }
 
+  // Happy-path Orchard→Ironwood drain plan (plan_orchard_drain): read-only, no
+  // sync. Returns migratable/dust in ZEC (both 0 on error). migratable 0 with an
+  // Orchard balance means the whole balance is dust.
+  static async fetchOrchardDrainPlan(): Promise<{ migratable: number; dust: number }> {
+    try {
+      const str: string = await native.plan_orchard_drain();
+      if (!str || str.toLowerCase().startsWith("error")) {
+        if (str) console.error(`Error orchard drain plan: ${str}`);
+        return { migratable: -1, dust: 0 };
+      }
+      const json = JSON.parse(str);
+      return {
+        migratable: (json.migrated || 0) / 10 ** 8,
+        dust: (json.stranded || 0) / 10 ** 8,
+      };
+    } catch (error) {
+      console.error(`Error orchard drain plan ${error}`);
+      return { migratable: -1, dust: 0 };
+    }
+  }
+
   // Fetch all T and Z and O value transfers
   private async fetchValueTransferData(
     fetchLabel: string,
@@ -717,7 +754,8 @@ export default class RPC {
         vt.address = !tx.recipient_address ? undefined : tx.recipient_address;
         vt.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
         vt.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
-        vt.pool = !tx.pool_received ? undefined : tx.pool_received;
+        vt.poolsSentFrom = parseValueTransferPools(tx.pools_sent_from);
+        vt.poolsReceived = parseValueTransferPools(tx.pools_received);
 
         if (vt.status === ValueTransferStatusEnum.failed) {
           console.log("[RPC] failed value transfer (transformed):", vt);

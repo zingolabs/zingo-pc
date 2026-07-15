@@ -9,6 +9,7 @@ const BalanceBlock: React.FC<BalanceBlockProps> = ({
   usdValueConfirmed,
   topLabel,
   currencyName,
+  tooltip,
 }) => {
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(zecValue);
   const { bigPart: bigPartConfirmed, smallPart: smallPartConfirmed }: { bigPart: string; smallPart: string } =
@@ -16,7 +17,14 @@ const BalanceBlock: React.FC<BalanceBlockProps> = ({
 
   return (
     <div className={cstyles.padall}>
-      {topLabel && <div className={cstyles.small}>{topLabel}</div>}
+      {topLabel && (
+        <div className={cstyles.small}>
+          {topLabel}
+          {tooltip && (
+            <i className="fas fa-info-circle" title={tooltip} style={{ marginLeft: 6, cursor: "help", opacity: 0.8 }} />
+          )}
+        </div>
+      )}
 
       <div className={`${cstyles.highlight} ${cstyles.large}`}>
         <span>

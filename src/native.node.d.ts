@@ -86,6 +86,7 @@ export function shield(): Promise<string>;
 export function confirm(): Promise<string>;
 export function drain_orchard_to_ironwood(): Promise<string>;
 export function get_ironwood_activation_height(): Promise<string>;
+export function plan_orchard_drain(): Promise<string>;
 export function delete_wallet(
   server_uri: string,
   chain_hint: ServerChainNameEnum,

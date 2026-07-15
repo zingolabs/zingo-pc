@@ -49,6 +49,12 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   // zero exactly when the wallet is ready.
   const nu63Activation: number = info.nu63ActivationHeight;
   const ironwoodIsReady: boolean = ironwoodReady(nu63Activation, info.walletHeight);
+  // The Orchard balance is all dust when the drain plan can migrate nothing yet
+  // has stranded value — from the start or as a residue. Both figures come from
+  // the same plan_orchard_drain call, so they never disagree the way the balance
+  // and the plan can while a wallet is still syncing (which caused a flashing
+  // icon). -1 migratable = "not checked yet" → not dust.
+  const orchardIsDust: boolean = info.orchardMigratable === 0 && info.orchardDust > 0;
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -76,12 +82,17 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
   return (
     <div>
+      {/* Gate the whole banner on info-only, self-consistent signals: nu63Activation
+          and orchardMigratable both come from the same fetchInfo commit, so they never
+          disagree the way get_balance and the drain plan can while a wallet loads/syncs
+          (which made the banner flash on wallet switch). orchardMigratable > 0 is the
+          definitive "there's migratable Orchard and it's not dust" signal (-1 = not
+          checked yet, 0 = all dust → no banner). */}
       {currentWallet !== null &&
         !currentWalletOpenError &&
         !readOnly &&
-        !!totalBalance &&
-        totalBalance.confirmedOrchardBalance > 0 &&
-        nu63Activation > 0 && (
+        nu63Activation > 0 &&
+        info.orchardMigratable > 0 && (
           <div className={`${cstyles.well} ${styles.migratebanner}`}>
             <div className={styles.migratebannertext}>
               <span className={cstyles.yellow} style={{ marginRight: 10 }}>
@@ -91,7 +102,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 <>
                   After NU6.3 you can no longer move funds inside Orchard.{" "}
                   <b>
-                    {info.currencyName} {Utils.maxPrecisionTrimmed(totalBalance.confirmedOrchardBalance)}
+                    {info.currencyName} {Utils.maxPrecisionTrimmed(info.orchardMigratable)}
                   </b>{" "}
                   can be migrated to Ironwood.
                 </>
@@ -100,7 +111,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                   Ironwood (NU6.3) activates at block <b>{nu63Activation.toLocaleString()}</b> &mdash;{" "}
                   <b>{(nu63Activation - info.walletHeight).toLocaleString()}</b> blocks to go. After that, your{" "}
                   <b>
-                    {info.currencyName} {Utils.maxPrecisionTrimmed(totalBalance.confirmedOrchardBalance)}
+                    {info.currencyName} {Utils.maxPrecisionTrimmed(info.orchardMigratable)}
                   </b>{" "}
                   in Orchard will need to move to Ironwood.
                 </>
@@ -141,6 +152,11 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
             {orchardPool && totalBalance.totalOrchardBalance > 0 && (
               <BalanceBlock
                 topLabel="Orchard (legacy)"
+                tooltip={
+                  orchardIsDust
+                    ? "Dust: this Orchard balance is below the migration threshold, so it can't move to Ironwood (moving it would cost more than it carries)."
+                    : undefined
+                }
                 zecValue={totalBalance.totalOrchardBalance}
                 usdValue={Utils.getZecToUsdString(zecPrice, totalBalance.totalOrchardBalance)}
                 currencyName={info.currencyName}

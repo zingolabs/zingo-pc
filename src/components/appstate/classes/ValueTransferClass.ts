@@ -14,7 +14,12 @@ export default class ValueTransferClass {
   address?: string;
   amount: number;
   memos?: string[];
-  pool?: ValueTransferPoolEnum;
+  // Pool info exposed by zingolib (PR #2466). poolsSentFrom is transaction-level
+  // (the pools this txid spent from — identical across all VTs of the txid);
+  // poolsReceived is transfer-specific (the destination pools of this movement).
+  // Replaces the old single `pool` (was `pool_received`).
+  poolsSentFrom?: ValueTransferPoolEnum[];
+  poolsReceived?: ValueTransferPoolEnum[];
 
   constructor(
     type: ValueTransferKindEnum,

@@ -103,6 +103,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("zec_price", zec_price)?;
     cx.export_function("drain_orchard_to_ironwood", drain_orchard_to_ironwood)?;
     cx.export_function("get_ironwood_activation_height", get_ironwood_activation_height)?;
+    cx.export_function("plan_orchard_drain", plan_orchard_drain)?;
     cx.export_function("remove_transaction", remove_transaction)?;
     cx.export_function("get_spendable_balance_with_address", get_spendable_balance_with_address)?;
     cx.export_function("get_spendable_balance_total", get_spendable_balance_total)?;
@@ -1588,6 +1589,41 @@ fn get_total_spends_to_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Ok(RT.block_on(async move {
                         match lightclient.do_total_spends_to_address().await {
                             Ok(total_spends) => json::JsonValue::from(total_spends).pretty(2),
+                            Err(e) => format!("Error: {e}"),
+                        }
+                    }))
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// Plans (without signing or sending) the happy-path drain of the pre-Ironwood
+// Orchard balance. Read-only and does NOT sync, so it is safe to poll. Returns
+// { migrated, fee, stranded } in zatoshis, where `stranded` is the dust that
+// cannot be migrated (worth at most the sweep minimum). `migrated == 0` means
+// the whole Orchard balance is dust.
+fn plan_orchard_drain(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    Ok(RT.block_on(async move {
+                        match lightclient.plan_orchard_drain(zip32::AccountId::ZERO).await {
+                            Ok(plan) => object! {
+                                "migrated" => plan.migrated,
+                                "fee" => plan.fee,
+                                "stranded" => plan.stranded,
+                            }
+                            .pretty(2),
                             Err(e) => format!("Error: {e}"),
                         }
                     }))
