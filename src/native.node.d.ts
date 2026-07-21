@@ -87,6 +87,16 @@ export function confirm(): Promise<string>;
 export function drain_orchard_to_ironwood(): Promise<string>;
 export function get_ironwood_activation_height(): Promise<string>;
 export function plan_orchard_drain(): Promise<string>;
+// Private (scheduled) Ironwood migration — zingolib parts/buckets engine.
+export function plan_ironwood_migration(): Promise<string>;
+export function start_ironwood_migration(consented_plan_hash: string, per_bucket: number): Promise<string>;
+export function migration_status(): Promise<string>;
+export function reconcile_migration(): Promise<string>;
+export function broadcast_due_parts(): Promise<string>;
+export function auto_broadcast_if_due(): Promise<string>;
+export function catch_up_migration(): Promise<string>;
+export function migrate_to_ironwood(): Promise<string>;
+export function cancel_ironwood_migration(): Promise<string>;
 export function delete_wallet(
   server_uri: string,
   chain_hint: ServerChainNameEnum,

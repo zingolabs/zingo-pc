@@ -206,7 +206,7 @@ describe("VtModal", () => {
     const openConfirmModal = jest.fn((_t: string, _b: any, cb: () => void) => {
       capturedConfirmCallback = cb;
     });
-    (native.remove_transaction as jest.Mock).mockResolvedValue("Success");
+    (native.remove_transaction as jest.Mock).mockResolvedValue(JSON.stringify({ status: "Success" }));
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt], openConfirmModal, openErrorModal },
     });
@@ -225,7 +225,7 @@ describe("VtModal", () => {
     const openConfirmModal = jest.fn((_t: string, _b: any, cb: () => void) => {
       capturedConfirmCallback = cb;
     });
-    (native.remove_transaction as jest.Mock).mockResolvedValue("Error: not allowed");
+    (native.remove_transaction as jest.Mock).mockResolvedValue(JSON.stringify({ error: "not allowed" }));
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt], openConfirmModal, openErrorModal },
     });
@@ -233,7 +233,7 @@ describe("VtModal", () => {
     await act(async () => {
       await capturedConfirmCallback();
     });
-    expect(openErrorModal).toHaveBeenCalledWith("Remove", "Remove Error: not allowed");
+    expect(openErrorModal).toHaveBeenCalledWith("Remove", "Remove not allowed");
   });
 
   it("opens an error modal when native.remove_transaction throws", async () => {

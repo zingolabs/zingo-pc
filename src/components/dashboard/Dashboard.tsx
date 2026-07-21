@@ -88,9 +88,56 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
           (which made the banner flash on wallet switch). orchardMigratable > 0 is the
           definitive "there's migratable Orchard and it's not dust" signal (-1 = not
           checked yet, 0 = all dust → no banner). */}
+      {/* Private (scheduled) migration underway: a self-driven flow the user
+          resumes to send each due batch. TODO(ffi): info.migrationInProgress and
+          its figures come from zingolib migration_status() once wired; until then
+          this banner stays hidden (migrationInProgress defaults false). */}
+      {currentWallet !== null && !currentWalletOpenError && info.migrationInProgress && (
+        <div className={`${cstyles.well} ${styles.migrationprogress}`}>
+          <div className={styles.migrationprogresshead}>
+            <span className={cstyles.highlight}>Migration in Progress</span>
+            <button
+              type="button"
+              className={styles.detailslink}
+              onClick={() => navigate(routes.MIGRATION, { replace: true, state: {} })}
+            >
+              Details
+            </button>
+          </div>
+          <div className={styles.progresstrack}>
+            <div
+              className={styles.progressfill}
+              style={{
+                width: `${
+                  info.migrationBatchesTotal
+                    ? Math.round((info.migrationBatchesConfirmed / info.migrationBatchesTotal) * 100)
+                    : 0
+                }%`,
+              }}
+            />
+          </div>
+          <div className={`${cstyles.flexspacebetween} ${cstyles.small}`} style={{ marginTop: 6 }}>
+            <span className={cstyles.sublight}>Batches</span>
+            <span>
+              {info.migrationBatchesConfirmed} of {info.migrationBatchesTotal} completed
+            </span>
+          </div>
+          <div className={`${cstyles.flexspacebetween} ${cstyles.small}`}>
+            <span className={cstyles.sublight}>Next action</span>
+            <span className={cstyles.yellow}>Next batch in ~{info.migrationNextBlocks} blocks</span>
+          </div>
+          <div className={`${cstyles.flexspacebetween} ${cstyles.small}`}>
+            <span className={cstyles.sublight}>Pending</span>
+            <span>
+              {info.currencyName} {Utils.maxPrecisionTrimmed(info.migrationPendingZec)}
+            </span>
+          </div>
+        </div>
+      )}
       {currentWallet !== null &&
         !currentWalletOpenError &&
         !readOnly &&
+        !info.migrationInProgress &&
         nu63Activation > 0 &&
         info.orchardMigratable > 0 && (
           <div className={`${cstyles.well} ${styles.migratebanner}`}>
@@ -117,13 +164,23 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 </>
               )}
             </div>
-            {ironwoodIsReady && (
+            {ironwoodIsReady ? (
               <button
                 type="button"
                 className={cstyles.primarybutton}
                 onClick={() => navigate(routes.MIGRATION, { replace: true, state: {} })}
               >
                 Migrate
+              </button>
+            ) : (
+              // Before activation the migration can't run, but the plan can be
+              // computed — let the user preview it (a dry run / test).
+              <button
+                type="button"
+                className={cstyles.primarybutton}
+                onClick={() => navigate(routes.MIGRATION, { replace: true, state: { simulation: true } })}
+              >
+                Simulate
               </button>
             )}
           </div>

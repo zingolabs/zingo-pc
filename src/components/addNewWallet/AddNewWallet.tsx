@@ -223,25 +223,21 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         wallet_name,
       );
 
-      if (!result || result.toLowerCase().startsWith("error")) {
-        openErrorModal("Creating New wallet", result);
-        // restore the previous wallet
-        loadCurrentWallet();
-      } else {
-        const resultJSON = JSON.parse(result);
-        const seed_phrase: string = resultJSON.seed_phrase;
+      // A failed init rejects (typed error on the throw channel); the catch
+      // below restores the previous wallet. Success is always a JSON payload.
+      const resultJSON = JSON.parse(result);
+      const seed_phrase: string = resultJSON.seed_phrase;
 
-        await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
+      await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
 
-        await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
-        await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
-        await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
-        await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
-        // save the wallet
-        doSaveWallet();
-        await delay(1000);
-        navigateToLoadingScreenChangingWallet();
-      }
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
+      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
+      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
+      await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
+      // save the wallet
+      doSaveWallet();
+      await delay(1000);
+      navigateToLoadingScreenChangingWallet();
     } catch (error) {
       console.error(`Critical Error create new wallet ${error}`);
       openErrorModal("Creating New wallet", `${error}`);
@@ -262,26 +258,22 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         3,
         wallet_name,
       );
-      if (!result || result.toLowerCase().startsWith("error")) {
-        openErrorModal("Restoring wallet from seed", result);
-        // restore the previous wallet
-        loadCurrentWallet();
-      } else {
-        const resultJSON = JSON.parse(result);
-        const seed_phrase: string = resultJSON.seed_phrase;
+      // A failed init rejects (typed error on the throw channel); the catch
+      // below restores the previous wallet. Success is always a JSON payload.
+      const resultJSON = JSON.parse(result);
+      const seed_phrase: string = resultJSON.seed_phrase;
 
-        await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
+      await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
 
-        await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
-        await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
-        await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
-        await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
-        // save the wallet
-        setSeedPhrase("");
-        doSaveWallet();
-        await delay(1000);
-        navigateToLoadingScreenChangingWallet();
-      }
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
+      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
+      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
+      await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
+      // save the wallet
+      setSeedPhrase("");
+      doSaveWallet();
+      await delay(1000);
+      navigateToLoadingScreenChangingWallet();
     } catch (error) {
       console.error(`Critical Error restore from seed ${error}`);
       openErrorModal("Restoring wallet from seed", `${error}`);
@@ -341,26 +333,22 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         3,
         wallet_name,
       );
-      if (!result || result.toLowerCase().startsWith("error")) {
-        openErrorModal("Restoring wallet from ufvk", result);
-        // restore the previous wallet
-        loadCurrentWallet();
-      } else {
-        const resultJSON = JSON.parse(result);
-        const ufvk: string = resultJSON.ufvk;
+      // A failed init rejects (typed error on the throw channel); the catch
+      // below restores the previous wallet. Success is always a JSON payload.
+      const resultJSON = JSON.parse(result);
+      const resultUfvk: string = resultJSON.ufvk;
 
-        createNextWallet(id, wallet_name, alias ? alias : `${ufvk.substring(0, 10)}...`);
+      createNextWallet(id, wallet_name, alias ? alias : `${resultUfvk.substring(0, 10)}...`);
 
-        await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
-        await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
-        await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
-        await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
-        // save the wallet
-        setUfvk("");
-        doSaveWallet();
-        await delay(1000);
-        navigateToLoadingScreenChangingWallet();
-      }
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
+      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
+      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
+      await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
+      // save the wallet
+      setUfvk("");
+      doSaveWallet();
+      await delay(1000);
+      navigateToLoadingScreenChangingWallet();
     } catch (error) {
       console.error(`Critical Error restore from ufvk ${error}`);
       openErrorModal("Restoring wallet from ufvk", `${error}`);
@@ -381,32 +369,28 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         3,
         wallet_name,
       );
-      if (!result || result.toLowerCase().startsWith("error")) {
-        openErrorModal("Restoring wallet from file", result);
-        // restore the previous wallet
-        loadCurrentWallet();
-      } else {
-        const resultJSON = JSON.parse(result);
-        const birthday: number = resultJSON.birthday;
+      // A failed init rejects (typed error on the throw channel); the catch
+      // below restores the previous wallet. Success is always a JSON payload.
+      const resultJSON = JSON.parse(result);
+      const birthday: number = resultJSON.birthday;
 
-        if (birthday < activationHeight[selectedChain]) {
-          openErrorModal(
-            "Restoring wallet from file",
-            `The birthday found ${birthday} is invalid. The sync process is not going to work.`,
-          );
-        }
-
-        await createNextWallet(id, wallet_name, alias ? alias : wallet_name);
-
-        await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
-        await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
-        await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
-        await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
-        // save the wallet
-        doSaveWallet();
-        await delay(1000);
-        navigateToLoadingScreenChangingWallet();
+      if (birthday < activationHeight[selectedChain]) {
+        openErrorModal(
+          "Restoring wallet from file",
+          `The birthday found ${birthday} is invalid. The sync process is not going to work.`,
+        );
       }
+
+      await createNextWallet(id, wallet_name, alias ? alias : wallet_name);
+
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
+      await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
+      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selectedSelection });
+      await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
+      // save the wallet
+      doSaveWallet();
+      await delay(1000);
+      navigateToLoadingScreenChangingWallet();
     } catch (error) {
       console.error(`Critical Error restore from file ${error}`);
       openErrorModal("Restoring wallet from file", `${error}`);
@@ -417,15 +401,17 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
 
   const loadCurrentWallet = async () => {
     if (currentWallet) {
-      const result: string = await native.init_from_b64(
-        currentWallet.uri,
-        currentWallet.chain_name,
-        currentWallet.performanceLevel,
-        3,
-        currentWallet.fileName,
-      );
-      if (!result || result.toLowerCase().startsWith("error")) {
-        openErrorModal("Loading current wallet", result);
+      try {
+        // A failed init rejects (typed error on the throw channel).
+        await native.init_from_b64(
+          currentWallet.uri,
+          currentWallet.chain_name,
+          currentWallet.performanceLevel,
+          3,
+          currentWallet.fileName,
+        );
+      } catch (error) {
+        openErrorModal("Loading current wallet", `${error}`);
       }
     }
   };

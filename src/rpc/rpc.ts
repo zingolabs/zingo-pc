@@ -18,6 +18,7 @@ import { native } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
 import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
+import { FfiMigrationSummary, FfiPlan, FfiStatus } from "../components/orchardMigration/privateMigrationTypes";
 
 // zingolib emits pool names capitalized ("Orchard", "Ironwood", …); normalize them
 // to the lowercase ValueTransferPoolEnum and drop anything unrecognized. Returns
@@ -95,6 +96,9 @@ export default class RPC {
       RPC.doSave(),
       this.fetchTandZandOValueTransfers(),
       this.fetchTandZandOMessages(),
+      // Foreground driver: broadcast any migration parts whose window is open.
+      // No-op when no migration is in progress.
+      RPC.autoBroadcastIfDue(),
     ]);
   }
 
@@ -106,6 +110,10 @@ export default class RPC {
     await this.fetchInfo();
     void this.getZecPrice();
     await this.fetchTandZandOMessages();
+
+    // Reconcile any in-progress private migration on launch (no-op otherwise):
+    // applies the safe-unattended part-state fixes zingolib recommends.
+    await RPC.reconcileMigration();
 
     // every 5 seconds the App update part of the data
     if (!this.updateTimerID) {
@@ -296,6 +304,20 @@ export default class RPC {
       const drainPlan = await RPC.fetchOrchardDrainPlan();
       info.orchardMigratable = drainPlan.migratable;
       info.orchardDust = drainPlan.dust;
+      info.orchardFee = drainPlan.fee;
+
+      // Private (scheduled) migration progress → the Dashboard "in progress"
+      // banner. Null when none is running, so the banner stays hidden.
+      const migStatus = await RPC.fetchMigrationStatus();
+      if (migStatus) {
+        info.migrationInProgress = true;
+        info.migrationBatchesConfirmed = migStatus.parts_confirmed;
+        info.migrationBatchesTotal = migStatus.parts_total;
+        info.migrationPendingZec = Math.max(migStatus.value_total - migStatus.value_migrated, 0) / 10 ** 8;
+        info.migrationNextBlocks = migStatus.next_wakes.length
+          ? Math.max(migStatus.next_wakes[0].boundary - info.walletHeight, 0)
+          : 0;
+      }
 
       return info;
     } catch (err) {
@@ -339,12 +361,10 @@ export default class RPC {
 
   async fetchSyncPoll(): Promise<void> {
     try {
+      // A failed poll rejects (typed error on the throw channel); the catch
+      // below records it as lastPollSyncError. Status replies ("not launched",
+      // "not complete") and the completed JSON still cross on the data channel.
       const returnPoll: string = await native.poll_sync();
-      if (!returnPoll || returnPoll.toLowerCase().startsWith("error")) {
-        console.error("SYNC POLL ERROR", returnPoll);
-        this.lastPollSyncError = returnPoll;
-        return;
-      }
 
       if (returnPoll.toLowerCase().startsWith("sync task has not been launched")) {
         console.log("SYNC POLL -> RUN SYNC", returnPoll);
@@ -377,6 +397,7 @@ export default class RPC {
       void this.fetchSyncStatus();
     } catch (error) {
       console.error(`Critical Error sync poll ${error}`);
+      this.lastPollSyncError = `${error}`;
     }
   }
 
@@ -405,25 +426,15 @@ export default class RPC {
         // the rescan in zingolib do two tasks:
         // 1. stop the sync.
         // 2. launch the rescan.
-        const rescanStr: string = await native.run_rescan();
-        if (!rescanStr || rescanStr.toLowerCase().startsWith("error")) {
-          console.error(`Error rescan ${rescanStr}`);
-        }
+        // A failed rescan rejects (typed error on the throw channel), caught below.
+        await native.run_rescan();
         await this.configure();
       } else {
+        // A concurrent launch now returns a clean "already running" status (no
+        // longer an error); the existing sync just keeps going. A genuine
+        // failure rejects and is caught below.
         const syncStr: string = await native.run_sync();
-        if (!syncStr || syncStr.toLowerCase().startsWith("error")) {
-          // "sync is already running" is the expected outcome of the
-          // defensive run_sync() that fetchSyncPoll() fires while a sync is
-          // mid-flight (see the "is not complete" branch above). It's not a
-          // failure — the existing sync just keeps going. Demote to log so it
-          // doesn't drown the console with red.
-          if (syncStr && syncStr.toLowerCase().includes("already running")) {
-            console.log(`Sync already running: ${syncStr}`);
-          } else {
-            console.error(`Error sync ${syncStr}`);
-          }
-        }
+        console.log(`Sync: ${syncStr}`);
       }
     } catch (error) {
       console.error(`Critical Error run sync/rescan ${error}`);
@@ -432,11 +443,8 @@ export default class RPC {
 
   async fetchSyncStatus(): Promise<void> {
     try {
+      // A failed status rejects (typed error on the throw channel), caught below.
       const returnStatus: string = await native.status_sync();
-      if (!returnStatus || returnStatus.toLowerCase().startsWith("error")) {
-        console.error("SYNC STATUS ERROR", returnStatus);
-        return;
-      }
       let ss = {} as SyncStatusType;
       try {
         ss = JSON.parse(returnStatus);
@@ -676,21 +684,24 @@ export default class RPC {
   // Happy-path Orchard→Ironwood drain plan (plan_orchard_drain): read-only, no
   // sync. Returns migratable/dust in ZEC (both 0 on error). migratable 0 with an
   // Orchard balance means the whole balance is dust.
-  static async fetchOrchardDrainPlan(): Promise<{ migratable: number; dust: number }> {
+  static async fetchOrchardDrainPlan(): Promise<{ migratable: number; dust: number; fee: number }> {
     try {
       const str: string = await native.plan_orchard_drain();
-      if (!str || str.toLowerCase().startsWith("error")) {
-        if (str) console.error(`Error orchard drain plan: ${str}`);
-        return { migratable: -1, dust: 0 };
-      }
       const json = JSON.parse(str);
+      // Failures now cross as `{ error }` JSON; migratable -1 is the caller's
+      // error sentinel.
+      if (json.error) {
+        console.error(`Error orchard drain plan: ${json.error}`);
+        return { migratable: -1, dust: 0, fee: 0 };
+      }
       return {
         migratable: (json.migrated || 0) / 10 ** 8,
         dust: (json.stranded || 0) / 10 ** 8,
+        fee: (json.fee || 0) / 10 ** 8,
       };
     } catch (error) {
       console.error(`Error orchard drain plan ${error}`);
-      return { migratable: -1, dust: 0 };
+      return { migratable: -1, dust: 0, fee: 0 };
     }
   }
 
@@ -883,11 +894,12 @@ export default class RPC {
 
       const resultStr: string = await native.drain_orchard_to_ironwood();
       if (resultStr) {
-        if (resultStr.toLowerCase().startsWith("error")) {
-          console.error(`Error drain orchard to ironwood: ${resultStr}`);
-          return { result: null, error: resultStr };
+        const resultJSON: RPCIronwoodDrainType & { error?: string } = JSON.parse(resultStr);
+        // Failures now cross as `{ error }` JSON alongside the success shape.
+        if (resultJSON.error) {
+          console.error(`Error drain orchard to ironwood: ${resultJSON.error}`);
+          return { result: null, error: resultJSON.error };
         }
-        const resultJSON: RPCIronwoodDrainType = JSON.parse(resultStr);
         return { result: resultJSON, error: "" };
       }
       return { result: null, error: "Error: Internal RPC Error: drain orchard to ironwood" };
@@ -897,6 +909,120 @@ export default class RPC {
     } finally {
       // Always resume the background sync loop.
       await this.configure();
+    }
+  }
+
+  // ---- Private (scheduled) Ironwood migration (zingolib parts/buckets) ----
+  // Foreground-only: zingo-pc drives the schedule while the app is open. Each
+  // native call throws a typed error on failure; these wrappers swallow it into
+  // a null / false / [] so callers branch on data, never on an "Error:" string.
+
+  // The immediate one-call private migration: split notes into standard
+  // denominations then send every part to Ironwood. Like drainOrchardToIronwood,
+  // it syncs internally, so we stop our 5s loop, run it, and resume. Long-
+  // running: splitting happens in rounds, each waiting for confirmation.
+  async migrateToIronwood(): Promise<{ result: FfiMigrationSummary | null; error: string }> {
+    await this.clearTimers();
+    try {
+      const resultStr: string = await native.migrate_to_ironwood();
+      if (resultStr) {
+        const resultJSON: FfiMigrationSummary & { error?: string } = JSON.parse(resultStr);
+        if (resultJSON.error) {
+          console.error(`Error migrate to ironwood: ${resultJSON.error}`);
+          return { result: null, error: resultJSON.error };
+        }
+        return { result: resultJSON, error: "" };
+      }
+      return { result: null, error: "Error: Internal RPC Error: migrate to ironwood" };
+    } catch (error) {
+      console.error(`Critical error migrate to ironwood: ${error}`);
+      return { result: null, error: `Error: ${error}` };
+    } finally {
+      // Always resume the background sync loop.
+      await this.configure();
+    }
+  }
+
+  // The Phase 1 split plan the user consents to. Null on any failure (e.g. no
+  // migratable Orchard, or the chain not yet at NU6.3).
+  static async planIronwoodMigration(): Promise<FfiPlan | null> {
+    try {
+      return JSON.parse(await native.plan_ironwood_migration());
+    } catch (error) {
+      console.error(`Error plan ironwood migration ${error}`);
+      return null;
+    }
+  }
+
+  // The migration's progress. Null when none is in progress or on failure.
+  static async fetchMigrationStatus(): Promise<FfiStatus | null> {
+    try {
+      const status: FfiStatus = JSON.parse(await native.migration_status());
+      return status.in_progress ? status : null;
+    } catch (error) {
+      console.error(`Error migration status ${error}`);
+      return null;
+    }
+  }
+
+  // Begin the migration with the consented plan hash. per_bucket <= 0 = default.
+  static async startIronwoodMigration(consentedPlanHash: string, perBucket: number): Promise<boolean> {
+    try {
+      await native.start_ironwood_migration(consentedPlanHash, perBucket);
+      return true;
+    } catch (error) {
+      console.error(`Error start ironwood migration ${error}`);
+      return false;
+    }
+  }
+
+  // Run on every launch: applies the safe-unattended reconciliation actions.
+  static async reconcileMigration(): Promise<void> {
+    try {
+      await native.reconcile_migration();
+    } catch (error) {
+      console.error(`Error reconcile migration ${error}`);
+    }
+  }
+
+  // Send every part whose window is open now (the "Send batch" action).
+  static async broadcastDueParts(): Promise<string[]> {
+    try {
+      return JSON.parse(await native.broadcast_due_parts()).txids ?? [];
+    } catch (error) {
+      console.error(`Error broadcast due parts ${error}`);
+      return [];
+    }
+  }
+
+  // Send parts from windows that already passed (needs user disclosure).
+  static async catchUpMigration(): Promise<string[]> {
+    try {
+      return JSON.parse(await native.catch_up_migration()).txids ?? [];
+    } catch (error) {
+      console.error(`Error catch up migration ${error}`);
+      return [];
+    }
+  }
+
+  // Periodic driving-loop primitive: no-op without a migration; otherwise
+  // refreshes witnesses and broadcasts due parts. Called each sync cycle.
+  static async autoBroadcastIfDue(): Promise<void> {
+    try {
+      await native.auto_broadcast_if_due();
+    } catch (error) {
+      console.error(`Error auto broadcast if due ${error}`);
+    }
+  }
+
+  // Abandon the in-progress migration.
+  static async cancelIronwoodMigration(): Promise<boolean> {
+    try {
+      await native.cancel_ironwood_migration();
+      return true;
+    } catch (error) {
+      console.error(`Error cancel ironwood migration ${error}`);
+      return false;
     }
   }
 

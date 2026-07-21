@@ -23,16 +23,79 @@
   cursor: pointer;
 }
 
+/* White on hover so it never reads the same as the green selected border. */
 .choicecard:hover {
-  border: 1px solid var(--color-primary);
+  border: 1px solid var(--color-text);
 }
 
 .choicedisabled {
   opacity: 0.5;
 }
 
+/* Selected strategy card (Migrate privately / Migrate now). */
+/* Keep the green even while hovered (`:hover` variant wins the equal-specificity
+   tie by order), so the selection stays visible under the cursor. */
+.choiceselected,
+.choiceselected:hover {
+  border: 1px solid var(--color-primary);
+}
+
+/* "How the move works" phase diagram: a box splitting into smaller boxes, and
+   a row of scheduling buckets. */
+.phaseboxes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.phasebox {
+  width: 34px;
+  height: 34px;
+  border-radius: 6px;
+  border: 1px solid var(--color-primary);
+}
+
+.phasearrow {
+  color: var(--color-primary-disable);
+}
+
+.miniboxes {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.minibox {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  border: 1px solid var(--color-primary);
+}
+
+.bucket {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--color-primary-disable);
+  font-size: 12px;
+  color: var(--color-primary-disable);
+}
+
 .privacynote {
   margin-top: 16px;
+}
+
+/* Neutral note box shared with the private path (no red), used for the
+   "can't run yet" / simulation legend on the confirm screen. */
+.infonote {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-background-dark);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .buttons {

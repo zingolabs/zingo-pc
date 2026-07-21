@@ -40,6 +40,15 @@ const _ALL_NATIVE_METHODS = [
   "drain_orchard_to_ironwood",
   "get_ironwood_activation_height",
   "plan_orchard_drain",
+  // private Ironwood migration (parts/buckets engine), no params
+  "plan_ironwood_migration",
+  "migration_status",
+  "reconcile_migration",
+  "broadcast_due_parts",
+  "auto_broadcast_if_due",
+  "catch_up_migration",
+  "migrate_to_ironwood",
+  "cancel_ironwood_migration",
   // sync no-param (become async via IPC)
   "deinitialize",
   "get_developer_donation_address",
@@ -58,6 +67,7 @@ const _ALL_NATIVE_METHODS = [
   "send",
   "delete_wallet",
   "change_server",
+  "start_ironwood_migration",
   // sync with params (become async via IPC)
   "wallet_exists",
   "init_new",

@@ -1,0 +1,223 @@
+/* Private (split + scheduled) Ironwood migration. Follows the same layout
+   language as OrchardMigration.module.css: a centered column of cards over
+   Common.module.css primitives. */
+
+.container {
+  max-width: 620px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* ---- Two-phase stepper: (1) Split notes ---- (2) Send batches ---- */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.stepnum {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--color-primary-disable);
+  color: var(--color-primary-disable);
+  font-size: 12px;
+}
+
+.stepactive .stepnum {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.stepdone .stepnum {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-background);
+}
+
+.steplabel {
+  color: var(--color-primary-disable);
+  font-size: 13px;
+}
+
+.stepactive .steplabel,
+.stepdone .steplabel {
+  color: var(--color-text);
+}
+
+.stepline {
+  flex: 1;
+  height: 1px;
+  background: var(--color-primary-disable);
+}
+
+/* ---- Transaction / batch cards ---- */
+.card {
+  margin-top: 14px;
+  padding: 16px;
+  text-align: left;
+}
+
+.cardhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.cardtitle {
+  font-weight: 600;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.totalrow {
+  border-top: 1px solid var(--color-primary-disable);
+  margin-top: 6px;
+  padding-top: 12px;
+  font-weight: 600;
+}
+
+/* ---- Denomination chips (100) (10) (1) ---- */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary);
+  font-size: 13px;
+}
+
+/* ---- State badges ---- */
+.badge {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  text-transform: uppercase;
+}
+
+.badgequeued {
+  color: var(--color-primary-disable);
+  border-color: var(--color-primary-disable);
+}
+
+.badgebroadcasting {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+.badgeconfirmed {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.badgescheduled,
+.badgewindow {
+  color: #4a90d9;
+  border-color: #4a90d9;
+}
+
+.badgenext {
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+/* ---- Progress bar ---- */
+.progresstrack {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-background-dark);
+  overflow: hidden;
+  margin: 8px 0 4px 0;
+}
+
+.progressfill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 3px;
+  transition: width 240ms ease;
+}
+
+/* ---- Selectable sizing cards (fewer vs more batches) ---- */
+.choicecard {
+  cursor: pointer;
+}
+
+/* White on hover so it never reads the same as the green selected border. */
+.choicecard:hover {
+  border: 1px solid var(--color-text);
+}
+
+/* Keep the green even while hovered (`:hover` variant wins the equal-specificity
+   tie by order), so the selection stays visible under the cursor. */
+.choiceselected,
+.choiceselected:hover {
+  border: 1px solid var(--color-primary);
+}
+
+/* ---- Info note ("If you miss a window…") ---- */
+.infonote {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-background-dark);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ---- Spinner shown while a phase is broadcasting ---- */
+.spinner {
+  width: 34px;
+  height: 34px;
+  margin: 24px auto;
+  border: 3px solid var(--color-background-dark);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}

@@ -39,15 +39,18 @@ use zcash_address::unified::{Container, Encoding, Ufvk};
 use zcash_keys::address::Address;
 use zcash_keys::keys::UnifiedFullViewingKey;
 use zip32::AccountId;
+use zingolib::wallet::migration::{MigrationParams, MigrationPhase, SigningStrategy, plan_hash};
 use zcash_protocol::consensus::{NetworkType, NetworkUpgrade, Parameters};
 
 use pepper_sync::config::SyncConfig;
 use pepper_sync::config::{PerformanceLevel, TransparentAddressDiscovery};
 use pepper_sync::keys::transparent;
 use pepper_sync::wallet::{KeyIdInterface, SyncMode};
-use zingolib::config::{ChainType, ClientConfig, WalletConfig, construct_lightwalletd_uri};
+use pepper_sync::error::SyncModeError;
+use zingolib::config::{ChainType, ClientConfig, WalletConfig, construct_indexer_uri};
 use zingolib::data::PollReport;
 use zingolib::lightclient::LightClient;
+use zingolib::lightclient::error::LightClientError;
 use zingolib::utils::{conversion::address_from_str, conversion::txid_from_hex_encoded_str};
 use zingolib::wallet::keys::unified::{ReceiverSelection, UnifiedKeyStore};
 use zingolib::wallet::WalletSettings;
@@ -104,6 +107,15 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("drain_orchard_to_ironwood", drain_orchard_to_ironwood)?;
     cx.export_function("get_ironwood_activation_height", get_ironwood_activation_height)?;
     cx.export_function("plan_orchard_drain", plan_orchard_drain)?;
+    cx.export_function("plan_ironwood_migration", plan_ironwood_migration)?;
+    cx.export_function("start_ironwood_migration", start_ironwood_migration)?;
+    cx.export_function("migration_status", migration_status)?;
+    cx.export_function("reconcile_migration", reconcile_migration)?;
+    cx.export_function("broadcast_due_parts", broadcast_due_parts)?;
+    cx.export_function("auto_broadcast_if_due", auto_broadcast_if_due)?;
+    cx.export_function("catch_up_migration", catch_up_migration)?;
+    cx.export_function("migrate_to_ironwood", migrate_to_ironwood)?;
+    cx.export_function("cancel_ironwood_migration", cancel_ironwood_migration)?;
     cx.export_function("remove_transaction", remove_transaction)?;
     cx.export_function("get_spendable_balance_with_address", get_spendable_balance_with_address)?;
     cx.export_function("get_spendable_balance_total", get_spendable_balance_total)?;
@@ -228,6 +240,16 @@ pub enum ZingolibError {
     LightclientLockPoisoned,
     #[error("Error: panic: {0}")]
     Panic(String),
+    #[error("Error: saving wallet: {0}")]
+    Save(String),
+    #[error("Error: initializing wallet: {0}")]
+    Init(String),
+    #[error("Error: sync: {0}")]
+    Sync(String),
+    #[error("Error: rescan: {0}")]
+    Rescan(String),
+    #[error("Error: read: {0}")]
+    Read(String),
 }
 
 pub fn with_panic_guard<T, F>(f: F) -> Result<T, ZingolibError>
@@ -422,23 +444,23 @@ fn construct_uri_load_config(
     performance_level: String,
     min_confirmations: f64,
     wallet_name: String,
-) -> Result<(zingolib::config::ClientConfigBuilder, WalletSettings, http::Uri), String> {
+) -> Result<(zingolib::config::ClientConfigBuilder, WalletSettings, http::Uri), ZingolibError> {
     // if uri is empty -> Offline Mode.
-    let lightwalletd_uri = construct_lightwalletd_uri(Some(uri.clone()))
-        .map_err(|e| format!("Error: Invalid server uri: {e}"))?;
+    let lightwalletd_uri = construct_indexer_uri(Some(uri.clone()))
+        .map_err(|e| ZingolibError::Init(format!("Invalid server uri: {e}")))?;
 
     let chaintype = match chain_hint.as_str() {
         "main" => ChainType::Mainnet,
         "test" => ChainType::Testnet,
         "regtest" => ChainType::Regtest(ActivationHeights::default()),
-        _ => return Err("Error: Not a valid chain hint!".to_string()),
+        _ => return Err(ZingolibError::Init("Not a valid chain hint!".to_string())),
     };
     let performancetype = match performance_level.as_str() {
         "Maximum" => PerformanceLevel::Maximum,
         "High" => PerformanceLevel::High,
         "Medium" => PerformanceLevel::Medium,
         "Low" => PerformanceLevel::Low,
-        _ => return Err("Error: Not a valid performance level!".to_string()),
+        _ => return Err(ZingolibError::Init("Not a valid performance level!".to_string())),
     };
     let wallet_dir = WALLET_BASE_DIR.get().cloned().map(|mut dir| {
         match chaintype {
@@ -457,7 +479,7 @@ fn construct_uri_load_config(
         // anything that casts to 0 — negatives, NaN, fractional values <1) instead
         // of unwrapping, which would panic and abort the wallet process.
         min_confirmations: NonZeroU32::try_from(min_confirmations as u32)
-            .map_err(|_| "Error: min_confirmations must be >= 1".to_string())?,
+            .map_err(|_| ZingolibError::Init("min_confirmations must be >= 1".to_string()))?,
     };
 
     let mut builder = ClientConfig::builder()
@@ -497,10 +519,12 @@ fn wallet_exists(mut cx: FunctionContext) -> JsResult<JsBoolean> {
             performance_level.clone(),
             min_confirmations,
             wallet_name.clone(),
-        )
-        .map_err(|e| ZingolibError::Panic(e.to_string()))?;
+        )?;
 
-        let config = builder.set_wallet_config(WalletConfig::Read).build();
+        let config = builder
+            .set_wallet_config(WalletConfig::Read)
+            .build()
+            .map_err(|e| ZingolibError::Init(e.to_string()))?;
         Ok(config.get_wallet_path().exists())
     });
 
@@ -520,13 +544,11 @@ fn init_new(mut cx: FunctionContext) -> JsResult<JsString> {
 
     let res: Result<String, ZingolibError> = with_panic_guard(|| {
         reset_lightclient();
-        let (builder, wallet_settings, lightwalletd_uri) = match construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name) {
-            Ok(c) => c,
-            Err(e) => return Ok(format!("Error: {e}")),
-        };
+        let (builder, wallet_settings, lightwalletd_uri) =
+            construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name)?;
         // Fetch the current chain tip from the server; the NewSeed wallet
         // derives its birthday from this height (chain_height - 100).
-        let chain_height = match RT.block_on(async move {
+        let chain_height = RT.block_on(async move {
             let mut indexer = GrpcIndexer::new(lightwalletd_uri)
                 .await
                 .map_err(|e| e.to_string())?;
@@ -535,26 +557,25 @@ fn init_new(mut cx: FunctionContext) -> JsResult<JsString> {
                 .await
                 .map(|block_id| block_id.height as u32)
                 .map_err(|e| e.to_string())
-        }) {
-            Ok(h) => h,
-            Err(e) => return Ok(format!("Error: {e}")),
-        };
+        })
+        .map_err(ZingolibError::Init)?;
         let config = builder
             .set_wallet_config(WalletConfig::NewSeed {
                 no_of_accounts: NonZeroU32::try_from(1).expect("hard-coded integer"),
                 chain_height,
                 wallet_settings,
             })
-            .build();
+            .build()
+            .map_err(|e| ZingolibError::Init(e.to_string()))?;
         let mut lightclient = match RT.block_on(async { LightClient::new(config, false).await }) {
             Ok(l) => l,
-            Err(e) => return Ok(format!("Error: {e}")),
+            Err(e) => return Err(ZingolibError::Init(e.to_string())),
         };
         // save the wallet file here
         RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
-        Ok(get_seed_string())
+        get_seed_string()
     });
 
     match res {
@@ -575,16 +596,12 @@ fn init_from_seed(mut cx: FunctionContext) -> JsResult<JsString> {
 
     let res: Result<String, ZingolibError> = with_panic_guard(|| {
         reset_lightclient();
-        let (builder, wallet_settings, _lightwalletd_uri) = match construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name) {
-            Ok(c) => c,
-            Err(e) => return Ok(format!("Error: {e}")),
-        };
+        let (builder, wallet_settings, _lightwalletd_uri) =
+            construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name)?;
         // Validate the phrase up front to surface a specific error before any
         // config/disk work; the resolved phrase is then handed to the wallet.
-        let mnemonic = match Mnemonic::<bip0039::English>::from_phrase(seed) {
-            Ok(m) => m,
-            Err(e) => return Ok(format!("Error: {e}")),
-        };
+        let mnemonic = Mnemonic::<bip0039::English>::from_phrase(seed)
+            .map_err(|e| ZingolibError::Init(e.to_string()))?;
         let config = builder
             .set_wallet_config(WalletConfig::MnemonicPhrase {
                 mnemonic_phrase: mnemonic.phrase().to_string(),
@@ -592,16 +609,17 @@ fn init_from_seed(mut cx: FunctionContext) -> JsResult<JsString> {
                 birthday: birthday as u32,
                 wallet_settings,
             })
-            .build();
+            .build()
+            .map_err(|e| ZingolibError::Init(e.to_string()))?;
         let mut lightclient = match RT.block_on(async { LightClient::new(config, false).await }) {
             Ok(l) => l,
-            Err(e) => return Ok(format!("Error: {e}")),
+            Err(e) => return Err(ZingolibError::Init(e.to_string())),
         };
         // save the wallet file here
         RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
-        Ok(get_seed_string())
+        get_seed_string()
     });
 
     match res {
@@ -621,26 +639,25 @@ fn init_from_ufvk(mut cx: FunctionContext) -> JsResult<JsString> {
 
     let res: Result<String, ZingolibError> = with_panic_guard(|| {
         reset_lightclient();
-        let (builder, wallet_settings, _lightwalletd_uri) = match construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name) {
-            Ok(c) => c,
-            Err(e) => return Ok(format!("Error: {e}")),
-        };
+        let (builder, wallet_settings, _lightwalletd_uri) =
+            construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name)?;
         let config = builder
             .set_wallet_config(WalletConfig::Ufvk {
                 ufvk,
                 birthday: birthday as u32,
                 wallet_settings,
             })
-            .build();
+            .build()
+            .map_err(|e| ZingolibError::Init(e.to_string()))?;
         let mut lightclient = match RT.block_on(async { LightClient::new(config, false).await }) {
             Ok(l) => l,
-            Err(e) => return Ok(format!("Error: {e}")),
+            Err(e) => return Err(ZingolibError::Init(e.to_string())),
         };
         // save the wallet file here
         RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
-        Ok(get_ufvk_string())
+        get_ufvk_string()
     });
 
     match res {
@@ -658,15 +675,16 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
 
     let res: Result<String, ZingolibError> = with_panic_guard(|| {
         reset_lightclient();
-        let (builder, _wallet_settings, _lightwalletd_uri) = match construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name) {
-            Ok(c) => c,
-            Err(e) => return Ok(format!("Error: {e}")),
-        };
+        let (builder, _wallet_settings, _lightwalletd_uri) =
+            construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name)?;
         // Read the existing wallet file from disk (Read variant).
-        let config = builder.set_wallet_config(WalletConfig::Read).build();
+        let config = builder
+            .set_wallet_config(WalletConfig::Read)
+            .build()
+            .map_err(|e| ZingolibError::Init(e.to_string()))?;
         let mut lightclient = match RT.block_on(async { LightClient::new(config, false).await }) {
             Ok(l) => l,
-            Err(e) => return Ok(format!("Error: {e}")),
+            Err(e) => return Err(ZingolibError::Init(e.to_string())),
         };
         let has_seed = RT.block_on(async {
             lightclient.wallet().read().await.mnemonic_phrase().is_some()
@@ -675,7 +693,7 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
         RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
-        Ok(if has_seed { get_seed_string() } else { get_ufvk_string() })
+        if has_seed { get_seed_string() } else { get_ufvk_string() }
     });
 
     match res {
@@ -730,29 +748,22 @@ fn save_wallet_file(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    // Failures travel on the typed error channel; only benign
+                    // status strings (which never begin with "error") cross on
+                    // the data channel, so no success can resemble a failure.
+                    RT.block_on(async move {
                         let wallet_path = lightclient.wallet_path();
                         let mut wallet = lightclient.wallet().write().await;
                         match wallet.save() {
                             Ok(Some(wallet_bytes)) => {
-                                match write_to_path(&wallet_path, &wallet_bytes) {
-                                    Ok(_) => {
-                                        let size = wallet_bytes.len();
-                                        format!("Wallet saved successfully. Size: {} bytes.", size)
-                                    }
-                                    Err(e) => {
-                                        format!("Error: writing wallet file: {e}")
-                                    }
-                                }
+                                write_to_path(&wallet_path, &wallet_bytes)
+                                    .map_err(|e| ZingolibError::Save(format!("writing wallet file: {e}")))?;
+                                Ok(format!("Wallet saved successfully. Size: {} bytes.", wallet_bytes.len()))
                             }
-                            Ok(None) => {
-                                "Wallet is empty. Nothing to save.".to_string()
-                            }
-                            Err(e) => {
-                                format!("Error: {e}")
-                            }
+                            Ok(None) => Ok("Wallet is empty. Nothing to save.".to_string()),
+                            Err(e) => Err(ZingolibError::Save(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -772,14 +783,14 @@ fn check_save_error(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move { 
+                    RT.block_on(async move {
                         match lightclient.check_save_error().await {
-                            Ok(()) => String::new(),
-                            Err(e) => {
-                                format!("Error: save failed. {e}\nRestarting save task...")
-                            }
+                            Ok(()) => Ok(String::new()),
+                            Err(e) => Err(ZingolibError::Save(format!(
+                                "save failed. {e}\nRestarting save task..."
+                            ))),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -825,15 +836,15 @@ fn get_zennies_for_zingo_donation_address(mut cx: FunctionContext) -> JsResult<J
 
 fn set_crypto_default_provider_to_ring(mut cx: FunctionContext) -> JsResult<JsString> {
     let res: Result<String, ZingolibError> = with_panic_guard(|| {
-        let resp = CryptoProvider::get_default().map_or_else(
+        CryptoProvider::get_default().map_or_else(
             || match default_provider().install_default() {
-                Ok(_) => "true".to_string(),
-                Err(_) => "Error: Failed to install crypto provider".to_string(),
+                Ok(_) => Ok("true".to_string()),
+                Err(_) => Err(ZingolibError::Init(
+                    "failed to install crypto provider".to_string(),
+                )),
             },
-            |_| "true".to_string(),
-        );
-
-        Ok(resp)
+            |_| Ok("true".to_string()),
+        )
     });
 
     match res {
@@ -842,34 +853,31 @@ fn set_crypto_default_provider_to_ring(mut cx: FunctionContext) -> JsResult<JsSt
     }
 }
 
-fn get_seed_string() -> String {
-    let res: Result<String, ZingolibError> = with_panic_guard(|| {
+fn get_seed_string() -> Result<String, ZingolibError> {
+    with_panic_guard(|| {
         let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
         if let Some(lightclient) = &mut *guard {
-            Ok(RT.block_on(async move {
+            RT.block_on(async move {
                 let wallet = lightclient.wallet().read().await;
                 match wallet.recovery_info() {
                     Some(recovery_info) => serde_json::to_string_pretty(&recovery_info)
-                        .unwrap_or_else(|_| "Error: get seed. failed to serialize".to_string()),
-                    None => "Error: get seed. no mnemonic found. wallet loaded from key.".to_string(),
+                        .map_err(|_| ZingolibError::Read("get seed: failed to serialize".to_string())),
+                    None => Err(ZingolibError::Read(
+                        "get seed: no mnemonic found. wallet loaded from key.".to_string(),
+                    )),
                 }
-            }))
+            })
         } else {
             Err(ZingolibError::LightclientNotInitialized)
         }
-    });
-
-    match res {
-        Ok(v) => v,
-        Err(e) => e.to_string(),
-    }
+    })
 }
 
 fn get_seed(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
-                Ok(get_seed_string())
+                get_seed_string()
             })
         })
         .promise(move |mut cx, result| match result {
@@ -880,43 +888,36 @@ fn get_seed(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
-fn get_ufvk_string() -> String {
-    let res: Result<String, ZingolibError> = with_panic_guard(|| {
+fn get_ufvk_string() -> Result<String, ZingolibError> {
+    with_panic_guard(|| {
         let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
         if let Some(lightclient) = &mut *guard {
-            Ok(RT.block_on(async move {
+            RT.block_on(async move {
                 let wallet = lightclient.wallet().read().await;
-                let ufvk: UnifiedFullViewingKey = match wallet
+                let ufvk: UnifiedFullViewingKey = wallet
                     .unified_key_store
                     .get(&AccountId::ZERO)
                     .expect("account 0 must always exist")
                     .try_into()
-                {
-                    Ok(ufvk) => ufvk,
-                    Err(e) => return format!("Error: {e}"),
-                };
-                object! {
+                    .map_err(|e| ZingolibError::Read(format!("{e}")))?;
+                Ok(object! {
                     "ufvk" => ufvk.encode(&wallet.chain_type()),
                     "birthday" => u32::from(wallet.birthday())
                 }
-                .pretty(2).to_string()
-            }))
+                .pretty(2)
+                .to_string())
+            })
         } else {
             Err(ZingolibError::LightclientNotInitialized)
         }
-    });
-
-    match res {
-        Ok(v) => v,
-        Err(e) => e.to_string(),
-    }
+    })
 }
 
 fn get_ufvk(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
-                Ok(get_ufvk_string())
+                get_ufvk_string()
             })
         })
         .promise(move |mut cx, result| match result {
@@ -936,7 +937,7 @@ fn get_latest_block_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let lightwalletd_uri: http::Uri = match server_uri.parse() {
                     Ok(uri) => uri,
                     Err(e) => {
-                        return Ok(format!("Error: failed to parse uri. {e}"));
+                        return Err(ZingolibError::Read(format!("failed to parse uri. {e}")));
                     }
                 };
                 match RT.block_on(async move {
@@ -949,7 +950,7 @@ fn get_latest_block_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         .map_err(|e| e.to_string())
                 }) {
                     Ok(block_id) => Ok(block_id.height.to_string()),
-                    Err(e) => Ok(format!("Error: {e}")),
+                    Err(e) => Err(ZingolibError::Read(e)),
                 }
             })
         })
@@ -990,7 +991,7 @@ fn get_value_transfers(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match lightclient
                             .wallet()
                             .read()
@@ -998,10 +999,10 @@ fn get_value_transfers(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             .value_transfers(true)
                             .await
                         {
-                            Ok(value_transfers) => json::JsonValue::from(value_transfers).pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(value_transfers) => Ok(json::JsonValue::from(value_transfers).pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1029,7 +1030,7 @@ fn poll_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                 Ok(json::object! { "sync_complete" => json::JsonValue::from(sync_result) }
                                     .pretty(2))
                             }
-                            Err(e) => Ok(format!("Error: {e}")),
+                            Err(e) => Err(ZingolibError::Sync(e.to_string())),
                         },
                     }
                 } else {
@@ -1052,15 +1053,28 @@ fn run_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
                     if lightclient.sync_mode() == SyncMode::Paused {
-                        lightclient.resume_sync().expect("sync should be paused");
-                        Ok("Resuming sync task...".to_string())
+                        // resume_sync can race: sync_mode() was Paused a moment
+                        // ago but the task may have advanced before we got here.
+                        // Return the error typed instead of `expect` — panicking
+                        // would poison LIGHTCLIENT.
+                        match lightclient.resume_sync() {
+                            Ok(_) => Ok("Resuming sync task...".to_string()),
+                            Err(e) => Err(ZingolibError::Sync(e.to_string())),
+                        }
                     } else {
-                        Ok(RT.block_on(async move {
+                        RT.block_on(async move {
                             match lightclient.sync().await {
-                                Ok(_) => "Launching sync task...".to_string(),
-                                Err(e) => format!("Error: {e}"),
+                                Ok(_) => Ok("Launching sync task...".to_string()),
+                                // Launching is idempotent: a concurrent launch
+                                // means the desired state — a running sync —
+                                // already holds, so it reports as status, not
+                                // failure.
+                                Err(LightClientError::SyncModeError(
+                                    SyncModeError::SyncAlreadyRunning,
+                                )) => Ok("Sync task already running.".to_string()),
+                                Err(e) => Err(ZingolibError::Sync(e.to_string())),
                             }
-                        }))
+                        })
                     }
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
@@ -1085,7 +1099,7 @@ fn pause_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 if let Some(lightclient) = &mut *guard {
                     match lightclient.pause_sync() {
                         Ok(_) => Ok("Pausing sync task...".to_string()),
-                        Err(e) => Ok(format!("Error: {e}")),
+                        Err(e) => Err(ZingolibError::Sync(e.to_string())),
                     }
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
@@ -1108,7 +1122,7 @@ fn stop_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 if let Some(lightclient) = &mut *guard {
                     match lightclient.stop_sync() {
                         Ok(_) => Ok("Stopping sync task...".to_string()),
-                        Err(e) => Ok(format!("Error: {e}")),
+                        Err(e) => Err(ZingolibError::Sync(e.to_string())),
                     }
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
@@ -1129,12 +1143,12 @@ fn status_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match pepper_sync::sync_status(&*lightclient.wallet().read().await).await {
-                            Ok(status) => json::JsonValue::from(status).pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(status) => Ok(json::JsonValue::from(status).pretty(2)),
+                            Err(e) => Err(ZingolibError::Sync(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1154,12 +1168,12 @@ fn run_rescan(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match lightclient.rescan().await {
-                            Ok(_) => "Launching rescan...".to_string(),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(_) => Ok("Launching rescan...".to_string()),
+                            Err(e) => Err(ZingolibError::Rescan(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1179,12 +1193,26 @@ fn info_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
-                        match lightclient.do_info().await {
-                            Ok(info) => info,
-                            Err(e) => format!("Error: {e}"),
+                    RT.block_on(async move {
+                        match lightclient.info().await {
+                            // `ServerInfo` doesn't derive `Serialize` (and its
+                            // `server_uri` is an `http::Uri`), so build the JSON
+                            // the renderer expects (`RPCInfoType`) by hand.
+                            Ok(info) => Ok(serde_json::json!({
+                                "version": info.version,
+                                "git_commit": info.git_commit,
+                                "server_uri": info.server_uri.to_string(),
+                                "vendor": info.vendor,
+                                "taddr_support": info.taddr_support,
+                                "chain_name": info.chain_name,
+                                "sapling_activation_height": info.sapling_activation_height,
+                                "consensus_branch_id": info.consensus_branch_id,
+                                "latest_block_height": info.latest_block_height,
+                            })
+                            .to_string()),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1212,20 +1240,20 @@ fn change_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     } else {
                         match http::Uri::from_str(&server_uri) {
                             Ok(uri) => uri,
-                            Err(_) => return Ok("Error: invalid server uri".to_string()),
+                            Err(_) => return Ok(object! { "error" => "invalid server uri" }.pretty(2)),
                         }
                     };
                     // `set_server` is gone; `set_indexer_uri` is the replacement.
                     // Unlike the old setter it actually (re)connects to the
-                    // indexer, so a bad/unreachable uri surfaces here.
+                    // indexer, so a bad/unreachable uri surfaces here. Success and
+                    // failure both cross as structured JSON — never error prose.
                     Ok(RT.block_on(async move {
                         match lightclient.set_indexer_uri(uri).await {
-                            Ok(_) => if is_default {
-                                "server set (default)".to_string()
-                            } else {
-                                "server set".to_string()
-                            },
-                            Err(e) => format!("Error: {e}"),
+                            Ok(_) => object! {
+                                "status" => if is_default { "server set (default)" } else { "server set" }
+                            }
+                            .pretty(2),
+                            Err(e) => object! { "error" => e.to_string() }.pretty(2),
                         }
                     }))
                 } else {
@@ -1306,7 +1334,14 @@ fn parse_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
                 if address.is_empty() {
-                    Ok("Error: The address is empty".to_string())
+                    // Empty input is invalid; report it with the same structured
+                    // status the decode-failure path uses, never as error prose.
+                    Ok(object! {
+                        "status" => "Invalid address",
+                        "chain_name" => json::JsonValue::Null,
+                        "address_kind" => json::JsonValue::Null,
+                    }
+                    .pretty(2))
                 } else {
                     fn make_decoded_chain_pair(
                         address: &str,
@@ -1403,7 +1438,14 @@ fn parse_ufvk(mut cx: FunctionContext) -> JsResult<JsPromise> {
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
                 if ufvk.is_empty() {
-                    Ok("Error: The ufvk is empty".to_string())
+                    // Empty input is invalid; report it with the same structured
+                    // status the decode-failure path uses, never as error prose.
+                    Ok(object! {
+                        "status" => "Invalid viewkey",
+                        "chain_name" => json::JsonValue::Null,
+                        "address_kind" => json::JsonValue::Null,
+                    }
+                    .pretty(2))
                 } else {
                     Ok(json::stringify_pretty(
                         match Ufvk::decode(&ufvk) {
@@ -1480,15 +1522,15 @@ fn get_messages(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match lightclient
                             .messages_containing(Some(address.as_str()))
                             .await
                         {
-                            Ok(value_transfers) => json::JsonValue::from(value_transfers).pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(value_transfers) => Ok(json::JsonValue::from(value_transfers).pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1508,15 +1550,15 @@ fn get_balance(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match lightclient
                             .account_balance(AccountId::ZERO)
                             .await
                         {
-                            Ok(bal) => json::JsonValue::from(bal).pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(bal) => Ok(json::JsonValue::from(bal).pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1536,12 +1578,12 @@ fn get_total_memobytes_to_address(mut cx: FunctionContext) -> JsResult<JsPromise
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match lightclient.do_total_memobytes_to_address().await {
-                            Ok(total_memo_bytes) => json::JsonValue::from(total_memo_bytes).pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(total_memo_bytes) => Ok(json::JsonValue::from(total_memo_bytes).pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1561,12 +1603,12 @@ fn get_total_value_to_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match lightclient.do_total_value_to_address().await {
-                            Ok(total_values) => json::JsonValue::from(total_values).pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(total_values) => Ok(json::JsonValue::from(total_values).pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1586,12 +1628,12 @@ fn get_total_spends_to_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match lightclient.do_total_spends_to_address().await {
-                            Ok(total_spends) => json::JsonValue::from(total_spends).pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(total_spends) => Ok(json::JsonValue::from(total_spends).pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1624,7 +1666,9 @@ fn plan_orchard_drain(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                 "stranded" => plan.stranded,
                             }
                             .pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            // Failures cross as `{ "error": .. }` JSON, never as
+                            // error prose, matching the success shape.
+                            Err(e) => object! { "error" => e.to_string() }.pretty(2),
                         }
                     }))
                 } else {
@@ -1687,9 +1731,374 @@ fn drain_orchard_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                 "dust" => summary.stranded,
                             }
                             .pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            // Failures cross as `{ "error": .. }` JSON, never as
+                            // error prose, matching the success shape.
+                            Err(e) => object! { "error" => e.to_string() }.pretty(2),
                         }
                     }))
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// ---- Private (scheduled) Ironwood migration (zingolib parts/buckets engine) ----
+// Surfaces zingolib's split + scheduled migration over the FFI. Every function
+// follows the Phase 1-4 contract: structured JSON on the data channel, typed
+// errors on the throw channel. Account is always 0; strategy is always
+// LazyAtBoundary (zingolib rejects PreSigned). zingo-pc drives the schedule from
+// the foreground only — there is no background broadcast.
+
+// plan_ironwood_migration: the Phase 1 split plan the user consents to. Read-only
+// (nothing signed or sent). Its `plan_hash` is the consent handed to start.
+fn plan_ironwood_migration(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let chain_type = lightclient.wallet().read().await.chain_type();
+                        let params = MigrationParams::provisional(chain_type);
+                        let plan = lightclient
+                            .plan_ironwood_migration(zip32::AccountId::ZERO)
+                            .await
+                            .map_err(|e| ZingolibError::Read(e.to_string()))?;
+                        let split_rounds: Vec<Vec<serde_json::Value>> = plan
+                            .split_rounds
+                            .iter()
+                            .map(|round| {
+                                round
+                                    .iter()
+                                    .map(|tx| {
+                                        serde_json::json!({
+                                            "inputs": tx.inputs,
+                                            "outputs": tx.outputs,
+                                            "fee": tx.fee(),
+                                        })
+                                    })
+                                    .collect()
+                            })
+                            .collect();
+                        Ok(serde_json::json!({
+                            "split_rounds": split_rounds,
+                            "parts": plan.parts,
+                            "stranded": plan.stranded,
+                            "split_fee": plan.split_fee(),
+                            "parts_fee": plan.parts_fee(&params),
+                            "is_split": plan.is_split(),
+                            "plan_hash": hex::encode(plan_hash(&plan)),
+                        })
+                        .to_string())
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// start_ironwood_migration(consented_plan_hash_hex, per_bucket): begins the flow.
+// per_bucket <= 0 means "use the default"; a positive value sets k_max.
+fn start_ironwood_migration(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let consented_hash = cx.argument::<JsString>(0)?.value(&mut cx);
+    let per_bucket = cx.argument::<JsNumber>(1)?.value(&mut cx);
+
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let hash_bytes = hex::decode(&consented_hash)
+                    .map_err(|e| ZingolibError::Init(format!("invalid plan hash: {e}")))?;
+                let hash: [u8; 32] = hash_bytes
+                    .try_into()
+                    .map_err(|_| ZingolibError::Init("plan hash must be 32 bytes".to_string()))?;
+                let per_bucket: Option<u32> = if per_bucket >= 1.0 {
+                    Some(per_bucket as u32)
+                } else {
+                    None
+                };
+
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        lightclient
+                            .start_ironwood_migration(
+                                zip32::AccountId::ZERO,
+                                SigningStrategy::LazyAtBoundary,
+                                hash,
+                                per_bucket,
+                            )
+                            .await
+                            .map_err(|e| ZingolibError::Init(e.to_string()))?;
+                        Ok(object! { "status" => "started" }.pretty(2))
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// migration_status: everything the progress UI + Dashboard banner render.
+fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let status = lightclient
+                            .migration_status()
+                            .await
+                            .map_err(|e| ZingolibError::Read(e.to_string()))?;
+                        // Coarse phase, `null` when no migration is in progress.
+                        let phase = match &status.phase {
+                            None => serde_json::Value::Null,
+                            Some(MigrationPhase::Planned) => serde_json::json!({ "kind": "planned" }),
+                            Some(MigrationPhase::NoteSplitting { round, pending_txids }) => serde_json::json!({
+                                "kind": "note_splitting",
+                                "round": round,
+                                "pending_txids": pending_txids.iter().map(|t| t.to_string()).collect::<Vec<_>>(),
+                            }),
+                            Some(MigrationPhase::PartsScheduled) => serde_json::json!({ "kind": "parts_scheduled" }),
+                            Some(MigrationPhase::Complete { residual }) => serde_json::json!({
+                                "kind": "complete",
+                                "residual": residual,
+                            }),
+                        };
+                        let next_wakes: Vec<serde_json::Value> = status
+                            .next_wakes
+                            .iter()
+                            .map(|w| {
+                                serde_json::json!({
+                                    "bucket_index": w.bucket_index,
+                                    "boundary": u32::from(w.boundary),
+                                    "part_ids": w.part_ids.iter().map(|p| p.0).collect::<Vec<u32>>(),
+                                    "estimated_unix_time": w.estimated_unix_time,
+                                })
+                            })
+                            .collect();
+                        Ok(serde_json::json!({
+                            "in_progress": status.phase.is_some(),
+                            "orchard_confirmed_spendable": status.orchard_confirmed_spendable,
+                            "phase": phase,
+                            "parts_total": status.parts_total,
+                            "parts_confirmed": status.parts_confirmed,
+                            "value_total": status.value_total,
+                            "value_migrated": status.value_migrated,
+                            "next_wakes": next_wakes,
+                        })
+                        .to_string())
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// reconcile_migration: run on every launch. Applies the safe-unattended actions
+// and reports what it did (as Debug strings — the UI just surfaces them).
+fn reconcile_migration(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let report = lightclient
+                            .reconcile_migration()
+                            .await
+                            .map_err(|e| ZingolibError::Read(e.to_string()))?;
+                        let actions: Vec<String> =
+                            report.actions.iter().map(|a| format!("{a:?}")).collect();
+                        Ok(serde_json::json!({ "actions": actions }).to_string())
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// broadcast_due_parts: send every part whose bucket window is open. Foreground
+// only — the caller invokes this while the app is running.
+fn broadcast_due_parts(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let txids = lightclient
+                            .broadcast_due_parts()
+                            .await
+                            .map_err(|e| ZingolibError::Sync(e.to_string()))?;
+                        Ok(serde_json::json!({
+                            "txids": txids.iter().map(|t| t.to_string()).collect::<Vec<_>>(),
+                        })
+                        .to_string())
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// catch_up_migration: send parts from windows that already passed (needs the
+// user-facing disclosure). Sends are spaced to avoid a burst.
+fn catch_up_migration(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let txids = lightclient
+                            .catch_up_migration(std::time::Duration::from_secs(2))
+                            .await
+                            .map_err(|e| ZingolibError::Sync(e.to_string()))?;
+                        Ok(serde_json::json!({
+                            "txids": txids.iter().map(|t| t.to_string()).collect::<Vec<_>>(),
+                        })
+                        .to_string())
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// auto_broadcast_if_due: the periodic driving-loop primitive. No-op when no
+// migration is in progress; otherwise refreshes part witnesses and broadcasts
+// every due part. Safe to call every sync cycle.
+fn auto_broadcast_if_due(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let txids = lightclient
+                            .auto_broadcast_if_due()
+                            .await
+                            .map_err(|e| ZingolibError::Sync(e.to_string()))?;
+                        Ok(serde_json::json!({
+                            "txids": txids.iter().map(|t| t.to_string()).collect::<Vec<_>>(),
+                        })
+                        .to_string())
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// migrate_to_ironwood: the immediate, one-call migration — splits notes into
+// standard denominations (in rounds, waiting for each to confirm) and then
+// broadcasts every part to Ironwood at once. This is the ONLY public path that
+// drives note-splitting to completion (the scheduled start/broadcast_due_parts
+// flow has no public split driver in this zingolib build), so it is what an
+// interactive migration uses. Long-running and syncs internally, so the caller
+// must stop any background sync first (the RPC layer brackets it like the drain).
+// Returns structured JSON: the summary on success, `{ error }` on failure.
+fn migrate_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    Ok(RT.block_on(async move {
+                        match lightclient.migrate_to_ironwood(zip32::AccountId::ZERO).await {
+                            Ok(summary) => object! {
+                                "split_txids" => summary.split_txids.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                                "part_txids" => summary.part_txids.iter().map(ToString::to_string).collect::<Vec<_>>(),
+                                "stranded" => summary.stranded,
+                            }
+                            .pretty(2),
+                            // Failures cross as `{ error }` JSON, matching the drain.
+                            Err(e) => object! { "error" => e.to_string() }.pretty(2),
+                        }
+                    }))
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// cancel_ironwood_migration: abandon the in-progress migration.
+fn cancel_ironwood_migration(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        lightclient
+                            .cancel_ironwood_migration()
+                            .await
+                            .map_err(|e| ZingolibError::Sync(e.to_string()))?;
+                        Ok(object! { "status" => "cancelled" }.pretty(2))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1709,7 +2118,7 @@ fn zec_price(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match lightclient
                             .wallet()
                             .write()
@@ -1717,10 +2126,10 @@ fn zec_price(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             .update_current_price()
                             .await
                         {
-                            Ok(price) => object! { "current_price" => price }.pretty(2),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(price) => Ok(object! { "current_price" => price }.pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1744,7 +2153,7 @@ fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 if let Some(lightclient) = &mut *guard {
                     let txid = match txid_from_hex_encoded_str(&txid) {
                         Ok(txid) => txid,
-                        Err(e) => return Ok(format!("Error: {e}")),
+                        Err(e) => return Ok(object! { "error" => e.to_string() }.pretty(2)),
                     };
                     Ok(RT.block_on(async move {
                         match lightclient
@@ -1753,8 +2162,8 @@ fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             .await
                             .remove_failed_transaction(txid)
                         {
-                            Ok(_) => "Successfully removed transaction.".to_string(),
-                            Err(e) => format!("Error: {e}"),
+                            Ok(_) => object! { "status" => "Successfully removed transaction." }.pretty(2),
+                            Err(e) => object! { "error" => e.to_string() }.pretty(2),
                         }
                     }))
                 } else {
@@ -1780,22 +2189,22 @@ fn get_spendable_balance_with_address(mut cx: FunctionContext) -> JsResult<JsPro
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
                     let Ok(address) = address_from_str(&address) else {
-                        return Ok("Error: unknown address format".to_string());
+                        return Err(ZingolibError::Read("unknown address format".to_string()));
                     };
                     let Ok(zennies) = zennies.parse() else {
-                        return Ok("Error: failed to parse zennies setting.".to_string());
+                        return Err(ZingolibError::Read("failed to parse zennies setting.".to_string()));
                     };
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         match lightclient
                             .max_send_value(address, zennies, AccountId::ZERO)
                             .await
                         {
                             Ok(bal) => {
-                                object! { "spendable_balance" => bal.into_u64() }.pretty(2)
+                                Ok(object! { "spendable_balance" => bal.into_u64() }.pretty(2))
                             }
-                            Err(e) => format!("Error: {e}"),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1815,18 +2224,18 @@ fn get_spendable_balance_total(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         let wallet = lightclient.wallet().read().await;
                         let spendable_balance =
                             match wallet.shielded_spendable_balance(AccountId::ZERO, false) {
                                 Ok(bal) => bal,
-                                Err(e) => return format!("Error: {e}"),
+                                Err(e) => return Err(ZingolibError::Read(e.to_string())),
                             };
-                        object! {
+                        Ok(object! {
                             "spendable_balance" => spendable_balance.into_u64(),
                         }
-                        .pretty(2)
-                    }))
+                        .pretty(2))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1844,7 +2253,7 @@ fn set_option_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
-                Ok("Error: unimplemented".to_string())
+                Ok(object! { "error" => "unimplemented" }.pretty(2))
             })
         })
         .promise(move |mut cx, result| match result {
@@ -1904,7 +2313,7 @@ fn create_new_unified_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         let mut wallet = lightclient.wallet().write().await;
                         let network = wallet.chain_type();
                         let receivers_available = ReceiverSelection {
@@ -1913,18 +2322,18 @@ fn create_new_unified_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         };
                         match wallet.generate_unified_address(receivers_available, AccountId::ZERO) {
                             Ok((id, unified_address)) => {
-                                json::object! {
+                                Ok(json::object! {
                                     "account" => u32::from(AccountId::ZERO),
                                     "address_index" => id.address_index,
                                     "has_orchard" => unified_address.has_orchard(),
                                     "has_sapling" => unified_address.has_sapling(),
                                     "has_transparent" => unified_address.has_transparent(),
                                     "encoded_address" => unified_address.encode(&network),
-                                }.pretty(2)
+                                }.pretty(2))
                             }
-                            Err(e) => format!("Error: {e}"),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -1944,21 +2353,21 @@ fn create_new_transparent_address(mut cx: FunctionContext) -> JsResult<JsPromise
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    Ok(RT.block_on(async move {
+                    RT.block_on(async move {
                         let mut wallet = lightclient.wallet().write().await;
                         let network = wallet.chain_type();
                         match wallet.generate_transparent_address(AccountId::ZERO, true) {
                             Ok((id, transparent_address)) => {
-                                json::object! {
+                                Ok(json::object! {
                                     "account" => u32::from(id.account_id()),
                                     "address_index" => id.address_index().index(),
                                     "scope" => id.scope().to_string(),
                                     "encoded_address" => transparent::encode_address(&network,  transparent_address),
-                                }.pretty(2)
+                                }.pretty(2))
                             }
-                            Err(e) => format!("Error: {e}"),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
-                    }))
+                    })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }
@@ -2040,7 +2449,7 @@ fn set_config_wallet_to_prod(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             "High" => PerformanceLevel::High,
                             "Medium" => PerformanceLevel::Medium,
                             "Low" => PerformanceLevel::Low,
-                            _ => return "Error: Not a valid performance level!".to_string(),
+                            _ => return object! { "error" => "Not a valid performance level!" }.pretty(2),
                         };
                         // `min_confirmations` comes from the renderer through IPC. Reject 0
                         // (and anything that casts to 0) instead of unwrapping — panic in this
@@ -2048,13 +2457,13 @@ fn set_config_wallet_to_prod(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         // state mid-write since we already hold the write lock.
                         let min_conf_nonzero = match NonZeroU32::try_from(min_confirmations as u32) {
                             Ok(n) => n,
-                            Err(_) => return "Error: min_confirmations must be >= 1".to_string(),
+                            Err(_) => return object! { "error" => "min_confirmations must be >= 1" }.pretty(2),
                         };
                         let mut wallet = lightclient.wallet().write().await;
                         wallet.wallet_settings.min_confirmations = min_conf_nonzero;
                         wallet.wallet_settings.sync_config.performance_level = performancetype;
                         wallet.mark_dirty();
-                        "Successfully set config wallet to prod.".to_string()
+                        object! { "status" => "Successfully set config wallet to prod." }.pretty(2)
                     }))
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
@@ -2153,30 +2562,34 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
                     Ok(RT.block_on(async move {
+                        // Validation failures cross on the data channel as a
+                        // structured `{ "error": .. }` object (the same shape as
+                        // the propose/fee result below), never as error prose —
+                        // so no success can resemble a failure.
                         let json_args = match json::parse(&send_json) {
                             Ok(parsed) => parsed,
-                            Err(_) => return "Error: it is not a valid JSON".to_string(),
+                            Err(_) => return object! { "error" => "it is not a valid JSON" }.pretty(2),
                         };
                         let mut receivers = Receivers::new();
                         for j in json_args.members() {
                             let recipient_address = match j["address"].as_str() {
                                 Some(addr) => match ZcashAddress::try_from_encoded(addr) {
                                     Ok(a) => a,
-                                    Err(e) => return format!("Error: Invalid address: {e}"),
+                                    Err(e) => return object! { "error" => format!("Invalid address: {e}") }.pretty(2),
                                 },
-                                None => return "Error: Missing address".to_string(),
+                                None => return object! { "error" => "Missing address" }.pretty(2),
                             };
                             let amount = match j["amount"].as_u64() {
                                 Some(a) => match Zatoshis::from_u64(a) {
                                     Ok(a) => a,
-                                    Err(e) => return format!("Error: Invalid amount: {e}"),
+                                    Err(e) => return object! { "error" => format!("Invalid amount: {e}") }.pretty(2),
                                 },
-                                None => return "Missing amount".to_string(),
+                                None => return object! { "error" => "Missing amount" }.pretty(2),
                             };
                             let memo = if let Some(m) = j["memo"].as_str() {
                                 match interpret_memo_string(m.to_string()) {
                                     Ok(memo_bytes) => Some(memo_bytes),
-                                    Err(e) => return format!("Error: Invalid memo: {e}"),
+                                    Err(e) => return object! { "error" => format!("Invalid memo: {e}") }.pretty(2),
                                 }
                             } else {
                                 None
@@ -2190,7 +2603,7 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         let request = match transaction_request_from_receivers(receivers)
                         {
                             Ok(request) => request,
-                            Err(e) => return format!("Error: Request Error: {e}"),
+                            Err(e) => return object! { "error" => format!("Request Error: {e}") }.pretty(2),
                         };
                         match lightclient
                             .propose_send(request, AccountId::ZERO)
@@ -2312,32 +2725,35 @@ fn delete_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let (builder, _wallet_settings, _lightwalletd_uri) = match construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name.clone()) {
                     Ok(v) => v,
-                    Err(_) => return Ok("Error: Config issue, delete failed.".to_string()),
+                    Err(_) => return Ok(object! { "error" => "Config issue, delete failed." }.pretty(2)),
                 };
-                let config = builder.set_wallet_config(WalletConfig::Read).build();
+                let config = match builder.set_wallet_config(WalletConfig::Read).build() {
+                    Ok(c) => c,
+                    Err(_) => return Ok(object! { "error" => "Config issue, delete failed." }.pretty(2)),
+                };
                 let wallet_path = config.get_wallet_path();
-                // Check if the file exists before attempting to delete
+                // Success and failure both cross as structured JSON — never error
+                // prose, so no path can resemble a failure.
                 if wallet_path.exists() {
                     match remove_file(&wallet_path) {
                         Ok(_) => {
                             reset_lightclient();
 
-                            Ok(format!(
-                                "File deleted successfully: {}",
-                                wallet_path.display()
-                            ))
+                            Ok(object! {
+                                "status" => format!("File deleted successfully: {}", wallet_path.display())
+                            }
+                            .pretty(2))
                         }
-                        Err(e) => Ok(format!(
-                            "Error deleting file {}: {}",
-                            wallet_path.display(),
-                            e
-                        )),
+                        Err(e) => Ok(object! {
+                            "error" => format!("deleting file {}: {}", wallet_path.display(), e)
+                        }
+                        .pretty(2)),
                     }
                 } else {
-                    Ok(format!(
-                        "Error: File does not exist: {}",
-                        wallet_path.display()
-                    ))
+                    Ok(object! {
+                        "error" => format!("File does not exist: {}", wallet_path.display())
+                    }
+                    .pretty(2))
                 }
             })
         })

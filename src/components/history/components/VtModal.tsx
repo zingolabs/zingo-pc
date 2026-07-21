@@ -259,14 +259,14 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     openErrorModal("Computing Transaction", "Please wait...This could take a while");
 
     try {
-      let actionStr: string = await native.remove_transaction(txid);
-
-      if (actionStr) {
-        if (actionStr.toLowerCase().startsWith("error")) {
-          openErrorModal("Remove", "Remove " + actionStr);
-        } else {
-          openErrorModal("Remove", actionStr);
-        }
+      const actionStr: string = await native.remove_transaction(txid);
+      // Result is structured JSON: `{ status }` on success, `{ error }` on
+      // failure — never error prose on the data channel.
+      const actionJSON = JSON.parse(actionStr);
+      if (actionJSON.error) {
+        openErrorModal("Remove", "Remove " + actionJSON.error);
+      } else {
+        openErrorModal("Remove", actionJSON.status);
       }
     } catch (error: any) {
       console.error(`Critical Error Remove ${error}`);

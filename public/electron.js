@@ -833,6 +833,15 @@ const _NATIVE_NO_PARAM_METHODS = [
   "drain_orchard_to_ironwood",
   "get_ironwood_activation_height",
   "plan_orchard_drain",
+  // private Ironwood migration (parts/buckets engine), all no-param
+  "plan_ironwood_migration",
+  "migration_status",
+  "reconcile_migration",
+  "broadcast_due_parts",
+  "auto_broadcast_if_due",
+  "catch_up_migration",
+  "migrate_to_ironwood",
+  "cancel_ironwood_migration",
 ];
 
 for (const method of _NATIVE_NO_PARAM_METHODS) {
@@ -903,6 +912,9 @@ ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_co
   return getNative().delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);
 });
 ipcMain.handle("native:change_server", (_e, server_uri) => getNative().change_server(server_uri));
+ipcMain.handle("native:start_ironwood_migration", (_e, consented_plan_hash, per_bucket) =>
+  getNative().start_ironwood_migration(consented_plan_hash, per_bucket),
+);
 
 ipcMain.handle("wallet-dir:request", async () => {
   const wdLog = (msg) => {
