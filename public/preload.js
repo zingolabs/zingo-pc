@@ -38,6 +38,7 @@ const _ALL_NATIVE_METHODS = [
   "shield",
   "confirm",
   "drain_orchard_to_ironwood",
+  "drain_status",
   "get_ironwood_activation_height",
   "plan_orchard_drain",
   // private Ironwood migration (parts/buckets engine), no params

@@ -705,6 +705,19 @@ export default class RPC {
     }
   }
 
+  // Live progress of an in-flight immediate drain (built/sent of total, phase),
+  // polled by the "executing" screen. Null when no drain is running. Reads a
+  // lock-free side channel, so it works while the drain holds the wallet lock.
+  static async drainStatus(): Promise<{ total: number; built: number; sent: number; phase: string } | null> {
+    try {
+      const s = JSON.parse(await native.drain_status());
+      return s.idle ? null : s;
+    } catch (error) {
+      console.error(`Error drain status ${error}`);
+      return null;
+    }
+  }
+
   // Fetch all T and Z and O value transfers
   private async fetchValueTransferData(
     fetchLabel: string,

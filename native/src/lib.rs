@@ -40,6 +40,7 @@ use zcash_keys::address::Address;
 use zcash_keys::keys::UnifiedFullViewingKey;
 use zip32::AccountId;
 use zingolib::wallet::migration::{MigrationParams, MigrationPhase, SigningStrategy, plan_hash};
+use zingolib::lightclient::migrate::{DrainPhase, DrainProgressHandle};
 use zcash_protocol::consensus::{NetworkType, NetworkUpgrade, Parameters};
 
 use pepper_sync::config::SyncConfig;
@@ -105,6 +106,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_total_spends_to_address", get_total_spends_to_address)?;
     cx.export_function("zec_price", zec_price)?;
     cx.export_function("drain_orchard_to_ironwood", drain_orchard_to_ironwood)?;
+    cx.export_function("drain_status", drain_status)?;
     cx.export_function("get_ironwood_activation_height", get_ironwood_activation_height)?;
     cx.export_function("plan_orchard_drain", plan_orchard_drain)?;
     cx.export_function("plan_ironwood_migration", plan_ironwood_migration)?;
@@ -377,6 +379,12 @@ fn format_panic_text(payload: Box<dyn Any + Send>) -> String {
 lazy_static! {
     static ref LIGHTCLIENT: RwLock<Option<LightClient>> = RwLock::new(None);
 }
+
+// A clone of the active drain's live-progress handle, grabbed before the drain
+// takes the wallet write lock. Read by `drain_status()` without the client lock,
+// so the "executing" screen can poll progress while the drain (which holds the
+// lock across its whole run) is in flight. Follows the LAST_PANIC global pattern.
+static DRAIN_PROGRESS: Lazy<Mutex<Option<DrainProgressHandle>>> = Lazy::new(|| Mutex::new(None));
 
 lazy_static! {
     pub static ref RT: Runtime = tokio::runtime::Runtime::new().unwrap();
@@ -1722,6 +1730,12 @@ fn drain_orchard_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
+                    // Publish the drain's progress handle before it takes the
+                    // wallet lock, so `drain_status()` can poll it concurrently.
+                    *DRAIN_PROGRESS
+                        .lock()
+                        .map_err(|_| ZingolibError::LightclientLockPoisoned)? =
+                        Some(lightclient.drain_progress_handle());
                     Ok(RT.block_on(async move {
                         match lightclient.drain_orchard_to_ironwood(zip32::AccountId::ZERO).await {
                             Ok(summary) => object! {
@@ -1738,6 +1752,42 @@ fn drain_orchard_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     }))
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// drain_status: a lock-free snapshot of the in-flight immediate drain's progress
+// (built/sent out of total, and phase) for the "executing" screen. Returns
+// `{ "idle": true }` when no drain is running. Reads the side-channel handle
+// published by drain_orchard_to_ironwood, never the wallet lock, so it can poll
+// while the drain holds that lock.
+fn drain_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let handle = DRAIN_PROGRESS
+                    .lock()
+                    .map_err(|_| ZingolibError::LightclientLockPoisoned)?
+                    .clone();
+                match handle.and_then(|h| h.status()) {
+                    Some(s) => Ok(object! {
+                        "total" => s.total,
+                        "built" => s.built,
+                        "sent" => s.sent,
+                        "phase" => match s.phase {
+                            DrainPhase::Building => "building",
+                            DrainPhase::Transmitting => "transmitting",
+                        },
+                    }
+                    .pretty(2)),
+                    None => Ok(object! { "idle" => true }.pretty(2)),
                 }
             })
         })

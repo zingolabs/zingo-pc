@@ -1,5 +1,6 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import RPC from "../../rpc/rpc";
 import cstyles from "../common/Common.module.css";
 import styles from "./OrchardMigration.module.css";
 import { ContextApp } from "../../context/ContextAppState";
@@ -43,6 +44,29 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood, mi
   const [strategy, setStrategy] = useState<Strategy>("private");
   const [result, setResult] = useState<RPCIronwoodDrainType | null>(null);
   const [error, setError] = useState<string>("");
+  // Live drain progress (built/sent of total), polled while executing.
+  const [drainProgress, setDrainProgress] = useState<{
+    total: number;
+    built: number;
+    sent: number;
+    phase: string;
+  } | null>(null);
+
+  // Poll the drain's lock-free progress side channel while it runs. The drain
+  // holds the wallet lock across its whole run, so this side channel — not the
+  // wallet state — is what surfaces "built i/N, sent i/N".
+  useEffect(() => {
+    if (step !== "executing") return;
+    let active = true;
+    const id = setInterval(async () => {
+      const s = await RPC.drainStatus();
+      if (active) setDrainProgress(s);
+    }, 1000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [step]);
 
   // Confirmed (spendable) balance — that is what the drain can actually move,
   // and it matches the Dashboard banner's gate.
@@ -60,6 +84,7 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood, mi
     setStep("executing");
     setError("");
     setResult(null);
+    setDrainProgress(null);
     const { result: drain, error: drainError } = await drainToIronwood();
     if (drainError || !drain) {
       setError(drainError || "No result returned.");
@@ -271,7 +296,11 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood, mi
         <div className={`${cstyles.verticalflex} ${cstyles.center}`}>
           <div className={cstyles.xlarge}>Migrating…</div>
           <div className={cstyles.sublight} style={{ marginTop: 12 }}>
-            Proving and broadcasting your transactions.
+            {drainProgress
+              ? drainProgress.phase === "building"
+                ? `Proving and signing transactions… ${drainProgress.built}/${drainProgress.total}`
+                : `Broadcasting transactions… ${drainProgress.sent}/${drainProgress.total}`
+              : "Proving and broadcasting your transactions."}
             <br />
             This can take a moment — please keep the app open.
           </div>
