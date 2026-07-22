@@ -92,8 +92,8 @@ describe("AddressBlock — Unified", () => {
     expect(RPC.createNewAddressUnified).toHaveBeenCalledWith("z");
   });
 
-  it("opens the error modal when RPC returns error", async () => {
-    RPC.createNewAddressUnified.mockResolvedValue("Error: rate limit");
+  it("opens the error modal when RPC throws", async () => {
+    RPC.createNewAddressUnified.mockRejectedValue(new Error("rate limit"));
     const openErrorModal = jest.fn();
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />, {
       contextOverrides: { openErrorModal },
@@ -101,17 +101,6 @@ describe("AddressBlock — Unified", () => {
     fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
     fireEvent.click(screen.getByRole("button", { name: /new address/i }));
     await waitFor(() => expect(openErrorModal).toHaveBeenCalledWith("New Address", "Error: rate limit"));
-  });
-
-  it("opens the error modal when RPC returns empty", async () => {
-    RPC.createNewAddressUnified.mockResolvedValue("");
-    const openErrorModal = jest.fn();
-    renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />, {
-      contextOverrides: { openErrorModal },
-    });
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
-    fireEvent.click(screen.getByRole("button", { name: /new address/i }));
-    await waitFor(() => expect(openErrorModal).toHaveBeenCalledWith("New Address", "Error: creating a new address."));
   });
 
   it("hides 'View on explorer' button on regtest", () => {

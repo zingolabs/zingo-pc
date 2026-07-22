@@ -295,7 +295,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       // malformed keys with the right prefix and only caught them later inside
       // init_from_ufvk with a generic error.
       const parseResult: string = await native.parse_ufvk(ufvkInput);
-      if (!parseResult || parseResult.toLowerCase().startsWith("error")) {
+      if (!parseResult) {
         openErrorModal("Parsing UFVK", parseResult || "Could not parse the Unified Full Viewing Key.");
         return;
       }
@@ -424,7 +424,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       const resp: string = await native.get_latest_block_server(server.uri);
 
       const end: number = Date.now();
-      if (resp && !resp.toLowerCase().startsWith("error")) {
+      if (resp) {
         latency = end - start;
       }
 

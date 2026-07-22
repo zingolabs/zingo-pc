@@ -167,12 +167,7 @@ export default class RPC {
   static async getWalletVersion(): Promise<number | undefined> {
     try {
       const walletVersionStr: string = await native.get_wallet_version();
-      if (walletVersionStr) {
-        if (walletVersionStr.toLowerCase().startsWith("error")) {
-          console.error(`Error wallet version ${walletVersionStr}`);
-          return;
-        }
-      } else {
+      if (!walletVersionStr) {
         console.error("Internal Error wallet version");
         return;
       }
@@ -185,83 +180,34 @@ export default class RPC {
     }
   }
 
-  // shield transparent balance to orchard
+  // Shield the transparent balance to Orchard. Throws on any failure (empty
+  // result, parse error, or a `{ error }` from propose/confirm); the thrown
+  // message is the error text. Returns the comma-joined txids on success. No
+  // "Error:" prose ever crosses on the data channel — the caller's catch turns
+  // a throw into its own error surface.
   async shieldTransparentBalanceToOrchard(): Promise<string> {
-    try {
-      // PROPOSING
-      const shieldResult: string = await native.shield();
-      if (shieldResult) {
-        if (shieldResult.toLowerCase().startsWith("error")) {
-          // error
-          console.error(`Error shield ${shieldResult}`);
-          return shieldResult;
-        }
-      } else {
-        // error empty
-        const err = "Error: Internal error shield";
-        console.log(err);
-        return err;
-      }
-      let shieldJSON = {} as { fee: number; error: string };
-      try {
-        shieldJSON = JSON.parse(shieldResult);
-      } catch (error: any) {
-        const err = `Error: parsing shield result ${error.message}`;
-        console.log(err);
-        return err;
-      }
-      if (shieldJSON.error) {
-        const err = `Error: shield ${shieldJSON.error}`;
-        console.log(err);
-        return err;
-      }
+    // PROPOSING
+    const shieldResult: string = await native.shield();
+    if (!shieldResult) throw new Error("internal error: empty shield result");
+    const shieldJSON: { fee?: number; error?: string } = JSON.parse(shieldResult);
+    if (shieldJSON.error) throw new Error(`shield: ${shieldJSON.error}`);
 
-      // SHIELDING
-      const confirmResult: string = await native.confirm();
-      if (confirmResult) {
-        if (confirmResult.toLowerCase().startsWith("error")) {
-          // error
-          console.error(`Error Shield Confirm ${confirmResult}`);
-          return confirmResult;
-        }
-      } else {
-        // error empty
-        const err = "Error: Internal error confirm";
-        console.log(err);
-        return err;
-      }
-      let confirmJSON = {} as { txids: string[]; error: string };
-      try {
-        confirmJSON = JSON.parse(confirmResult);
-      } catch (error: any) {
-        const err = `Error: parsing confirm result ${error.message}`;
-        console.log(err);
-        return err;
-      }
-      if (confirmJSON.error) {
-        const err = `Error: confirm ${confirmJSON.error}`;
-        console.log(err);
-        return err;
-      }
-      if (confirmJSON.txids && confirmJSON.txids.length > 0) {
-        const txids: string = confirmJSON.txids.join(", ");
-        return txids;
-      }
-
-      // weird case, I want to see the JSON in the error.
-      return JSON.stringify(confirmJSON);
-    } catch (error) {
-      const err = `Error: Critical Error shield/confirm ${error}`;
-      console.log(err);
-      return err;
+    // SHIELDING
+    const confirmResult: string = await native.confirm();
+    if (!confirmResult) throw new Error("internal error: empty confirm result");
+    const confirmJSON: { txids?: string[]; error?: string } = JSON.parse(confirmResult);
+    if (confirmJSON.error) throw new Error(`confirm: ${confirmJSON.error}`);
+    if (confirmJSON.txids && confirmJSON.txids.length > 0) {
+      return confirmJSON.txids.join(", ");
     }
+    throw new Error(`unexpected confirm result: ${JSON.stringify(confirmJSON)}`);
   }
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
   static async getInfoObject(): Promise<InfoClass> {
     try {
       const infostr: string = await native.info_server();
-      if (!infostr || infostr.toLowerCase().startsWith("error")) {
+      if (!infostr) {
         console.log("server info Failed", infostr);
         return new InfoClass(infostr);
       }
@@ -284,11 +230,7 @@ export default class RPC {
 
       // zingolib version
       let zingolibStr: string = await native.get_version();
-      if (zingolibStr) {
-        if (zingolibStr.toLowerCase().startsWith("error")) {
-          zingolibStr = "<error>";
-        }
-      } else {
+      if (!zingolibStr) {
         zingolibStr = "<none>";
       }
       info.zingolib = zingolibStr;
@@ -341,12 +283,7 @@ export default class RPC {
   async getWalletSaveRequired(): Promise<boolean> {
     try {
       const walletSaveRequiredStr: string = await native.get_wallet_save_required();
-      if (walletSaveRequiredStr) {
-        if (walletSaveRequiredStr.toLowerCase().startsWith("error")) {
-          console.error(`Error wallet save required ${walletSaveRequiredStr}`);
-          return false;
-        }
-      } else {
+      if (!walletSaveRequiredStr) {
         console.error("Internal Error wallet save required");
         return false;
       }
@@ -496,15 +433,9 @@ export default class RPC {
     try {
       // fetch value transfers
       const txValueTransfersStr: string = await native.get_value_transfers();
-      if (txValueTransfersStr) {
-        if (txValueTransfersStr.toLowerCase().startsWith("error")) {
-          console.error(`Error txs ValueTransfers ${txValueTransfersStr}`);
-          this.fnSetFetchError("ValueTransfers", txValueTransfersStr);
-          return [];
-        }
-      } else {
+      if (!txValueTransfersStr) {
         console.error("Internal Error txs ValueTransfers");
-        this.fnSetFetchError("ValueTransfers", "Error: Internal RPC Error");
+        this.fnSetFetchError("ValueTransfers", "Internal RPC Error");
         return [];
       }
       const txValueTransfersJSON = JSON.parse(txValueTransfersStr);
@@ -521,15 +452,9 @@ export default class RPC {
     try {
       // fetch value transfers
       const txMessagesStr: string = await native.get_messages("");
-      if (txMessagesStr) {
-        if (txMessagesStr.toLowerCase().startsWith("error")) {
-          console.error(`Error txs Messages ${txMessagesStr}`);
-          this.fnSetFetchError("Messages", txMessagesStr);
-          return [];
-        }
-      } else {
+      if (!txMessagesStr) {
         console.error("Internal Error txs Messages");
-        this.fnSetFetchError("Messages", "Error: Internal RPC Error");
+        this.fnSetFetchError("Messages", "Internal RPC Error");
         return [];
       }
       const txMessagesJSON = JSON.parse(txMessagesStr);
@@ -547,25 +472,16 @@ export default class RPC {
     try {
       const spendableStr: string = await native.get_spendable_balance_total();
       let spendableJSON;
-      if (spendableStr) {
-        if (spendableStr.toLowerCase().startsWith("error")) {
-          console.error(`Error spendable balance ${spendableStr}`);
-        } else {
-          spendableJSON = JSON.parse(spendableStr);
-        }
-      } else {
+      if (!spendableStr) {
         console.error("Internal Error spendable balance");
+      } else {
+        spendableJSON = JSON.parse(spendableStr);
       }
 
       const balanceStr: string = await native.get_balance();
-      if (balanceStr) {
-        if (balanceStr.toLowerCase().startsWith("error")) {
-          console.error(`Error balance ${balanceStr}`);
-          this.fnSetFetchError("balance", balanceStr);
-        }
-      } else {
+      if (!balanceStr) {
         console.error("Internal Error balance");
-        this.fnSetFetchError("balance", "Error: Internal RPC Error");
+        this.fnSetFetchError("balance", "Internal RPC Error");
       }
       const balanceJSON = JSON.parse(balanceStr);
 
@@ -595,12 +511,7 @@ export default class RPC {
     try {
       // UNIFIED
       const unifiedAddressesStr: string = await native.get_unified_addresses();
-      if (unifiedAddressesStr) {
-        if (unifiedAddressesStr.toLowerCase().startsWith("error")) {
-          console.error(`Error addresses ${unifiedAddressesStr}`);
-          return;
-        }
-      } else {
+      if (!unifiedAddressesStr) {
         console.error("Internal Error addresses");
         return;
       }
@@ -608,12 +519,7 @@ export default class RPC {
 
       // TRANSPARENT
       const transparentAddressStr: string = await native.get_transparent_addresses();
-      if (transparentAddressStr) {
-        if (transparentAddressStr.toLowerCase().startsWith("error")) {
-          console.error(`Error addresses ${transparentAddressStr}`);
-          return;
-        }
-      } else {
+      if (!transparentAddressStr) {
         console.error("Internal Error addresses");
         return;
       }
@@ -628,32 +534,14 @@ export default class RPC {
     }
   }
 
-  static async createNewAddressUnified(type: string) {
-    try {
-      // Zingolib creates addresses like this:
-      // o = orchard only
-      // z = sapling only
-      // oz = orchard + sapling
-      const addrStr: string = await native.create_new_unified_address(type);
-      return addrStr;
-    } catch (error) {
-      const err = `Error: Critical Error new address U ${error}`;
-      console.error(error);
-      return err;
-    }
+  // Throws on failure; the caller catches. o = orchard, z = sapling, oz = both.
+  static async createNewAddressUnified(type: string): Promise<string> {
+    return native.create_new_unified_address(type);
   }
 
-  static async createNewAddressTransparent() {
-    try {
-      // Zingolib creates Addresses like this:
-      // t = transparent
-      const addrStr: string = await native.create_new_transparent_address();
-      return addrStr;
-    } catch (error) {
-      const err = `Error: Critical Error new address T ${error}`;
-      console.log(err);
-      return err;
-    }
+  // Throws on failure; the caller catches. t = transparent.
+  static async createNewAddressTransparent(): Promise<string> {
+    return native.create_new_transparent_address();
   }
 
   static async fetchWalletHeight(): Promise<number> {
@@ -727,15 +615,10 @@ export default class RPC {
     try {
       let latestBlockHeight: number = 0;
       const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : "");
-      if (heightStr) {
-        if (heightStr.toLowerCase().startsWith("error")) {
-          this.fnSetFetchError(fetchLabel, `Error server height ${heightStr}`);
-          console.error(`Error server height ${heightStr}`);
-        } else {
-          latestBlockHeight = Number(heightStr);
-        }
-      } else {
+      if (!heightStr) {
         console.error("Internal Error server height");
+      } else {
+        latestBlockHeight = Number(heightStr);
       }
 
       const txsJSON: RPCValueTransferType[] = await fetcher();
@@ -820,14 +703,9 @@ export default class RPC {
     try {
       // creating the propose
       const proposeStr: string = await native.send(JSON.stringify(sendJson));
-      if (proposeStr) {
-        if (proposeStr.toLowerCase().startsWith("error")) {
-          console.error(`Error propose ${proposeStr}`);
-          sendError = proposeStr;
-        }
-      } else {
+      if (!proposeStr) {
         console.error("Internal Error propose");
-        sendError = "Error: Internal RPC Error: propose";
+        sendError = "Internal RPC Error: propose";
       }
       if (!sendError) {
         const proposeJSON: SendProposeType = JSON.parse(proposeStr);
@@ -838,14 +716,9 @@ export default class RPC {
         if (!sendError) {
           // creating the transaction
           const sendStr: string = await native.confirm();
-          if (sendStr) {
-            if (sendStr.toLowerCase().startsWith("error")) {
-              console.error(`Error confirm ${sendStr}`);
-              sendError = sendStr;
-            }
-          } else {
+          if (!sendStr) {
             console.error("Internal Error confirm");
-            sendError = "Error: Internal RPC Error: confirm";
+            sendError = "Internal RPC Error: confirm";
           }
           if (!sendError) {
             const sendJSON: SendType = JSON.parse(sendStr);
@@ -1052,18 +925,13 @@ export default class RPC {
     try {
       const resultStr: string = await native.zec_price();
 
-      if (resultStr) {
-        if (resultStr.toLowerCase().startsWith("error")) {
-          console.error(`zec_price error: ${resultStr}`);
-          this.fnSetZecPrice(0);
-        } else {
-          const resultJSON = JSON.parse(resultStr);
-          this.fnSetZecPrice(resultJSON.current_price);
-        }
-      } else {
+      if (!resultStr) {
         console.error(`zec_price returned empty result`);
         this.fnSetZecPrice(0);
+        return;
       }
+      const resultJSON = JSON.parse(resultStr);
+      this.fnSetZecPrice(resultJSON.current_price);
     } catch (error) {
       console.error(`zec_price threw:`, error);
     }

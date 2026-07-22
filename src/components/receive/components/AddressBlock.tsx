@@ -238,14 +238,15 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   type="button"
                   onClick={async () => {
                     setCreating(true);
-                    let result: string;
-                    if (type === "t") {
-                      result = await RPC.createNewAddressTransparent();
-                    } else {
-                      result = await RPC.createNewAddressUnified(unifiedCreateType);
-                    }
-                    if (!result || result.toLowerCase().startsWith("error")) {
-                      openErrorModal("New Address", result ? result : "Error: creating a new address.");
+                    try {
+                      // Throws on failure; the address list refreshes via sync.
+                      if (type === "t") {
+                        await RPC.createNewAddressTransparent();
+                      } else {
+                        await RPC.createNewAddressUnified(unifiedCreateType);
+                      }
+                    } catch (error) {
+                      openErrorModal("New Address", `${error}`);
                     }
                     creatingTimerRef.current = setTimeout(() => setCreating(false), 5000);
                   }}

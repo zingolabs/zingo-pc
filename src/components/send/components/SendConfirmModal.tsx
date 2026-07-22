@@ -89,7 +89,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
       let resultJSON;
       try {
         const result: string = await native.parse_address(toaddr.to);
-        if (!result || result.toLowerCase().startsWith("error")) {
+        if (!result) {
           return "-";
         }
 
@@ -223,7 +223,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
         const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
         const txidsResult: string = await sendTransaction(sendJson);
 
-        if (!txidsResult || txidsResult.toLowerCase().startsWith("error")) {
+        if (!txidsResult) {
           openErrorModal("Error Sending Transaction", `${txidsResult}`);
         } else {
           const txids: string[] = txidsResult.split(", ");

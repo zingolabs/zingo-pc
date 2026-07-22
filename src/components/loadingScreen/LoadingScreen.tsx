@@ -760,7 +760,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
       const resp: string = await native.get_latest_block_server(server.uri);
 
       const end: number = Date.now();
-      if (resp && !resp.toLowerCase().startsWith("error")) {
+      if (resp) {
         latency = end - start;
       }
 
