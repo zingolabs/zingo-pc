@@ -262,13 +262,6 @@ export default class RPC {
         info.migrationBatchesConfirmed = migStatus.parts_confirmed;
         info.migrationBatchesTotal = migStatus.parts_total;
         info.migrationPendingZec = Math.max(migStatus.value_total - migStatus.value_migrated, 0) / 10 ** 8;
-        info.migrationNextBlocks = migStatus.next_wakes.length
-          ? Math.max(migStatus.next_wakes[0].boundary - info.walletHeight, 0)
-          : 0;
-        // No upcoming window in view: the pending parts are waiting for their
-        // next witnessable boundary. The banner shows reassuring copy instead of
-        // "~0 blocks".
-        info.migrationWaiting = migStatus.next_wakes.length === 0;
       }
 
       return info;

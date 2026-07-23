@@ -232,6 +232,7 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
           simulation={simulation}
           activationHeight={info.nu63ActivationHeight}
           walletHeight={info.walletHeight}
+          latestBlock={info.latestBlock}
           onBack={() => setStep("strategy")}
           onExit={backToWallet}
         />

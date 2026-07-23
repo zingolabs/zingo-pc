@@ -30,13 +30,6 @@ export default class InfoClass {
   migrationBatchesConfirmed: number;
   migrationBatchesTotal: number;
   migrationPendingZec: number;
-  // Blocks until the next scheduled batch window opens.
-  migrationNextBlocks: number;
-  // True when a migration is in progress but no upcoming window is known yet
-  // (the pending parts are waiting for their next witnessable boundary). Drives
-  // the banner's "sending automatically, keep the app open" copy instead of a
-  // misleading "next batch in ~0 blocks".
-  migrationWaiting: boolean;
   error?: string;
   zingolib: string;
 
@@ -58,8 +51,6 @@ export default class InfoClass {
     this.migrationBatchesConfirmed = 0;
     this.migrationBatchesTotal = 0;
     this.migrationPendingZec = 0;
-    this.migrationNextBlocks = 0;
-    this.migrationWaiting = false;
     this.error = error;
     this.zingolib = "";
   }

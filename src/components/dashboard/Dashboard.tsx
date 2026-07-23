@@ -123,11 +123,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 {info.migrationBatchesConfirmed} of {info.migrationBatchesTotal} batches sent
               </span>
               <div className={styles.migrationnextrow}>
-                <span className={cstyles.yellow}>
-                  {info.migrationWaiting
-                    ? "Sending automatically — keep the app open"
-                    : `Next batch in ~${info.migrationNextBlocks} blocks`}
-                </span>
+                <span className={cstyles.yellow}>Sending automatically — keep the app open</span>
                 <span className={cstyles.sublight}>
                   {info.currencyName} {Utils.maxPrecisionTrimmed(info.migrationPendingZec)} pending
                 </span>

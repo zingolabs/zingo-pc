@@ -42,6 +42,10 @@ type PrivateMigrationProps = {
   simulation: boolean;
   activationHeight: number;
   walletHeight: number;
+  // Chain tip (server latest block). A batch's window is "open" once the chain
+  // reaches its boundary — mobile's MigrationStatus gates by height, not
+  // wall-clock, and so do we.
+  latestBlock: number;
   onBack: () => void;
   onExit: () => void;
 };
@@ -93,13 +97,12 @@ const applyPending = (prev: RowData[], pending: string[]): RowData[] => {
   );
 };
 
-const estTime = (unix: number): string => (unix > 0 ? new Date(unix * 1000).toLocaleString() : "—");
-
 const PrivateMigration: React.FC<PrivateMigrationProps> = ({
   currencyName,
   simulation,
   activationHeight,
   walletHeight,
+  latestBlock,
   onBack,
   onExit,
 }) => {
@@ -499,14 +502,29 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
         </>
       )}
 
-      {/* ---------- Phase 2: split done, batches scheduled ---------- */}
+      {/* ---------- Phase 2: split done, batches scheduled ----------
+          Mirrors zingo-mobile's MigrationStatus: gated by block HEIGHT, not
+          wall-clock ("the batch is gated by height"). A window is OPEN once the
+          chain reaches its boundary; each batch's anchor and send-by are shown
+          as block numbers, never estimated times. */}
       {step === "scheduled" &&
         (() => {
-          const total = schedule?.parts_total ?? 0;
-          const done = schedule?.parts_confirmed ?? 0;
-          const complete = total > 0 && done >= total;
+          const partsTotal = schedule?.parts_total ?? 0;
+          const partsConfirmed = schedule?.parts_confirmed ?? 0;
+          const perBucket = Math.max(1, schedule?.per_bucket ?? 1);
+          const modulus = schedule?.bucket_modulus ?? 256;
+          // A batch is a window (per_bucket parts); it counts confirmed once all
+          // its parts confirm (floor), so partial windows don't over-report.
+          const batchesTotal = Math.max(1, Math.ceil(partsTotal / perBucket));
+          const batchesConfirmed = Math.min(batchesTotal, Math.floor(partsConfirmed / perBucket));
+          const complete = partsTotal > 0 && partsConfirmed >= partsTotal;
           const wakes = schedule?.next_wakes ?? [];
-          const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+          const pct =
+            schedule && schedule.value_total > 0
+              ? Math.round((schedule.value_migrated / schedule.value_total) * 100)
+              : 0;
+          const nextWake = wakes[0];
+          const nextOpen = !!nextWake && latestBlock >= nextWake.boundary;
 
           return (
             <>
@@ -517,7 +535,7 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
               <div className={cstyles.sublight} style={{ marginTop: 6 }}>
                 {complete
                   ? "All your batches have been sent to Ironwood. You're done — nothing else to do."
-                  : "Your notes are split. The batches now send to Ironwood over their time windows, automatically, while the app is open."}
+                  : "Your notes are split. Each batch sends to Ironwood once the chain reaches its window, automatically, while the app is open."}
               </div>
 
               {schedule && (
@@ -525,7 +543,7 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                   <div className={styles.row}>
                     <span className={cstyles.sublight}>Batches sent</span>
                     <span className={styles.mono}>
-                      {done} of {total}
+                      {batchesConfirmed} of {batchesTotal}
                     </span>
                   </div>
                   <div className={styles.progresstrack}>
@@ -540,40 +558,41 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                 </div>
               )}
 
-              {/* Upcoming windows, when any are in view. */}
-              {wakes.map((wake, i) => (
-                <div key={i} className={`${cstyles.well} ${styles.card}`}>
-                  <div className={styles.cardhead}>
-                    <span className={styles.cardtitle}>Window {i + 1}</span>
-                    <span className={`${styles.badge} ${i === 0 ? styles.badgenext : styles.badgescheduled}`}>
-                      {i === 0 ? "Next" : "Scheduled"}
-                    </span>
-                  </div>
-                  <div className={styles.row}>
-                    <span className={styles.mono}>
-                      {groupZats(wake.denominations)} {currencyName}
-                    </span>
-                    <span className={`${cstyles.sublight} ${styles.mono}`}>{estTime(wake.estimated_unix_time)}</span>
-                  </div>
-                </div>
-              ))}
-
-              {/* No window in view yet, still migrating: reassure instead of an
-                  empty list. The next batch sends on its own; the user only has
-                  to leave the app open. */}
-              {schedule && !complete && wakes.length === 0 && (
-                <div className={`${cstyles.well} ${styles.card}`}>
-                  <div className={styles.cardhead}>
-                    <span className={styles.cardtitle}>Waiting for the next window</span>
-                    <span className={`${styles.badge} ${styles.badgescheduled}`}>On schedule</span>
-                  </div>
-                  <div className={cstyles.sublight}>
-                    Your remaining batches are spread across the coming windows to protect your privacy. They send by
-                    themselves while the app is open — there&apos;s nothing you need to do. Feel free to keep using your
-                    wallet in the meantime.
-                  </div>
+              {/* Height-gated status line (no wall-clock). */}
+              {!complete && schedule && (
+                <div className={styles.infonote}>
+                  {nextWake
+                    ? nextOpen
+                      ? `A window is open (block ${nextWake.boundary.toLocaleString()}) — the batch sends automatically. You're at block ${latestBlock.toLocaleString()}.`
+                      : `Next window opens at block ${nextWake.boundary.toLocaleString()} — you're at block ${latestBlock.toLocaleString()}.`
+                    : "Your remaining batches are scheduled beyond the current horizon; they send by themselves while the app is open."}
                 </div>
               )}
+
+              {/* One card per upcoming window (batch). OPEN once the chain
+                  reaches its boundary; anchor + send-by shown as block heights. */}
+              {wakes.map((wake, i) => {
+                const open = latestBlock >= wake.boundary;
+                return (
+                  <div key={wake.bucket_index} className={`${cstyles.well} ${styles.card}`}>
+                    <div className={styles.cardhead}>
+                      <span className={styles.cardtitle}>Batch {batchesConfirmed + i + 1}</span>
+                      <span className={`${styles.badge} ${open ? styles.badgebroadcasting : styles.badgescheduled}`}>
+                        {open ? "Open" : "Scheduled"}
+                      </span>
+                    </div>
+                    <div className={styles.row}>
+                      <span className={`${cstyles.sublight} ${styles.mono}`}>
+                        {groupZats(wake.denominations)} {currencyName}
+                      </span>
+                      <span className={cstyles.sublight} style={{ fontSize: 11 }}>
+                        Opens at block {wake.boundary.toLocaleString()} · send by{" "}
+                        {(wake.boundary + modulus).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
 
               <div className={styles.infonote}>
                 {complete

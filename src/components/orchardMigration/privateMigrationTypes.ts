@@ -49,7 +49,10 @@ export type FfiPlan = {
 
 // One future broadcast window (zingolib WakePoint). `denominations` (zatoshis)
 // mirror `part_ids` element-for-element, so a schedule screen can render each
-// window's batch without a second call.
+// window's batch without a second call. `estimated_unix_time` is when the
+// window OPENS (its boundary); `estimated_target_unix_time` is when the batch
+// actually broadcasts (its randomized in-window target) — use the latter for
+// "when will this send".
 export type FfiWake = {
   bucket_index: number;
   boundary: number;
