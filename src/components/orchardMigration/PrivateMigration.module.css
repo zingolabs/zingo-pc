@@ -2,10 +2,27 @@
    language as OrchardMigration.module.css: a centered column of cards over
    Common.module.css primitives. */
 
+/* Rendered INSIDE OrchardMigration's container, which already provides the
+   frame (centering, horizontal padding) and the vertical scroll — so no extra
+   padding here, or the top margin doubles and the bottom gets pushed off. */
 .container {
-  max-width: 620px;
-  margin: 0 auto;
-  padding: 24px;
+  width: 100%;
+}
+
+/* ---- Top exit bar (in-progress detail screens) ---- */
+.topbar {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.exitlink {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--color-primary);
 }
 
 /* ---- Two-phase stepper: (1) Split notes ---- (2) Send batches ---- */
@@ -13,7 +30,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: 14px;
 }
 
 .step {
@@ -64,8 +81,10 @@
 
 /* ---- Transaction / batch cards ---- */
 .card {
-  margin-top: 14px;
-  padding: 16px;
+  margin-top: 12px;
+  /* Tight vertical padding so the tall cards (4-field summary + the two cadence
+     choices) fit without pushing content off-screen. */
+  padding: 10px 16px;
   text-align: left;
 }
 
@@ -84,7 +103,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0;
+  padding: 3px 0;
 }
 
 .totalrow {

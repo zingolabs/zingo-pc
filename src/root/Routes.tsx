@@ -40,7 +40,6 @@ import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
 import { OrchardMigration } from "../components/orchardMigration";
 import { RPCIronwoodDrainType } from "../rpc/components/RPCIronwoodDrainType";
-import { FfiMigrationSummary } from "../components/orchardMigration/privateMigrationTypes";
 import { ConfirmModal } from "../components/confirmModal";
 import ShieldResultContent from "./ShieldResultContent";
 import LockScreen from "../components/lockScreen/LockScreen";
@@ -460,13 +459,6 @@ const AppRoutes: React.FC = () => {
     return rpcRef.current!.drainOrchardToIronwood();
   }, []);
 
-  const runRPCMigrateToIronwood = useCallback(async (): Promise<{
-    result: FfiMigrationSummary | null;
-    error: string;
-  }> => {
-    return rpcRef.current!.migrateToIronwood();
-  }, []);
-
   // --- P4: memoized context value ---
   const contextAppState = useMemo<AppState>(
     () => ({
@@ -605,12 +597,7 @@ const AppRoutes: React.FC = () => {
             <Route path={routes.INSIGHT} element={<Insight />} />
             <Route path={routes.HISTORY} element={<History />} />
             <Route path={routes.MESSAGES} element={<Messages />} />
-            <Route
-              path={routes.MIGRATION}
-              element={
-                <OrchardMigration drainToIronwood={runRPCDrainToIronwood} migrateToIronwood={runRPCMigrateToIronwood} />
-              }
-            />
+            <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
             <Route
               path={routes.ADDNEWWALLET}
               element={

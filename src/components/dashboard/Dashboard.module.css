@@ -47,16 +47,68 @@
 }
 
 /* Private (scheduled) migration progress banner. */
+/* Compact two-column banner: a progress ring + a stacked info column, capped
+   width so it doesn't stretch across the dashboard with a big empty middle. */
 .migrationprogress {
-  margin: 16px;
+  margin: 16px auto;
+  max-width: 50%;
   border: 1px solid var(--color-primary);
 }
 
-.migrationprogresshead {
+.migrationprogressbody {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Progress ring: a conic-gradient fill (angle set inline from the %) with a
+   punched-out center that shows the percentage number. */
+.migrationring {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.migrationringinner {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.migrationinfo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  /* Fill the width left of the ring so the "pending" amount in .migrationnextrow
+     lands at the banner's right edge. */
+  flex: 1;
+}
+
+.migrationtop {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+}
+
+/* Yellow "next batch" note on the left, TAZ/ZEC pending amount on the right. */
+.migrationnextrow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .detailslink {
@@ -66,20 +118,6 @@
   font: inherit;
   cursor: pointer;
   color: var(--color-primary);
-}
-
-.progresstrack {
-  height: 6px;
-  border-radius: 3px;
-  background: var(--color-background-dark);
-  overflow: hidden;
-}
-
-.progressfill {
-  height: 100%;
-  background: var(--color-primary);
-  border-radius: 3px;
-  transition: width 240ms ease;
 }
 
 .migratebannertext {

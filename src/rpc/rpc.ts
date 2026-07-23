@@ -9,6 +9,7 @@ import {
   SendProposeType,
   SendType,
   ValueTransferStatusEnum,
+  ValueTransferKindEnum,
   ValueTransferPoolEnum,
   WalletType,
   ServerChainNameEnum,
@@ -18,7 +19,12 @@ import { native } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
 import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
-import { FfiMigrationSummary, FfiPlan, FfiStatus } from "../components/orchardMigration/privateMigrationTypes";
+import {
+  FfiMigrationSummary,
+  FfiPlan,
+  FfiSplitStep,
+  FfiStatus,
+} from "../components/orchardMigration/privateMigrationTypes";
 
 // zingolib emits pool names capitalized ("Orchard", "Ironwood", …); normalize them
 // to the lowercase ValueTransferPoolEnum and drop anything unrecognized. Returns
@@ -96,9 +102,9 @@ export default class RPC {
       RPC.doSave(),
       this.fetchTandZandOValueTransfers(),
       this.fetchTandZandOMessages(),
-      // Foreground driver: broadcast any migration parts whose window is open.
-      // No-op when no migration is in progress.
-      RPC.autoBroadcastIfDue(),
+      // Foreground driver: send the current window's due parts and fold in any
+      // windows missed while the app was closed. No-op when none in progress.
+      RPC.driveMigration(),
     ]);
   }
 
@@ -259,6 +265,10 @@ export default class RPC {
         info.migrationNextBlocks = migStatus.next_wakes.length
           ? Math.max(migStatus.next_wakes[0].boundary - info.walletHeight, 0)
           : 0;
+        // No upcoming window in view: the pending parts are waiting for their
+        // next witnessable boundary. The banner shows reassuring copy instead of
+        // "~0 blocks".
+        info.migrationWaiting = migStatus.next_wakes.length === 0;
       }
 
       return info;
@@ -664,6 +674,20 @@ export default class RPC {
         vt.poolsSentFrom = parseValueTransferPools(tx.pools_sent_from);
         vt.poolsReceived = parseValueTransferPools(tx.pools_received);
 
+        // An Orchard -> Ironwood migration part is a self-send funded from
+        // Orchard and received into Ironwood. zingolib does not model it as its
+        // own kind: it crosses as `send-to-self` OR `memo-to-self` (the parts
+        // carry a memo), and its received pools are BOTH Ironwood (the migrated
+        // denomination) and Orchard (the change), so key off the Ironwood
+        // receipt from an Orchard source and surface it as its own type.
+        if (
+          (vt.type === ValueTransferKindEnum.sendToSelf || vt.type === ValueTransferKindEnum.memoToSelf) &&
+          !!vt.poolsSentFrom?.includes(ValueTransferPoolEnum.orchard) &&
+          !!vt.poolsReceived?.includes(ValueTransferPoolEnum.ironwood)
+        ) {
+          vt.type = ValueTransferKindEnum.migration;
+        }
+
         if (vt.status === ValueTransferStatusEnum.failed) {
           console.log("[RPC] failed value transfer (transformed):", vt);
         }
@@ -862,8 +886,39 @@ export default class RPC {
     }
   }
 
+  // Drive ONE step of Phase 1 note-splitting. The FFI throws on failure (typed
+  // error), so we catch and surface the text in `error` — the driving loop then
+  // stops and offers Retry (the state is reconcilable; retry re-enters the loop).
+  // `step` is null exactly when `error` is set.
+  static async continueNoteSplitting(): Promise<{ step: FfiSplitStep | null; error: string }> {
+    try {
+      const step: FfiSplitStep = JSON.parse(await native.continue_note_splitting());
+      return { step, error: "" };
+    } catch (error) {
+      console.error(`Error continue note splitting ${error}`);
+      return { step: null, error: `${error}` };
+    }
+  }
+
+  // Re-cadence the schedule (parts per broadcast window). Only valid between
+  // consent and the first signed part; afterwards the FFI throws (CadenceFixed).
+  static async rescheduleParts(perBucket: number): Promise<boolean> {
+    try {
+      await native.reschedule_parts(perBucket);
+      return true;
+    } catch (error) {
+      console.error(`Error reschedule parts ${error}`);
+      return false;
+    }
+  }
+
   // Run on every launch: applies the safe-unattended reconciliation actions.
+  // reconcile_migration throws "no migration in progress" when there is none —
+  // the normal case — so gate on the status first instead of logging that as an
+  // error every launch/wallet-switch.
   static async reconcileMigration(): Promise<void> {
+    const status = await RPC.fetchMigrationStatus();
+    if (!status) return;
     try {
       await native.reconcile_migration();
     } catch (error) {
@@ -892,12 +947,105 @@ export default class RPC {
   }
 
   // Periodic driving-loop primitive: no-op without a migration; otherwise
-  // refreshes witnesses and broadcasts due parts. Called each sync cycle.
+  // refreshes part witnesses and broadcasts every part whose bucket window and
+  // random target height are both reached. Called each sync cycle. This is the
+  // WHOLE of Phase 2 — nothing else has to happen "when a batch's block
+  // arrives"; the next sync tick's call fires the due parts.
+  //
+  // Logs the txids it broadcasts (so a batch send is visible) and surfaces
+  // failures loudly instead of swallowing them — a silent no-op every tick and
+  // a silent error every tick look identical otherwise.
   static async autoBroadcastIfDue(): Promise<void> {
     try {
-      await native.auto_broadcast_if_due();
+      const txids: string[] = JSON.parse(await native.auto_broadcast_if_due()).txids ?? [];
+      if (txids.length > 0) {
+        console.log(`[migration] auto_broadcast_if_due sent ${txids.length} part(s):`, txids);
+      }
     } catch (error) {
       console.error(`Error auto broadcast if due ${error}`);
+    }
+  }
+
+  // reconcile_migration returning its applied/recommended actions (Debug
+  // strings), for the driver's diagnostics. Does not sync; offline-safe.
+  static async reconcileActions(): Promise<string[]> {
+    try {
+      return JSON.parse(await native.reconcile_migration()).actions ?? [];
+    } catch (error) {
+      console.error(`Error reconcile migration ${error}`);
+      return [];
+    }
+  }
+
+  // Guards against a slow drive step (proving + spaced sends can take many
+  // seconds while holding the wallet lock) stacking across 5s ticks.
+  static migrationDriveInFlight = false;
+
+  // The foreground migration driver, run every sync cycle. It advances the
+  // migration WITHOUT ever compromising the private path's privacy:
+  //
+  //   planned / note_splitting -> drive continue_note_splitting to completion.
+  //     The migration screen also drives this, but the user may have navigated
+  //     away mid-split; without this the split never finishes.
+  //
+  //   parts_scheduled -> auto_broadcast_if_due ONLY. It fires a part only when
+  //     its OWN current window and random target are both reached — an on-time,
+  //     uncorrelated broadcast that blends with the scheduled cadence. It never
+  //     fires a past-window part.
+  //
+  //     It deliberately does NOT call catch_up_migration here. catch_up folds
+  //     windows missed while the app was closed into the CURRENT bucket and
+  //     broadcasts them immediately — a correlated burst that fingerprints the
+  //     migration (ZIP 318: late, user-present sends need explicit disclosure).
+  //     That path is only correct behind a user-triggered "send missed batches
+  //     now" action with disclosure, never on an automatic timer. The
+  //     privacy-preserving automatic recovery — re-placing missed parts into
+  //     FRESH FUTURE windows — is not available on the pinned zingolib
+  //     (fix/ironwood-split-mobile): its reconcile leaves overdue Assigned parts
+  //     as PromptCatchUp for the caller, and the forward-reschedule primitive
+  //     (schedule::catch_up_shift) is unwired. The ratified fix lives on the
+  //     divergent fix/2493-migration-lifecycle-mediums branch, which does not
+  //     yet carry the split driver this path needs. Until upstream combines
+  //     them, missed windows are surfaced (below), not auto-fired.
+  //
+  //     reconcile_migration still runs each tick: it applies only the
+  //     privacy-safe unattended fixes (promote confirmed, rebuild an expired
+  //     part into a fresh future window, mark complete). A PromptCatchUp in its
+  //     report means windows were missed and are awaiting the reschedule we
+  //     cannot yet do automatically — we log it rather than firing them.
+  //
+  // Gated on an in-progress migration so reconcile doesn't throw NoMigration
+  // (and spam) on every idle tick.
+  static async driveMigration(): Promise<void> {
+    if (RPC.migrationDriveInFlight) return;
+    const status = await RPC.fetchMigrationStatus();
+    if (!status) return;
+    const phase = status.phase?.kind;
+
+    RPC.migrationDriveInFlight = true;
+    try {
+      if (phase === "planned" || phase === "note_splitting") {
+        const { step, error } = await RPC.continueNoteSplitting();
+        console.log(`[migration] phase=${phase} split=${error ? `error: ${error}` : (step?.step ?? "?")}`);
+        return;
+      }
+
+      if (phase === "parts_scheduled") {
+        // On-time, uncorrelated broadcasts only.
+        await RPC.autoBroadcastIfDue();
+        // Apply privacy-safe unattended fixes and read the recommendations.
+        const actions = await RPC.reconcileActions();
+        if (actions.some((a) => a.includes("PromptCatchUp"))) {
+          console.log(
+            `[migration] ${status.parts_confirmed}/${status.parts_total} confirmed — ` +
+              `window(s) were missed. NOT auto-firing them (that would correlate the late batch and ` +
+              `break the private path); they await a privacy-preserving reschedule. reconcile:`,
+            actions,
+          );
+        }
+      }
+    } finally {
+      RPC.migrationDriveInFlight = false;
     }
   }
 

@@ -9,7 +9,6 @@ import Utils from "../../utils/utils";
 import { RPCIronwoodDrainType } from "../../rpc/components/RPCIronwoodDrainType";
 import { ironwoodReady } from "../../constants/ironwood";
 import PrivateMigration from "./PrivateMigration";
-import { FfiMigrationSummary } from "./privateMigrationTypes";
 
 // intro → howItWorks → strategy → (private flow | quick: confirm→executing→result)
 type Step = "intro" | "howItWorks" | "strategy" | "confirm" | "executing" | "result" | "private";
@@ -17,30 +16,40 @@ type Strategy = "private" | "now";
 
 // Provided by Routes (runRPCDrainToIronwood): stops the sync loop, drains, and
 // resumes — the drain syncs internally, so it cannot run while a sync is active.
+// The private path drives the scheduled split flow itself (via RPC statics), so
+// it needs no callback here.
 type OrchardMigrationProps = {
   drainToIronwood: () => Promise<{ result: RPCIronwoodDrainType | null; error: string }>;
-  migrateToIronwood: () => Promise<{ result: FfiMigrationSummary | null; error: string }>;
 };
 
 // The drain result reports zatoshis; the rest of the UI works in ZEC.
 const zatsToZec = (zats: number): string => Utils.maxPrecisionTrimmed(zats / 100_000_000);
 
-const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood, migrateToIronwood }) => {
+const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { totalBalance, readOnly, info } = useContext(ContextApp);
 
   // Simulation (dry-run) is entered from the pre-activation banner: the plan can
   // be computed but nothing can be sent until Ironwood is active.
+  // Resume is entered from the "Migration in Progress" banner's Details link: it
+  // must land straight on the private-path status (which migration is already
+  // underway), NOT the intro/strategy sequence that would offer starting a
+  // different migration.
   let simulation = false;
+  let resume = false;
   if (location.state) {
     simulation = (location.state as { simulation?: boolean }).simulation ?? false;
+    resume = (location.state as { resume?: boolean }).resume ?? false;
   }
+  // A migration already in progress can only be resumed, never restarted, so
+  // jump to the private flow whether the flag or the live status says so.
+  const resumeInProgress: boolean = resume || info.migrationInProgress;
 
   // Ironwood only exists once the wallet has synced to the NU6.3 activation block.
   const ready: boolean = ironwoodReady(info.nu63ActivationHeight, info.walletHeight);
 
-  const [step, setStep] = useState<Step>("intro");
+  const [step, setStep] = useState<Step>(resumeInProgress ? "private" : "intro");
   const [strategy, setStrategy] = useState<Strategy>("private");
   const [result, setResult] = useState<RPCIronwoodDrainType | null>(null);
   const [error, setError] = useState<string>("");
@@ -220,7 +229,6 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood, mi
       {step === "private" && (
         <PrivateMigration
           currencyName={info.currencyName}
-          migrateToIronwood={migrateToIronwood}
           simulation={simulation}
           activationHeight={info.nu63ActivationHeight}
           walletHeight={info.walletHeight}

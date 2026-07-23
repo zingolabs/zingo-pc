@@ -43,6 +43,7 @@ const _ALL_NATIVE_METHODS = [
   "plan_orchard_drain",
   // private Ironwood migration (parts/buckets engine), no params
   "plan_ironwood_migration",
+  "continue_note_splitting",
   "migration_status",
   "reconcile_migration",
   "broadcast_due_parts",
@@ -69,6 +70,7 @@ const _ALL_NATIVE_METHODS = [
   "delete_wallet",
   "change_server",
   "start_ironwood_migration",
+  "reschedule_parts",
   // sync with params (become async via IPC)
   "wallet_exists",
   "init_new",

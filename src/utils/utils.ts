@@ -53,7 +53,11 @@ export default class Utils {
                                 ? "...Sending..."
                                 : type === ValueTransferKindEnum.rejection && confirmations > 0
                                   ? "Rejection"
-                                  : "";
+                                  : type === ValueTransferKindEnum.migration && confirmations === 0
+                                    ? "...Migrating..."
+                                    : type === ValueTransferKindEnum.migration && confirmations > 0
+                                      ? "Migration"
+                                      : "";
   }
 
   static trimToSmall(addr?: string, numChars?: number): string {

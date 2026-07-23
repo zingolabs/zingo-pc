@@ -836,6 +836,7 @@ const _NATIVE_NO_PARAM_METHODS = [
   "plan_orchard_drain",
   // private Ironwood migration (parts/buckets engine), all no-param
   "plan_ironwood_migration",
+  "continue_note_splitting",
   "migration_status",
   "reconcile_migration",
   "broadcast_due_parts",
@@ -916,6 +917,7 @@ ipcMain.handle("native:change_server", (_e, server_uri) => getNative().change_se
 ipcMain.handle("native:start_ironwood_migration", (_e, consented_plan_hash, per_bucket) =>
   getNative().start_ironwood_migration(consented_plan_hash, per_bucket),
 );
+ipcMain.handle("native:reschedule_parts", (_e, per_bucket) => getNative().reschedule_parts(per_bucket));
 
 ipcMain.handle("wallet-dir:request", async () => {
   const wdLog = (msg) => {

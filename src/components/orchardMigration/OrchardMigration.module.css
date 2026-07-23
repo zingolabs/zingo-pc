@@ -1,7 +1,13 @@
 .container {
   max-width: 620px;
   margin: 0 auto;
-  padding: 32px 24px;
+  /* Tight top margin + own vertical scroll: the app's content area is clipped
+     (overflow:hidden), so a tall migration flow (plan cards, per-tx list,
+     schedule) must scroll here or its bottom is unreachable. */
+  padding: 12px 24px 24px;
+  height: 100vh;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .card {

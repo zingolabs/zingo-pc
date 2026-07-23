@@ -40,7 +40,7 @@ use zcash_keys::address::Address;
 use zcash_keys::keys::UnifiedFullViewingKey;
 use zip32::AccountId;
 use zingolib::wallet::migration::{MigrationParams, MigrationPhase, SigningStrategy, plan_hash};
-use zingolib::lightclient::migrate::{DrainPhase, DrainProgressHandle};
+use zingolib::lightclient::migrate::{DrainPhase, DrainProgressHandle, SplitStep};
 use zcash_protocol::consensus::{NetworkType, NetworkUpgrade, Parameters};
 
 use pepper_sync::config::SyncConfig;
@@ -111,6 +111,8 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("plan_orchard_drain", plan_orchard_drain)?;
     cx.export_function("plan_ironwood_migration", plan_ironwood_migration)?;
     cx.export_function("start_ironwood_migration", start_ironwood_migration)?;
+    cx.export_function("continue_note_splitting", continue_note_splitting)?;
+    cx.export_function("reschedule_parts", reschedule_parts)?;
     cx.export_function("migration_status", migration_status)?;
     cx.export_function("reconcile_migration", reconcile_migration)?;
     cx.export_function("broadcast_due_parts", broadcast_due_parts)?;
@@ -1908,6 +1910,90 @@ fn start_ironwood_migration(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+// continue_note_splitting: drives ONE step of Phase 1 note-splitting — builds,
+// proves and broadcasts the next round of Orchard self-sends, or reports what
+// the current round is waiting on. zingolib pauses the running sync itself for
+// the critical section. Call after a sync tick and keep looping until
+// `splitting_complete`. Like the drain it holds the lightclient for the whole
+// prove+broadcast, so it runs on the Neon worker pool (cx.task), never the JS
+// thread. Returns one of:
+//   { step: "round_broadcast", round, txids: [..] }   (sync until they confirm)
+//   { step: "awaiting_confirmation", pending: [..] }   (empty = anchor lagging)
+//   { step: "splitting_complete" }                     (parts bound + scheduled)
+fn continue_note_splitting(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let step = lightclient
+                            .continue_note_splitting()
+                            .await
+                            .map_err(|e| ZingolibError::Sync(e.to_string()))?;
+                        let json = match step {
+                            SplitStep::RoundBroadcast { round, txids } => serde_json::json!({
+                                "step": "round_broadcast",
+                                "round": round,
+                                "txids": txids.iter().map(|t| t.to_string()).collect::<Vec<_>>(),
+                            }),
+                            SplitStep::AwaitingConfirmation { pending } => serde_json::json!({
+                                "step": "awaiting_confirmation",
+                                "pending": pending.iter().map(|t| t.to_string()).collect::<Vec<_>>(),
+                            }),
+                            SplitStep::SplittingComplete => serde_json::json!({
+                                "step": "splitting_complete",
+                            }),
+                        };
+                        Ok(json.to_string())
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// reschedule_parts(per_bucket): sets how many parts share each broadcast window
+// and re-buckets every part under the new cadence with fresh randomization.
+// Callable any time between consent and the first signed part; afterwards it
+// fails (CadenceFixed). After a successful call the old schedule is void —
+// re-read migration_status. Returns { status: "rescheduled" }.
+fn reschedule_parts(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let per_bucket = cx.argument::<JsNumber>(0)?.value(&mut cx);
+
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let per_bucket = per_bucket as u32;
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        lightclient
+                            .reschedule_parts(per_bucket)
+                            .await
+                            .map_err(|e| ZingolibError::Sync(e.to_string()))?;
+                        Ok(object! { "status" => "rescheduled" }.pretty(2))
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
 // migration_status: everything the progress UI + Dashboard banner render.
 fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
@@ -1920,6 +2006,29 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             .migration_status()
                             .await
                             .map_err(|e| ZingolibError::Read(e.to_string()))?;
+                        // Join each wake's part ids to their denominations (and pick up
+                        // the effective cadence) from the persisted migration state;
+                        // WakePoint alone carries only ids. Lets a schedule screen render
+                        // each window's batch without a second call.
+                        let (denoms_by_id, per_bucket, bucket_modulus) = {
+                            let wallet = lightclient.wallet().read().await;
+                            match &wallet.migration {
+                                Some(state) => (
+                                    state
+                                        .parts
+                                        .iter()
+                                        .map(|part| (part.id.0, part.denomination))
+                                        .collect::<std::collections::HashMap<_, _>>(),
+                                    Some(state.params.k_max),
+                                    state.params.bucket_modulus,
+                                ),
+                                None => (
+                                    std::collections::HashMap::new(),
+                                    None,
+                                    MigrationParams::provisional(wallet.chain_type()).bucket_modulus,
+                                ),
+                            }
+                        };
                         // Coarse phase, `null` when no migration is in progress.
                         let phase = match &status.phase {
                             None => serde_json::Value::Null,
@@ -1943,7 +2052,14 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                     "bucket_index": w.bucket_index,
                                     "boundary": u32::from(w.boundary),
                                     "part_ids": w.part_ids.iter().map(|p| p.0).collect::<Vec<u32>>(),
+                                    // Denominations (zatoshis) mirror part_ids element-for-element.
+                                    "denominations": w
+                                        .part_ids
+                                        .iter()
+                                        .map(|p| denoms_by_id.get(&p.0).copied().unwrap_or(0))
+                                        .collect::<Vec<_>>(),
                                     "estimated_unix_time": w.estimated_unix_time,
+                                    "estimated_target_unix_time": w.estimated_target_unix_time,
                                 })
                             })
                             .collect();
@@ -1955,6 +2071,8 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             "parts_confirmed": status.parts_confirmed,
                             "value_total": status.value_total,
                             "value_migrated": status.value_migrated,
+                            "per_bucket": per_bucket,
+                            "bucket_modulus": bucket_modulus,
                             "next_wakes": next_wakes,
                         })
                         .to_string())

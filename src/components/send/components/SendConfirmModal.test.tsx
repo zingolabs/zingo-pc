@@ -360,7 +360,7 @@ describe("SendConfirmModal", () => {
       });
     });
 
-    it("opens an error modal when sendTransaction throws", async () => {
+    it("surfaces the thrown Error's message in the error modal", async () => {
       installElectronAPI();
       const sendTransaction = jest.fn().mockRejectedValue(new Error("network is down"));
       const openErrorModal = jest.fn();

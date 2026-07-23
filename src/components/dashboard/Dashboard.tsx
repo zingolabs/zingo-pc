@@ -56,6 +56,11 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   // icon). -1 migratable = "not checked yet" → not dust.
   const orchardIsDust: boolean = info.orchardMigratable === 0 && info.orchardDust > 0;
 
+  // Percentage of scheduled batches already sent — drives the banner's ring.
+  const migrationPct: number = info.migrationBatchesTotal
+    ? Math.round((info.migrationBatchesConfirmed / info.migrationBatchesTotal) * 100)
+    : 0;
+
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
 
@@ -94,43 +99,40 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
           this banner stays hidden (migrationInProgress defaults false). */}
       {currentWallet !== null && !currentWalletOpenError && info.migrationInProgress && (
         <div className={`${cstyles.well} ${styles.migrationprogress}`}>
-          <div className={styles.migrationprogresshead}>
-            <span className={cstyles.highlight}>Migration in Progress</span>
+          <div className={styles.migrationtop}>
+            <span className={cstyles.highlight}>Migration in progress</span>
             <button
               type="button"
               className={styles.detailslink}
-              onClick={() => navigate(routes.MIGRATION, { replace: true, state: {} })}
+              onClick={() => navigate(routes.MIGRATION, { replace: true, state: { resume: true } })}
             >
               Details
             </button>
           </div>
-          <div className={styles.progresstrack}>
+          <div className={styles.migrationprogressbody}>
             <div
-              className={styles.progressfill}
+              className={styles.migrationring}
               style={{
-                width: `${
-                  info.migrationBatchesTotal
-                    ? Math.round((info.migrationBatchesConfirmed / info.migrationBatchesTotal) * 100)
-                    : 0
-                }%`,
+                background: `conic-gradient(var(--color-primary) ${migrationPct * 3.6}deg, var(--color-background-dark) 0deg)`,
               }}
-            />
-          </div>
-          <div className={`${cstyles.flexspacebetween} ${cstyles.small}`} style={{ marginTop: 6 }}>
-            <span className={cstyles.sublight}>Batches</span>
-            <span>
-              {info.migrationBatchesConfirmed} of {info.migrationBatchesTotal} completed
-            </span>
-          </div>
-          <div className={`${cstyles.flexspacebetween} ${cstyles.small}`}>
-            <span className={cstyles.sublight}>Next action</span>
-            <span className={cstyles.yellow}>Next batch in ~{info.migrationNextBlocks} blocks</span>
-          </div>
-          <div className={`${cstyles.flexspacebetween} ${cstyles.small}`}>
-            <span className={cstyles.sublight}>Pending</span>
-            <span>
-              {info.currencyName} {Utils.maxPrecisionTrimmed(info.migrationPendingZec)}
-            </span>
+            >
+              <span className={styles.migrationringinner}>{migrationPct}%</span>
+            </div>
+            <div className={styles.migrationinfo}>
+              <span className={cstyles.sublight}>
+                {info.migrationBatchesConfirmed} of {info.migrationBatchesTotal} batches sent
+              </span>
+              <div className={styles.migrationnextrow}>
+                <span className={cstyles.yellow}>
+                  {info.migrationWaiting
+                    ? "Sending automatically — keep the app open"
+                    : `Next batch in ~${info.migrationNextBlocks} blocks`}
+                </span>
+                <span className={cstyles.sublight}>
+                  {info.currencyName} {Utils.maxPrecisionTrimmed(info.migrationPendingZec)} pending
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       )}

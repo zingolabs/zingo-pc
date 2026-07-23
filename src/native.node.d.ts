@@ -91,6 +91,8 @@ export function plan_orchard_drain(): Promise<string>;
 // Private (scheduled) Ironwood migration — zingolib parts/buckets engine.
 export function plan_ironwood_migration(): Promise<string>;
 export function start_ironwood_migration(consented_plan_hash: string, per_bucket: number): Promise<string>;
+export function continue_note_splitting(): Promise<string>;
+export function reschedule_parts(per_bucket: number): Promise<string>;
 export function migration_status(): Promise<string>;
 export function reconcile_migration(): Promise<string>;
 export function broadcast_due_parts(): Promise<string>;

@@ -17,9 +17,9 @@ crate-type = ["cdylib"]
 # zcash crates (no librustzcash/zebra git-rev patches — those belong to an older
 # feat/ironwood commit that zingo-mobile pins). Ground truth = that Cargo.lock,
 # not zingo-mobile's manifest. Build with `yarn neon` (needs `protoc` on PATH).
-zingolib = { git="https://github.com/zingolabs/zingolib", branch = "feat/ironwood" }
-pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "feat/ironwood" }
-zingo-netutils = { git="https://github.com/zingolabs/zingolib", branch = "feat/ironwood" }
+zingolib = { git="https://github.com/zingolabs/zingolib", branch = "fix/ironwood-split-mobile" }
+pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "fix/ironwood-split-mobile" }
+zingo-netutils = { git="https://github.com/zingolabs/zingolib", branch = "fix/ironwood-split-mobile" }
 
 zcash_address = "0.13"
 zcash_client_backend = { version = "0.24.0-rc.1", features = [
