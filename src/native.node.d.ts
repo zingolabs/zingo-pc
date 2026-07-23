@@ -100,6 +100,7 @@ export function auto_broadcast_if_due(): Promise<string>;
 export function catch_up_migration(): Promise<string>;
 export function migrate_to_ironwood(): Promise<string>;
 export function cancel_ironwood_migration(): Promise<string>;
+export function reschedule_overdue_forward(): Promise<string>;
 export function delete_wallet(
   server_uri: string,
   chain_hint: ServerChainNameEnum,

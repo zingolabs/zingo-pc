@@ -340,7 +340,9 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                 </div>
                 <div className={styles.row}>
                   <span className={cstyles.sublight}>Denominations</span>
-                  <span className={styles.mono}>{groupZats(plan.parts)}</span>
+                  <span className={styles.mono}>
+                    {groupZats(plan.parts)} {currencyName}
+                  </span>
                 </div>
                 {splitTxCount > 0 && (
                   <div className={styles.row}>
@@ -480,7 +482,11 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                       <span className={styles.cardtitle}>Transaction {i + 1}</span>
                       <span className={`${styles.badge} ${badge.cls}`}>{badge.label}</span>
                     </div>
-                    {row.label && <div className={`${cstyles.sublight} ${styles.mono}`}>{row.label}</div>}
+                    {row.label && (
+                      <div className={`${cstyles.sublight} ${styles.mono}`}>
+                        {row.label} {currencyName}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -544,7 +550,9 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                     </span>
                   </div>
                   <div className={styles.row}>
-                    <span className={styles.mono}>{groupZats(wake.denominations)}</span>
+                    <span className={styles.mono}>
+                      {groupZats(wake.denominations)} {currencyName}
+                    </span>
                     <span className={`${cstyles.sublight} ${styles.mono}`}>{estTime(wake.estimated_unix_time)}</span>
                   </div>
                 </div>

@@ -912,6 +912,18 @@ export default class RPC {
     }
   }
 
+  // Privacy-preserving recovery for windows missed while the app was closed:
+  // shifts every overdue part FORWARD into future windows (preserving the
+  // spread) and broadcasts nothing. Idempotent. Returns whether it rescheduled.
+  static async rescheduleOverdueForward(): Promise<boolean> {
+    try {
+      return JSON.parse(await native.reschedule_overdue_forward()).rescheduled === true;
+    } catch (error) {
+      console.error(`Error reschedule overdue forward ${error}`);
+      return false;
+    }
+  }
+
   // Run on every launch: applies the safe-unattended reconciliation actions.
   // reconcile_migration throws "no migration in progress" when there is none —
   // the normal case — so gate on the status first instead of logging that as an
@@ -988,31 +1000,25 @@ export default class RPC {
   //     The migration screen also drives this, but the user may have navigated
   //     away mid-split; without this the split never finishes.
   //
-  //   parts_scheduled -> auto_broadcast_if_due ONLY. It fires a part only when
-  //     its OWN current window and random target are both reached — an on-time,
-  //     uncorrelated broadcast that blends with the scheduled cadence. It never
-  //     fires a past-window part.
+  //   parts_scheduled -> auto_broadcast_if_due (on-time) + a privacy-preserving
+  //     recovery for missed windows:
   //
-  //     It deliberately does NOT call catch_up_migration here. catch_up folds
-  //     windows missed while the app was closed into the CURRENT bucket and
-  //     broadcasts them immediately — a correlated burst that fingerprints the
-  //     migration (ZIP 318: late, user-present sends need explicit disclosure).
-  //     That path is only correct behind a user-triggered "send missed batches
-  //     now" action with disclosure, never on an automatic timer. The
-  //     privacy-preserving automatic recovery — re-placing missed parts into
-  //     FRESH FUTURE windows — is not available on the pinned zingolib
-  //     (fix/ironwood-split-mobile): its reconcile leaves overdue Assigned parts
-  //     as PromptCatchUp for the caller, and the forward-reschedule primitive
-  //     (schedule::catch_up_shift) is unwired. The ratified fix lives on the
-  //     divergent fix/2493-migration-lifecycle-mediums branch, which does not
-  //     yet carry the split driver this path needs. Until upstream combines
-  //     them, missed windows are surfaced (below), not auto-fired.
+  //     - auto_broadcast_if_due fires a part only when its OWN current window and
+  //       random target are both reached — an on-time, uncorrelated broadcast
+  //       that blends with the scheduled cadence. It never fires a past window.
   //
-  //     reconcile_migration still runs each tick: it applies only the
-  //     privacy-safe unattended fixes (promote confirmed, rebuild an expired
-  //     part into a fresh future window, mark complete). A PromptCatchUp in its
-  //     report means windows were missed and are awaiting the reschedule we
-  //     cannot yet do automatically — we log it rather than firing them.
+  //     - When reconcile reports PromptCatchUp (windows passed while the app was
+  //       closed), we do NOT catch_up_migration — that folds the overdue parts
+  //       into the current bucket and broadcasts them at once, a correlated burst
+  //       that fingerprints the migration. Instead we reschedule_overdue_forward:
+  //       every overdue part shifts FORWARD into future windows (spread
+  //       preserved), broadcasting nothing. The next windows then send on-time
+  //       via auto_broadcast_if_due. This keeps the private path private whether
+  //       one window was missed or many.
+  //
+  //     reconcile_migration (run via reconcileActions) also applies the other
+  //     privacy-safe unattended fixes each tick (promote confirmed, rebuild an
+  //     expired part into a fresh future window, mark complete).
   //
   // Gated on an in-progress migration so reconcile doesn't throw NoMigration
   // (and spam) on every idle tick.
@@ -1036,11 +1042,13 @@ export default class RPC {
         // Apply privacy-safe unattended fixes and read the recommendations.
         const actions = await RPC.reconcileActions();
         if (actions.some((a) => a.includes("PromptCatchUp"))) {
+          // Windows were missed while closed. Reschedule them FORWARD (spread
+          // preserved), never fire them now — that would correlate the late
+          // batch. Idempotent: a no-op once nothing is overdue.
+          const rescheduled = await RPC.rescheduleOverdueForward();
           console.log(
             `[migration] ${status.parts_confirmed}/${status.parts_total} confirmed — ` +
-              `window(s) were missed. NOT auto-firing them (that would correlate the late batch and ` +
-              `break the private path); they await a privacy-preserving reschedule. reconcile:`,
-            actions,
+              `missed window(s) rescheduled forward (privacy-preserving), rescheduled=${rescheduled}.`,
           );
         }
       }

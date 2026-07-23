@@ -120,6 +120,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("catch_up_migration", catch_up_migration)?;
     cx.export_function("migrate_to_ironwood", migrate_to_ironwood)?;
     cx.export_function("cancel_ironwood_migration", cancel_ironwood_migration)?;
+    cx.export_function("reschedule_overdue_forward", reschedule_overdue_forward)?;
     cx.export_function("remove_transaction", remove_transaction)?;
     cx.export_function("get_spendable_balance_with_address", get_spendable_balance_with_address)?;
     cx.export_function("get_spendable_balance_total", get_spendable_balance_total)?;
@@ -2266,6 +2267,58 @@ fn cancel_ironwood_migration(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             .await
                             .map_err(|e| ZingolibError::Sync(e.to_string()))?;
                         Ok(object! { "status" => "cancelled" }.pretty(2))
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// reschedule_overdue_forward: the PRIVACY-PRESERVING recovery for windows missed
+// while the app was closed. Unlike catch_up_migration (which folds the overdue
+// parts into the current bucket and BROADCASTS them all at once — a correlated
+// burst that fingerprints the migration), this only *reschedules*: it shifts
+// EVERY overdue Assigned part forward into future buckets, preserving the
+// schedule's spread, and broadcasts NOTHING. auto_broadcast_if_due then sends
+// each on-time in its new window, blended with the cadence.
+//
+// zingolib exposes `schedule::catch_up_shift` (a pure function over the parts)
+// but no lightclient method wrapping it, so we drive it directly on the public
+// migration state. It is idempotent: a no-op once the earliest Assigned part
+// sits in a future bucket. Persistence is opportunistic — the shift lives in the
+// in-memory migration state and the next sync/broadcast save writes it; a
+// restart before that just re-derives the same shift (safe, nothing was sent).
+fn reschedule_overdue_forward(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let mut wallet = lightclient.wallet().write().await;
+                        // Copy the height out before borrowing `migration` mutably.
+                        let Some(now_height) = wallet.sync_state.last_known_chain_height() else {
+                            return Ok(object! { "rescheduled" => false, "reason" => "no sync data" }.pretty(2));
+                        };
+                        match &mut wallet.migration {
+                            Some(state) => {
+                                zingolib::wallet::migration::schedule::catch_up_shift(
+                                    &mut state.parts,
+                                    now_height,
+                                    &state.params,
+                                )
+                                .map_err(|e| ZingolibError::Sync(e.to_string()))?;
+                                Ok(object! { "rescheduled" => true }.pretty(2))
+                            }
+                            None => Ok(object! { "rescheduled" => false, "reason" => "no migration" }.pretty(2)),
+                        }
                     })
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)

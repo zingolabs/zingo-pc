@@ -51,6 +51,7 @@ const _ALL_NATIVE_METHODS = [
   "catch_up_migration",
   "migrate_to_ironwood",
   "cancel_ironwood_migration",
+  "reschedule_overdue_forward",
   // sync no-param (become async via IPC)
   "deinitialize",
   "get_developer_donation_address",

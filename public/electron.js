@@ -844,6 +844,7 @@ const _NATIVE_NO_PARAM_METHODS = [
   "catch_up_migration",
   "migrate_to_ironwood",
   "cancel_ironwood_migration",
+  "reschedule_overdue_forward",
 ];
 
 for (const method of _NATIVE_NO_PARAM_METHODS) {
