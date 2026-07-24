@@ -62,6 +62,28 @@ export type FfiWake = {
   estimated_target_unix_time: number;
 };
 
+// One batch (all parts sharing a bucket/window), for the complete numbered
+// 1..N list. Unlike next_wakes (future-only), batches covers EVERY window with
+// a rolled-up status:
+//   confirmed  — every part landed in Ironwood
+//   sending    — a part is broadcast/signed, awaiting confirmation (in flight)
+//   open       — the current window; its parts are due to send now
+//   overdue    — a past window missed while closed (awaiting a forward reschedule)
+//   scheduled  — a future window, not yet open
+//   rebuilding — an expired part being rebuilt into a fresh window
+//   invalid    — a part invalidated by an external spend (needs replanning)
+export type FfiBatchStatus = "confirmed" | "sending" | "open" | "overdue" | "scheduled" | "rebuilding" | "invalid";
+// One batch = one part (stable id), so the count/confirmed tally match
+// parts_total / parts_confirmed exactly. `bucket_index` is null only for a
+// not-yet-scheduled part.
+export type FfiBatch = {
+  id: number;
+  bucket_index: number | null;
+  boundary: number;
+  denominations: number[];
+  status: FfiBatchStatus;
+};
+
 // Coarse migration phase. `null` when no migration is in progress.
 export type FfiPhase =
   | { kind: "planned" }
@@ -81,5 +103,7 @@ export type FfiStatus = {
   // start) and the bucket count the boundaries index into.
   per_bucket: number | null;
   bucket_modulus: number;
+  // Every batch (window), ordered by bucket — the complete 1..N list with states.
+  batches: FfiBatch[];
   next_wakes: FfiWake[];
 };

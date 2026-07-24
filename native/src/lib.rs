@@ -2007,26 +2007,68 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             .migration_status()
                             .await
                             .map_err(|e| ZingolibError::Read(e.to_string()))?;
-                        // Join each wake's part ids to their denominations (and pick up
-                        // the effective cadence) from the persisted migration state;
-                        // WakePoint alone carries only ids. Lets a schedule screen render
-                        // each window's batch without a second call.
-                        let (denoms_by_id, per_bucket, bucket_modulus) = {
+                        // From the persisted migration state, derive: the id->denomination
+                        // map (WakePoint carries only ids), the cadence, and the complete
+                        // batch list.
+                        //
+                        // batches: ONE entry per part, ordered by window then id, each with
+                        // its own status. This keeps the count and the confirmed tally in
+                        // lock-step with parts_total / parts_confirmed (what the banner
+                        // shows). Grouping by bucket instead would drop parts whose bucket
+                        // is momentarily absent and merge parts that share one, so the two
+                        // views disagreed (banner 2/18 vs list 1/17). zingolib's next_wakes
+                        // is future-only and hides confirmed, in-flight and the current
+                        // window, so a full "1..N with states" list needs this.
+                        let (denoms_by_id, per_bucket, bucket_modulus, batches) = {
+                            use zingolib::wallet::migration::{schedule, PartRecord, PartState};
                             let wallet = lightclient.wallet().read().await;
+                            let now_height = wallet.sync_state.last_known_chain_height();
                             match &wallet.migration {
-                                Some(state) => (
-                                    state
+                                Some(state) => {
+                                    let modulus = state.params.bucket_modulus;
+                                    let denoms = state
                                         .parts
                                         .iter()
                                         .map(|part| (part.id.0, part.denomination))
-                                        .collect::<std::collections::HashMap<_, _>>(),
-                                    Some(state.params.k_max),
-                                    state.params.bucket_modulus,
-                                ),
+                                        .collect::<std::collections::HashMap<_, _>>();
+                                    let current_bucket = now_height.map(|h| schedule::bucket_index(h, modulus));
+                                    let mut ordered: Vec<&PartRecord> = state.parts.iter().collect();
+                                    ordered.sort_by_key(|p| (p.bucket_index.unwrap_or(u64::MAX), p.id.0));
+                                    let batches: Vec<serde_json::Value> = ordered
+                                        .iter()
+                                        .map(|p| {
+                                            let status = match &p.state {
+                                                PartState::Confirmed { .. } => "confirmed",
+                                                PartState::Invalidated => "invalid",
+                                                PartState::Expired => "rebuilding",
+                                                PartState::Broadcast | PartState::Signed => "sending",
+                                                PartState::Assigned => match (p.bucket_index, current_bucket) {
+                                                    (Some(b), Some(c)) if b == c => "open",
+                                                    (Some(b), Some(c)) if b < c => "overdue",
+                                                    _ => "scheduled",
+                                                },
+                                                PartState::Bound => "scheduled",
+                                            };
+                                            let boundary = p
+                                                .bucket_index
+                                                .map(|b| u32::from(schedule::boundary_of(b, modulus)))
+                                                .unwrap_or(0);
+                                            serde_json::json!({
+                                                "id": p.id.0,
+                                                "bucket_index": p.bucket_index,
+                                                "boundary": boundary,
+                                                "denominations": [p.denomination],
+                                                "status": status,
+                                            })
+                                        })
+                                        .collect();
+                                    (denoms, Some(state.params.k_max), modulus, batches)
+                                }
                                 None => (
                                     std::collections::HashMap::new(),
                                     None,
                                     MigrationParams::provisional(wallet.chain_type()).bucket_modulus,
+                                    Vec::new(),
                                 ),
                             }
                         };
@@ -2074,6 +2116,7 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             "value_migrated": status.value_migrated,
                             "per_bucket": per_bucket,
                             "bucket_modulus": bucket_modulus,
+                            "batches": batches,
                             "next_wakes": next_wakes,
                         })
                         .to_string())

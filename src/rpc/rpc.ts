@@ -261,7 +261,11 @@ export default class RPC {
         info.migrationInProgress = true;
         info.migrationBatchesConfirmed = migStatus.parts_confirmed;
         info.migrationBatchesTotal = migStatus.parts_total;
-        info.migrationPendingZec = Math.max(migStatus.value_total - migStatus.value_migrated, 0) / 10 ** 8;
+        // Pending = what is still spendable in the Orchard pool (ZIP 318's
+        // figure). NOT value_total − value_migrated: value_migrated is the whole
+        // Ironwood balance (includes earlier migrations), so that subtraction
+        // goes negative and clamps to 0.
+        info.migrationPendingZec = migStatus.orchard_confirmed_spendable / 10 ** 8;
       }
 
       return info;

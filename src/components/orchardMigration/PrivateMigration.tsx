@@ -3,7 +3,7 @@ import cstyles from "../common/Common.module.css";
 import styles from "./PrivateMigration.module.css";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
-import { FfiPlan, FfiStatus } from "./privateMigrationTypes";
+import { FfiBatchStatus, FfiPlan, FfiStatus } from "./privateMigrationTypes";
 
 // Private migration — the true scheduled (split) path, mirroring zingo-mobile's
 // MigrationSplitting flow. zingolib only exposes step primitives; the client
@@ -42,10 +42,6 @@ type PrivateMigrationProps = {
   simulation: boolean;
   activationHeight: number;
   walletHeight: number;
-  // Chain tip (server latest block). A batch's window is "open" once the chain
-  // reaches its boundary — mobile's MigrationStatus gates by height, not
-  // wall-clock, and so do we.
-  latestBlock: number;
   onBack: () => void;
   onExit: () => void;
 };
@@ -65,6 +61,17 @@ const groupZats = (values: number[]): string => {
   }
   groups.sort((a, b) => b.value - a.value);
   return groups.map((g) => (g.count > 1 ? `${fmtZats(g.value)} (${g.count}x)` : fmtZats(g.value))).join(", ");
+};
+
+// Per-batch status → badge label + CSS class (reusing the existing badge palette).
+const BATCH_BADGE: Record<FfiBatchStatus, { label: string; cls: string }> = {
+  confirmed: { label: "Confirmed", cls: styles.badgeconfirmed },
+  sending: { label: "Sending", cls: styles.badgebroadcasting },
+  open: { label: "Open", cls: styles.badgebroadcasting },
+  overdue: { label: "Rescheduling", cls: styles.badgenext },
+  scheduled: { label: "Scheduled", cls: styles.badgescheduled },
+  rebuilding: { label: "Rebuilding", cls: styles.badgequeued },
+  invalid: { label: "Invalid", cls: styles.badgequeued },
 };
 
 const rowsFromPlan = (p: FfiPlan): RowData[] =>
@@ -102,7 +109,6 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
   simulation,
   activationHeight,
   walletHeight,
-  latestBlock,
   onBack,
   onExit,
 }) => {
@@ -116,6 +122,17 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
   const [headline, setHeadline] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [schedule, setSchedule] = useState<FfiStatus | null>(null);
+  // Confirmed batches render collapsed (just number + status) to keep the whole
+  // list visible; the user expands one by clicking it. Holds the expanded ids.
+  const [expandedBatches, setExpandedBatches] = useState<Set<number>>(new Set());
+  const toggleBatch = useCallback((id: number) => {
+    setExpandedBatches((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const cancelledRef = useRef<boolean>(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -503,28 +520,21 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
       )}
 
       {/* ---------- Phase 2: split done, batches scheduled ----------
-          Mirrors zingo-mobile's MigrationStatus: gated by block HEIGHT, not
-          wall-clock ("the batch is gated by height"). A window is OPEN once the
-          chain reaches its boundary; each batch's anchor and send-by are shown
-          as block numbers, never estimated times. */}
+          The COMPLETE batch list, numbered 1..N, each with its live state
+          (confirmed / sending / open / overdue / scheduled / …), gated by block
+          height. Anchor + send-by are block numbers, never wall-clock. */}
       {step === "scheduled" &&
         (() => {
-          const partsTotal = schedule?.parts_total ?? 0;
-          const partsConfirmed = schedule?.parts_confirmed ?? 0;
-          const perBucket = Math.max(1, schedule?.per_bucket ?? 1);
           const modulus = schedule?.bucket_modulus ?? 256;
-          // A batch is a window (per_bucket parts); it counts confirmed once all
-          // its parts confirm (floor), so partial windows don't over-report.
-          const batchesTotal = Math.max(1, Math.ceil(partsTotal / perBucket));
-          const batchesConfirmed = Math.min(batchesTotal, Math.floor(partsConfirmed / perBucket));
-          const complete = partsTotal > 0 && partsConfirmed >= partsTotal;
-          const wakes = schedule?.next_wakes ?? [];
-          const pct =
-            schedule && schedule.value_total > 0
-              ? Math.round((schedule.value_migrated / schedule.value_total) * 100)
-              : 0;
-          const nextWake = wakes[0];
-          const nextOpen = !!nextWake && latestBlock >= nextWake.boundary;
+          const batches = schedule?.batches ?? [];
+          const batchesTotal = batches.length;
+          const batchesConfirmed = batches.filter((b) => b.status === "confirmed").length;
+          const complete =
+            schedule?.phase?.kind === "complete" || (batchesTotal > 0 && batchesConfirmed === batchesTotal);
+          // Progress by BATCHES sent (not by value: value_migrated is the whole
+          // Ironwood balance, which includes value from earlier migrations, so a
+          // value bar would over-report this migration).
+          const pct = batchesTotal > 0 ? Math.round((batchesConfirmed / batchesTotal) * 100) : 0;
 
           return (
             <>
@@ -550,46 +560,56 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                     <div className={styles.progressfill} style={{ width: `${pct}%` }} />
                   </div>
                   <div className={styles.row}>
-                    <span className={cstyles.sublight}>Value migrated</span>
+                    <span className={cstyles.sublight}>In Ironwood</span>
                     <span className={styles.mono}>
-                      {fmtZats(schedule.value_migrated)}/{fmtZats(schedule.value_total)} {currencyName}
+                      {fmtZats(schedule.value_migrated)} {currencyName}
+                    </span>
+                  </div>
+                  <div className={styles.row}>
+                    <span className={cstyles.sublight}>Left in Orchard</span>
+                    <span className={styles.mono}>
+                      {fmtZats(schedule.orchard_confirmed_spendable)} {currencyName}
                     </span>
                   </div>
                 </div>
               )}
 
-              {/* Height-gated status line (no wall-clock). */}
-              {!complete && schedule && (
-                <div className={styles.infonote}>
-                  {nextWake
-                    ? nextOpen
-                      ? `A window is open (block ${nextWake.boundary.toLocaleString()}) — the batch sends automatically. You're at block ${latestBlock.toLocaleString()}.`
-                      : `Next window opens at block ${nextWake.boundary.toLocaleString()} — you're at block ${latestBlock.toLocaleString()}.`
-                    : "Your remaining batches are scheduled beyond the current horizon; they send by themselves while the app is open."}
-                </div>
-              )}
-
-              {/* One card per upcoming window (batch). OPEN once the chain
-                  reaches its boundary; anchor + send-by shown as block heights. */}
-              {wakes.map((wake, i) => {
-                const open = latestBlock >= wake.boundary;
+              {/* Every batch, numbered 1..N, with its live state. Confirmed
+                  batches collapse to just number + status (click to expand), so
+                  the whole list stays visible. */}
+              {batches.map((batch, i) => {
+                const badge = BATCH_BADGE[batch.status];
+                const collapsible = batch.status === "confirmed";
+                const open = !collapsible || expandedBatches.has(batch.id);
                 return (
-                  <div key={wake.bucket_index} className={`${cstyles.well} ${styles.card}`}>
-                    <div className={styles.cardhead}>
-                      <span className={styles.cardtitle}>Batch {batchesConfirmed + i + 1}</span>
-                      <span className={`${styles.badge} ${open ? styles.badgebroadcasting : styles.badgescheduled}`}>
-                        {open ? "Open" : "Scheduled"}
-                      </span>
+                  <div
+                    key={batch.id}
+                    className={`${cstyles.well} ${styles.card}`}
+                    style={collapsible ? { cursor: "pointer", paddingTop: 10, paddingBottom: 10 } : undefined}
+                    role={collapsible ? "button" : undefined}
+                    tabIndex={collapsible ? 0 : undefined}
+                    onClick={collapsible ? () => toggleBatch(batch.id) : undefined}
+                    onKeyDown={
+                      collapsible ? (e) => (e.key === "Enter" || e.key === " ") && toggleBatch(batch.id) : undefined
+                    }
+                  >
+                    <div className={styles.cardhead} style={open ? undefined : { marginBottom: 0 }}>
+                      <span className={styles.cardtitle}>Batch {i + 1}</span>
+                      <span className={`${styles.badge} ${badge.cls}`}>{badge.label}</span>
                     </div>
-                    <div className={styles.row}>
-                      <span className={`${cstyles.sublight} ${styles.mono}`}>
-                        {groupZats(wake.denominations)} {currencyName}
-                      </span>
-                      <span className={cstyles.sublight} style={{ fontSize: 11 }}>
-                        Opens at block {wake.boundary.toLocaleString()} · send by{" "}
-                        {(wake.boundary + modulus).toLocaleString()}
-                      </span>
-                    </div>
+                    {open && (
+                      <div className={styles.row}>
+                        <span className={`${cstyles.sublight} ${styles.mono}`}>
+                          {groupZats(batch.denominations)} {currencyName}
+                        </span>
+                        {batch.boundary > 0 && (
+                          <span className={cstyles.sublight} style={{ fontSize: 11 }}>
+                            Opens at block {batch.boundary.toLocaleString()} · send by{" "}
+                            {(batch.boundary + modulus).toLocaleString()}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
