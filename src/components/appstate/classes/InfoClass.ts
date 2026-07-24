@@ -19,6 +19,17 @@ export default class InfoClass {
   // exactly 0 + an Orchard balance = all dust.
   orchardMigratable: number;
   orchardDust: number;
+  // Estimated fee (ZEC) of the happy-path drain, from the same plan_orchard_drain
+  // call as orchardMigratable/orchardDust.
+  orchardFee: number;
+  // Private (scheduled) Ironwood migration progress. TODO(ffi): populate from
+  // zingolib migration_status() once the FFI surfaces it. Defaults describe "no
+  // migration in progress", so the Dashboard progress banner stays hidden until
+  // one is actually running.
+  migrationInProgress: boolean;
+  migrationBatchesConfirmed: number;
+  migrationBatchesTotal: number;
+  migrationPendingZec: number;
   error?: string;
   zingolib: string;
 
@@ -35,6 +46,11 @@ export default class InfoClass {
     this.nu63ActivationHeight = 0;
     this.orchardMigratable = -1;
     this.orchardDust = 0;
+    this.orchardFee = 0;
+    this.migrationInProgress = false;
+    this.migrationBatchesConfirmed = 0;
+    this.migrationBatchesTotal = 0;
+    this.migrationPendingZec = 0;
     this.error = error;
     this.zingolib = "";
   }

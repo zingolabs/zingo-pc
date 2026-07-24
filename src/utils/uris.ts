@@ -185,24 +185,20 @@ export const checkServerURI = async (uri: string, oldUri: string): Promise<boole
 
   try {
     const resultStrServer: string = await native.change_server(`${parsedUri.protocol}//${parsedUri.hostname}:${port}`);
+    // change_server returns structured JSON: `{ status }` on success, `{ error }`
+    // on failure — never error prose on the data channel.
+    const serverJSON = JSON.parse(resultStrServer);
 
-    if (!resultStrServer || resultStrServer.toLowerCase().startsWith("error")) {
+    if (serverJSON.error) {
       // I have to restore the old server again. Just in case.
-      console.log("changeserver", resultStrServer);
+      console.log("changeserver", serverJSON.error);
       native.change_server(oldUri);
       // error, no timeout
       return false;
     } else {
-      // the server is changed
-      const infoStr: string = await native.info_server();
-
-      if (!infoStr || infoStr.toLowerCase().startsWith("error")) {
-        console.log("info", infoStr);
-        // I have to restore the old server again.
-        native.change_server(oldUri);
-        // error, no timeout
-        return false;
-      }
+      // The server is changed; confirm it is reachable. info_server rejects on
+      // failure, which the catch below turns into a rollback.
+      await native.info_server();
     }
   } catch (error: any) {
     console.error("catch", error);

@@ -318,20 +318,18 @@ describe("SendConfirmModal", () => {
       expect(closeModal).toHaveBeenCalled();
     });
 
-    it("opens an error modal when sendTransaction returns an error string", async () => {
+    it("opens an error modal when sendTransaction throws", async () => {
       installElectronAPI();
-      const sendTransaction = jest.fn().mockResolvedValue("Error: insufficient");
+      const sendTransaction = jest.fn().mockRejectedValue(new Error("insufficient"));
       const openErrorModal = jest.fn();
       const clearToAddrs = jest.fn();
       render(<SendConfirmModal {...makeProps({ sendTransaction, clearToAddrs })} />, {
         contextOverrides: { openErrorModal, currentWallet: mainnetWallet },
       });
       fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
-      await waitFor(() =>
-        expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "Error: insufficient"),
-      );
-      expect(clearToAddrs).toHaveBeenCalled();
-      expect(mockNavigate).toHaveBeenCalled();
+      await waitFor(() => expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "insufficient"));
+      // On failure the tx isn't broadcast: no success modal, form kept for retry.
+      expect(clearToAddrs).not.toHaveBeenCalled();
     });
 
     it("opens the success modal with a single TXID", async () => {
@@ -362,7 +360,7 @@ describe("SendConfirmModal", () => {
       });
     });
 
-    it("opens an error modal when sendTransaction throws", async () => {
+    it("surfaces the thrown Error's message in the error modal", async () => {
       installElectronAPI();
       const sendTransaction = jest.fn().mockRejectedValue(new Error("network is down"));
       const openErrorModal = jest.fn();

@@ -713,6 +713,8 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
       } else {
         this.setState({ walletExists: true });
         // the wallet file YES exists
+        // A failed init rejects (typed error on the throw channel); the catch
+        // below surfaces it via setCurrentWalletOpenError. Success is JSON.
         const result: string = await native.init_from_b64(
           currentWallet.uri,
           currentWallet.chain_name,
@@ -720,14 +722,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
           3,
           currentWallet.fileName,
         );
-        if (!result || result.toLowerCase().startsWith("error")) {
-          console.error(`Initialization Error: ${result}`);
-          this.props.setCurrentWalletOpenError(`${result}`);
-          this.setState({
-            loadingDone: true,
-          });
-          return;
-        }
 
         const resultJSON = JSON.parse(result);
 
@@ -766,7 +760,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
       const resp: string = await native.get_latest_block_server(server.uri);
 
       const end: number = Date.now();
-      if (resp && !resp.toLowerCase().startsWith("error")) {
+      if (resp) {
         latency = end - start;
       }
 

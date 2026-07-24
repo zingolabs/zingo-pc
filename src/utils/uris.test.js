@@ -19,7 +19,15 @@ jest.mock("../electronBridge", () => {
 });
 
 const testnetServer = serverUrisList().find((s) => s.chain_name === "test" && s.default);
-native.init_from_b64(testnetServer.uri, testnetServer.chain_name, PerformanceLevelEnum.High, 1, "test-wallet.dat");
+// Best-effort init. init_from_b64 is synchronous and now throws a typed error
+// when the wallet file is absent (instead of returning an "Error:" string), so
+// guard this module-level call to keep it from failing the suite load; the
+// ZIP321 parse tests below don't depend on the lightclient being initialized.
+try {
+  native.init_from_b64(testnetServer.uri, testnetServer.chain_name, PerformanceLevelEnum.High, 1, "test-wallet.dat");
+} catch {
+  /* wallet file absent in the test env — ignore */
+}
 
 test("ZIP321 case 1", async () => {
   const targets = await parseZcashURI(

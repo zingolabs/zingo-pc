@@ -9,6 +9,7 @@ import {
   SendProposeType,
   SendType,
   ValueTransferStatusEnum,
+  ValueTransferKindEnum,
   ValueTransferPoolEnum,
   WalletType,
   ServerChainNameEnum,
@@ -18,6 +19,12 @@ import { native } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
 import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
+import {
+  FfiMigrationSummary,
+  FfiPlan,
+  FfiSplitStep,
+  FfiStatus,
+} from "../components/orchardMigration/privateMigrationTypes";
 
 // zingolib emits pool names capitalized ("Orchard", "Ironwood", …); normalize them
 // to the lowercase ValueTransferPoolEnum and drop anything unrecognized. Returns
@@ -95,6 +102,9 @@ export default class RPC {
       RPC.doSave(),
       this.fetchTandZandOValueTransfers(),
       this.fetchTandZandOMessages(),
+      // Foreground driver: send the current window's due parts and fold in any
+      // windows missed while the app was closed. No-op when none in progress.
+      RPC.driveMigration(),
     ]);
   }
 
@@ -106,6 +116,10 @@ export default class RPC {
     await this.fetchInfo();
     void this.getZecPrice();
     await this.fetchTandZandOMessages();
+
+    // Reconcile any in-progress private migration on launch (no-op otherwise):
+    // applies the safe-unattended part-state fixes zingolib recommends.
+    await RPC.reconcileMigration();
 
     // every 5 seconds the App update part of the data
     if (!this.updateTimerID) {
@@ -159,12 +173,7 @@ export default class RPC {
   static async getWalletVersion(): Promise<number | undefined> {
     try {
       const walletVersionStr: string = await native.get_wallet_version();
-      if (walletVersionStr) {
-        if (walletVersionStr.toLowerCase().startsWith("error")) {
-          console.error(`Error wallet version ${walletVersionStr}`);
-          return;
-        }
-      } else {
+      if (!walletVersionStr) {
         console.error("Internal Error wallet version");
         return;
       }
@@ -177,83 +186,34 @@ export default class RPC {
     }
   }
 
-  // shield transparent balance to orchard
+  // Shield the transparent balance to Orchard. Throws on any failure (empty
+  // result, parse error, or a `{ error }` from propose/confirm); the thrown
+  // message is the error text. Returns the comma-joined txids on success. No
+  // "Error:" prose ever crosses on the data channel — the caller's catch turns
+  // a throw into its own error surface.
   async shieldTransparentBalanceToOrchard(): Promise<string> {
-    try {
-      // PROPOSING
-      const shieldResult: string = await native.shield();
-      if (shieldResult) {
-        if (shieldResult.toLowerCase().startsWith("error")) {
-          // error
-          console.error(`Error shield ${shieldResult}`);
-          return shieldResult;
-        }
-      } else {
-        // error empty
-        const err = "Error: Internal error shield";
-        console.log(err);
-        return err;
-      }
-      let shieldJSON = {} as { fee: number; error: string };
-      try {
-        shieldJSON = JSON.parse(shieldResult);
-      } catch (error: any) {
-        const err = `Error: parsing shield result ${error.message}`;
-        console.log(err);
-        return err;
-      }
-      if (shieldJSON.error) {
-        const err = `Error: shield ${shieldJSON.error}`;
-        console.log(err);
-        return err;
-      }
+    // PROPOSING
+    const shieldResult: string = await native.shield();
+    if (!shieldResult) throw new Error("internal error: empty shield result");
+    const shieldJSON: { fee?: number; error?: string } = JSON.parse(shieldResult);
+    if (shieldJSON.error) throw new Error(`shield: ${shieldJSON.error}`);
 
-      // SHIELDING
-      const confirmResult: string = await native.confirm();
-      if (confirmResult) {
-        if (confirmResult.toLowerCase().startsWith("error")) {
-          // error
-          console.error(`Error Shield Confirm ${confirmResult}`);
-          return confirmResult;
-        }
-      } else {
-        // error empty
-        const err = "Error: Internal error confirm";
-        console.log(err);
-        return err;
-      }
-      let confirmJSON = {} as { txids: string[]; error: string };
-      try {
-        confirmJSON = JSON.parse(confirmResult);
-      } catch (error: any) {
-        const err = `Error: parsing confirm result ${error.message}`;
-        console.log(err);
-        return err;
-      }
-      if (confirmJSON.error) {
-        const err = `Error: confirm ${confirmJSON.error}`;
-        console.log(err);
-        return err;
-      }
-      if (confirmJSON.txids && confirmJSON.txids.length > 0) {
-        const txids: string = confirmJSON.txids.join(", ");
-        return txids;
-      }
-
-      // weird case, I want to see the JSON in the error.
-      return JSON.stringify(confirmJSON);
-    } catch (error) {
-      const err = `Error: Critical Error shield/confirm ${error}`;
-      console.log(err);
-      return err;
+    // SHIELDING
+    const confirmResult: string = await native.confirm();
+    if (!confirmResult) throw new Error("internal error: empty confirm result");
+    const confirmJSON: { txids?: string[]; error?: string } = JSON.parse(confirmResult);
+    if (confirmJSON.error) throw new Error(`confirm: ${confirmJSON.error}`);
+    if (confirmJSON.txids && confirmJSON.txids.length > 0) {
+      return confirmJSON.txids.join(", ");
     }
+    throw new Error(`unexpected confirm result: ${JSON.stringify(confirmJSON)}`);
   }
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
   static async getInfoObject(): Promise<InfoClass> {
     try {
       const infostr: string = await native.info_server();
-      if (!infostr || infostr.toLowerCase().startsWith("error")) {
+      if (!infostr) {
         console.log("server info Failed", infostr);
         return new InfoClass(infostr);
       }
@@ -276,11 +236,7 @@ export default class RPC {
 
       // zingolib version
       let zingolibStr: string = await native.get_version();
-      if (zingolibStr) {
-        if (zingolibStr.toLowerCase().startsWith("error")) {
-          zingolibStr = "<error>";
-        }
-      } else {
+      if (!zingolibStr) {
         zingolibStr = "<none>";
       }
       info.zingolib = zingolibStr;
@@ -296,6 +252,21 @@ export default class RPC {
       const drainPlan = await RPC.fetchOrchardDrainPlan();
       info.orchardMigratable = drainPlan.migratable;
       info.orchardDust = drainPlan.dust;
+      info.orchardFee = drainPlan.fee;
+
+      // Private (scheduled) migration progress → the Dashboard "in progress"
+      // banner. Null when none is running, so the banner stays hidden.
+      const migStatus = await RPC.fetchMigrationStatus();
+      if (migStatus) {
+        info.migrationInProgress = true;
+        info.migrationBatchesConfirmed = migStatus.parts_confirmed;
+        info.migrationBatchesTotal = migStatus.parts_total;
+        // Pending = what is still spendable in the Orchard pool (ZIP 318's
+        // figure). NOT value_total − value_migrated: value_migrated is the whole
+        // Ironwood balance (includes earlier migrations), so that subtraction
+        // goes negative and clamps to 0.
+        info.migrationPendingZec = migStatus.orchard_confirmed_spendable / 10 ** 8;
+      }
 
       return info;
     } catch (err) {
@@ -319,12 +290,7 @@ export default class RPC {
   async getWalletSaveRequired(): Promise<boolean> {
     try {
       const walletSaveRequiredStr: string = await native.get_wallet_save_required();
-      if (walletSaveRequiredStr) {
-        if (walletSaveRequiredStr.toLowerCase().startsWith("error")) {
-          console.error(`Error wallet save required ${walletSaveRequiredStr}`);
-          return false;
-        }
-      } else {
+      if (!walletSaveRequiredStr) {
         console.error("Internal Error wallet save required");
         return false;
       }
@@ -339,12 +305,10 @@ export default class RPC {
 
   async fetchSyncPoll(): Promise<void> {
     try {
+      // A failed poll rejects (typed error on the throw channel); the catch
+      // below records it as lastPollSyncError. Status replies ("not launched",
+      // "not complete") and the completed JSON still cross on the data channel.
       const returnPoll: string = await native.poll_sync();
-      if (!returnPoll || returnPoll.toLowerCase().startsWith("error")) {
-        console.error("SYNC POLL ERROR", returnPoll);
-        this.lastPollSyncError = returnPoll;
-        return;
-      }
 
       if (returnPoll.toLowerCase().startsWith("sync task has not been launched")) {
         console.log("SYNC POLL -> RUN SYNC", returnPoll);
@@ -377,6 +341,7 @@ export default class RPC {
       void this.fetchSyncStatus();
     } catch (error) {
       console.error(`Critical Error sync poll ${error}`);
+      this.lastPollSyncError = `${error}`;
     }
   }
 
@@ -405,25 +370,15 @@ export default class RPC {
         // the rescan in zingolib do two tasks:
         // 1. stop the sync.
         // 2. launch the rescan.
-        const rescanStr: string = await native.run_rescan();
-        if (!rescanStr || rescanStr.toLowerCase().startsWith("error")) {
-          console.error(`Error rescan ${rescanStr}`);
-        }
+        // A failed rescan rejects (typed error on the throw channel), caught below.
+        await native.run_rescan();
         await this.configure();
       } else {
+        // A concurrent launch now returns a clean "already running" status (no
+        // longer an error); the existing sync just keeps going. A genuine
+        // failure rejects and is caught below.
         const syncStr: string = await native.run_sync();
-        if (!syncStr || syncStr.toLowerCase().startsWith("error")) {
-          // "sync is already running" is the expected outcome of the
-          // defensive run_sync() that fetchSyncPoll() fires while a sync is
-          // mid-flight (see the "is not complete" branch above). It's not a
-          // failure — the existing sync just keeps going. Demote to log so it
-          // doesn't drown the console with red.
-          if (syncStr && syncStr.toLowerCase().includes("already running")) {
-            console.log(`Sync already running: ${syncStr}`);
-          } else {
-            console.error(`Error sync ${syncStr}`);
-          }
-        }
+        console.log(`Sync: ${syncStr}`);
       }
     } catch (error) {
       console.error(`Critical Error run sync/rescan ${error}`);
@@ -432,11 +387,8 @@ export default class RPC {
 
   async fetchSyncStatus(): Promise<void> {
     try {
+      // A failed status rejects (typed error on the throw channel), caught below.
       const returnStatus: string = await native.status_sync();
-      if (!returnStatus || returnStatus.toLowerCase().startsWith("error")) {
-        console.error("SYNC STATUS ERROR", returnStatus);
-        return;
-      }
       let ss = {} as SyncStatusType;
       try {
         ss = JSON.parse(returnStatus);
@@ -488,15 +440,9 @@ export default class RPC {
     try {
       // fetch value transfers
       const txValueTransfersStr: string = await native.get_value_transfers();
-      if (txValueTransfersStr) {
-        if (txValueTransfersStr.toLowerCase().startsWith("error")) {
-          console.error(`Error txs ValueTransfers ${txValueTransfersStr}`);
-          this.fnSetFetchError("ValueTransfers", txValueTransfersStr);
-          return [];
-        }
-      } else {
+      if (!txValueTransfersStr) {
         console.error("Internal Error txs ValueTransfers");
-        this.fnSetFetchError("ValueTransfers", "Error: Internal RPC Error");
+        this.fnSetFetchError("ValueTransfers", "Internal RPC Error");
         return [];
       }
       const txValueTransfersJSON = JSON.parse(txValueTransfersStr);
@@ -513,15 +459,9 @@ export default class RPC {
     try {
       // fetch value transfers
       const txMessagesStr: string = await native.get_messages("");
-      if (txMessagesStr) {
-        if (txMessagesStr.toLowerCase().startsWith("error")) {
-          console.error(`Error txs Messages ${txMessagesStr}`);
-          this.fnSetFetchError("Messages", txMessagesStr);
-          return [];
-        }
-      } else {
+      if (!txMessagesStr) {
         console.error("Internal Error txs Messages");
-        this.fnSetFetchError("Messages", "Error: Internal RPC Error");
+        this.fnSetFetchError("Messages", "Internal RPC Error");
         return [];
       }
       const txMessagesJSON = JSON.parse(txMessagesStr);
@@ -539,25 +479,16 @@ export default class RPC {
     try {
       const spendableStr: string = await native.get_spendable_balance_total();
       let spendableJSON;
-      if (spendableStr) {
-        if (spendableStr.toLowerCase().startsWith("error")) {
-          console.error(`Error spendable balance ${spendableStr}`);
-        } else {
-          spendableJSON = JSON.parse(spendableStr);
-        }
-      } else {
+      if (!spendableStr) {
         console.error("Internal Error spendable balance");
+      } else {
+        spendableJSON = JSON.parse(spendableStr);
       }
 
       const balanceStr: string = await native.get_balance();
-      if (balanceStr) {
-        if (balanceStr.toLowerCase().startsWith("error")) {
-          console.error(`Error balance ${balanceStr}`);
-          this.fnSetFetchError("balance", balanceStr);
-        }
-      } else {
+      if (!balanceStr) {
         console.error("Internal Error balance");
-        this.fnSetFetchError("balance", "Error: Internal RPC Error");
+        this.fnSetFetchError("balance", "Internal RPC Error");
       }
       const balanceJSON = JSON.parse(balanceStr);
 
@@ -587,12 +518,7 @@ export default class RPC {
     try {
       // UNIFIED
       const unifiedAddressesStr: string = await native.get_unified_addresses();
-      if (unifiedAddressesStr) {
-        if (unifiedAddressesStr.toLowerCase().startsWith("error")) {
-          console.error(`Error addresses ${unifiedAddressesStr}`);
-          return;
-        }
-      } else {
+      if (!unifiedAddressesStr) {
         console.error("Internal Error addresses");
         return;
       }
@@ -600,12 +526,7 @@ export default class RPC {
 
       // TRANSPARENT
       const transparentAddressStr: string = await native.get_transparent_addresses();
-      if (transparentAddressStr) {
-        if (transparentAddressStr.toLowerCase().startsWith("error")) {
-          console.error(`Error addresses ${transparentAddressStr}`);
-          return;
-        }
-      } else {
+      if (!transparentAddressStr) {
         console.error("Internal Error addresses");
         return;
       }
@@ -620,32 +541,14 @@ export default class RPC {
     }
   }
 
-  static async createNewAddressUnified(type: string) {
-    try {
-      // Zingolib creates addresses like this:
-      // o = orchard only
-      // z = sapling only
-      // oz = orchard + sapling
-      const addrStr: string = await native.create_new_unified_address(type);
-      return addrStr;
-    } catch (error) {
-      const err = `Error: Critical Error new address U ${error}`;
-      console.error(error);
-      return err;
-    }
+  // Throws on failure; the caller catches. o = orchard, z = sapling, oz = both.
+  static async createNewAddressUnified(type: string): Promise<string> {
+    return native.create_new_unified_address(type);
   }
 
-  static async createNewAddressTransparent() {
-    try {
-      // Zingolib creates Addresses like this:
-      // t = transparent
-      const addrStr: string = await native.create_new_transparent_address();
-      return addrStr;
-    } catch (error) {
-      const err = `Error: Critical Error new address T ${error}`;
-      console.log(err);
-      return err;
-    }
+  // Throws on failure; the caller catches. t = transparent.
+  static async createNewAddressTransparent(): Promise<string> {
+    return native.create_new_transparent_address();
   }
 
   static async fetchWalletHeight(): Promise<number> {
@@ -676,21 +579,37 @@ export default class RPC {
   // Happy-path Orchard→Ironwood drain plan (plan_orchard_drain): read-only, no
   // sync. Returns migratable/dust in ZEC (both 0 on error). migratable 0 with an
   // Orchard balance means the whole balance is dust.
-  static async fetchOrchardDrainPlan(): Promise<{ migratable: number; dust: number }> {
+  static async fetchOrchardDrainPlan(): Promise<{ migratable: number; dust: number; fee: number }> {
     try {
       const str: string = await native.plan_orchard_drain();
-      if (!str || str.toLowerCase().startsWith("error")) {
-        if (str) console.error(`Error orchard drain plan: ${str}`);
-        return { migratable: -1, dust: 0 };
-      }
       const json = JSON.parse(str);
+      // Failures now cross as `{ error }` JSON; migratable -1 is the caller's
+      // error sentinel.
+      if (json.error) {
+        console.error(`Error orchard drain plan: ${json.error}`);
+        return { migratable: -1, dust: 0, fee: 0 };
+      }
       return {
         migratable: (json.migrated || 0) / 10 ** 8,
         dust: (json.stranded || 0) / 10 ** 8,
+        fee: (json.fee || 0) / 10 ** 8,
       };
     } catch (error) {
       console.error(`Error orchard drain plan ${error}`);
-      return { migratable: -1, dust: 0 };
+      return { migratable: -1, dust: 0, fee: 0 };
+    }
+  }
+
+  // Live progress of an in-flight immediate drain (built/sent of total, phase),
+  // polled by the "executing" screen. Null when no drain is running. Reads a
+  // lock-free side channel, so it works while the drain holds the wallet lock.
+  static async drainStatus(): Promise<{ total: number; built: number; sent: number; phase: string } | null> {
+    try {
+      const s = JSON.parse(await native.drain_status());
+      return s.idle ? null : s;
+    } catch (error) {
+      console.error(`Error drain status ${error}`);
+      return null;
     }
   }
 
@@ -703,15 +622,10 @@ export default class RPC {
     try {
       let latestBlockHeight: number = 0;
       const heightStr: string = await native.get_latest_block_server(this.currentWallet ? this.currentWallet.uri : "");
-      if (heightStr) {
-        if (heightStr.toLowerCase().startsWith("error")) {
-          this.fnSetFetchError(fetchLabel, `Error server height ${heightStr}`);
-          console.error(`Error server height ${heightStr}`);
-        } else {
-          latestBlockHeight = Number(heightStr);
-        }
-      } else {
+      if (!heightStr) {
         console.error("Internal Error server height");
+      } else {
+        latestBlockHeight = Number(heightStr);
       }
 
       const txsJSON: RPCValueTransferType[] = await fetcher();
@@ -757,6 +671,20 @@ export default class RPC {
         vt.poolsSentFrom = parseValueTransferPools(tx.pools_sent_from);
         vt.poolsReceived = parseValueTransferPools(tx.pools_received);
 
+        // An Orchard -> Ironwood migration part is a self-send funded from
+        // Orchard and received into Ironwood. zingolib does not model it as its
+        // own kind: it crosses as `send-to-self` OR `memo-to-self` (the parts
+        // carry a memo), and its received pools are BOTH Ironwood (the migrated
+        // denomination) and Orchard (the change), so key off the Ironwood
+        // receipt from an Orchard source and surface it as its own type.
+        if (
+          (vt.type === ValueTransferKindEnum.sendToSelf || vt.type === ValueTransferKindEnum.memoToSelf) &&
+          !!vt.poolsSentFrom?.includes(ValueTransferPoolEnum.orchard) &&
+          !!vt.poolsReceived?.includes(ValueTransferPoolEnum.ironwood)
+        ) {
+          vt.type = ValueTransferKindEnum.migration;
+        }
+
         if (vt.status === ValueTransferStatusEnum.failed) {
           console.log("[RPC] failed value transfer (transformed):", vt);
         }
@@ -796,14 +724,9 @@ export default class RPC {
     try {
       // creating the propose
       const proposeStr: string = await native.send(JSON.stringify(sendJson));
-      if (proposeStr) {
-        if (proposeStr.toLowerCase().startsWith("error")) {
-          console.error(`Error propose ${proposeStr}`);
-          sendError = proposeStr;
-        }
-      } else {
+      if (!proposeStr) {
         console.error("Internal Error propose");
-        sendError = "Error: Internal RPC Error: propose";
+        sendError = "Internal RPC Error: propose";
       }
       if (!sendError) {
         const proposeJSON: SendProposeType = JSON.parse(proposeStr);
@@ -814,14 +737,9 @@ export default class RPC {
         if (!sendError) {
           // creating the transaction
           const sendStr: string = await native.confirm();
-          if (sendStr) {
-            if (sendStr.toLowerCase().startsWith("error")) {
-              console.error(`Error confirm ${sendStr}`);
-              sendError = sendStr;
-            }
-          } else {
+          if (!sendStr) {
             console.error("Internal Error confirm");
-            sendError = "Error: Internal RPC Error: confirm";
+            sendError = "Internal RPC Error: confirm";
           }
           if (!sendError) {
             const sendJSON: SendType = JSON.parse(sendStr);
@@ -883,11 +801,12 @@ export default class RPC {
 
       const resultStr: string = await native.drain_orchard_to_ironwood();
       if (resultStr) {
-        if (resultStr.toLowerCase().startsWith("error")) {
-          console.error(`Error drain orchard to ironwood: ${resultStr}`);
-          return { result: null, error: resultStr };
+        const resultJSON: RPCIronwoodDrainType & { error?: string } = JSON.parse(resultStr);
+        // Failures now cross as `{ error }` JSON alongside the success shape.
+        if (resultJSON.error) {
+          console.error(`Error drain orchard to ironwood: ${resultJSON.error}`);
+          return { result: null, error: resultJSON.error };
         }
-        const resultJSON: RPCIronwoodDrainType = JSON.parse(resultStr);
         return { result: resultJSON, error: "" };
       }
       return { result: null, error: "Error: Internal RPC Error: drain orchard to ironwood" };
@@ -897,6 +816,252 @@ export default class RPC {
     } finally {
       // Always resume the background sync loop.
       await this.configure();
+    }
+  }
+
+  // ---- Private (scheduled) Ironwood migration (zingolib parts/buckets) ----
+  // Foreground-only: zingo-pc drives the schedule while the app is open. Each
+  // native call throws a typed error on failure; these wrappers swallow it into
+  // a null / false / [] so callers branch on data, never on an "Error:" string.
+
+  // The immediate one-call private migration: split notes into standard
+  // denominations then send every part to Ironwood. Like drainOrchardToIronwood,
+  // it syncs internally, so we stop our 5s loop, run it, and resume. Long-
+  // running: splitting happens in rounds, each waiting for confirmation.
+  async migrateToIronwood(): Promise<{ result: FfiMigrationSummary | null; error: string }> {
+    await this.clearTimers();
+    try {
+      const resultStr: string = await native.migrate_to_ironwood();
+      if (resultStr) {
+        const resultJSON: FfiMigrationSummary & { error?: string } = JSON.parse(resultStr);
+        if (resultJSON.error) {
+          console.error(`Error migrate to ironwood: ${resultJSON.error}`);
+          return { result: null, error: resultJSON.error };
+        }
+        return { result: resultJSON, error: "" };
+      }
+      return { result: null, error: "Error: Internal RPC Error: migrate to ironwood" };
+    } catch (error) {
+      console.error(`Critical error migrate to ironwood: ${error}`);
+      return { result: null, error: `Error: ${error}` };
+    } finally {
+      // Always resume the background sync loop.
+      await this.configure();
+    }
+  }
+
+  // The Phase 1 split plan the user consents to. Null on any failure (e.g. no
+  // migratable Orchard, or the chain not yet at NU6.3).
+  static async planIronwoodMigration(): Promise<FfiPlan | null> {
+    try {
+      return JSON.parse(await native.plan_ironwood_migration());
+    } catch (error) {
+      console.error(`Error plan ironwood migration ${error}`);
+      return null;
+    }
+  }
+
+  // The migration's progress. Null when none is in progress or on failure.
+  static async fetchMigrationStatus(): Promise<FfiStatus | null> {
+    try {
+      const status: FfiStatus = JSON.parse(await native.migration_status());
+      return status.in_progress ? status : null;
+    } catch (error) {
+      console.error(`Error migration status ${error}`);
+      return null;
+    }
+  }
+
+  // Begin the migration with the consented plan hash. per_bucket <= 0 = default.
+  static async startIronwoodMigration(consentedPlanHash: string, perBucket: number): Promise<boolean> {
+    try {
+      await native.start_ironwood_migration(consentedPlanHash, perBucket);
+      return true;
+    } catch (error) {
+      console.error(`Error start ironwood migration ${error}`);
+      return false;
+    }
+  }
+
+  // Drive ONE step of Phase 1 note-splitting. The FFI throws on failure (typed
+  // error), so we catch and surface the text in `error` — the driving loop then
+  // stops and offers Retry (the state is reconcilable; retry re-enters the loop).
+  // `step` is null exactly when `error` is set.
+  static async continueNoteSplitting(): Promise<{ step: FfiSplitStep | null; error: string }> {
+    try {
+      const step: FfiSplitStep = JSON.parse(await native.continue_note_splitting());
+      return { step, error: "" };
+    } catch (error) {
+      console.error(`Error continue note splitting ${error}`);
+      return { step: null, error: `${error}` };
+    }
+  }
+
+  // Re-cadence the schedule (parts per broadcast window). Only valid between
+  // consent and the first signed part; afterwards the FFI throws (CadenceFixed).
+  static async rescheduleParts(perBucket: number): Promise<boolean> {
+    try {
+      await native.reschedule_parts(perBucket);
+      return true;
+    } catch (error) {
+      console.error(`Error reschedule parts ${error}`);
+      return false;
+    }
+  }
+
+  // Privacy-preserving recovery for windows missed while the app was closed:
+  // shifts every overdue part FORWARD into future windows (preserving the
+  // spread) and broadcasts nothing. Idempotent. Returns whether it rescheduled.
+  static async rescheduleOverdueForward(): Promise<boolean> {
+    try {
+      return JSON.parse(await native.reschedule_overdue_forward()).rescheduled === true;
+    } catch (error) {
+      console.error(`Error reschedule overdue forward ${error}`);
+      return false;
+    }
+  }
+
+  // Run on every launch: applies the safe-unattended reconciliation actions.
+  // reconcile_migration throws "no migration in progress" when there is none —
+  // the normal case — so gate on the status first instead of logging that as an
+  // error every launch/wallet-switch.
+  static async reconcileMigration(): Promise<void> {
+    const status = await RPC.fetchMigrationStatus();
+    if (!status) return;
+    try {
+      await native.reconcile_migration();
+    } catch (error) {
+      console.error(`Error reconcile migration ${error}`);
+    }
+  }
+
+  // Send every part whose window is open now (the "Send batch" action).
+  static async broadcastDueParts(): Promise<string[]> {
+    try {
+      return JSON.parse(await native.broadcast_due_parts()).txids ?? [];
+    } catch (error) {
+      console.error(`Error broadcast due parts ${error}`);
+      return [];
+    }
+  }
+
+  // Send parts from windows that already passed (needs user disclosure).
+  static async catchUpMigration(): Promise<string[]> {
+    try {
+      return JSON.parse(await native.catch_up_migration()).txids ?? [];
+    } catch (error) {
+      console.error(`Error catch up migration ${error}`);
+      return [];
+    }
+  }
+
+  // Periodic driving-loop primitive: no-op without a migration; otherwise
+  // refreshes part witnesses and broadcasts every part whose bucket window and
+  // random target height are both reached. Called each sync cycle. This is the
+  // WHOLE of Phase 2 — nothing else has to happen "when a batch's block
+  // arrives"; the next sync tick's call fires the due parts.
+  //
+  // Logs the txids it broadcasts (so a batch send is visible) and surfaces
+  // failures loudly instead of swallowing them — a silent no-op every tick and
+  // a silent error every tick look identical otherwise.
+  static async autoBroadcastIfDue(): Promise<void> {
+    try {
+      const txids: string[] = JSON.parse(await native.auto_broadcast_if_due()).txids ?? [];
+      if (txids.length > 0) {
+        console.log(`[migration] auto_broadcast_if_due sent ${txids.length} part(s):`, txids);
+      }
+    } catch (error) {
+      console.error(`Error auto broadcast if due ${error}`);
+    }
+  }
+
+  // reconcile_migration returning its applied/recommended actions (Debug
+  // strings), for the driver's diagnostics. Does not sync; offline-safe.
+  static async reconcileActions(): Promise<string[]> {
+    try {
+      return JSON.parse(await native.reconcile_migration()).actions ?? [];
+    } catch (error) {
+      console.error(`Error reconcile migration ${error}`);
+      return [];
+    }
+  }
+
+  // Guards against a slow drive step (proving + spaced sends can take many
+  // seconds while holding the wallet lock) stacking across 5s ticks.
+  static migrationDriveInFlight = false;
+
+  // The foreground migration driver, run every sync cycle. It advances the
+  // migration WITHOUT ever compromising the private path's privacy:
+  //
+  //   planned / note_splitting -> drive continue_note_splitting to completion.
+  //     The migration screen also drives this, but the user may have navigated
+  //     away mid-split; without this the split never finishes.
+  //
+  //   parts_scheduled -> auto_broadcast_if_due (on-time) + a privacy-preserving
+  //     recovery for missed windows:
+  //
+  //     - auto_broadcast_if_due fires a part only when its OWN current window and
+  //       random target are both reached — an on-time, uncorrelated broadcast
+  //       that blends with the scheduled cadence. It never fires a past window.
+  //
+  //     - When reconcile reports PromptCatchUp (windows passed while the app was
+  //       closed), we do NOT catch_up_migration — that folds the overdue parts
+  //       into the current bucket and broadcasts them at once, a correlated burst
+  //       that fingerprints the migration. Instead we reschedule_overdue_forward:
+  //       every overdue part shifts FORWARD into future windows (spread
+  //       preserved), broadcasting nothing. The next windows then send on-time
+  //       via auto_broadcast_if_due. This keeps the private path private whether
+  //       one window was missed or many.
+  //
+  //     reconcile_migration (run via reconcileActions) also applies the other
+  //     privacy-safe unattended fixes each tick (promote confirmed, rebuild an
+  //     expired part into a fresh future window, mark complete).
+  //
+  // Gated on an in-progress migration so reconcile doesn't throw NoMigration
+  // (and spam) on every idle tick.
+  static async driveMigration(): Promise<void> {
+    if (RPC.migrationDriveInFlight) return;
+    const status = await RPC.fetchMigrationStatus();
+    if (!status) return;
+    const phase = status.phase?.kind;
+
+    RPC.migrationDriveInFlight = true;
+    try {
+      if (phase === "planned" || phase === "note_splitting") {
+        const { step, error } = await RPC.continueNoteSplitting();
+        console.log(`[migration] phase=${phase} split=${error ? `error: ${error}` : (step?.step ?? "?")}`);
+        return;
+      }
+
+      if (phase === "parts_scheduled") {
+        // On-time, uncorrelated broadcasts only.
+        await RPC.autoBroadcastIfDue();
+        // Apply privacy-safe unattended fixes and read the recommendations.
+        const actions = await RPC.reconcileActions();
+        if (actions.some((a) => a.includes("PromptCatchUp"))) {
+          // Windows were missed while closed. Reschedule them FORWARD (spread
+          // preserved), never fire them now — that would correlate the late
+          // batch. Idempotent: a no-op once nothing is overdue.
+          const rescheduled = await RPC.rescheduleOverdueForward();
+          console.log(
+            `[migration] ${status.parts_confirmed}/${status.parts_total} confirmed — ` +
+              `missed window(s) rescheduled forward (privacy-preserving), rescheduled=${rescheduled}.`,
+          );
+        }
+      }
+    } finally {
+      RPC.migrationDriveInFlight = false;
+    }
+  }
+
+  // Abandon the in-progress migration.
+  static async cancelIronwoodMigration(): Promise<boolean> {
+    try {
+      await native.cancel_ironwood_migration();
+      return true;
+    } catch (error) {
+      console.error(`Error cancel ironwood migration ${error}`);
+      return false;
     }
   }
 
@@ -913,18 +1078,13 @@ export default class RPC {
     try {
       const resultStr: string = await native.zec_price();
 
-      if (resultStr) {
-        if (resultStr.toLowerCase().startsWith("error")) {
-          console.error(`zec_price error: ${resultStr}`);
-          this.fnSetZecPrice(0);
-        } else {
-          const resultJSON = JSON.parse(resultStr);
-          this.fnSetZecPrice(resultJSON.current_price);
-        }
-      } else {
+      if (!resultStr) {
         console.error(`zec_price returned empty result`);
         this.fnSetZecPrice(0);
+        return;
       }
+      const resultJSON = JSON.parse(resultStr);
+      this.fnSetZecPrice(resultJSON.current_price);
     } catch (error) {
       console.error(`zec_price threw:`, error);
     }

@@ -386,7 +386,7 @@ const AppRoutes: React.FC = () => {
   const calculateShieldFee = useCallback(async (): Promise<number> => {
     try {
       const result: string = await native.shield();
-      if (!result || result.toLowerCase().startsWith("error")) return 0;
+      if (!result) return 0;
       const resultJSON = JSON.parse(result);
       if (resultJSON.error) return 0;
       return resultJSON.fee ? resultJSON.fee / 10 ** 8 : 0;
@@ -404,11 +404,8 @@ const AppRoutes: React.FC = () => {
     openErrorModal("Computing Transaction", "Please wait...This could take a while");
     setTimeout(async () => {
       try {
+        // Throws on failure — the catch below surfaces it.
         const txidsResult: string = await runRPCShieldTransparentBalanceToOrchard();
-        if (!txidsResult || txidsResult.toLocaleLowerCase().startsWith("error")) {
-          openErrorModal("Error Shielding Transaction", `${txidsResult}`);
-          return;
-        }
         const txids: string[] = txidsResult.split(", ");
         const isMainnet = currentWallet?.chain_name === ServerChainNameEnum.mainChainName;
         openErrorModal(
@@ -447,7 +444,7 @@ const AppRoutes: React.FC = () => {
   const runRPCSendTransaction = useCallback(async (sendJson: SendManyJsonType[]): Promise<string> => {
     try {
       const result: string = await rpcRef.current!.sendTransaction(sendJson);
-      if (!result || result.toLowerCase().startsWith("error")) throw result;
+      if (!result) throw result;
       return result;
     } catch (err) {
       console.error("route sendtx error", err);

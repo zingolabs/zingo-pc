@@ -96,7 +96,9 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               color:
                 vt.confirmations === 0
                   ? Utils.getCssVariable("--color-primary-disable")
-                  : vt.type === ValueTransferKindEnum.received || vt.type === ValueTransferKindEnum.shield
+                  : vt.type === ValueTransferKindEnum.received ||
+                      vt.type === ValueTransferKindEnum.shield ||
+                      vt.type === ValueTransferKindEnum.migration
                     ? Utils.getCssVariable("--color-primary")
                     : Utils.getCssVariable("--color-text"),
             }}

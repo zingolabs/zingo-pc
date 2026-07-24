@@ -377,18 +377,27 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       // Always fetch the UFVK — for seed wallets it's derived from the seed, and
       // showing it alongside the seed lets the user share view-only access without
       // exposing spend authority. Run both native calls in parallel.
-      const [seedRaw, ufvkRaw] = await Promise.all([
-        readOnlyRef.current ? Promise.resolve("") : native.get_seed(),
-        native.get_ufvk(),
-      ]);
-      const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
-      const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
+      try {
+        // get_seed / get_ufvk reject (typed error on the throw channel) if the
+        // key material can't be read; surface that instead of leaving the modal
+        // in its loading state.
+        const [seedRaw, ufvkRaw] = await Promise.all([
+          readOnlyRef.current ? Promise.resolve("") : native.get_seed(),
+          native.get_ufvk(),
+        ]);
+        const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
+        const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
 
-      if (!active) return;
-      openErrorModal(
-        "Wallet Seed Phrase / Viewing Key",
-        <SeedUfvkModalContent seedStr={seedStr} ufvkStr={ufvkStr} birthday={birthdayRef.current} />,
-      );
+        if (!active) return;
+        openErrorModal(
+          "Wallet Seed Phrase / Viewing Key",
+          <SeedUfvkModalContent seedStr={seedStr} ufvkStr={ufvkStr} birthday={birthdayRef.current} />,
+        );
+      } catch (error) {
+        if (!active) return;
+        console.error(`Error reading seed/ufvk ${error}`);
+        openErrorModal("Wallet Seed Phrase / Viewing Key", `${error}`);
+      }
     };
 
     const rescan = async (_event: any) => {

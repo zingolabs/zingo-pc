@@ -203,7 +203,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
     try {
       if (sendPageState.toaddr.to) {
         const result: string = await native.get_spendable_balance_with_address(sendPageState.toaddr.to, "false");
-        if (!result || result.toLowerCase().startsWith("error")) {
+        if (!result) {
           _error = result;
           _spendable = 0;
         } else {
@@ -218,7 +218,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
       if (sendPageState.toaddr.amount >= 0 && sendPageState.toaddr.to && !_error) {
         const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
         const result: string = await native.send(JSON.stringify(sendJson));
-        if (!result || result.toLowerCase().startsWith("error")) {
+        if (!result) {
           _error = result;
         } else {
           const resultJSON = JSON.parse(result);

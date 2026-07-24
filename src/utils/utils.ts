@@ -53,7 +53,11 @@ export default class Utils {
                                 ? "...Sending..."
                                 : type === ValueTransferKindEnum.rejection && confirmations > 0
                                   ? "Rejection"
-                                  : "";
+                                  : type === ValueTransferKindEnum.migration && confirmations === 0
+                                    ? "...Migrating..."
+                                    : type === ValueTransferKindEnum.migration && confirmations > 0
+                                      ? "Migration"
+                                      : "";
   }
 
   static trimToSmall(addr?: string, numChars?: number): string {
@@ -68,7 +72,7 @@ export default class Utils {
     if (!addr) return undefined;
     try {
       const resultParse: string = await native.parse_address(addr);
-      if (!resultParse || resultParse.toLowerCase().startsWith("error")) return undefined;
+      if (!resultParse) return undefined;
       let parsed;
       try {
         parsed = JSON.parse(resultParse);
@@ -88,7 +92,7 @@ export default class Utils {
     if (!addr) return;
     try {
       const resultParse: string = await native.parse_address(addr);
-      if (!resultParse || resultParse.toLowerCase().startsWith("error")) {
+      if (!resultParse) {
         return;
       }
 
