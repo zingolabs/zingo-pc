@@ -42,6 +42,9 @@ type PrivateMigrationProps = {
   simulation: boolean;
   activationHeight: number;
   walletHeight: number;
+  // Chain tip (server latest block), for the block-based "next window opens at
+  // block X (you're at Y)" line — height-gated, like mobile's MigrationStatus.
+  latestBlock: number;
   onBack: () => void;
   onExit: () => void;
 };
@@ -109,6 +112,7 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
   simulation,
   activationHeight,
   walletHeight,
+  latestBlock,
   onBack,
   onExit,
 }) => {
@@ -571,6 +575,16 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                       {fmtZats(schedule.orchard_confirmed_spendable)} {currencyName}
                     </span>
                   </div>
+                </div>
+              )}
+
+              {/* Block-gated "what's next" line (no wall-clock), like mobile's
+                  MigrationStatus. next_wakes[0] is the soonest FUTURE window. */}
+              {!complete && schedule && schedule.next_wakes.length > 0 && (
+                <div className={styles.infonote}>
+                  {latestBlock >= schedule.next_wakes[0].boundary
+                    ? `A window is open (block ${schedule.next_wakes[0].boundary.toLocaleString()}) — its batch is sending. You're at block ${latestBlock.toLocaleString()}.`
+                    : `Next batch opens at block ${schedule.next_wakes[0].boundary.toLocaleString()} — you're at block ${latestBlock.toLocaleString()}.`}
                 </div>
               )}
 

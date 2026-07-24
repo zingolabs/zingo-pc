@@ -266,6 +266,10 @@ export default class RPC {
         // Ironwood balance (includes earlier migrations), so that subtraction
         // goes negative and clamps to 0.
         info.migrationPendingZec = migStatus.orchard_confirmed_spendable / 10 ** 8;
+        // Blocks until the next scheduled window opens (block-based, like mobile).
+        info.migrationNextBlocks = migStatus.next_wakes.length
+          ? Math.max(0, migStatus.next_wakes[0].boundary - info.latestBlock)
+          : 0;
       }
 
       return info;

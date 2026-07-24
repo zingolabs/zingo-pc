@@ -30,6 +30,10 @@ export default class InfoClass {
   migrationBatchesConfirmed: number;
   migrationBatchesTotal: number;
   migrationPendingZec: number;
+  // Blocks until the next scheduled window OPENS (next_wakes[0].boundary − chain
+  // tip). 0 when no upcoming window is in view. Drives the banner's "next batch
+  // in ~N blocks" line — block-based, mirroring zingo-mobile (no wall-clock).
+  migrationNextBlocks: number;
   error?: string;
   zingolib: string;
 
@@ -51,6 +55,7 @@ export default class InfoClass {
     this.migrationBatchesConfirmed = 0;
     this.migrationBatchesTotal = 0;
     this.migrationPendingZec = 0;
+    this.migrationNextBlocks = 0;
     this.error = error;
     this.zingolib = "";
   }
