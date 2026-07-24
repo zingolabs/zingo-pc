@@ -215,7 +215,11 @@ export default class RPC {
       const infostr: string = await native.info_server();
       if (!infostr) {
         console.log("server info Failed", infostr);
-        return new InfoClass(infostr);
+        // Empty server info (e.g. offline): keep the Ironwood banners from the
+        // local reads.
+        const offlineInfo = new InfoClass(infostr);
+        await RPC.populateLocalIronwoodFields(offlineInfo);
+        return offlineInfo;
       }
       const infoJSON: RPCInfoType = JSON.parse(infostr);
 
@@ -241,42 +245,65 @@ export default class RPC {
       }
       info.zingolib = zingolibStr;
 
-      // we want to update the wallet last block
-      const walletHeight: number = await RPC.fetchWalletHeight();
-      info.walletHeight = walletHeight;
-
-      // NU6.3 / Ironwood activation height, read from zingolib (source of truth).
-      info.nu63ActivationHeight = await RPC.fetchIronwoodActivationHeight();
-
-      // Happy-path drain plan: how much Orchard can move vs is stranded dust.
-      const drainPlan = await RPC.fetchOrchardDrainPlan();
-      info.orchardMigratable = drainPlan.migratable;
-      info.orchardDust = drainPlan.dust;
-      info.orchardFee = drainPlan.fee;
-
-      // Private (scheduled) migration progress → the Dashboard "in progress"
-      // banner. Null when none is running, so the banner stays hidden.
-      const migStatus = await RPC.fetchMigrationStatus();
-      if (migStatus) {
-        info.migrationInProgress = true;
-        info.migrationBatchesConfirmed = migStatus.parts_confirmed;
-        info.migrationBatchesTotal = migStatus.parts_total;
-        // Pending = what is still spendable in the Orchard pool (ZIP 318's
-        // figure). NOT value_total − value_migrated: value_migrated is the whole
-        // Ironwood balance (includes earlier migrations), so that subtraction
-        // goes negative and clamps to 0.
-        info.migrationPendingZec = migStatus.orchard_confirmed_spendable / 10 ** 8;
-        // Blocks until the next scheduled window opens (block-based, like mobile).
-        info.migrationNextBlocks = migStatus.next_wakes.length
-          ? Math.max(0, migStatus.next_wakes[0].boundary - info.latestBlock)
-          : 0;
-      }
+      // Wallet height, Ironwood activation, drain plan and migration progress —
+      // all LOCAL reads, so the Dashboard's Ironwood banners survive offline.
+      await RPC.populateLocalIronwoodFields(info);
 
       return info;
     } catch (err) {
       console.error("Error: to parse info ", err);
-      return new InfoClass("Error: to parse info " + err);
+      // Offline / server-info failure still keeps the Ironwood banners: they run
+      // on LOCAL wallet state, not server facts. Guard so a local-read hiccup
+      // can't mask the original error path.
+      const info = new InfoClass("Error: to parse info " + err);
+      try {
+        await RPC.populateLocalIronwoodFields(info);
+      } catch (e) {
+        console.error("Error populating local Ironwood fields", e);
+      }
+      return info;
     }
+  }
+
+  // Fill every LOCAL Ironwood field (no network): wallet height, activation
+  // height, the drain plan, and migration progress. Split out and called in
+  // every getInfoObject path so BOTH Dashboard banners — the pre-migration
+  // "Migrate / Simulate" prompt and the "Migration in progress" banner —
+  // survive an offline info_server failure. Being offline only means batches
+  // can't broadcast and the server tip is unknown, not that this local state
+  // vanished.
+  static async populateLocalIronwoodFields(info: InfoClass): Promise<void> {
+    info.walletHeight = await RPC.fetchWalletHeight();
+    // NU6.3 / Ironwood activation height, read from zingolib (source of truth).
+    info.nu63ActivationHeight = await RPC.fetchIronwoodActivationHeight();
+    // Happy-path drain plan: how much Orchard can move vs is stranded dust.
+    const drainPlan = await RPC.fetchOrchardDrainPlan();
+    info.orchardMigratable = drainPlan.migratable;
+    info.orchardDust = drainPlan.dust;
+    info.orchardFee = drainPlan.fee;
+    await RPC.populateMigrationFields(info);
+  }
+
+  // Fill the Dashboard migration-progress fields from the LOCAL migration_status
+  // read (no network). No-op (banner hidden) when none is running.
+  static async populateMigrationFields(info: InfoClass): Promise<void> {
+    const migStatus = await RPC.fetchMigrationStatus();
+    if (!migStatus) return;
+    info.migrationInProgress = true;
+    info.migrationBatchesConfirmed = migStatus.parts_confirmed;
+    info.migrationBatchesTotal = migStatus.parts_total;
+    // Pending = what is still spendable in the Orchard pool (ZIP 318's figure).
+    // NOT value_total − value_migrated: value_migrated is the whole Ironwood
+    // balance (includes earlier migrations), so that subtraction goes negative
+    // and clamps to 0.
+    info.migrationPendingZec = migStatus.orchard_confirmed_spendable / 10 ** 8;
+    // Blocks until the next scheduled window opens (block-based, like mobile).
+    // Needs a live chain tip; offline (latestBlock 0) we omit it, so the banner
+    // falls back to "sending automatically" instead of a bogus count.
+    info.migrationNextBlocks =
+      info.latestBlock > 0 && migStatus.next_wakes.length
+        ? Math.max(0, migStatus.next_wakes[0].boundary - info.latestBlock)
+        : 0;
   }
 
   static async setWalletSettingOption(name: string, value: string): Promise<string> {
