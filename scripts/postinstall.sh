@@ -34,8 +34,23 @@ if [ -f "$APPARMOR_SRC" ] && [ -d /etc/apparmor.d ]; then
     fi
 fi
 
-# Patch the system .desktop file so the zcash: handler uses the wrapper script
-# from the very first click, before the user has ever opened the app manually.
+# Put `zingo-pc` on the PATH so it can be launched from a terminal. electron
+# installs the binary under a spaced /opt directory (/opt/Zingo PC/zingo-pc),
+# which is not on the PATH; this symlink makes `zingo-pc` work like any CLI.
+# Removed again in postremove.sh.
+BINARY='/opt/Zingo PC/zingo-pc'
+if [ -f "$BINARY" ] && [ -d /usr/bin ]; then
+    ln -sf "$BINARY" /usr/bin/zingo-pc
+fi
+
+# Why the launcher points at a wrapper script, not the binary directly:
+# the app registers the `zcash:` URI scheme (payment links). When you click a
+# zcash: link, the desktop passes the URI as an argument; the wrapper
+# (zingo-pc-uri.sh) normalizes it and forwards it to the real binary. We patch
+# the system .desktop Exec here so this works from the very first click, before
+# the user has ever opened the app manually. For a plain launch (no URI) you can
+# call the binary — or the `zingo-pc` symlink above — directly; the wrapper is
+# only needed for zcash: deep-link handling.
 DESKTOP='/usr/share/applications/zingo-pc.desktop'
 if [ -f "$DESKTOP" ] && [ -f "$WRAPPER" ]; then
     sed -i "s|^Exec=.*|Exec=\"$WRAPPER\" %u|" "$DESKTOP"

@@ -595,16 +595,30 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     }
 
     if (mode === "addnew") {
-      // check the fields
+      // check the fields — surface WHY nothing happened instead of returning
+      // silently (users saw the Create button do nothing with no message).
       if (newWalletType === "seed" && (!seedPhrase || !birthday)) {
+        openErrorModal(
+          "Create Wallet",
+          !seedPhrase
+            ? "Please enter your seed phrase."
+            : `Please enter the wallet birthday (if you don't know it, ${activationHeight[selectedChain]} is safe).`,
+        );
         isSubmittingRef.current = false;
         return;
       }
       if (newWalletType === "ufvk" && (!ufvk || !birthday)) {
+        openErrorModal(
+          "Create Wallet",
+          !ufvk
+            ? "Please enter your unified full viewing key (UFVK)."
+            : `Please enter the wallet birthday (if you don't know it, ${activationHeight[selectedChain]} is safe).`,
+        );
         isSubmittingRef.current = false;
         return;
       }
       if (newWalletType === "file" && !file) {
+        openErrorModal("Create Wallet", "Please select a wallet file to restore.");
         isSubmittingRef.current = false;
         return;
       }
@@ -613,6 +627,10 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         (newWalletType === "seed" || newWalletType === "ufvk") &&
         Number(birthday) < activationHeight[selectedChain]
       ) {
+        openErrorModal(
+          "Create Wallet",
+          `The wallet birthday must be at least ${activationHeight[selectedChain]} (the network activation height).`,
+        );
         isSubmittingRef.current = false;
         return;
       }
@@ -768,7 +786,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                 onChange={(e) => updateSeedPhrase(e)}
               />
               <div className={cstyles.sublight}>
-                {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
+                {`Wallet Birthday. If you don’t know this, it is OK to enter ‘${activationHeight[selectedChain]}’`}
               </div>
               <input
                 aria-label="Wallet birthday"
@@ -792,7 +810,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                 onChange={(e) => updateUfvk(e)}
               />
               <div className={cstyles.sublight}>
-                {`Wallet Birthday. If you don&rsquo;t know this, it is OK to enter &lsquo;${activationHeight[selectedChain]}&rsquo;`}
+                {`Wallet Birthday. If you don’t know this, it is OK to enter ‘${activationHeight[selectedChain]}’`}
               </div>
               <input
                 aria-label="Wallet birthday"

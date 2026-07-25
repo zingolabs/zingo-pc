@@ -1743,6 +1743,112 @@ async function maybeRunDmgToMasMigration() {
   }
 }
 
+// One-shot migration for a Flatpak install that follows a previous
+// deb/AppImage (non-sandboxed) install. Flatpak redirects userData into its
+// per-app sandbox (~/.var/app/co.zingo.pc/config/Zingo PC), so a fresh Flatpak
+// starts with an EMPTY wallets.json even though the old ~/.config/Zingo PC data
+// (and the .dat wallet files it points at) are intact. Unlike MAS, the manifest
+// grants --filesystem=home, so we read the old folder directly (a confirm, not a
+// folder picker). Only the deb/AppImage -> Flatpak direction is handled; the
+// reverse is rare and intentionally left out. settings.json carries
+// all.walletDirPath, so migrating it reconnects the app to the existing .dat
+// wallet files (reachable via --filesystem=home) with no copy of the wallets.
+async function maybeRunDebAppImageToFlatpakMigration() {
+  if (process.platform !== "linux" || !process.env.FLATPAK_ID) return;
+
+  const userData = app.getPath("userData");
+  const marker = path.join(userData, ".flatpak-migration-checked");
+  const fileNames = ["settings.json", "wallets.json", "AddressBook.json"];
+
+  if (fs.existsSync(marker)) return;
+
+  const markChecked = () => {
+    try {
+      fs.writeFileSync(marker, new Date().toISOString());
+    } catch (_) {}
+  };
+  const logMig = (msg) => {
+    try {
+      fs.appendFileSync(path.join(userData, "startup.log"), `${new Date().toISOString()} [migration] ${msg}\n`);
+    } catch (_) {}
+  };
+
+  // Sandbox already has data: nothing to import; mark and skip (also handles
+  // upgrades from a prior Flatpak build predating this code).
+  if (fileNames.some((f) => fs.existsSync(resolveDataFile(userData, f)))) {
+    markChecked();
+    return;
+  }
+
+  // The old non-sandbox location. os.userInfo().homedir is the real home from
+  // the passwd db (reliable inside the Flatpak sandbox, where $HOME may differ).
+  const sourceDir = path.join(os.userInfo().homedir, ".config", "Zingo PC");
+  const present = fileNames.filter((f) => fs.existsSync(resolveDataFile(sourceDir, f)));
+
+  // No previous data → fresh install; don't bother the user.
+  if (present.length === 0) {
+    markChecked();
+    logMig(`no previous data at ${sourceDir}`);
+    return;
+  }
+
+  const { response: choice } = await dialog.showMessageBox(null, {
+    type: "question",
+    title: "Import previous installation?",
+    message: "A previous Zingo PC installation was found.",
+    detail:
+      "The Flatpak version stores its data in a separate location, so your wallets " +
+      "from the deb/AppImage version are not visible yet. Click Import to bring over " +
+      "your wallets, address book, and settings.\n\nIf this is a fresh install, click Skip.",
+    buttons: ["Import", "Skip"],
+    defaultId: 0,
+    cancelId: 1,
+  });
+
+  if (choice !== 0) {
+    markChecked();
+    logMig("user chose skip");
+    return;
+  }
+
+  const copied = [];
+  const failed = [];
+  for (const f of present) {
+    try {
+      const destPath = resolveDataFile(userData, f);
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      if (f === "settings.json") {
+        // currentwalletid from the old install may point to an id we don't have
+        // yet — null it so the app opens the first wallet found.
+        const parsed = JSON.parse(fs.readFileSync(resolveDataFile(sourceDir, f), "utf8"));
+        if (parsed && parsed.all && "currentwalletid" in parsed.all) {
+          parsed.all.currentwalletid = null;
+        }
+        fs.writeFileSync(destPath, JSON.stringify(parsed));
+      } else {
+        fs.copyFileSync(resolveDataFile(sourceDir, f), destPath);
+      }
+      copied.push(f);
+    } catch (err) {
+      failed.push(`${f} (${err?.message ?? err})`);
+    }
+  }
+
+  markChecked();
+  logMig(`from=${sourceDir} copied=${copied.join(",")} failed=${failed.join(",")}`);
+
+  await dialog.showMessageBox(null, {
+    type: copied.length > 0 ? "info" : "error",
+    title: "Migration result",
+    message: copied.length > 0 ? "Import complete." : "Import failed.",
+    detail:
+      (copied.length > 0 ? `Imported: ${copied.join(", ")}\n` : "") +
+      (failed.length > 0 ? `Failed: ${failed.join(", ")}\n` : "") +
+      "\nZingo PC will now use your previous wallets and settings.",
+    buttons: ["OK"],
+  });
+}
+
 // Create a new browser window by invoking the createWindow
 // function once the Electron application is initialized.
 // Install REACT_DEVELOPER_TOOLS as well if isDev
@@ -1844,6 +1950,7 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionCheckHandler(() => false);
 
   await maybeRunDmgToMasMigration();
+  await maybeRunDebAppImageToFlatpakMigration();
 
   createWindow();
 });
