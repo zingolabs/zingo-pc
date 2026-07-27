@@ -40,7 +40,9 @@ use zcash_keys::address::Address;
 use zcash_keys::keys::UnifiedFullViewingKey;
 use zip32::AccountId;
 use zingolib::wallet::migration::{MigrationParams, MigrationPhase, SigningStrategy, plan_hash};
-use zingolib::lightclient::migrate::{DrainPhase, DrainProgressHandle, SplitStep};
+use zingolib::lightclient::migrate::{
+    BatchProgressHandle, ImmediateMigrationPhase, ImmediateMigrationProgressHandle, SplitStep,
+};
 use zcash_protocol::consensus::{NetworkType, NetworkUpgrade, Parameters};
 
 use pepper_sync::config::SyncConfig;
@@ -65,9 +67,36 @@ use zingolib::data::proposal::total_fee;
 use zingolib::ActivationHeights;
 use zingo_netutils::{GrpcIndexer, Indexer};
 
+// Minimal `log` backend so zingolib's log records surface instead of vanishing
+// (nothing registered a logger before, so every log::warn!/info! was dropped —
+// including the migration path's "skipping part N: <SkipReason>" that explains
+// why a part won't broadcast). Writes to stderr; run the app from a terminal to
+// read it. Kept quiet by default: warnings/errors always, and info only from the
+// migration modules, so a normal sync doesn't flood the console.
+struct StderrLogger;
+
+impl log::Log for StderrLogger {
+    fn enabled(&self, meta: &log::Metadata) -> bool {
+        meta.level() <= log::Level::Info
+    }
+
+    fn log(&self, record: &log::Record) {
+        let keep = record.level() <= log::Level::Warn || record.target().contains("migrat");
+        if keep {
+            eprintln!("[zingolib {} {}] {}", record.level(), record.target(), record.args());
+        }
+    }
+
+    fn flush(&self) {}
+}
+
+static STDERR_LOGGER: StderrLogger = StderrLogger;
+
 #[neon::main]
 fn main(mut cx: ModuleContext) -> NeonResult<()> {
     install_panic_hook_once();
+    // Install once; a second module init (unlikely) just keeps the first.
+    let _ = log::set_logger(&STDERR_LOGGER).map(|()| log::set_max_level(log::LevelFilter::Info));
 
     cx.export_function("set_wallet_base_dir", set_wallet_base_dir)?;
     cx.export_function("start_security_scoped_access", neon_start_security_scoped_access)?;
@@ -120,7 +149,8 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("catch_up_migration", catch_up_migration)?;
     cx.export_function("migrate_to_ironwood", migrate_to_ironwood)?;
     cx.export_function("cancel_ironwood_migration", cancel_ironwood_migration)?;
-    cx.export_function("reschedule_overdue_forward", reschedule_overdue_forward)?;
+    cx.export_function("execute_due_parts", execute_due_parts)?;
+    cx.export_function("execute_due_parts_status", execute_due_parts_status)?;
     cx.export_function("remove_transaction", remove_transaction)?;
     cx.export_function("get_spendable_balance_with_address", get_spendable_balance_with_address)?;
     cx.export_function("get_spendable_balance_total", get_spendable_balance_total)?;
@@ -387,7 +417,11 @@ lazy_static! {
 // takes the wallet write lock. Read by `drain_status()` without the client lock,
 // so the "executing" screen can poll progress while the drain (which holds the
 // lock across its whole run) is in flight. Follows the LAST_PANIC global pattern.
-static DRAIN_PROGRESS: Lazy<Mutex<Option<DrainProgressHandle>>> = Lazy::new(|| Mutex::new(None));
+static DRAIN_PROGRESS: Lazy<Mutex<Option<ImmediateMigrationProgressHandle>>> = Lazy::new(|| Mutex::new(None));
+
+// A clone of the active execute_due_parts batch's live-progress handle, read by
+// execute_due_parts_status() without the client lock. Same pattern as DRAIN_PROGRESS.
+static BATCH_PROGRESS: Lazy<Mutex<Option<BatchProgressHandle>>> = Lazy::new(|| Mutex::new(None));
 
 lazy_static! {
     pub static ref RT: Runtime = tokio::runtime::Runtime::new().unwrap();
@@ -1670,11 +1704,11 @@ fn plan_orchard_drain(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
                     Ok(RT.block_on(async move {
-                        match lightclient.plan_orchard_drain(zip32::AccountId::ZERO).await {
+                        match lightclient.plan_immediate_migration(zip32::AccountId::ZERO).await {
                             Ok(plan) => object! {
                                 "migrated" => plan.migrated,
                                 "fee" => plan.fee,
-                                "stranded" => plan.stranded,
+                                "stranded" => plan.residual,
                             }
                             .pretty(2),
                             // Failures cross as `{ "error": .. }` JSON, never as
@@ -1738,14 +1772,14 @@ fn drain_orchard_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     *DRAIN_PROGRESS
                         .lock()
                         .map_err(|_| ZingolibError::LightclientLockPoisoned)? =
-                        Some(lightclient.drain_progress_handle());
+                        Some(lightclient.immediate_migration_progress_handle());
                     Ok(RT.block_on(async move {
-                        match lightclient.drain_orchard_to_ironwood(zip32::AccountId::ZERO).await {
+                        match lightclient.quick_immediate_migration(zip32::AccountId::ZERO, true).await {
                             Ok(summary) => object! {
                                 "txids" => summary.txids.iter().map(ToString::to_string).collect::<Vec<_>>(),
                                 "migrated" => summary.migrated,
                                 "fee" => summary.fee,
-                                "dust" => summary.stranded,
+                                "dust" => summary.residual,
                             }
                             .pretty(2),
                             // Failures cross as `{ "error": .. }` JSON, never as
@@ -1785,8 +1819,8 @@ fn drain_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         "built" => s.built,
                         "sent" => s.sent,
                         "phase" => match s.phase {
-                            DrainPhase::Building => "building",
-                            DrainPhase::Transmitting => "transmitting",
+                            ImmediateMigrationPhase::Building => "building",
+                            ImmediateMigrationPhase::Transmitting => "transmitting",
                         },
                     }
                     .pretty(2)),
@@ -1843,7 +1877,7 @@ fn plan_ironwood_migration(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         Ok(serde_json::json!({
                             "split_rounds": split_rounds,
                             "parts": plan.parts,
-                            "stranded": plan.stranded,
+                            "stranded": plan.residual,
                             "split_fee": plan.split_fee(),
                             "parts_fee": plan.parts_fee(&params),
                             "is_split": plan.is_split(),
@@ -2044,7 +2078,27 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                                 PartState::Broadcast | PartState::Signed => "sending",
                                                 PartState::Assigned => match (p.bucket_index, current_bucket) {
                                                     (Some(b), Some(c)) if b == c => "open",
-                                                    (Some(b), Some(c)) if b < c => "overdue",
+                                                    (Some(b), Some(c)) if b < c => {
+                                                        // A part past its window is only catch-up-eligible
+                                                        // ("overdue", surfacing the "Send now" button) once it
+                                                        // exceeds zingolib's slip tolerance
+                                                        // (SLIP_TOLERANCE_BLOCKS = 96). Within it, reconcile
+                                                        // classifies it SlippedWithinTolerance (normal, not yet
+                                                        // recoverable — a Send-now tap would fold nothing), so
+                                                        // keep it distinct.
+                                                        const SLIP_TOLERANCE_BLOCKS: u32 = 96;
+                                                        let window_end =
+                                                            u32::from(schedule::boundary_of(b + 1, modulus));
+                                                        let past = now_height
+                                                            .map(u32::from)
+                                                            .unwrap_or(0)
+                                                            .saturating_sub(window_end);
+                                                        if past > SLIP_TOLERANCE_BLOCKS {
+                                                            "overdue"
+                                                        } else {
+                                                            "slipped"
+                                                        }
+                                                    }
                                                     _ => "scheduled",
                                                 },
                                                 PartState::Bound => "scheduled",
@@ -2087,8 +2141,12 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                 "residual": residual,
                             }),
                         };
+                        // Renamed upstream: next_wakes -> upcoming_windows (future-only),
+                        // window fields estimated_unix_time -> window_opens_unix_time and
+                        // estimated_target_unix_time -> latest_target_unix_time. Keep the old
+                        // JSON keys so the TS layer is unaffected.
                         let next_wakes: Vec<serde_json::Value> = status
-                            .next_wakes
+                            .upcoming_windows
                             .iter()
                             .map(|w| {
                                 serde_json::json!({
@@ -2101,8 +2159,8 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                         .iter()
                                         .map(|p| denoms_by_id.get(&p.0).copied().unwrap_or(0))
                                         .collect::<Vec<_>>(),
-                                    "estimated_unix_time": w.estimated_unix_time,
-                                    "estimated_target_unix_time": w.estimated_target_unix_time,
+                                    "estimated_unix_time": w.window_opens_unix_time,
+                                    "estimated_target_unix_time": w.latest_target_unix_time,
                                 })
                             })
                             .collect();
@@ -2277,7 +2335,7 @@ fn migrate_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             Ok(summary) => object! {
                                 "split_txids" => summary.split_txids.iter().map(ToString::to_string).collect::<Vec<_>>(),
                                 "part_txids" => summary.part_txids.iter().map(ToString::to_string).collect::<Vec<_>>(),
-                                "stranded" => summary.stranded,
+                                "stranded" => summary.residual,
                             }
                             .pretty(2),
                             // Failures cross as `{ error }` JSON, matching the drain.
@@ -2324,47 +2382,98 @@ fn cancel_ironwood_migration(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
-// reschedule_overdue_forward: the PRIVACY-PRESERVING recovery for windows missed
-// while the app was closed. Unlike catch_up_migration (which folds the overdue
-// parts into the current bucket and BROADCASTS them all at once — a correlated
-// burst that fingerprints the migration), this only *reschedules*: it shifts
-// EVERY overdue Assigned part forward into future buckets, preserving the
-// schedule's spread, and broadcasts NOTHING. auto_broadcast_if_due then sends
-// each on-time in its new window, blended with the cadence.
-//
-// zingolib exposes `schedule::catch_up_shift` (a pure function over the parts)
-// but no lightclient method wrapping it, so we drive it directly on the public
-// migration state. It is idempotent: a no-op once the earliest Assigned part
-// sits in a future bucket. Persistence is opportunistic — the shift lives in the
-// in-memory migration state and the next sync/broadcast save writes it; a
-// restart before that just re-derives the same shift (safe, nothing was sent).
-fn reschedule_overdue_forward(mut cx: FunctionContext) -> JsResult<JsPromise> {
+// Serializes a BatchReport (per-part outcome of an execute_due_parts tap).
+fn batch_report_json(report: &zingolib::lightclient::migrate::BatchReport) -> json::JsonValue {
+    use zingolib::lightclient::migrate::PartSendResult;
+    let outcomes = report
+        .outcomes
+        .iter()
+        .map(|o| {
+            let result = match &o.result {
+                PartSendResult::Sent(txid) => object! { "kind" => "sent", "txid" => txid.to_string() },
+                PartSendResult::Slid => object! { "kind" => "slid" },
+                PartSendResult::NotDue { window_opens_unix_time } => object! {
+                    "kind" => "not_due",
+                    "window_opens_unix_time" => *window_opens_unix_time,
+                },
+                PartSendResult::Failed { error } => object! { "kind" => "failed", "error" => error.clone() },
+            };
+            object! { "part" => o.part.0, "denomination" => o.denomination, "result" => result }
+        })
+        .collect::<Vec<_>>();
+    object! {
+        "outcomes" => outcomes,
+        "halted" => match &report.halted {
+            Some(e) => json::JsonValue::from(e.clone()),
+            None => json::JsonValue::Null,
+        },
+    }
+}
+
+// execute_due_parts(spacing_ms): the user-triggered "Send now" for the open
+// window (plus any windows missed while closed, which the engine folds in),
+// sequencing sends spacing_ms apart. Returns a per-part BatchReport (sent /
+// slid / not_due / failed). Disclosed path: unlike auto_broadcast_if_due it
+// surfaces the failure reason instead of leaving a rejected part silently
+// signed. Progress is on BATCH_PROGRESS (execute_due_parts_status).
+fn execute_due_parts(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let spacing_ms = cx.argument::<JsNumber>(0)?.value(&mut cx) as u64;
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
-                    RT.block_on(async move {
-                        let mut wallet = lightclient.wallet().write().await;
-                        // Copy the height out before borrowing `migration` mutably.
-                        let Some(now_height) = wallet.sync_state.last_known_chain_height() else {
-                            return Ok(object! { "rescheduled" => false, "reason" => "no sync data" }.pretty(2));
-                        };
-                        match &mut wallet.migration {
-                            Some(state) => {
-                                zingolib::wallet::migration::schedule::catch_up_shift(
-                                    &mut state.parts,
-                                    now_height,
-                                    &state.params,
-                                )
-                                .map_err(|e| ZingolibError::Sync(e.to_string()))?;
-                                Ok(object! { "rescheduled" => true }.pretty(2))
-                            }
-                            None => Ok(object! { "rescheduled" => false, "reason" => "no migration" }.pretty(2)),
-                        }
-                    })
+                    *BATCH_PROGRESS
+                        .lock()
+                        .map_err(|_| ZingolibError::LightclientLockPoisoned)? =
+                        Some(lightclient.batch_progress_handle());
+                    let out = RT.block_on(async move {
+                        let report = lightclient
+                            .execute_due_parts(std::time::Duration::from_millis(spacing_ms))
+                            .await
+                            .map_err(|e| ZingolibError::Sync(e.to_string()))?;
+                        Ok(batch_report_json(&report).pretty(2))
+                    });
+                    if let Ok(mut p) = BATCH_PROGRESS.lock() {
+                        *p = None;
+                    }
+                    out
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// execute_due_parts_status: lock-free snapshot of the in-flight execute batch
+// (Sending i/N). `{ idle: true }` when none is running.
+fn execute_due_parts_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                use zingolib::lightclient::migrate::BatchPhase;
+                let handle = BATCH_PROGRESS
+                    .lock()
+                    .map_err(|_| ZingolibError::LightclientLockPoisoned)?
+                    .clone();
+                match handle.and_then(|h| h.status()) {
+                    Some(s) => Ok(object! {
+                        "total" => s.total,
+                        "resolved" => s.resolved,
+                        "sent" => s.sent,
+                        "phase" => match s.phase {
+                            BatchPhase::Sending => "sending",
+                            BatchPhase::Spacing => "spacing",
+                        },
+                    }
+                    .pretty(2)),
+                    None => Ok(object! { "idle" => true }.pretty(2)),
                 }
             })
         })
@@ -2383,13 +2492,9 @@ fn zec_price(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
                     RT.block_on(async move {
-                        match lightclient
-                            .wallet()
-                            .write()
-                            .await
-                            .update_current_price()
-                            .await
-                        {
+                        // update_current_price moved onto the lightclient (was on the
+                        // wallet write guard, and took a socks5 arg).
+                        match lightclient.update_current_price().await {
                             Ok(price) => Ok(object! { "current_price" => price }.pretty(2)),
                             Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }

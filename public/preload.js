@@ -51,7 +51,7 @@ const _ALL_NATIVE_METHODS = [
   "catch_up_migration",
   "migrate_to_ironwood",
   "cancel_ironwood_migration",
-  "reschedule_overdue_forward",
+  "execute_due_parts_status",
   // sync no-param (become async via IPC)
   "deinitialize",
   "get_developer_donation_address",
@@ -72,6 +72,7 @@ const _ALL_NATIVE_METHODS = [
   "change_server",
   "start_ironwood_migration",
   "reschedule_parts",
+  "execute_due_parts",
   // sync with params (become async via IPC)
   "wallet_exists",
   "init_new",

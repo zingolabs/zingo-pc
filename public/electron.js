@@ -844,7 +844,7 @@ const _NATIVE_NO_PARAM_METHODS = [
   "catch_up_migration",
   "migrate_to_ironwood",
   "cancel_ironwood_migration",
-  "reschedule_overdue_forward",
+  "execute_due_parts_status",
 ];
 
 for (const method of _NATIVE_NO_PARAM_METHODS) {
@@ -919,6 +919,7 @@ ipcMain.handle("native:start_ironwood_migration", (_e, consented_plan_hash, per_
   getNative().start_ironwood_migration(consented_plan_hash, per_bucket),
 );
 ipcMain.handle("native:reschedule_parts", (_e, per_bucket) => getNative().reschedule_parts(per_bucket));
+ipcMain.handle("native:execute_due_parts", (_e, spacing_ms) => getNative().execute_due_parts(spacing_ms));
 
 ipcMain.handle("wallet-dir:request", async () => {
   const wdLog = (msg) => {

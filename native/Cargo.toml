@@ -17,9 +17,18 @@ crate-type = ["cdylib"]
 # zcash crates (no librustzcash/zebra git-rev patches — those belong to an older
 # feat/ironwood commit that zingo-mobile pins). Ground truth = that Cargo.lock,
 # not zingo-mobile's manifest. Build with `yarn neon` (needs `protoc` on PATH).
-zingolib = { git="https://github.com/zingolabs/zingolib", branch = "fix/ironwood-split-mobile" }
-pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "fix/ironwood-split-mobile" }
-zingo-netutils = { git="https://github.com/zingolabs/zingolib", branch = "fix/ironwood-split-mobile" }
+# Pinned to 7ac32fa (the commit BEFORE tag zingolib_beta_ironwood, which added
+# ADR 0018). ADR 0018 draws part anchors at age >=1 bucket; for a migration over
+# already-settled notes that places the first batch in the CURRENT bucket, its
+# anchor lands in the pruned past and can never be witnessed (MissedBoundary), so
+# nothing sends. 7ac32fa keeps age-0 anchors (the current boundary, witnessable),
+# so the first batch is sendable the instant Phase 2 is scheduled — the same
+# behavior zingo-mobile ships (its pin predates ADR 0018 too). Same public API as
+# the tag, so no FFI change. Reachable via the tag's history. Revisit once
+# zingolib fixes the current-bucket placement upstream.
+zingolib = { git="https://github.com/zingolabs/zingolib", rev = "7ac32fa47b72076a276e87eff3ec8617b95ce09e" }
+pepper-sync = { git="https://github.com/zingolabs/zingolib", rev = "7ac32fa47b72076a276e87eff3ec8617b95ce09e" }
+zingo-netutils = { git="https://github.com/zingolabs/zingolib", rev = "7ac32fa47b72076a276e87eff3ec8617b95ce09e" }
 
 zcash_address = "0.13"
 zcash_client_backend = { version = "0.24.0-rc.1", features = [

@@ -213,6 +213,17 @@
   line-height: 1.5;
 }
 
+/* ZIP 318 correlation disclosure, left-accented to read as a notice. */
+.disclosure {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--color-background-dark);
+  border-left: 3px solid var(--color-primary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 /* ---- Spinner shown while a phase is broadcasting ---- */
 .spinner {
   width: 34px;

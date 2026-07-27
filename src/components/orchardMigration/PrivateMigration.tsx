@@ -3,7 +3,7 @@ import cstyles from "../common/Common.module.css";
 import styles from "./PrivateMigration.module.css";
 import Utils from "../../utils/utils";
 import RPC from "../../rpc/rpc";
-import { FfiBatchStatus, FfiPlan, FfiStatus } from "./privateMigrationTypes";
+import { FfiBatchReport, FfiBatchStatus, FfiPlan, FfiStatus } from "./privateMigrationTypes";
 
 // Private migration — the true scheduled (split) path, mirroring zingo-mobile's
 // MigrationSplitting flow. zingolib only exposes step primitives; the client
@@ -34,6 +34,10 @@ type RowData = { round: number; label: string; txid: string | null; status: TxSt
 // How often the driver re-checks a pending round. Confirmations land with new
 // blocks, so a 15s cadence notices them promptly without hammering the wallet.
 const POLL_MS = 15 * 1000;
+
+// Spacing between sequential part broadcasts in a "Send now" tap, so a multi-part
+// batch never leaves simultaneously. Matches zingo-mobile's BATCH_SEND_SPACING_MS.
+const BATCH_SEND_SPACING_MS = 3000;
 
 type PrivateMigrationProps = {
   currencyName: string;
@@ -71,7 +75,8 @@ const BATCH_BADGE: Record<FfiBatchStatus, { label: string; cls: string }> = {
   confirmed: { label: "Confirmed", cls: styles.badgeconfirmed },
   sending: { label: "Sending", cls: styles.badgebroadcasting },
   open: { label: "Open", cls: styles.badgebroadcasting },
-  overdue: { label: "Rescheduling", cls: styles.badgenext },
+  slipped: { label: "Late", cls: styles.badgequeued },
+  overdue: { label: "Overdue", cls: styles.badgenext },
   scheduled: { label: "Scheduled", cls: styles.badgescheduled },
   rebuilding: { label: "Rebuilding", cls: styles.badgequeued },
   invalid: { label: "Invalid", cls: styles.badgequeued },
@@ -138,8 +143,19 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
     });
   }, []);
 
+  // User-triggered "Send now" (execute_due_parts) for the open/overdue window.
+  const [sending, setSending] = useState<boolean>(false);
+  const [sendStatus, setSendStatus] = useState<{ total: number; sent: number } | null>(null);
+  const [sendReport, setSendReport] = useState<FfiBatchReport | null>(null);
+  const [sendError, setSendError] = useState<string>("");
+  // Two-step cancel: the button reveals a confirm, since abandoning the schedule
+  // is destructive (though the funds stay safe in Orchard).
+  const [confirmingCancel, setConfirmingCancel] = useState<boolean>(false);
+  const [cancelling, setCancelling] = useState<boolean>(false);
+
   const cancelledRef = useRef<boolean>(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const totalTxsRef = useRef<number>(0);
 
   const roundCount = plan ? plan.split_rounds.length : 0;
@@ -149,6 +165,7 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
     return () => {
       cancelledRef.current = true;
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (pollRef.current) clearInterval(pollRef.current);
     };
   }, []);
 
@@ -280,6 +297,51 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
     cancelledRef.current = false;
     drive();
   }, [drive]);
+
+  // User-triggered send of the open window's batch (plus any overdue windows'
+  // parts, folded in by the engine). This is the DISCLOSED path: the ZIP 318
+  // correlation notice was shown at the cadence choice. A 400ms poll mirrors the
+  // live progress while the tap runs.
+  const sendNow = useCallback(async () => {
+    setSending(true);
+    setSendReport(null);
+    setSendError("");
+    setSendStatus(null);
+    pollRef.current = setInterval(async () => {
+      const s = await RPC.executeDuePartsStatus();
+      if (!cancelledRef.current) setSendStatus(s);
+    }, 400);
+    const { report, error: e } = await RPC.executeDueParts(BATCH_SEND_SPACING_MS);
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (cancelledRef.current) return;
+    setSendStatus(null);
+    setSending(false);
+    if (e) setSendError(e);
+    else setSendReport(report);
+    const s = await RPC.fetchMigrationStatus();
+    if (!cancelledRef.current && s) setSchedule(s);
+  }, []);
+
+  // Abandon the in-progress migration and return to a fresh plan. The bound
+  // notes go back to spendable Orchard; anything already in Ironwood stays.
+  // Re-planning here lets the user start over cleanly (e.g. a legacy migration
+  // stranded by an engine upgrade).
+  const cancelMigration = useCallback(async () => {
+    setCancelling(true);
+    await RPC.cancelIronwoodMigration();
+    if (cancelledRef.current) return;
+    setConfirmingCancel(false);
+    setCancelling(false);
+    setSchedule(null);
+    setSendReport(null);
+    setSendError("");
+    setStep("plan");
+    setLoadingPlan(true);
+    const p = await RPC.planIronwoodMigration();
+    if (cancelledRef.current) return;
+    setPlan(p);
+    setLoadingPlan(false);
+  }, []);
 
   const totalFee = plan ? zatsToZec(plan.split_fee + plan.parts_fee) : 0;
   const splitTxCount = plan ? plan.split_rounds.reduce((n, round) => n + round.length, 0) : 0;
@@ -423,6 +485,15 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                 </div>
               </div>
 
+              {/* ZIP 318 correlation disclosure, shown once here at the cadence
+                  choice — the schedule the user is consenting to. On-time sends
+                  blend with the schedule; sending a missed window yourself happens
+                  at a time you are active, so it can link the batches to you. */}
+              <div className={styles.disclosure}>
+                Each batch sends on its own window while the app is open. If you miss a window and send it yourself,
+                sending at times you are active is what can link the batches to you — a steady, unhurried pattern helps.
+              </div>
+
               <div className={styles.infonote}>
                 {splitTxCount > 0 ? (
                   <>
@@ -539,6 +610,15 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
           // Ironwood balance, which includes value from earlier migrations, so a
           // value bar would over-report this migration).
           const pct = batchesTotal > 0 ? Math.round((batchesConfirmed / batchesTotal) * 100) : 0;
+          // The current window ("open") is the auto-broadcaster's job — it fires
+          // on-time while the app runs. The manual disclosed "Send now" is ONLY
+          // for windows MISSED while the app was closed ("overdue"); a fresh,
+          // on-schedule migration never needs it.
+          const overdueExists = batches.some((b) => b.status === "overdue");
+          const openExists = batches.some((b) => b.status === "open");
+          // "Late": window passed but still within the slip tolerance — not yet
+          // recoverable, so no button; just tell the user it will be shortly.
+          const slippedExists = batches.some((b) => b.status === "slipped");
 
           return (
             <>
@@ -575,6 +655,87 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                       {fmtZats(schedule.orchard_confirmed_spendable)} {currencyName}
                     </span>
                   </div>
+                </div>
+              )}
+
+              {/* An OPEN window sends automatically — no user action. Say so, so a
+                  fresh migration's first "open" batch doesn't read as stuck while
+                  the auto-broadcaster waits for its anchor to be witnessed. */}
+              {!complete && openExists && !overdueExists && (
+                <div className={styles.infonote}>
+                  A batch is in its window. It sends to Ironwood automatically while the app is open and synced —
+                  nothing to do here. The first batch after splitting can take a while to become sendable.
+                </div>
+              )}
+
+              {/* A slipped ("Late") batch is not yet recoverable — say so, so its
+                  presence without a Send-now button doesn't read as stuck. */}
+              {!complete && slippedExists && !overdueExists && (
+                <div className={styles.infonote}>
+                  A batch slipped just past its window. It becomes recoverable shortly — a &quot;Send now&quot; button
+                  will appear once it does.
+                </div>
+              )}
+
+              {/* Only a window MISSED while closed ("overdue") gets the manual,
+                  disclosed "Send now" (execute_due_parts) — the auto-broadcaster
+                  never fires a past window. It folds the missed parts into the
+                  current window and surfaces the per-part reason if a send fails. */}
+              {!complete && overdueExists && (
+                <div className={`${cstyles.well} ${styles.card}`}>
+                  <div className={styles.cardhead}>
+                    <span className={styles.cardtitle}>A missed batch can be sent now</span>
+                    <span className={`${styles.badge} ${styles.badgenext}`}>Overdue</span>
+                  </div>
+                  {sending ? (
+                    <div className={cstyles.sublight}>
+                      Sending{sendStatus ? ` ${sendStatus.sent} of ${sendStatus.total}` : ""}… keep the app open.
+                    </div>
+                  ) : (
+                    <button type="button" className={cstyles.primarybutton} onClick={sendNow}>
+                      Send this batch now
+                    </button>
+                  )}
+                  {sendError && (
+                    <div className={cstyles.sublight} style={{ marginTop: 8 }}>
+                      {sendError} — your migration is safe; try again when you&apos;re ready.
+                    </div>
+                  )}
+                  {sendReport &&
+                    !sendError &&
+                    (() => {
+                      // execute_due_parts returns Ok even when nothing sends: the
+                      // per-part outcome carries why. Break it down so "0 of N" is
+                      // never a dead end.
+                      //   slid    -> can't be witnessed yet (e.g. a part scheduled
+                      //              before this build has no anchor); a full sync
+                      //              draws it, then it sends. Not an error.
+                      //   not_due -> its window hasn't opened yet.
+                      //   failed  -> the server rejected it (reason shown); the
+                      //              auto-broadcaster would have swallowed this.
+                      const count = (k: string) => sendReport.outcomes.filter((o) => o.result.kind === k).length;
+                      const sent = count("sent");
+                      const slid = count("slid");
+                      const notDue = count("not_due");
+                      const failed = sendReport.outcomes.find((o) => o.result.kind === "failed");
+                      const reason =
+                        sendReport.halted ?? (failed && failed.result.kind === "failed" ? failed.result.error : null);
+                      return (
+                        <div className={cstyles.sublight} style={{ marginTop: 8 }}>
+                          Sent {sent} of {sendReport.outcomes.length}.
+                          {slid > 0 && (
+                            <> {slid} not witnessable yet — let the wallet finish syncing, then try again.</>
+                          )}
+                          {notDue > 0 && <> {notDue} not due yet.</>}
+                          {reason && (
+                            <>
+                              {" "}
+                              A part was rejected: <span className={styles.mono}>{reason}</span>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                 </div>
               )}
 
@@ -634,10 +795,33 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                   : "Just keep the app open and let it run. If you close it and miss a window, it catches up automatically the next time you open it."}
               </div>
 
+              {/* Cancel is offered only while the migration is still running. */}
+              {!complete && confirmingCancel && (
+                <div className={styles.infonote}>
+                  This abandons the scheduled migration. Your remaining funds stay safe in Orchard; anything already
+                  sent to Ironwood is unaffected. You can start a fresh migration afterwards.
+                </div>
+              )}
+
               <div className={styles.buttons}>
                 <button type="button" className={cstyles.primarybutton} onClick={onExit}>
                   Back to wallet
                 </button>
+                {!complete &&
+                  (confirmingCancel ? (
+                    <button
+                      type="button"
+                      className={cstyles.primarybutton}
+                      onClick={cancelMigration}
+                      disabled={cancelling}
+                    >
+                      {cancelling ? "Cancelling…" : "Confirm cancel"}
+                    </button>
+                  ) : (
+                    <button type="button" className={cstyles.primarybutton} onClick={() => setConfirmingCancel(true)}>
+                      Cancel migration
+                    </button>
+                  ))}
               </div>
             </>
           );

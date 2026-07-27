@@ -20,6 +20,7 @@ import { RPCInfoType } from "./components/RPCInfoType";
 import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import {
+  FfiBatchReport,
   FfiMigrationSummary,
   FfiPlan,
   FfiSplitStep,
@@ -940,15 +941,30 @@ export default class RPC {
     }
   }
 
-  // Privacy-preserving recovery for windows missed while the app was closed:
-  // shifts every overdue part FORWARD into future windows (preserving the
-  // spread) and broadcasts nothing. Idempotent. Returns whether it rescheduled.
-  static async rescheduleOverdueForward(): Promise<boolean> {
+  // User-triggered "Send now": broadcast the open window's batch (plus any
+  // windows missed while closed, which the engine folds in), sequencing sends
+  // spacingMs apart. Returns the per-part BatchReport — unlike the automatic
+  // driver this surfaces per-part failure reasons instead of leaving a rejected
+  // part silently signed. Disclosed path (the correlation notice is shown at the
+  // cadence choice).
+  static async executeDueParts(spacingMs: number): Promise<{ report: FfiBatchReport | null; error: string }> {
     try {
-      return JSON.parse(await native.reschedule_overdue_forward()).rescheduled === true;
+      const report: FfiBatchReport = JSON.parse(await native.execute_due_parts(spacingMs));
+      return { report, error: "" };
     } catch (error) {
-      console.error(`Error reschedule overdue forward ${error}`);
-      return false;
+      console.error(`Error execute due parts ${error}`);
+      return { report: null, error: `${error}` };
+    }
+  }
+
+  // Progress of the in-flight execute batch; null when none is running.
+  static async executeDuePartsStatus(): Promise<{ total: number; sent: number } | null> {
+    try {
+      const j = JSON.parse(await native.execute_due_parts_status());
+      return j.idle ? null : { total: j.total, sent: j.sent };
+    } catch (error) {
+      console.error(`Error execute due parts status ${error}`);
+      return null;
     }
   }
 
@@ -1028,25 +1044,23 @@ export default class RPC {
   //     The migration screen also drives this, but the user may have navigated
   //     away mid-split; without this the split never finishes.
   //
-  //   parts_scheduled -> auto_broadcast_if_due (on-time) + a privacy-preserving
-  //     recovery for missed windows:
+  //   parts_scheduled -> auto_broadcast_if_due (on-time) + privacy-safe reconcile:
   //
   //     - auto_broadcast_if_due fires a part only when its OWN current window and
   //       random target are both reached — an on-time, uncorrelated broadcast
   //       that blends with the scheduled cadence. It never fires a past window.
   //
-  //     - When reconcile reports PromptCatchUp (windows passed while the app was
-  //       closed), we do NOT catch_up_migration — that folds the overdue parts
-  //       into the current bucket and broadcasts them at once, a correlated burst
-  //       that fingerprints the migration. Instead we reschedule_overdue_forward:
-  //       every overdue part shifts FORWARD into future windows (spread
-  //       preserved), broadcasting nothing. The next windows then send on-time
-  //       via auto_broadcast_if_due. This keeps the private path private whether
-  //       one window was missed or many.
+  //     - reconcile_migration (via reconcileActions) applies every UNATTENDED-safe
+  //       fix each tick: promote confirmed, mark invalidated, mark complete, and —
+  //       for missed windows — rebuild an expired part FORWARD into a fresh
+  //       jittered window (schedule::place). That is the privacy-preserving
+  //       recovery, broadcasting nothing correlated now.
   //
-  //     reconcile_migration (run via reconcileActions) also applies the other
-  //     privacy-safe unattended fixes each tick (promote confirmed, rebuild an
-  //     expired part into a fresh future window, mark complete).
+  //     - PromptCatchUp (windows that passed while closed with parts still
+  //       Assigned) is deliberately NOT auto-sent: broadcasting at app-open time
+  //       correlates the batch with the user's activity, which needs the ZIP 318
+  //       disclosure. That is the user-triggered executeDueParts ("Send now"),
+  //       never an automatic burst. The driver only logs it.
   //
   // Gated on an in-progress migration so reconcile doesn't throw NoMigration
   // (and spam) on every idle tick.
@@ -1067,16 +1081,17 @@ export default class RPC {
       if (phase === "parts_scheduled") {
         // On-time, uncorrelated broadcasts only.
         await RPC.autoBroadcastIfDue();
-        // Apply privacy-safe unattended fixes and read the recommendations.
+        // Apply privacy-safe unattended fixes (promote / rebuild-forward / complete).
         const actions = await RPC.reconcileActions();
         if (actions.some((a) => a.includes("PromptCatchUp"))) {
-          // Windows were missed while closed. Reschedule them FORWARD (spread
-          // preserved), never fire them now — that would correlate the late
-          // batch. Idempotent: a no-op once nothing is overdue.
-          const rescheduled = await RPC.rescheduleOverdueForward();
+          // Windows were missed while closed with parts still Assigned. We do NOT
+          // send them here: broadcasting at app-open time correlates the late
+          // batch with the user's activity (ZIP 318). That is the user-triggered
+          // "Send now" (executeDueParts). Expired parts are already re-placed
+          // forward by reconcile's Rebuild.
           console.log(
             `[migration] ${status.parts_confirmed}/${status.parts_total} confirmed — ` +
-              `missed window(s) rescheduled forward (privacy-preserving), rescheduled=${rescheduled}.`,
+              `missed window(s) await the user's disclosed "Send now" (execute_due_parts).`,
           );
         }
       }

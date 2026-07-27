@@ -72,7 +72,18 @@ export type FfiWake = {
 //   scheduled  — a future window, not yet open
 //   rebuilding — an expired part being rebuilt into a fresh window
 //   invalid    — a part invalidated by an external spend (needs replanning)
-export type FfiBatchStatus = "confirmed" | "sending" | "open" | "overdue" | "scheduled" | "rebuilding" | "invalid";
+// "slipped": window just passed but still within zingolib's slip tolerance
+// (96 blocks) — normal, not yet catch-up-eligible, so NO "Send now" button.
+// "overdue": past the slip tolerance — recoverable via the disclosed "Send now".
+export type FfiBatchStatus =
+  | "confirmed"
+  | "sending"
+  | "open"
+  | "slipped"
+  | "overdue"
+  | "scheduled"
+  | "rebuilding"
+  | "invalid";
 // One batch = one part (stable id), so the count/confirmed tally match
 // parts_total / parts_confirmed exactly. `bucket_index` is null only for a
 // not-yet-scheduled part.
@@ -83,6 +94,22 @@ export type FfiBatch = {
   denominations: number[];
   status: FfiBatchStatus;
 };
+
+// Per-part outcome of an execute_due_parts ("Send now") tap.
+//   sent    -> broadcast (txid)
+//   slid    -> window no longer witnessable; reconciliation carries it to a coming window
+//   not_due -> its random target is still ahead (retry later)
+//   failed  -> build/broadcast error (the reason the auto-broadcaster swallows)
+export type FfiPartOutcome = {
+  part: number;
+  denomination: number;
+  result:
+    | { kind: "sent"; txid: string }
+    | { kind: "slid" }
+    | { kind: "not_due"; window_opens_unix_time: number }
+    | { kind: "failed"; error: string };
+};
+export type FfiBatchReport = { outcomes: FfiPartOutcome[]; halted: string | null };
 
 // Coarse migration phase. `null` when no migration is in progress.
 export type FfiPhase =
