@@ -2054,7 +2054,10 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         // is future-only and hides confirmed, in-flight and the current
                         // window, so a full "1..N with states" list needs this.
                         let (denoms_by_id, per_bucket, bucket_modulus, batches) = {
-                            use zingolib::wallet::migration::{schedule, PartRecord, PartState};
+                            // `schedule` went pub(crate) in this zingolib; bucket_index is
+                            // re-exported, and boundary_of is trivial (bucket * modulus),
+                            // inlined below.
+                            use zingolib::wallet::migration::{bucket_index, PartRecord, PartState};
                             let wallet = lightclient.wallet().read().await;
                             let now_height = wallet.sync_state.last_known_chain_height();
                             match &wallet.migration {
@@ -2065,7 +2068,7 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                         .iter()
                                         .map(|part| (part.id.0, part.denomination))
                                         .collect::<std::collections::HashMap<_, _>>();
-                                    let current_bucket = now_height.map(|h| schedule::bucket_index(h, modulus));
+                                    let current_bucket = now_height.map(|h| bucket_index(h, modulus));
                                     let mut ordered: Vec<&PartRecord> = state.parts.iter().collect();
                                     ordered.sort_by_key(|p| (p.bucket_index.unwrap_or(u64::MAX), p.id.0));
                                     let batches: Vec<serde_json::Value> = ordered
@@ -2087,8 +2090,7 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                                         // recoverable — a Send-now tap would fold nothing), so
                                                         // keep it distinct.
                                                         const SLIP_TOLERANCE_BLOCKS: u32 = 96;
-                                                        let window_end =
-                                                            u32::from(schedule::boundary_of(b + 1, modulus));
+                                                        let window_end = ((b + 1) * u64::from(modulus)) as u32;
                                                         let past = now_height
                                                             .map(u32::from)
                                                             .unwrap_or(0)
@@ -2105,7 +2107,7 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                             };
                                             let boundary = p
                                                 .bucket_index
-                                                .map(|b| u32::from(schedule::boundary_of(b, modulus)))
+                                                .map(|b| (b * u64::from(modulus)) as u32)
                                                 .unwrap_or(0);
                                             serde_json::json!({
                                                 "id": p.id.0,

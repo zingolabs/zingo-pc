@@ -6,6 +6,7 @@ import { BalanceBlockHighlight, BalanceBlock } from "../balanceBlock";
 import { ContextApp } from "../../context/ContextAppState";
 import routes from "../../constants/routes.json";
 import { ironwoodReady } from "../../constants/ironwood";
+import RPC from "../../rpc/rpc";
 
 import {
   SyncStatusScanRangePriorityEnum,
@@ -63,6 +64,15 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
+  // Optimistically hide the "complete" banner the instant Dismiss is clicked;
+  // cancelIronwoodMigration clears the persisted state so the next info refresh
+  // keeps it hidden too (a completed migration lingers as phase "complete" until
+  // dismissed, funds already in Ironwood — clearing is non-destructive).
+  const [migrationDismissed, setMigrationDismissed] = useState<boolean>(false);
+  const dismissMigration = async (): Promise<void> => {
+    setMigrationDismissed(true);
+    await RPC.cancelIronwoodMigration();
+  };
 
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
@@ -97,7 +107,36 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
           resumes to send each due batch. TODO(ffi): info.migrationInProgress and
           its figures come from zingolib migration_status() once wired; until then
           this banner stays hidden (migrationInProgress defaults false). */}
-      {currentWallet !== null && !currentWalletOpenError && info.migrationInProgress && (
+      {/* Migration finished: every batch is in Ironwood. The state lingers as
+          phase "complete" until dismissed, so show a distinct "complete" banner
+          (not the progress ring) with Dismiss, which clears it for good. */}
+      {currentWallet !== null &&
+        !currentWalletOpenError &&
+        info.migrationInProgress &&
+        info.migrationComplete &&
+        !migrationDismissed && (
+          <div className={`${cstyles.well} ${styles.migrationprogress}`}>
+            <div className={styles.migrationtop}>
+              <span className={`${cstyles.highlight} ${cstyles.green}`}>Migration complete</span>
+              <button
+                type="button"
+                className={styles.detailslink}
+                onClick={() => navigate(routes.MIGRATION, { replace: true, state: { resume: true } })}
+              >
+                Details
+              </button>
+            </div>
+            <div className={styles.migrationprogressbody}>
+              <span className={cstyles.sublight}>All your funds are now in the Ironwood pool — nothing left to do.</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+              <button type="button" className={cstyles.primarybutton} onClick={dismissMigration}>
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+      {currentWallet !== null && !currentWalletOpenError && info.migrationInProgress && !info.migrationComplete && (
         <div className={`${cstyles.well} ${styles.migrationprogress}`}>
           <div className={styles.migrationtop}>
             <span className={cstyles.highlight}>Migration in progress</span>

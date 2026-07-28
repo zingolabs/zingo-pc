@@ -291,6 +291,8 @@ export default class RPC {
     const migStatus = await RPC.fetchMigrationStatus();
     if (!migStatus) return;
     info.migrationInProgress = true;
+    // Complete lingers as phase "complete" until dismissed (cancelIronwoodMigration).
+    info.migrationComplete = migStatus.phase?.kind === "complete";
     info.migrationBatchesConfirmed = migStatus.parts_confirmed;
     info.migrationBatchesTotal = migStatus.parts_total;
     // Pending = what is still spendable in the Orchard pool (ZIP 318's figure).

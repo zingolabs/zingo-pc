@@ -148,6 +148,9 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
   const [sendStatus, setSendStatus] = useState<{ total: number; sent: number } | null>(null);
   const [sendReport, setSendReport] = useState<FfiBatchReport | null>(null);
   const [sendError, setSendError] = useState<string>("");
+  // Catching up missed windows broadcasts them together (a correlated burst), so
+  // the button reveals an explicit disclosure the user must confirm before it fires.
+  const [confirmingSend, setConfirmingSend] = useState<boolean>(false);
   // Two-step cancel: the button reveals a confirm, since abandoning the schedule
   // is destructive (though the funds stay safe in Orchard).
   const [confirmingCancel, setConfirmingCancel] = useState<boolean>(false);
@@ -303,6 +306,7 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
   // correlation notice was shown at the cadence choice. A 400ms poll mirrors the
   // live progress while the tap runs.
   const sendNow = useCallback(async () => {
+    setConfirmingSend(false);
     setSending(true);
     setSendReport(null);
     setSendError("");
@@ -342,6 +346,14 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
     setPlan(p);
     setLoadingPlan(false);
   }, []);
+
+  // Acknowledge a finished migration: clear the lingering "complete" state (funds
+  // are already in Ironwood, so this is non-destructive) and leave. Mirrors the
+  // Dashboard banner's Dismiss.
+  const dismissComplete = useCallback(async () => {
+    await RPC.cancelIronwoodMigration();
+    onExit();
+  }, [onExit]);
 
   const totalFee = plan ? zatsToZec(plan.split_fee + plan.parts_fee) : 0;
   const splitTxCount = plan ? plan.split_rounds.reduce((n, round) => n + round.length, 0) : 0;
@@ -614,7 +626,8 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
           // on-time while the app runs. The manual disclosed "Send now" is ONLY
           // for windows MISSED while the app was closed ("overdue"); a fresh,
           // on-schedule migration never needs it.
-          const overdueExists = batches.some((b) => b.status === "overdue");
+          const overdueCount = batches.filter((b) => b.status === "overdue").length;
+          const overdueExists = overdueCount > 0;
           const openExists = batches.some((b) => b.status === "open");
           // "Late": window passed but still within the slip tolerance — not yet
           // recoverable, so no button; just tell the user it will be shortly.
@@ -684,16 +697,38 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
               {!complete && overdueExists && (
                 <div className={`${cstyles.well} ${styles.card}`}>
                   <div className={styles.cardhead}>
-                    <span className={styles.cardtitle}>A missed batch can be sent now</span>
+                    <span className={styles.cardtitle}>
+                      {overdueCount > 1 ? `${overdueCount} missed batches can be caught up` : "A missed batch can be sent now"}
+                    </span>
                     <span className={`${styles.badge} ${styles.badgenext}`}>Overdue</span>
                   </div>
                   {sending ? (
                     <div className={cstyles.sublight}>
                       Sending{sendStatus ? ` ${sendStatus.sent} of ${sendStatus.total}` : ""}… keep the app open.
                     </div>
+                  ) : confirmingSend ? (
+                    <>
+                      {/* Explicit correlation disclosure at the point of the burst.
+                          execute_due_parts broadcasts every missed batch together,
+                          a few seconds apart — catching up is inherently correlated,
+                          so the user confirms knowingly. */}
+                      <div className={styles.disclosure}>
+                        {overdueCount > 1
+                          ? `This broadcasts all ${overdueCount} missed batches now, a few seconds apart. Transactions sent close together can be linked to each other — and to you, since you are active now. That correlation is the cost of catching up missed windows.`
+                          : "This broadcasts the missed batch now. Sending while you are active can link it to you. That is the cost of catching up a missed window."}
+                      </div>
+                      <div className={styles.buttons} style={{ marginTop: 12 }}>
+                        <button type="button" className={cstyles.primarybutton} onClick={() => setConfirmingSend(false)}>
+                          Not now
+                        </button>
+                        <button type="button" className={cstyles.primarybutton} onClick={sendNow}>
+                          {overdueCount > 1 ? "Send them together" : "Send it now"}
+                        </button>
+                      </div>
+                    </>
                   ) : (
-                    <button type="button" className={cstyles.primarybutton} onClick={sendNow}>
-                      Send this batch now
+                    <button type="button" className={cstyles.primarybutton} onClick={() => setConfirmingSend(true)}>
+                      {overdueCount > 1 ? "Catch up missed batches…" : "Send this batch now…"}
                     </button>
                   )}
                   {sendError && (
@@ -804,24 +839,31 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
               )}
 
               <div className={styles.buttons}>
-                <button type="button" className={cstyles.primarybutton} onClick={onExit}>
-                  Back to wallet
-                </button>
-                {!complete &&
-                  (confirmingCancel ? (
-                    <button
-                      type="button"
-                      className={cstyles.primarybutton}
-                      onClick={cancelMigration}
-                      disabled={cancelling}
-                    >
-                      {cancelling ? "Cancelling…" : "Confirm cancel"}
+                {complete ? (
+                  <button type="button" className={cstyles.primarybutton} onClick={dismissComplete}>
+                    Done
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" className={cstyles.primarybutton} onClick={onExit}>
+                      Back to wallet
                     </button>
-                  ) : (
-                    <button type="button" className={cstyles.primarybutton} onClick={() => setConfirmingCancel(true)}>
-                      Cancel migration
-                    </button>
-                  ))}
+                    {confirmingCancel ? (
+                      <button
+                        type="button"
+                        className={cstyles.primarybutton}
+                        onClick={cancelMigration}
+                        disabled={cancelling}
+                      >
+                        {cancelling ? "Cancelling…" : "Confirm cancel"}
+                      </button>
+                    ) : (
+                      <button type="button" className={cstyles.primarybutton} onClick={() => setConfirmingCancel(true)}>
+                        Cancel migration
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             </>
           );

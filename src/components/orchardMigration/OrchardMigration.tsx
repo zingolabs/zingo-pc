@@ -50,7 +50,11 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
   const ready: boolean = ironwoodReady(info.nu63ActivationHeight, info.walletHeight);
 
   const [step, setStep] = useState<Step>(resumeInProgress ? "private" : "intro");
-  const [strategy, setStrategy] = useState<Strategy>("private");
+  // Happy path is the only strategy offered for now: the private (scheduled)
+  // path is disabled behind a "Coming soon" until its zingolib scheduling and
+  // the Nym mixnet transport are ready. Resume still lands an already-underway
+  // private migration on its status screen (so it can finish/dismiss).
+  const [strategy, setStrategy] = useState<Strategy>("now");
   const [result, setResult] = useState<RPCIronwoodDrainType | null>(null);
   const [error, setError] = useState<string>("");
   // Live drain progress (built/sent of total), polled while executing.
@@ -174,24 +178,8 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
         <div className={cstyles.verticalflex}>
           <div className={`${cstyles.xlarge} ${cstyles.center}`}>Migration Strategy</div>
           <div className={`${cstyles.sublight} ${cstyles.center}`} style={{ marginTop: 6 }}>
-            Your Orchard funds must migrate to the new Ironwood pool. Since this is a cross-pool transfer, choose the
-            privacy level of the migration.
-          </div>
-
-          <div
-            role="button"
-            tabIndex={0}
-            className={`${cstyles.well} ${styles.card} ${styles.choicecard} ${
-              strategy === "private" ? styles.choiceselected : ""
-            }`}
-            onClick={() => setStrategy("private")}
-            onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setStrategy("private")}
-          >
-            <div className={cstyles.highlight}>Migrate privately</div>
-            <div className={cstyles.sublight}>
-              Spreads transfers over ~3 days in standard amounts, blending with other users. Requires opening the app a
-              few times.
-            </div>
+            Your Orchard funds must migrate to the new Ironwood pool. Since this is a cross-pool transfer, choose how the
+            migration is made.
           </div>
 
           <div
@@ -211,16 +199,37 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
             </div>
           </div>
 
+          {/* Private (scheduled) path disabled until its scheduling and the Nym
+              mixnet transport land: non-interactive, greyed, "Coming soon". */}
+          <div className={`${cstyles.well} ${styles.card}`} style={{ opacity: 0.55, cursor: "default" }} aria-disabled>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span className={cstyles.highlight}>Migrate privately</span>
+              <span
+                style={{
+                  fontSize: 11,
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                  padding: "2px 8px",
+                  borderRadius: 10,
+                  border: "1px solid var(--color-primary-disable)",
+                  color: "var(--color-primary-disable)",
+                }}
+              >
+                Coming soon
+              </span>
+            </div>
+            <div className={cstyles.sublight} style={{ marginTop: 6 }}>
+              Spreads transfers over ~3 days in standard amounts, blending with other users. Arriving with the Nym
+              mixnet transport — not available yet.
+            </div>
+          </div>
+
           <div className={styles.buttons}>
             <button type="button" className={cstyles.primarybutton} onClick={() => setStep("howItWorks")}>
               Back
             </button>
-            <button
-              type="button"
-              className={cstyles.primarybutton}
-              onClick={() => setStep(strategy === "private" ? "private" : "confirm")}
-            >
-              Start
+            <button type="button" className={cstyles.primarybutton} onClick={() => setStep("confirm")}>
+              {simulation ? "Simulate" : "Start"}
             </button>
           </div>
         </div>

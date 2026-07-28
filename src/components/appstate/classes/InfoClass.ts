@@ -27,6 +27,10 @@ export default class InfoClass {
   // migration in progress", so the Dashboard progress banner stays hidden until
   // one is actually running.
   migrationInProgress: boolean;
+  // True once every batch has landed in Ironwood (phase "complete"). The state
+  // lingers until dismissed, so the banner shows a "complete" variant instead of
+  // the progress ring.
+  migrationComplete: boolean;
   migrationBatchesConfirmed: number;
   migrationBatchesTotal: number;
   migrationPendingZec: number;
@@ -52,6 +56,7 @@ export default class InfoClass {
     this.orchardDust = 0;
     this.orchardFee = 0;
     this.migrationInProgress = false;
+    this.migrationComplete = false;
     this.migrationBatchesConfirmed = 0;
     this.migrationBatchesTotal = 0;
     this.migrationPendingZec = 0;
