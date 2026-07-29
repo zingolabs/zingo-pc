@@ -898,6 +898,7 @@ ipcMain.handle("native:get_latest_block_server", (_e, server_uri) => getNative()
 ipcMain.handle("native:parse_address", (_e, address) => getNative().parse_address(address));
 ipcMain.handle("native:parse_ufvk", (_e, ufvk) => getNative().parse_ufvk(ufvk));
 ipcMain.handle("native:get_messages", (_e, address) => getNative().get_messages(address));
+ipcMain.handle("native:zec_price_over_mixnet", () => getNative().zec_price_over_mixnet());
 ipcMain.handle("native:remove_transaction", (_e, txid) => getNative().remove_transaction(txid));
 ipcMain.handle("native:get_spendable_balance_with_address", (_e, address, zennies) =>
   getNative().get_spendable_balance_with_address(address, zennies),

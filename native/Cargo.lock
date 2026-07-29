@@ -3431,6 +3431,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-socks"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7e2948f60dbe26b35f2c7fb74ac2854c1fddded0fe9d7548fcc674a246f7615"
+dependencies = [
+ "either",
+ "futures-util",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "tokio-stream"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4570,12 +4582,16 @@ version = "5.0.1"
 source = "git+https://github.com/zingolabs/zingolib?rev=79d575bf99612ac93fb4986bdc1e6d8f398c05ac#79d575bf99612ac93fb4986bdc1e6d8f398c05ac"
 dependencies = [
  "http",
+ "hyper-util",
  "lightwallet-protocol",
  "rustls 0.23.42",
  "thiserror 2.0.19",
+ "tokio",
  "tokio-rustls",
+ "tokio-socks",
  "tokio-stream",
  "tonic",
+ "tower",
 ]
 
 [[package]]

@@ -68,14 +68,16 @@ the funnel's netutils scope and are not addressed by ADR 0024.
 
 ## Price
 
-Dark as of this survey, deliberately, per arc 6 and the ADR's
-consequences section. The clearnet fetch is removed end to end: the
-renderer's `getZecPrice` scheduler, the `fnSetZecPrice` wiring, the
-preload and main relays, the neon `zec_price` export, and its
-`.d.ts` declaration. The display machinery stays: `zecPrice` state in
-`Routes.tsx` holds 0 and every USD display renders the unified
+Mixnet-only, fail-closed. The clearnet fetch was removed end to end
+(the price-goes-dark step), and the successor entry point is
+`zec_price_over_mixnet`, backed by zingolib's
+`update_current_price_over_mixnet` behind the `nym` feature: it
+refuses in every Mixnet Mode state except ready and never falls back
+to clearnet. pc carries no mode lifecycle of its own, so until the
+zingolib-owned driver wiring lands the refusal is the steady state,
+`zecPrice` holds 0, and every USD display renders the unified
 `USD --` fallback (`src/components/usdValue/UsdValue.tsx`). Phase 3
-re-lands price as a typed subscription from zingolib's driver, which
-refuses price in every state except ready. The per-transaction
-`zec_price` field on value transfers is historical data from the
-wallet, not a live fetch, and is untouched.
+replaces the 5-second polling cadence with a typed subscription from
+the driver. The per-transaction `zec_price` field on value transfers
+is historical data from the wallet, not a live fetch, and is
+untouched.

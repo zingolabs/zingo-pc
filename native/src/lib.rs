@@ -133,6 +133,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_total_memobytes_to_address", get_total_memobytes_to_address)?;
     cx.export_function("get_total_value_to_address", get_total_value_to_address)?;
     cx.export_function("get_total_spends_to_address", get_total_spends_to_address)?;
+    cx.export_function("zec_price_over_mixnet", zec_price_over_mixnet)?;
     cx.export_function("drain_orchard_to_ironwood", drain_orchard_to_ironwood)?;
     cx.export_function("drain_status", drain_status)?;
     cx.export_function("get_ironwood_activation_height", get_ironwood_activation_height)?;
@@ -2475,6 +2476,35 @@ fn execute_due_parts_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     }
                     .pretty(2)),
                     None => Ok(object! { "idle" => true }.pretty(2)),
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// The one price entry point, and it is mixnet-only (ADR 0024 arc 6): the
+// fetch refuses while Mixnet Mode is anything but ready, and never falls
+// back to clearnet. Until pc gains mode wiring the refusal is permanent and
+// the UI's `USD --` fallback stands.
+fn zec_price_over_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let guard = LIGHTCLIENT.read().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &*guard {
+                    RT.block_on(async move {
+                        match lightclient.update_current_price_over_mixnet().await {
+                            Ok(price) => Ok(object! { "current_price" => price }.pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
+                        }
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
                 }
             })
         })
