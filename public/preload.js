@@ -62,7 +62,6 @@ const _ALL_NATIVE_METHODS = [
   "parse_address",
   "parse_ufvk",
   "get_messages",
-  "zec_price",
   "remove_transaction",
   "get_spendable_balance_with_address",
   "create_new_unified_address",

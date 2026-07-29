@@ -67,7 +67,6 @@ export function get_balance(): Promise<string>;
 export function get_total_memobytes_to_address(): Promise<string>;
 export function get_total_value_to_address(): Promise<string>;
 export function get_total_spends_to_address(): Promise<string>;
-export function zec_price(): Promise<string>;
 export function remove_transaction(txid: string): Promise<string>;
 export function get_spendable_balance_with_address(address: string, zennies: string): Promise<string>;
 export function get_spendable_balance_total(): Promise<string>;

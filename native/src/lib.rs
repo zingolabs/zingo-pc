@@ -133,7 +133,6 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_total_memobytes_to_address", get_total_memobytes_to_address)?;
     cx.export_function("get_total_value_to_address", get_total_value_to_address)?;
     cx.export_function("get_total_spends_to_address", get_total_spends_to_address)?;
-    cx.export_function("zec_price", zec_price)?;
     cx.export_function("drain_orchard_to_ironwood", drain_orchard_to_ironwood)?;
     cx.export_function("drain_status", drain_status)?;
     cx.export_function("get_ironwood_activation_height", get_ironwood_activation_height)?;
@@ -2476,33 +2475,6 @@ fn execute_due_parts_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     }
                     .pretty(2)),
                     None => Ok(object! { "idle" => true }.pretty(2)),
-                }
-            })
-        })
-        .promise(move |mut cx, result| match result {
-            Ok(msg) => Ok(cx.string(msg)),
-            Err(err) => cx.throw_error(err.to_string()),
-        });
-
-    Ok(promise)
-}
-
-fn zec_price(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let promise = cx
-        .task(move || -> Result<String, ZingolibError> {
-            with_panic_guard(|| {
-                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
-                if let Some(lightclient) = &mut *guard {
-                    RT.block_on(async move {
-                        // update_current_price moved onto the lightclient (was on the
-                        // wallet write guard, and took a socks5 arg).
-                        match lightclient.update_current_price().await {
-                            Ok(price) => Ok(object! { "current_price" => price }.pretty(2)),
-                            Err(e) => Err(ZingolibError::Read(e.to_string())),
-                        }
-                    })
-                } else {
-                    Err(ZingolibError::LightclientNotInitialized)
                 }
             })
         })
