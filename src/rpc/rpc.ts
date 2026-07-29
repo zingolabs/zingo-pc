@@ -44,7 +44,6 @@ export default class RPC {
   fnSetValueTransfersList: (t: ValueTransferClass[]) => void;
   fnSetMessagesList: (t: ValueTransferClass[]) => void;
   fnSetInfo: (info: InfoClass) => void;
-  fnSetZecPrice: (p?: number) => void;
   fnSetSyncStatus: (ss: SyncStatusType) => void;
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
@@ -66,7 +65,6 @@ export default class RPC {
     fnSetValueTransfersList: (t: ValueTransferClass[]) => void,
     fnSetMessagesList: (t: ValueTransferClass[]) => void,
     fnSetInfo: (info: InfoClass) => void,
-    fnSetZecPrice: (p?: number) => void,
     fnSetSyncStatus: (ss: SyncStatusType) => void,
     fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
@@ -78,7 +76,6 @@ export default class RPC {
     this.fnSetValueTransfersList = fnSetValueTransfersList;
     this.fnSetMessagesList = fnSetMessagesList;
     this.fnSetInfo = fnSetInfo;
-    this.fnSetZecPrice = fnSetZecPrice;
     this.fnSetSyncStatus = fnSetSyncStatus;
     this.fnSetVerificationProgress = fnSetVerificationProgress;
     this.fnSetFetchError = fnSetFetchError;
@@ -99,7 +96,6 @@ export default class RPC {
       this.fetchInfo(),
       this.fetchAddresses(),
       this.fetchTotalBalance(),
-      this.getZecPrice(),
       RPC.doSave(),
       this.fetchTandZandOValueTransfers(),
       this.fetchTandZandOMessages(),
@@ -115,7 +111,6 @@ export default class RPC {
     await this.fetchAddresses();
     await this.fetchTotalBalance();
     await this.fetchInfo();
-    void this.getZecPrice();
     await this.fetchTandZandOMessages();
 
     // Reconcile any in-progress private migration on launch (no-op otherwise):
@@ -234,10 +229,9 @@ export default class RPC {
       info.currencyName = info.chainName === ServerChainNameEnum.mainChainName ? "ZEC" : "TAZ";
       info.solps = 0;
 
-      // ZEC price is no longer fetched here — it lives outside InfoClass
-      // (see `getZecPrice` below, scheduled by `runTaskPromises`). Folding
-      // the price fetch into the info refresh meant that every 5s cycle
-      // overwrote the Tor-fetched value with a hard-coded `false` HTTP call.
+      // ZEC price is not fetched at all: the clearnet fetch is removed until
+      // the mixnet convergence lands a typed price surface (ADR 0024 arc 6).
+      // The UI renders its `USD --` fallback meanwhile.
 
       // zingolib version
       let zingolibStr: string = await native.get_version();
@@ -1110,31 +1104,6 @@ export default class RPC {
     } catch (error) {
       console.error(`Error cancel ironwood migration ${error}`);
       return false;
-    }
-  }
-
-  async getZecPrice() {
-    // Skip the network call entirely on testnet / regtest: TAZ has no USD
-    // price and the UI doesn't render the value anyway (see BalanceBlock,
-    // which only shows USD when currencyName === "ZEC"). Avoids unnecessary
-    // HTTP traffic every 5s on a testnet wallet. Wallet switches already
-    // reset the cached price via setZecPrice(0) in Routes.tsx.
-    if (this.currentWallet && this.currentWallet.chain_name !== ServerChainNameEnum.mainChainName) {
-      return;
-    }
-
-    try {
-      const resultStr: string = await native.zec_price();
-
-      if (!resultStr) {
-        console.error(`zec_price returned empty result`);
-        this.fnSetZecPrice(0);
-        return;
-      }
-      const resultJSON = JSON.parse(resultStr);
-      this.fnSetZecPrice(resultJSON.current_price);
-    } catch (error) {
-      console.error(`zec_price threw:`, error);
     }
   }
 

@@ -85,8 +85,9 @@ export default class AppState {
   handleShieldButton: () => void;
   setAddLabel: (a: AddressBookEntryClass) => void;
 
-  // Current USD price per ZEC. Refreshed every 5s by RPC.getZecPrice() via
-  // the runTaskPromises scheduler. Lives at the top level (not inside
+  // Current USD price per ZEC. Nothing fetches it today: the clearnet
+  // fetch is removed until the mixnet convergence lands a typed price
+  // surface (ADR 0024 arc 6). Lives at the top level (not inside
   // InfoClass) because the periodic info-refresh rebuilds InfoClass and
   // would otherwise clobber the price between cycles. 0 means "no price
   // available right now" — all USD displays render `--` in that case.
