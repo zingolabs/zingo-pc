@@ -698,7 +698,9 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                 <div className={`${cstyles.well} ${styles.card}`}>
                   <div className={styles.cardhead}>
                     <span className={styles.cardtitle}>
-                      {overdueCount > 1 ? `${overdueCount} missed batches can be caught up` : "A missed batch can be sent now"}
+                      {overdueCount > 1
+                        ? `${overdueCount} missed batches can be caught up`
+                        : "A missed batch can be sent now"}
                     </span>
                     <span className={`${styles.badge} ${styles.badgenext}`}>Overdue</span>
                   </div>
@@ -718,7 +720,11 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                           : "This broadcasts the missed batch now. Sending while you are active can link it to you. That is the cost of catching up a missed window."}
                       </div>
                       <div className={styles.buttons} style={{ marginTop: 12 }}>
-                        <button type="button" className={cstyles.primarybutton} onClick={() => setConfirmingSend(false)}>
+                        <button
+                          type="button"
+                          className={cstyles.primarybutton}
+                          onClick={() => setConfirmingSend(false)}
+                        >
                           Not now
                         </button>
                         <button type="button" className={cstyles.primarybutton} onClick={sendNow}>

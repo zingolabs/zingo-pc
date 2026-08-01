@@ -1166,6 +1166,13 @@ fn stop_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 if let Some(lightclient) = &mut *guard {
                     match lightclient.stop_sync() {
                         Ok(_) => Ok("Stopping sync task...".to_string()),
+                        // Stopping when nothing is running is a no-op, not a failure.
+                        // Callers bracket a drain/spend with stop_sync and the sync
+                        // loop may already be idle; surfacing this as an error made the
+                        // migration falsely report "failed".
+                        Err(pepper_sync::error::SyncModeError::SyncNotRunning) => {
+                            Ok("Sync already stopped.".to_string())
+                        }
                         Err(e) => Err(ZingolibError::Sync(e.to_string())),
                     }
                 } else {

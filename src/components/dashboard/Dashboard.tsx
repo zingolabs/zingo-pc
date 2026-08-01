@@ -74,6 +74,30 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     await RPC.cancelIronwoodMigration();
   };
 
+  // The immediate (happy-path) migration runs in the native while the sync loop
+  // is stopped, so fetchInfo is frozen and the banner below would otherwise read
+  // as idle. drain_status is a lock-free side channel that stays live during the
+  // drain — poll it so the Dashboard shows the migration is underway even when
+  // the user navigates away from the migration screen.
+  const [drainProgress, setDrainProgress] = useState<{
+    built: number;
+    sent: number;
+    total: number;
+    phase: string;
+  } | null>(null);
+  useEffect(() => {
+    let active = true;
+    const id = setInterval(async () => {
+      const s = await RPC.drainStatus();
+      if (active) setDrainProgress(s);
+    }, 1500);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, []);
+  const drainRunning = drainProgress !== null;
+
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
     // avoid failed txs because always they have 0 confirmations.
@@ -97,6 +121,31 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
   return (
     <div>
+      {/* Immediate (happy-path) migration underway in the native. Shown from the
+          lock-free drain_status so it stays visible even after the user leaves the
+          migration screen — the funds are being proved/broadcast right now. */}
+      {currentWallet !== null && !currentWalletOpenError && drainRunning && (
+        <div className={`${cstyles.well} ${styles.migrationprogress}`}>
+          <div className={styles.migrationtop}>
+            <span className={cstyles.highlight}>Migration in progress</span>
+            <button
+              type="button"
+              className={styles.detailslink}
+              onClick={() => navigate(routes.MIGRATION, { replace: true, state: {} })}
+            >
+              Details
+            </button>
+          </div>
+          <div className={cstyles.sublight} style={{ marginTop: 6 }}>
+            {drainProgress && drainProgress.total > 0
+              ? drainProgress.phase === "building"
+                ? `Proving and signing your transactions… ${drainProgress.built}/${drainProgress.total}`
+                : `Broadcasting to Ironwood… ${drainProgress.sent}/${drainProgress.total}`
+              : "Proving and broadcasting your transactions to Ironwood."}{" "}
+            Keep the app open.
+          </div>
+        </div>
+      )}
       {/* Gate the whole banner on info-only, self-consistent signals: nu63Activation
           and orchardMigratable both come from the same fetchInfo commit, so they never
           disagree the way get_balance and the drain plan can while a wallet loads/syncs
@@ -127,7 +176,9 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
               </button>
             </div>
             <div className={styles.migrationprogressbody}>
-              <span className={cstyles.sublight}>All your funds are now in the Ironwood pool — nothing left to do.</span>
+              <span className={cstyles.sublight}>
+                All your funds are now in the Ironwood pool — nothing left to do.
+              </span>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
               <button type="button" className={cstyles.primarybutton} onClick={dismissMigration}>
@@ -179,6 +230,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
         !currentWalletOpenError &&
         !readOnly &&
         !info.migrationInProgress &&
+        !drainRunning &&
         nu63Activation > 0 &&
         info.orchardMigratable > 0 && (
           <div className={`${cstyles.well} ${styles.migratebanner}`}>

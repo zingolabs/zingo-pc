@@ -64,6 +64,31 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
     sent: number;
     phase: string;
   } | null>(null);
+  // A drain runs in the native even after this screen unmounts. When the user
+  // re-enters mid-drain we RESUME the executing view (rather than offering a fresh
+  // start that would queue a second drain). Its final result was returned to the
+  // now-gone promise, so on resume we can only show a generic completion.
+  const [resumedDrain, setResumedDrain] = useState<boolean>(false);
+  const [resumedComplete, setResumedComplete] = useState<boolean>(false);
+
+  // On entry, if a drain is already running in the native (started from a prior
+  // visit the user navigated away from), resume the executing view instead of
+  // the intro — so we neither hide the in-flight migration nor let a second one
+  // be queued behind it. Only when not already resuming a scheduled migration.
+  useEffect(() => {
+    if (resumeInProgress) return;
+    let active = true;
+    (async () => {
+      const s = await RPC.drainStatus();
+      if (active && s) {
+        setResumedDrain(true);
+        setStep("executing");
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [resumeInProgress]);
 
   // Poll the drain's lock-free progress side channel while it runs. The drain
   // holds the wallet lock across its whole run, so this side channel — not the
@@ -73,13 +98,22 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
     let active = true;
     const id = setInterval(async () => {
       const s = await RPC.drainStatus();
-      if (active) setDrainProgress(s);
+      if (!active) return;
+      setDrainProgress(s);
+      // A resumed drain has no local promise to land its result: once its status
+      // goes idle it has finished, so show a generic done — the balance/history
+      // carry the real outcome. (resumedDrain is only set after mount confirmed a
+      // drain was running, so idle here means completed, not never-started.)
+      if (!s && resumedDrain) {
+        setResumedComplete(true);
+        setStep("result");
+      }
     }, 1000);
     return () => {
       active = false;
       clearInterval(id);
     };
-  }, [step]);
+  }, [step, resumedDrain]);
 
   // Confirmed (spendable) balance — that is what the drain can actually move,
   // and it matches the Dashboard banner's gate.
@@ -178,8 +212,8 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
         <div className={cstyles.verticalflex}>
           <div className={`${cstyles.xlarge} ${cstyles.center}`}>Migration Strategy</div>
           <div className={`${cstyles.sublight} ${cstyles.center}`} style={{ marginTop: 6 }}>
-            Your Orchard funds must migrate to the new Ironwood pool. Since this is a cross-pool transfer, choose how the
-            migration is made.
+            Your Orchard funds must migrate to the new Ironwood pool. Since this is a cross-pool transfer, choose how
+            the migration is made.
           </div>
 
           <div
@@ -327,7 +361,20 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
 
       {step === "result" && (
         <div className={cstyles.verticalflex}>
-          {error || !result ? (
+          {resumedComplete && !result ? (
+            // Resumed after navigating away: the detailed result was lost with the
+            // original promise, but the migration finished. The wallet balance and
+            // history carry the outcome.
+            <>
+              <div className={`${cstyles.xlarge} ${cstyles.center} ${cstyles.green}`}>Migration complete</div>
+              <div className={`${cstyles.well} ${styles.card}`}>
+                <div className={cstyles.sublight}>
+                  Your Orchard funds have been migrated to Ironwood. Check your balance and transaction history for the
+                  details.
+                </div>
+              </div>
+            </>
+          ) : error || !result ? (
             <>
               <div className={`${cstyles.xlarge} ${cstyles.center} ${cstyles.red}`}>Migration failed</div>
               <div className={`${cstyles.well} ${styles.card}`}>
