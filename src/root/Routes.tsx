@@ -136,9 +136,9 @@ const AppRoutes: React.FC = () => {
 
   // ZEC price. Lives at the top level (NOT inside InfoClass) because the
   // periodic info-refresh rebuilds InfoClass and would otherwise clobber it
-  // every 5s cycle. Nothing fetches it today: the clearnet fetch is removed
-  // until the mixnet convergence lands a typed price surface (ADR 0024
-  // arc 6), so it stays 0 and the UI renders its `USD --` fallback.
+  // every 5s cycle. Fetched by RPC.getZecPrice over the mixnet only
+  // (ADR 0024 arc 6): until Mixnet Mode wiring lands the fetch refuses,
+  // the price stays 0, and the UI renders its `USD --` fallback.
   const [zecPrice, setZecPriceState] = useState<number>(0);
   const setZecPrice = useCallback((price?: number) => {
     if (typeof price === "number") setZecPriceState(price);
@@ -201,6 +201,7 @@ const AppRoutes: React.FC = () => {
       setValueTransferList,
       setMessagesList,
       setInfo,
+      setZecPrice,
       setSyncStatus,
       setVerificationProgress,
       setFetchError,

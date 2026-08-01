@@ -27,7 +27,7 @@ crate-type = ["cdylib"]
 # (ADR 0018 is scoped to Phase 2). Migration section is v4 (reads our v3 wallets;
 # do not downgrade past this). Adapt the private path when its upstream
 # current-bucket placement is fixed and Nym lands.
-zingolib = { git="https://github.com/zingolabs/zingolib", rev = "79d575bf99612ac93fb4986bdc1e6d8f398c05ac" }
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "79d575bf99612ac93fb4986bdc1e6d8f398c05ac", features = ["nym"] }
 pepper-sync = { git="https://github.com/zingolabs/zingolib", rev = "79d575bf99612ac93fb4986bdc1e6d8f398c05ac" }
 zingo-netutils = { git="https://github.com/zingolabs/zingolib", rev = "79d575bf99612ac93fb4986bdc1e6d8f398c05ac" }
 

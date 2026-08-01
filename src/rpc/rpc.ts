@@ -44,6 +44,7 @@ export default class RPC {
   fnSetValueTransfersList: (t: ValueTransferClass[]) => void;
   fnSetMessagesList: (t: ValueTransferClass[]) => void;
   fnSetInfo: (info: InfoClass) => void;
+  fnSetZecPrice: (p?: number) => void;
   fnSetSyncStatus: (ss: SyncStatusType) => void;
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
@@ -65,6 +66,7 @@ export default class RPC {
     fnSetValueTransfersList: (t: ValueTransferClass[]) => void,
     fnSetMessagesList: (t: ValueTransferClass[]) => void,
     fnSetInfo: (info: InfoClass) => void,
+    fnSetZecPrice: (p?: number) => void,
     fnSetSyncStatus: (ss: SyncStatusType) => void,
     fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
@@ -76,6 +78,7 @@ export default class RPC {
     this.fnSetValueTransfersList = fnSetValueTransfersList;
     this.fnSetMessagesList = fnSetMessagesList;
     this.fnSetInfo = fnSetInfo;
+    this.fnSetZecPrice = fnSetZecPrice;
     this.fnSetSyncStatus = fnSetSyncStatus;
     this.fnSetVerificationProgress = fnSetVerificationProgress;
     this.fnSetFetchError = fnSetFetchError;
@@ -96,6 +99,7 @@ export default class RPC {
       this.fetchInfo(),
       this.fetchAddresses(),
       this.fetchTotalBalance(),
+      this.getZecPrice(),
       RPC.doSave(),
       this.fetchTandZandOValueTransfers(),
       this.fetchTandZandOMessages(),
@@ -229,9 +233,9 @@ export default class RPC {
       info.currencyName = info.chainName === ServerChainNameEnum.mainChainName ? "ZEC" : "TAZ";
       info.solps = 0;
 
-      // ZEC price is not fetched at all: the clearnet fetch is removed until
-      // the mixnet convergence lands a typed price surface (ADR 0024 arc 6).
-      // The UI renders its `USD --` fallback meanwhile.
+      // ZEC price lives outside InfoClass (see `getZecPrice` below) and is
+      // mixnet-only (ADR 0024 arc 6): the fetch refuses until Mixnet Mode is
+      // ready, and the UI renders `USD --` meanwhile.
 
       // zingolib version
       let zingolibStr: string = await native.get_version();
@@ -1104,6 +1108,26 @@ export default class RPC {
     } catch (error) {
       console.error(`Error cancel ironwood migration ${error}`);
       return false;
+    }
+  }
+
+  async getZecPrice() {
+    // Skip entirely on testnet / regtest: TAZ has no USD price and the UI
+    // doesn't render the value anyway (BalanceBlock only shows USD when
+    // currencyName === "ZEC").
+    if (this.currentWallet && this.currentWallet.chain_name !== ServerChainNameEnum.mainChainName) {
+      return;
+    }
+
+    // Mixnet-only, fail-closed (ADR 0024 arc 6). Until Mixnet Mode wiring
+    // lands in pc the call refuses every time, so a refusal is the steady
+    // state, not an error worth logging on the 5s cadence.
+    try {
+      const resultStr: string = await native.zec_price_over_mixnet();
+      const resultJSON = JSON.parse(resultStr);
+      this.fnSetZecPrice(resultJSON.current_price);
+    } catch {
+      this.fnSetZecPrice(0);
     }
   }
 

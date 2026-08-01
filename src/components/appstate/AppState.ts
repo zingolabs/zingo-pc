@@ -85,12 +85,13 @@ export default class AppState {
   handleShieldButton: () => void;
   setAddLabel: (a: AddressBookEntryClass) => void;
 
-  // Current USD price per ZEC. Nothing fetches it today: the clearnet
-  // fetch is removed until the mixnet convergence lands a typed price
-  // surface (ADR 0024 arc 6). Lives at the top level (not inside
-  // InfoClass) because the periodic info-refresh rebuilds InfoClass and
-  // would otherwise clobber the price between cycles. 0 means "no price
-  // available right now" — all USD displays render `--` in that case.
+  // Current USD price per ZEC. Fetched by RPC.getZecPrice on the 5s
+  // scheduler, over the mixnet only (ADR 0024 arc 6): the fetch refuses
+  // until Mixnet Mode is ready and never touches clearnet. Lives at the
+  // top level (not inside InfoClass) because the periodic info-refresh
+  // rebuilds InfoClass and would otherwise clobber the price between
+  // cycles. 0 means "no price available right now" — all USD displays
+  // render `--` in that case.
   zecPrice: number;
 
   // block explorer selected. Type is the enum (not a literal) so a custom
