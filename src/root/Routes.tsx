@@ -40,6 +40,8 @@ import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
 import { OrchardMigration } from "../components/orchardMigration";
 import { RPCIronwoodDrainType } from "../rpc/components/RPCIronwoodDrainType";
+import { MixnetView, deriveMixnetView } from "../rpc/components/mixnetPresenter";
+import { RPCMixnetStatusType } from "../rpc/components/RPCMixnetStatusType";
 import { ConfirmModal } from "../components/confirmModal";
 import ShieldResultContent from "./ShieldResultContent";
 import LockScreen from "../components/lockScreen/LockScreen";
@@ -144,6 +146,18 @@ const AppRoutes: React.FC = () => {
     if (typeof price === "number") setZecPriceState(price);
   }, []);
 
+  const [mixnetView, setMixnetViewState] = useState<MixnetView>(defaultAppState.mixnetView);
+  const setMixnetView = useCallback((view: MixnetView) => setMixnetViewState(view), []);
+
+  // Main pushes the Mixnet Mode status on every transition (bootstrapping,
+  // narration, ready, died, switched_off); project it to the view instantly so
+  // the indicator never lags the transport.
+  useEffect(() => {
+    const listener = (_event: unknown, status: RPCMixnetStatusType) => setMixnetView(deriveMixnetView(status));
+    ipcRenderer.on("mixnet-status", listener);
+    return () => ipcRenderer.removeListener("mixnet-status", listener);
+  }, [setMixnetView]);
+
   const setReadOnly = useCallback((val: boolean) => setReadOnlyState(val), []);
   const setServerUris = useCallback((val: ServerClass[]) => setServerUrisState(val), []);
   const setWallets = useCallback((val: WalletType[]) => setWalletsState(val), []);
@@ -205,6 +219,7 @@ const AppRoutes: React.FC = () => {
       setSyncStatus,
       setVerificationProgress,
       setFetchError,
+      setMixnetView,
       defaultAppState.currentWallet,
     );
   }
@@ -399,7 +414,7 @@ const AppRoutes: React.FC = () => {
   }, []);
 
   const runRPCShieldTransparentBalanceToOrchard = useCallback(async (): Promise<string> => {
-    return rpcRef.current!.shieldTransparentBalanceToOrchard();
+    return rpcRef.current!.shieldTransparentBalanceToIronwood();
   }, []);
 
   const handleShieldButtonConfirmed = useCallback(async () => {
@@ -496,6 +511,7 @@ const AppRoutes: React.FC = () => {
       handleShieldButton,
       setAddLabel,
       zecPrice,
+      mixnetView,
       blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
       blockExplorerMainnetAddressCustom: blockExplorerConfig.blockExplorerMainnetAddressCustom,
       blockExplorerMainnetTransaction: blockExplorerConfig.blockExplorerMainnetTransaction,
@@ -539,6 +555,7 @@ const AppRoutes: React.FC = () => {
       handleShieldButton,
       setAddLabel,
       zecPrice,
+      mixnetView,
       blockExplorerConfig,
       setBlockExplorer,
     ],

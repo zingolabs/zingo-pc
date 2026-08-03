@@ -1,7 +1,7 @@
 {
   "name": "zingo-pc",
   "productName": "Zingo PC",
-  "version": "2.0.22",
+  "version": "2.0.23",
   "private": true,
   "description": "Zingo PC",
   "license": "MIT",
@@ -62,9 +62,9 @@
     "test:run": "yarn neon && cross-env CI=true node scripts/test.js --watchAll=false",
     "dist:linux": "rimraf dist && yarn build && electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
     "dist:linux-only-build": "electron-builder -l -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:mac-arm64": "rimraf dist && yarn build-mac-arm64 && electron-builder -m --arm64 -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:mac-mas": "rimraf dist && yarn cargo:clean && yarn neon-mac-x64 && cp src/native.node src/native-x64.node && yarn neon-mac-arm64 && lipo -create -output src/native.node src/native-x64.node src/native.node && rm src/native-x64.node && cross-env node scripts/build.js && electron-builder --mac mas --universal -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:mac-x64": "rimraf dist && yarn build-mac-x64 && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:mac-arm64": "rimraf dist && yarn build-mac-arm64 && node scripts/stage-nym-proxy.js --target aarch64-apple-darwin && electron-builder -m --arm64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:mac-mas": "rimraf dist && yarn cargo:clean && yarn neon-mac-x64 && cp src/native.node src/native-x64.node && yarn neon-mac-arm64 && lipo -create -output src/native.node src/native-x64.node src/native.node && rm src/native-x64.node && node scripts/stage-nym-proxy.js && cross-env node scripts/build.js && electron-builder --mac mas --universal -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:mac-x64": "rimraf dist && yarn build-mac-x64 && node scripts/stage-nym-proxy.js --target x86_64-apple-darwin && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-x64": "rimraf dist && yarn build-win-x64 && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "react-start": "cross-env node scripts/start.js",
@@ -215,10 +215,16 @@
     "mac": {
       "category": "public.app-category.finance",
       "type": "distribution",
+      "extraResources": [
+        {
+          "from": "resources/nym-proxy",
+          "to": "nym-proxy"
+        }
+      ],
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "163",
+      "bundleVersion": "165",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -237,10 +243,16 @@
     },
     "mas": {
       "category": "public.app-category.finance",
+      "extraResources": [
+        {
+          "from": "resources/nym-proxy",
+          "to": "nym-proxy"
+        }
+      ],
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "163",
+      "bundleVersion": "165",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },

@@ -11,6 +11,10 @@
 # native files
 native.node
 
+# staged nym-proxy binary (built from zingolib by scripts/stage-nym-proxy.js)
+/resources/nym-proxy
+/resources/nym-proxy.exe
+
 # testing
 /coverage
 

@@ -100,6 +100,8 @@ const ALLOWED_RECEIVE = new Set([
   "appsecurity",
   "change-wallet-dir",
   "import-data",
+  "mixnet-status",
+  "mixnet-settings",
 ]);
 
 // Allowed IPC channels that renderer → main can invoke/send.
@@ -130,6 +132,10 @@ const ALLOWED_INVOKE = new Set([
   "import:apply",
   "zns:resolve",
   "save-png",
+  "mixnet:enable",
+  "mixnet:disable",
+  "mixnet:get-status",
+  "mixnet:attach-current",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {

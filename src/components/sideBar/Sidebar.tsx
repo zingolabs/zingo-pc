@@ -7,6 +7,8 @@ import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import PayURIModal from "./components/PayURIModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
+import { MixnetView } from "../../rpc/components/mixnetPresenter";
+import MixnetModal from "./components/MixnetModal";
 import { Logo } from "../logo";
 import APP_VERSION from "../../version";
 import SelectWallet from "./components/SelectWallet";
@@ -170,6 +172,21 @@ type SidebarProps = {
   navigateToLoadingScreenChangingWallet: () => void;
 };
 
+// The Sidebar's compact Mixnet Mode line: colour, icon, and label for the
+// current view. Mirrors the sync-status blocks it sits beside.
+function mixnetIndicator(view: MixnetView): { colorClass: string; iconClass: string; label: string } {
+  switch (view.statusKey) {
+    case "mixnet.status.ready":
+      return { colorClass: cstyles.green, iconClass: "fa-check", label: "Mixnet ready" };
+    case "mixnet.status.bootstrapping":
+      return { colorClass: cstyles.yellow, iconClass: "fa-sync", label: "Mixnet connecting" };
+    case "mixnet.status.off":
+      return { colorClass: cstyles.yellow, iconClass: "fa-times-circle", label: "Mixnet off (clearnet)" };
+    default:
+      return { colorClass: cstyles.red, iconClass: "fa-times-circle", label: "Mixnet unavailable" };
+  }
+}
+
 const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChangingWallet }) => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -184,12 +201,15 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     currentWallet,
     currentWalletOpenError,
     wallets,
+    mixnetView,
   } = context;
+  const mixnetInd = mixnetIndicator(mixnetView);
 
   const [payURIModalIsOpen, setPayURIModalIsOpen] = useState<boolean>(false);
   const [payURIModalInputValue, setPayURIModalInputValue] = useState<string | undefined>(undefined);
 
   const [blockExplorerModalIsOpen, setBlockExplorerModalIsOpen] = useState<boolean>(false);
+  const [mixnetModalIsOpen, setMixnetModalIsOpen] = useState<boolean>(false);
 
   const currentWalletRef = useRef<WalletType | null>(null);
   const currentWalletOpenErrorRef = useRef<string>("");
@@ -432,6 +452,11 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       }
     };
 
+    const mixnetsettings = (_event: any) => {
+      if (!active) return;
+      setMixnetModalIsOpen(true);
+    };
+
     ipcRenderer.on("about", about);
     ipcRenderer.on("payuri", payuri);
     ipcRenderer.on("blockexplorer", blockexplorer);
@@ -440,6 +465,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     ipcRenderer.on("addnewwallet", addnewwallet);
     ipcRenderer.on("settingswallet", settingswallet);
     ipcRenderer.on("deletewallet", deletewallet);
+    ipcRenderer.on("mixnet-settings", mixnetsettings);
 
     return () => {
       active = false;
@@ -451,6 +477,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       ipcRenderer.off("addnewwallet", addnewwallet);
       ipcRenderer.off("settingswallet", settingswallet);
       ipcRenderer.off("deletewallet", deletewallet);
+      ipcRenderer.off("mixnet-settings", mixnetsettings);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -521,6 +548,8 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         modalTitle="Select Block Explorer"
       />
 
+      <MixnetModal modalIsOpen={mixnetModalIsOpen} closeModal={() => setMixnetModalIsOpen(false)} />
+
       <div className={`${cstyles.center} ${styles.sidebarlogobg}`}>
         <Logo readOnly={readOnly} onlyVersion={false} />
       </div>
@@ -581,7 +610,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         )}
       </div>
 
-      <div className={cstyles.center}>
+      <div className={cstyles.center} style={{ marginTop: 6 }}>
         {stateSync === "CONNECTED" && (
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
             <div>
@@ -614,6 +643,20 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
             <i className={`${cstyles.yellow} ${"fas"} ${"fa-times-circle"}`} />
             &nbsp; Connecting...
+          </div>
+        )}
+        {currentWallet && (
+          <div
+            className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}
+            onClick={() => setMixnetModalIsOpen(true)}
+            style={{ cursor: "pointer" }}
+            title="Nym mixnet settings"
+          >
+            <div>
+              <i className={`${mixnetInd.colorClass} fas ${mixnetInd.iconClass}`} />
+              &nbsp; {mixnetInd.label}
+            </div>
+            {mixnetView.narration && <div className={cstyles.small}>{mixnetView.narration}</div>}
           </div>
         )}
       </div>

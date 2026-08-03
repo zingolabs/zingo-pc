@@ -10,6 +10,7 @@ import AddressTransparentClass from "./classes/TransparentAddressClass";
 import AddressBookEntryClass from "./classes/AddressBookEntryClass";
 import InfoClass from "./classes/InfoClass";
 import { SyncStatusType } from "./types/SyncStatusType";
+import { MixnetView, UNKNOWN_MIXNET_VIEW } from "../../rpc/components/mixnetPresenter";
 import { ZcashURITarget } from "../../utils/uris";
 import { WalletType } from "./types/WalletType";
 import { BlockExplorerEnum } from "./enums/BlockExplorerEnum";
@@ -94,6 +95,11 @@ export default class AppState {
   // render `--` in that case.
   zecPrice: number;
 
+  // The screen projection of Mixnet Mode (ADR 0024): drives the header icon
+  // and the fail-closed send gate. Defaults to the unknown (blocked) view
+  // until the first status poll.
+  mixnetView: MixnetView;
+
   // block explorer selected. Type is the enum (not a literal) so a custom
   // value can be assigned and the type narrows cleanly.
   blockExplorerMainnetTransaction: BlockExplorerEnum;
@@ -139,6 +145,7 @@ export default class AppState {
     this.handleShieldButton = () => {};
     this.setAddLabel = () => {};
     this.zecPrice = 0;
+    this.mixnetView = UNKNOWN_MIXNET_VIEW;
     this.blockExplorerMainnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerTestnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerMainnetAddress = BlockExplorerEnum.Zcashexplorer;

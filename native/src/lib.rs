@@ -134,6 +134,9 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_total_value_to_address", get_total_value_to_address)?;
     cx.export_function("get_total_spends_to_address", get_total_spends_to_address)?;
     cx.export_function("zec_price_over_mixnet", zec_price_over_mixnet)?;
+    cx.export_function("mixnet_status", mixnet_status)?;
+    cx.export_function("attach_mixnet", attach_mixnet)?;
+    cx.export_function("stop_mixnet", stop_mixnet)?;
     cx.export_function("drain_orchard_to_ironwood", drain_orchard_to_ironwood)?;
     cx.export_function("drain_status", drain_status)?;
     cx.export_function("get_ironwood_activation_height", get_ironwood_activation_height)?;
@@ -2505,11 +2508,92 @@ fn zec_price_over_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let guard = LIGHTCLIENT.read().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &*guard {
                     RT.block_on(async move {
-                        match lightclient.update_current_price_over_mixnet().await {
-                            Ok(price) => Ok(object! { "current_price" => price }.pretty(2)),
+                        match lightclient.update_current_price().await {
+                            Ok(price) => Ok(object! { "current_price" => price.usd }.pretty(2)),
                             Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
                     })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// The current Mixnet Mode snapshot as zingolib's serde wire (the shared
+// MixnetStatus schema, ADR 0024), for the renderer's initial read before the
+// status subscription delivers its first transition. A borrow of the session
+// status channel, so it is the same value a subscriber would see now.
+fn mixnet_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let guard = LIGHTCLIENT.read().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &*guard {
+                    let status = lightclient.subscribe_mixnet_status().borrow().clone();
+                    serde_json::to_string(&status).map_err(|e| ZingolibError::Read(e.to_string()))
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// Attach the wallet to the already-running nym-proxy that electron main owns
+// for the session (ADR 0024 attach seam). Main spawns the proxy once and holds
+// it across wallet switches, so a switch just re-attaches the new client to the
+// same `socks5_addr` and the mixnet never re-bootstraps. Returns typed on
+// failure, leaving the mode unattached so a mixnet-only send stays fail-closed.
+fn attach_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let socks5_addr = cx.argument::<JsString>(0)?.value(&mut cx);
+
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        match lightclient.attach_mixnet(&socks5_addr).await {
+                            Ok(()) => Ok(object! { "status" => "ok" }.pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
+                        }
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// The user's deliberate per-session clearnet consent: tear the transport down
+// and reach SwitchedOff, the one mode a mixnet-only surface routes over
+// clearnet in. Not a death; the supervisor cancels its liveness watch first.
+fn stop_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move { lightclient.disable_mixnet().await });
+                    Ok(object! { "status" => "ok" }.pretty(2))
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }

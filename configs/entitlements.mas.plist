@@ -8,6 +8,11 @@
     <true/>
     <key>com.apple.security.network.client</key>
     <true/>
+    <!-- The bundled nym-proxy runs a localhost SOCKS5 listener the wallet dials;
+         the inherited child uses the parent's entitlements, so the server grant
+         lives here. -->
+    <key>com.apple.security.network.server</key>
+    <true/>
     <key>com.apple.security.files.user-selected.read-write</key>
     <true/>
     <key>com.apple.security.files.bookmarks.app-scope</key>

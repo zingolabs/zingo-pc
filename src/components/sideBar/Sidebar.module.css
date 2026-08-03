@@ -1,6 +1,10 @@
 .sidebar {
   background-color: var(--color-background-dark);
-  height: calc(100vh - 190px);
+  /* Hug the menu content and carry a black bottom strip the same size as the
+     black gap under the wallet selector at the top (SelectWallet's 20px
+     marginBottom), so the last menu item gets a matching black bottom. The
+     status blocks below sit on the app background, separated by a thin line. */
+  padding-bottom: 20px;
 }
 
 .sidebarmenuitem {

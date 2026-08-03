@@ -178,6 +178,12 @@ class MenuBuilder {
           },
         },
         {
+          label: "&Nym Mixnet",
+          click: () => {
+            mainWindow.webContents.send("mixnet-settings");
+          },
+        },
+        {
           label: "Change &Wallets Folder Location…",
           visible: process.mas === true,
           click: () => {
@@ -308,6 +314,12 @@ class MenuBuilder {
             accelerator: "Ctrl+Shift+S",
             click: () => {
               mainWindow.webContents.send("appsecurity");
+            },
+          },
+          {
+            label: "&Nym Mixnet",
+            click: () => {
+              mainWindow.webContents.send("mixnet-settings");
             },
           },
           {
@@ -899,6 +911,162 @@ ipcMain.handle("native:parse_address", (_e, address) => getNative().parse_addres
 ipcMain.handle("native:parse_ufvk", (_e, ufvk) => getNative().parse_ufvk(ufvk));
 ipcMain.handle("native:get_messages", (_e, address) => getNative().get_messages(address));
 ipcMain.handle("native:zec_price_over_mixnet", () => getNative().zec_price_over_mixnet());
+// --- Mixnet transport: main-owned, session-level (ADR 0024) ----------------
+// Main spawns and holds the nym-proxy for the whole app session. Switching
+// wallets re-attaches the new LightClient to the same tunnel instead of
+// re-bootstrapping, and the enable/disable intent lives here so a switch
+// respects a per-session opt-out. Main is the single source of the Mixnet Mode
+// status: it emits an RPCMixnetStatusType-shaped snapshot the renderer projects
+// exactly like the wallet-core status it replaced.
+const { spawn: spawnChild } = require("child_process");
+
+// The bundled nym-proxy path (only main knows the packaged layout). Packaged:
+// electron-builder stages it into process.resourcesPath (extraResources). Dev:
+// empty so the Rust/child falls through to ZINGO_NYM_PROXY, then PATH.
+function nymProxyPath() {
+  if (isDev) return process.env.ZINGO_NYM_PROXY || "nym-proxy";
+  const exe = process.platform === "win32" ? "nym-proxy.exe" : "nym-proxy";
+  return path.join(process.resourcesPath, exe);
+}
+
+const mixnet = {
+  intent: "on", // ForcedOn by default (ADR 0024); flipped by the Settings toggle
+  child: null,
+  socks5Addr: null,
+  narration: null,
+  phase: "unattached", // unattached | bootstrapping | ready | switched_off | died
+};
+
+function mixnetStatusSnapshot() {
+  switch (mixnet.phase) {
+    case "ready":
+      return { mode: "ready", socks5_addr: mixnet.socks5Addr };
+    case "bootstrapping":
+      return mixnet.narration
+        ? { mode: "bootstrapping", bootstrap_detail: mixnet.narration }
+        : { mode: "bootstrapping" };
+    case "switched_off":
+      return { mode: "switched_off" };
+    case "died":
+      return { mode: "died", death: { at: Date.now() } };
+    default:
+      return { mode: "unattached" };
+  }
+}
+
+function emitMixnetStatus() {
+  const win = BrowserWindow.getAllWindows()[0];
+  if (win && !win.isDestroyed()) win.webContents.send("mixnet-status", mixnetStatusSnapshot());
+}
+
+function setMixnetPhase(phase) {
+  mixnet.phase = phase;
+  emitMixnetStatus();
+}
+
+// Attach whichever LightClient is current to the running tunnel.
+async function attachCurrentWallet() {
+  if (!mixnet.socks5Addr) return;
+  try {
+    await getNative().attach_mixnet(mixnet.socks5Addr);
+    setMixnetPhase("ready");
+  } catch (e) {
+    console.error("[mixnet] attach failed:", e && e.message ? e.message : e);
+  }
+}
+
+function spawnProxy() {
+  if (mixnet.child) return;
+  mixnet.narration = null;
+  setMixnetPhase("bootstrapping");
+  const child = spawnChild(nymProxyPath(), [], { stdio: ["pipe", "pipe", "pipe"] });
+  mixnet.child = child;
+
+  let buf = "";
+  child.stdout.on("data", (chunk) => {
+    buf += chunk.toString();
+    let nl;
+    while ((nl = buf.indexOf("\n")) !== -1) {
+      const line = buf.slice(0, nl).trim();
+      buf = buf.slice(nl + 1);
+      if (line.startsWith("SOCKS5_ADDR=")) {
+        mixnet.socks5Addr = line.slice("SOCKS5_ADDR=".length).trim();
+        attachCurrentWallet();
+      } else if (line.startsWith("NYM_STATUS=")) {
+        mixnet.narration = line.slice("NYM_STATUS=".length).trim();
+        if (mixnet.phase === "bootstrapping") emitMixnetStatus();
+      }
+    }
+  });
+  child.stderr.on("data", (c) => console.error(`[mixnet] ${c.toString().trim()}`));
+  child.on("error", (e) => {
+    // Spawn itself failed (binary missing, not executable): no exit event
+    // follows, so surface it here instead of hanging on "bootstrapping".
+    console.error("[mixnet] spawn error:", e && e.message ? e.message : e);
+    if (mixnet.child === child) {
+      mixnet.child = null;
+      mixnet.socks5Addr = null;
+      setMixnetPhase("unattached");
+    }
+  });
+  child.on("exit", () => {
+    const deliberate = mixnet.child !== child; // we null it out before killing
+    if (deliberate) return;
+    mixnet.child = null;
+    mixnet.socks5Addr = null;
+    if (mixnet.intent === "on") setMixnetPhase("died");
+  });
+}
+
+function killProxy() {
+  const child = mixnet.child;
+  mixnet.child = null;
+  mixnet.socks5Addr = null;
+  if (child) {
+    try {
+      child.stdin.end(); // the proxy's stdin-EOF watchdog tears it down
+    } catch {}
+    try {
+      child.kill();
+    } catch {}
+  }
+}
+
+ipcMain.handle("mixnet:get-status", () => mixnetStatusSnapshot());
+ipcMain.handle("mixnet:enable", async () => {
+  mixnet.intent = "on";
+  if (mixnet.socks5Addr) await attachCurrentWallet();
+  else spawnProxy();
+  return mixnetStatusSnapshot();
+});
+ipcMain.handle("mixnet:disable", async () => {
+  mixnet.intent = "off";
+  killProxy();
+  try {
+    await getNative().stop_mixnet();
+  } catch (e) {
+    console.error("[mixnet] stop failed:", e && e.message ? e.message : e);
+  }
+  setMixnetPhase("switched_off");
+  return mixnetStatusSnapshot();
+});
+// Called by the renderer on every wallet load: bring the new client onto the
+// session tunnel (or record the opt-out) without re-bootstrapping.
+ipcMain.handle("mixnet:attach-current", async () => {
+  if (mixnet.intent === "off") {
+    try {
+      await getNative().stop_mixnet();
+    } catch {}
+    setMixnetPhase("switched_off");
+  } else if (mixnet.socks5Addr) {
+    await attachCurrentWallet();
+  } else {
+    spawnProxy();
+  }
+  return mixnetStatusSnapshot();
+});
+
+app.on("before-quit", () => killProxy());
 ipcMain.handle("native:remove_transaction", (_e, txid) => getNative().remove_transaction(txid));
 ipcMain.handle("native:get_spendable_balance_with_address", (_e, address, zennies) =>
   getNative().get_spendable_balance_with_address(address, zennies),
