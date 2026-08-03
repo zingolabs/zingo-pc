@@ -19,6 +19,8 @@ import { native } from "../electronBridge";
 import { RPCInfoType } from "./components/RPCInfoType";
 import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
+import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
+import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
 import {
   FfiBatchReport,
   FfiMigrationSummary,
@@ -48,6 +50,7 @@ export default class RPC {
   fnSetSyncStatus: (ss: SyncStatusType) => void;
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
+  fnSetMixnetView: (view: MixnetView) => void;
 
   currentWallet: WalletType | null;
 
@@ -70,6 +73,7 @@ export default class RPC {
     fnSetSyncStatus: (ss: SyncStatusType) => void,
     fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
+    fnSetMixnetView: (view: MixnetView) => void,
     currentWallet: WalletType | null,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
@@ -82,6 +86,7 @@ export default class RPC {
     this.fnSetSyncStatus = fnSetSyncStatus;
     this.fnSetVerificationProgress = fnSetVerificationProgress;
     this.fnSetFetchError = fnSetFetchError;
+    this.fnSetMixnetView = fnSetMixnetView;
 
     this.currentWallet = currentWallet;
 
@@ -100,6 +105,7 @@ export default class RPC {
       this.fetchAddresses(),
       this.fetchTotalBalance(),
       this.getZecPrice(),
+      this.getMixnetView(),
       RPC.doSave(),
       this.fetchTandZandOValueTransfers(),
       this.fetchTandZandOMessages(),
@@ -110,6 +116,20 @@ export default class RPC {
   }
 
   async configure(): Promise<void> {
+    // Force Mixnet Mode on at go-online (ADR 0024, consent at start): spawn the
+    // proxy so its bootstrap overlaps this sync. Fire-and-forget — a
+    // mixnet-only send stays fail-closed until the mode reaches ready, and the
+    // status poll narrates the bootstrap. configure() also runs on reconfigure
+    // (a server change), so skip the spawn when a transport is already up or
+    // coming up rather than tearing down a healthy proxy. A spawn failure
+    // leaves the mode unattached, surfaced by the status poll, not here.
+    const mode = await RPC.getMixnetStatus()
+      .then((s) => s.mode)
+      .catch(() => undefined);
+    if (mode !== "ready" && mode !== "bootstrapping") {
+      RPC.startMixnet().catch(() => {});
+    }
+
     // takes a while to start
     await this.fetchTandZandOValueTransfers();
     await this.fetchAddresses();
@@ -186,12 +206,13 @@ export default class RPC {
     }
   }
 
-  // Shield the transparent balance to Orchard. Throws on any failure (empty
-  // result, parse error, or a `{ error }` from propose/confirm); the thrown
-  // message is the error text. Returns the comma-joined txids on success. No
-  // "Error:" prose ever crosses on the data channel — the caller's catch turns
-  // a throw into its own error surface.
-  async shieldTransparentBalanceToOrchard(): Promise<string> {
+  // Shield the transparent balance into the shielded pool. The destination is
+  // Ironwood: zingolib redirects any orchard send to Ironwood at NU6.3. Throws
+  // on any failure (empty result, parse error, or a `{ error }` from
+  // propose/confirm); the thrown message is the error text. Returns the
+  // comma-joined txids on success. No "Error:" prose ever crosses on the data
+  // channel — the caller's catch turns a throw into its own error surface.
+  async shieldTransparentBalanceToIronwood(): Promise<string> {
     // PROPOSING
     const shieldResult: string = await native.shield();
     if (!shieldResult) throw new Error("internal error: empty shield result");
@@ -1129,6 +1150,40 @@ export default class RPC {
     } catch {
       this.fnSetZecPrice(0);
     }
+  }
+
+  // The current Mixnet Mode snapshot from zingolib's shared wire (ADR 0024),
+  // for the renderer's initial read before the status subscription pushes its
+  // first transition. Propagates the native error (e.g. an uninitialized
+  // client) so the caller renders its fail-closed initial view.
+  static async getMixnetStatus(): Promise<RPCMixnetStatusType> {
+    const statusStr: string = await native.mixnet_status();
+    return JSON.parse(statusStr) as RPCMixnetStatusType;
+  }
+
+  // Poll the Mixnet Mode status and project it to the screen view. Runs on the
+  // 5s cycle; a failed read (uninitialized client, native throw) resolves to
+  // the fail-closed unknown view rather than leaving a stale one.
+  async getMixnetView(): Promise<void> {
+    try {
+      this.fnSetMixnetView(deriveMixnetView(await RPC.getMixnetStatus()));
+    } catch {
+      this.fnSetMixnetView(UNKNOWN_MIXNET_VIEW);
+    }
+  }
+
+  // Force Mixnet Mode on: spawn the bundled nym-proxy and bootstrap it. The
+  // empty argument is a placeholder; the main process injects the resolved
+  // binary path. The bootstrap is long, so callers fire-and-forget and let the
+  // status poll narrate bootstrapping → ready.
+  static async startMixnet(): Promise<void> {
+    await native.start_mixnet("");
+  }
+
+  // The user's deliberate per-session clearnet consent: tear the transport
+  // down and reach switched_off.
+  static async stopMixnet(): Promise<void> {
+    await native.stop_mixnet();
   }
 
   setCurrentWallet(cw: WalletType) {

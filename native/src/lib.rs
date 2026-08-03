@@ -54,6 +54,8 @@ use zingolib::config::{ChainType, ClientConfig, WalletConfig, construct_indexer_
 use zingolib::data::PollReport;
 use zingolib::lightclient::LightClient;
 use zingolib::lightclient::error::LightClientError;
+use zingolib::nym::provision::SpawnHints;
+use zingolib::nym::{MixnetStartPolicy, ProvisionStrategy};
 use zingolib::utils::{conversion::address_from_str, conversion::txid_from_hex_encoded_str};
 use zingolib::wallet::keys::unified::{ReceiverSelection, UnifiedKeyStore};
 use zingolib::wallet::WalletSettings;
@@ -134,6 +136,9 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_total_value_to_address", get_total_value_to_address)?;
     cx.export_function("get_total_spends_to_address", get_total_spends_to_address)?;
     cx.export_function("zec_price_over_mixnet", zec_price_over_mixnet)?;
+    cx.export_function("mixnet_status", mixnet_status)?;
+    cx.export_function("start_mixnet", start_mixnet)?;
+    cx.export_function("stop_mixnet", stop_mixnet)?;
     cx.export_function("drain_orchard_to_ironwood", drain_orchard_to_ironwood)?;
     cx.export_function("drain_status", drain_status)?;
     cx.export_function("get_ironwood_activation_height", get_ironwood_activation_height)?;
@@ -2505,11 +2510,101 @@ fn zec_price_over_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let guard = LIGHTCLIENT.read().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &*guard {
                     RT.block_on(async move {
-                        match lightclient.update_current_price_over_mixnet().await {
-                            Ok(price) => Ok(object! { "current_price" => price }.pretty(2)),
+                        match lightclient.update_current_price().await {
+                            Ok(price) => Ok(object! { "current_price" => price.usd }.pretty(2)),
                             Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
                     })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// The current Mixnet Mode snapshot as zingolib's serde wire (the shared
+// MixnetStatus schema, ADR 0024), for the renderer's initial read before the
+// status subscription delivers its first transition. A borrow of the session
+// status channel, so it is the same value a subscriber would see now.
+fn mixnet_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let guard = LIGHTCLIENT.read().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &*guard {
+                    let status = lightclient.subscribe_mixnet_status().borrow().clone();
+                    serde_json::to_string(&status).map_err(|e| ZingolibError::Read(e.to_string()))
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// Start the Mixnet Mode session forced-on (ADR 0024, consent at start): spawn
+// the bundled nym-proxy and force the mode on so its bootstrap overlaps sync.
+// `proxy_path` is the path the JS side resolved (the packaged binary in dev/
+// prod, or empty to fall through to the ZINGO_NYM_PROXY / PATH precedence).
+// A provisioning failure leaves the mode unattached and returns typed, so a
+// mixnet-only send refuses rather than falling back to clearnet.
+fn start_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let proxy_path = cx.argument::<JsString>(0)?.value(&mut cx);
+
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let explicit = (!proxy_path.is_empty()).then_some(proxy_path.as_str());
+                        let hints = SpawnHints { explicit, bundled_dir: None };
+                        match lightclient
+                            .start_mixnet_session(
+                                ProvisionStrategy::Spawn(hints),
+                                MixnetStartPolicy::ForcedOn,
+                            )
+                            .await
+                        {
+                            Ok(()) => Ok(object! { "status" => "ok" }.pretty(2)),
+                            Err(e) => Err(ZingolibError::Read(e.to_string())),
+                        }
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+// The user's deliberate per-session clearnet consent: tear the transport down
+// and reach SwitchedOff, the one mode a mixnet-only surface routes over
+// clearnet in. Not a death; the supervisor cancels its liveness watch first.
+fn stop_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move { lightclient.disable_mixnet().await });
+                    Ok(object! { "status" => "ok" }.pretty(2))
                 } else {
                     Err(ZingolibError::LightclientNotInitialized)
                 }

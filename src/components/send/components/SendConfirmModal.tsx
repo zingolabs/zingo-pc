@@ -70,12 +70,17 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
       }
 
       let from: "orchard" | "orchard+sapling" | "sapling" | "" = "";
+      // Orchard and Ironwood are one shielded pool (Ironwood is Orchard at
+      // NU6.3); after migration the funds sit in Ironwood, so both count as the
+      // orchard-equivalent private source and the privacy verdicts below stay
+      // the same.
+      const confirmedShielded = totalBalance.confirmedOrchardBalance + totalBalance.confirmedIronwoodBalance;
       // amount + fee
-      if (Number(toaddr.amount) + sendFee <= totalBalance.confirmedOrchardBalance) {
+      if (Number(toaddr.amount) + sendFee <= confirmedShielded) {
         from = "orchard";
       } else if (
-        totalBalance.confirmedOrchardBalance > 0 &&
-        Number(toaddr.amount) + sendFee <= totalBalance.confirmedOrchardBalance + totalBalance.confirmedSaplingBalance
+        confirmedShielded > 0 &&
+        Number(toaddr.amount) + sendFee <= confirmedShielded + totalBalance.confirmedSaplingBalance
       ) {
         from = "orchard+sapling";
       } else if (Number(toaddr.amount) + sendFee <= totalBalance.confirmedSaplingBalance) {
@@ -183,7 +188,13 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
       // whatever else
       return "-";
     },
-    [sendFee, totalBalance.confirmedOrchardBalance, totalBalance.confirmedSaplingBalance, currentChainName],
+    [
+      sendFee,
+      totalBalance.confirmedOrchardBalance,
+      totalBalance.confirmedIronwoodBalance,
+      totalBalance.confirmedSaplingBalance,
+      currentChainName,
+    ],
   );
 
   useEffect(() => {

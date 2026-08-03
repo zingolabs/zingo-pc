@@ -41,6 +41,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
     calculateShieldFee,
     handleShieldButton,
     zecPrice,
+    mixnetView,
   } = context;
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
@@ -244,7 +245,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
 
   const fetchSendFeeAndErrorAndSpendable = async (): Promise<void> => {
     const { fee, error, spendable } = await calculateSendFee();
-    console.error("AMOUNTS CALCULATION: fee", fee, "spendable", spendable, "error", error);
     setSendFee(fee);
     setSendFeeError(error);
     setTotalAmountAvailable(spendable);
@@ -340,7 +340,18 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         </div>
 
         <div className={cstyles.verticalbuttons}>
-          <button type="button" disabled={!sendButtonEnabled} className={cstyles.primarybutton} onClick={openModal}>
+          {mixnetView.sendBlocked && (
+            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
+              Sending is paused until the Nym mixnet is ready
+              {mixnetView.narration ? ` (${mixnetView.narration})` : ""}.
+            </div>
+          )}
+          <button
+            type="button"
+            disabled={!sendButtonEnabled || mixnetView.sendBlocked}
+            className={cstyles.primarybutton}
+            onClick={openModal}
+          >
             Send
           </button>
           <button type="button" className={cstyles.primarybutton} onClick={clearToAddrs}>

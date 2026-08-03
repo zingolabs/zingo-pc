@@ -627,7 +627,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                           <DetailLine label="Zingolib Version" value={info.zingolib} />
                           <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                           {info.currencyName === "ZEC" && (
-                            <DetailLine label="ZEC Price" value={`USD ${zecPrice.toFixed(2)}`} />
+                            <DetailLine label="ZEC Price" value={zecPrice ? `USD ${zecPrice.toFixed(2)}` : "USD --"} />
                           )}
                         </div>
                       </div>

@@ -12,24 +12,29 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Ironwood (NU6.3). Versions match the zingolib feat/ironwood lockfile at the
-# commit this resolves to (currently c6987da): it uses the PUBLISHED crates.io
-# zcash crates (no librustzcash/zebra git-rev patches — those belong to an older
-# feat/ironwood commit that zingo-mobile pins). Ground truth = that Cargo.lock,
-# not zingo-mobile's manifest. Build with `yarn neon` (needs `protoc` on PATH).
-# Pinned to 79d575bf — the exact zingolib commit zingo-mobile's latest build uses
-# (dev, #2548 fix/restore-price). It restores the CLEARNET price tier so the
-# mainnet USD price works again (7ac32fa gated the price fetch behind the Nym
-# mixnet only). It DOES carry ADR 0018 (anchors drawn at age >=1), which strands
-# the scheduled/private path's first batch (MissedBoundary) — but that path is
-# disabled behind "Coming soon" in the UI, so it never runs; only the immediate
-# (happy) path and the price matter here, and the immediate path is unaffected
-# (ADR 0018 is scoped to Phase 2). Migration section is v4 (reads our v3 wallets;
-# do not downgrade past this). Adapt the private path when its upstream
-# current-bucket placement is fixed and Nym lands.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "79d575bf99612ac93fb4986bdc1e6d8f398c05ac", features = ["nym"] }
-pepper-sync = { git="https://github.com/zingolabs/zingolib", rev = "79d575bf99612ac93fb4986bdc1e6d8f398c05ac" }
-zingo-netutils = { git="https://github.com/zingolabs/zingolib", rev = "79d575bf99612ac93fb4986bdc1e6d8f398c05ac" }
+# Ironwood (NU6.3). Versions match the zingolib lockfile at the commit this
+# resolves to: mostly published crates.io zcash crates, plus a few from
+# librustzcash git (zcash_pool_migration, zcash_primitives 0.30) that the branch
+# needs, pinned in Cargo.lock (see the [patch] note below). Ground truth = that
+# Cargo.lock, not zingo-mobile's manifest. Build with `yarn neon` (needs
+# `protoc` on PATH).
+#
+# Pinned to the branch fix/for-zingo-pc-working (= dev merged in, plus the one
+# commit dev still lacks: the boundary-carrier serde mint on MixnetStatus that
+# mixnet_status/RPCMixnetStatusType.ts depend on). Stay on this branch, NOT dev,
+# until that mint lands on dev via its own PR — repinning to dev would drop the
+# serde and break the mixnet_status neon fn. It carries the Nym mixnet surface
+# (attach_mixnet, the five-state Mixnet Mode, the MixnetStatus wire), the
+# treestate fix, and the private ironwood migration. Price is mixnet-only:
+# update_current_price is #[cfg(feature="nym")]
+# and returns MixnetPriceFetch with no clearnet tier, so zec_price_over_mixnet
+# reads its .usd. The critical rc.1 lockfile crates match (zcash_client_backend
+# 0.24.0-rc.1, crypto-common rc.1, zcash_primitives 0.29 crates.io + 0.30 git
+# coexist, orchard 0.15.4). See the [patch] note below on the librustzcash rev
+# pin the branch's zcash_pool_migration dep requires.
+zingolib = { git = "https://github.com/zingolabs/zingolib", branch = "fix/for-zingo-pc-working", features = ["nym"] }
+pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "fix/for-zingo-pc-working" }
+zingo-netutils = { git="https://github.com/zingolabs/zingolib", branch = "fix/for-zingo-pc-working" }
 
 zcash_address = "0.13"
 # Keep at rc.1 (matches zingolib@79d575bf's lockfile). rc.4 pulls zcash_primitives
@@ -98,13 +103,20 @@ windows = { version = "0.61", features = ["Security_Credentials_UI"] }
 [build-dependencies]
 cc = "1"
 
-# Only the patches the zingolib feat/ironwood workspace actually needs at this
-# commit (per its Cargo.lock): a dependency's own [patch] table is ignored by
-# cargo, so these two must be replicated here. lightwallet-protocol carries the
-# Ironwood proto fields (its `rebuild-proto` feature needs `protoc` on PATH).
-# NO librustzcash/zebra git-rev patches — this commit uses published crates.io
-# zcash crates; adding them (as zingo-mobile does for an older commit) would
-# force the wrong versions.
+# Only the patches the zingolib branch actually needs (per its Cargo.lock): a
+# dependency's own [patch] table is ignored by cargo, so this must be replicated
+# here. lightwallet-protocol carries the Ironwood proto fields (its
+# `rebuild-proto` feature needs `protoc` on PATH).
+#
+# librustzcash rev pin lives in Cargo.lock, NOT here. zingolib depends on
+# zcash_pool_migration (and, transitively, zcash_primitives 0.30 / zcash_address
+# / zcash_protocol / equihash / f4jumble / zcash_transparent) from
+# librustzcash's git DEFAULT BRANCH with no rev, so a bare `cargo update` floats
+# them to main's tip, where the migration denomination constants
+# (MIGRATION_MAX_DENOMINATION_ZEC, RESIDUAL_MIGRATION_MIN) were renamed and
+# zingolib no longer compiles. The lock is pinned to e12f1d0f, matching the
+# branch's own Cargo.lock. After any float, re-pin with
+# `cargo update -p zcash_pool_migration --precise e12f1d0ff7be5e5bfd2e4bcbb8d9a863a405f031`.
 [patch.crates-io]
 time = { git = "https://github.com/time-rs/time", tag = "v0.3.47" }
 lightwallet-protocol = { git = "https://github.com/zingolabs/lightwallet-protocol-rust", rev = "9bdfdc77eb283f2a3d26c27100cc2ac90148cd93" }

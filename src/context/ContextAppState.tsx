@@ -1,4 +1,5 @@
 import React, { ReactNode } from "react";
+import { UNKNOWN_MIXNET_VIEW } from "../rpc/components/mixnetPresenter";
 import {
   AddressBookEntryClass,
   AppState,
@@ -50,6 +51,7 @@ export const defaultAppState: AppState = {
   handleShieldButton: () => {},
   setAddLabel: () => {},
   zecPrice: 0,
+  mixnetView: UNKNOWN_MIXNET_VIEW,
   blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer,

@@ -135,6 +135,30 @@ module.exports = async function afterSign(context) {
     console.log("[afterMasSign] No app.asar.unpacked directory found.");
   }
 
+  // --- 2.5. Sign the bundled nym-proxy with inherit entitlements ---
+  // The wallet spawns it as a child (ADR 0024); MAS requires an inherited
+  // helper to carry app-sandbox + inherit so it runs inside the parent's
+  // sandbox and uses the parent's network entitlements. It lives in
+  // Contents/Resources (extraResources), untouched by the passes above.
+
+  const inheritEntitlementsPath = path.join(__dirname, "configs", "entitlements.mas.inherit.plist");
+  const nymProxyPath = path.join(appPath, "Contents", "Resources", "nym-proxy");
+  if (fs.existsSync(nymProxyPath)) {
+    console.log("[afterMasSign] Signing nym-proxy with inherit entitlements...");
+    try {
+      execSync(
+        `codesign --force --sign "${identity}" --entitlements "${inheritEntitlementsPath}" --timestamp "${nymProxyPath}"`,
+        { stdio: "pipe" },
+      );
+    } catch (err) {
+      const out = err.stdout ? err.stdout.toString() : "";
+      const errStr = err.stderr ? err.stderr.toString() : "";
+      throw new Error(`[afterMasSign] codesign failed for nym-proxy:\n${out}\n${errStr}`);
+    }
+  } else {
+    console.log("[afterMasSign] No bundled nym-proxy in Resources (non-mixnet build?).");
+  }
+
   // --- 3. Re-seal the main app bundle with explicit MAS entitlements ---
   // Removes auto-added com.apple.security.application-groups that electron-builder
   // injects but was not in the provisioning profile (now it is, but we still want

@@ -40,6 +40,7 @@ import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
 import { OrchardMigration } from "../components/orchardMigration";
 import { RPCIronwoodDrainType } from "../rpc/components/RPCIronwoodDrainType";
+import { MixnetView } from "../rpc/components/mixnetPresenter";
 import { ConfirmModal } from "../components/confirmModal";
 import ShieldResultContent from "./ShieldResultContent";
 import LockScreen from "../components/lockScreen/LockScreen";
@@ -144,6 +145,9 @@ const AppRoutes: React.FC = () => {
     if (typeof price === "number") setZecPriceState(price);
   }, []);
 
+  const [mixnetView, setMixnetViewState] = useState<MixnetView>(defaultAppState.mixnetView);
+  const setMixnetView = useCallback((view: MixnetView) => setMixnetViewState(view), []);
+
   const setReadOnly = useCallback((val: boolean) => setReadOnlyState(val), []);
   const setServerUris = useCallback((val: ServerClass[]) => setServerUrisState(val), []);
   const setWallets = useCallback((val: WalletType[]) => setWalletsState(val), []);
@@ -205,6 +209,7 @@ const AppRoutes: React.FC = () => {
       setSyncStatus,
       setVerificationProgress,
       setFetchError,
+      setMixnetView,
       defaultAppState.currentWallet,
     );
   }
@@ -399,7 +404,7 @@ const AppRoutes: React.FC = () => {
   }, []);
 
   const runRPCShieldTransparentBalanceToOrchard = useCallback(async (): Promise<string> => {
-    return rpcRef.current!.shieldTransparentBalanceToOrchard();
+    return rpcRef.current!.shieldTransparentBalanceToIronwood();
   }, []);
 
   const handleShieldButtonConfirmed = useCallback(async () => {
@@ -496,6 +501,7 @@ const AppRoutes: React.FC = () => {
       handleShieldButton,
       setAddLabel,
       zecPrice,
+      mixnetView,
       blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
       blockExplorerMainnetAddressCustom: blockExplorerConfig.blockExplorerMainnetAddressCustom,
       blockExplorerMainnetTransaction: blockExplorerConfig.blockExplorerMainnetTransaction,
@@ -539,6 +545,7 @@ const AppRoutes: React.FC = () => {
       handleShieldButton,
       setAddLabel,
       zecPrice,
+      mixnetView,
       blockExplorerConfig,
       setBlockExplorer,
     ],

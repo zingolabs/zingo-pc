@@ -899,6 +899,24 @@ ipcMain.handle("native:parse_address", (_e, address) => getNative().parse_addres
 ipcMain.handle("native:parse_ufvk", (_e, ufvk) => getNative().parse_ufvk(ufvk));
 ipcMain.handle("native:get_messages", (_e, address) => getNative().get_messages(address));
 ipcMain.handle("native:zec_price_over_mixnet", () => getNative().zec_price_over_mixnet());
+ipcMain.handle("native:mixnet_status", () => getNative().mixnet_status());
+// The bundled nym-proxy path, resolved in main because only main knows the
+// packaged layout. Packaged: electron-builder stages the binary into
+// process.resourcesPath (extraResources, excluded from the MAS target). Dev:
+// return empty so the Rust side falls through to ZINGO_NYM_PROXY / PATH. The
+// renderer never supplies this (it cannot know the path), so the handler
+// ignores its argument.
+function nymProxyPath() {
+  if (isDev) {
+    const devPath = process.env.ZINGO_NYM_PROXY || "";
+    console.log(`[mixnet] dev nym-proxy path (from ZINGO_NYM_PROXY): "${devPath}"`);
+    return devPath;
+  }
+  const exe = process.platform === "win32" ? "nym-proxy.exe" : "nym-proxy";
+  return path.join(process.resourcesPath, exe);
+}
+ipcMain.handle("native:start_mixnet", () => getNative().start_mixnet(nymProxyPath()));
+ipcMain.handle("native:stop_mixnet", () => getNative().stop_mixnet());
 ipcMain.handle("native:remove_transaction", (_e, txid) => getNative().remove_transaction(txid));
 ipcMain.handle("native:get_spendable_balance_with_address", (_e, address, zennies) =>
   getNative().get_spendable_balance_with_address(address, zennies),
