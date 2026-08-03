@@ -40,7 +40,8 @@ import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
 import { OrchardMigration } from "../components/orchardMigration";
 import { RPCIronwoodDrainType } from "../rpc/components/RPCIronwoodDrainType";
-import { MixnetView } from "../rpc/components/mixnetPresenter";
+import { MixnetView, deriveMixnetView } from "../rpc/components/mixnetPresenter";
+import { RPCMixnetStatusType } from "../rpc/components/RPCMixnetStatusType";
 import { ConfirmModal } from "../components/confirmModal";
 import ShieldResultContent from "./ShieldResultContent";
 import LockScreen from "../components/lockScreen/LockScreen";
@@ -147,6 +148,15 @@ const AppRoutes: React.FC = () => {
 
   const [mixnetView, setMixnetViewState] = useState<MixnetView>(defaultAppState.mixnetView);
   const setMixnetView = useCallback((view: MixnetView) => setMixnetViewState(view), []);
+
+  // Main pushes the Mixnet Mode status on every transition (bootstrapping,
+  // narration, ready, died, switched_off); project it to the view instantly so
+  // the indicator never lags the transport.
+  useEffect(() => {
+    const listener = (_event: unknown, status: RPCMixnetStatusType) => setMixnetView(deriveMixnetView(status));
+    ipcRenderer.on("mixnet-status", listener);
+    return () => ipcRenderer.removeListener("mixnet-status", listener);
+  }, [setMixnetView]);
 
   const setReadOnly = useCallback((val: boolean) => setReadOnlyState(val), []);
   const setServerUris = useCallback((val: ServerClass[]) => setServerUrisState(val), []);

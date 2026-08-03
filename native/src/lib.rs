@@ -54,8 +54,6 @@ use zingolib::config::{ChainType, ClientConfig, WalletConfig, construct_indexer_
 use zingolib::data::PollReport;
 use zingolib::lightclient::LightClient;
 use zingolib::lightclient::error::LightClientError;
-use zingolib::nym::provision::SpawnHints;
-use zingolib::nym::{MixnetStartPolicy, ProvisionStrategy};
 use zingolib::utils::{conversion::address_from_str, conversion::txid_from_hex_encoded_str};
 use zingolib::wallet::keys::unified::{ReceiverSelection, UnifiedKeyStore};
 use zingolib::wallet::WalletSettings;
@@ -137,7 +135,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_total_spends_to_address", get_total_spends_to_address)?;
     cx.export_function("zec_price_over_mixnet", zec_price_over_mixnet)?;
     cx.export_function("mixnet_status", mixnet_status)?;
-    cx.export_function("start_mixnet", start_mixnet)?;
+    cx.export_function("attach_mixnet", attach_mixnet)?;
     cx.export_function("stop_mixnet", stop_mixnet)?;
     cx.export_function("drain_orchard_to_ironwood", drain_orchard_to_ironwood)?;
     cx.export_function("drain_status", drain_status)?;
@@ -2553,14 +2551,13 @@ fn mixnet_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
-// Start the Mixnet Mode session forced-on (ADR 0024, consent at start): spawn
-// the bundled nym-proxy and force the mode on so its bootstrap overlaps sync.
-// `proxy_path` is the path the JS side resolved (the packaged binary in dev/
-// prod, or empty to fall through to the ZINGO_NYM_PROXY / PATH precedence).
-// A provisioning failure leaves the mode unattached and returns typed, so a
-// mixnet-only send refuses rather than falling back to clearnet.
-fn start_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let proxy_path = cx.argument::<JsString>(0)?.value(&mut cx);
+// Attach the wallet to the already-running nym-proxy that electron main owns
+// for the session (ADR 0024 attach seam). Main spawns the proxy once and holds
+// it across wallet switches, so a switch just re-attaches the new client to the
+// same `socks5_addr` and the mixnet never re-bootstraps. Returns typed on
+// failure, leaving the mode unattached so a mixnet-only send stays fail-closed.
+fn attach_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let socks5_addr = cx.argument::<JsString>(0)?.value(&mut cx);
 
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
@@ -2568,15 +2565,7 @@ fn start_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
                     RT.block_on(async move {
-                        let explicit = (!proxy_path.is_empty()).then_some(proxy_path.as_str());
-                        let hints = SpawnHints { explicit, bundled_dir: None };
-                        match lightclient
-                            .start_mixnet_session(
-                                ProvisionStrategy::Spawn(hints),
-                                MixnetStartPolicy::ForcedOn,
-                            )
-                            .await
-                        {
+                        match lightclient.attach_mixnet(&socks5_addr).await {
                             Ok(()) => Ok(object! { "status" => "ok" }.pretty(2)),
                             Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }

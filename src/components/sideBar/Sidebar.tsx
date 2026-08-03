@@ -452,6 +452,11 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       }
     };
 
+    const mixnetsettings = (_event: any) => {
+      if (!active) return;
+      setMixnetModalIsOpen(true);
+    };
+
     ipcRenderer.on("about", about);
     ipcRenderer.on("payuri", payuri);
     ipcRenderer.on("blockexplorer", blockexplorer);
@@ -460,6 +465,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     ipcRenderer.on("addnewwallet", addnewwallet);
     ipcRenderer.on("settingswallet", settingswallet);
     ipcRenderer.on("deletewallet", deletewallet);
+    ipcRenderer.on("mixnet-settings", mixnetsettings);
 
     return () => {
       active = false;
@@ -471,6 +477,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       ipcRenderer.off("addnewwallet", addnewwallet);
       ipcRenderer.off("settingswallet", settingswallet);
       ipcRenderer.off("deletewallet", deletewallet);
+      ipcRenderer.off("mixnet-settings", mixnetsettings);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

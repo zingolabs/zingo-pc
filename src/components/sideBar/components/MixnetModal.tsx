@@ -3,6 +3,10 @@ import { useContext, useState } from "react";
 import cstyles from "../../common/Common.module.css";
 import { ContextApp } from "../../../context/ContextAppState";
 import RPC from "../../../rpc/rpc";
+import nymLogo from "../../../assets/nym-on.svg";
+
+// The Nym brand green (from the mobile nym UI), used as a discreet accent.
+const NYM_GREEN = "#07FF94";
 
 type MixnetModalProps = {
   modalIsOpen: boolean;
@@ -22,13 +26,15 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
   const { mixnetView } = useContext(ContextApp);
   const [busy, setBusy] = useState<boolean>(false);
 
-  // Enabled is every state except the deliberate per-session opt-out.
-  const enabled = mixnetView.statusKey !== "mixnet.status.off";
+  // Active while the transport is up or coming up; anything else (off,
+  // unattached, died) offers Enable so a failed start can be retried.
+  const active =
+    mixnetView.statusKey === "mixnet.status.ready" || mixnetView.statusKey === "mixnet.status.bootstrapping";
 
   const toggle = async () => {
     setBusy(true);
     try {
-      if (enabled) {
+      if (active) {
         await RPC.stopMixnet();
       } else {
         await RPC.startMixnet();
@@ -64,12 +70,20 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
         },
       }}
     >
-      <div className={`${cstyles.xlarge} ${cstyles.center}`}>Nym Mixnet</div>
+      <div
+        className={cstyles.xlarge}
+        style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
+      >
+        <img src={nymLogo} alt="" width={20} height={20} />
+        Nym Mixnet
+      </div>
 
       <div className={cstyles.well} style={{ marginTop: 24 }}>
         <div className={cstyles.flexspacebetween}>
           <span>Status</span>
-          <span>{STATUS_TEXT[mixnetView.statusKey] ?? "Unknown"}</span>
+          <span style={active ? { color: NYM_GREEN } : undefined}>
+            {STATUS_TEXT[mixnetView.statusKey] ?? "Unknown"}
+          </span>
         </div>
         {mixnetView.socks5Addr && (
           <div className={cstyles.flexspacebetween} style={{ marginTop: 8 }}>
@@ -93,7 +107,7 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
 
       <div className={cstyles.buttoncontainer} style={{ marginTop: 24 }}>
         <button type="button" className={cstyles.primarybutton} onClick={toggle} disabled={busy}>
-          {enabled ? "Disable (use clearnet)" : "Enable mixnet"}
+          {active ? "Disable (use clearnet)" : "Enable mixnet"}
         </button>
         <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
           Close

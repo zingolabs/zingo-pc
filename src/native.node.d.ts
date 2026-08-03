@@ -69,7 +69,7 @@ export function get_total_value_to_address(): Promise<string>;
 export function get_total_spends_to_address(): Promise<string>;
 export function zec_price_over_mixnet(): Promise<string>;
 export function mixnet_status(): Promise<string>;
-export function start_mixnet(proxy_path: string): Promise<string>;
+export function attach_mixnet(socks5_addr: string): Promise<string>;
 export function stop_mixnet(): Promise<string>;
 export function remove_transaction(txid: string): Promise<string>;
 export function get_spendable_balance_with_address(address: string, zennies: string): Promise<string>;

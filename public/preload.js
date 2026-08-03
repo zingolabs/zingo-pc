@@ -63,9 +63,6 @@ const _ALL_NATIVE_METHODS = [
   "parse_ufvk",
   "get_messages",
   "zec_price_over_mixnet",
-  "mixnet_status",
-  "start_mixnet",
-  "stop_mixnet",
   "remove_transaction",
   "get_spendable_balance_with_address",
   "create_new_unified_address",
@@ -103,6 +100,8 @@ const ALLOWED_RECEIVE = new Set([
   "appsecurity",
   "change-wallet-dir",
   "import-data",
+  "mixnet-status",
+  "mixnet-settings",
 ]);
 
 // Allowed IPC channels that renderer → main can invoke/send.
@@ -133,6 +132,10 @@ const ALLOWED_INVOKE = new Set([
   "import:apply",
   "zns:resolve",
   "save-png",
+  "mixnet:enable",
+  "mixnet:disable",
+  "mixnet:get-status",
+  "mixnet:attach-current",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {
