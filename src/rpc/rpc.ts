@@ -39,6 +39,12 @@ const parseValueTransferPools = (raw?: string[]): ValueTransferPoolEnum[] | unde
   return pools.length > 0 ? pools : undefined;
 };
 
+// A mixnet-only broadcast refuses fail-closed while the transport is not ready
+// (bootstrapping, unattached, died). On the poll cycle that is a benign skip,
+// not a failure — it succeeds once the mixnet reaches ready. All three refusals
+// name "the Nym mixnet".
+const isMixnetNotReady = (error: unknown): boolean => String(error).includes("the Nym mixnet");
+
 export default class RPC {
   fnSetTotalBalance: (tb: TotalBalanceClass) => void;
   fnSetAddressesUnified: (abs: UnifiedAddressClass[]) => void;
@@ -943,6 +949,9 @@ export default class RPC {
       const step: FfiSplitStep = JSON.parse(await native.continue_note_splitting());
       return { step, error: "" };
     } catch (error) {
+      // The split broadcasts over the mixnet; while it is not ready this refuses
+      // fail-closed. On the poll cycle that is a benign skip, not a failure.
+      if (isMixnetNotReady(error)) return { step: null, error: "" };
       console.error(`Error continue note splitting ${error}`);
       return { step: null, error: `${error}` };
     }
@@ -1037,6 +1046,9 @@ export default class RPC {
         console.log(`[migration] auto_broadcast_if_due sent ${txids.length} part(s):`, txids);
       }
     } catch (error) {
+      // While the mixnet is bootstrapping (or otherwise not ready) the broadcast
+      // refuses by design; the next tick retries once it is ready. Not an error.
+      if (isMixnetNotReady(error)) return;
       console.error(`Error auto broadcast if due ${error}`);
     }
   }

@@ -76,6 +76,21 @@ jobs:
       - name: yarn install
         run: yarn install
 
+      # The nym-proxy binary (bundled via extraResources on every platform) is
+      # built from zingolib, a separate repo. Check out the same branch
+      # native/Cargo.toml pins and point stage-nym-proxy.js at it.
+      - name: Checkout zingolib (nym-proxy source)
+        uses: actions/checkout@v4
+        with:
+          repository: zingolabs/zingolib
+          ref: fix/for-zingo-pc-working
+          path: zingolib-src
+          fetch-depth: 1
+
+      - name: Set ZINGOLIB_PATH
+        shell: bash
+        run: echo "ZINGOLIB_PATH=${{ github.workspace }}/zingolib-src" >> "$GITHUB_ENV"
+
       - name: Decode macOS certificate (DMG)
         if: matrix.platform == 'mac'
         env:

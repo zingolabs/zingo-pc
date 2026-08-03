@@ -22,24 +22,28 @@ if (!fs.existsSync(manifest)) {
 const flagTarget = process.argv.indexOf("--target");
 const targets = flagTarget !== -1 ? [process.argv[flagTarget + 1]] : ["x86_64-apple-darwin", "aarch64-apple-darwin"];
 
+const isWindows = targets.some((t) => t.includes("windows"));
+const binName = isWindows ? "nym-proxy.exe" : "nym-proxy";
+
 const built = targets.map((target) => {
   console.log(`stage-nym-proxy: building nym-proxy for ${target}`);
   execSync(`cargo build --release --bin nym-proxy --features nym --target ${target} --manifest-path "${manifest}"`, {
     stdio: "inherit",
   });
-  return path.join(zingolib, "zingo-netutils/target", target, "release/nym-proxy");
+  return path.join(zingolib, "zingo-netutils/target", target, "release", binName);
 });
 
 const outDir = path.resolve(__dirname, "../resources");
 fs.mkdirSync(outDir, { recursive: true });
-const out = path.join(outDir, "nym-proxy");
+const out = path.join(outDir, binName);
 
 if (built.length === 1) {
   fs.copyFileSync(built[0], out);
 } else {
+  // lipo is macOS-only; the multi-target path is exclusively the mac universal build.
   execSync(`lipo -create -output "${out}" ${built.map((b) => `"${b}"`).join(" ")}`, {
     stdio: "inherit",
   });
 }
-fs.chmodSync(out, 0o755);
+if (!isWindows) fs.chmodSync(out, 0o755);
 console.log(`stage-nym-proxy: staged ${targets.join(" + ")} at ${out}`);
