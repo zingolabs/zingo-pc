@@ -80,7 +80,6 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     blockExplorerTestnetTransaction,
     blockExplorerMainnetTransactionCustom,
     blockExplorerTestnetTransactionCustom,
-    zecPrice,
   } = context;
   const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
   const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
@@ -213,14 +212,10 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     address = valueTransfer.address;
     memos = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos : [];
     poolsText = buildPoolsText(valueTransfer);
-    // What we render in transaction detail is the converted USD value of
-    // this transaction (`price * amount`), not the per-ZEC exchange rate
-    // — same shape the dashboard uses for balances. Prefer the
-    // per-transaction snapshot (accurate at the time of the tx); fall
-    // back to the current dashboard `zecPrice` when the snapshot is
-    // missing. Only when BOTH are 0 does `getZecToUsdString` emit the
-    // `USD --` fallback.
-    price = valueTransfer.zec_price || zecPrice || 0;
+    // The transaction detail's converted USD value (`price * amount`) uses the
+    // price recorded at generation, never the current price; a tx with no
+    // recorded price renders `USD --` rather than a wrong figure.
+    price = valueTransfer.zec_price || 0;
     if (currencyName === "ZEC") {
       priceString = Utils.getZecToUsdString(price, amount);
     }

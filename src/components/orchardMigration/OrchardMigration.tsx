@@ -258,7 +258,7 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
               className={cstyles.primarybutton}
               onClick={() => setStep(strategy === "private" ? "private" : "confirm")}
             >
-              {simulation ? "Simulate" : "Start"}
+              {simulation ? "Simulate" : "Review"}
             </button>
           </div>
         </div>

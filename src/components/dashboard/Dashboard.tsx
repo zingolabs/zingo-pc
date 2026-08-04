@@ -557,7 +557,9 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                 // per-tx price snapshot, fall back to current zecPrice
                                 // so the USD column doesn't read "USD --" while the
                                 // server-info panel right next to it shows a price.
-                                const price: number = vt.zec_price || zecPrice || 0;
+                                // The tx's own recorded price, never the current one (a years-old
+                                // amount at today's price is meaningless); missing renders `USD --`.
+                                const price: number = vt.zec_price || 0;
                                 const failed: boolean = vt.status === ValueTransferStatusEnum.failed;
                                 const failedColor: string | undefined = failed
                                   ? Utils.getCssVariable("--color-error")

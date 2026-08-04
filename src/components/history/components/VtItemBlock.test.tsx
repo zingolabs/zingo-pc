@@ -28,7 +28,6 @@ const baseProps = {
   currencyName: "ZEC",
   addressBookMap: new Map<string, string>(),
   previousLineWithSameTxid: false,
-  zecPrice: 0,
 };
 
 describe("VtItemBlock", () => {
@@ -119,14 +118,10 @@ describe("VtItemBlock", () => {
     expect(screen.getByText("USD 15.00")).toBeInTheDocument();
   });
 
-  it("falls back to the current zecPrice when vt.zec_price is missing", () => {
-    // 0.5 * 42 = 21.00.
-    render(<VtItemBlock {...baseProps} zecPrice={42} vt={makeVt({ zec_price: 0 })} />);
-    expect(screen.getByText("USD 21.00")).toBeInTheDocument();
-  });
-
-  it("renders the USD-- fallback when both vt.zec_price and zecPrice are 0", () => {
-    render(<VtItemBlock {...baseProps} zecPrice={0} vt={makeVt({ zec_price: 0 })} />);
+  it("renders USD -- when vt.zec_price is missing, never the current price", () => {
+    // A transaction with no recorded price shows no USD figure — applying the
+    // current price to a historical amount would be wrong.
+    render(<VtItemBlock {...baseProps} vt={makeVt({ zec_price: 0 })} />);
     expect(screen.getByText("USD --")).toBeInTheDocument();
   });
 

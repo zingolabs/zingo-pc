@@ -15,8 +15,6 @@ type MessagesItemBlockProps = {
   currencyName: string;
   addressBookMap: Map<string, string>;
   previousLineWithSameTxid: boolean;
-  /** Current ZEC price — used as fallback when `vt.zec_price` is missing. */
-  zecPrice: number;
 };
 
 const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
@@ -28,7 +26,6 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
   currencyName,
   addressBookMap,
   previousLineWithSameTxid,
-  zecPrice,
 }) => {
   const [expandAddress, setExpandAddress] = useState(false);
 
@@ -43,10 +40,10 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
 
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(amount);
 
-  // Prefer the per-transaction price snapshot (accurate at the time of the
-  // tx); fall back to the current `zecPrice` when the snapshot is missing.
-  // Mirrors the same fallback used in VtItemBlock / VtModal.
-  const price: number = vt.zec_price || zecPrice || 0;
+  // A transaction's USD value uses the price recorded AT tx time, never the
+  // current price — applying today's price to an old amount is meaningless.
+  // Missing (0) renders `USD --` rather than a wrong figure.
+  const price: number = vt.zec_price || 0;
 
   //if (index === 0) {
   //  vt.status = ValueTransferStatusEnum.failed;

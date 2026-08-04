@@ -14,8 +14,6 @@ type VtItemBlockProps = {
   currencyName: string;
   addressBookMap: Map<string, string>;
   previousLineWithSameTxid: boolean;
-  /** Current ZEC price — used as a fallback when `vt.zec_price` is missing. */
-  zecPrice: number;
 };
 
 const VtItemBlock: React.FC<VtItemBlockProps> = ({
@@ -27,7 +25,6 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
   currencyName,
   addressBookMap,
   previousLineWithSameTxid,
-  zecPrice,
 }) => {
   const txDate: Date = new Date(vt.time * 1000);
   const datePart: string = dateformat(txDate, "mmm dd, yyyy");
@@ -42,16 +39,12 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
 
   const { bigPart, smallPart }: { bigPart: string; smallPart: string } = Utils.splitZecAmountIntoBigSmall(amount);
 
-  // What we render alongside this transaction is its converted USD value
-  // (`price * amount`), not the per-ZEC exchange rate — the same shape
-  // the dashboard uses for balances. Prefer the per-transaction price
-  // snapshot when present (accurate at the time of the tx); fall back to
-  // the current dashboard `zecPrice` when the snapshot is missing (e.g.
-  // older value transfers from before zingolib recorded per-tx prices).
-  // Only when BOTH are 0 does `getZecToUsdString` emit the `USD --`
-  // fallback — matching the rest of the app and the user expectation that
-  // "USD --" means "no price information at all".
-  const price: number = vt.zec_price || zecPrice || 0;
+  // The transaction's converted USD value (`price * amount`) uses the price
+  // recorded AT tx time, never the current price: today's price on a years-old
+  // amount is meaningless. A tx with no recorded price (e.g. older value
+  // transfers from before zingolib recorded per-tx prices) renders `USD --`
+  // rather than a wrong figure.
+  const price: number = vt.zec_price || 0;
   const priceString: string = currencyName === "ZEC" ? Utils.getZecToUsdString(price, amount) : "";
 
   //if (index === 0) {
