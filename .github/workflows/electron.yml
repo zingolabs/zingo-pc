@@ -77,13 +77,23 @@ jobs:
         run: yarn install
 
       # The nym-proxy binary (bundled via extraResources on every platform) is
-      # built from zingolib, a separate repo. Check out the same branch
-      # native/Cargo.toml pins and point stage-nym-proxy.js at it.
-      - name: Checkout zingolib (nym-proxy source)
+      # built from zingolib, a separate repo. Single source of truth: the exact
+      # commit native/Cargo.lock already resolved to, so the bundled binary
+      # always matches the zingolib the native addon compiles against.
+      - name: Resolve zingolib rev from Cargo.lock
+        id: zingolib
+        shell: bash
+        run: |
+          REV=$(awk '/^name = "zingolib"$/{f=1} f && /^source =/{print; exit}' native/Cargo.lock | grep -oE '[0-9a-f]{40}')
+          test -n "$REV" || { echo "could not resolve zingolib rev from native/Cargo.lock"; exit 1; }
+          echo "rev=$REV" >> "$GITHUB_OUTPUT"
+          echo "zingolib rev: $REV"
+
+      - name: Checkout zingolib (nym-proxy source, matching native/Cargo.lock)
         uses: actions/checkout@v4
         with:
           repository: zingolabs/zingolib
-          ref: fix/for-zingo-pc-working
+          ref: ${{ steps.zingolib.outputs.rev }}
           path: zingolib-src
           fetch-depth: 1
 
