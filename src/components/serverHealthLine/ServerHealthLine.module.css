@@ -4,7 +4,9 @@
   justify-content: flex-end;
   gap: 8px;
   width: 100%;
-  margin-bottom: 8px;
+  /* BalanceBlock already brings 16px of its own padding underneath, so the gap
+     is pulled back rather than added to. */
+  margin-bottom: -4px;
   padding: 0;
   border: none;
   background: none;

@@ -17,7 +17,7 @@ import {
 } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import DetailLine from "../detailLine/DetailLine";
-import ServerHealthLine from "./ServerHealthLine";
+import { ServerHealthLine } from "../serverHealthLine";
 import { useNavigate } from "react-router-dom";
 
 type DashboardProps = {

@@ -12,6 +12,7 @@ import {
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight } from "../balanceBlock";
+import { ServerHealthLine } from "../serverHealthLine";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
 import ToAddrBox from "./components/ToAddrBox";
@@ -273,6 +274,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
       />
 
       <div className={`${cstyles.well} ${styles.containermargin}`}>
+        <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
