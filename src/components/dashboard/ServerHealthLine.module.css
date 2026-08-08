@@ -1,0 +1,49 @@
+.line {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: right;
+}
+
+.uri {
+  font-size: 12px;
+  opacity: 0.75;
+  /* The line is right-aligned so this grows leftwards; ellipsis is the floor
+     for a URI longer than the pane. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Same shape as the migration part badges, so a status chip reads as a status
+   chip wherever it appears. Neutral on purpose: the mode is not a verdict. */
+.badge {
+  flex: none;
+  font-size: 8px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--color-primary-disable);
+  color: var(--color-primary-disable);
+  text-transform: uppercase;
+}
+
+/* A drawn circle rather than the "●" glyph: the glyph sits wherever the font
+   puts it inside its em box, which reads as misaligned next to text. */
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: currentColor;
+}

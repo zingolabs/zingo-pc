@@ -1,7 +1,6 @@
 import TotalBalanceClass from "./classes/TotalBalanceClass";
 import ValueTransferClass from "./classes/ValueTransferClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
-import ServerClass from "./classes/ServerClass";
 import FetchErrorClass from "./classes/FetchErrorClass";
 import ConfirmModalClass from "./classes/ConfirmModalClass";
 import ErrorModalClass from "./classes/ErrorModalClass";
@@ -11,6 +10,7 @@ import AddressBookEntryClass from "./classes/AddressBookEntryClass";
 import InfoClass from "./classes/InfoClass";
 import { SyncStatusType } from "./types/SyncStatusType";
 import { MixnetView, UNKNOWN_MIXNET_VIEW } from "../../rpc/components/mixnetPresenter";
+import { INITIAL_SERVER_HEALTH, ServerHealthState } from "../../rpc/components/serverHealth";
 import { ZcashURITarget } from "../../utils/uris";
 import { WalletType } from "./types/WalletType";
 import { BlockExplorerEnum } from "./enums/BlockExplorerEnum";
@@ -48,7 +48,6 @@ export default class AppState {
   readOnly: boolean;
 
   // list of servers with the latency calculated at launch
-  serverUris: ServerClass[];
 
   // general error of some fetching command
   fetchError: FetchErrorClass;
@@ -99,6 +98,8 @@ export default class AppState {
   // and the fail-closed send gate. Defaults to the unknown (blocked) view
   // until the first status poll.
   mixnetView: MixnetView;
+  serverHealth: ServerHealthState;
+  rotateServer: () => void;
 
   // block explorer selected. Type is the enum (not a literal) so a custom
   // value can be assigned and the type narrows cleanly.
@@ -126,7 +127,6 @@ export default class AppState {
     this.syncingStatus = {} as SyncStatusType;
     this.verificationProgress = null;
     this.readOnly = false;
-    this.serverUris = [] as ServerClass[];
     this.fetchError = {} as FetchErrorClass;
     this.currentWallet = {} as WalletType;
     this.currentWalletOpenError = "";
@@ -146,6 +146,8 @@ export default class AppState {
     this.setAddLabel = () => {};
     this.zecPrice = 0;
     this.mixnetView = UNKNOWN_MIXNET_VIEW;
+    this.serverHealth = INITIAL_SERVER_HEALTH;
+    this.rotateServer = () => {};
     this.blockExplorerMainnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerTestnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerMainnetAddress = BlockExplorerEnum.Zcashexplorer;

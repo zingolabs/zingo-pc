@@ -17,7 +17,6 @@ import {
   ToAddrClass,
   InfoClass,
   AddressBookEntryClass,
-  ServerClass,
   FetchErrorTypeClass,
   UnifiedAddressClass,
   TransparentAddressClass,
@@ -29,7 +28,8 @@ import {
   BlockExplorerEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
-import { ZcashURITarget } from "../utils/uris";
+import { ZcashURITarget, checkServerURI } from "../utils/uris";
+import pickRotationTarget from "../utils/pickRotationTarget";
 import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
@@ -41,6 +41,7 @@ import { Messages } from "../components/messages";
 import { OrchardMigration } from "../components/orchardMigration";
 import { RPCIronwoodDrainType } from "../rpc/components/RPCIronwoodDrainType";
 import { MixnetView, deriveMixnetView } from "../rpc/components/mixnetPresenter";
+import { ServerHealthState } from "../rpc/components/serverHealth";
 import { RPCMixnetStatusType } from "../rpc/components/RPCMixnetStatusType";
 import { ConfirmModal } from "../components/confirmModal";
 import ShieldResultContent from "./ShieldResultContent";
@@ -70,7 +71,6 @@ const AppRoutes: React.FC = () => {
   const [syncingStatus, setSyncingStatusState] = useState(defaultAppState.syncingStatus);
   const [verificationProgress, setVerificationProgressState] = useState(defaultAppState.verificationProgress);
   const [readOnly, setReadOnlyState] = useState(defaultAppState.readOnly);
-  const [serverUris, setServerUrisState] = useState(defaultAppState.serverUris);
   const [fetchError, setFetchErrorState] = useState(defaultAppState.fetchError);
   const [currentWallet, setCurrentWalletState] = useState(defaultAppState.currentWallet);
   const [currentWalletOpenError, setCurrentWalletOpenErrorState] = useState(defaultAppState.currentWalletOpenError);
@@ -147,7 +147,9 @@ const AppRoutes: React.FC = () => {
   }, []);
 
   const [mixnetView, setMixnetViewState] = useState<MixnetView>(defaultAppState.mixnetView);
+  const [serverHealth, setServerHealthState] = useState<ServerHealthState>(defaultAppState.serverHealth);
   const setMixnetView = useCallback((view: MixnetView) => setMixnetViewState(view), []);
+  const setServerHealth = useCallback((health: ServerHealthState) => setServerHealthState(health), []);
 
   // Main pushes the Mixnet Mode status on every transition (bootstrapping,
   // narration, ready, died, switched_off); project it to the view instantly so
@@ -159,7 +161,6 @@ const AppRoutes: React.FC = () => {
   }, [setMixnetView]);
 
   const setReadOnly = useCallback((val: boolean) => setReadOnlyState(val), []);
-  const setServerUris = useCallback((val: ServerClass[]) => setServerUrisState(val), []);
   const setWallets = useCallback((val: WalletType[]) => setWalletsState(val), []);
   const setBirthday = useCallback((val: number) => setBirthdayState(val), []);
 
@@ -220,6 +221,7 @@ const AppRoutes: React.FC = () => {
       setVerificationProgress,
       setFetchError,
       setMixnetView,
+      setServerHealth,
       defaultAppState.currentWallet,
     );
   }
@@ -311,6 +313,35 @@ const AppRoutes: React.FC = () => {
     setErrorModalState(modal);
   }, []);
 
+  // Move the open wallet onto another server without reopening it. `checkServerURI`
+  // swaps the endpoint, verifies it answers, and restores the old one if it does
+  // not, so a rotation that fails leaves the session exactly where it was.
+  //
+  // Only ever reached from the health line in `auto`. A server the user chose by
+  // hand is never swapped out from under them — that path goes to the picker.
+  const rotateServer = useCallback(async () => {
+    const wallet: WalletType | null = currentWallet;
+    if (!wallet?.uri) {
+      return;
+    }
+    const target: string | null = await pickRotationTarget(wallet.chain_name, wallet.uri);
+    if (!target) {
+      openErrorModal("Change Server", "No other server is available for this network.");
+      return;
+    }
+    if (!(await checkServerURI(target, wallet.uri))) {
+      openErrorModal("Change Server", `${target} is not responding either. Staying on the current server.`);
+      return;
+    }
+    const rotated: WalletType = { ...wallet, uri: target };
+    await ipcRenderer.invoke("wallets:update", rotated);
+    await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: target });
+    setCurrentWallet(rotated);
+    setWallets(await ipcRenderer.invoke("wallets:all"));
+    // The new server starts with a clean record; the old one's says nothing about it.
+    rpcRef.current?.resetServerHealth();
+  }, [currentWallet, openErrorModal, setCurrentWallet, setWallets]);
+
   const openConfirmModal = useCallback((title: string, body: string | JSX.Element, runAction: () => void) => {
     const modal = new ConfirmModalClass();
     modal.modalIsOpen = true;
@@ -335,12 +366,9 @@ const AppRoutes: React.FC = () => {
     navigate(routes.HISTORY, { replace: true, state: {} });
   }, [navigate]);
 
-  const navigateToLoadingScreen = useCallback(
-    (uris: ServerClass[]) => {
-      navigate(routes.LOADING, { replace: true, state: { serverUris: uris } });
-    },
-    [navigate],
-  );
+  const navigateToLoadingScreen = useCallback(() => {
+    navigate(routes.LOADING, { replace: true });
+  }, [navigate]);
 
   const navigateToLoadingScreenChangingWallet = useCallback(async () => {
     setTotalBalance(new TotalBalanceClass());
@@ -358,10 +386,9 @@ const AppRoutes: React.FC = () => {
 
     await rpcRef.current?.clearTimers();
 
-    navigateToLoadingScreen(serverUris);
+    navigateToLoadingScreen();
   }, [
     navigateToLoadingScreen,
-    serverUris,
     setTotalBalance,
     setAddressesUnified,
     setAddressesTransparent,
@@ -490,7 +517,6 @@ const AppRoutes: React.FC = () => {
       syncingStatus,
       verificationProgress,
       readOnly,
-      serverUris,
       fetchError,
       currentWallet,
       currentWalletOpenError,
@@ -512,6 +538,8 @@ const AppRoutes: React.FC = () => {
       setAddLabel,
       zecPrice,
       mixnetView,
+      serverHealth,
+      rotateServer,
       blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
       blockExplorerMainnetAddressCustom: blockExplorerConfig.blockExplorerMainnetAddressCustom,
       blockExplorerMainnetTransaction: blockExplorerConfig.blockExplorerMainnetTransaction,
@@ -534,7 +562,6 @@ const AppRoutes: React.FC = () => {
       syncingStatus,
       verificationProgress,
       readOnly,
-      serverUris,
       fetchError,
       currentWallet,
       currentWalletOpenError,
@@ -556,6 +583,8 @@ const AppRoutes: React.FC = () => {
       setAddLabel,
       zecPrice,
       mixnetView,
+      serverHealth,
+      rotateServer,
       blockExplorerConfig,
       setBlockExplorer,
     ],
@@ -637,7 +666,6 @@ const AppRoutes: React.FC = () => {
                   runRPCConfigure={() => rpcRef.current?.configure()}
                   setInfo={setInfo}
                   setReadOnly={setReadOnly}
-                  setServerUris={setServerUris}
                   navigateToDashboard={navigateToDashboard}
                   setBirthday={setBirthday}
                   setPools={setPools}

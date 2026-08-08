@@ -131,6 +131,7 @@ const ALLOWED_INVOKE = new Set([
   "import:scan",
   "import:apply",
   "zns:resolve",
+  "servers:fetchList",
   "save-png",
   "mixnet:enable",
   "mixnet:disable",

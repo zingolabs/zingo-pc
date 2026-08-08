@@ -17,6 +17,7 @@ import {
 } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import DetailLine from "../detailLine/DetailLine";
+import ServerHealthLine from "./ServerHealthLine";
 import { useNavigate } from "react-router-dom";
 
 type DashboardProps = {
@@ -280,6 +281,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
         )}
       {currentWallet !== null && !currentWalletOpenError && (
         <div className={`${cstyles.well} ${styles.containermargin}`}>
+          <ServerHealthLine />
           <div className={cstyles.balancebox}>
             <BalanceBlockHighlight
               topLabel="All Funds"

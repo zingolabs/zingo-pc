@@ -15,9 +15,15 @@ import cstyles from "../common/Common.module.css";
 import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
+import fetchServerList from "../../utils/fetchServerList";
+import selectFastestServer from "../../utils/selectFastestServer";
 import Utils from "../../utils/utils";
 import { Logo } from "../logo";
 import DetailLine from "../detailLine/DetailLine";
+
+// The server we ship for a chain, or "" for a chain we publish none for.
+const defaultServerForChain = (chain: ServerChainNameEnum): string =>
+  serverUrisList().find((s: ServerClass) => s.chain_name === chain && !s.obsolete && s.default)?.uri ?? "";
 
 class LoadingScreenState {
   loadingDone: boolean;
@@ -38,7 +44,6 @@ type LoadingScreenProps = {
   runRPCConfigure: () => void;
   setInfo: (info: InfoClass) => void;
   setReadOnly: (readOnly: boolean) => void;
-  setServerUris: (serverUris: ServerClass[]) => void;
   navigateToDashboard: () => void;
   setBirthday: (b: number) => void;
   setPools: (o: boolean, s: boolean, t: boolean) => void;
@@ -52,18 +57,15 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
   static contextType = ContextApp;
   private navigationTimer: ReturnType<typeof setTimeout> | undefined;
 
+  // One `auto` pick per chain per launch. loadCurrentWallet runs the settings
+  // check twice — once against settings.json, once against the wallet record —
+  // and racing the same servers again would double the launch latency for a
+  // result we already have.
+  private autoPicked: Map<ServerChainNameEnum, string> = new Map();
+
   constructor(props: LoadingScreenProps) {
     super(props);
-
-    let serverUris: ServerClass[] = [];
-    if (props.location.state) {
-      const locationState = props.location.state as {
-        serverUris: ServerClass[];
-      };
-      serverUris = locationState.serverUris;
-    }
     this.state = new LoadingScreenState();
-    this.props.setServerUris(serverUris);
   }
 
   componentDidMount = async () => {
@@ -106,121 +108,85 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     let uri: string = "",
       chain_name: ServerChainNameEnum = ServerChainNameEnum.mainChainName,
       selection: ServerSelectionEnum = ServerSelectionEnum.list;
-    if (!serveruri && !serverchain_name && !serverselection) {
-      // no settings stored, asumming `list` and the first server by default.
+    if (!serveruri) {
+      // Nothing usable stored, so there is no choice to respect: land on `auto`
+      // and let the block below pick. Keep whatever chain the settings do name
+      // — losing it would boot a testnet user onto mainnet.
       const d = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.default);
-      uri = d[0].uri;
-      chain_name = d[0].chain_name;
-      selection = ServerSelectionEnum.list;
-      return { uri, chain_name, selection };
+      chain_name = serverchain_name ? serverchain_name : d[0].chain_name;
+      const forChain: ServerClass[] = d.filter((s: ServerClass) => s.chain_name === chain_name);
+      uri = forChain.length > 0 ? forChain[0].uri : "";
+      selection = ServerSelectionEnum.auto;
     } else {
-      if (!serveruri) {
-        // no settings for server stored, asumming `list` and the first server by default.
-        const d = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.default);
-        uri = d[0].uri;
-        chain_name = d[0].chain_name;
-        selection = ServerSelectionEnum.list;
-        return { uri, chain_name, selection };
+      // the server is in settings, asking for the other fields.
+      const serverInList: ServerClass[] = serverUrisList().filter((s: ServerClass) => s.uri === serveruri);
+      const listed: boolean = serverInList.length === 1;
+      uri = serveruri;
+      if (!serverchain_name) {
+        chain_name = listed ? serverInList[0].chain_name : ServerChainNameEnum.mainChainName;
       } else {
-        // the server is in settings, asking for the other fields.
-        const serverInList = serverUrisList().filter((s: ServerClass) => s.uri === serveruri);
-        uri = serveruri;
-        if (!serverchain_name) {
-          if (serverInList && serverInList.length === 1) {
-            // if the server is in the list, then selection is `list`
-            if (serverInList[0].obsolete) {
-              // if obsolete then select the first one on list
-              const d = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.default);
-              uri = d[0].uri;
-              chain_name = d[0].chain_name;
-              selection = ServerSelectionEnum.list;
-              return { uri, chain_name, selection };
-            } else {
-              chain_name = serverInList[0].chain_name;
-              selection = ServerSelectionEnum.list;
-              return { uri, chain_name, selection };
-            }
-          } else {
-            // asuming mainnet
-            chain_name = ServerChainNameEnum.mainChainName;
-            selection = ServerSelectionEnum.custom;
-            return { uri, chain_name, selection };
-          }
-        } else {
-          // the server & chain are in settings, asking for selection
-          chain_name = serverchain_name;
-          if (!serverselection) {
-            if (serverInList && serverInList.length === 1) {
-              // if the server is in the list, then selection is `list`
-              if (serverInList[0].obsolete) {
-                // if obsolete then select the first one on list for the chain
-                let d = serverUrisList().filter(
-                  (s: ServerClass) => s.chain_name === chain_name && !s.obsolete && s.default,
-                );
-                if (!d || d.length === 0) {
-                  d = serverUrisList().filter((s: ServerClass) => !s.obsolete && s.default);
-                }
-                uri = d[0].uri;
-                chain_name = d[0].chain_name;
-                selection = ServerSelectionEnum.list;
-                return { uri, chain_name, selection };
-              } else {
-                chain_name = serverInList[0].chain_name;
-                selection = ServerSelectionEnum.list;
-                return { uri, chain_name, selection };
-              }
-            } else {
-              selection = ServerSelectionEnum.custom;
-              return { uri, chain_name, selection };
-            }
-          } else {
-            selection = serverselection;
-          }
-        }
+        chain_name = serverchain_name;
+      }
+      if (serverchain_name && serverselection) {
+        selection = serverselection;
+      } else {
+        // No stored mode: a server we publish reads as a `list` pick, anything
+        // else as one the user typed.
+        selection = listed ? ServerSelectionEnum.list : ServerSelectionEnum.custom;
       }
     }
 
-    // if the server selected is now obsolete, change it for the first one
-    const serverInList: ServerClass[] = serverUrisList().filter((s: ServerClass) => s.uri === uri);
-    if (serverInList && serverInList.length === 1 && serverInList[0].obsolete) {
-      // select the first one for the chain selected by default
-      let d = serverUrisList().filter((s: ServerClass) => s.chain_name === chain_name && !s.obsolete && s.default);
-      if (!d || d.length === 0) {
-        // reset server
-        uri = "";
-        selection = ServerSelectionEnum.custom;
-      } else {
-        uri = d[0].uri;
-        selection = ServerSelectionEnum.list;
-      }
+    // A stored server that has since been marked obsolete is an anomaly, and
+    // anomalies land on `auto`: it re-picks below, and keeps re-picking on
+    // every later launch, where `list` or `custom` would strand the user on a
+    // dead URI. `auto` itself never picks an obsolete server, so it skips this.
+    const obsoleteNow: ServerClass[] = serverUrisList().filter((s: ServerClass) => s.uri === uri && s.obsolete);
+    if (selection !== ServerSelectionEnum.auto && obsoleteNow.length === 1) {
       console.log("server obsolete =>", uri, chain_name);
-      return { uri, chain_name, selection };
+      selection = ServerSelectionEnum.auto;
     }
 
-    // if empty is the first time and if auto => App needs to check the servers.
+    // One registry read for the rest of the check. `custom` is left out: a
+    // server the user typed is not meant to be in the registry, so asking about
+    // it would only be a request nobody reads. An unreachable registry gives an
+    // empty list and every branch below falls back to the static one.
+    const live: ServerClass[] =
+      selection === ServerSelectionEnum.auto || selection === ServerSelectionEnum.list
+        ? await fetchServerList(chain_name)
+        : [];
+
+    // A `list` server that has dropped off the registry is the live equivalent
+    // of the obsolete flag above, and lands the same way: on `auto`.
+    if (selection === ServerSelectionEnum.list && live.length > 0 && !live.some((s: ServerClass) => s.uri === uri)) {
+      console.log("server unlisted =>", uri, chain_name);
+      selection = ServerSelectionEnum.auto;
+    }
+
+    // `auto` is a standing choice, not a one-shot action: it re-picks the best
+    // server on every launch and stays `auto`. Writing `list` back here pinned
+    // the wallet to whichever server won the first boot, and showed the user a
+    // mode they never chose. Only `uri` moves.
     if (selection === ServerSelectionEnum.auto) {
-      // we need to filter by Network/Chain
-      const servers: ServerClass[] = serverUrisList().filter(
-        (s: ServerClass) => s.chain_name === chain_name && !s.obsolete,
-      );
-      const serverFaster = await this.selectingServer(servers);
-      if (serverFaster) {
-        uri = serverFaster.uri;
-        selection = ServerSelectionEnum.list;
-      } else if (!!servers && servers.length > 0) {
-        // none of the servers are working properly.
-        uri = servers[0].uri;
-        selection = ServerSelectionEnum.list;
+      const alreadyPicked: string | undefined = this.autoPicked.get(chain_name);
+      if (alreadyPicked) {
+        uri = alreadyPicked;
+      } else if (live.length > 0) {
+        // The registry already ranks by uptime and ping, so its head is the
+        // pick. No probe: that ranking is what we came here for.
+        uri = live[0].uri;
+        this.autoPicked.set(chain_name, uri);
       } else {
-        // no appropiate server to choose.
-        let d = serverUrisList().filter((s: ServerClass) => s.chain_name === chain_name && !s.obsolete && s.default);
-        if (!d || d.length === 0) {
-          // reset server
-          uri = "";
-          selection = ServerSelectionEnum.custom;
-        } else {
-          uri = d[0].uri;
-          selection = ServerSelectionEnum.list;
+        // No registry: race the static list for this chain, and if not one of
+        // them answers, fall back to the server we ship for that chain. Keep
+        // the URI we came in with when the chain has neither (regtest), rather
+        // than blanking a working localhost node.
+        const servers: ServerClass[] = serverUrisList().filter(
+          (s: ServerClass) => s.chain_name === chain_name && !s.obsolete,
+        );
+        const fastest: ServerClass | null = await selectFastestServer(servers);
+        uri = fastest ? fastest.uri : defaultServerForChain(chain_name) || uri;
+        if (uri) {
+          this.autoPicked.set(chain_name, uri);
         }
       }
     }
@@ -750,47 +716,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         loadingDone: true,
       });
     }
-  };
-
-  calculateLatency = async (server: ServerClass, _index: number) => {
-    const start: number = Date.now();
-    let latency = null;
-
-    try {
-      const resp: string = await native.get_latest_block_server(server.uri);
-
-      const end: number = Date.now();
-      if (resp) {
-        latency = end - start;
-      }
-
-      console.log("Checking SERVER", server, latency);
-    } catch (error) {
-      console.error(`Critical Error calculate server latency ${error}`);
-    }
-
-    return latency;
-  };
-
-  selectingServer = async (serverUris: ServerClass[]): Promise<ServerClass | null> => {
-    const servers: ServerClass[] = serverUris;
-
-    // 15 seconds max.
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 15 * 1000));
-
-    const validServersPromises = servers.map(
-      (server: ServerClass) =>
-        new Promise<ServerClass>(async (resolve) => {
-          const latency = await this.calculateLatency(server, servers.indexOf(server));
-          if (latency !== null) {
-            resolve({ ...server, latency });
-          }
-        }),
-    );
-
-    const fastestServer = await Promise.race([...validServersPromises, timeoutPromise]);
-
-    return fastestServer;
   };
 
   getInfo = async () => {
