@@ -200,19 +200,12 @@ In order of preference:
 
 ---
 
-**Q: My antivirus warns about a DNS host on port 443 every time I open Zingo PC**
+**Q: My antivirus warns about `dns.quad9.net` or `cloudflare-dns.com` every time I open Zingo PC**
 
-A: This is a false positive from the antivirus, not something Zingo PC connects to on purpose. The host named in the warning is a public **DNS-over-HTTPS (DoH)** resolver — which one depends on the DNS you have configured — and no such host appears anywhere in the Zingo PC or Zingolib source.
+A: Expected, and it comes from **Mixnet Mode**. Zingo PC bundles the `nym-proxy` binary, which starts with the app. So that its own lookups cannot be intercepted or redirected by whatever DNS your network hands out, the Nym client resolves the hostnames it needs (its API and gateways) through a fixed group of encrypted resolvers instead of the system one: Quad9 and Cloudflare over DNS-over-TLS (port 853) and DNS-over-HTTPS (port 443). This happens once per launch, as the mixnet goes from "Connecting" to "Ready" — which is why the warning is tied to opening the wallet.
 
-The connection comes from Chromium, which Electron embeds. Chromium's secure-DNS mode is `automatic` by default: if your system or router DNS belongs to a provider that also offers DoH, Chromium encrypts its DNS lookups by contacting that provider's DoH endpoint — once per app launch, which is why the warning is tied to opening the wallet. Antivirus products that inspect HTTPS traffic cannot decrypt DoH, so they report the site "may not be displayed correctly". Chrome, Edge and other Electron apps trigger the same warning.
+Antivirus products that inspect HTTPS traffic cannot decrypt those connections, so they report that the site "may not be displayed correctly". Only hostname lookups travel over them; no wallet data is involved. To confirm, open the **Nym Mixnet** panel in the sidebar and pick "Disable (use clearnet)" — the connections stop for that session. Note the choice is deliberately not saved: the mixnet re-enables on the next launch, and so does the warning.
 
-To confirm it on your machine:
+The fix is to allowlist those two hosts in your antivirus. Do not turn off Mixnet Mode just to silence it — that is what hides your IP from the indexer when you send.
 
-- Check which process the antivirus names — it will also fire for your browser.
-- Check your DNS servers; if they belong to a public provider, that is the cause:
-
-  ```powershell
-  Get-DnsClientServerAddress    # Windows
-  ```
-
-The warning is harmless and can be dismissed or allowlisted. Unrelated to it, always download releases from the [official Releases page](https://github.com/zingolabs/zingo-pc/releases) and verify the checksum — that, not an antivirus popup, is how you confirm your build is genuine.
+Unrelated to this warning: always download releases from the [official Releases page](https://github.com/zingolabs/zingo-pc/releases) and verify the checksum. That, not an antivirus popup, is how you confirm your build is genuine.
