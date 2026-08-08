@@ -197,3 +197,22 @@ In order of preference:
   ```
 
   ⚠️ Note: `--no-sandbox` disables Chromium's process isolation. For a wallet this is a real security concern — prefer the Flatpak or the `.deb` if either is available on your system.
+
+---
+
+**Q: My antivirus warns about a DNS host on port 443 every time I open Zingo PC**
+
+A: This is a false positive from the antivirus, not something Zingo PC connects to on purpose. The host named in the warning is a public **DNS-over-HTTPS (DoH)** resolver — which one depends on the DNS you have configured — and no such host appears anywhere in the Zingo PC or Zingolib source.
+
+The connection comes from Chromium, which Electron embeds. Chromium's secure-DNS mode is `automatic` by default: if your system or router DNS belongs to a provider that also offers DoH, Chromium encrypts its DNS lookups by contacting that provider's DoH endpoint — once per app launch, which is why the warning is tied to opening the wallet. Antivirus products that inspect HTTPS traffic cannot decrypt DoH, so they report the site "may not be displayed correctly". Chrome, Edge and other Electron apps trigger the same warning.
+
+To confirm it on your machine:
+
+- Check which process the antivirus names — it will also fire for your browser.
+- Check your DNS servers; if they belong to a public provider, that is the cause:
+
+  ```powershell
+  Get-DnsClientServerAddress    # Windows
+  ```
+
+The warning is harmless and can be dismissed or allowlisted. Unrelated to it, always download releases from the [official Releases page](https://github.com/zingolabs/zingo-pc/releases) and verify the checksum — that, not an antivirus popup, is how you confirm your build is genuine.
