@@ -11,8 +11,12 @@ import {
   InfoClass,
 } from "../appstate";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "../../rpc/components/serverHealth";
+import fetchServerList from "../../utils/fetchServerList";
 
 jest.mock("../../electronBridge");
+jest.mock("../../utils/fetchServerList");
+
+const liveList = fetchServerList as jest.MockedFunction<typeof fetchServerList>;
 
 const mockNavigate = jest.fn();
 jest.mock("react-router-dom", () => ({
@@ -57,6 +61,7 @@ beforeEach(() => {
   mockNavigate.mockReset();
   openConfirmModal.mockReset();
   rotateServer.mockReset();
+  liveList.mockReset().mockResolvedValue([]);
 });
 
 test("shows the active server, its mode and a dot", () => {
@@ -75,20 +80,25 @@ test("shows whichever mode the wallet actually carries", () => {
   expect(screen.getByText("custom")).toBeInTheDocument();
 });
 
-test("a healthy server goes straight to settings, no question asked", () => {
-  show(ServerSelectionEnum.auto, HEALTHY);
-  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+test.each([
+  ["ok", HEALTHY, /answering/i],
+  ["unstable", [true, false], /not three in a row/i],
+  ["down", DEAD, /last three checks/i],
+])("the %s dot explains itself in a tooltip", (level, outcomes, wording) => {
+  show(ServerSelectionEnum.auto, outcomes as boolean[]);
 
-  expect(openConfirmModal).not.toHaveBeenCalled();
-  expect(mockNavigate).toHaveBeenCalled();
+  expect(dotHealth()).toBe(level);
+  expect(screen.getByTestId("server-health-dot")).toHaveAttribute("title", expect.stringMatching(wording));
 });
 
-test("a dead server asks before rotating, and rotating is what it offers in auto", () => {
-  show(ServerSelectionEnum.auto, DEAD);
-  expect(dotHealth()).toBe("down");
-
+// Clicking follows the mode, not the colour: the mode says who owns the choice
+// of server, and that decides who gets to change it.
+test.each([[HEALTHY], [DEAD]])("auto always offers to rotate, dot at %#", (outcomes) => {
+  show(ServerSelectionEnum.auto, outcomes);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
   expect(openConfirmModal).toHaveBeenCalledTimes(1);
+  expect(mockNavigate).not.toHaveBeenCalled();
 
   // Nothing moves until the user accepts.
   expect(rotateServer).not.toHaveBeenCalled();
@@ -96,22 +106,22 @@ test("a dead server asks before rotating, and rotating is what it offers in auto
   expect(rotateServer).toHaveBeenCalledTimes(1);
 });
 
-// A server the user picked by hand is never swapped out from under them.
-test.each([ServerSelectionEnum.list, ServerSelectionEnum.custom])("a dead server sends %s to the picker", (mode) => {
-  show(mode, DEAD);
+test.each([[HEALTHY], [DEAD]])("custom always goes to the settings screen, dot at %#", (outcomes) => {
+  show(ServerSelectionEnum.custom, outcomes);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
 
-  openConfirmModal.mock.calls[0][2]();
-  expect(rotateServer).not.toHaveBeenCalled();
   expect(mockNavigate).toHaveBeenCalled();
+  expect(openConfirmModal).not.toHaveBeenCalled();
+  expect(rotateServer).not.toHaveBeenCalled();
 });
 
-test("an unstable server asks too", () => {
-  show(ServerSelectionEnum.auto, [true, false]);
-
-  expect(dotHealth()).toBe("unstable");
+test.each([[HEALTHY], [DEAD]])("list opens the picker in place, dot at %#", async (outcomes) => {
+  show(ServerSelectionEnum.list, outcomes);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
-  expect(openConfirmModal).toHaveBeenCalledTimes(1);
+
+  expect(await screen.findByText(/Choose a Mainnet server/)).toBeInTheDocument();
+  expect(mockNavigate).not.toHaveBeenCalled();
+  expect(openConfirmModal).not.toHaveBeenCalled();
 });
 
 test("renders nothing without a wallet", () => {
@@ -130,4 +140,22 @@ test("falls back to the URI the server reports when the record has none", () => 
   });
 
   expect(screen.getByText("https://eu.zec.rocks:443")).toBeInTheDocument();
+});
+
+// The picker and the wallet settings list must read alike, so both label a
+// server with its URI, its chain and, when known, its latency.
+test("the picker labels servers the way the settings list does", async () => {
+  liveList.mockResolvedValue([
+    {
+      uri: "https://one.zec.rocks:443",
+      chain_name: ServerChainNameEnum.mainChainName,
+      latency: 42,
+      default: false,
+      obsolete: false,
+    },
+  ]);
+  show(ServerSelectionEnum.list, HEALTHY);
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
+  expect(await screen.findByText("https://one.zec.rocks:443 - Mainnet _ 42 ms.")).toBeInTheDocument();
 });

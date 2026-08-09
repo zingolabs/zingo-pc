@@ -319,6 +319,27 @@ const AppRoutes: React.FC = () => {
   //
   // Only ever reached from the health line in `auto`. A server the user chose by
   // hand is never swapped out from under them — that path goes to the picker.
+  const switchServer = useCallback(
+    async (target: string) => {
+      const wallet: WalletType | null = currentWallet;
+      if (!wallet?.uri || target === wallet.uri) {
+        return;
+      }
+      if (!(await checkServerURI(target, wallet.uri))) {
+        openErrorModal("Change Server", `${target} is not responding. Staying on the current server.`);
+        return;
+      }
+      const moved: WalletType = { ...wallet, uri: target };
+      await ipcRenderer.invoke("wallets:update", moved);
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: target });
+      setCurrentWallet(moved);
+      setWallets(await ipcRenderer.invoke("wallets:all"));
+      // The new server starts with a clean record; the old one's says nothing about it.
+      rpcRef.current?.resetServerHealth();
+    },
+    [currentWallet, openErrorModal, setCurrentWallet, setWallets],
+  );
+
   const rotateServer = useCallback(async () => {
     const wallet: WalletType | null = currentWallet;
     if (!wallet?.uri) {
@@ -329,18 +350,8 @@ const AppRoutes: React.FC = () => {
       openErrorModal("Change Server", "No other server is available for this network.");
       return;
     }
-    if (!(await checkServerURI(target, wallet.uri))) {
-      openErrorModal("Change Server", `${target} is not responding either. Staying on the current server.`);
-      return;
-    }
-    const rotated: WalletType = { ...wallet, uri: target };
-    await ipcRenderer.invoke("wallets:update", rotated);
-    await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: target });
-    setCurrentWallet(rotated);
-    setWallets(await ipcRenderer.invoke("wallets:all"));
-    // The new server starts with a clean record; the old one's says nothing about it.
-    rpcRef.current?.resetServerHealth();
-  }, [currentWallet, openErrorModal, setCurrentWallet, setWallets]);
+    await switchServer(target);
+  }, [currentWallet, openErrorModal, switchServer]);
 
   const openConfirmModal = useCallback((title: string, body: string | JSX.Element, runAction: () => void) => {
     const modal = new ConfirmModalClass();
@@ -540,6 +551,8 @@ const AppRoutes: React.FC = () => {
       mixnetView,
       serverHealth,
       rotateServer,
+      switchServer,
+      reopenWallet: navigateToLoadingScreenChangingWallet,
       blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
       blockExplorerMainnetAddressCustom: blockExplorerConfig.blockExplorerMainnetAddressCustom,
       blockExplorerMainnetTransaction: blockExplorerConfig.blockExplorerMainnetTransaction,
@@ -585,6 +598,8 @@ const AppRoutes: React.FC = () => {
       mixnetView,
       serverHealth,
       rotateServer,
+      switchServer,
+      navigateToLoadingScreenChangingWallet,
       blockExplorerConfig,
       setBlockExplorer,
     ],

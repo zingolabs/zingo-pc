@@ -679,7 +679,10 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
 
       <div className={styles.addnewwalletcontainer}>
         <div className={`${cstyles.well} ${cstyles.verticalflex}`}>
-          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
+          <div
+            className={cstyles.horizontalflex}
+            style={{ margin: "5px 10px", alignItems: "center", flexWrap: "nowrap" }}
+          >
             <div className={cstyles.sublight}>Wallet Alias/Description</div>
             <input
               aria-label="Wallet alias"
@@ -691,7 +694,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               value={alias}
               onChange={(e) => updateAlias(e)}
             />
-            <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center" }}>
+            <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
               Network
               <select
                 aria-label="Network"
@@ -738,7 +741,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           {mode === "addnew" && (
             <div
               className={cstyles.horizontalflex}
-              style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}
+              style={{ margin: "5px 10px", alignItems: "center", flexWrap: "nowrap" }}
             >
               <div className={cstyles.sublight}>Type of Wallet creation</div>
               <select
@@ -762,7 +765,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           )}
 
           {newWalletType === "seed" && mode === "addnew" && (
-            <div style={{ margin: "10px" }}>
+            <div style={{ margin: "5px 10px" }}>
               <div className={cstyles.sublight}>Please enter your seed phrase</div>
               <TextareaAutosize
                 aria-label="Seed phrase"
@@ -786,7 +789,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           )}
 
           {newWalletType === "ufvk" && mode === "addnew" && (
-            <div style={{ margin: "10px" }}>
+            <div style={{ margin: "5px 10px" }}>
               <div className={cstyles.sublight}>Please enter your Unified Full Viewing Key</div>
               <TextareaAutosize
                 aria-label="Unified Full Viewing Key"
@@ -810,7 +813,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           )}
 
           {newWalletType === "file" && mode === "addnew" && (
-            <div style={{ margin: "10px" }}>
+            <div style={{ margin: "5px 10px" }}>
               <div className={cstyles.sublight}>Please enter your Wallet File Name stored in the Zcash folder</div>
               <input
                 aria-label="Wallet file name"
@@ -827,7 +830,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           {mode !== "addnew" && (
             <div
               className={cstyles.horizontalflex}
-              style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}
+              style={{ margin: "5px 10px", alignItems: "center", flexWrap: "nowrap" }}
             >
               <div className={cstyles.sublight}>File Name</div>
               <input
@@ -856,7 +859,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                 }}
               />
 
-              <div style={{ margin: "10px" }}>
+              <div style={{ margin: "5px 10px" }}>
                 {!serverExpanded ? (
                   <div className={cstyles.horizontalflex}>
                     <div
@@ -894,7 +897,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                       </div>
                     </div>
                     {mode === "settings" && (
-                      <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center" }}>
+                      <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
                         <input
                           checked={selectedSelection === ServerSelectionEnum.auto}
                           style={{ accentColor: Utils.getCssVariable("--color-primary") }}
@@ -914,7 +917,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                       </div>
                     )}
                     {servers.filter((s) => s.chain_name === selectedChain).length > 0 && (
-                      <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center" }}>
+                      <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
                         <input
                           checked={selectedSelection === ServerSelectionEnum.list}
                           style={{ accentColor: Utils.getCssVariable("--color-primary") }}
@@ -960,7 +963,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                         </select>
                       </div>
                     )}
-                    <div style={{ margin: "10px" }}>
+                    <div style={{ margin: "5px 10px" }}>
                       <input
                         checked={selectedSelection === "custom"}
                         style={{ accentColor: Utils.getCssVariable("--color-primary") }}
@@ -1013,7 +1016,10 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
             }}
           />
 
-          <div className={cstyles.horizontalflex} style={{ margin: "10px", alignItems: "center", flexWrap: "nowrap" }}>
+          <div
+            className={cstyles.horizontalflex}
+            style={{ margin: "5px 10px", alignItems: "center", flexWrap: "nowrap" }}
+          >
             <div className={cstyles.sublight}>Sync Performance Level</div>
             <select
               aria-label="Sync performance level"
@@ -1036,7 +1042,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           </div>
         </div>
 
-        <div style={{ marginBottom: "20px" }} className={cstyles.buttoncontainer}>
+        <div style={{ marginBottom: "10px" }} className={cstyles.buttoncontainer}>
           <button type="button" className={cstyles.primarybutton} onClick={() => closeModal()}>
             Cancel
           </button>

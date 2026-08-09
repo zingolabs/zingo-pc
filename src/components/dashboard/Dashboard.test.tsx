@@ -84,6 +84,16 @@ describe("Dashboard", () => {
     expect(mockNavigate).toHaveBeenCalledWith(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
   });
 
+  it("retries opening the active wallet from the error state", () => {
+    const reopenWallet = jest.fn();
+    render(<Dashboard navigateToHistory={jest.fn()} />, {
+      contextOverrides: { currentWalletOpenError: "Bad password", currentWallet: makeWallet(), reopenWallet },
+    });
+    fireEvent.click(screen.getByRole("button", { name: /Try Again/i }));
+    expect(reopenWallet).toHaveBeenCalled();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
   it("shows wallet open error state with Settings and Delete buttons", () => {
     render(<Dashboard navigateToHistory={jest.fn()} />, {
       contextOverrides: { currentWalletOpenError: "Bad password", currentWallet: makeWallet() },

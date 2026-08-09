@@ -40,12 +40,71 @@
   text-transform: uppercase;
 }
 
+/* The shared .modal grows with its content and pushes its own footer past the
+   bottom of the window once the registry returns a long list. Bounding it and
+   letting only the list scroll keeps Cancel reachable at any list length. */
+.pickermodal {
+  top: 10%;
+  transform: none;
+  max-height: 75vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.pickertitle {
+  flex: none;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.serverlist {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.pickerfooter {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-top: 8px;
+}
+
+.serveroption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 4px;
+  border: none;
+  border-bottom: 1px solid var(--color-primary-disable);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  word-break: break-all;
+}
+
+.serveroption:last-child {
+  border-bottom: none;
+}
+
+.serveroption:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 /* A drawn circle rather than the "●" glyph: the glyph sits wherever the font
    puts it inside its em box, which reads as misaligned next to text. */
 .dot {
   flex: none;
-  width: 8px;
-  height: 8px;
+  /* Big enough to be a comfortable hover target, since it owns the tooltip. */
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
   background-color: currentColor;
+  cursor: help;
 }

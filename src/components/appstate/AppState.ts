@@ -100,6 +100,8 @@ export default class AppState {
   mixnetView: MixnetView;
   serverHealth: ServerHealthState;
   rotateServer: () => void;
+  switchServer: (uri: string) => void;
+  reopenWallet: () => void;
 
   // block explorer selected. Type is the enum (not a literal) so a custom
   // value can be assigned and the type narrows cleanly.
@@ -148,6 +150,8 @@ export default class AppState {
     this.mixnetView = UNKNOWN_MIXNET_VIEW;
     this.serverHealth = INITIAL_SERVER_HEALTH;
     this.rotateServer = () => {};
+    this.switchServer = () => {};
+    this.reopenWallet = () => {};
     this.blockExplorerMainnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerTestnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerMainnetAddress = BlockExplorerEnum.Zcashexplorer;
