@@ -85,10 +85,12 @@ yarn release:prep 2.0.15 142
 **Wallet**
 - Light client — no full chain download, syncs from a `lightwalletd` server
 - Multi-wallet support — manage several wallets in the same install
-- Multi-network — Mainnet, Testnet and Regtest, switchable per wallet
+- Multi-network — Mainnet, Testnet and Regtest; the network is chosen when the wallet is created and
+  fixed from then on, so several wallets can sit on different networks side by side
 - Create from a fresh BIP-39 seed, restore from seed, or import from a Unified Full Viewing Key (read-only mode)
 - Wallet seed phrase / UFVK backup viewer
 - Per-wallet performance profiles
+- Rescan from the Wallet menu, with a nonlinear scanning map on the dashboard showing sync progress
 
 **Transactions**
 - Full Zcash address support — Unified, Sapling, Transparent and TEX
@@ -96,6 +98,34 @@ yarn release:prep 2.0.15 142
 - Encrypted memos
 - "Shield Transparent → Orchard" one-click action
 - `zcash:` URI scheme handler (ZIP-321 payment requests)
+- Transaction history, and a separate Messages view for transfers carrying memos
+- Financial Insight — amounts sent, number of sends and memo bytes, charted per destination address
+
+**Servers**
+- Three selection modes per wallet, shown at all times above the balances:
+  - **Auto** — picks a server on every launch and stays automatic
+  - **List** — you choose from the published servers
+  - **Custom** — your own `lightwalletd` URI
+- Live server list from the community registry ([hosh.zec.rocks](https://hosh.zec.rocks)), filtered to online
+  clearnet servers and ranked by 30-day uptime; the built-in list is the fallback whenever the registry
+  is unreachable
+- Health indicator next to the active server — green while it answers, amber after an occasional
+  failure, red after three in a row. Clicking it offers the next step for the current mode: switch
+  server (Auto), pick from the list (List), or open the wallet settings (Custom)
+- A server that stops being published, or that we retire, moves the wallet back to Auto rather than
+  leaving it on a dead URI
+- "Try Again" on the wallet-open error screen, to retry without changing any settings
+
+**Privacy**
+- Nym mixnet transport for wallet traffic, with a status indicator in the sidebar and an on/off
+  control under Settings → Nym Mixnet
+- ZEC price is fetched over the mixnet only; while the transport is not ready the USD figures read
+  `USD --` rather than falling back to clearnet
+
+**Ironwood migration**
+- Guided migration of Orchard funds to Ironwood, with progress on the dashboard
+- Immediate migration for the straightforward case, and a scheduled, batched migration that spreads
+  the transfer over time when privacy calls for it
 
 **Address book**
 - Save contacts per network (Mainnet / Testnet / Regtest) — the list filters by the active wallet's network
@@ -109,7 +139,7 @@ yarn release:prep 2.0.15 142
 
 **Block explorers**
 - User-selectable per-network explorer for transactions and addresses
-  (Zcashexplorer, Cipherscan, Zypherscan, or a custom URL)
+  (Zcashexplorer, Cipherscan, Zexplorer, or a custom URL)
 
 **Security**
 - Hardened Electron renderer (sandboxed, CSP, no node integration)
@@ -117,7 +147,8 @@ yarn release:prep 2.0.15 142
   - macOS: Touch ID
   - Windows: Windows Hello
   - Linux (`.deb`): polkit
-- Encrypted credential storage (Keychain / Credential Manager / libsecret) for the auth setting itself
+- Encrypted credential storage (Keychain / Credential Manager / libsecret) for the auth setting itself,
+  falling back to `settings.json` where no secret service is available (Linux AppImage)
 
 **Data portability**
 - DMG ↔ MAS first-launch migration assistant (macOS) — imports wallets, address book and settings from a previous DMG install

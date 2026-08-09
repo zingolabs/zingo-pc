@@ -12,6 +12,7 @@ import {
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { BalanceBlockHighlight } from "../balanceBlock";
+import { describeSendRoute } from "../../rpc/components/mixnetPresenter";
 import { ServerHealthLine } from "../serverHealthLine";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
@@ -342,12 +343,13 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         </div>
 
         <div className={cstyles.verticalbuttons}>
-          {mixnetView.sendBlocked && (
-            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
-              Sending is paused until the Nym mixnet is ready
-              {mixnetView.narration ? ` (${mixnetView.narration})` : ""}.
-            </div>
-          )}
+          {/* Always shown, and never in red: this states which route the send
+              takes, and only two of the four states are a problem. */}
+          <div
+            className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}
+          >
+            {describeSendRoute(mixnetView)}
+          </div>
           <button
             type="button"
             disabled={!sendButtonEnabled || mixnetView.sendBlocked}

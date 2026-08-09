@@ -1,4 +1,4 @@
-import { deriveMixnetView, UNKNOWN_MIXNET_VIEW, MixnetView } from "./mixnetPresenter";
+import { deriveMixnetView, UNKNOWN_MIXNET_VIEW, MixnetView, describeSendRoute } from "./mixnetPresenter";
 import { RPCMixnetStatusType } from "./RPCMixnetStatusType";
 
 describe("deriveMixnetView", () => {
@@ -73,5 +73,40 @@ describe("deriveMixnetView", () => {
 
   it("keeps sends blocked on an unknown (failed) read", () => {
     expect(UNKNOWN_MIXNET_VIEW.sendBlocked).toBe(true);
+  });
+});
+
+describe("describeSendRoute", () => {
+  // Two of the five states are working routes, not failures: a ready mixnet and
+  // a deliberate opt-out both send, one privately and one over clearnet.
+  it("names the route when the mixnet carries the send", () => {
+    expect(describeSendRoute(deriveMixnetView({ mode: "ready", socks5_addr: "127.0.0.1:1080" }))).toMatch(
+      /over the Nym mixnet/,
+    );
+  });
+
+  it("names clearnet when the user switched the mixnet off", () => {
+    const text = describeSendRoute(deriveMixnetView({ mode: "switched_off" }));
+    expect(text).toMatch(/over clearnet/);
+    expect(text).not.toMatch(/waits/);
+  });
+
+  it("says what is being waited for while bootstrapping, narration included", () => {
+    const text = describeSendRoute(deriveMixnetView({ mode: "bootstrapping", bootstrap_detail: "3 of 5 hops" }));
+    expect(text).toMatch(/waits/);
+    expect(text).toMatch(/3 of 5 hops/);
+  });
+
+  it("offers the way out in the states nobody consented to", () => {
+    for (const mode of ["unattached", "died"] as const) {
+      expect(describeSendRoute(deriveMixnetView({ mode }))).toMatch(/switch it off to send over clearnet/);
+    }
+  });
+
+  it("says something for every state, so the route is never a mystery", () => {
+    const modes: RPCMixnetStatusType["mode"][] = ["unattached", "switched_off", "bootstrapping", "ready", "died"];
+    for (const mode of modes) {
+      expect(describeSendRoute(deriveMixnetView({ mode })).length).toBeGreaterThan(0);
+    }
   });
 });

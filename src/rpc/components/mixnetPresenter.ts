@@ -78,3 +78,29 @@ export function deriveMixnetView(status: RPCMixnetStatusType): MixnetView {
       };
   }
 }
+
+/**
+ * How the next send will travel, said plainly before the user commits to it.
+ *
+ * There are two working routes, not one. zingolib's route resolver takes the
+ * mixnet tunnel when it is ready, and clearnet through the configured indexer
+ * when the user has switched the mixnet off for the session — the opt-out costs
+ * privacy, not the ability to send. Only the states nobody consented to
+ * (bootstrapping, unattached, died) refuse, and they refuse in the wallet core,
+ * so the wait is a fact about the send and not a UI precaution.
+ *
+ * Stated for every state, including the good ones: a route that is only ever
+ * mentioned when something is wrong teaches the user nothing about the route.
+ */
+export function describeSendRoute(view: MixnetView): string {
+  switch (view.statusKey) {
+    case "mixnet.status.ready":
+      return "This send will travel over the Nym mixnet.";
+    case "mixnet.status.off":
+      return "This send will travel over clearnet — the Nym mixnet is off for this session.";
+    case "mixnet.status.bootstrapping":
+      return `Sending waits for the Nym mixnet to finish connecting${view.narration ? ` (${view.narration})` : ""}.`;
+    default:
+      return "Sending waits for the Nym mixnet. Re-enable it from Settings, or switch it off to send over clearnet.";
+  }
+}
