@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const settings = require("electron-settings");
 const storage = require("electron-json-storage");
+const { createServerRegistry } = require("./serverRegistry");
 
 const STORAGE_KEY = "wallets";
 const isDev = !app.isPackaged;
@@ -640,6 +641,20 @@ ipcMain.handle("clipboard:writeText", (_e, text) => {
   if (typeof text === "string") {
     clipboard.writeText(text);
   }
+});
+
+// Live lightwalletd registry — the transport and cache live in serverRegistry.js
+// so they can be tested without Electron; see the reasoning in that file.
+const serverRegistry = createServerRegistry({
+  store: {
+    get: (key) => settings.getSync(key),
+    set: (key, value) => settings.setSync(key, value),
+  },
+});
+
+ipcMain.handle("servers:fetchList", async (_e, chain) => {
+  const servers = await serverRegistry.load(chain);
+  return servers ? { ok: true, servers } : { ok: false };
 });
 
 // Zcash Names Service (ZNS) resolver.
@@ -2054,6 +2069,12 @@ app.whenReady().then(async () => {
       }
     }
   }
+
+  // Warm the mainnet registry before the renderer exists. By the time
+  // LoadingScreen asks, the request has usually already landed, so `auto` costs
+  // the launch nothing. Testnet is fetched on demand — far rarer, and no reason
+  // to spend a second clearnet request on every launch.
+  serverRegistry.load("main");
 
   if (isDev) {
     try {

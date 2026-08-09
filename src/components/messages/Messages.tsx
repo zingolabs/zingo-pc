@@ -5,6 +5,7 @@ import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum, Tot
 import ScrollPaneBottom from "../scrollPane/ScrollPane";
 import MessagesItemBlock from "./components/MessagesItemBlock";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
+import { ServerHealthLine } from "../serverHealthLine";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import VtModal from "../history/components/VtModal";
@@ -93,6 +94,7 @@ const Messages: React.FC<MessagesProps> = () => {
   return (
     <div>
       <div className={`${cstyles.well} ${styles.containermargin}`}>
+        <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"

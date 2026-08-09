@@ -16,6 +16,7 @@ import ScrollPaneTop from "../scrollPane/ScrollPane";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
+import { ServerHealthLine } from "../serverHealthLine";
 import Utils from "../../utils/utils";
 
 type ReceiveProps = {};
@@ -95,6 +96,7 @@ const Receive: React.FC<ReceiveProps> = () => {
   return (
     <div>
       <div className={`${cstyles.well} ${styles.containermargin}`}>
+        <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"

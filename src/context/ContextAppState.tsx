@@ -1,5 +1,6 @@
 import React, { ReactNode } from "react";
 import { UNKNOWN_MIXNET_VIEW } from "../rpc/components/mixnetPresenter";
+import { INITIAL_SERVER_HEALTH } from "../rpc/components/serverHealth";
 import {
   AddressBookEntryClass,
   AppState,
@@ -7,7 +8,6 @@ import {
   SendPageStateClass,
   TotalBalanceClass,
   ValueTransferClass,
-  ServerClass,
   FetchErrorTypeClass,
   UnifiedAddressClass,
   TransparentAddressClass,
@@ -32,7 +32,6 @@ export const defaultAppState: AppState = {
   syncingStatus: {} as SyncStatusType,
   verificationProgress: null,
   readOnly: false,
-  serverUris: [] as ServerClass[],
   fetchError: {} as FetchErrorTypeClass,
   currentWallet: null,
   currentWalletOpenError: "",
@@ -52,6 +51,8 @@ export const defaultAppState: AppState = {
   setAddLabel: () => {},
   zecPrice: 0,
   mixnetView: UNKNOWN_MIXNET_VIEW,
+  serverHealth: INITIAL_SERVER_HEALTH,
+  rotateServer: () => {},
   blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer,

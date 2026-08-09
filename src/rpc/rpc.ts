@@ -21,6 +21,7 @@ import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
+import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "./components/serverHealth";
 import {
   FfiBatchReport,
   FfiMigrationSummary,
@@ -45,6 +46,16 @@ const parseValueTransferPools = (raw?: string[]): ValueTransferPoolEnum[] | unde
 // name "the Nym mixnet".
 const isMixnetNotReady = (error: unknown): boolean => String(error).includes("the Nym mixnet");
 
+// The health probe rides the 5s task loop but answers on its own clock. 15s is
+// slow enough that the probe is not a beacon and fast enough to notice a server
+// going away within a minute or so.
+//
+// It carries no timeout of its own: the native call brings zingolib's own, and
+// the in-flight guard below is what keeps "consecutive" meaning sequential. A
+// dead server therefore paces itself down to one probe per native timeout,
+// which is the right way round — the less it answers, the less we ask.
+const HEALTH_PROBE_INTERVAL_MS = 15 * 1000;
+
 export default class RPC {
   fnSetTotalBalance: (tb: TotalBalanceClass) => void;
   fnSetAddressesUnified: (abs: UnifiedAddressClass[]) => void;
@@ -57,6 +68,7 @@ export default class RPC {
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
   fnSetMixnetView: (view: MixnetView) => void;
+  fnSetServerHealth: (health: ServerHealthState) => void;
 
   currentWallet: WalletType | null;
 
@@ -67,6 +79,10 @@ export default class RPC {
   lastTxId?: string;
 
   lastPollSyncError: string;
+
+  serverHealth: ServerHealthState;
+  healthProbeInFlight: boolean;
+  healthProbeAt: number;
 
   constructor(
     fnSetTotalBalance: (tb: TotalBalanceClass) => void,
@@ -80,6 +96,7 @@ export default class RPC {
     fnSetVerificationProgress: (verificationProgress: number | null) => void,
     fnSetFetchError: (command: string, error: string) => void,
     fnSetMixnetView: (view: MixnetView) => void,
+    fnSetServerHealth: (health: ServerHealthState) => void,
     currentWallet: WalletType | null,
   ) {
     this.fnSetTotalBalance = fnSetTotalBalance;
@@ -93,6 +110,7 @@ export default class RPC {
     this.fnSetVerificationProgress = fnSetVerificationProgress;
     this.fnSetFetchError = fnSetFetchError;
     this.fnSetMixnetView = fnSetMixnetView;
+    this.fnSetServerHealth = fnSetServerHealth;
 
     this.currentWallet = currentWallet;
 
@@ -102,6 +120,52 @@ export default class RPC {
     this.timers = [];
 
     this.lastPollSyncError = "";
+
+    this.serverHealth = INITIAL_SERVER_HEALTH;
+    this.healthProbeInFlight = false;
+    this.healthProbeAt = 0;
+  }
+
+  /**
+   * One latest-block call against the active server's URI, folded into the
+   * session health.
+   *
+   * Guarded two ways: it only runs once its own interval has elapsed, and never
+   * while a previous probe is still out. Without the second guard a server that
+   * stops answering would stack probes and "three failures in a row" would stop
+   * meaning three in a row.
+   */
+  async probeServerHealth(): Promise<void> {
+    const uri: string = this.currentWallet?.uri ?? "";
+    if (!uri || this.healthProbeInFlight || Date.now() - this.healthProbeAt < HEALTH_PROBE_INTERVAL_MS) {
+      return;
+    }
+
+    this.healthProbeInFlight = true;
+    const start: number = Date.now();
+    let answered = false;
+    try {
+      answered = !!(await native.get_latest_block_server(uri));
+    } catch (error) {
+      console.log(`server health: ${uri} did not answer`, error);
+    } finally {
+      const durationMs: number = Date.now() - start;
+      // Logged on both outcomes and with the duration, so the probe timeout can
+      // later be argued from what servers actually do.
+      console.log(`server health: ${uri} ${answered ? "answered" : "failed"} in ${durationMs}ms`);
+      this.serverHealth = recordProbe(this.serverHealth, answered, durationMs);
+      this.fnSetServerHealth(this.serverHealth);
+      this.healthProbeAt = Date.now();
+      this.healthProbeInFlight = false;
+    }
+  }
+
+  /** A different server has nothing to do with the last one's record. */
+  resetServerHealth(): void {
+    this.serverHealth = INITIAL_SERVER_HEALTH;
+    this.healthProbeInFlight = false;
+    this.healthProbeAt = 0;
+    this.fnSetServerHealth(this.serverHealth);
   }
 
   async runTaskPromises(): Promise<void> {
@@ -112,6 +176,7 @@ export default class RPC {
       this.fetchTotalBalance(),
       this.getZecPrice(),
       this.getMixnetView(),
+      this.probeServerHealth(),
       RPC.doSave(),
       this.fetchTandZandOValueTransfers(),
       this.fetchTandZandOMessages(),

@@ -12,6 +12,8 @@ import {
   ServerChainNameEnum,
 } from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
+import fetchServerList from "../../utils/fetchServerList";
+import selectFastestServer from "../../utils/selectFastestServer";
 import Utils from "../../utils/utils";
 import { native, ipcRenderer } from "../../electronBridge";
 import { useLocation } from "react-router-dom";
@@ -44,7 +46,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     mode = locationState.mode;
   }
   const context = useContext(ContextApp);
-  const { serverUris, openErrorModal, closeErrorModal, currentWallet, wallets, currentWalletOpenError } = context;
+  const { openErrorModal, closeErrorModal, currentWallet, wallets, currentWalletOpenError } = context;
 
   const [newWalletType, setNewWalletType] = useState<"new" | "seed" | "ufvk" | "file">("new");
   const [seedPhrase, setSeedPhrase] = useState<string>("");
@@ -63,12 +65,36 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
 
-  const [servers, setServers] = useState<ServerClass[]>(
-    serverUris.length > 0 ? serverUris : serverUrisList().filter((s: ServerClass) => s.obsolete === false),
-  );
+  const [servers, setServers] = useState<ServerClass[]>(serverUrisList().filter((s: ServerClass) => !s.obsolete));
   const [serverExpanded, setServerExpanded] = useState<boolean>(false);
 
   const isSubmittingRef = useRef(false);
+
+  // Both public chains, once, when the modal opens — the picker offers either
+  // one and refetching on every chain switch would buy nothing. A chain whose
+  // request comes back empty keeps its static entries, so a silent registry
+  // degrades to the list we shipped rather than to an empty picker.
+  useEffect(() => {
+    let dropped = false;
+    const staticFor = (chain: ServerChainNameEnum) =>
+      serverUrisList().filter((s: ServerClass) => !s.obsolete && s.chain_name === chain);
+    (async () => {
+      const [mainLive, testLive] = await Promise.all([
+        fetchServerList(ServerChainNameEnum.mainChainName),
+        fetchServerList(ServerChainNameEnum.testChainName),
+      ]);
+      if (dropped) {
+        return;
+      }
+      setServers([
+        ...(mainLive.length > 0 ? mainLive : staticFor(ServerChainNameEnum.mainChainName)),
+        ...(testLive.length > 0 ? testLive : staticFor(ServerChainNameEnum.testChainName)),
+      ]);
+    })();
+    return () => {
+      dropped = true;
+    };
+  }, []);
 
   const news = {
     new: "Create a New Wallet",
@@ -126,7 +152,6 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       setSelectedServer(safeServer);
       setSelectedChain(safeChain);
       setSelectedSelection(safeSelection as ServerSelectionEnum | "");
-      setServers(servers);
       if (mode !== "addnew" && !!currentWallet) {
         // settings / delete: pre-fill with current wallet's data
         setAlias(currentWallet.alias);
@@ -150,7 +175,6 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     currentWallet?.chain_name,
     currentWallet?.selection,
     currentWallet?.uri,
-    serverUris,
     currentWallet,
     servers,
     mode,
@@ -416,45 +440,6 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     }
   };
 
-  const calculateLatency = async (server: ServerClass, _index: number) => {
-    const start: number = Date.now();
-    let latency = null;
-
-    try {
-      const resp: string = await native.get_latest_block_server(server.uri);
-
-      const end: number = Date.now();
-      if (resp) {
-        latency = end - start;
-      }
-
-      console.log("Checking SERVER", server, latency);
-    } catch (error) {
-      console.error(`Critical Error calculate server latency ${error}`);
-    }
-
-    return latency;
-  };
-
-  const checkingServer = async (server: ServerClass): Promise<ServerClass | null> => {
-    // 15 seconds max.
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 15 * 1000));
-
-    const validServersPromises = [server].map(
-      (server: ServerClass) =>
-        new Promise<ServerClass>(async (resolve) => {
-          const latency = await calculateLatency(server, servers.indexOf(server));
-          if (latency !== null) {
-            resolve({ ...server, latency });
-          }
-        }),
-    );
-
-    const fastestServer = await Promise.race([...validServersPromises, timeoutPromise]);
-
-    return fastestServer;
-  };
-
   const doSave = async () => {
     if (!!currentWallet) {
       if (selectedChain !== currentWallet.chain_name) {
@@ -467,14 +452,15 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           "Save Wallet Settings",
           "CHecking the new selected server, this process can take a while, 15 seconds maximum.",
         );
-        const serverFaster = await checkingServer({
-          uri: selectedServer,
-          region: "",
-          chain_name: selectedChain,
-          latency: null,
-          default: false,
-          obsolete: false,
-        } as ServerClass);
+        const serverFaster = await selectFastestServer([
+          {
+            uri: selectedServer,
+            chain_name: selectedChain,
+            latency: null,
+            default: false,
+            obsolete: false,
+          } as ServerClass,
+        ]);
         if (!serverFaster) {
           openErrorModal("Save Wallet Settings", "This server is not working properly, choose another one.");
           return;
@@ -968,8 +954,6 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                                 {s.uri +
                                   " - " +
                                   Utils.chainDisplayName(s.chain_name) +
-                                  " - " +
-                                  s.region +
                                   (s.latency ? " _ " + s.latency + " ms." : "")}
                               </option>
                             ))}

@@ -113,6 +113,18 @@ describe("Dashboard", () => {
     expect(navigateToHistory).toHaveBeenCalled();
   });
 
+  // The line renders off currentWallet.uri, so a wallet without one hides it —
+  // which is why the rest of these fixtures never noticed it.
+  it("shows the active server line above the balances", () => {
+    render(<Dashboard navigateToHistory={jest.fn()} />, {
+      contextOverrides: {
+        currentWallet: { ...makeWallet(), uri: "https://zec.rocks:443", selection: "auto" } as any,
+        info: makeInfo(),
+      },
+    });
+    expect(screen.getByRole("button", { name: "Active server health" })).toBeInTheDocument();
+  });
+
   it("shows the server info block", () => {
     render(<Dashboard navigateToHistory={jest.fn()} />, {
       contextOverrides: {
@@ -121,7 +133,8 @@ describe("Dashboard", () => {
       },
     });
     expect(screen.getByText("Server info")).toBeInTheDocument();
-    expect(screen.getByText("https://lightd.example")).toBeInTheDocument();
+    // Twice now: the health line above the balances shows it too.
+    expect(screen.getAllByText("https://lightd.example").length).toBeGreaterThan(0);
     expect(screen.getByText("Mainnet")).toBeInTheDocument();
   });
 
