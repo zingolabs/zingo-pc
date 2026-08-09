@@ -1,6 +1,7 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import styles from "./ServerHealthLine.module.css";
+import ServerPickerModal from "./ServerPickerModal";
 import { ContextApp } from "../../context/ContextAppState";
 import routes from "../../constants/routes.json";
 import { ServerSelectionEnum } from "../appstate";
@@ -15,8 +16,12 @@ const DOT_COLOUR: Record<ServerHealthLevel, string> = {
   down: "var(--color-error)",
 };
 
-const PROMPT: Record<string, string> = {
-  unstable: "This server has failed some checks this session.",
+// What the colour is telling you. Amber and red are the ones that need saying:
+// a light nobody can read is a light nobody acts on.
+const DOT_TOOLTIP: Record<ServerHealthLevel, string> = {
+  unknown: "Waiting for the first check of this server.",
+  ok: "This server is answering.",
+  unstable: "This server has failed some checks this session, but not three in a row.",
   down: "This server has not answered the last three checks.",
 };
 
@@ -24,13 +29,17 @@ const PROMPT: Record<string, string> = {
  * The active server, its selection mode and a health dot, right-aligned above
  * the balances so a long URI grows leftwards and never moves anything.
  *
- * The mode is read from the wallet record rather than from local state on
- * purpose: it is the only place in the app that shows, at all times, which mode
- * is actually in force.
+ * Clicking follows the mode, not the colour. The mode says who owns the choice
+ * of server, and that is what decides who gets to change it:
+ *
+ *  - `auto`   the user delegated it, so offer to move to another server
+ *  - `list`   the user picks from ours, so show that list right here
+ *  - `custom` the server is theirs, so hand them the settings screen
  */
 const ServerHealthLine: React.FC = () => {
   const navigate = useNavigate();
   const { currentWallet, info, serverHealth, openConfirmModal, rotateServer } = useContext(ContextApp);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   if (!currentWallet) {
     return null;
@@ -42,35 +51,41 @@ const ServerHealthLine: React.FC = () => {
   const uri: string = currentWallet.uri || info.serverUri || "";
   const level: ServerHealthLevel = deriveServerHealth(serverHealth);
   const mode: ServerSelectionEnum = currentWallet.selection;
-  const openSettings = () => navigate(routes.ADDNEWWALLET, { state: { mode: "settings" } });
 
   const onClick = () => {
-    if (level !== "unstable" && level !== "down") {
-      openSettings();
-      return;
-    }
-    // `auto` means the user delegated the choice, so accepting swaps the server
-    // in place. Any other mode is a choice they made by hand, and we send them
-    // to the picker rather than overriding it.
     if (mode === ServerSelectionEnum.auto) {
-      openConfirmModal("Server not responding", `${PROMPT[level]} Switch to another server?`, rotateServer);
+      openConfirmModal("Change Server", `${DOT_TOOLTIP[level]} Move to another server?`, rotateServer);
+    } else if (mode === ServerSelectionEnum.list) {
+      setPickerOpen(true);
     } else {
-      openConfirmModal("Server not responding", `${PROMPT[level]} Review the server settings?`, openSettings);
+      navigate(routes.ADDNEWWALLET, { state: { mode: "settings" } });
     }
   };
 
   return (
-    <button type="button" className={styles.line} onClick={onClick} aria-label="Active server health">
-      <span className={styles.uri}>{uri}</span>
-      {mode && <span className={styles.badge}>{mode}</span>}
-      <span
-        className={styles.dot}
-        style={{ color: DOT_COLOUR[level] }}
-        data-health={level}
-        data-testid="server-health-dot"
-        aria-hidden="true"
+    <>
+      <button type="button" className={styles.line} onClick={onClick} aria-label="Active server health">
+        <span className={styles.uri}>{uri}</span>
+        {mode && <span className={styles.badge}>{mode}</span>}
+        {/* The dot carries the tooltip itself, so it is the thing you hover and
+            the thing that explains itself. */}
+        <span
+          className={styles.dot}
+          style={{ color: DOT_COLOUR[level] }}
+          title={DOT_TOOLTIP[level]}
+          data-health={level}
+          data-testid="server-health-dot"
+          role="img"
+          aria-label={DOT_TOOLTIP[level]}
+        />
+      </button>
+      <ServerPickerModal
+        modalIsOpen={pickerOpen}
+        closeModal={() => setPickerOpen(false)}
+        chainName={currentWallet.chain_name}
+        currentUri={uri}
       />
-    </button>
+    </>
   );
 };
 

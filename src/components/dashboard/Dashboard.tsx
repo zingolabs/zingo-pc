@@ -43,6 +43,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     calculateShieldFee,
     handleShieldButton,
     zecPrice,
+    reopenWallet,
   } = context;
 
   // Ironwood / NU6.3 heads-up. The activation height comes from zingolib
@@ -698,6 +699,12 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                     {`Error Opening the current Wallet: ${currentWalletOpenError}`}
                   </div>
                   <div className={cstyles.verticalbuttons}>
+                    {/* First, and least drastic: plenty of open failures are a
+                        server blip or a sync still settling, and simply going
+                        round again clears them. */}
+                    <button type="button" className={cstyles.primarybutton} onClick={reopenWallet}>
+                      Try Again
+                    </button>
                     <button
                       type="button"
                       className={cstyles.primarybutton}

@@ -53,6 +53,8 @@ export const defaultAppState: AppState = {
   mixnetView: UNKNOWN_MIXNET_VIEW,
   serverHealth: INITIAL_SERVER_HEALTH,
   rotateServer: () => {},
+  switchServer: () => {},
+  reopenWallet: () => {},
   blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer,
