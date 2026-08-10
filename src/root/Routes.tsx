@@ -24,12 +24,14 @@ import {
   ConfirmModalClass,
   ErrorModalClass,
   WalletType,
+  ServerClass,
   ServerChainNameEnum,
   BlockExplorerEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
-import { ZcashURITarget, checkServerURI } from "../utils/uris";
+import { ZcashURITarget } from "../utils/uris";
 import pickRotationTarget from "../utils/pickRotationTarget";
+import selectFastestServer from "../utils/selectFastestServer";
 import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
@@ -87,6 +89,10 @@ const AppRoutes: React.FC = () => {
   const [securityModalOpen, setSecurityModalOpen] = useState(false);
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importScanResult, setImportScanResult] = useState<ImportScanResult | null>(null);
+  // Servers the user rotated away from this session. Kept here, not persisted:
+  // rotating reopens the wallet but leaves this component mounted, so the memory
+  // outlives the reopen and dies with the app.
+  const [avoidedServers, setAvoidedServers] = useState<string[]>([]);
 
   // --- timers ---
   const fetchErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -313,46 +319,6 @@ const AppRoutes: React.FC = () => {
     setErrorModalState(modal);
   }, []);
 
-  // Move the open wallet onto another server without reopening it. `checkServerURI`
-  // swaps the endpoint, verifies it answers, and restores the old one if it does
-  // not, so a rotation that fails leaves the session exactly where it was.
-  //
-  // Only ever reached from the health line in `auto`. A server the user chose by
-  // hand is never swapped out from under them — that path goes to the picker.
-  const switchServer = useCallback(
-    async (target: string) => {
-      const wallet: WalletType | null = currentWallet;
-      if (!wallet?.uri || target === wallet.uri) {
-        return;
-      }
-      if (!(await checkServerURI(target, wallet.uri))) {
-        openErrorModal("Change Server", `${target} is not responding. Staying on the current server.`);
-        return;
-      }
-      const moved: WalletType = { ...wallet, uri: target };
-      await ipcRenderer.invoke("wallets:update", moved);
-      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: target });
-      setCurrentWallet(moved);
-      setWallets(await ipcRenderer.invoke("wallets:all"));
-      // The new server starts with a clean record; the old one's says nothing about it.
-      rpcRef.current?.resetServerHealth();
-    },
-    [currentWallet, openErrorModal, setCurrentWallet, setWallets],
-  );
-
-  const rotateServer = useCallback(async () => {
-    const wallet: WalletType | null = currentWallet;
-    if (!wallet?.uri) {
-      return;
-    }
-    const target: string | null = await pickRotationTarget(wallet.chain_name, wallet.uri);
-    if (!target) {
-      openErrorModal("Change Server", "No other server is available for this network.");
-      return;
-    }
-    await switchServer(target);
-  }, [currentWallet, openErrorModal, switchServer]);
-
   const openConfirmModal = useCallback((title: string, body: string | JSX.Element, runAction: () => void) => {
     const modal = new ConfirmModalClass();
     modal.modalIsOpen = true;
@@ -413,6 +379,54 @@ const AppRoutes: React.FC = () => {
     setCurrentWalletOpenError,
     setSendPageState,
   ]);
+
+  // Changing the active server means reopening the wallet. `change_server` on a
+  // live client swaps the URI but leaves it unable to reach the new one, so
+  // every server picked that way looked dead — which is why that path sat unused
+  // in the first place. Going round through LoadingScreen is what the wallet
+  // settings screen already does, and it is the one that works.
+  const switchServer = useCallback(
+    async (target: string) => {
+      const wallet: WalletType | null = currentWallet;
+      if (!wallet?.uri || target === wallet.uri) {
+        return;
+      }
+      // Probe before committing: reopening against a dead server would drop the
+      // user on the wallet-open error screen instead of on their balances.
+      const answered: ServerClass | null = await selectFastestServer([
+        { uri: target, chain_name: wallet.chain_name, latency: null, default: false, obsolete: false },
+      ]);
+      if (!answered) {
+        openErrorModal("Change Server", `${target} is not responding. Staying on the current server.`);
+        return;
+      }
+      const moved: WalletType = { ...wallet, uri: target };
+      await ipcRenderer.invoke("wallets:update", moved);
+      await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: target });
+      setCurrentWallet(moved);
+      setWallets(await ipcRenderer.invoke("wallets:all"));
+      navigateToLoadingScreenChangingWallet();
+    },
+    [currentWallet, openErrorModal, setCurrentWallet, setWallets, navigateToLoadingScreenChangingWallet],
+  );
+
+  const rotateServer = useCallback(async () => {
+    const wallet: WalletType | null = currentWallet;
+    if (!wallet?.uri) {
+      return;
+    }
+    const rejected: string[] = [...avoidedServers, wallet.uri];
+    const target: string | null = await pickRotationTarget(wallet.chain_name, rejected);
+    if (!target) {
+      openErrorModal("Change Server", "No other server is available for this network.");
+      return;
+    }
+    // Remembered before the switch: reopening the wallet runs the boot-time
+    // `auto` pick again, and without this it would take the registry head
+    // straight back to the server just rejected.
+    setAvoidedServers(rejected);
+    await switchServer(target);
+  }, [avoidedServers, currentWallet, openErrorModal, switchServer]);
 
   // --- address book ---
   const addAddressBookEntry = useCallback((label: string, address: string, chain: ServerChainNameEnum) => {
@@ -553,6 +567,7 @@ const AppRoutes: React.FC = () => {
       rotateServer,
       switchServer,
       reopenWallet: navigateToLoadingScreenChangingWallet,
+      avoidedServers,
       blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
       blockExplorerMainnetAddressCustom: blockExplorerConfig.blockExplorerMainnetAddressCustom,
       blockExplorerMainnetTransaction: blockExplorerConfig.blockExplorerMainnetTransaction,
@@ -600,6 +615,7 @@ const AppRoutes: React.FC = () => {
       rotateServer,
       switchServer,
       navigateToLoadingScreenChangingWallet,
+      avoidedServers,
       blockExplorerConfig,
       setBlockExplorer,
     ],

@@ -342,7 +342,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
             {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
               <>
                 <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
-                  Shield Transparent Balance To Orchard (Fee: {shieldFee})
+                  Shield Transparent Balance (Fee: {shieldFee})
                 </button>
               </>
             )}

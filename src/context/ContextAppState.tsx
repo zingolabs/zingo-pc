@@ -55,6 +55,7 @@ export const defaultAppState: AppState = {
   rotateServer: () => {},
   switchServer: () => {},
   reopenWallet: () => {},
+  avoidedServers: [],
   blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerTestnetTransaction: BlockExplorerEnum.Zcashexplorer,
   blockExplorerMainnetAddress: BlockExplorerEnum.Zcashexplorer,

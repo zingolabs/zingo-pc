@@ -3,7 +3,6 @@ import { Base64 } from "js-base64";
 
 import Utils from "./utils";
 
-import { native } from "../electronBridge";
 import { AddressKindEnum, ServerChainNameEnum } from "../components/appstate";
 
 export class ZcashURITarget {
@@ -170,44 +169,4 @@ export const parseZcashURI = async (
 
   // only the first item.
   return ans[0] as ZcashURITarget;
-};
-
-export const checkServerURI = async (uri: string, oldUri: string): Promise<boolean> => {
-  const parsedUri = new Url(uri, true);
-
-  let port: string = parsedUri.port;
-
-  if (!port) {
-    // by default -> 9067
-    // for `zec.rocks` -> 443
-    port = uri.includes("zec.rocks") ? "443" : "9067";
-  }
-
-  try {
-    const resultStrServer: string = await native.change_server(`${parsedUri.protocol}//${parsedUri.hostname}:${port}`);
-    // change_server returns structured JSON: `{ status }` on success, `{ error }`
-    // on failure — never error prose on the data channel.
-    const serverJSON = JSON.parse(resultStrServer);
-
-    if (serverJSON.error) {
-      // I have to restore the old server again. Just in case.
-      console.log("changeserver", serverJSON.error);
-      native.change_server(oldUri);
-      // error, no timeout
-      return false;
-    } else {
-      // The server is changed; confirm it is reachable. info_server rejects on
-      // failure, which the catch below turns into a rollback.
-      await native.info_server();
-    }
-  } catch (error: any) {
-    console.error("catch", error);
-    // I have to restore the old server again. Just in case.
-    await native.change_server(oldUri);
-    // error, YES timeout
-    return false;
-  }
-
-  // NO error, no timeout
-  return true;
 };

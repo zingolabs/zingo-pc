@@ -6,6 +6,7 @@ import { ContextApp } from "../../context/ContextAppState";
 import routes from "../../constants/routes.json";
 import { ServerSelectionEnum } from "../appstate";
 import { ServerHealthLevel, deriveServerHealth } from "../../rpc/components/serverHealth";
+import { rotationCandidates } from "../../utils/pickRotationTarget";
 
 // Colour lives on the dot alone. The URI and the mode badge stay in body text,
 // so the one coloured thing on the line is the one thing that means something.
@@ -38,7 +39,8 @@ const DOT_TOOLTIP: Record<ServerHealthLevel, string> = {
  */
 const ServerHealthLine: React.FC = () => {
   const navigate = useNavigate();
-  const { currentWallet, info, serverHealth, openConfirmModal, rotateServer } = useContext(ContextApp);
+  const { currentWallet, info, serverHealth, openConfirmModal, openErrorModal, rotateServer, avoidedServers } =
+    useContext(ContextApp);
   const [pickerOpen, setPickerOpen] = useState(false);
 
   if (!currentWallet) {
@@ -52,8 +54,16 @@ const ServerHealthLine: React.FC = () => {
   const level: ServerHealthLevel = deriveServerHealth(serverHealth);
   const mode: ServerSelectionEnum = currentWallet.selection;
 
-  const onClick = () => {
+  const onClick = async () => {
     if (mode === ServerSelectionEnum.auto) {
+      // Ask only when there is something to ask about. Testnet publishes a
+      // single usable server, so the confirmation used to appear with nowhere to
+      // go and then sat out a probe timeout to say so.
+      const elsewhere = await rotationCandidates(currentWallet.chain_name, [...avoidedServers, uri]);
+      if (elsewhere.length === 0) {
+        openErrorModal("Change Server", "This network publishes no other server to move to.");
+        return;
+      }
       openConfirmModal("Change Server", `${DOT_TOOLTIP[level]} Move to another server?`, rotateServer);
     } else if (mode === ServerSelectionEnum.list) {
       setPickerOpen(true);

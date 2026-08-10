@@ -295,7 +295,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
           {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
             <>
               <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
-                Shield Transparent Balance To Orchard (Fee: {shieldFee})
+                Shield Transparent Balance (Fee: {shieldFee})
               </button>
             </>
           )}
@@ -342,14 +342,16 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
           </ScrollPaneTop>
         </div>
 
+        {/* Above the buttons, not beside them: .verticalbuttons is a flex row.
+            Always shown, and never in red — only two of the four states are a
+            problem, and the other two are just the route the send will take. */}
+        <div
+          className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}
+        >
+          {describeSendRoute(mixnetView)}
+        </div>
+
         <div className={cstyles.verticalbuttons}>
-          {/* Always shown, and never in red: this states which route the send
-              takes, and only two of the four states are a problem. */}
-          <div
-            className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}
-          >
-            {describeSendRoute(mixnetView)}
-          </div>
           <button
             type="button"
             disabled={!sendButtonEnabled || mixnetView.sendBlocked}

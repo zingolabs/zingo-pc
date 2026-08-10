@@ -95,7 +95,7 @@ describe("Receive", () => {
       },
     });
     await waitFor(() => expect(calculateShieldFee).toHaveBeenCalled());
-    const btn = await screen.findByRole("button", { name: /Shield Transparent Balance To Orchard/ });
+    const btn = await screen.findByRole("button", { name: /Shield Transparent Balance/ });
     fireEvent.click(btn);
     expect(handleShieldButton).toHaveBeenCalled();
   });

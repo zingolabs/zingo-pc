@@ -134,7 +134,7 @@ describe("Send", () => {
     });
     await waitFor(() => expect(calculateShieldFee).toHaveBeenCalled());
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Shield Transparent Balance To Orchard/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Shield Transparent Balance/ })).toBeInTheDocument();
     });
   });
 

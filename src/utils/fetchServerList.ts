@@ -28,12 +28,18 @@ type HoshServer = {
 
 type FetchServerListResult = { ok: true; servers: HoshServer[] } | { ok: false };
 
+// Drops the genuinely flaky and nothing else. `uptime_30d` is a fraction, so
+// this is 95%, and against the published spread (min 0.62, median 0.996) it cuts
+// the outliers without thinning the list.
+const MIN_UPTIME = 0.95;
+
 /**
  * The live server list for a chain, already filtered and ranked.
  *
  * - Tor (`.onion`) hosts are dropped — this wallet does not route over Tor.
  * - Only servers reported `online` are kept.
- * - Ranked best-first: highest 30-day uptime, ties broken by lowest ping.
+ * - Servers below a 30-day uptime floor are dropped.
+ * - Ranked best-first by ping, ties broken by uptime.
  *
  * Regtest (local, no public registry), an unreachable registry or a malformed
  * payload all give `[]` so the caller can fall back to the static list. Never
@@ -56,18 +62,30 @@ const fetchServerList = async (chainName: ServerChainNameEnum): Promise<ServerCl
 
   const clearnetOnline: HoshServer[] = result.servers.filter((s: HoshServer) => {
     const host = String(s?.hostname ?? "");
-    return host.length > 0 && !host.endsWith(".onion") && s?.online === true;
+    if (host.length === 0 || host.endsWith(".onion") || s?.online !== true) {
+      return false;
+    }
+    // Uptime is a floor, not a ranking. It is a fraction (0..1), and across the
+    // published servers it barely separates them — the median sits at 0.996 and
+    // the top at 0.998 — so ranking by it is close to ranking at random while
+    // still letting a seven-second server sit second. Absent uptime is not held
+    // against a server.
+    return typeof s.uptime_30d !== "number" || s.uptime_30d >= MIN_UPTIME;
   });
 
+  // Ranked by ping, which is what separates these servers and what the picker
+  // shows next to each one. It is the registry's measurement from its own
+  // vantage point, not the user's, so it orders the list and narrows the field —
+  // the wallet still races the best few from here before committing.
   clearnetOnline.sort((a: HoshServer, b: HoshServer) => {
-    const ua = typeof a.uptime_30d === "number" ? a.uptime_30d : 0;
-    const ub = typeof b.uptime_30d === "number" ? b.uptime_30d : 0;
-    if (ub !== ua) {
-      return ub - ua;
-    }
     const pa = typeof a.ping === "number" ? a.ping : Number.POSITIVE_INFINITY;
     const pb = typeof b.ping === "number" ? b.ping : Number.POSITIVE_INFINITY;
-    return pa - pb;
+    if (pa !== pb) {
+      return pa - pb;
+    }
+    const ua = typeof a.uptime_30d === "number" ? a.uptime_30d : 0;
+    const ub = typeof b.uptime_30d === "number" ? b.uptime_30d : 0;
+    return ub - ua;
   });
 
   // Every entry the registry lists is by definition current, so `obsolete` is

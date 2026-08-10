@@ -102,6 +102,7 @@ export default class AppState {
   rotateServer: () => void;
   switchServer: (uri: string) => void;
   reopenWallet: () => void;
+  avoidedServers: string[];
 
   // block explorer selected. Type is the enum (not a literal) so a custom
   // value can be assigned and the type narrows cleanly.
@@ -152,6 +153,7 @@ export default class AppState {
     this.rotateServer = () => {};
     this.switchServer = () => {};
     this.reopenWallet = () => {};
+    this.avoidedServers = [];
     this.blockExplorerMainnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerTestnetTransaction = BlockExplorerEnum.Zcashexplorer;
     this.blockExplorerMainnetAddress = BlockExplorerEnum.Zcashexplorer;

@@ -30,15 +30,18 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
   // unattached, died) offers Enable so a failed start can be retried.
   const active =
     mixnetView.statusKey === "mixnet.status.ready" || mixnetView.statusKey === "mixnet.status.bootstrapping";
+  const off = mixnetView.statusKey === "mixnet.status.off";
+  // The transport is absent and nobody consented to clearnet, so sends refuse.
+  // Enable is not always a way out — a build with no proxy binary can never
+  // start one — and without the opt-out the user is stranded with a wallet that
+  // will not send at all. Switching off needs no proxy: it only records the
+  // consent.
+  const stranded = !active && !off;
 
-  const toggle = async () => {
+  const run = async (action: () => Promise<void>) => {
     setBusy(true);
     try {
-      if (active) {
-        await RPC.stopMixnet();
-      } else {
-        await RPC.startMixnet();
-      }
+      await action();
     } catch {
       // The status poll republishes the outcome; the modal reflects it on the
       // next cycle. A failed enable stays fail-closed.
@@ -105,10 +108,38 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
         </div>
       </div>
 
-      <div className={cstyles.buttoncontainer} style={{ marginTop: 24 }}>
-        <button type="button" className={cstyles.primarybutton} onClick={toggle} disabled={busy}>
-          {active ? "Disable (use clearnet)" : "Enable mixnet"}
+      {stranded && (
+        <div className={`${cstyles.well} ${cstyles.small} ${cstyles.yellow}`} style={{ marginTop: 8 }}>
+          Sending is refused while the mixnet is neither ready nor deliberately off. If it cannot start on this machine,
+          switch it off to send over clearnet for this session.
+        </div>
+      )}
+
+      {/* A row, not centred inline-blocks: with three buttons the default
+          container wraps them onto two lines. The wording above carries the
+          explanation, so the labels here stay short enough to fit. */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "nowrap",
+          justifyContent: "center",
+          alignItems: "center",
+          marginTop: 24,
+        }}
+      >
+        <button
+          type="button"
+          className={cstyles.primarybutton}
+          onClick={() => run(active ? RPC.stopMixnet : RPC.startMixnet)}
+          disabled={busy}
+        >
+          {active ? "Disable" : "Enable"}
         </button>
+        {stranded && (
+          <button type="button" className={cstyles.primarybutton} onClick={() => run(RPC.stopMixnet)} disabled={busy}>
+            Switch off
+          </button>
+        )}
         <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
           Close
         </button>

@@ -16,7 +16,7 @@ import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
-import selectFastestServer from "../../utils/selectFastestServer";
+import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
 import Utils from "../../utils/utils";
 import { Logo } from "../logo";
 import DetailLine from "../detailLine/DetailLine";
@@ -167,21 +167,35 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     // the wallet to whichever server won the first boot, and showed the user a
     // mode they never chose. Only `uri` moves.
     if (selection === ServerSelectionEnum.auto) {
+      // Servers the user has rotated away from this session. Rotating reopens
+      // the wallet, which lands right back here, and without this the pick would
+      // undo the rotation by taking the registry's head again — the very server
+      // just rejected. Dropped if it would leave nothing: a rejected server
+      // still beats no server.
+      const { avoidedServers } = this.context as React.ContextType<typeof ContextApp>;
+      const keep = (list: ServerClass[]) => {
+        const kept = list.filter((s: ServerClass) => !avoidedServers.includes(s.uri));
+        return kept.length > 0 ? kept : list;
+      };
+
       const alreadyPicked: string | undefined = this.autoPicked.get(chain_name);
       if (alreadyPicked) {
         uri = alreadyPicked;
       } else if (live.length > 0) {
-        // The registry already ranks by uptime and ping, so its head is the
-        // pick. No probe: that ranking is what we came here for.
-        uri = live[0].uri;
+        // Race the registry's best few rather than trusting its order. It ranks
+        // by 30-day uptime, which is not speed: a reliable server answering in
+        // ten seconds sits at the top of that list and made the wallet crawl.
+        const candidates: ServerClass[] = keep(live).slice(0, RACE_CANDIDATES);
+        const quickest: ServerClass | null = await selectFastestServer(candidates);
+        uri = quickest ? quickest.uri : candidates[0].uri;
         this.autoPicked.set(chain_name, uri);
       } else {
         // No registry: race the static list for this chain, and if not one of
         // them answers, fall back to the server we ship for that chain. Keep
         // the URI we came in with when the chain has neither (regtest), rather
         // than blanking a working localhost node.
-        const servers: ServerClass[] = serverUrisList().filter(
-          (s: ServerClass) => s.chain_name === chain_name && !s.obsolete,
+        const servers: ServerClass[] = keep(
+          serverUrisList().filter((s: ServerClass) => s.chain_name === chain_name && !s.obsolete),
         );
         const fastest: ServerClass | null = await selectFastestServer(servers);
         uri = fastest ? fastest.uri : defaultServerForChain(chain_name) || uri;
