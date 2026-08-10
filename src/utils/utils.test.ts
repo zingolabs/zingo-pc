@@ -158,7 +158,7 @@ describe("splitZecAmountIntoBigSmall", () => {
 describe("getReceivers", () => {
   it("returns all three receivers when all are true", () => {
     const addr = { has_orchard: true, has_sapling: true, has_transparent: true } as UnifiedAddressClass;
-    expect(Utils.getReceivers(addr)).toEqual(["Orchard", "Sapling", "Transparent"]);
+    expect(Utils.getReceivers(addr)).toEqual(["Orchard (Ironwood)", "Sapling", "Transparent"]);
   });
 
   it("returns only Sapling", () => {
@@ -171,9 +171,9 @@ describe("getReceivers", () => {
     expect(Utils.getReceivers(addr)).toEqual([]);
   });
 
-  it("respects Orchard-only", () => {
+  it("labels the Orchard receiver with where the funds end up", () => {
     const addr = { has_orchard: true, has_sapling: false, has_transparent: false } as UnifiedAddressClass;
-    expect(Utils.getReceivers(addr)).toEqual(["Orchard"]);
+    expect(Utils.getReceivers(addr)).toEqual(["Orchard (Ironwood)"]);
   });
 });
 

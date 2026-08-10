@@ -5,6 +5,13 @@ import { native } from "../electronBridge";
 // the same race.
 const PROBE_TIMEOUT_MS = 15 * 1000;
 
+// How many of the registry's best to race against each other when picking a
+// server. The registry ranks by 30-day uptime, which says nothing about speed
+// right now — a reliable server answering in ten seconds still tops that list.
+// Racing a handful costs one round trip, since the race ends on the first
+// answer, and picks on what the network is doing at this moment.
+export const RACE_CANDIDATES = 3;
+
 // A server's round-trip for one latest-block call, or null when it does not
 // answer. `get_latest_block_server` opens its own connection to the URI rather
 // than going through the open wallet, so this measures the server and nothing
@@ -22,13 +29,16 @@ const latencyOf = async (server: ServerClass): Promise<number | null> => {
 
 /**
  * The first server to answer, carrying the latency it answered in, or null if
- * none does within 15 seconds.
+ * none does within the budget.
  *
  * A race rather than a full sweep: the winner is whoever replies first, so a
  * long list costs no more than a short one. Servers that never answer simply
  * never resolve, which is why the timeout is the floor of the whole thing.
  */
-const selectFastestServer = async (servers: ServerClass[]): Promise<ServerClass | null> => {
+const selectFastestServer = async (
+  servers: ServerClass[],
+  timeoutMs: number = PROBE_TIMEOUT_MS,
+): Promise<ServerClass | null> => {
   // Racing an empty list would sit out the full timeout waiting for nobody.
   if (servers.length === 0) {
     return null;
@@ -36,7 +46,7 @@ const selectFastestServer = async (servers: ServerClass[]): Promise<ServerClass 
 
   let timer: ReturnType<typeof setTimeout> | undefined;
   const expiry = new Promise<null>((resolve) => {
-    timer = setTimeout(() => resolve(null), PROBE_TIMEOUT_MS);
+    timer = setTimeout(() => resolve(null), timeoutMs);
   });
 
   const answered = servers.map(

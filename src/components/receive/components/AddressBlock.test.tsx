@@ -66,7 +66,7 @@ describe("AddressBlock — Unified", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={longUAddr} type="u" />);
     // We don't assert text exactly (chunks vary), but the address should be present in chunks.
     // Just verify the accordion can be expanded.
-    expect(screen.getByText("Address type: Orchard + Sapling + Transparent")).toBeInTheDocument();
+    expect(screen.getByText("Address type: Orchard (Ironwood) + Sapling + Transparent")).toBeInTheDocument();
   });
 
   it("copies the address to the clipboard and shows 'Copied!'", () => {
@@ -180,7 +180,7 @@ describe("AddressBlock — Transparent", () => {
     );
     fireEvent.click(screen.getByText("t1shortaddr"));
     await waitFor(() => expect(calculateShieldFee).toHaveBeenCalled());
-    const btn = await screen.findByRole("button", { name: /shield balance to orchard/i });
+    const btn = await screen.findByRole("button", { name: /shield balance/i });
     fireEvent.click(btn);
     expect(handleShieldButton).toHaveBeenCalled();
   });
@@ -193,7 +193,7 @@ describe("AddressBlock — Transparent", () => {
     fireEvent.click(screen.getByText("t1shortaddr"));
     // Wait briefly to allow any effects to flush.
     await new Promise((r) => setTimeout(r, 30));
-    expect(screen.queryByRole("button", { name: /shield balance to orchard/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /shield balance/i })).not.toBeInTheDocument();
   });
 
   it("hides Shield button when there are pending value transfers", async () => {
@@ -212,6 +212,6 @@ describe("AddressBlock — Transparent", () => {
       contextOverrides: { totalBalance, valueTransfers: [pending], currentWallet: mainnetWallet },
     });
     fireEvent.click(screen.getByText("t1shortaddr"));
-    expect(screen.queryByRole("button", { name: /shield balance to orchard/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /shield balance/i })).not.toBeInTheDocument();
   });
 });

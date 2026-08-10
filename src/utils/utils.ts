@@ -1,3 +1,4 @@
+import { IRONWOOD_RECEIVER_LABEL } from "../constants/ironwood";
 import {
   AddressKindEnum,
   BlockExplorerEnum,
@@ -227,7 +228,7 @@ export default class Utils {
   static getReceivers(addr: UnifiedAddressClass): string[] {
     let receivers: string[] = [];
 
-    if (addr.has_orchard) receivers.push("Orchard");
+    if (addr.has_orchard) receivers.push(IRONWOOD_RECEIVER_LABEL);
     if (addr.has_sapling) receivers.push("Sapling");
     if (addr.has_transparent) receivers.push("Transparent");
 

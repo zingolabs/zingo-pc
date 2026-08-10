@@ -65,6 +65,7 @@ const bootWithSelection = (
   selection: ServerSelectionEnum,
   uri: string,
   chain: ServerChainNameEnum = ServerChainNameEnum.mainChainName,
+  avoidedServers: string[] = [],
 ) => {
   const wallet: WalletType = {
     id: 1,
@@ -98,7 +99,7 @@ const bootWithSelection = (
         return undefined;
     }
   });
-  render(<LoadingScreen {...baseProps} />);
+  render(<LoadingScreen {...baseProps} />, { contextOverrides: { avoidedServers } });
 };
 
 const savedSetting = (key: string) =>
@@ -158,15 +159,20 @@ test("a custom choice on a now-obsolete server lands on auto", async () => {
   expect(savedSelection()).toContain(ServerSelectionEnum.auto);
 });
 
-// The registry ranks by uptime and ping, so its head is the answer. Probing it
-// again would only re-measure what we asked the registry for.
-test("auto takes the registry's first entry without probing", async () => {
-  liveList.mockResolvedValue(["https://one.zec.rocks:443", "https://two.zec.rocks:443"].map((u) => liveServer(u)));
+// The registry ranks by 30-day uptime, not by speed, so its head can be a
+// server that answers in ten seconds. Race the best few and take whoever
+// actually replies first.
+test("auto races the registry's best few instead of trusting its order", async () => {
+  const best = ["https://one.zec.rocks:443", "https://two.zec.rocks:443", "https://three.zec.rocks:443"];
+  liveList.mockResolvedValue([...best, "https://four.zec.rocks:443"].map((u) => liveServer(u)));
+  (native.get_latest_block_server as jest.Mock).mockImplementation((uri: string) =>
+    uri === "https://two.zec.rocks:443" ? Promise.resolve("2500000") : new Promise(() => {}),
+  );
   bootWithSelection(ServerSelectionEnum.auto, "https://zec.rocks:443");
 
   await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
-  expect(savedSetting("serveruri")).toEqual(["https://one.zec.rocks:443"]);
-  expect(probedUris()).toEqual([]);
+  expect(savedSetting("serveruri")).toEqual(["https://two.zec.rocks:443"]);
+  expect(probedUris().sort()).toEqual([...best].sort());
   expect(savedSelection()).toEqual([ServerSelectionEnum.auto]);
 });
 
@@ -213,4 +219,28 @@ test("auto keeps its server on a chain with none listed", async () => {
   await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
   expect(savedSetting("serveruri")).toEqual(["http://127.0.0.1:9067"]);
   expect(savedSelection()).toEqual([ServerSelectionEnum.auto]);
+});
+
+// Rotating reopens the wallet, which lands back in this same check. Without the
+// rejected list the pick took the registry head again and the rotation undid
+// itself — the server never actually changed.
+test("auto skips a server the user rotated away from", async () => {
+  liveList.mockResolvedValue(["https://one.zec.rocks:443", "https://two.zec.rocks:443"].map((u) => liveServer(u)));
+  bootWithSelection(ServerSelectionEnum.auto, "https://one.zec.rocks:443", ServerChainNameEnum.mainChainName, [
+    "https://one.zec.rocks:443",
+  ]);
+
+  await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
+  expect(savedSetting("serveruri")).toEqual(["https://two.zec.rocks:443"]);
+});
+
+// Rejecting everything must not leave the wallet with no server at all.
+test("auto falls back to a rejected server rather than none", async () => {
+  liveList.mockResolvedValue([liveServer("https://one.zec.rocks:443")]);
+  bootWithSelection(ServerSelectionEnum.auto, "https://one.zec.rocks:443", ServerChainNameEnum.mainChainName, [
+    "https://one.zec.rocks:443",
+  ]);
+
+  await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
+  expect(savedSetting("serveruri")).toEqual(["https://one.zec.rocks:443"]);
 });

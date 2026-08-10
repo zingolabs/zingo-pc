@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../test-utils";
 import ServerHealthLine from "./ServerHealthLine";
 import {
@@ -39,6 +39,7 @@ const fold = (outcomes: boolean[]): ServerHealthState =>
   outcomes.reduce((state, answered) => recordProbe(state, answered), INITIAL_SERVER_HEALTH);
 
 const openConfirmModal = jest.fn();
+const openErrorModal = jest.fn();
 const rotateServer = jest.fn();
 
 const show = (selection: ServerSelectionEnum, outcomes: boolean[]) =>
@@ -47,6 +48,7 @@ const show = (selection: ServerSelectionEnum, outcomes: boolean[]) =>
       currentWallet: wallet(selection),
       serverHealth: fold(outcomes),
       openConfirmModal,
+      openErrorModal,
       rotateServer,
     },
   });
@@ -60,6 +62,7 @@ const DEAD = [false, false, false];
 beforeEach(() => {
   mockNavigate.mockReset();
   openConfirmModal.mockReset();
+  openErrorModal.mockReset();
   rotateServer.mockReset();
   liveList.mockReset().mockResolvedValue([]);
 });
@@ -93,11 +96,11 @@ test.each([
 
 // Clicking follows the mode, not the colour: the mode says who owns the choice
 // of server, and that decides who gets to change it.
-test.each([[HEALTHY], [DEAD]])("auto always offers to rotate, dot at %#", (outcomes) => {
+test.each([[HEALTHY], [DEAD]])("auto always offers to rotate, dot at %#", async (outcomes) => {
   show(ServerSelectionEnum.auto, outcomes);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
 
-  expect(openConfirmModal).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(openConfirmModal).toHaveBeenCalledTimes(1));
   expect(mockNavigate).not.toHaveBeenCalled();
 
   // Nothing moves until the user accepts.
@@ -106,6 +109,28 @@ test.each([[HEALTHY], [DEAD]])("auto always offers to rotate, dot at %#", (outco
   expect(rotateServer).toHaveBeenCalledTimes(1);
 });
 
+// Testnet publishes a single usable server. Asking "move to another server?"
+// there, and then sitting out a probe to answer its own question, was the
+// shape of the bug.
+test("auto says so instead of asking when there is nowhere to go", async () => {
+  // The registry answers with only the server already in use, so after
+  // excluding it nothing remains — and the static list must not stand in.
+  liveList.mockResolvedValue([
+    {
+      uri: "https://zec.rocks:443",
+      chain_name: ServerChainNameEnum.mainChainName,
+      latency: 50,
+      default: false,
+      obsolete: false,
+    },
+  ]);
+  show(ServerSelectionEnum.auto, HEALTHY);
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
+  await waitFor(() => expect(openErrorModal).toHaveBeenCalledTimes(1));
+  expect(openConfirmModal).not.toHaveBeenCalled();
+  expect(rotateServer).not.toHaveBeenCalled();
+});
 test.each([[HEALTHY], [DEAD]])("custom always goes to the settings screen, dot at %#", (outcomes) => {
   show(ServerSelectionEnum.custom, outcomes);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));

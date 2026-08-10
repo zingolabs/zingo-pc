@@ -1,3 +1,4 @@
+import { IRONWOOD_RECEIVER_LABEL, IRONWOOD_RECEIVER_TOOLTIP } from "../../../constants/ironwood";
 import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import {
   AccordionItem,
@@ -145,6 +146,15 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 <div style={{ marginTop: 12 }}>
                   <div className={cstyles.sublight}>
                     Address type: {Utils.getReceivers(address as UnifiedAddressClass).join(" + ")}
+                    {/* Only where the gloss appears. A Sapling-only address says
+                        nothing about Ironwood, so it gets nothing to explain. */}
+                    {(address as UnifiedAddressClass).has_orchard && (
+                      <i
+                        className="fas fa-info-circle"
+                        title={IRONWOOD_RECEIVER_TOOLTIP}
+                        style={{ marginLeft: 6, cursor: "help", opacity: 0.8 }}
+                      />
+                    )}
                   </div>
                 </div>
               )}
@@ -196,7 +206,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                         type="button"
                         onClick={handleShieldButton}
                       >
-                        Shield Balance To Orchard (Fee: {shieldFee})
+                        Shield Balance (Fee: {shieldFee})
                       </button>
                     </>
                   )}
@@ -222,10 +232,10 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     }}
                   >
                     <option key="o" value="o">
-                      Orchard
+                      {IRONWOOD_RECEIVER_LABEL}
                     </option>
                     <option key="oz" value="oz">
-                      Orchard+Sapling
+                      {`${IRONWOOD_RECEIVER_LABEL} + Sapling`}
                     </option>
                     <option key="z" value="z">
                       Sapling
