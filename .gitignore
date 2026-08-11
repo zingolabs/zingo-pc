@@ -35,3 +35,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 *.provisionprofile
+
+# throwaway self-signed cert for sideloading local MSIX builds (docs/windows-msix.md)
+zingo-dev.pfx

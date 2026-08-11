@@ -1,7 +1,7 @@
 {
   "name": "zingo-pc",
   "productName": "Zingo PC",
-  "version": "2.0.24",
+  "version": "2.0.25",
   "private": true,
   "description": "Zingo PC",
   "license": "MIT",
@@ -67,6 +67,7 @@
     "dist:mac-x64": "rimraf dist && yarn build-mac-x64 && node scripts/stage-nym-proxy.js --target x86_64-apple-darwin && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:win-msix": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && electron-builder -w appx --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "react-start": "cross-env node scripts/start.js",
     "neon": "rimraf src/native.node && cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
     "neon-mac-x64": "rimraf src/native.node && cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target x86_64-apple-darwin --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
@@ -224,7 +225,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "170",
+      "bundleVersion": "171",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -252,7 +253,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "170",
+      "bundleVersion": "171",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -275,11 +276,31 @@
         "zip",
         "msi"
       ],
+      "protocols": [
+        {
+          "name": "Zcash",
+          "schemes": [
+            "zcash"
+          ]
+        }
+      ],
       "extraResources": [
         {
           "from": "resources/nym-proxy.exe",
           "to": "nym-proxy.exe"
         }
+      ]
+    },
+    "appx": {
+      "applicationId": "ZingoPC",
+      "identityName": "ZingoPC",
+      "publisher": "CN=Zingo PC Dev",
+      "publisherDisplayName": "Zingo PC Dev",
+      "displayName": "Zingo PC",
+      "backgroundColor": "#06172d",
+      "showNameOnTiles": true,
+      "languages": [
+        "en-US"
       ]
     },
     "deb": {

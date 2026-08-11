@@ -162,6 +162,23 @@ jobs:
         if: matrix.platform == 'win'
         run: yarn ${{ matrix.dist_script }}
 
+      # The MSIX is the Microsoft Store artifact. The Store re-signs it on upload,
+      # which is what gets it past Smart App Control — the zip/msi above are
+      # unsigned and blocked. Reuses what the previous step already built, so this
+      # costs seconds rather than another Rust + webpack cycle.
+      #
+      # Skipped until the three repository variables are set (see
+      # docs/windows-msix.md); they come from Partner Center once the app is
+      # reserved and must match its product identity byte for byte.
+      - name: Build MSIX (Microsoft Store)
+        if: matrix.platform == 'win' && matrix.arch == 'x64' && vars.STORE_IDENTITY_NAME != ''
+        run: >
+          npx electron-builder -w appx --x64
+          -c.extraMetadata.main=build/electron.js --publish never
+          -c.appx.identityName="${{ vars.STORE_IDENTITY_NAME }}"
+          -c.appx.publisher="${{ vars.STORE_PUBLISHER }}"
+          -c.appx.publisherDisplayName="${{ vars.STORE_PUBLISHER_DISPLAY_NAME }}"
+
       - name: Upload artifacts (Linux)
         uses: actions/upload-artifact@v4
         if: matrix.platform == 'linux'
@@ -193,6 +210,13 @@ jobs:
           path: |
             dist/*.msi
             dist/*.zip
+
+      - name: Upload MSIX (Microsoft Store)
+        uses: actions/upload-artifact@v4
+        if: matrix.platform == 'win' && matrix.arch == 'x64' && vars.STORE_IDENTITY_NAME != ''
+        with:
+          name: zingo-pc-store-msix
+          path: dist/*.appx
 
   flatpak:
     needs: build
@@ -245,6 +269,12 @@ jobs:
         with:
           path: artifacts
           merge-multiple: false
+
+      # The .appx is only useful to Partner Center, which signs it on upload.
+      # As downloaded from a release it is unsigned and cannot be installed, so
+      # publishing it would just hand users a file that fails.
+      - name: Keep the Store package out of the public release
+        run: rm -rf artifacts/zingo-pc-store-msix
 
       - name: Generate release notes
         id: notes
