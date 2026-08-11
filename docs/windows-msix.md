@@ -112,16 +112,20 @@ own artifact (`zingo-pc-store-msix`) and **deliberately excluded from the GitHub
 as produced by CI the package is unsigned, so a user who downloaded it could not install it.
 Only Partner Center can use it, because the Store signs it on upload.
 
-The step is skipped unless three **repository variables** are set (Settings → Secrets and
-variables → Actions → Variables). They are identifiers, not secrets:
+It needs three **repository secrets** (Settings → Secrets and variables → Actions → Secrets),
+kept alongside the Apple signing values for consistency:
 
-| Variable | Partner Center → app → Product identity |
+| Secret | Partner Center → app → Product identity |
 | --- | --- |
 | `STORE_IDENTITY_NAME` | *Package/Identity/Name* |
 | `STORE_PUBLISHER` | *Package/Identity/Publisher* (the full `CN=...`) |
 | `STORE_PUBLISHER_DISPLAY_NAME` | *Package/Properties/PublisherDisplayName* |
 
-Until they exist the whole MSIX path is inert and the release keeps its current shape.
+If any is missing the step fails with a message naming it, rather than skipping quietly.
+
+Note they are masked as `***` in the run log. If Partner Center ever rejects a package for a
+publisher mismatch, compare against Partner Center directly — the log will not show you the
+value that was used.
 
 Only x64 is built for the Store. Adding arm64 means a second package and a second entry in
 the same submission; nothing in the config prevents it, it just is not wired up.

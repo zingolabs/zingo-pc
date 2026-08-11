@@ -167,17 +167,27 @@ jobs:
       # unsigned and blocked. Reuses what the previous step already built, so this
       # costs seconds rather than another Rust + webpack cycle.
       #
-      # Skipped until the three repository variables are set (see
-      # docs/windows-msix.md); they come from Partner Center once the app is
-      # reserved and must match its product identity byte for byte.
+      # The three values come from Partner Center once the app is reserved
+      # (docs/windows-msix.md) and must match its product identity byte for byte.
+      # They are read through env rather than inlined: the secrets context is not
+      # dependable inside a step `if`, and a missing one has to fail loudly — a
+      # skipped step just leaves you hunting for an artifact that never appeared.
       - name: Build MSIX (Microsoft Store)
-        if: matrix.platform == 'win' && matrix.arch == 'x64' && vars.STORE_IDENTITY_NAME != ''
-        run: >
-          npx electron-builder -w appx --x64
-          -c.extraMetadata.main=build/electron.js --publish never
-          -c.appx.identityName="${{ vars.STORE_IDENTITY_NAME }}"
-          -c.appx.publisher="${{ vars.STORE_PUBLISHER }}"
-          -c.appx.publisherDisplayName="${{ vars.STORE_PUBLISHER_DISPLAY_NAME }}"
+        if: matrix.platform == 'win' && matrix.arch == 'x64'
+        shell: bash
+        env:
+          STORE_IDENTITY_NAME: ${{ secrets.STORE_IDENTITY_NAME }}
+          STORE_PUBLISHER: ${{ secrets.STORE_PUBLISHER }}
+          STORE_PUBLISHER_DISPLAY_NAME: ${{ secrets.STORE_PUBLISHER_DISPLAY_NAME }}
+        run: |
+          : "${STORE_IDENTITY_NAME:?missing repository secret STORE_IDENTITY_NAME (Partner Center > Product identity > Package/Identity/Name)}"
+          : "${STORE_PUBLISHER:?missing repository secret STORE_PUBLISHER (Partner Center > Product identity > Package/Identity/Publisher)}"
+          : "${STORE_PUBLISHER_DISPLAY_NAME:?missing repository secret STORE_PUBLISHER_DISPLAY_NAME (Partner Center > Product identity > Package/Properties/PublisherDisplayName)}"
+          npx electron-builder -w appx --x64 \
+            -c.extraMetadata.main=build/electron.js --publish never \
+            -c.appx.identityName="$STORE_IDENTITY_NAME" \
+            -c.appx.publisher="$STORE_PUBLISHER" \
+            -c.appx.publisherDisplayName="$STORE_PUBLISHER_DISPLAY_NAME"
 
       - name: Upload artifacts (Linux)
         uses: actions/upload-artifact@v4
@@ -213,7 +223,7 @@ jobs:
 
       - name: Upload MSIX (Microsoft Store)
         uses: actions/upload-artifact@v4
-        if: matrix.platform == 'win' && matrix.arch == 'x64' && vars.STORE_IDENTITY_NAME != ''
+        if: matrix.platform == 'win' && matrix.arch == 'x64'
         with:
           name: zingo-pc-store-msix
           path: dist/*.appx
