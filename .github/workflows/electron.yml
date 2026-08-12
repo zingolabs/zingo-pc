@@ -158,36 +158,29 @@ jobs:
           CSC_NAME: "Distheirs LLC (788KRST4S8)"
         run: yarn ${{ matrix.dist_script }}
 
+      # Signed through Azure Artifact Signing (build.win.azureSignOptions). The
+      # certificate lives in Azure, never on disk; these three variables are what
+      # electron-builder's EnvironmentCredential authenticates with.
       - name: Build (Windows)
         if: matrix.platform == 'win'
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: yarn ${{ matrix.dist_script }}
 
-      # The MSIX is the Microsoft Store artifact. The Store re-signs it on upload,
-      # which is what gets it past Smart App Control — the zip/msi above are
-      # unsigned and blocked. Reuses what the previous step already built, so this
-      # costs seconds rather than another Rust + webpack cycle.
+      # The Store package. Locally this is `yarn dist:win-msix-<arch>`, mirroring
+      # dist:mac-mas; here electron-builder is called directly so it reuses what the
+      # step above produced instead of wiping dist/ and rebuilding Rust for the
+      # third time.
       #
-      # The three values come from Partner Center once the app is reserved
-      # (docs/windows-msix.md) and must match its product identity byte for byte.
-      # They are read through env rather than inlined: the secrets context is not
-      # dependable inside a step `if`, and a missing one has to fail loudly — a
-      # skipped step just leaves you hunting for an artifact that never appeared.
+      # signAndEditExecutable=false is load-bearing: Partner Center re-signs the
+      # package itself and requires it unsigned, and our certificate subject
+      # (CN=Juan Carlos Carmona Calvo) does not match the package publisher
+      # (CN=96EC5B6E-…) anyway, which would make the .appx invalid.
       - name: Build MSIX (Microsoft Store)
-        if: matrix.platform == 'win' && matrix.arch == 'x64'
-        shell: bash
-        env:
-          STORE_IDENTITY_NAME: ${{ secrets.STORE_IDENTITY_NAME }}
-          STORE_PUBLISHER: ${{ secrets.STORE_PUBLISHER }}
-          STORE_PUBLISHER_DISPLAY_NAME: ${{ secrets.STORE_PUBLISHER_DISPLAY_NAME }}
-        run: |
-          : "${STORE_IDENTITY_NAME:?missing repository secret STORE_IDENTITY_NAME (Partner Center > Product identity > Package/Identity/Name)}"
-          : "${STORE_PUBLISHER:?missing repository secret STORE_PUBLISHER (Partner Center > Product identity > Package/Identity/Publisher)}"
-          : "${STORE_PUBLISHER_DISPLAY_NAME:?missing repository secret STORE_PUBLISHER_DISPLAY_NAME (Partner Center > Product identity > Package/Properties/PublisherDisplayName)}"
-          npx electron-builder -w appx --x64 \
-            -c.extraMetadata.main=build/electron.js --publish never \
-            -c.appx.identityName="$STORE_IDENTITY_NAME" \
-            -c.appx.publisher="$STORE_PUBLISHER" \
-            -c.appx.publisherDisplayName="$STORE_PUBLISHER_DISPLAY_NAME"
+        if: matrix.platform == 'win'
+        run: npx electron-builder -w appx --${{ matrix.arch }} -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false --publish never
 
       - name: Upload artifacts (Linux)
         uses: actions/upload-artifact@v4
@@ -221,11 +214,16 @@ jobs:
             dist/*.msi
             dist/*.zip
 
+      # Produced by dist:win-* alongside the msi/zip, but kept in its own artifact:
+      # this one goes to Partner Center, which signs it on upload. That signature is
+      # what gets it past Smart App Control — the msi/zip above stay unsigned and
+      # blocked. It is excluded from the public release in the release job, since
+      # unsigned it cannot be installed by anyone who downloads it.
       - name: Upload MSIX (Microsoft Store)
         uses: actions/upload-artifact@v4
-        if: matrix.platform == 'win' && matrix.arch == 'x64'
+        if: matrix.platform == 'win'
         with:
-          name: zingo-pc-store-msix
+          name: zingo-pc-win-msix-${{ matrix.arch }}
           path: dist/*.appx
 
   flatpak:
@@ -280,11 +278,11 @@ jobs:
           path: artifacts
           merge-multiple: false
 
-      # The .appx is only useful to Partner Center, which signs it on upload.
-      # As downloaded from a release it is unsigned and cannot be installed, so
-      # publishing it would just hand users a file that fails.
-      - name: Keep the Store package out of the public release
-        run: rm -rf artifacts/zingo-pc-store-msix
+      # Store-bound packages, not user downloads. The .appx goes to Partner Center
+      # and the .pkg to App Store Connect; both are signed by the store on upload,
+      # so as published on a release page they are files nobody can install.
+      - name: Keep the store packages out of the public release
+        run: rm -rf artifacts/zingo-pc-win-msix-* artifacts/zingo-pc-mas-*
 
       - name: Generate release notes
         id: notes

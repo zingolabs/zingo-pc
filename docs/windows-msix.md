@@ -12,23 +12,61 @@ GitHub releases are still affected until those artifacts get signed.
 ## Build
 
 ```
-yarn dist:win-msix
+yarn dist:win-msix-x64      # or dist:win-msix-arm64
 ```
 
-Produces `dist/Zingo PC <version>.appx`. Requires the Windows 10/11 SDK (`makeappx.exe`,
-`signtool.exe`); electron-builder downloads its own copy on first run.
+Its own script, the same way `dist:mac-mas` sits beside `dist:mac-x64`: the store package is
+built separately from the ones that go on the release page. `appx` is deliberately **not** in
+`build.win.target`, so `dist:win-x64` keeps producing just `zip` and `msi`.
 
-The `appx` target is deliberately *not* in `build.win.target` — `dist:win-x64` keeps
-producing only `zip` and `msi`, and the MSIX is built on demand.
+Output is `dist/Zingo PC <version>.appx` (`-arm64.appx` on the other arch), carrying the real
+Partner Center identity from `build.appx` and ready to upload as-is.
 
-## Testing locally before touching Partner Center
+Two things this separation buys locally:
 
-The Store signs the package on upload, but an unsigned `.appx` cannot be sideloaded, so
-local testing needs a self-signed certificate whose subject matches `build.appx.publisher`
-exactly (currently `CN=Zingo PC Dev`).
+- The `msi` target needs an **elevated** shell. WiX cannot run ICE validation under a
+  restricted system policy, and electron-builder passes `-wx`, so that warning becomes
+  `LGHT1105` and kills the build. The MSIX script never touches WiX.
+- No Rust rebuild is wasted on targets you are not shipping to the Store.
+
+Requires the Windows 10/11 SDK (`makeappx.exe`, `signtool.exe`); electron-builder downloads
+its own copy on first run. That extraction needs symlink privileges — enable Developer Mode
+(Settings → System → For developers), or the build dies unpacking `winCodeSign` with
+"Cannot create symbolic link".
+
+## Product identity
+
+`build.appx` holds the values Partner Center assigned when the app name was reserved. They
+are not secrets — every published package carries them in its manifest — but they must match
+Partner Center **byte for byte** or the upload is rejected:
+
+| Field | Partner Center → app → Product identity |
+| --- | --- |
+| `identityName` | *Package/Identity/Name* |
+| `publisher` | *Package/Identity/Publisher* (the full `CN=...`) |
+| `publisherDisplayName` | *Package/Properties/PublisherDisplayName* |
+
+`applicationId` is ours, not Partner Center's, and is unrelated to the Store.
+
+The package version comes from `package.json`; the Store requires the fourth component to be
+`0` (electron-builder does this) and the version to increase on every submission.
+
+## Testing locally
+
+The `.appx` that `dist:win-*` produces **cannot be sideloaded** — it is unsigned, and its
+publisher is the Store's, not a certificate you hold. The two are mutually exclusive by
+design: what you can install locally is not what you can upload.
+
+To install one on this machine, rebuild with a development identity and sign it yourself:
+
+```
+npx electron-builder -w appx --x64 -c.extraMetadata.main=build/electron.js --publish never ^
+  -c.appx.identityName=ZingoPC -c.appx.publisher="CN=Zingo PC Dev" ^
+  -c.appx.publisherDisplayName="Zingo PC Dev"
+```
 
 ```powershell
-# 1. Create the cert (once)
+# 1. Create the cert (once). Subject must equal the publisher above, exactly.
 $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Zingo PC Dev" `
   -KeyUsage DigitalSignature -FriendlyName "Zingo PC Dev" `
   -CertStoreLocation "Cert:\CurrentUser\My" `
@@ -41,55 +79,39 @@ Export-PfxCertificate -Cert "Cert:\CurrentUser\My\$($cert.Thumbprint)" `
 Import-PfxCertificate -FilePath zingo-dev.pfx -Password $certPwd `
   -CertStoreLocation "Cert:\LocalMachine\TrustedPeople"
 
-# 3. Sign the built package
+# 3. Sign and install
 $signtool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" |
   Sort-Object FullName | Select-Object -Last 1
 & $signtool.FullName sign /fd SHA256 /f zingo-dev.pfx /p devpass "dist\Zingo PC <version>.appx"
-
-# 4. Install
 Add-AppxPackage "dist\Zingo PC <version>.appx"
 ```
 
-`zingo-dev.pfx` is a throwaway development credential — do not commit it and do not reuse
-it for anything else.
+`zingo-dev.pfx` is a throwaway credential (gitignored) — do not reuse it for anything else.
+
+Both installs show up as "Zingo PC" in the Start menu and are indistinguishable there. Launch
+the packaged one explicitly:
+
+```powershell
+Start-Process "shell:AppsFolder\$((Get-AppxPackage *ZingoPC*).PackageFamilyName)!ZingoPC"
+```
 
 ## What to verify in the packaged app
 
-MSIX runs full-trust but virtualizes filesystem and registry writes, so these are the
-parts most likely to behave differently from the `msi` build:
+MSIX runs full-trust but virtualizes filesystem and registry writes, so these are the parts
+most likely to behave differently from the `msi` build:
 
 - **`zcash:` URI handling.** `app.setAsDefaultProtocolClient` in `public/electron.js` cannot
   register the scheme from inside an MSIX container — its registry writes are virtualized.
   The scheme is instead declared in the package manifest, generated from `build.win.protocols`.
   Test both paths: app closed (cold start) and app already running (`second-instance`).
-- **`keytar`.** Credential Manager access from a packaged app.
+- **`keytar`.** `getRequireAuth`/`setRequireAuth` swallow any keytar failure and fall back to
+  `settings.json`, so a broken keytar looks like a working app. Prove it by toggling the
+  device-auth setting and checking that a `Zingo PC` entry appears in Credential Manager.
 - **`nym-proxy.exe`.** Spawned as a child process from `extraResources`; confirm it launches
   and that its listening socket works.
 - **`electron-settings` / `electron-json-storage`.** Writes to `%APPDATA%` are redirected to
   the package's private store. Existing users migrating from the `msi` build will not see
   their previous settings.
-
-## Switching from dev values to Store values
-
-`build.appx` currently holds development placeholders. Three fields must be replaced with
-the values Partner Center assigns once the app is reserved:
-
-| Field | Where it comes from |
-| --- | --- |
-| `identityName` | Partner Center → app → Product identity → *Package/Identity/Name* |
-| `publisher` | Partner Center → app → Product identity → *Package/Identity/Publisher* (the `CN=...` string) |
-| `publisherDisplayName` | Partner Center → app → Product identity → *Package/Properties/PublisherDisplayName* |
-
-They must match byte for byte or the upload is rejected.
-
-Either edit `package.json` or override at build time without touching the file:
-
-```
-electron-builder -w appx --x64 -c.extraMetadata.main=build/electron.js --publish never \
-  -c.appx.identityName=... -c.appx.publisher="CN=..." -c.appx.publisherDisplayName=...
-```
-
-Upload the resulting `.appx` unsigned — Partner Center re-signs it.
 
 ## Store assets
 
@@ -106,29 +128,22 @@ fails.
 
 ## CI
 
-`.github/workflows/electron.yml` builds the MSIX in the Windows x64 job, reusing the output
-of `dist:win-x64` rather than running a second Rust + webpack cycle. It is uploaded as its
-own artifact (`zingo-pc-store-msix`) and **deliberately excluded from the GitHub release**:
-as produced by CI the package is unsigned, so a user who downloaded it could not install it.
-Only Partner Center can use it, because the Store signs it on upload.
+`.github/workflows/electron.yml` builds the MSIX inside the existing Windows job rather than
+calling `dist:win-msix-*`, which would `rimraf dist` and rebuild Rust from scratch a third
+time. It reuses what `dist:win-<arch>` just produced, so it costs seconds.
 
-It needs three **repository secrets** (Settings → Secrets and variables → Actions → Secrets),
-kept alongside the Apple signing values for consistency:
+That is the one place the MAS symmetry stops. MAS earns its own matrix entry because it is a
+genuinely different build — universal lipo, different entitlements, different signing. The
+Store MSIX is the same build output packed into another container, so a second
+electron-builder call in the same job is enough.
 
-| Secret | Partner Center → app → Product identity |
-| --- | --- |
-| `STORE_IDENTITY_NAME` | *Package/Identity/Name* |
-| `STORE_PUBLISHER` | *Package/Identity/Publisher* (the full `CN=...`) |
-| `STORE_PUBLISHER_DISPLAY_NAME` | *Package/Properties/PublisherDisplayName* |
+It is uploaded as its own artifact (`zingo-pc-win-msix-x64` / `-arm64`) and **excluded from
+the GitHub release**, along with the MAS `.pkg`. Both are store-bound: signed by Apple and
+Microsoft on upload, so on a release page they would be things nobody can install.
 
-If any is missing the step fails with a message naming it, rather than skipping quietly.
-
-Note they are masked as `***` in the run log. If Partner Center ever rejects a package for a
-publisher mismatch, compare against Partner Center directly — the log will not show you the
-value that was used.
-
-Only x64 is built for the Store. Adding arm64 means a second package and a second entry in
-the same submission; nothing in the config prevents it, it just is not wired up.
+Download both `.appx` files and upload them to the same submission — Partner Center serves
+each machine the matching one. An x64-only listing would still run on Windows on ARM through
+emulation, just slower and with worse battery life.
 
 ## Publishing
 
@@ -138,10 +153,11 @@ age rating and privacy policy have no unattended path:
 1. Register at `partner.microsoft.com` (individual account, one-off fee) and pass identity
    verification.
 2. Reserve the app name. That is what mints the product identity values above.
-3. Set the three repository variables, then push a `zingo-pc-*` tag.
-4. Download the `zingo-pc-store-msix` artifact from the run and upload the `.appx` to the
-   submission. Upload it unsigned — Partner Center re-signs it.
-5. Complete the listing and submit for certification.
+3. Push a `zingo-pc-*` tag and download the two `zingo-pc-win-msix-*` artifacts from the run.
+4. Upload both `.appx` files to the submission, unsigned — Partner Center re-signs them.
+5. Under Packages, tick **Windows 10/11 Desktop** under device family availability, or the
+   product ships available to nobody.
+6. Complete the listing (category: Personal finance) and submit for certification.
 
 Later submissions can be automated with the Microsoft Store submission API, which needs an
 Entra tenant with an app registration linked under Partner Center → Account settings → User
