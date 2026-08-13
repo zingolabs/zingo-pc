@@ -180,7 +180,12 @@ jobs:
       # (CN=96EC5B6E-…) anyway, which would make the .appx invalid.
       - name: Build MSIX (Microsoft Store)
         if: matrix.platform == 'win'
-        run: npx electron-builder -w appx --${{ matrix.arch }} -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false --publish never
+        shell: bash
+        run: >
+          npx electron-builder -w appx --${{ matrix.arch }}
+          "-c.extraMetadata.main=build/electron.js"
+          "-c.win.signAndEditExecutable=false"
+          --publish never
 
       - name: Upload artifacts (Linux)
         uses: actions/upload-artifact@v4
