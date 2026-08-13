@@ -174,10 +174,23 @@ jobs:
       # step above produced instead of wiping dist/ and rebuilding Rust for the
       # third time.
       #
-      # signAndEditExecutable=false is load-bearing: Partner Center re-signs the
-      # package itself and requires it unsigned, and our certificate subject
-      # (CN=Juan Carlos Carmona Calvo) does not match the package publisher
-      # (CN=96EC5B6E-…) anyway, which would make the .appx invalid.
+      # The Store package must ship unsigned: Partner Center re-signs it, and our
+      # certificate subject (CN=Juan Carlos Carmona Calvo) does not match the
+      # package publisher (CN=96EC5B6E-…) anyway, which would make it invalid.
+      #
+      # Three separate switches are needed for that, none of them obvious:
+      #   - "!.appx" in build.win.signExts stops the package itself being signed.
+      #     signAndEditExecutable does NOT cover it — AppxTarget calls signIf on
+      #     the artifact directly, and signIf never consults that flag.
+      #   - signAndEditExecutable=false skips the binaries inside the package.
+      #     Microsoft's signature covers them, so signing here would only burn
+      #     signing calls — and would make this step need the Azure credentials.
+      #   - azureSignOptions.publisherName is overridden with the Partner Center
+      #     publisher. When Azure signing is configured, electron-builder writes
+      #     that field into the manifest's Identity/@Publisher and ignores
+      #     build.appx.publisher entirely (windowsSignAzureManager.computePublisherName),
+      #     assuming whoever signs the package also publishes it. Without this the
+      #     manifest gets a bare name, which is not a valid DN, and makeappx fails.
       - name: Build MSIX (Microsoft Store)
         if: matrix.platform == 'win'
         shell: bash
@@ -185,6 +198,7 @@ jobs:
           npx electron-builder -w appx --${{ matrix.arch }}
           "-c.extraMetadata.main=build/electron.js"
           "-c.win.signAndEditExecutable=false"
+          "-c.win.azureSignOptions.publisherName=CN=96EC5B6E-FB9F-4DEA-9C02-05C6CAF8DDF8"
           --publish never
 
       - name: Upload artifacts (Linux)

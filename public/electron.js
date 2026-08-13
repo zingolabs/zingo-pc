@@ -508,15 +508,23 @@ if (process.platform === "darwin") {
 
 // Register all IPC handlers once — calling ipcMain.handle twice for the same channel throws
 
+// Race a platform probe against a timeout so a hung native call (e.g. Windows
+// Hello on a system where the consent dialog never surfaces) doesn't block the
+// renderer forever and leave it on a screen with no way out.
+const withAuthTimeout = (probe, fallback = "not_supported", ms = 3000) =>
+  Promise.race([
+    Promise.resolve().then(() => probe()),
+    new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]).catch(() => fallback);
+
+// Availability probes are non-interactive, so seconds are plenty. Verification
+// waits on a person presenting a face, finger or PIN, so it gets a minute — long
+// enough not to cut a real user off, short enough to end rather than hang.
+const AUTH_PROBE_TIMEOUT_MS = 3000;
+const AUTH_VERIFY_TIMEOUT_MS = 60000;
+
 ipcMain.handle("auth:check", async () => {
-  // Race any platform probe against a 3s timeout so a hung native call
-  // (e.g. Windows Hello on a system without it configured) doesn't block
-  // the renderer's lock-check forever and leave a white screen.
-  const withTimeout = (probe, fallback = "not_supported", ms = 3000) =>
-    Promise.race([
-      Promise.resolve().then(() => probe()),
-      new Promise((resolve) => setTimeout(() => resolve(fallback), ms)),
-    ]).catch(() => fallback);
+  const withTimeout = withAuthTimeout;
 
   if (process.platform === "win32") {
     return withTimeout(() => getNative().checkWindowsHello());
@@ -548,13 +556,25 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
   // feature: `requireDeviceAuth` defaults to true, but the renderer also gates
   // the LOCK screen on auth:check === "available", so disabling here keeps the
   // two callers consistent.
+  // Both calls are timed out for the same reason auth:check is: a native probe
+  // or prompt that never returns used to strand the caller. The lock screen sat
+  // on "Authenticating..." with the window already blurred, and no way forward.
   if (process.platform === "win32") {
     const win = BrowserWindow.getAllWindows()[0] ?? null;
     try {
       const native = getNative();
-      if (native.checkWindowsHello() !== "available") return { success: true };
+      const availability = await withAuthTimeout(
+        () => native.checkWindowsHello(),
+        "not_supported",
+        AUTH_PROBE_TIMEOUT_MS,
+      );
+      if (availability !== "available") return { success: true };
       if (win) win.blur();
-      const result = await native.verifyWindowsUser(String(reason));
+      const result = await withAuthTimeout(
+        () => native.verifyWindowsUser(String(reason)),
+        { success: false },
+        AUTH_VERIFY_TIMEOUT_MS,
+      );
       if (win) win.focus();
       return result;
     } catch {
@@ -564,8 +584,13 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
   } else if (process.platform === "darwin") {
     try {
       const native = getNative();
-      if (native.checkMacAuth() !== "available") return { success: true };
-      return await native.verifyMacUser(String(reason));
+      const availability = await withAuthTimeout(() => native.checkMacAuth(), "not_supported", AUTH_PROBE_TIMEOUT_MS);
+      if (availability !== "available") return { success: true };
+      return await withAuthTimeout(
+        () => native.verifyMacUser(String(reason)),
+        { success: false },
+        AUTH_VERIFY_TIMEOUT_MS,
+      );
     } catch {
       return { success: false };
     }

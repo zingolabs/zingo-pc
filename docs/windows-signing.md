@@ -65,24 +65,47 @@ deliberate: a silently unsigned artifact is the failure this whole setup exists 
 The `msi` target additionally needs an **elevated** shell (WiX cannot run ICE validation under
 a restricted system policy, and `-wx` turns that warning into `LGHT1105`).
 
-**pwsh (PowerShell 7) must be installed.** electron-builder shells out to it for Azure signing,
-and `scripts/sign-nym-proxy.ps1` does too. Windows PowerShell 5.1 is not enough — its
-PowerShellGet cannot load `Install-Module` to pull the `TrustedSigning` module.
+Two prerequisites that GitHub's runners carry by default and a developer machine usually does
+not. Both surface as confusing errors rather than a missing-dependency message:
+
+- **pwsh (PowerShell 7)** — electron-builder shells out to it for Azure signing, and
+  `scripts/sign-nym-proxy.ps1` does too. Windows PowerShell 5.1 is not enough: its
+  PowerShellGet cannot load `Install-Module` to pull the `TrustedSigning` module.
+  `winget install --id Microsoft.PowerShell -e`
+- **The .NET SDK** — `Invoke-TrustedSigning` installs the `sign` dotnet tool on first use, and
+  the runtime alone will not do it (*"No .NET SDKs were found"*).
+  `winget install --id Microsoft.DotNet.SDK.8 -e`
 
 That script signs `resources/nym-proxy.exe` before packaging, because electron-builder does not
 sign `extraResources`: its pass covers the app directory, `resources/app.asar.unpacked` and
 `swiftshader`, and the proxy sits in `resources/`. It is spawned as a child process, so Smart
 App Control inspects it independently of the main executable.
 
-## Why the MSIX build disables signing
-
-`dist:win-msix-*` and the CI MSIX step pass `-c.win.signAndEditExecutable=false`.
+## Why the MSIX build does not sign
 
 Partner Center re-signs the `.appx` on upload and requires it unsigned. Beyond that, a package
 is only valid if the signing certificate subject equals its `Identity/Publisher` — and those
 differ here on purpose: the package publisher is the Partner Center seller GUID
 (`CN=96EC5B6E-…`), while this certificate is issued to a person. Signing the `.appx` would
 produce a package Windows rejects and Partner Center refuses.
+
+It takes **three** switches, none of them obvious:
+
+- **`"!.appx"` in `build.win.signExts`** stops the package itself from being signed.
+  `signAndEditExecutable` does not cover this: `AppxTarget` calls `packager.signIf()` on the
+  finished artifact, and `signIf` only consults `signExts`.
+- **`-c.win.signAndEditExecutable=false`**, passed by `dist:win-msix-*` and the CI step, skips
+  the binaries inside the package. Microsoft's signature covers them, so signing here would
+  only spend signing calls — and would force this step to carry the Azure credentials.
+- **`-c.win.azureSignOptions.publisherName=CN=96EC5B6E-…`**, same two callers, overrides the
+  publisher written into the manifest. Once Azure signing is configured, electron-builder puts
+  that field straight into `Identity/@Publisher` and ignores `build.appx.publisher`
+  (`windowsSignAzureManager.computePublisherName` discards its argument), on the assumption
+  that whoever signs a package also publishes it. Ours are deliberately different, and without
+  the override the manifest gets a bare personal name, which is not a valid DN — `makeappx`
+  rejects it with a pattern-constraint error.
+
+With all three in place the MSIX build needs no credentials at all.
 
 ## Reputation
 

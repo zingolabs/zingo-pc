@@ -67,8 +67,8 @@
     "dist:mac-x64": "rimraf dist && yarn build-mac-x64 && node scripts/stage-nym-proxy.js --target x86_64-apple-darwin && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && pwsh -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1 && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && pwsh -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1 && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:win-msix-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && electron-builder -w appx --arm64 -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false --publish never",
-    "dist:win-msix-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && electron-builder -w appx --x64 -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false --publish never",
+    "dist:win-msix-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && electron-builder -w appx --arm64 -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false -c.win.azureSignOptions.publisherName=CN=96EC5B6E-FB9F-4DEA-9C02-05C6CAF8DDF8 --publish never",
+    "dist:win-msix-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && electron-builder -w appx --x64 -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false -c.win.azureSignOptions.publisherName=CN=96EC5B6E-FB9F-4DEA-9C02-05C6CAF8DDF8 --publish never",
     "react-start": "cross-env node scripts/start.js",
     "neon": "rimraf src/native.node && cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
     "neon-mac-x64": "rimraf src/native.node && cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target x86_64-apple-darwin --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
@@ -226,7 +226,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "175",
+      "bundleVersion": "176",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -254,7 +254,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "175",
+      "bundleVersion": "176",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -285,7 +285,8 @@
       },
       "signExts": [
         ".node",
-        ".dll"
+        ".dll",
+        "!.appx"
       ],
       "protocols": [
         {
