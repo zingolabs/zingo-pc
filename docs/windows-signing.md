@@ -65,6 +65,15 @@ deliberate: a silently unsigned artifact is the failure this whole setup exists 
 The `msi` target additionally needs an **elevated** shell (WiX cannot run ICE validation under
 a restricted system policy, and `-wx` turns that warning into `LGHT1105`).
 
+**pwsh (PowerShell 7) must be installed.** electron-builder shells out to it for Azure signing,
+and `scripts/sign-nym-proxy.ps1` does too. Windows PowerShell 5.1 is not enough — its
+PowerShellGet cannot load `Install-Module` to pull the `TrustedSigning` module.
+
+That script signs `resources/nym-proxy.exe` before packaging, because electron-builder does not
+sign `extraResources`: its pass covers the app directory, `resources/app.asar.unpacked` and
+`swiftshader`, and the proxy sits in `resources/`. It is spawned as a child process, so Smart
+App Control inspects it independently of the main executable.
+
 ## Why the MSIX build disables signing
 
 `dist:win-msix-*` and the CI MSIX step pass `-c.win.signAndEditExecutable=false`.

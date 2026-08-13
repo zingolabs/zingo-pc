@@ -65,8 +65,8 @@
     "dist:mac-arm64": "rimraf dist && yarn build-mac-arm64 && node scripts/stage-nym-proxy.js --target aarch64-apple-darwin && electron-builder -m --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-mas": "rimraf dist && yarn cargo:clean && yarn neon-mac-x64 && cp src/native.node src/native-x64.node && yarn neon-mac-arm64 && lipo -create -output src/native.node src/native-x64.node src/native.node && rm src/native-x64.node && node scripts/stage-nym-proxy.js && cross-env node scripts/build.js && electron-builder --mac mas --universal -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-x64": "rimraf dist && yarn build-mac-x64 && node scripts/stage-nym-proxy.js --target x86_64-apple-darwin && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && powershell -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1 && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:win-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && powershell -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1 && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && pwsh -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1 && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:win-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && pwsh -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1 && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:win-msix-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && electron-builder -w appx --arm64 -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false --publish never",
     "dist:win-msix-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && electron-builder -w appx --x64 -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false --publish never",
     "react-start": "cross-env node scripts/start.js",
@@ -226,7 +226,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "174",
+      "bundleVersion": "175",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -254,7 +254,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "174",
+      "bundleVersion": "175",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },

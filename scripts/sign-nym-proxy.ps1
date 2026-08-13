@@ -11,9 +11,17 @@
 # Values mirror build.win.azureSignOptions in package.json. Credentials come from
 # the same AZURE_* environment variables electron-builder uses.
 #
-#   powershell -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1
+#   pwsh -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1
+#
+# Must run under pwsh (PowerShell 7), not Windows PowerShell 5.1, whose PowerShellGet
+# cannot load Install-Module in a CI runner. No extra dependency: electron-builder
+# shells out to pwsh for Azure signing too, so it is already required.
 
 $ErrorActionPreference = "Stop"
+
+if ($PSVersionTable.PSVersion.Major -lt 6) {
+  throw "Run this under pwsh (PowerShell 7+), not Windows PowerShell $($PSVersionTable.PSVersion)."
+}
 
 $binary = Join-Path (Split-Path -Parent $PSScriptRoot) "resources\nym-proxy.exe"
 if (-not (Test-Path $binary)) { throw "Not staged yet: $binary" }
@@ -26,7 +34,7 @@ foreach ($v in "AZURE_TENANT_ID", "AZURE_CLIENT_ID", "AZURE_CLIENT_SECRET") {
 
 if (-not (Get-Module -ListAvailable -Name TrustedSigning)) {
   Write-Host "Installing TrustedSigning module..."
-  Install-Module -Name TrustedSigning -Scope CurrentUser -Force -AllowClobber
+  Install-Module -Name TrustedSigning -Repository PSGallery -Scope CurrentUser -Force -AllowClobber
 }
 Import-Module TrustedSigning
 
