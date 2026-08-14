@@ -816,13 +816,35 @@ const _nativePath = __dirname.includes(".asar")
   : path.join(__dirname, "../src/native.node");
 
 let _mainNative = null;
+// Why the load error is kept instead of discarded: when native.node fails to
+// load, every caller below fails separately — a wrong-architecture module gave
+// four different "cannot read properties of null" further up, none of them
+// naming the real cause, and the app looked frozen rather than broken. Windows
+// says exactly what is wrong ("%1 is not a valid Win32 application" for an
+// arch mismatch); this keeps that sentence and puts it in front of the user.
+let _mainNativeError = null;
 function getNative() {
-  if (!_mainNative) {
+  if (!_mainNative && !_mainNativeError) {
     try {
       _mainNative = require(_nativePath);
-    } catch (_) {}
+    } catch (e) {
+      _mainNativeError = e;
+      console.error(`FATAL: native module failed to load from ${_nativePath}: ${e && e.message}`);
+    }
   }
   return _mainNative;
+}
+
+// Throws the load failure rather than letting callers trip over a null.
+function requireNative(method) {
+  const native = getNative();
+  if (native && typeof native[method] === "function") {
+    return native;
+  }
+  if (_mainNativeError) {
+    throw new Error(`native module failed to load (${_nativePath}): ${_mainNativeError.message}`);
+  }
+  throw new Error(`native.${method} not available`);
 }
 
 // Activates a security-scoped bookmark from the main process, which has
@@ -900,13 +922,7 @@ const _NATIVE_NO_PARAM_METHODS = [
 ];
 
 for (const method of _NATIVE_NO_PARAM_METHODS) {
-  ipcMain.handle(`native:${method}`, () => {
-    const native = getNative();
-    if (!native || typeof native[method] !== "function") {
-      throw new Error(`native.${method} not available`);
-    }
-    return native[method]();
-  });
+  ipcMain.handle(`native:${method}`, () => requireNative(method)[method]());
 }
 
 // Sync no-param methods (also routed to main — become async over IPC)
@@ -916,41 +932,53 @@ for (const method of [
   "get_zennies_for_zingo_donation_address",
   "set_crypto_default_provider_to_ring",
 ]) {
-  ipcMain.handle(`native:${method}`, () => {
-    const native = getNative();
-    if (!native || typeof native[method] !== "function") {
-      throw new Error(`native.${method} not available`);
-    }
-    return native[method]();
-  });
+  ipcMain.handle(`native:${method}`, () => requireNative(method)[method]());
 }
 
 // Methods with parameters
 ipcMain.handle("native:wallet_exists", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
-  return getNative().wallet_exists(server_uri, chain_hint, perf, min_conf, wallet_name);
+  return requireNative("wallet_exists").wallet_exists(server_uri, chain_hint, perf, min_conf, wallet_name);
 });
 ipcMain.handle("native:init_new", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
-  return getNative().init_new(server_uri, chain_hint, perf, min_conf, wallet_name);
+  return requireNative("init_new").init_new(server_uri, chain_hint, perf, min_conf, wallet_name);
 });
 ipcMain.handle("native:init_from_seed", (_e, seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
-  return getNative().init_from_seed(seed, birthday, server_uri, chain_hint, perf, min_conf, wallet_name);
+  return requireNative("init_from_seed").init_from_seed(
+    seed,
+    birthday,
+    server_uri,
+    chain_hint,
+    perf,
+    min_conf,
+    wallet_name,
+  );
 });
 ipcMain.handle("native:init_from_ufvk", (_e, ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
-  return getNative().init_from_ufvk(ufvk, birthday, server_uri, chain_hint, perf, min_conf, wallet_name);
+  return requireNative("init_from_ufvk").init_from_ufvk(
+    ufvk,
+    birthday,
+    server_uri,
+    chain_hint,
+    perf,
+    min_conf,
+    wallet_name,
+  );
 });
 ipcMain.handle("native:init_from_b64", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
-  return getNative().init_from_b64(server_uri, chain_hint, perf, min_conf, wallet_name);
+  return requireNative("init_from_b64").init_from_b64(server_uri, chain_hint, perf, min_conf, wallet_name);
 });
-ipcMain.handle("native:get_latest_block_server", (_e, server_uri) => getNative().get_latest_block_server(server_uri));
-ipcMain.handle("native:parse_address", (_e, address) => getNative().parse_address(address));
-ipcMain.handle("native:parse_ufvk", (_e, ufvk) => getNative().parse_ufvk(ufvk));
-ipcMain.handle("native:get_messages", (_e, address) => getNative().get_messages(address));
-ipcMain.handle("native:zec_price_over_mixnet", () => getNative().zec_price_over_mixnet());
+ipcMain.handle("native:get_latest_block_server", (_e, server_uri) =>
+  requireNative("get_latest_block_server").get_latest_block_server(server_uri),
+);
+ipcMain.handle("native:parse_address", (_e, address) => requireNative("parse_address").parse_address(address));
+ipcMain.handle("native:parse_ufvk", (_e, ufvk) => requireNative("parse_ufvk").parse_ufvk(ufvk));
+ipcMain.handle("native:get_messages", (_e, address) => requireNative("get_messages").get_messages(address));
+ipcMain.handle("native:zec_price_over_mixnet", () => requireNative("zec_price_over_mixnet").zec_price_over_mixnet());
 // --- Mixnet transport: main-owned, session-level (ADR 0024) ----------------
 // Main spawns and holds the nym-proxy for the whole app session. Switching
 // wallets re-attaches the new LightClient to the same tunnel instead of
@@ -1008,7 +1036,7 @@ function setMixnetPhase(phase) {
 async function attachCurrentWallet() {
   if (!mixnet.socks5Addr) return;
   try {
-    await getNative().attach_mixnet(mixnet.socks5Addr);
+    await requireNative("attach_mixnet").attach_mixnet(mixnet.socks5Addr);
     setMixnetPhase("ready");
   } catch (e) {
     console.error("[mixnet] attach failed:", e && e.message ? e.message : e);
@@ -1083,7 +1111,7 @@ ipcMain.handle("mixnet:disable", async () => {
   mixnet.intent = "off";
   killProxy();
   try {
-    await getNative().stop_mixnet();
+    await requireNative("stop_mixnet").stop_mixnet();
   } catch (e) {
     console.error("[mixnet] stop failed:", e && e.message ? e.message : e);
   }
@@ -1095,7 +1123,7 @@ ipcMain.handle("mixnet:disable", async () => {
 ipcMain.handle("mixnet:attach-current", async () => {
   if (mixnet.intent === "off") {
     try {
-      await getNative().stop_mixnet();
+      await requireNative("stop_mixnet").stop_mixnet();
     } catch {}
     setMixnetPhase("switched_off");
   } else if (mixnet.socks5Addr) {
@@ -1107,27 +1135,31 @@ ipcMain.handle("mixnet:attach-current", async () => {
 });
 
 app.on("before-quit", () => killProxy());
-ipcMain.handle("native:remove_transaction", (_e, txid) => getNative().remove_transaction(txid));
+ipcMain.handle("native:remove_transaction", (_e, txid) => requireNative("remove_transaction").remove_transaction(txid));
 ipcMain.handle("native:get_spendable_balance_with_address", (_e, address, zennies) =>
-  getNative().get_spendable_balance_with_address(address, zennies),
+  requireNative("get_spendable_balance_with_address").get_spendable_balance_with_address(address, zennies),
 );
 ipcMain.handle("native:create_new_unified_address", (_e, receivers) =>
-  getNative().create_new_unified_address(receivers),
+  requireNative("create_new_unified_address").create_new_unified_address(receivers),
 );
 ipcMain.handle("native:set_config_wallet_to_prod", (_e, perf, min_conf) =>
-  getNative().set_config_wallet_to_prod(perf, min_conf),
+  requireNative("set_config_wallet_to_prod").set_config_wallet_to_prod(perf, min_conf),
 );
-ipcMain.handle("native:send", (_e, send_json) => getNative().send(send_json));
+ipcMain.handle("native:send", (_e, send_json) => requireNative("send").send(send_json));
 ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
-  return getNative().delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);
+  return requireNative("delete_wallet").delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);
 });
-ipcMain.handle("native:change_server", (_e, server_uri) => getNative().change_server(server_uri));
+ipcMain.handle("native:change_server", (_e, server_uri) => requireNative("change_server").change_server(server_uri));
 ipcMain.handle("native:start_ironwood_migration", (_e, consented_plan_hash, per_bucket) =>
-  getNative().start_ironwood_migration(consented_plan_hash, per_bucket),
+  requireNative("start_ironwood_migration").start_ironwood_migration(consented_plan_hash, per_bucket),
 );
-ipcMain.handle("native:reschedule_parts", (_e, per_bucket) => getNative().reschedule_parts(per_bucket));
-ipcMain.handle("native:execute_due_parts", (_e, spacing_ms) => getNative().execute_due_parts(spacing_ms));
+ipcMain.handle("native:reschedule_parts", (_e, per_bucket) =>
+  requireNative("reschedule_parts").reschedule_parts(per_bucket),
+);
+ipcMain.handle("native:execute_due_parts", (_e, spacing_ms) =>
+  requireNative("execute_due_parts").execute_due_parts(spacing_ms),
+);
 
 ipcMain.handle("wallet-dir:request", async () => {
   const wdLog = (msg) => {

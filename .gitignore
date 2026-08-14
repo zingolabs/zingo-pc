@@ -15,6 +15,9 @@ native.node
 /resources/nym-proxy
 /resources/nym-proxy.exe
 
+# staged VC++ runtime (copied from the MSVC redist by scripts/stage-vcruntime.js)
+/resources/vcruntime
+
 # testing
 /coverage
 

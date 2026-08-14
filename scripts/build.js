@@ -93,12 +93,18 @@ function copyPublicFolder() {
 function copyNativeNode() {
   const src = path.join(__dirname, "../src/native.node");
   const dest = path.join(paths.appBuild, "native.node");
-  if (fs.existsSync(src)) {
-    fs.copySync(src, dest);
-    console.log(chalk.cyan("Copied native.node to build/"));
-  } else {
-    console.warn(chalk.yellow("Warning: src/native.node not found, skipping copy."));
+  // Missing means the neon step did not produce a module, and a build without it
+  // is not a build: it packages, installs and launches, then fails on the first
+  // wallet call with an error that points nowhere near this. This used to be a
+  // yellow warning in the middle of a few hundred lines of webpack output.
+  if (!fs.existsSync(src)) {
+    throw new Error(
+      `src/native.node not found. The native module was not built — run "yarn neon-win-<arch>" ` +
+        `(or the matching neon script for this platform) before building.`,
+    );
   }
+  fs.copySync(src, dest);
+  console.log(chalk.cyan("Copied native.node to build/"));
 }
 
 function gzipSize(filePath) {

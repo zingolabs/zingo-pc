@@ -1,4 +1,29 @@
-# Windows code signing
+# Windows packaging and code signing
+
+## The Visual C++ runtime
+
+`native.node` and `nym-proxy.exe` are built with MSVC and import `VCRUNTIME140.dll`.
+Electron does not, so without that DLL the window opens perfectly and then every native
+call fails: `require()` of the module returns *"the specified module could not be found"*,
+`getNative()` yields null, and the app stops on the loading screen.
+
+It is invisible during development. Visual Studio installs the runtime, so developer
+machines and CI runners always have it; clean consumer machines often do not. This cost two
+Microsoft Store certification rounds — the report was an app that launched and did nothing,
+reproducible on their hardware and on nobody's desk.
+
+`scripts/stage-vcruntime.js` copies the DLLs out of the MSVC redistributable into
+`resources/vcruntime/` (gitignored, architecture-specific, restaged per build), and
+`build.win.extraFiles` places them next to `Zingo PC.exe`. App-local deployment is the model
+Microsoft's own documentation recommends for this case, and redistribution is permitted.
+
+`vcruntime140_1.dll` exists only on x64 — it carries C++ exception handling — and is absent
+from the arm64 redist, so it is copied when present rather than required.
+
+The `api-ms-win-crt-*` imports need nothing: those are the Universal CRT, shipped with
+Windows 10 and later.
+
+# Code signing
 
 The `zip` and `msi` artifacts are signed with **Azure Artifact Signing** (formerly Trusted
 Signing). The certificate never exists as a file: it lives in Azure, and each signature is a
