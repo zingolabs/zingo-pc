@@ -97,15 +97,19 @@ It takes **three** switches, none of them obvious:
 - **`-c.win.signAndEditExecutable=false`**, passed by `dist:win-msix-*` and the CI step, skips
   the binaries inside the package. Microsoft's signature covers them, so signing here would
   only spend signing calls — and would force this step to carry the Azure credentials.
-- **`-c.win.azureSignOptions.publisherName=CN=96EC5B6E-…`**, same two callers, overrides the
-  publisher written into the manifest. Once Azure signing is configured, electron-builder puts
-  that field straight into `Identity/@Publisher` and ignores `build.appx.publisher`
-  (`windowsSignAzureManager.computePublisherName` discards its argument), on the assumption
-  that whoever signs a package also publishes it. Ours are deliberately different, and without
-  the override the manifest gets a bare personal name, which is not a valid DN — `makeappx`
-  rejects it with a pattern-constraint error.
+- **`-c.win.azureSignOptions=`**, same two callers, clears the Azure config for that run. Left
+  in place it costs twice: electron-builder constructs the Azure signing manager merely to ask
+  it for a publisher name, and that manager validates the credentials on construction — which
+  this step deliberately does not carry. It then writes the *certificate's* subject into
+  `Identity/@Publisher`, ignoring `build.appx.publisher`
+  (`windowsSignAzureManager.computePublisherName` discards its argument) on the assumption that
+  whoever signs a package also publishes it. Ours differ on purpose, and the result is a bare
+  personal name — not a valid DN — which `makeappx` rejects with a pattern-constraint error.
+  Cleared, the publisher comes from `build.appx.publisher` as intended.
 
-With all three in place the MSIX build needs no credentials at all.
+With all three in place the MSIX build needs no credentials at all — verified: the run logs
+*"AppX is not signed"* and *"file signing skipped via signExts configuration"*, and the
+resulting package carries `Publisher='CN=96EC5B6E-…'` with no `AppxSignature.p7x`.
 
 ## Reputation
 
