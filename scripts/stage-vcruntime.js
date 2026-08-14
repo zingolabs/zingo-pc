@@ -19,9 +19,12 @@
 
 const fs = require("fs");
 const path = require("path");
+const { peArch } = require("./pe-arch");
 
-// vcruntime140_1.dll only exists on x64 (C++ exception handling) and is absent
-// from the arm64 redist; copied when present rather than required.
+// vcruntime140_1.dll carries C++ exception handling and is only used by x64
+// code. The arm64 redist ships one anyway — an x64 build of it, there for
+// ARM64EC and emulation — so each candidate is checked against the target
+// rather than trusted for sitting in the right folder.
 const WANTED = ["vcruntime140.dll", "vcruntime140_1.dll"];
 
 const argIndex = process.argv.indexOf("--arch");
@@ -83,13 +86,20 @@ let copied = 0;
 for (const name of WANTED) {
   const from = path.join(source, name);
   if (!fs.existsSync(from)) continue;
+  const actual = peArch(from);
+  if (actual !== arch) {
+    console.log(`stage-vcruntime: skipped ${name} (${actual}, not ${arch})`);
+    continue;
+  }
   fs.copyFileSync(from, path.join(outDir, name));
   console.log(`stage-vcruntime: ${name} (${arch})`);
   copied++;
 }
 
+// vcruntime140.dll is the one both native.node and nym-proxy.exe import; ending
+// up with nothing means the redist is not the one this build needs.
 if (copied === 0) {
-  console.error(`stage-vcruntime: found ${source} but none of ${WANTED.join(", ")} were in it.`);
+  console.error(`stage-vcruntime: found ${source} but no ${arch} copy of ${WANTED.join(" or ")} in it.`);
   process.exit(1);
 }
 

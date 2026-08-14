@@ -17,26 +17,11 @@
 const fs = require("fs");
 const path = require("path");
 
-// PE header: offset at 0x3c, then "PE\0\0", then the 2-byte Machine field.
-const MACHINE = { 0x8664: "x64", 0xaa64: "arm64", 0x14c: "ia32" };
-
-function peArch(file) {
-  const fd = fs.openSync(file, "r");
-  try {
-    const off = Buffer.alloc(4);
-    fs.readSync(fd, off, 0, 4, 0x3c);
-    const machine = Buffer.alloc(2);
-    fs.readSync(fd, machine, 0, 2, off.readUInt32LE(0) + 4);
-    const value = machine.readUInt16LE(0);
-    return MACHINE[value] || `unknown (0x${value.toString(16)})`;
-  } finally {
-    fs.closeSync(fd);
-  }
-}
+const { peArch, ARCHITECTURES } = require("./pe-arch");
 
 const argIndex = process.argv.indexOf("--arch");
 const expected = argIndex !== -1 ? process.argv[argIndex + 1] : null;
-if (!expected || !Object.values(MACHINE).includes(expected)) {
+if (!expected || !ARCHITECTURES.includes(expected)) {
   console.error("check-win-arch: pass --arch x64 or --arch arm64");
   process.exit(1);
 }
