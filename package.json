@@ -1,7 +1,7 @@
 {
   "name": "zingo-pc",
   "productName": "Zingo PC",
-  "version": "2.0.24",
+  "version": "2.0.25",
   "private": true,
   "description": "Zingo PC",
   "license": "MIT",
@@ -65,8 +65,10 @@
     "dist:mac-arm64": "rimraf dist && yarn build-mac-arm64 && node scripts/stage-nym-proxy.js --target aarch64-apple-darwin && electron-builder -m --arm64 -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-mas": "rimraf dist && yarn cargo:clean && yarn neon-mac-x64 && cp src/native.node src/native-x64.node && yarn neon-mac-arm64 && lipo -create -output src/native.node src/native-x64.node src/native.node && rm src/native-x64.node && node scripts/stage-nym-proxy.js && cross-env node scripts/build.js && electron-builder --mac mas --universal -c.extraMetadata.main=build/electron.js --publish never",
     "dist:mac-x64": "rimraf dist && yarn build-mac-x64 && node scripts/stage-nym-proxy.js --target x86_64-apple-darwin && electron-builder -m --x64 -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
-    "dist:win-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:win-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && node scripts/stage-vcruntime.js --arch arm64 && node scripts/check-win-arch.js --arch arm64 && pwsh -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1 && electron-builder -w --arm64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:win-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && node scripts/stage-vcruntime.js --arch x64 && node scripts/check-win-arch.js --arch x64 && pwsh -ExecutionPolicy Bypass -File scripts/sign-nym-proxy.ps1 && electron-builder -w --x64 -c.extraMetadata.main=build/electron.js --publish never",
+    "dist:win-msix-arm64": "rimraf dist && yarn build-win-arm64 && node scripts/stage-nym-proxy.js --target aarch64-pc-windows-msvc && node scripts/stage-vcruntime.js --arch arm64 && node scripts/check-win-arch.js --arch arm64 && electron-builder -w appx --arm64 -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false -c.win.azureSignOptions= --publish never",
+    "dist:win-msix-x64": "rimraf dist && yarn build-win-x64 && node scripts/stage-nym-proxy.js --target x86_64-pc-windows-msvc && node scripts/stage-vcruntime.js --arch x64 && node scripts/check-win-arch.js --arch x64 && electron-builder -w appx --x64 -c.extraMetadata.main=build/electron.js -c.win.signAndEditExecutable=false -c.win.azureSignOptions= --publish never",
     "react-start": "cross-env node scripts/start.js",
     "neon": "rimraf src/native.node && cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
     "neon-mac-x64": "rimraf src/native.node && cargo-cp-artifact -a cdylib zingolib-native src/native.node -- cargo build --release --target x86_64-apple-darwin --manifest-path native/Cargo.toml --message-format=json-render-diagnostics",
@@ -224,7 +226,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "170",
+      "bundleVersion": "177",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -252,7 +254,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "170",
+      "bundleVersion": "177",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -275,11 +277,48 @@
         "zip",
         "msi"
       ],
+      "azureSignOptions": {
+        "publisherName": "Juan Carlos Carmona Calvo",
+        "endpoint": "https://eus.codesigning.azure.net",
+        "codeSigningAccountName": "zingo-pc-signing",
+        "certificateProfileName": "Zingo-PC"
+      },
+      "signExts": [
+        ".node",
+        ".dll",
+        "!.appx"
+      ],
+      "protocols": [
+        {
+          "name": "Zcash",
+          "schemes": [
+            "zcash"
+          ]
+        }
+      ],
       "extraResources": [
         {
           "from": "resources/nym-proxy.exe",
           "to": "nym-proxy.exe"
         }
+      ],
+      "extraFiles": [
+        {
+          "from": "resources/vcruntime",
+          "to": "."
+        }
+      ]
+    },
+    "appx": {
+      "applicationId": "ZingoPC",
+      "identityName": "JuanCarlosCarmonaCalvo.ZingoPC",
+      "publisher": "CN=96EC5B6E-FB9F-4DEA-9C02-05C6CAF8DDF8",
+      "publisherDisplayName": "Juan Carlos Carmona Calvo",
+      "displayName": "Zingo PC",
+      "backgroundColor": "#06172d",
+      "showNameOnTiles": true,
+      "languages": [
+        "en-US"
       ]
     },
     "deb": {

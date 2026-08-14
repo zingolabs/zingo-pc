@@ -18,6 +18,8 @@ Pre-built binaries for each release are available on the [Releases page](https:/
 | Linux | `.deb`, `.AppImage` |
 | Linux (Flatpak) | `.flatpak` |
 
+> **Windows users:** if Windows blocks the app on launch, see [Windows blocks Zingo PC from opening](#troubleshooting) in Troubleshooting. Our Windows builds are code signed, but a recently issued certificate has to accumulate reputation before Windows stops flagging it.
+
 ---
 
 ## Compiling from source
@@ -240,3 +242,20 @@ Antivirus products that inspect HTTPS traffic cannot decrypt those connections, 
 The fix is to allowlist those two hosts in your antivirus. Do not turn off Mixnet Mode just to silence it — that is what hides your IP from the indexer when you send.
 
 Unrelated to this warning: always download releases from the [official Releases page](https://github.com/zingolabs/zingo-pc/releases) and verify the checksum. That, not an antivirus popup, is how you confirm your build is genuine.
+
+---
+
+**Q: Windows blocks Zingo PC from opening ("Smart App Control" or "Windows protected your PC")**
+
+A: Expected on recent releases. Windows weighs **reputation**, not just whether a file is signed, and a signing certificate starts with no history — so early releases can be flagged exactly like unsigned ones. It clears as installs accumulate. (The publisher on the signature is an individual's name rather than an organisation; that is how the certificate was issued, not a sign the build is unofficial.)
+
+Verify the download yourself rather than trusting Windows' verdict either way. Right-click the file → **Properties** → **Digital Signatures** for a valid, timestamped signature, then check the hash against the [Releases page](https://github.com/zingolabs/zingo-pc/releases):
+
+```powershell
+Get-FileHash "Zingo PC <version>.msi" -Algorithm SHA256
+```
+
+Then:
+
+- **SmartScreen** (*"Windows protected your PC"*): **More info** → **Run anyway**.
+- **Smart App Control** (clean installs of Windows 11 22H2+): no per-app exception exists. It can only be disabled entirely, and **cannot be re-enabled without reinstalling Windows** — we do not recommend it. Use the Microsoft Store build instead once it is published; Store packages are trusted by SAC from the first install.

@@ -77,7 +77,29 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
       console.error(`Critical Error crypto provider default ${error}`);
     }
 
-    await this.doFirstTimeSetup();
+    // A throw in here used to end the launch silently: the promise rejected,
+    // componentDidMount stopped, and the app sat on this screen for good — no
+    // message, and menu clicks doing nothing because the renderer never got as
+    // far as registering their listeners. Whatever failed (the native module,
+    // the wallet directory, settings) is worth showing: a wrong answer the user
+    // can report beats a window that does nothing.
+    try {
+      await this.doFirstTimeSetup();
+    } catch (error) {
+      console.error(`Critical Error first time setup ${error}`);
+      closeErrorModal();
+      openErrorModal(
+        "Zingo PC could not start",
+        <div>
+          <div>Something failed while preparing the wallet, and the app cannot continue.</div>
+          <div className={cstyles.margintoplarge}>{String(error)}</div>
+          <div className={cstyles.margintoplarge}>
+            Please report this at github.com/zingolabs/zingo-pc/issues, including the message above.
+          </div>
+        </div>,
+      );
+      return;
+    }
 
     // only if the active wallet exists
     if (this.state.walletExists) {

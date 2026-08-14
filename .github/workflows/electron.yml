@@ -158,9 +158,49 @@ jobs:
           CSC_NAME: "Distheirs LLC (788KRST4S8)"
         run: yarn ${{ matrix.dist_script }}
 
+      # Signed through Azure Artifact Signing (build.win.azureSignOptions). The
+      # certificate lives in Azure, never on disk; these three variables are what
+      # electron-builder's EnvironmentCredential authenticates with.
       - name: Build (Windows)
         if: matrix.platform == 'win'
+        env:
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: yarn ${{ matrix.dist_script }}
+
+      # The Store package. Locally this is `yarn dist:win-msix-<arch>`, mirroring
+      # dist:mac-mas; here electron-builder is called directly so it reuses what the
+      # step above produced instead of wiping dist/ and rebuilding Rust for the
+      # third time.
+      #
+      # The Store package must ship unsigned: Partner Center re-signs it, and our
+      # certificate subject (CN=Juan Carlos Carmona Calvo) does not match the
+      # package publisher (CN=96EC5B6E-…) anyway, which would make it invalid.
+      #
+      # Three separate switches are needed for that, none of them obvious:
+      #   - "!.appx" in build.win.signExts stops the package itself being signed.
+      #     signAndEditExecutable does NOT cover it — AppxTarget calls signIf on
+      #     the artifact directly, and signIf never consults that flag.
+      #   - signAndEditExecutable=false skips the binaries inside the package.
+      #     Microsoft's signature covers them, so signing here would only burn
+      #     signing calls — and would make this step need the Azure credentials.
+      #   - azureSignOptions is cleared. Left in place, electron-builder builds the
+      #     Azure signing manager just to ask it for a publisher name, which both
+      #     demands the credentials this step does not carry and writes the
+      #     certificate's subject into Identity/@Publisher, ignoring
+      #     build.appx.publisher (windowsSignAzureManager.computePublisherName
+      #     discards its argument) — a bare personal name, not a valid DN, which
+      #     makeappx rejects. Cleared, the publisher comes from build.appx.publisher.
+      - name: Build MSIX (Microsoft Store)
+        if: matrix.platform == 'win'
+        shell: bash
+        run: >
+          npx electron-builder -w appx --${{ matrix.arch }}
+          "-c.extraMetadata.main=build/electron.js"
+          "-c.win.signAndEditExecutable=false"
+          "-c.win.azureSignOptions="
+          --publish never
 
       - name: Upload artifacts (Linux)
         uses: actions/upload-artifact@v4
@@ -193,6 +233,18 @@ jobs:
           path: |
             dist/*.msi
             dist/*.zip
+
+      # Produced by dist:win-* alongside the msi/zip, but kept in its own artifact:
+      # this one goes to Partner Center, which signs it on upload. That signature is
+      # what gets it past Smart App Control — the msi/zip above stay unsigned and
+      # blocked. It is excluded from the public release in the release job, since
+      # unsigned it cannot be installed by anyone who downloads it.
+      - name: Upload MSIX (Microsoft Store)
+        uses: actions/upload-artifact@v4
+        if: matrix.platform == 'win'
+        with:
+          name: zingo-pc-win-msix-${{ matrix.arch }}
+          path: dist/*.appx
 
   flatpak:
     needs: build
@@ -245,6 +297,12 @@ jobs:
         with:
           path: artifacts
           merge-multiple: false
+
+      # Store-bound packages, not user downloads. The .appx goes to Partner Center
+      # and the .pkg to App Store Connect; both are signed by the store on upload,
+      # so as published on a release page they are files nobody can install.
+      - name: Keep the store packages out of the public release
+        run: rm -rf artifacts/zingo-pc-win-msix-* artifacts/zingo-pc-mas-*
 
       - name: Generate release notes
         id: notes
