@@ -1,4 +1,15 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog, session, clipboard } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  shell,
+  ipcMain,
+  dialog,
+  session,
+  clipboard,
+  powerMonitor,
+  safeStorage,
+} = require("electron");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
@@ -759,6 +770,61 @@ ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 
+// Swap records persist encrypted at rest, matching what the mobile wallet gets
+// from react-native-encrypted-storage: safeStorage derives its key from the OS
+// keychain (DPAPI on Windows, Keychain on macOS, libsecret on Linux), so the
+// file is unreadable outside the user's session. One file per key, so a corrupt
+// entry cannot take the others down with it.
+//
+// Keys arrive from the renderer and become filenames, so anything outside the
+// namespace SwapStore builds is refused rather than sanitized: a rewritten key
+// would silently read and write the wrong bucket.
+const SWAP_KEY_PATTERN = /^[A-Za-z0-9_.-]{1,128}$/;
+
+function swapStoragePath(key) {
+  if (typeof key !== "string" || !SWAP_KEY_PATTERN.test(key)) {
+    throw new Error(`swapStorage: refusing key ${JSON.stringify(key)}`);
+  }
+  return path.join(app.getPath("userData"), "swap-storage", `${key}.bin`);
+}
+
+function assertSwapEncryption() {
+  if (!safeStorage.isEncryptionAvailable()) {
+    // Writing plaintext instead would be a silent downgrade of the guarantee
+    // the mobile wallet makes, so the store fails loudly and its callers
+    // surface the failure.
+    throw new Error("swapStorage: OS encryption is unavailable");
+  }
+}
+
+ipcMain.handle("swapStorage:get", async (_e, key) => {
+  const file = swapStoragePath(key);
+  let ciphertext;
+  try {
+    ciphertext = await fs.promises.readFile(file);
+  } catch (e) {
+    if (e.code === "ENOENT") return null;
+    throw e;
+  }
+  assertSwapEncryption();
+  return safeStorage.decryptString(ciphertext);
+});
+
+ipcMain.handle("swapStorage:set", async (_e, key, value) => {
+  const file = swapStoragePath(key);
+  assertSwapEncryption();
+  await fs.promises.mkdir(path.dirname(file), { recursive: true });
+  await fs.promises.writeFile(file, safeStorage.encryptString(String(value)));
+});
+
+ipcMain.handle("swapStorage:remove", async (_e, key) => {
+  try {
+    await fs.promises.unlink(swapStoragePath(key));
+  } catch (e) {
+    if (e.code !== "ENOENT") throw e;
+  }
+});
+
 // Lazy: app.getPath() requires app.ready — IPC handlers only fire after ready so this is safe.
 // In MAS the containerized path (~/Library/Containers/co.zingo.pc/...) is resolved at runtime.
 let _fsAllowedBases = null;
@@ -1001,6 +1067,10 @@ const mixnet = {
   intent: "on", // ForcedOn by default (ADR 0024); flipped by the Settings toggle
   child: null,
   socks5Addr: null,
+  // Exit Node identities the proxy announced on NYM_EXIT= lines, which precede
+  // the address line. The attach reports them: zingolib treats Ready as an
+  // address AND a bound exit, and refuses an empty report.
+  exits: [],
   narration: null,
   phase: "unattached", // unattached | bootstrapping | ready | switched_off | died
 };
@@ -1034,9 +1104,9 @@ function setMixnetPhase(phase) {
 
 // Attach whichever LightClient is current to the running tunnel.
 async function attachCurrentWallet() {
-  if (!mixnet.socks5Addr) return;
+  if (!mixnet.socks5Addr || mixnet.exits.length === 0) return;
   try {
-    await requireNative("attach_mixnet").attach_mixnet(mixnet.socks5Addr);
+    await requireNative("attach_mixnet").attach_mixnet(mixnet.socks5Addr, mixnet.exits);
     setMixnetPhase("ready");
   } catch (e) {
     console.error("[mixnet] attach failed:", e && e.message ? e.message : e);
@@ -1057,7 +1127,10 @@ function spawnProxy() {
     while ((nl = buf.indexOf("\n")) !== -1) {
       const line = buf.slice(0, nl).trim();
       buf = buf.slice(nl + 1);
-      if (line.startsWith("SOCKS5_ADDR=")) {
+      if (line.startsWith("NYM_EXIT=")) {
+        const exit = line.slice("NYM_EXIT=".length).trim();
+        if (exit && !mixnet.exits.includes(exit)) mixnet.exits.push(exit);
+      } else if (line.startsWith("SOCKS5_ADDR=")) {
         mixnet.socks5Addr = line.slice("SOCKS5_ADDR=".length).trim();
         attachCurrentWallet();
       } else if (line.startsWith("NYM_STATUS=")) {
@@ -1074,6 +1147,7 @@ function spawnProxy() {
     if (mixnet.child === child) {
       mixnet.child = null;
       mixnet.socks5Addr = null;
+      mixnet.exits = [];
       setMixnetPhase("unattached");
     }
   });
@@ -1082,6 +1156,7 @@ function spawnProxy() {
     if (deliberate) return;
     mixnet.child = null;
     mixnet.socks5Addr = null;
+    mixnet.exits = [];
     if (mixnet.intent === "on") setMixnetPhase("died");
   });
 }
@@ -1090,6 +1165,7 @@ function killProxy() {
   const child = mixnet.child;
   mixnet.child = null;
   mixnet.socks5Addr = null;
+  mixnet.exits = [];
   if (child) {
     try {
       child.stdin.end(); // the proxy's stdin-EOF watchdog tears it down
@@ -1132,6 +1208,62 @@ ipcMain.handle("mixnet:attach-current", async () => {
     spawnProxy();
   }
   return mixnetStatusSnapshot();
+});
+
+// ── Recovering the tunnel after the machine sleeps ────────────────────────
+//
+// mixnet.phase is a stored value, not a measurement: it moves on lifecycle
+// events (spawn, socks5 detected, child exit, the Settings toggle) and nothing
+// else. When the machine suspends, nym-proxy survives as a process — so nobody
+// declares it dead — while its gateway connections do not. The phase stays
+// "ready" indefinitely, zec_price_over_mixnet fails every 5s into a catch that
+// deliberately stays quiet, and the indicator reports a tunnel that is gone.
+//
+// Switching wallets does not help: attach-current re-attaches to the same dead
+// socks5 address and asserts "ready" again. What does work is the Settings
+// toggle, because disable/enable kills the child and spawns a fresh one. This
+// runs that same sequence without making the user find the switch.
+const MIXNET_STALE_AFTER_MS = 5 * 60 * 1000;
+let mixnetBlurredAt = null;
+
+function restartMixnet(reason) {
+  if (mixnet.intent !== "on") return; // deliberately off: leave it off
+  console.log(`[mixnet] restarting after ${reason}`);
+  killProxy();
+  // Detach the native side from the address that is about to disappear. Failure
+  // is not interesting — a client that was never attached throws here — and must
+  // not stop the respawn.
+  Promise.resolve()
+    .then(() => requireNative("stop_mixnet").stop_mixnet())
+    .catch(() => {})
+    .finally(() => {
+      if (mixnet.intent === "on") spawnProxy();
+    });
+}
+
+app.whenReady().then(() => {
+  // Waking and unlocking are the two moments a laptop's tunnel is known to be
+  // suspect. Not every OS emits both, so both are handled.
+  powerMonitor.on("resume", () => restartMixnet("system resume"));
+  powerMonitor.on("unlock-screen", () => restartMixnet("screen unlock"));
+});
+
+// Focus is the backstop for the cases the OS does not report: a machine that
+// idled without ever suspending, or a suspend event that never arrived. Time
+// away is the trigger rather than any health signal — after a few minutes
+// unattended the cost of a re-bootstrap is lower than the cost of a wallet
+// showing stale prices with a green indicator. Below the threshold nothing
+// happens, so alt-tabbing does not churn the tunnel.
+app.on("browser-window-blur", () => {
+  mixnetBlurredAt = Date.now();
+});
+app.on("browser-window-focus", () => {
+  if (mixnetBlurredAt === null) return;
+  const away = Date.now() - mixnetBlurredAt;
+  mixnetBlurredAt = null;
+  if (away >= MIXNET_STALE_AFTER_MS) {
+    restartMixnet(`${Math.round(away / 60000)} min unfocused`);
+  }
 });
 
 app.on("before-quit", () => killProxy());

@@ -20,6 +20,13 @@ export default class ValueTransferClass {
   // Replaces the old single `pool` (was `pool_received`).
   poolsSentFrom?: ValueTransferPoolEnum[];
   poolsReceived?: ValueTransferPoolEnum[];
+  // Set only on rows projected from a swap record. The detail view reads
+  // `swapRecordId` to find the record behind the row, and the list reads the
+  // other two to label direction and granular state, which the five-value
+  // `status` above cannot carry.
+  swapRecordId?: string;
+  swapIsInbound?: boolean;
+  swapStatus?: string;
 
   constructor(
     type: ValueTransferKindEnum,

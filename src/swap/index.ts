@@ -1,0 +1,77 @@
+// The swap layer's public surface.
+//
+// Type-only names are re-exported with `export type`. The mobile wallet's
+// barrel lists them alongside the values, which Metro accepts because it
+// resolves the whole module graph as TypeScript; webpack sees Babel's output,
+// where a type has no runtime export and the build fails on the missing name.
+
+export { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
+export { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
+export { SwapErrorCategoryEnum, SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
+export { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
+export { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
+export { TrackingStatusEnum } from "./enums/TrackingStatusEnum";
+
+export type { DepositInstructionsType } from "./types/DepositInstructionsType";
+export type { FiatValueBasisType } from "./types/FiatValueBasisType";
+export type {
+  ChainflipProviderData,
+  FlashnetProviderData,
+  GenericProviderData,
+  MayachainStreamingProviderData,
+  NearProviderData,
+  ProviderDataType,
+  ThorchainStreamingProviderData,
+} from "./types/ProviderDataType";
+export type {
+  QuoteResponseType,
+  QuoteRouteAssetType,
+  QuoteRouteFeeType,
+  QuoteRouteType,
+} from "./types/QuoteResponseType";
+export type { RefundInfoType } from "./types/RefundInfoType";
+export type { RouteOptionType } from "./types/RouteOptionType";
+export type { SwapAssetType } from "./types/SwapAssetType";
+export type { SwapRecordType } from "./types/SwapRecordType";
+export type { SwapResponseType, SwapTransientType, SwapTxType } from "./types/SwapResponseType";
+export type { TokenEntryType, TokensProviderBucketType, TokensResponseType } from "./types/TokensResponseType";
+export type { TrackLegType, TrackResponseType } from "./types/TrackResponseType";
+
+export { SwapKitClient } from "./SwapKitClient";
+export type { SwapKitQuoteParams, SwapKitSwapParams, SwapKitTrackParams } from "./SwapKitClient";
+
+export { SwapStore } from "./SwapStore";
+export type { SwapStoreChangeListener } from "./SwapStore";
+export { deriveWalletFingerprint } from "./walletFingerprint";
+export { swapRecordToValueTransfer, isOutboundSwap } from "./swapRecordToValueTransfer";
+export { formatAmountForDisplay } from "./formatAmountForDisplay";
+export { TokenCatalog } from "./TokenCatalog";
+
+export { SwapPoller, DEFAULT_SWAP_POLLER_CONFIG } from "./SwapPoller";
+export type { SwapPollerArgs, SwapPollerConfig } from "./SwapPoller";
+
+export { SwapService, createSwapService } from "./SwapService";
+export type {
+  SwapServiceArgs,
+  QuoteInput,
+  QuoteResult,
+  CommitRouteArgs,
+  CommitRouteResult,
+  MarkBroadcastedArgs,
+  SetObservedDepositTxHashArgs,
+} from "./SwapService";
+
+export { SwapKitError, SwapKitHttpError, SwapKitNetworkError, classifySwapError } from "./errors";
+
+export { isValidChainAddress, SWAP_ADDRESS_CHAINS } from "./addressValidators";
+export { validateAddressForChain } from "./validateAddressForChain";
+export { possibleChainsForAddress } from "./possibleChainsForAddress";
+export { extractPlainAddress } from "./extractPlainAddress";
+
+export type { ExtractDepositInstructionsContext, ProviderExecutor } from "./providers/ProviderExecutor";
+export { FlashnetExecutor } from "./providers/FlashnetExecutor";
+export { MayaExecutor } from "./providers/MayaExecutor";
+export { NearIntentsExecutor } from "./providers/NearIntentsExecutor";
+export { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
+export { mapSwapStatus, mapTrackingStatus } from "./providers/statusMapping";
+export { applyDefaultTrackUpdate, pickLegHash } from "./providers/trackUpdateBase";

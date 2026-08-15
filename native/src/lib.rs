@@ -63,7 +63,8 @@ use zcash_protocol::{value::Zatoshis};
 use tokio::runtime::Runtime;
 use zcash_protocol::memo::MemoBytes;
 use zingolib::data::receivers::transaction_request_from_receivers;
-use zingolib::data::proposal::total_fee;
+use zingolib::mixnet::ExitNodeId;
+use zingolib::wallet::spend::op_return::OpReturnData;
 use zingolib::ActivationHeights;
 use zingo_netutils::{GrpcIndexer, Indexer};
 
@@ -162,6 +163,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_transparent_addresses", get_transparent_addresses)?;
     cx.export_function("create_new_unified_address", create_new_unified_address)?;
     cx.export_function("create_new_transparent_address", create_new_transparent_address)?;
+    cx.export_function("reserve_ephemeral_address", reserve_ephemeral_address)?;
     cx.export_function("get_wallet_save_required", get_wallet_save_required)?;
     cx.export_function("set_config_wallet_to_test", set_config_wallet_to_test)?;
     cx.export_function("set_config_wallet_to_prod", set_config_wallet_to_prod)?;
@@ -494,7 +496,7 @@ fn construct_uri_load_config(
     wallet_name: String,
 ) -> Result<(zingolib::config::ClientConfigBuilder, WalletSettings, http::Uri), ZingolibError> {
     // if uri is empty -> Offline Mode.
-    let lightwalletd_uri = construct_indexer_uri(Some(uri.clone()))
+    let lightwalletd_uri = construct_indexer_uri(uri.clone())
         .map_err(|e| ZingolibError::Init(format!("Invalid server uri: {e}")))?;
 
     let chaintype = match chain_hint.as_str() {
@@ -1977,7 +1979,7 @@ fn continue_note_splitting(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             .await
                             .map_err(|e| ZingolibError::Sync(e.to_string()))?;
                         let json = match step {
-                            SplitStep::RoundBroadcast { round, txids } => serde_json::json!({
+                            SplitStep::RoundTransmitted { round, txids } => serde_json::json!({
                                 "step": "round_broadcast",
                                 "round": round,
                                 "txids": txids.iter().map(|t| t.to_string()).collect::<Vec<_>>(),
@@ -2244,7 +2246,7 @@ fn broadcast_due_parts(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 if let Some(lightclient) = &mut *guard {
                     RT.block_on(async move {
                         let txids = lightclient
-                            .broadcast_due_parts()
+                            .transmit_due_parts()
                             .await
                             .map_err(|e| ZingolibError::Sync(e.to_string()))?;
                         Ok(serde_json::json!({
@@ -2307,7 +2309,7 @@ fn auto_broadcast_if_due(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 if let Some(lightclient) = &mut *guard {
                     RT.block_on(async move {
                         let txids = lightclient
-                            .auto_broadcast_if_due()
+                            .auto_transmit_if_due()
                             .await
                             .map_err(|e| ZingolibError::Sync(e.to_string()))?;
                         Ok(serde_json::json!({
@@ -2556,16 +2558,36 @@ fn mixnet_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
 // it across wallet switches, so a switch just re-attaches the new client to the
 // same `socks5_addr` and the mixnet never re-bootstraps. Returns typed on
 // failure, leaving the mode unattached so a mixnet-only send stays fail-closed.
+//
+// `exits` are the Exit Node identities main collected from the proxy's
+// `NYM_EXIT=` lines. An attach reports them because Ready means an address AND
+// a bound exit: zingolib refuses an empty report rather than mint an exitless
+// Ready that no later announcement could correct.
 fn attach_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let socks5_addr = cx.argument::<JsString>(0)?.value(&mut cx);
+    let exit_ids = cx.argument::<JsArray>(1)?.to_vec(&mut cx)?;
+    let exits = exit_ids
+        .into_iter()
+        .map(|value| {
+            value
+                .downcast::<JsString, _>(&mut cx)
+                .map(|s| s.value(&mut cx))
+        })
+        .collect::<Result<Vec<_>, _>>()
+        .or_else(|_| cx.throw_error("every mixnet exit identity must be a string"))?;
 
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
                 let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
                 if let Some(lightclient) = &mut *guard {
+                    let exits = exits
+                        .iter()
+                        .map(|candidate| ExitNodeId::parse(candidate))
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|e| ZingolibError::Read(e.to_string()))?;
                     RT.block_on(async move {
-                        match lightclient.attach_mixnet(&socks5_addr).await {
+                        match lightclient.attach_mixnet(&socks5_addr, &exits).await {
                             Ok(()) => Ok(object! { "status" => "ok" }.pretty(2)),
                             Err(e) => Err(ZingolibError::Read(e.to_string())),
                         }
@@ -2845,6 +2867,51 @@ fn create_new_transparent_address(mut cx: FunctionContext) -> JsResult<JsPromise
     Ok(promise)
 }
 
+/// Reserves a fresh transparent address on the refund (ZIP 320 ephemeral)
+/// scope, so a swap provider sees a one-shot address as the deposit's
+/// source and a refund never links back to the wallet's persistent
+/// t-receiver. The JS layer takes one per swap.
+fn reserve_ephemeral_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &mut *guard {
+                    RT.block_on(async move {
+                        let mut wallet = lightclient.wallet().write().await;
+                        let network = wallet.chain_type();
+                        let reserved = wallet
+                            .generate_refund_addresses(1, AccountId::ZERO)
+                            .map_err(|e| ZingolibError::Read(e.to_string()))?
+                            .into_iter()
+                            .next()
+                            .ok_or_else(|| {
+                                ZingolibError::Read(
+                                    "generate_refund_addresses returned no address".to_string(),
+                                )
+                            })?;
+                        let (id, address) = reserved;
+                        Ok(json::object! {
+                            "account" => u32::from(id.account_id()),
+                            "address_index" => id.address_index().index(),
+                            "scope" => id.scope().to_string(),
+                            "encoded_address" => transparent::encode_address(&network, address),
+                        }
+                        .pretty(2))
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
 fn get_wallet_save_required(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
@@ -3069,12 +3136,32 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             Ok(request) => request,
                             Err(e) => return object! { "error" => format!("Request Error: {e}") }.pretty(2),
                         };
+                        // One OP_RETURN per transaction, and one route for the
+                        // whole spend, so both are read from the first receiver
+                        // rather than the array. Ordinary sends omit them; the
+                        // swap deposit flow sets both.
+                        let op_return_data = match json_args[0]["op_return"].as_str() {
+                            Some(hex_payload) => {
+                                let bytes = match hex::decode(hex_payload) {
+                                    Ok(bytes) => bytes,
+                                    Err(e) => return object! { "error" => format!("Invalid op_return hex: {e}") }.pretty(2),
+                                };
+                                match OpReturnData::new(bytes) {
+                                    Ok(data) => Some(data),
+                                    Err(e) => return object! { "error" => format!("Invalid op_return: {e}") }.pretty(2),
+                                }
+                            }
+                            None => None,
+                        };
+                        let route_via_ephemeral = json_args[0]["route_via_ephemeral"]
+                            .as_bool()
+                            .unwrap_or(false);
                         match lightclient
-                            .propose_send(request, AccountId::ZERO)
+                            .propose_send(request, AccountId::ZERO, op_return_data, route_via_ephemeral)
                             .await
                         {
                             Ok(proposal) => {
-                                let fee = match total_fee(&proposal) {
+                                let fee = match proposal.total_fee() {
                                     Ok(fee) => fee,
                                     Err(e) => return object! { "error" => e.to_string() }.pretty(2),
                                 };
@@ -3111,16 +3198,15 @@ fn shield(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                 if proposal.steps().len() != 1 {
                                     return object! { "error" => "shielding transactions should not have multiple proposal steps" }.pretty(2);
                                 }
-                                let step = proposal.steps().first();
+                                let step = proposal.final_step();
                                 let Some(value_to_shield) = step
-                                    .balance()
-                                    .proposed_change()
+                                    .change()
                                     .iter()
                                     .try_fold(Zatoshis::ZERO, |acc, c| acc + c.value()) else {
                                         return object! { "error" => "shield amount outside valid range of zatoshis" }
                                             .pretty(2);
                                 };
-                                let fee = step.balance().fee_required();
+                                let fee = step.fee();
                                 object! {
                                     "value_to_shield" => value_to_shield.into_u64(),
                                     "fee" => fee.into_u64(),

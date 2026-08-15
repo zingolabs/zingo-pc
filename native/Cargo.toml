@@ -19,7 +19,8 @@ crate-type = ["cdylib"]
 # Cargo.lock, not zingo-mobile's manifest. Build with `yarn neon` (needs
 # `protoc` on PATH).
 #
-# Pinned to dev: fix/for-zingo-pc-working (the boundary-carrier serde mint on
+# History of the previous dev pin, kept because the constraints it records
+# still hold: fix/for-zingo-pc-working (the boundary-carrier serde mint on
 # MixnetStatus + the Nym surface) merged via PR #2610, so dev now carries
 # attach_mixnet, the five-state Mixnet Mode, the MixnetStatus wire (with its
 # follow-up mode-scoping-on-lift hardening), the treestate fix, and the private
@@ -29,9 +30,20 @@ crate-type = ["cdylib"]
 # (zcash_client_backend 0.24.0-rc.1, crypto-common rc.1, zcash_primitives 0.29
 # crates.io + 0.30 git coexist, orchard 0.15.4). See the [patch] note below on
 # the librustzcash rev pin zcash_pool_migration requires.
-zingolib = { git = "https://github.com/zingolabs/zingolib", branch = "dev", features = ["nym"] }
-pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "dev" }
-zingo-netutils = { git="https://github.com/zingolabs/zingolib", branch = "dev" }
+#
+# Pinned to the OP_RETURN branch (zingolib PR #2469) until it lands on dev:
+# swaps need the null-data output and the ZIP 320 ephemeral route, neither of
+# which dev's zcash_client_backend path can express. That branch also carries
+# ~300 commits of dev the previous pin predated, which is why this bump moved
+# attach_mixnet, the SplitStep names, the transmit_* renames, and the editorial
+# layer below.
+#
+# `perspective` is that editorial layer (value transfers, messages, the
+# total_*_to_address reductions). dev moved it behind a default-off feature, so
+# the UI's read model has to opt in.
+zingolib = { git = "https://github.com/zingolabs/zingolib", branch = "opreturn_on_proposal", features = ["nym", "perspective"] }
+pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "opreturn_on_proposal" }
+zingo-netutils = { git="https://github.com/zingolabs/zingolib", branch = "opreturn_on_proposal" }
 
 zcash_address = "0.13"
 # Keep at rc.1 (matches zingolib@79d575bf's lockfile). rc.4 pulls zcash_primitives

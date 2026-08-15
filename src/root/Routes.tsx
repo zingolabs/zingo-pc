@@ -37,6 +37,7 @@ import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
 import { History } from "../components/history";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
+import { SwapServiceProvider } from "../context/ContextSwapService";
 
 import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
@@ -646,70 +647,79 @@ const AppRoutes: React.FC = () => {
       {confirmModal.modalIsOpen && <ConfirmModal closeModal={closeConfirmModal} />}
       {errorModal.modalIsOpen && <ErrorModal closeModal={closeErrorModal} />}
 
-      <div style={{ overflow: "hidden" }}>
-        {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
-          <div className={cstyles.sidebarcontainer}>
-            <Sidebar
-              doRescan={runRPCRescan}
-              navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
-            />
-          </div>
-        )}
+      {/* The swap store binds against the loaded wallet's UFVK, so the provider
+          only exists while a wallet is open, and it is keyed by that wallet so a
+          switch rebinds the store and re-arms the poller against the new one. */}
+      <SwapServiceProvider
+        key={currentWallet?.id ?? "no-wallet"}
+        chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
+        enabled={!!currentWallet}
+      >
+        <div style={{ overflow: "hidden" }}>
+          {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
+            <div className={cstyles.sidebarcontainer}>
+              <Sidebar
+                doRescan={runRPCRescan}
+                navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
+              />
+            </div>
+          )}
 
-        <div className={cstyles.contentcontainer}>
-          <Routes>
-            <Route
-              path={routes.SEND}
-              element={<Send sendTransaction={runRPCSendTransaction} setSendPageState={setSendPageState} />}
-            />
-            <Route path={routes.RECEIVE} element={<Receive />} />
-            <Route
-              path={routes.ADDRESSBOOK}
-              element={
-                <AddressBook
-                  addAddressBookEntry={addAddressBookEntry}
-                  removeAddressBookEntry={removeAddressBookEntry}
-                />
-              }
-            />
-            <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
-            <Route path={routes.INSIGHT} element={<Insight />} />
-            <Route path={routes.HISTORY} element={<History />} />
-            <Route path={routes.MESSAGES} element={<Messages />} />
-            <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
-            <Route
-              path={routes.ADDNEWWALLET}
-              element={
-                <AddNewWallet
-                  closeModal={navigateToDashboard}
-                  setWallets={setWallets}
-                  setCurrentWallet={setCurrentWallet}
-                  navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
-                  doSaveWallet={() => RPC.doSave()}
-                  clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
-                />
-              }
-            />
-            <Route
-              path={routes.LOADING}
-              element={
-                <LoadingScreen
-                  runRPCConfigure={() => rpcRef.current?.configure()}
-                  setInfo={setInfo}
-                  setReadOnly={setReadOnly}
-                  navigateToDashboard={navigateToDashboard}
-                  setBirthday={setBirthday}
-                  setPools={setPools}
-                  setWallets={setWallets}
-                  setCurrentWallet={setCurrentWallet}
-                  setCurrentWalletOpenError={setCurrentWalletOpenError}
-                  setFetchError={setFetchError}
-                />
-              }
-            />
-          </Routes>
+          <div className={cstyles.contentcontainer}>
+            <Routes>
+              <Route
+                path={routes.SEND}
+                element={<Send sendTransaction={runRPCSendTransaction} setSendPageState={setSendPageState} />}
+              />
+              <Route path={routes.RECEIVE} element={<Receive />} />
+              <Route
+                path={routes.ADDRESSBOOK}
+                element={
+                  <AddressBook
+                    addAddressBookEntry={addAddressBookEntry}
+                    removeAddressBookEntry={removeAddressBookEntry}
+                  />
+                }
+              />
+              <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
+              <Route path={routes.INSIGHT} element={<Insight />} />
+              <Route path={routes.HISTORY} element={<History />} />
+              <Route path={routes.MESSAGES} element={<Messages />} />
+              <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
+              <Route
+                path={routes.ADDNEWWALLET}
+                element={
+                  <AddNewWallet
+                    closeModal={navigateToDashboard}
+                    setWallets={setWallets}
+                    setCurrentWallet={setCurrentWallet}
+                    navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
+                    doSaveWallet={() => RPC.doSave()}
+                    clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
+                  />
+                }
+              />
+              <Route
+                path={routes.LOADING}
+                element={
+                  <LoadingScreen
+                    runRPCConfigure={() => rpcRef.current?.configure()}
+                    setInfo={setInfo}
+                    setReadOnly={setReadOnly}
+                    navigateToDashboard={navigateToDashboard}
+                    setBirthday={setBirthday}
+                    setPools={setPools}
+                    setWallets={setWallets}
+                    setCurrentWallet={setCurrentWallet}
+                    setCurrentWalletOpenError={setCurrentWalletOpenError}
+                    setFetchError={setFetchError}
+                  />
+                }
+              />
+            </Routes>
+          </div>
         </div>
-      </div>
+      </SwapServiceProvider>
     </ContextAppProvider>
   );
 };
