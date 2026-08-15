@@ -241,19 +241,15 @@ Antivirus products that inspect HTTPS traffic cannot decrypt those connections, 
 
 The fix is to allowlist those two hosts in your antivirus. Do not turn off Mixnet Mode just to silence it — that is what hides your IP from the indexer when you send.
 
-Unrelated to this warning: always download releases from the [official Releases page](https://github.com/zingolabs/zingo-pc/releases) and verify the checksum. That, not an antivirus popup, is how you confirm your build is genuine.
+Unrelated to this warning: always download releases from the [official Releases page](https://github.com/zingolabs/zingo-pc/releases) and check the digital signature. That, not an antivirus popup, is how you confirm your build is genuine.
 
 ---
 
 **Q: Windows blocks Zingo PC from opening ("Smart App Control" or "Windows protected your PC")**
 
-A: Expected on recent releases. Windows weighs **reputation**, not just whether a file is signed, and a signing certificate starts with no history — so early releases can be flagged exactly like unsigned ones. It clears as installs accumulate. (The publisher on the signature is an individual's name rather than an organisation; that is how the certificate was issued, not a sign the build is unofficial.)
+A: Expected on recent releases. Windows weighs **reputation**, not just whether a file is signed, and a signing certificate starts with no history — so early releases can be flagged exactly like unsigned ones. It clears as installs accumulate.
 
-Verify the download yourself rather than trusting Windows' verdict either way. Right-click the file → **Properties** → **Digital Signatures** for a valid, timestamped signature, then check the hash against the [Releases page](https://github.com/zingolabs/zingo-pc/releases):
-
-```powershell
-Get-FileHash "Zingo PC <version>.msi" -Algorithm SHA256
-```
+Before working around the warning, confirm the file is ours: right-click it → **Properties** → **Digital Signatures**. There should be a valid signature with a timestamp. And download only from the [Releases page](https://github.com/zingolabs/zingo-pc/releases) — a warning on a file from anywhere else is a different problem.
 
 Then:
 
