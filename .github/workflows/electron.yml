@@ -268,7 +268,10 @@ jobs:
         id: meta
         run: |
           TAG=${GITHUB_REF#refs/tags/}
-          VERSION=$(echo "$TAG" | grep -oP '\d+\.\d+\.\d+')
+          # Version and build, so the bundle is named like every other artifact.
+          # The tag carries both (zingo-pc-2.0.25-179); electron-builder gets the
+          # build from build.buildVersion, but this bundle is named here.
+          VERSION=$(echo "$TAG" | grep -oP '\d+\.\d+\.\d+-\d+')
           APPIMAGE=$(basename flatpak/*.AppImage)
           echo "bundle=Zingo.PC-${VERSION}.flatpak" >> $GITHUB_OUTPUT
           # Replace empty url+sha256 with the local artifact path

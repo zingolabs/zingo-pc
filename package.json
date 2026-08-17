@@ -201,6 +201,8 @@
   "build": {
     "productName": "Zingo PC",
     "appId": "co.zingo.pc",
+    "buildVersion": "180",
+    "artifactName": "${productName}-${version}-${buildVersion}-${arch}.${ext}",
     "afterSign": "./afterMasSign.js",
     "afterAllArtifactBuild": "./afterSignHook.js",
     "files": [
@@ -226,7 +228,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "179",
+      "bundleVersion": "180",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -254,7 +256,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "179",
+      "bundleVersion": "180",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -323,7 +325,8 @@
     },
     "deb": {
       "afterInstall": "scripts/postinstall.sh",
-      "afterRemove": "scripts/postremove.sh"
+      "afterRemove": "scripts/postremove.sh",
+      "artifactName": "${name}_${version}-${buildVersion}_${arch}.${ext}"
     },
     "linux": {
       "category": "Development",
