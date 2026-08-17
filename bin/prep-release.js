@@ -17,15 +17,21 @@ if (!version || !build || !/^\d+\.\d+\.\d+$/.test(version) || !/^\d+$/.test(buil
 const root = path.resolve(__dirname, "..");
 const today = new Date().toISOString().slice(0, 10);
 
-// 1. package.json — version + bundleVersion(mac, mas)
+// 1. package.json — version + bundleVersion(mac, mas) + buildVersion
 {
   const pkgPath = path.join(root, "package.json");
   const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
   pkg.version = version;
   if (pkg.build?.mac) pkg.build.mac.bundleVersion = build;
   if (pkg.build?.mas) pkg.build.mas.bundleVersion = build;
+  // Feeds ${buildVersion} in build.artifactName, so the build number is in the
+  // filename. Windows cannot carry it anywhere else: an MSIX version is
+  // Major.Minor.Build.Revision and the Store reserves the revision, so two
+  // different builds of 2.0.25 are both 2.0.25.0 inside the package. Telling
+  // them apart from the artifact alone was impossible.
+  if (pkg.build) pkg.build.buildVersion = build;
   fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n");
-  console.log(`  package.json         -> version=${version} bundleVersion=${build}`);
+  console.log(`  package.json         -> version=${version} bundleVersion=${build} buildVersion=${build}`);
 }
 
 // 2. src/version.ts

@@ -25,6 +25,11 @@ import DetailLine from "../detailLine/DetailLine";
 const defaultServerForChain = (chain: ServerChainNameEnum): string =>
   serverUrisList().find((s: ServerClass) => s.chain_name === chain && !s.obsolete && s.default)?.uri ?? "";
 
+// How long startup may take before we stop waiting and say so. Opening a large
+// wallet file is the slowest legitimate step and stays well inside this; the
+// point is not to time the happy path but to put a floor under the unhappy one.
+const STARTUP_WATCHDOG_MS = 45000;
+
 class LoadingScreenState {
   loadingDone: boolean;
 
@@ -32,10 +37,17 @@ class LoadingScreenState {
 
   walletExists: boolean;
 
+  // The step in progress, shown on screen. A launch that never finishes is
+  // otherwise a logo and nothing else: the only report we get from a machine we
+  // cannot reach is a screen recording, and a recording of a frozen logo says
+  // nothing about where it froze. This makes the video the diagnosis.
+  step: string;
+
   constructor() {
     this.loadingDone = false;
     this.currentWallet = null;
     this.walletExists = false;
+    this.step = "starting";
   }
 }
 
@@ -57,6 +69,8 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
   static contextType = ContextApp;
   private navigationTimer: ReturnType<typeof setTimeout> | undefined;
 
+  private watchdogTimer: ReturnType<typeof setTimeout> | undefined;
+
   // One `auto` pick per chain per launch. loadCurrentWallet runs the settings
   // check twice — once against settings.json, once against the wallet record —
   // and racing the same servers again would double the launch latency for a
@@ -68,9 +82,48 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     this.state = new LoadingScreenState();
   }
 
+  // Records the step and puts it on screen. Also logged, so a console capture
+  // and a screen recording tell the same story.
+  private setStep = (step: string) => {
+    console.log(`[startup] ${step}`);
+    this.setState({ step });
+  };
+
+  // Names the step an awaited call belongs to, so the screen does not keep
+  // showing the previous one while this runs.
+  private stepped = async <T,>(step: string, run: () => Promise<T>): Promise<T> => {
+    this.setStep(step);
+    return run();
+  };
+
+  // A hang is not an error: nothing throws, so the catch below never runs and
+  // the app waits forever on a screen with no way out. This turns that into a
+  // message naming the step it stopped on.
+  private armWatchdog = () => {
+    clearTimeout(this.watchdogTimer);
+    this.watchdogTimer = setTimeout(() => {
+      if (this.state.loadingDone) return;
+      const { openErrorModal, closeErrorModal } = this.context as React.ContextType<typeof ContextApp>;
+      closeErrorModal();
+      openErrorModal(
+        "Zingo PC is taking too long to start",
+        <div>
+          <div>Startup stopped responding at: {this.state.step}</div>
+          <div className={cstyles.margintoplarge}>
+            Please report this at github.com/zingolabs/zingo-pc/issues, including the step above and the version shown
+            on the start screen.
+          </div>
+        </div>,
+      );
+    }, STARTUP_WATCHDOG_MS);
+  };
+
   componentDidMount = async () => {
     const { openErrorModal, closeErrorModal } = this.context as React.ContextType<typeof ContextApp>;
 
+    this.armWatchdog();
+
+    this.setStep("initialising crypto provider");
     try {
       await native.set_crypto_default_provider_to_ring();
     } catch (error) {
@@ -174,7 +227,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     // empty list and every branch below falls back to the static one.
     const live: ServerClass[] =
       selection === ServerSelectionEnum.auto || selection === ServerSelectionEnum.list
-        ? await fetchServerList(chain_name)
+        ? await this.stepped("fetching server list", () => fetchServerList(chain_name))
         : [];
 
     // A `list` server that has dropped off the registry is the live equivalent
@@ -208,7 +261,9 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         // by 30-day uptime, which is not speed: a reliable server answering in
         // ten seconds sits at the top of that list and made the wallet crawl.
         const candidates: ServerClass[] = keep(live).slice(0, RACE_CANDIDATES);
-        const quickest: ServerClass | null = await selectFastestServer(candidates);
+        const quickest: ServerClass | null = await this.stepped("selecting fastest server", () =>
+          selectFastestServer(candidates),
+        );
         uri = quickest ? quickest.uri : candidates[0].uri;
         this.autoPicked.set(chain_name, uri);
       } else {
@@ -219,7 +274,9 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         const servers: ServerClass[] = keep(
           serverUrisList().filter((s: ServerClass) => s.chain_name === chain_name && !s.obsolete),
         );
-        const fastest: ServerClass | null = await selectFastestServer(servers);
+        const fastest: ServerClass | null = await this.stepped("selecting fastest server", () =>
+          selectFastestServer(servers),
+        );
         uri = fastest ? fastest.uri : defaultServerForChain(chain_name) || uri;
         if (uri) {
           this.autoPicked.set(chain_name, uri);
@@ -643,6 +700,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
       // The handler activates the security-scoped bookmark and calls
       // set_wallet_base_dir on the Rust side directly. The renderer no longer
       // touches either — see electron.js wallet-dir:request.
+      this.setStep("checking wallet folder");
       const walletDirResult: { path: string } | null = await ipcRenderer.invoke("wallet-dir:request");
       console.log(
         `[wallet-dir] result=${walletDirResult !== null ? "ok path=" + walletDirResult.path : "null"} isSandboxed=${isSandboxed}`,
@@ -664,6 +722,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
       }
     }
 
+    this.setStep("loading wallets");
     let { currentWallet, wallets } = await this.loadCurrentWallet();
     console.log(
       `Url: -${currentWallet && currentWallet.id}-${currentWallet && currentWallet.uri}-${currentWallet && currentWallet.chain_name}-${currentWallet && currentWallet.selection}`,
@@ -690,6 +749,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     }
 
     try {
+      this.setStep("checking wallet file");
       const walletExistsResult: boolean = await native.wallet_exists(
         currentWallet.uri,
         currentWallet.chain_name,
@@ -717,6 +777,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         // the wallet file YES exists
         // A failed init rejects (typed error on the throw channel); the catch
         // below surfaces it via setCurrentWalletOpenError. Success is JSON.
+        this.setStep("opening wallet");
         const result: string = await native.init_from_b64(
           currentWallet.uri,
           currentWallet.chain_name,
@@ -728,6 +789,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         const resultJSON = JSON.parse(result);
 
         // seed phrase or ufvk
+        this.setStep("reading wallet keys");
         const walletKindStr: string = await native.wallet_kind();
         const walletKindJSON = JSON.parse(walletKindStr);
 
@@ -785,16 +847,25 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
 
   componentWillUnmount() {
     clearTimeout(this.navigationTimer);
+    clearTimeout(this.watchdogTimer);
   }
 
   render() {
-    const { currentWallet } = this.state;
+    const { currentWallet, step, loadingDone } = this.state;
 
     return (
       <div className={`${cstyles.verticalflex} ${cstyles.center} ${styles.loadingcontainer}`}>
         <div style={{ marginTop: "50px", marginBottom: "20px" }}>
           <Logo readOnly={false} onlyVersion={false} />
         </div>
+        {/* Always rendered, unlike the block below, which needs a wallet to
+            exist. A launch that stops before there is one showed a bare logo,
+            which is exactly the case we could not diagnose. */}
+        {!loadingDone && (
+          <div className={`${cstyles.small} ${cstyles.center}`} style={{ opacity: 0.6, marginBottom: "10px" }}>
+            {step}
+          </div>
+        )}
         {!!currentWallet && (
           <div
             style={{

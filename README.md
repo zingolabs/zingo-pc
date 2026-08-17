@@ -10,13 +10,13 @@ App Store: [https://apps.apple.com/app/zingo-pc/id6763584326](https://apps.apple
 
 Pre-built binaries for each release are available on the [Releases page](https://github.com/zingolabs/zingo-pc/releases).
 
-| Platform | Format |
-|----------|--------|
-| Windows | `.msi` installer, `.zip` portable |
-| macOS | `.dmg` |
+| Platform          | Format                                                             |
+| ----------------- | ------------------------------------------------------------------ |
+| Windows           | `.msi` installer, `.zip` portable                                  |
+| macOS             | `.dmg`                                                             |
 | macOS (App Store) | [App Store link](https://apps.apple.com/app/zingo-pc/id6763584326) |
-| Linux | `.deb`, `.AppImage` |
-| Linux (Flatpak) | `.flatpak` |
+| Linux             | `.deb`, `.AppImage`                                                |
+| Linux (Flatpak)   | `.flatpak`                                                         |
 
 > **Windows users:** if Windows blocks the app on launch, see [Windows blocks Zingo PC from opening](#troubleshooting) in Troubleshooting. Our Windows builds are code signed, but a recently issued certificate has to accumulate reputation before Windows stops flagging it.
 
@@ -28,11 +28,11 @@ Zingo PC is written in Electron/JavaScript and can be built from source. It will
 
 ### Pre-requisites
 
-* [Node.js >= 18.0.0 (recommended: v22.18.0)](https://nodejs.org/en/blog/release/v22.18.0)
-* [Yarn](https://yarnpkg.com)
-* [Rust (stable)](https://www.rust-lang.org/tools/install)
-* [OpenSSL](https://docs.openssl.org/3.2/man7/ossl-guide-introduction/#getting-and-installing-openssl)
-* [Protobuf compiler](https://grpc.io/docs/protoc-installation/)
+- [Node.js >= 18.0.0 (recommended: v22.18.0)](https://nodejs.org/en/blog/release/v22.18.0)
+- [Yarn](https://yarnpkg.com)
+- [Rust (stable)](https://www.rust-lang.org/tools/install)
+- [OpenSSL](https://docs.openssl.org/3.2/man7/ossl-guide-introduction/#getting-and-installing-openssl)
+- [Protobuf compiler](https://grpc.io/docs/protoc-installation/)
 
 #### Node.js version manager (recommended)
 
@@ -54,6 +54,19 @@ yarn install
 yarn build
 yarn start
 ```
+
+`yarn build` also builds `nym-proxy`, the mixnet transport, whose source lives
+in zingolib. Nothing to set up for it: the build fetches zingolib into
+`.zingolib-src/` at the exact revision `native/Cargo.lock` pins, the same
+revision the Rust SDK is compiled from, so the proxy and the wallet core are
+always the same zingolib. CI runs these same steps.
+
+`yarn mixnet` rebuilds only `nym-proxy`, which is all that is needed after the
+pinned revision changes.
+
+To build the proxy from a zingolib working copy instead — when developing
+`nym-proxy` itself — point `ZINGOLIB_PATH` at it. That opts out of the pinning,
+so it warns, and the `dist:*` scripts refuse it outright.
 
 ### Build distributable binaries
 
@@ -85,6 +98,7 @@ yarn release:prep 2.0.15 142
 ## Features
 
 **Wallet**
+
 - Light client — no full chain download, syncs from a `lightwalletd` server
 - Multi-wallet support — manage several wallets in the same install
 - Multi-network — Mainnet, Testnet and Regtest; the network is chosen when the wallet is created and
@@ -95,6 +109,7 @@ yarn release:prep 2.0.15 142
 - Rescan from the Wallet menu, with a nonlinear scanning map on the dashboard showing sync progress
 
 **Transactions**
+
 - Full Zcash address support — Unified, Sapling, Transparent and TEX
 - Shielded transactions by default (Orchard / Sapling)
 - Encrypted memos
@@ -104,6 +119,7 @@ yarn release:prep 2.0.15 142
 - Financial Insight — amounts sent, number of sends and memo bytes, charted per destination address
 
 **Servers**
+
 - Three selection modes per wallet, shown at all times above the balances:
   - **Auto** — picks a server on every launch and stays automatic
   - **List** — you choose from the published servers
@@ -119,31 +135,37 @@ yarn release:prep 2.0.15 142
 - "Try Again" on the wallet-open error screen, to retry without changing any settings
 
 **Privacy**
+
 - Nym mixnet transport for wallet traffic, with a status indicator in the sidebar and an on/off
   control under Settings → Nym Mixnet
 - ZEC price is fetched over the mixnet only; while the transport is not ready the USD figures read
   `USD --` rather than falling back to clearnet
 
 **Ironwood migration**
+
 - Guided migration of Orchard funds to Ironwood, with progress on the dashboard
 - Immediate migration for the straightforward case, and a scheduled, batched migration that spreads
   the transfer over time when privacy calls for it
 
 **Address book**
+
 - Save contacts per network (Mainnet / Testnet / Regtest) — the list filters by the active wallet's network
 - "Show contacts from all networks" toggle to see everything at once
 - Stores ZNS aliases verbatim so the address always re-resolves at send time
 
-**Zcash Names (ZNS)** *(experimental)*
+**Zcash Names (ZNS)** _(experimental)_
+
 - Type `alice.zcash` in the recipient field — auto-resolves to the unified address via the public ZNS indexer
 - Network-aware (`Mainnet` / `Testnet`), with a one-click link to the public ZNS explorer page
 - Save the alias as a contact (the resolution stays current as the owner updates it on-chain)
 
 **Block explorers**
+
 - User-selectable per-network explorer for transactions and addresses
   (Zcashexplorer, Cipherscan, Zexplorer, or a custom URL)
 
 **Security**
+
 - Hardened Electron renderer (sandboxed, CSP, no node integration)
 - Optional device authentication for opening the wallet and signing sends:
   - macOS: Touch ID
@@ -153,6 +175,7 @@ yarn release:prep 2.0.15 142
   falling back to `settings.json` where no secret service is available (Linux AppImage)
 
 **Data portability**
+
 - DMG ↔ MAS first-launch migration assistant (macOS) — imports wallets, address book and settings from a previous DMG install
 - Manual "Import data from another installation" from the Settings menu (MAS / Flatpak), with per-file Replace / Merge / Skip choices
 - "Change wallets folder location" from the Settings menu (MAS)
@@ -241,21 +264,17 @@ Antivirus products that inspect HTTPS traffic cannot decrypt those connections, 
 
 The fix is to allowlist those two hosts in your antivirus. Do not turn off Mixnet Mode just to silence it — that is what hides your IP from the indexer when you send.
 
-Unrelated to this warning: always download releases from the [official Releases page](https://github.com/zingolabs/zingo-pc/releases) and verify the checksum. That, not an antivirus popup, is how you confirm your build is genuine.
+Unrelated to this warning: always download releases from the [official Releases page](https://github.com/zingolabs/zingo-pc/releases) and check the digital signature. That, not an antivirus popup, is how you confirm your build is genuine.
 
 ---
 
 **Q: Windows blocks Zingo PC from opening ("Smart App Control" or "Windows protected your PC")**
 
-A: Expected on recent releases. Windows weighs **reputation**, not just whether a file is signed, and a signing certificate starts with no history — so early releases can be flagged exactly like unsigned ones. It clears as installs accumulate. (The publisher on the signature is an individual's name rather than an organisation; that is how the certificate was issued, not a sign the build is unofficial.)
+A: Expected on recent releases. Windows weighs **reputation**, not just whether a file is signed, and a signing certificate starts with no history — so early releases can be flagged exactly like unsigned ones. It clears as installs accumulate.
 
-Verify the download yourself rather than trusting Windows' verdict either way. Right-click the file → **Properties** → **Digital Signatures** for a valid, timestamped signature, then check the hash against the [Releases page](https://github.com/zingolabs/zingo-pc/releases):
-
-```powershell
-Get-FileHash "Zingo PC <version>.msi" -Algorithm SHA256
-```
+Before working around the warning, confirm the file is ours: right-click it → **Properties** → **Digital Signatures**. There should be a valid signature with a timestamp. And download only from the [Releases page](https://github.com/zingolabs/zingo-pc/releases) — a warning on a file from anywhere else is a different problem.
 
 Then:
 
-- **SmartScreen** (*"Windows protected your PC"*): **More info** → **Run anyway**.
+- **SmartScreen** (_"Windows protected your PC"_): **More info** → **Run anyway**.
 - **Smart App Control** (clean installs of Windows 11 22H2+): no per-app exception exists. It can only be disabled entirely, and **cannot be re-enabled without reinstalling Windows** — we do not recommend it. Use the Microsoft Store build instead once it is published; Store packages are trusted by SAC from the first install.
