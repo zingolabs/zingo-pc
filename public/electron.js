@@ -988,12 +988,22 @@ ipcMain.handle("native:zec_price_over_mixnet", () => requireNative("zec_price_ov
 // exactly like the wallet-core status it replaced.
 const { spawn: spawnChild } = require("child_process");
 
-// The bundled nym-proxy path (only main knows the packaged layout). Packaged:
-// electron-builder stages it into process.resourcesPath (extraResources). Dev:
-// empty so the Rust/child falls through to ZINGO_NYM_PROXY, then PATH.
+// The bundled nym-proxy path (only main knows the packaged layout).
+//
+// Packaged: electron-builder stages it into process.resourcesPath
+// (extraResources).
+//
+// Dev: `yarn mixnet` stages the same binary into the repo's resources/, which
+// is where electron-builder picks it up from, so dev and packaged read the one
+// artifact. ZINGO_NYM_PROXY still wins, for pointing a dev run at some other
+// build. With neither, the bare name falls through to PATH as before.
 function nymProxyPath() {
-  if (isDev) return process.env.ZINGO_NYM_PROXY || "nym-proxy";
   const exe = process.platform === "win32" ? "nym-proxy.exe" : "nym-proxy";
+  if (isDev) {
+    if (process.env.ZINGO_NYM_PROXY) return process.env.ZINGO_NYM_PROXY;
+    const staged = path.join(__dirname, "..", "resources", exe);
+    return fs.existsSync(staged) ? staged : "nym-proxy";
+  }
   return path.join(process.resourcesPath, exe);
 }
 

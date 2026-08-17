@@ -15,6 +15,10 @@ native.node
 /resources/nym-proxy
 /resources/nym-proxy.exe
 
+# zingolib checkout that scripts/stage-nym-proxy.js fetches and builds nym-proxy
+# from, pinned to the revision in native/Cargo.lock
+/.zingolib-src
+
 # staged VC++ runtime (copied from the MSVC redist by scripts/stage-vcruntime.js)
 /resources/vcruntime
 

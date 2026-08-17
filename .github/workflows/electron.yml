@@ -3,7 +3,7 @@ name: Electron CD
 on:
   push:
     tags:
-      - 'zingo-pc-*'
+      - "zingo-pc-*"
 
 permissions:
   contents: write
@@ -77,29 +77,11 @@ jobs:
         run: yarn install
 
       # The nym-proxy binary (bundled via extraResources on every platform) is
-      # built from zingolib, a separate repo. Single source of truth: the exact
-      # commit native/Cargo.lock already resolved to, so the bundled binary
-      # always matches the zingolib the native addon compiles against.
-      - name: Resolve zingolib rev from Cargo.lock
-        id: zingolib
-        shell: bash
-        run: |
-          REV=$(awk '/^name = "zingolib"$/{f=1} f && /^source =/{print; exit}' native/Cargo.lock | grep -oE '[0-9a-f]{40}')
-          test -n "$REV" || { echo "could not resolve zingolib rev from native/Cargo.lock"; exit 1; }
-          echo "rev=$REV" >> "$GITHUB_OUTPUT"
-          echo "zingolib rev: $REV"
-
-      - name: Checkout zingolib (nym-proxy source, matching native/Cargo.lock)
-        uses: actions/checkout@v4
-        with:
-          repository: zingolabs/zingolib
-          ref: ${{ steps.zingolib.outputs.rev }}
-          path: zingolib-src
-          fetch-depth: 1
-
-      - name: Set ZINGOLIB_PATH
-        shell: bash
-        run: echo "ZINGOLIB_PATH=${{ github.workspace }}/zingolib-src" >> "$GITHUB_ENV"
+      # built from zingolib, a separate repo. Fetching it is scripts/stage-nym-proxy.js'
+      # job, at the exact commit native/Cargo.lock resolved to, so the bundled
+      # binary always matches the zingolib the native addon compiles against —
+      # and so CI and a developer's machine run the same steps. Nothing to set
+      # up here; the dist:* script below drives it.
 
       - name: Decode macOS certificate (DMG)
         if: matrix.platform == 'mac'
