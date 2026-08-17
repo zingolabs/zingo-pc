@@ -12,7 +12,7 @@ import MixnetModal from "./components/MixnetModal";
 import { Logo } from "../logo";
 import APP_VERSION from "../../version";
 import SelectWallet from "./components/SelectWallet";
-import { WalletType } from "../appstate";
+import { ServerChainNameEnum, WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
 import { useCopy } from "../common/useCopy";
 
@@ -87,9 +87,8 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
       {!!ufvkStr && (
         <>
           <div style={{ textAlign: "center" }}>
-            This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
-            <br />
-            PLEASE KEEP IT SAFE!
+            This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet. PLEASE
+            KEEP IT SAFE!
           </div>
           <div
             style={{
@@ -443,6 +442,15 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       }
     };
 
+    const insight = (_event: any) => {
+      if (!active) return;
+      if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
+        openErrorModal("Financial Insight", "There is not an active Wallet to perform the action.");
+      } else {
+        navigate(routes.INSIGHT);
+      }
+    };
+
     const deletewallet = (_event: any) => {
       if (!active) return;
       if (!currentWalletRef.current) {
@@ -466,6 +474,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     ipcRenderer.on("settingswallet", settingswallet);
     ipcRenderer.on("deletewallet", deletewallet);
     ipcRenderer.on("mixnet-settings", mixnetsettings);
+    ipcRenderer.on("insight", insight);
 
     return () => {
       active = false;
@@ -478,6 +487,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       ipcRenderer.off("settingswallet", settingswallet);
       ipcRenderer.off("deletewallet", deletewallet);
       ipcRenderer.off("mixnet-settings", mixnetsettings);
+      ipcRenderer.off("insight", insight);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -578,6 +588,20 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
             iconname="fa-download"
           />
         )}
+        {/* Two reasons the entry can be absent rather than dead. SwapKit routes
+            none of our providers off mainnet, and a swap's deposit is a spend,
+            which a viewing-key wallet cannot make. */}
+        {currentWallet !== null &&
+          !currentWalletOpenError &&
+          !readOnly &&
+          currentWallet.chain_name === ServerChainNameEnum.mainChainName && (
+            <SidebarMenuItem
+              name="Swap"
+              routeName={routes.SWAP}
+              currentRoute={location.pathname}
+              iconname="fa-right-left"
+            />
+          )}
         {currentWallet !== null && !currentWalletOpenError && (
           <SidebarMenuItem
             name="History"
@@ -600,14 +624,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
           currentRoute={location.pathname}
           iconname="fa-address-book"
         />
-        {currentWallet !== null && !currentWalletOpenError && (
-          <SidebarMenuItem
-            name="Financial Insight"
-            routeName={routes.INSIGHT}
-            currentRoute={location.pathname}
-            iconname="fa-chart-line"
-          />
-        )}
       </div>
 
       <div className={cstyles.center} style={{ marginTop: 6 }}>

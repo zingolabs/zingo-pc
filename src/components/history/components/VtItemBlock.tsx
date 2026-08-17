@@ -4,6 +4,7 @@ import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
 import { ValueTransferClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../../appstate";
 import Utils from "../../../utils/utils";
+import { swapRowLabel } from "../../../swap";
 
 type VtItemBlockProps = {
   index: number;
@@ -91,12 +92,15 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                   ? Utils.getCssVariable("--color-primary-disable")
                   : vt.type === ValueTransferKindEnum.received ||
                       vt.type === ValueTransferKindEnum.shield ||
-                      vt.type === ValueTransferKindEnum.migration
+                      vt.type === ValueTransferKindEnum.migration ||
+                      (vt.type === ValueTransferKindEnum.swap && vt.swapIsInbound)
                     ? Utils.getCssVariable("--color-primary")
                     : Utils.getCssVariable("--color-text"),
             }}
           >
-            {Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
+            {vt.type === ValueTransferKindEnum.swap
+              ? swapRowLabel(vt.swapStatus)
+              : Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
           </div>
           <div className={`${cstyles.padtopsmall} ${cstyles.sublight}`}>{timePart}</div>
           {(vt.status === ValueTransferStatusEnum.calculated ||

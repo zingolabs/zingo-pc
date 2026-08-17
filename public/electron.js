@@ -169,6 +169,14 @@ class MenuBuilder {
             mainWindow.webContents.send("payuri");
           },
         },
+        { type: "separator" },
+        {
+          label: "Financial &Insight",
+          accelerator: "Ctrl+I",
+          click: () => {
+            mainWindow.webContents.send("insight");
+          },
+        },
       ],
     };
     const subMenuSettings = {
@@ -306,6 +314,14 @@ class MenuBuilder {
             accelerator: "Ctrl+D",
             click: () => {
               mainWindow.webContents.send("deletewallet");
+            },
+          },
+          { type: "separator" },
+          {
+            label: "Financial &Insight",
+            accelerator: "Ctrl+I",
+            click: () => {
+              mainWindow.webContents.send("insight");
             },
           },
         ],
@@ -770,6 +786,50 @@ ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 
+// The swap layer's HTTP, performed here for the same three reasons the ZNS
+// resolver and the server registry are: the renderer's CSP forbids `connect-src`
+// to external hosts, CORS blocks a file:// origin in the packaged app, and
+// sandboxed builds grant network access at the app level.
+//
+// The host allowlist is what keeps this from being an open proxy. Without it a
+// renderer could ask main to fetch anything, which would undo the CSP rather
+// than work within it. Hosts are compared exactly, so a lookalike domain does
+// not pass on a prefix.
+const SWAP_HTTP_HOSTS = new Set(["api.swapkit.dev", "midgard.mayachain.info", "midgard.ninerealms.com"]);
+const SWAP_HTTP_MAX_TIMEOUT_MS = 30000;
+
+ipcMain.handle("swapHttp:request", async (_e, request) => {
+  const { url, method, headers, body, timeoutMs } = request ?? {};
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`swapHttp: unparseable url`);
+  }
+  if (parsed.protocol !== "https:" || !SWAP_HTTP_HOSTS.has(parsed.hostname)) {
+    throw new Error(`swapHttp: refusing ${parsed.protocol}//${parsed.hostname}`);
+  }
+
+  // The renderer aborts with an AbortController it cannot send across IPC, so
+  // the deadline is applied here instead. Capped so a caller cannot pin a
+  // socket open indefinitely.
+  const controller = new AbortController();
+  const deadline = Math.min(Number(timeoutMs) || SWAP_HTTP_MAX_TIMEOUT_MS, SWAP_HTTP_MAX_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), deadline);
+  try {
+    const response = await fetch(url, {
+      method: method === "POST" ? "POST" : "GET",
+      signal: controller.signal,
+      headers: headers ?? {},
+      ...(body !== undefined && body !== null && { body }),
+    });
+    return { ok: response.ok, status: response.status, text: await response.text() };
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
 // Swap records persist encrypted at rest, matching what the mobile wallet gets
 // from react-native-encrypted-storage: safeStorage derives its key from the OS
 // keychain (DPAPI on Windows, Keychain on macOS, libsecret on Linux), so the
@@ -779,13 +839,21 @@ ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 // Keys arrive from the renderer and become filenames, so anything outside the
 // namespace SwapStore builds is refused rather than sanitized: a rewritten key
 // would silently read and write the wrong bucket.
-const SWAP_KEY_PATTERN = /^[A-Za-z0-9_.-]{1,128}$/;
+//
+// The keys are colon-separated (`swap:records:<wallet fingerprint>`), and a
+// colon cannot appear in a Windows filename, so it is percent-encoded on the
+// way to disk. `%` is absent from the key alphabet, which keeps that mapping
+// reversible: no two distinct keys can encode to the same filename.
+const SWAP_KEY_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/;
 
 function swapStoragePath(key) {
-  if (typeof key !== "string" || !SWAP_KEY_PATTERN.test(key)) {
+  // A key of only dots would encode to `.` or `..`, which name directories
+  // rather than files.
+  if (typeof key !== "string" || !SWAP_KEY_PATTERN.test(key) || /^\.+$/.test(key)) {
     throw new Error(`swapStorage: refusing key ${JSON.stringify(key)}`);
   }
-  return path.join(app.getPath("userData"), "swap-storage", `${key}.bin`);
+  const fileName = `${key.replace(/:/g, "%3A")}.bin`;
+  return path.join(app.getPath("userData"), "swap-storage", fileName);
 }
 
 function assertSwapEncryption() {
@@ -815,6 +883,54 @@ ipcMain.handle("swapStorage:set", async (_e, key, value) => {
   assertSwapEncryption();
   await fs.promises.mkdir(path.dirname(file), { recursive: true });
   await fs.promises.writeFile(file, safeStorage.encryptString(String(value)));
+});
+
+// Token logos, fetched here and handed back as data URIs.
+//
+// The renderer cannot load them directly: `img-src` allows 'self' and data:
+// only. Widening it is not an option either, because the host is not ours to
+// know — `logoURI` arrives inside SwapKit's catalog response, so any allowlist
+// would be a guess that breaks silently when the CDN moves.
+//
+// This is deliberately not the host-allowlisted shape `swapHttp:request` uses.
+// Instead the response itself is constrained: https only, an image
+// content-type, and a size cap. A data URI rendered into an `<img>` executes
+// nothing, so the worst a hostile response can do is fail to decode.
+const SWAP_LOGO_MAX_BYTES = 256 * 1024;
+const SWAP_LOGO_TIMEOUT_MS = 8000;
+const swapLogoCache = new Map();
+
+ipcMain.handle("swapLogo:get", async (_e, url) => {
+  if (swapLogoCache.has(url)) return swapLogoCache.get(url);
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsed.protocol !== "https:") return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SWAP_LOGO_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!response.ok || !contentType.startsWith("image/")) return null;
+
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.byteLength > SWAP_LOGO_MAX_BYTES) return null;
+
+    const dataUri = `data:${contentType.split(";")[0]};base64,${bytes.toString("base64")}`;
+    swapLogoCache.set(url, dataUri);
+    return dataUri;
+  } catch {
+    // A logo that will not load is a missing picture, never an error worth
+    // interrupting a swap for. The caller draws its fallback.
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 });
 
 ipcMain.handle("swapStorage:remove", async (_e, key) => {
@@ -964,6 +1080,7 @@ const _NATIVE_NO_PARAM_METHODS = [
   "get_unified_addresses",
   "get_transparent_addresses",
   "create_new_transparent_address",
+  "reserve_ephemeral_address",
   "get_wallet_save_required",
   "set_config_wallet_to_test",
   "get_config_wallet_performance",

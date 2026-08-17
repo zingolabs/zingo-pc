@@ -315,11 +315,11 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         )}
       </div>
 
-      <div className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>Send</div>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Send</div>
 
       <div className={styles.horizontalcontainer}>
         <div className={cstyles.containermarginleft}>
-          <ScrollPaneTop offsetHeight={260}>
+          <ScrollPaneTop offsetHeight={308}>
             <ToAddrBox
               toaddr={sendPageState.toaddr}
               zecPrice={zecPrice}

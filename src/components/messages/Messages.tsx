@@ -169,11 +169,9 @@ const Messages: React.FC<MessagesProps> = () => {
         )}
       </div>
 
-      <div style={{ marginBottom: 5 }} className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>
-        Messages
-      </div>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Messages</div>
 
-      <ScrollPaneBottom offsetHeight={180} initialScrollType="bottom">
+      <ScrollPaneBottom offsetHeight={203} initialScrollType="bottom">
         {!messagesSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
         {messagesSorted && messagesSorted.length === 0 && (

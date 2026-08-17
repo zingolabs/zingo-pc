@@ -9,7 +9,7 @@ export { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 export { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 export { SwapErrorCategoryEnum, SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
 export { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
-export { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
+export { SwapStatusEnum, isTerminalStatus, canRemoveSwap, isPrePaymentStatus } from "./enums/SwapStatusEnum";
 export { TrackingStatusEnum } from "./enums/TrackingStatusEnum";
 
 export type { DepositInstructionsType } from "./types/DepositInstructionsType";
@@ -45,6 +45,18 @@ export type { SwapStoreChangeListener } from "./SwapStore";
 export { deriveWalletFingerprint } from "./walletFingerprint";
 export { swapRecordToValueTransfer, isOutboundSwap } from "./swapRecordToValueTransfer";
 export { formatAmountForDisplay } from "./formatAmountForDisplay";
+export { swapRowLabel } from "./swapRowLabel";
+export { extractFiatValueBasis } from "./quoteFiatBasis";
+export { providerShortLabel, providerLongLabel } from "./providerLabels";
+export { convertFeeToAsset, formatFeeAmount, assetShortLabel } from "./feeConversion";
+export type { FeeConversionType } from "./feeConversion";
+export {
+  buildChainExplorerUrl,
+  buildProviderExplorerUrl,
+  buildSwapKitTrackerUrl,
+  buildTrackerEntries,
+} from "./explorerUrls";
+export type { TrackerEntryType } from "./explorerUrls";
 export { TokenCatalog } from "./TokenCatalog";
 
 export { SwapPoller, DEFAULT_SWAP_POLLER_CONFIG } from "./SwapPoller";
@@ -74,4 +86,4 @@ export { MayaExecutor } from "./providers/MayaExecutor";
 export { NearIntentsExecutor } from "./providers/NearIntentsExecutor";
 export { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
 export { mapSwapStatus, mapTrackingStatus } from "./providers/statusMapping";
-export { applyDefaultTrackUpdate, pickLegHash } from "./providers/trackUpdateBase";
+export { applyDefaultTrackUpdate, pickLegHash, isRealLegHash } from "./providers/trackUpdateBase";

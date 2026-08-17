@@ -1,10 +1,12 @@
 .sidebar {
   background-color: var(--color-background-dark);
-  /* Hug the menu content and carry a black bottom strip the same size as the
+  /* Hug the menu content and carry a black bottom strip roughly matching the
      black gap under the wallet selector at the top (SelectWallet's 20px
-     marginBottom), so the last menu item gets a matching black bottom. The
-     status blocks below sit on the app background, separated by a thin line. */
-  padding-bottom: 20px;
+     marginBottom). Only roughly: a menu item's box is taller than its text
+     (see .sidebarmenuitem), so the last one already trails its own empty
+     space, and a full 20px here read as about twice the gap above. The status
+     blocks below sit on the app background, separated by a thin line. */
+  padding-bottom: 4px;
 }
 
 .sidebarmenuitem {

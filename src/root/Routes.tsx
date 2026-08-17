@@ -36,6 +36,7 @@ import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
 import { History } from "../components/history";
+import { Swap } from "../components/swap";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 import { SwapServiceProvider } from "../context/ContextSwapService";
 
@@ -522,6 +523,18 @@ const AppRoutes: React.FC = () => {
     }
   }, []);
 
+  const runRPCSendSwapDeposit = useCallback(
+    async (args: {
+      depositAddress: string;
+      amountAtomic: number;
+      memoBytes?: Uint8Array;
+      routeViaEphemeral?: boolean;
+    }): Promise<string[]> => {
+      return rpcRef.current!.sendSwapDeposit(args);
+    },
+    [],
+  );
+
   const runRPCDrainToIronwood = useCallback(async (): Promise<{
     result: RPCIronwoodDrainType | null;
     error: string;
@@ -647,13 +660,15 @@ const AppRoutes: React.FC = () => {
       {confirmModal.modalIsOpen && <ConfirmModal closeModal={closeConfirmModal} />}
       {errorModal.modalIsOpen && <ErrorModal closeModal={closeErrorModal} />}
 
-      {/* The swap store binds against the loaded wallet's UFVK, so the provider
-          only exists while a wallet is open, and it is keyed by that wallet so a
-          switch rebinds the store and re-arms the poller against the new one. */}
+      {/* The swap store binds against the loaded wallet's UFVK, which needs the
+          lightclient up. `currentWallet` is set while the loading screen is
+          still opening the wallet, so it is not that signal: leaving the
+          loading route is. Keyed by the wallet so a switch rebinds the store
+          and re-arms the poller against the new one. */}
       <SwapServiceProvider
         key={currentWallet?.id ?? "no-wallet"}
         chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
-        enabled={!!currentWallet}
+        enabled={!!currentWallet && !currentWalletOpenError && location.pathname !== routes.LOADING}
       >
         <div style={{ overflow: "hidden" }}>
           {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
@@ -684,6 +699,7 @@ const AppRoutes: React.FC = () => {
               <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
               <Route path={routes.INSIGHT} element={<Insight />} />
               <Route path={routes.HISTORY} element={<History />} />
+              <Route path={routes.SWAP} element={<Swap sendSwapDeposit={runRPCSendSwapDeposit} />} />
               <Route path={routes.MESSAGES} element={<Messages />} />
               <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
               <Route

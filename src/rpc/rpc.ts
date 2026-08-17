@@ -891,6 +891,43 @@ export default class RPC {
     throw new Error("send returned neither txids nor error");
   }
 
+  /**
+   * Pays a swap's deposit, returning every txid the proposal produced in
+   * chronological order.
+   *
+   * `memoBytes` becomes the transaction's OP_RETURN, which is how Maya and
+   * THORChain read which swap a deposit belongs to. `routeViaEphemeral` sends
+   * it through the ZIP 320 hop so the vault sees an origin the wallet
+   * controls, which is where those two protocols look for a refund
+   * destination. NEAR Intents and Flashnet bind refunds to the per-quote
+   * deposit address instead, so they need neither and take the cheaper
+   * single-hop path.
+   *
+   * The array shape matters to the caller: for a two-hop send the provider
+   * observes the LAST transaction, the one paying the vault, not the shielded
+   * hop that funded the ephemeral address.
+   */
+  async sendSwapDeposit(args: {
+    depositAddress: string;
+    amountAtomic: number;
+    memoBytes?: Uint8Array;
+    routeViaEphemeral?: boolean;
+  }): Promise<string[]> {
+    const sendJson: Array<SendJsonToTypeType> = [
+      {
+        address: args.depositAddress,
+        amount: args.amountAtomic,
+        op_return: args.memoBytes && args.memoBytes.length > 0 ? bytesToHex(args.memoBytes) : undefined,
+        route_via_ephemeral: args.routeViaEphemeral || undefined,
+      },
+    ];
+    const joined: string = await this.sendTransaction(sendJson);
+    return joined
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+
   // Polls poll_sync until the sync task is no longer running (or a timeout).
   // "Sync task is not complete." is zingolib's only "still running" reply; any
   // other reply (no handle, or a completed JSON result) means it has stopped.
@@ -1265,4 +1302,9 @@ export default class RPC {
   setCurrentWallet(cw: WalletType) {
     this.currentWallet = cw;
   }
+}
+
+/** Lowercase hex for an OP_RETURN payload, which the Rust side decodes back to bytes. */
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }

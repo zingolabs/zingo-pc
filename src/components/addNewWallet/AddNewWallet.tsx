@@ -673,7 +673,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
 
   return (
     <ScrollPaneTop offsetHeight={20}>
-      <div className={`${cstyles.xlarge} ${cstyles.margintopsmall} ${cstyles.center}`}>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>
         {mode === "addnew" ? "Add a New Wallet" : mode === "settings" ? "Wallet Settings" : "Delete Wallet"}
       </div>
 

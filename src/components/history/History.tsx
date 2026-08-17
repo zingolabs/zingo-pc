@@ -9,6 +9,10 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import { ServerHealthLine } from "../serverHealthLine";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
+import { useSwapRecords } from "../../context/ContextSwapService";
+import { SwapStore, swapRecordToValueTransfer } from "../../swap";
+import { ValueTransferKindEnum } from "../appstate";
+import SwapDetailModal from "../swap/SwapDetailModal";
 
 type HistoryProps = {};
 
@@ -40,6 +44,17 @@ const History: React.FC<HistoryProps> = () => {
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
 
+  const swapRecords = useSwapRecords();
+
+  // Swap rows are merged in rather than deduplicated against the outbound
+  // transfer that funded them: the user sees the swap beside the send that
+  // paid for it, so the chronology stays explicit. Sorted by time descending
+  // to match the order zingolib already returns.
+  const mergedValueTransfers = useMemo(() => {
+    if (swapRecords.length === 0) return valueTransfers;
+    return [...valueTransfers, ...swapRecords.map(swapRecordToValueTransfer)].sort((a, b) => b.time - a.time);
+  }, [valueTransfers, swapRecords]);
+
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
     const pending: number =
@@ -60,12 +75,12 @@ const History: React.FC<HistoryProps> = () => {
   }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   useEffect(() => {
-    setIsLoadMoreEnabled(valueTransfers && numVtnsToShow < valueTransfers.length);
-  }, [numVtnsToShow, valueTransfers]);
+    setIsLoadMoreEnabled(mergedValueTransfers && numVtnsToShow < mergedValueTransfers.length);
+  }, [numVtnsToShow, mergedValueTransfers]);
 
   useEffect(() => {
-    setValueTransfersSorted(valueTransfers.slice(0, numVtnsToShow));
-  }, [numVtnsToShow, valueTransfers]);
+    setValueTransfersSorted(mergedValueTransfers.slice(0, numVtnsToShow));
+  }, [numVtnsToShow, mergedValueTransfers]);
 
   useEffect(() => {
     setAddressBookMap(
@@ -89,6 +104,25 @@ const History: React.FC<HistoryProps> = () => {
     setValueTransferDetailIndex(-1);
     setModalIsOpen(false);
   };
+
+  // A swap row opens its own detail rather than the transfer modal: its fields
+  // are the record's, not zingolib's, and the transfer modal's txid actions
+  // would be reading a deposit address. Read from `swapRecords` on every render
+  // so a poller tick reaches an open detail without reopening it.
+  const swapDetailRecord = useMemo(() => {
+    if (valueTransferDetail?.type !== ValueTransferKindEnum.swap) return undefined;
+    return swapRecords.find((r) => r.recordId === valueTransferDetail.swapRecordId);
+  }, [valueTransferDetail, swapRecords]);
+
+  const removeSwapRecord = useCallback(async (recordId: string) => {
+    closeModal();
+    try {
+      await SwapStore.deleteByRecordId(recordId);
+    } catch (error) {
+      console.error(`History: removing the swap record failed ${error}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const show100MoreVtns = () => {
     setNumVtnsToShow(numVtnsToShow + 100);
@@ -172,11 +206,9 @@ const History: React.FC<HistoryProps> = () => {
         )}
       </div>
 
-      <div style={{ marginBottom: 5 }} className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>
-        History
-      </div>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>History</div>
 
-      <ScrollPaneTop offsetHeight={180}>
+      <ScrollPaneTop offsetHeight={203}>
         {!valueTransfersSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
         {valueTransfersSorted && valueTransfersSorted.length === 0 && (
@@ -213,11 +245,20 @@ const History: React.FC<HistoryProps> = () => {
         )}
       </ScrollPaneTop>
 
-      {modalIsOpen && (
+      {modalIsOpen && swapDetailRecord && (
+        <SwapDetailModal
+          record={swapDetailRecord}
+          modalIsOpen={modalIsOpen}
+          closeModal={closeModal}
+          onRemove={(r) => removeSwapRecord(r.recordId)}
+        />
+      )}
+
+      {modalIsOpen && !swapDetailRecord && (
         <VtModal
           index={valueTransferDetailIndex}
           length={valueTransfersSorted.length}
-          totalLength={valueTransfers.length}
+          totalLength={mergedValueTransfers.length}
           vt={valueTransferDetail}
           modalIsOpen={modalIsOpen}
           closeModal={closeModal}

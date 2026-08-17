@@ -191,6 +191,14 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     return labelStr;
   };
 
+  // A swap row's `txid` is the deposit transaction only once one exists; before
+  // that it falls back to the deposit address, which is no txid at all. So the
+  // two actions that treat the field as a real transaction identifier, the
+  // block-explorer link and the remove call into zingolib, stay off these rows.
+  // Nothing is lost: the on-chain leg of an outbound swap appears as its own
+  // Sent row, which carries the genuine txid.
+  const isSwapRow = valueTransfer?.type === ValueTransferKindEnum.swap;
+
   if (valueTransfer) {
     txid = valueTransfer.txid;
     typeText = Utils.VTTypeWithConfirmations(valueTransfer.type, valueTransfer.status, valueTransfer.confirmations);
@@ -358,7 +366,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
 
         {confirmations === 0 /* not min confirmations applied */ && (
           <>
-            {status === ValueTransferStatusEnum.failed && (
+            {status === ValueTransferStatusEnum.failed && !isSwapRow && (
               <>
                 <hr style={{ width: "100%" }} />
 
@@ -517,7 +525,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
               </div>
             </div>
 
-            {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+            {!isSwapRow && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
               <div
                 className={cstyles.primarybutton}
                 onClick={() =>

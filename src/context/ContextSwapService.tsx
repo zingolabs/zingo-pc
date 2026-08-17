@@ -3,6 +3,7 @@ import React, { createContext, ReactNode, useContext, useEffect, useState } from
 import { native } from "../electronBridge";
 import { ChainNameEnum } from "../swap/enums/ChainNameEnum";
 import { SwapService, SwapStore, createSwapService, deriveWalletFingerprint } from "../swap";
+import type { SwapRecordType } from "../swap";
 import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
 
 /**
@@ -92,4 +93,36 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
  */
 export function useSwapService(): SwapService | null {
   return useContext(SwapServiceContext);
+}
+
+/**
+ * The swap records for the bound wallet, kept live by the store's own change
+ * notifications. Reads the store rather than the service, so History still
+ * lists past swaps off mainnet and offline, where the service is `null`.
+ */
+export function useSwapRecords(): SwapRecordType[] {
+  const [records, setRecords] = useState<SwapRecordType[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    // subscribe() only registers; it does not replay. The bind notifies
+    // subscribers, but History mounts on a route change, long after the
+    // provider bound the store, so without this read the list stays empty
+    // until the next mutation happens to arrive.
+    const unsubscribe = SwapStore.subscribe(setRecords);
+    SwapStore.readAll()
+      .then((current) => {
+        // A notification that landed while the read was in flight is newer
+        // than what the read returned, so it must not be overwritten.
+        if (!cancelled) setRecords((previous) => (previous.length === 0 ? current : previous));
+      })
+      .catch((error) => console.error(`useSwapRecords: initial read failed ${error}`));
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
+  return records;
 }

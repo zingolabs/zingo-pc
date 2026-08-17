@@ -1,3 +1,4 @@
+import { swapHttpRequest } from "./swapHttp";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 
 /**
@@ -123,18 +124,14 @@ export class MidgardClient {
       `&type=swap` +
       `&limit=${MIDGARD_ACTIONS_LIMIT}`;
 
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), MIDGARD_TIMEOUT_MS);
-    let response: Response;
-    try {
-      response = await fetch(url, {
-        method: "GET",
-        signal: controller.signal,
-        headers: { Accept: "application/json" },
-      });
-    } finally {
-      clearTimeout(timer);
-    }
+    // Routed through the main process rather than `fetch`: the renderer's CSP
+    // and its file:// origin both refuse this host. See `swapHttp`.
+    const response = await swapHttpRequest({
+      url,
+      method: "GET",
+      headers: { Accept: "application/json" },
+      timeoutMs: MIDGARD_TIMEOUT_MS,
+    });
 
     // 404 means the indexer has not seen this destination address at all —
     // very common in the window between commit and the on-chain deposit
@@ -142,11 +139,10 @@ export class MidgardClient {
     // poller's failure counter does not increment unnecessarily.
     if (response.status === 404) return null;
     if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`MidgardClient: ${url} returned HTTP ${response.status}: ${body.slice(0, 200)}`);
+      throw new Error(`MidgardClient: ${url} returned HTTP ${response.status}: ${response.text.slice(0, 200)}`);
     }
 
-    const data = (await response.json()) as MidgardActionsResponseType;
+    const data = JSON.parse(response.text) as MidgardActionsResponseType;
     if (!data.actions || data.actions.length === 0) return null;
 
     const match = data.actions.find((action) => action.metadata?.swap?.memo === args.memo);

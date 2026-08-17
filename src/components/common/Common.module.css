@@ -132,6 +132,20 @@
   margin-bottom: -20px;
 }
 
+/*
+ * The screen title, for screens that stand on their own.
+ *
+ * Screens fall into two groups. Send, History and Messages carry the balance
+ * block above the title and use `marginnegativetitle` to pull up against it.
+ * Swap, Address Book and Financial Insight have nothing above them, and they
+ * use this. Keep the spacing here rather than per screen, or the three drift
+ * apart again.
+ */
+.screentitle {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
 .padtopsmall {
   padding-top: 4px;
 }

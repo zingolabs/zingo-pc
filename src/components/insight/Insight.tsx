@@ -253,7 +253,7 @@ const Insight: React.FC<InsightProps> = () => {
 
   return (
     <div>
-      <div className={`${cstyles.xlarge} ${cstyles.margintopsmall} ${cstyles.center}`}>Financial Insight</div>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Financial Insight</div>
 
       <div className={styles.insightcontainer}>
         <div className={cstyles.well} style={{ display: "flex", flexDirection: "row", justifyContent: "stretch" }}>
@@ -276,7 +276,7 @@ const Insight: React.FC<InsightProps> = () => {
             </div>
           </div>
         </div>
-        <ScrollPaneTop offsetHeight={150}>
+        <ScrollPaneTop offsetHeight={162}>
           {!loading && (
             <div className={cstyles.well} style={{ display: "flex", flexDirection: "row", justifyContent: "stretch" }}>
               <div className={cstyles.balancebox} style={{ width: "30%", marginRight: 5 }}>

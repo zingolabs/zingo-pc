@@ -31,6 +31,7 @@ const _ALL_NATIVE_METHODS = [
   "get_unified_addresses",
   "get_transparent_addresses",
   "create_new_transparent_address",
+  "reserve_ephemeral_address",
   "get_wallet_save_required",
   "set_config_wallet_to_test",
   "get_config_wallet_performance",
@@ -102,6 +103,7 @@ const ALLOWED_RECEIVE = new Set([
   "import-data",
   "mixnet-status",
   "mixnet-settings",
+  "insight",
 ]);
 
 // Allowed IPC channels that renderer → main can invoke/send.
@@ -137,6 +139,15 @@ const ALLOWED_INVOKE = new Set([
   "mixnet:disable",
   "mixnet:get-status",
   "mixnet:attach-current",
+  // The swap store's encrypted-at-rest persistence. Encryption happens in main,
+  // where safeStorage can reach the OS keychain.
+  "swapStorage:get",
+  "swapStorage:set",
+  "swapStorage:remove",
+  // The swap layer's outbound HTTP, allowlisted by host in main.
+  "swapHttp:request",
+  // Token logos, returned as data URIs so img-src need not be widened.
+  "swapLogo:get",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {

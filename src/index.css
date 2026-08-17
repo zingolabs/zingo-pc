@@ -141,3 +141,24 @@ input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
+
+/*
+ * Modals paint above everything on the page.
+ *
+ * react-modal wraps every modal in a `.ReactModalPortal` div appended to the
+ * body, so this covers all of them at once — including any added later — no
+ * matter which `overlayClassName` they pass.
+ *
+ * Without it the overlays are `position: fixed` with no z-index, and they win
+ * only by being last in the DOM. That loses to any page element carrying a
+ * positive z-index of its own, such as the "Show contacts from all networks"
+ * row in Address Book, which showed through the modals on top of it.
+ *
+ * `position: relative` is what makes z-index apply to the wrapper. It does not
+ * disturb the overlay inside: fixed positioning is only knocked out of the
+ * viewport by transform, filter or perspective, none of which are used here.
+ */
+.ReactModalPortal {
+  position: relative;
+  z-index: 1000;
+}

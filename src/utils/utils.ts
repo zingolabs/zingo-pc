@@ -58,7 +58,9 @@ export default class Utils {
                                     ? "...Migrating..."
                                     : type === ValueTransferKindEnum.migration && confirmations > 0
                                       ? "Migration"
-                                      : "";
+                                      : type === ValueTransferKindEnum.swap
+                                        ? "Swap"
+                                        : "";
   }
 
   static trimToSmall(addr?: string, numChars?: number): string {
@@ -338,33 +340,44 @@ export default class Utils {
     return colorList;
   }
 
+  /**
+   * The user's chosen block explorer's URL for a Zcash transaction, or an
+   * empty string when no explorer is configured. Returned rather than opened
+   * so callers that need the URL itself, such as the swap trackers list, read
+   * the same setting the History link obeys.
+   */
+  static zecExplorerTxUrl = (
+    txid: string,
+    chainName: ServerChainNameEnum | undefined,
+    blockExplorer: BlockExplorerEnum,
+    blockExplorerCustom: string,
+  ): string => {
+    const testnet = chainName === ServerChainNameEnum.testChainName;
+    if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
+      return testnet
+        ? `https://testnet.zcashexplorer.app/transactions/${txid}`
+        : `https://mainnet.zcashexplorer.app/transactions/${txid}`;
+    }
+    if (blockExplorer === BlockExplorerEnum.Cipherscan) {
+      return testnet ? `https://testnet.cipherscan.app/tx/${txid}` : `https://cipherscan.app/tx/${txid}`;
+    }
+    if (blockExplorer === BlockExplorerEnum.Zexplorer) {
+      return testnet ? `https://zexplorer.app/testnet/tx/${txid}` : `https://zexplorer.app/mainnet/tx/${txid}`;
+    }
+    if (blockExplorer === BlockExplorerEnum.Custom) {
+      return `${blockExplorerCustom}${txid}`;
+    }
+    return "";
+  };
+
   static openTxid = (
     txid: string,
     chainName: ServerChainNameEnum | undefined,
     blockExplorer: BlockExplorerEnum,
     blockExplorerCustom: string,
   ) => {
-    if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
-      if (chainName === ServerChainNameEnum.testChainName) {
-        shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
-      } else {
-        shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
-      }
-    } else if (blockExplorer === BlockExplorerEnum.Cipherscan) {
-      if (chainName === ServerChainNameEnum.testChainName) {
-        shell.openExternal(`https://testnet.cipherscan.app/tx/${txid}`);
-      } else {
-        shell.openExternal(`https://cipherscan.app/tx/${txid}`);
-      }
-    } else if (blockExplorer === BlockExplorerEnum.Zexplorer) {
-      if (chainName === ServerChainNameEnum.testChainName) {
-        shell.openExternal(`https://zexplorer.app/testnet/tx/${txid}`);
-      } else {
-        shell.openExternal(`https://zexplorer.app/mainnet/tx/${txid}`);
-      }
-    } else if (blockExplorer === BlockExplorerEnum.Custom) {
-      shell.openExternal(`${blockExplorerCustom}${txid}`);
-    }
+    const url = Utils.zecExplorerTxUrl(txid, chainName, blockExplorer, blockExplorerCustom);
+    if (url) shell.openExternal(url);
   };
 
   static openAddress = (

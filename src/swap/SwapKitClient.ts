@@ -1,6 +1,8 @@
 import { ChainNameEnum } from "./enums/ChainNameEnum";
 import { SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
 import { SwapKitHttpError, SwapKitNetworkError } from "./errors";
+import { swapHttpRequest } from "./swapHttp";
+import type { SwapHttpResponse } from "./swapHttp";
 import { QuoteResponseType } from "./types/QuoteResponseType";
 import { SwapResponseType } from "./types/SwapResponseType";
 import { TokensResponseType } from "./types/TokensResponseType";
@@ -234,14 +236,13 @@ export class SwapKitClient {
     timeoutMs: number;
     body?: unknown;
   }): Promise<T> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), args.timeoutMs);
-
-    let response: Response;
+    // Routed through the main process rather than `fetch`: the renderer's CSP
+    // and its file:// origin both refuse this host. See `swapHttp`.
+    let response: SwapHttpResponse;
     try {
-      response = await fetch(`${SWAPKIT_BASE_URL}${args.path}`, {
+      response = await swapHttpRequest({
+        url: `${SWAPKIT_BASE_URL}${args.path}`,
         method: args.method,
-        signal: controller.signal,
         headers: {
           "x-api-key": this.apiKey,
           Accept: "application/json",
@@ -250,14 +251,13 @@ export class SwapKitClient {
           }),
         },
         ...(args.body !== undefined && { body: JSON.stringify(args.body) }),
+        timeoutMs: args.timeoutMs,
       });
     } catch (cause) {
       throw new SwapKitNetworkError(args.operation, cause);
-    } finally {
-      clearTimeout(timer);
     }
 
-    const text = await response.text();
+    const text = response.text;
 
     if (!response.ok) {
       throw new SwapKitHttpError({

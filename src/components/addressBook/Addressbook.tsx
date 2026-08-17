@@ -124,12 +124,12 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
 
   return (
     <div>
-      <div className={`${cstyles.xlarge} ${cstyles.margintoplarge} ${cstyles.center}`}>Address Book</div>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Address Book</div>
 
       <div className={styles.addressbookcontainer}>
         <div className={`${cstyles.well} ${cstyles.center}`}>
           <div className={cstyles.flexspacebetween}>
-            <div className={cstyles.sublight}>Label</div>
+            <div className={cstyles.large}>Label</div>
             <div className={cstyles.validationerror}>
               {!labelError ? (
                 <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
@@ -149,7 +149,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           <div className={cstyles.margintoplarge} />
 
           <div className={cstyles.flexspacebetween}>
-            <div className={cstyles.sublight}>Address</div>
+            <div className={cstyles.large}>Address</div>
             <div className={`${cstyles.sublight} ${cstyles.green}`}>
               {isZns && "ZNS"}
               {!isZns && addressKind === AddressKindEnum.tex && "TEX"}
@@ -228,7 +228,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </div>
         )}
 
-        <ScrollPaneTop offsetHeight={330}>
+        <ScrollPaneTop offsetHeight={327}>
           <div className={styles.addressbooklist}>
             {addressBookSorted && addressBookSorted.length > 0 && (
               <Accordion>
