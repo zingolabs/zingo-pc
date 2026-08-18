@@ -40,5 +40,12 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
+      # The key is not needed to run the tests — nothing here calls SwapKit —
+      # but passing it keeps the generated file identical to a real build. On
+      # pull requests from forks GitHub withholds secrets, so this resolves to
+      # empty and generate-swapkit-secrets.js writes its placeholder, which is
+      # what lets a fork's PR compile and test at all.
       - name: Run tests
+        env:
+          SWAPKIT_API_KEY: ${{ secrets.SWAPKIT_API_KEY }}
         run: yarn test:run
