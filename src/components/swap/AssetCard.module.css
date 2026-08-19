@@ -1,0 +1,232 @@
+/*
+ * One side of the swap. Ported from the mobile wallet's `renderAssetCard`
+ * styles; the numbers are theirs, the axis is not.
+ *
+ * Mobile stacks the two cards vertically and lets the round toggle straddle
+ * the horizontal seam. On a desktop window the width is the spare dimension,
+ * so the pair sits side by side and the toggle straddles the vertical seam
+ * instead — which is also why the icon is not rotated here: mobile turns it
+ * 90 deg precisely to match its vertical layout, and the glyph's own arrows
+ * already point left/right.
+ */
+
+.pair {
+  display: flex;
+  align-items: stretch;
+  /* The button is 36px wide and pulled 12px into each card, so the visible
+     seam is 36 - 2 x 12 = 12px, matching mobile's arithmetic on its own axis. */
+  gap: 12px;
+}
+
+.card {
+  flex: 1;
+  min-width: 0;
+  border-radius: 16px;
+  border: 1px solid var(--color-zingo);
+  padding: 16px;
+  background-color: var(--color-background);
+  display: flex;
+  flex-direction: column;
+}
+
+.headerrow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.cardlabel {
+  font-size: 12px;
+  opacity: 0.7;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bodyrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* The asset chip: logo + ticker, plus a chevron when it opens the picker. */
+.chip {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  border: none;
+  background-color: var(--color-background-dark);
+  color: var(--color-text);
+  font: inherit;
+  flex-shrink: 0;
+}
+
+.chipbutton {
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.chipbutton:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.chipbutton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.chipsymbol {
+  font-size: 16px;
+  font-weight: bold;
+  max-width: 9ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amountcol {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+  flex: 1;
+}
+
+.amountinput {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: right;
+  padding: 0;
+  width: 100%;
+  min-width: 0;
+  border: none;
+  background: none;
+  color: var(--color-text);
+}
+
+.amountinput:focus {
+  outline: none;
+}
+
+.amountinvalid {
+  color: var(--color-error);
+}
+
+/* The destination amount is read-only: it is the quote's estimate, not input. */
+.amounttext {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: right;
+  color: var(--color-primary-disable);
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.amountsub {
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.addressblock {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-zingo);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* Pushed to the bottom so both cards' address fields line up even when one
+     side carries an extra line above. */
+  margin-bottom: 0;
+}
+
+.addresslabel {
+  font-size: 12px;
+}
+
+.addressinput {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  flex: 1;
+  min-width: 0;
+}
+
+.addressinput:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
+.addressinvalid {
+  border-color: var(--color-error);
+}
+
+.errortext {
+  font-size: 12px;
+  color: var(--color-error);
+}
+
+/* The toggle straddles the seam between the two cards. */
+.togglewrap {
+  display: flex;
+  align-items: center;
+  margin-left: -12px;
+  margin-right: -12px;
+  /* The second card renders after this in the tree and would otherwise paint
+     over the button's right half. */
+  z-index: 1;
+}
+
+.togglebtn {
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  border: none;
+  background-color: var(--color-primary);
+  color: var(--color-background);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.togglebtn:hover {
+  opacity: 0.7;
+}
+
+/* Field plus its actions, sharing one border so they read as a single control. */
+.addressrow {
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  border: 1px solid var(--color-zingo);
+  background-color: var(--color-background-dark);
+}
+
+.addressrow:focus-within {
+  border-color: var(--color-primary);
+}
+
+.addressaction {
+  flex-shrink: 0;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.addressaction:hover {
+  filter: brightness(1.3);
+}

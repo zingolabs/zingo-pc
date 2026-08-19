@@ -1,5 +1,24 @@
 import type { SwapAssetType, TokenEntryType } from "../../swap";
 
+/**
+ * ZEC as a catalog entry, so the fixed side of the swap goes through the same
+ * `TokenLogo` as the asset the user picks and both sides get the same
+ * composition treatment. The catalog itself excludes `ZEC.ZEC` — it lists what
+ * ZEC can be swapped against — so this is written out rather than looked up.
+ *
+ * Same entry as the mobile wallet's `ZEC_TOKEN_ENTRY`, logo URL included.
+ */
+export const ZEC_TOKEN_ENTRY: TokenEntryType = {
+  chain: "ZEC",
+  chainId: "zcash",
+  ticker: "ZEC",
+  identifier: "ZEC.ZEC",
+  symbol: "ZEC",
+  name: "Zcash",
+  decimals: 8,
+  logoURI: "https://storage.googleapis.com/token-list-swapkit/images/zec.zec.png",
+};
+
 /** ZEC is the fixed side of every swap this wallet performs. */
 export const ZEC_ASSET: SwapAssetType = {
   swapKitId: "ZEC.ZEC",

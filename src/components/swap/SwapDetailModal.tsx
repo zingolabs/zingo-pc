@@ -16,6 +16,7 @@ import {
   SwapStatusEnum,
   buildTrackerEntries,
   canRemoveSwap,
+  isPrePaymentStatus,
   isRealLegHash,
   providerLongLabel,
   swapRowLabel,
@@ -46,9 +47,28 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
     blockExplorerTestnetTransaction,
     blockExplorerMainnetTransactionCustom,
     blockExplorerTestnetTransactionCustom,
+    openConfirmModal,
   } = useContext(ContextApp);
   const { copied, copy } = useCopy(1500);
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
+
+  // Removing is destructive and irreversible, so it asks first — the same
+  // treatment `VtModal` gives the equivalent action on a value transfer.
+  //
+  // A swap still waiting for payment gets a sharper warning: it may yet move,
+  // and forgetting it is how a user loses sight of funds in flight. The
+  // statuses that would make that dangerous outright — Completed, Pending,
+  // Processing — never reach here, because `canRemoveSwap` hides the button.
+  const confirmRemove = () => {
+    closeModal();
+    openConfirmModal(
+      "Remove swap",
+      isPrePaymentStatus(record.status)
+        ? "This swap has not been paid yet. Removing it only forgets it here — if you do send the deposit later, this wallet will no longer track it. Continue?"
+        : "This removes the swap from your history. The transactions themselves stay on-chain. Continue?",
+      () => onRemove(record),
+    );
+  };
 
   const trackers: TrackerEntryType[] = useMemo(() => {
     const mainnet = currentWallet?.chain_name === ServerChainNameEnum.mainChainName;
@@ -186,7 +206,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
 
         <div className={`${cstyles.center} ${cstyles.horizontalflex} ${cstyles.padtopsmall}`}>
           {removable && (
-            <button type="button" className={cstyles.primarybutton} onClick={() => onRemove(record)}>
+            <button type="button" className={cstyles.primarybutton} onClick={confirmRemove}>
               Remove
             </button>
           )}

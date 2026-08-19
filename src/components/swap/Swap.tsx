@@ -1,13 +1,19 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import cstyles from "../common/Common.module.css";
+import styles from "./Swap.module.css";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
 import { ContextApp } from "../../context/ContextAppState";
+import { ServerChainNameEnum } from "../appstate";
 import { useSwapService } from "../../context/ContextSwapService";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import { native } from "../../electronBridge";
 import {
   SwapDirectionEnum,
+  SwapKitHttpError,
+  describeEmptyQuote,
   extractFiatValueBasis,
   formatAmountForDisplay,
   providerShortLabel,
@@ -16,11 +22,14 @@ import {
 import type { FiatValueBasisType, QuoteInput, RouteOptionType, TokenEntryType } from "../../swap";
 import { ZEC_ASSET, isQuotableToken, tokenToSwapAsset } from "./swapAssets";
 import SwapExecute from "./SwapExecute";
-import TokenLogo from "./TokenLogo";
+import AssetPair from "./AssetPair";
+import { chainDisplayName } from "./chainDisplayName";
+import QuoteRefreshRing from "./QuoteRefreshRing";
 import AssetPicker from "./AssetPicker";
 import QuotesPicker from "./QuotesPicker";
 import SlippagePicker, { formatSlippagePercent } from "./SlippagePicker";
 import InsufficientFunds from "./InsufficientFunds";
+import ContactPicker from "./ContactPicker";
 
 /** SwapKit's default slippage tolerance, in basis points. */
 const DEFAULT_SLIPPAGE_BPS = 100;
@@ -38,6 +47,12 @@ const QUOTE_REFRESH_MS = 20_000;
  */
 const QUOTE_DEBOUNCE_MS = 1_000;
 
+/**
+ * Floor between two hand-asked quotes. The ring fires immediately on click;
+ * without this, holding it down would be one HTTP request per press.
+ */
+const MANUAL_REFRESH_COOLDOWN_MS = 5_000;
+
 /** The catalog entry the picker starts on, before the user chooses. */
 const DEFAULT_TOKEN_IDENTIFIER = "BTC.BTC";
 
@@ -49,6 +64,7 @@ const DEFAULT_TOKEN_IDENTIFIER = "BTC.BTC";
  * suggests, and the user can flip it.
  */
 type SwapProps = {
+  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
   sendSwapDeposit: (args: {
     depositAddress: string;
     amountAtomic: number;
@@ -57,8 +73,8 @@ type SwapProps = {
   }) => Promise<string[]>;
 };
 
-const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
-  const { totalBalance, currentWallet, info, readOnly } = useContext(ContextApp);
+const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => {
+  const { totalBalance, currentWallet, info, readOnly, zecPrice, addressBook } = useContext(ContextApp);
   const swapService = useSwapService();
 
   const [direction, setDirection] = useState<SwapDirectionEnum>(() =>
@@ -68,10 +84,26 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
 
   const [tokens, setTokens] = useState<TokenEntryType[] | null>(null);
   const [catalogError, setCatalogError] = useState<string>("");
+  // SwapKit's edge refusing the request outright — a region or ISP block, not
+  // a server having a bad day. Told apart from any other failure because the
+  // way out is different: a VPN, not waiting.
+  const [catalogEdgeBlocked, setCatalogEdgeBlocked] = useState<boolean>(false);
+  const [catalogRetrying, setCatalogRetrying] = useState<boolean>(false);
   const [selectedToken, setSelectedToken] = useState<TokenEntryType | null>(null);
 
   const [amount, setAmount] = useState<string>("");
-  const [counterpartyAddress, setCounterpartyAddress] = useState<string>("");
+  // Two fields, not one reused across directions: they mean different things
+  // and belong to different swaps. Outbound, the destination is where the
+  // bought asset lands. Inbound, the refund is where the sold asset returns if
+  // the swap fails. Both are on the non-ZEC chain, and keeping them apart is
+  // what lets a flip restore what the user already typed for that direction
+  // instead of handing them the other side's address.
+  const [destinationAddress, setDestinationAddress] = useState<string>("");
+  const [refundAddress, setRefundAddress] = useState<string>("");
+  // The error waits for the field to lose focus, so the user is told after
+  // committing to a value rather than while halfway through typing it.
+  const [destinationAddressTouched, setDestinationAddressTouched] = useState<boolean>(false);
+  const [refundAddressTouched, setRefundAddressTouched] = useState<boolean>(false);
   const [addressValid, setAddressValid] = useState<boolean>(true);
 
   // Reserved once per swap intent and reused across re-quotes. The index is
@@ -90,36 +122,74 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [quoting, setQuoting] = useState<boolean>(false);
   const [quoteError, setQuoteError] = useState<string>("");
+  // "The last quote attempt for the current inputs failed" — kept as a separate
+  // flag so the auto-fire debounce does not retry the same failing combination
+  // forever (amount below provider minimum, no route, network transient…).
+  // Cleared whenever an input that affects the quote actually changes.
+  const [quoteAttemptFailed, setQuoteAttemptFailed] = useState<boolean>(false);
+  // Manual-refresh rate limit. The ring beside the countdown triggers an
+  // immediate re-quote; without a cooldown a spammed click would fire one HTTP
+  // request per press.
+  const [manualRefreshCooldownUntilMs, setManualRefreshCooldownUntilMs] = useState<number>(0);
   const [pickerOpen, setPickerOpen] = useState<boolean>(false);
   const [quotesOpen, setQuotesOpen] = useState<boolean>(false);
   const [slippageOpen, setSlippageOpen] = useState<boolean>(false);
   const [slippageBps, setSlippageBps] = useState<number>(DEFAULT_SLIPPAGE_BPS);
   const [insufficientOpen, setInsufficientOpen] = useState<boolean>(false);
+  const [contactsOpen, setContactsOpen] = useState<boolean>(false);
 
   const spendable = totalBalance?.totalSpendableBalance ?? 0;
 
-  useEffect(() => {
+  // Callable from the effect below, from the banner's retry, and from the
+  // window regaining focus. The ref-tracked token protects against re-entry:
+  // only the most recent invocation writes to state, so a slow first attempt
+  // cannot overwrite the success of a fresh retry.
+  const loadCatalogRef = useRef<{ cancelled: boolean } | null>(null);
+  const loadCatalog = useCallback(async () => {
     if (!swapService) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const catalog = (await swapService.listRoutableTokens(isOutbound ? "outbound" : "inbound")).filter(
-          isQuotableToken,
-        );
-        if (cancelled) return;
-        setTokens(catalog);
-        setCatalogError("");
-        setSelectedToken(catalog.find((t) => t.identifier === DEFAULT_TOKEN_IDENTIFIER) ?? catalog[0] ?? null);
-      } catch (error) {
-        if (cancelled) return;
-        setTokens([]);
-        setCatalogError(`${error}`);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    if (loadCatalogRef.current) loadCatalogRef.current.cancelled = true;
+    const token = { cancelled: false };
+    loadCatalogRef.current = token;
+    setCatalogRetrying(true);
+    try {
+      const catalog = (await swapService.listRoutableTokens(isOutbound ? "outbound" : "inbound")).filter(
+        isQuotableToken,
+      );
+      if (token.cancelled) return;
+      setTokens(catalog);
+      setCatalogError("");
+      setCatalogEdgeBlocked(false);
+      setSelectedToken(catalog.find((t) => t.identifier === DEFAULT_TOKEN_IDENTIFIER) ?? catalog[0] ?? null);
+    } catch (error) {
+      if (token.cancelled) return;
+      setTokens([]);
+      // An edge block gets the banner and no error line: the banner already
+      // says more, and better, than the raw message would.
+      const edgeBlocked = error instanceof SwapKitHttpError && error.isEdgeBlocked;
+      setCatalogEdgeBlocked(edgeBlocked);
+      setCatalogError(edgeBlocked ? "" : `${error}`);
+    } finally {
+      if (!token.cancelled) setCatalogRetrying(false);
+    }
   }, [swapService, isOutbound]);
+
+  useEffect(() => {
+    loadCatalog();
+    return () => {
+      if (loadCatalogRef.current) loadCatalogRef.current.cancelled = true;
+    };
+  }, [loadCatalog]);
+
+  // Retry silently when the window regains focus while the banner is up. The
+  // flow it serves: user reads the banner, alt-tabs to their VPN client,
+  // comes back. If it works the banner goes without them asking. This is the
+  // desktop counterpart of the mobile wallet retrying on app foreground.
+  useEffect(() => {
+    if (!catalogEdgeBlocked) return;
+    const onFocus = () => loadCatalog();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, [catalogEdgeBlocked, loadCatalog]);
 
   // Only the changes that make a shown quote meaningless clear it: flipping
   // direction swaps which side is ZEC, and a different asset prices something
@@ -142,30 +212,108 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
     setQuoteError("");
   }, [direction, selectedToken]);
 
+  // A swap intent is a direction and an asset; change either and this is a
+  // different swap, so the next quote burns a fresh index. Reusing the address
+  // across intents would let a provider tie two unrelated swaps to one
+  // identifier, which is the whole thing the ephemeral scope exists to avoid.
+  useEffect(() => {
+    setEphemeralAddress("");
+  }, [direction, selectedToken?.identifier]);
+
+  // If the user picked a wrapped-ZEC token while inbound and then flips to
+  // outbound, the chip would point at an asset we are about to refuse to
+  // route to. Snap it back to a safe default so the form stays consistent.
+  useEffect(() => {
+    if (!isOutbound || !selectedToken || !tokens) return;
+    const ticker = (selectedToken.ticker || selectedToken.symbol || "").toUpperCase();
+    if (ticker === "ZEC") {
+      setSelectedToken(tokens.find((t) => t.identifier === DEFAULT_TOKEN_IDENTIFIER) ?? tokens[0] ?? null);
+    }
+  }, [isOutbound, selectedToken, tokens]);
+
   const counterpartyChain = selectedToken?.chain ?? "";
+
+  // An address that was valid for the previous chain is almost certainly wrong
+  // for the new one, and leaving it in the field invites sending to it.
+  useEffect(() => {
+    setDestinationAddress("");
+    setRefundAddress("");
+    setDestinationAddressTouched(false);
+    setRefundAddressTouched(false);
+  }, [direction, counterpartyChain]);
+
+  // Whichever field is live for the current direction. Both sit on the non-ZEC
+  // chain: outbound the bought asset lands there, inbound the sold asset
+  // returns there. The wallet's own ZEC address is never typed — it is the
+  // ephemeral one this screen reserves.
+  const activeAddress = isOutbound ? destinationAddress : refundAddress;
+  const setActiveAddress = isOutbound ? setDestinationAddress : setRefundAddress;
+  const activeAddressTouched = isOutbound ? destinationAddressTouched : refundAddressTouched;
+  const setActiveAddressTouched = isOutbound ? setDestinationAddressTouched : setRefundAddressTouched;
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      // The chain the address must belong to is the non-ZEC one when sending
-      // out, and ZEC when receiving: the field means "where the funds land".
-      const chain = isOutbound ? counterpartyChain : ZEC_ASSET.chain;
-      const valid = await validateAddressForChain(chain, counterpartyAddress, currentWallet?.chain_name);
+      const valid = await validateAddressForChain(counterpartyChain, activeAddress, currentWallet?.chain_name);
       if (!cancelled) setAddressValid(valid);
     })();
     return () => {
       cancelled = true;
     };
-  }, [counterpartyAddress, counterpartyChain, isOutbound, currentWallet]);
+  }, [activeAddress, counterpartyChain, currentWallet]);
+
+  const addressShowError = activeAddressTouched && activeAddress.trim().length > 0 && !addressValid;
+
+  // Contacts for the chain being asked for. Zcash entries written before swaps
+  // existed carry no `swapChain`; the address book migration stamps them ZEC
+  // on read, so this comparison holds for old and new alike.
+  const chainContacts = useMemo(
+    () => (addressBook ?? []).filter((c) => (c.swapChain ?? "") === counterpartyChain),
+    [addressBook, counterpartyChain],
+  );
+  const activeAddressSaved = useMemo(
+    () => chainContacts.some((c) => c.address === activeAddress),
+    [chainContacts, activeAddress],
+  );
+
+  // Saving asks for the label, which is the only thing the contact needs that
+  // is not already on screen. `chain` is mainnet because swaps are mainnet-only;
+  // `swapChain` is what actually identifies a Bitcoin or Ethereum address.
+  const saveActiveAddress = () => {
+    const label = window.prompt(`Save this ${chainDisplayName(counterpartyChain) || counterpartyChain} address as:`);
+    if (!label) return;
+    addAddressBookEntry(label.trim(), activeAddress.trim(), ServerChainNameEnum.mainChainName, counterpartyChain);
+  };
 
   const amountNumber = parseFloat(amount.replace(",", "."));
   const amountValid = Number.isFinite(amountNumber) && amountNumber > 0;
+  // Only meaningful when this wallet is the one paying. Inbound, the funds come
+  // from somewhere else entirely and this wallet has no idea what that account
+  // holds — refusing on our own ZEC balance would be answering a question
+  // nobody asked.
   const overBalance = isOutbound && amountValid && amountNumber > spendable;
+
+  // Emptying the amount means there is nothing to quote, but the panel must not
+  // blank the instant the number hits zero: erasing the last digit of `0.02` to
+  // retype `0.03` passes through an empty field, and clearing there would make
+  // the quote jump away and back on every edit. Debounced with the same window
+  // as the auto-fire, so only a field *left* empty clears.
+  useEffect(() => {
+    if (amountValid) return;
+    const timer = setTimeout(() => {
+      setRoutes(null);
+      setChosenRouteId("");
+      setQuoteContext(null);
+      setQuoteError("");
+      setQuoteAttemptFailed(false);
+    }, QUOTE_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [amountValid]);
 
   // The quote needs an asset and an amount. The address is the review's
   // requirement, not the quote's.
   const canQuote = !!swapService && !!selectedToken && amountValid;
-  const canReview = canQuote && !overBalance && counterpartyAddress.length > 0 && addressValid;
+  const addressReady = activeAddress.trim().length > 0 && addressValid;
 
   const reserveEphemeral = useCallback(async (): Promise<string> => {
     if (ephemeralAddress) return ephemeralAddress;
@@ -200,8 +348,16 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
       const result = await swapService.quote(quoteInput);
       // No route is a real answer about the market right now, not a glitch:
       // the amount sits below every provider's minimum, or the liquidity is
-      // gone. Saying so beats leaving an empty panel to interpret.
-      setQuoteError(result.routes.length === 0 ? "No route is available for this swap right now." : "");
+      // gone. SwapKit says which in `providerErrors`, so quote the minimum
+      // when that is the reason — "no route" sends the user hunting for a
+      // fault when all they need is a slightly larger amount.
+      setQuoteError(
+        result.routes.length === 0 ? describeEmptyQuote(result.rawResponse, quoteInput.sellAsset.ticker) : "",
+      );
+      // An empty answer counts as a failed attempt: asking the same question
+      // again a second later gets the same answer, and the amount is the thing
+      // the user has to change.
+      setQuoteAttemptFailed(result.routes.length === 0);
       // A refresh must not silently move the user's choice. Route ids are
       // minted per quote, so the pick is carried across by provider, which is
       // what the user actually chose. A provider that dropped out falls back
@@ -229,6 +385,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
       setQuoteError(`${error}`);
       setRoutes(null);
       setQuoteContext(null);
+      setQuoteAttemptFailed(true);
     } finally {
       setQuoting(false);
     }
@@ -239,15 +396,53 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
   // by digit settles into one request instead of one per keystroke.
   useEffect(() => {
     if (!canQuote || reviewing || quoting) return;
+    // Do NOT re-fire when the last attempt for the CURRENT inputs already
+    // failed (below-minimum amount, no route, provider transient…). Without
+    // this guard the debounce keeps hammering the API with the same failing
+    // request. The flag clears when an input actually changes, so a legitimate
+    // new attempt still happens.
+    if (quoteAttemptFailed) return;
     const timer = setTimeout(() => requestQuote(), QUOTE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
     //  is intentionally absent: it is rebuilt whenever the
     // amount changes, which would restart the debounce on every keystroke and
     // then fire immediately once it settled, defeating the delay.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canQuote, reviewing, amount, slippageBps, selectedToken, direction]);
+  }, [canQuote, reviewing, amount, slippageBps, selectedToken, direction, quoteAttemptFailed]);
+
+  // Any input change that could make a previously-failed attempt worth
+  // retrying clears the flag, so the auto-fire schedules again for the new
+  // inputs. Separate from the effect that discards the routes: this one must
+  // not blank the panel, or changing the amount after a "no route" would
+  // flicker it away before the replacement lands.
+  useEffect(() => {
+    setQuoteAttemptFailed(false);
+  }, [amount, slippageBps, selectedToken, direction]);
 
   const chosenRoute = useMemo(() => routes?.find((r) => r.routeId === chosenRouteId) ?? null, [routes, chosenRouteId]);
+
+  // The largest amount that can actually be swapped: the balance minus what
+  // the route charges on the sell side. Offering the bare balance would send
+  // the user straight back to the same refusal, because the fees come out of
+  // the same pot. Without a quote the fees are unknown, so it degrades to the
+  // balance rather than guessing.
+  const totalFeesInSellAssetNum = useMemo(() => {
+    const parsed = parseFloat(chosenRoute?.totalFeesInSellAsset ?? "");
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }, [chosenRoute]);
+  const maxSpendableForSwap = useMemo(
+    () => Math.max(0, spendable - totalFeesInSellAssetNum),
+    [spendable, totalFeesInSellAssetNum],
+  );
+
+  // Whether committing would actually be refused for want of funds. Outbound
+  // only, and only once a route has priced the fees — they come out of the same
+  // balance, so `amount` alone understates what the swap costs. Inbound this is
+  // never true: the source account belongs to someone else's wallet.
+  const insufficientForCommit = useMemo(
+    () => isOutbound && !!chosenRoute && amountValid && amountNumber + totalFeesInSellAssetNum > spendable,
+    [isOutbound, chosenRoute, amountValid, amountNumber, totalFeesInSellAssetNum, spendable],
+  );
 
   // Read inside `requestQuote` to carry the user's pick across a refresh
   // without making the callback depend on `routes`, which would rebuild it on
@@ -297,78 +492,114 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
 
       <ScrollPaneTop offsetHeight={152}>
         <div className={cstyles.well} style={{ margin: "0 16px 16px" }}>
-          <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", alignItems: "center" }}>
-            <div className={cstyles.large}>{isOutbound ? "ZEC → other asset" : "Other asset → ZEC"}</div>
-            <button
-              type="button"
-              className={cstyles.primarybutton}
-              onClick={() => setDirection(isOutbound ? SwapDirectionEnum.Inbound : SwapDirectionEnum.Outbound)}
-            >
-              Flip
-            </button>
-          </div>
+          {/* The two sides. The address belongs to whichever card is not ZEC:
+              outbound it is where the bought asset lands, inbound it is the
+              refund address on the source chain — the same field either way,
+              "where funds reach you", which is why it sits in that card. */}
+          <AssetPair
+            onToggleDirection={() => setDirection(isOutbound ? SwapDirectionEnum.Inbound : SwapDirectionEnum.Outbound)}
+            source={{
+              role: "source",
+              isZec: isOutbound,
+              token: isOutbound ? null : selectedToken,
+              balanceLabel: isOutbound ? `Spendable: ${spendable} ${info.currencyName}` : undefined,
+              amount,
+              editable: true,
+              invalid: overBalance,
+              onChangeAmount: setAmount,
+              // The refusal takes the slot when there is one; otherwise the
+              // fiat value, which mobile shows on the ZEC side only — it is
+              // the one asset this wallet holds a price for.
+              amountSub: overBalance ? (
+                <span style={{ color: Utils.getCssVariable("--color-error") }}>
+                  That is more than the spendable balance.
+                </span>
+              ) : isOutbound && amountValid && zecPrice > 0 ? (
+                Utils.getZecToUsdString(zecPrice, amountNumber)
+              ) : undefined,
+              onSelectAsset: () => setPickerOpen(true),
+              selectDisabled: !tokens || tokens.length === 0,
+              address: isOutbound
+                ? undefined
+                : {
+                    label: "Your refund address on the source chain",
+                    value: activeAddress,
+                    placeholder: "Enter address",
+                    invalid: addressShowError,
+                    errorText: "That address does not look valid for this chain.",
+                    onChange: setActiveAddress,
+                    onBlur: () => setActiveAddressTouched(true),
+                    onPick: () => setContactsOpen(true),
+                    onSave:
+                      activeAddress.trim().length > 0 && addressValid && !activeAddressSaved
+                        ? saveActiveAddress
+                        : undefined,
+                  },
+            }}
+            destination={{
+              role: "destination",
+              isZec: !isOutbound,
+              token: isOutbound ? selectedToken : null,
+              amount: chosenRoute ? formatAmountForDisplay(chosenRoute.expectedReceiveAmount) : "",
+              editable: false,
+              // Inbound the destination is ZEC, so the estimate has a fiat
+              // value the same way the source does when outbound.
+              amountSub:
+                !isOutbound && chosenRoute && zecPrice > 0
+                  ? Utils.getZecToUsdString(zecPrice, parseFloat(chosenRoute.expectedReceiveAmount))
+                  : undefined,
+              onSelectAsset: () => setPickerOpen(true),
+              selectDisabled: !tokens || tokens.length === 0,
+              address: isOutbound
+                ? {
+                    label: `Your ${chainDisplayName(counterpartyChain) || counterpartyChain} address`,
+                    value: activeAddress,
+                    placeholder: "Enter address",
+                    invalid: addressShowError,
+                    errorText: "That address does not look valid for this chain.",
+                    onChange: setActiveAddress,
+                    onBlur: () => setActiveAddressTouched(true),
+                    onPick: () => setContactsOpen(true),
+                    onSave:
+                      activeAddress.trim().length > 0 && addressValid && !activeAddressSaved
+                        ? saveActiveAddress
+                        : undefined,
+                  }
+                : undefined,
+            }}
+          />
 
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>{isOutbound ? "Receive" : "Send"} asset</div>
-            {catalogError && <div style={{ color: Utils.getCssVariable("--color-error") }}>{catalogError}</div>}
-            {!tokens && !catalogError && <div>Loading the asset catalog...</div>}
-            {tokens && tokens.length > 0 && (
+          {/* Below the pair rather than inside a card: a catalog that failed to
+              load is about the screen, not about either asset. */}
+          {catalogEdgeBlocked && (
+            <div className={styles.regionblockbanner}>
+              <div className={cstyles.large} style={{ marginBottom: 4 }}>
+                Swap service unavailable on this network
+              </div>
+              <div>
+                The swap provider is blocking requests from your network. If your country or ISP is restricted,
+                connecting through a VPN usually resolves this.
+              </div>
               <button
                 type="button"
-                onClick={() => setPickerOpen(true)}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  background: "none",
-                  border: "1px solid var(--color-primary)",
-                  borderRadius: 4,
-                  padding: "6px 10px",
-                  color: "inherit",
-                  cursor: "pointer",
-                }}
+                className={cstyles.primarybutton}
+                style={{ marginTop: 10, marginLeft: 0 }}
+                onClick={loadCatalog}
+                disabled={catalogRetrying}
               >
-                <TokenLogo token={selectedToken} size={28} />
-                <span>
-                  {selectedToken?.ticker ?? "Choose"}{" "}
-                  <span className={cstyles.sublight}>{selectedToken?.chain ?? ""}</span>
-                </span>
+                {catalogRetrying ? "Retrying..." : "Retry"}
               </button>
-            )}
-          </div>
-
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>
-              Amount in {isOutbound ? "ZEC" : (selectedToken?.ticker ?? "")}
             </div>
-            <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.0" />
-            {isOutbound && (
-              <div className={`${cstyles.sublight} ${cstyles.small}`}>
-                Spendable: {spendable} {info.currencyName}
-              </div>
-            )}
-            {overBalance && (
-              <div style={{ color: Utils.getCssVariable("--color-error") }}>
-                That is more than the spendable balance.
-              </div>
-            )}
-          </div>
+          )}
 
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>
-              {isOutbound ? `Your ${counterpartyChain} address` : "Your refund address on the source chain"}
+          {catalogError && (
+            <div
+              className={`${cstyles.center} ${cstyles.padtopsmall}`}
+              style={{ color: Utils.getCssVariable("--color-error") }}
+            >
+              {catalogError}
             </div>
-            <input
-              value={counterpartyAddress}
-              onChange={(e) => setCounterpartyAddress(e.target.value)}
-              style={{ width: "100%" }}
-            />
-            {counterpartyAddress.length > 0 && !addressValid && (
-              <div style={{ color: Utils.getCssVariable("--color-error") }}>
-                That address does not look valid for this chain.
-              </div>
-            )}
-          </div>
+          )}
 
           <div className={cstyles.padtopsmall}>
             <div className={`${cstyles.sublight} ${cstyles.small}`}>Slippage tolerance</div>
@@ -408,17 +639,39 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
 
         {!!routes?.length && (
           <div className={cstyles.well} style={{ margin: "0 16px 16px" }}>
-            <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", alignItems: "baseline" }}>
+            <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", alignItems: "center" }}>
               <div className={cstyles.large}>Routes</div>
-              {/* The countdown is the honest reading of how old the rate is.
-                  It stops while the review modal is open, because the quote
-                  the user is confirming is the one they were shown. */}
-              <div className={`${cstyles.sublight} ${cstyles.small}`}>
-                {quoting
-                  ? "Refreshing..."
-                  : reviewing
-                    ? "Paused while you review"
-                    : `Refreshing in ${secondsToRefresh}s`}
+              {/* The ring is the honest reading of how old the rate is, and the
+                  control that refreshes it by hand — the same double duty it
+                  serves on mobile. It pauses while the review modal is open,
+                  because the quote the user is confirming is the one they were
+                  shown. */}
+              <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 10 }}>
+                <div className={`${cstyles.sublight} ${cstyles.small}`}>
+                  {quoting
+                    ? "Refreshing..."
+                    : reviewing
+                      ? "Paused while you review"
+                      : `Refreshing in ${secondsToRefresh}s`}
+                </div>
+                <QuoteRefreshRing
+                  size={28}
+                  color={Utils.getCssVariable("--color-primary")}
+                  trackColor={Utils.getCssVariable("--color-primary-disable")}
+                  durationMs={QUOTE_REFRESH_MS}
+                  // Restarts the fill on every fresh quote, manual or automatic.
+                  // Paused review keeps the same key, so the ring holds where it is.
+                  resetKey={refreshedAtMs}
+                  onPress={() => {
+                    setManualRefreshCooldownUntilMs(Date.now() + MANUAL_REFRESH_COOLDOWN_MS);
+                    // A hand-asked quote is a new attempt by definition, so a
+                    // previous failure must not silence it.
+                    setQuoteAttemptFailed(false);
+                    requestQuote();
+                  }}
+                  disabled={quoting || reviewing || nowMs < manualRefreshCooldownUntilMs}
+                  title="Refresh the quote now"
+                />
               </div>
             </div>
             {!!chosenRoute && (
@@ -448,14 +701,25 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
               >
                 {routes.length < 2 ? "Only one route" : `Compare ${routes.length} routes`}
               </button>
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                disabled={!chosenRoute}
-                onClick={() => (canReview ? setReviewing(true) : setInsufficientOpen(true))}
-              >
-                Review
-              </button>
+              {/* The button changes identity rather than always saying
+                  "Review" and then explaining a refusal in a modal. Only a
+                  genuine shortfall opens the funds modal; a missing or invalid
+                  address leaves the button disabled, which is what it means. */}
+              {insufficientForCommit ? (
+                <button type="button" className={cstyles.primarybutton} onClick={() => setInsufficientOpen(true)}>
+                  Insufficient funds &nbsp;
+                  <FontAwesomeIcon icon={faCircleInfo} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className={cstyles.primarybutton}
+                  disabled={!chosenRoute || !addressReady}
+                  onClick={() => setReviewing(true)}
+                >
+                  Review
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -468,18 +732,27 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
             // anything. Everything else stays as it was quoted.
             quoteInput={{
               ...quoteContext.quoteInput,
-              sourceAddress: isOutbound ? ephemeralAddress : counterpartyAddress,
-              destinationAddress: isOutbound ? counterpartyAddress : ephemeralAddress,
+              sourceAddress: isOutbound ? ephemeralAddress : activeAddress,
+              destinationAddress: isOutbound ? activeAddress : ephemeralAddress,
             }}
             route={chosenRoute}
             fiatValueBasis={quoteContext.fiatValueBasis}
             direction={direction}
             sendSwapDeposit={sendSwapDeposit}
+            // A completed swap leaves the form empty rather than pre-filled
+            // with what was just sent: the next swap is a new decision, and
+            // leaving the amount and address sitting there invites repeating a
+            // transfer by accident.
             onDone={() => {
               setReviewing(false);
               setRoutes(null);
               setChosenRouteId("");
               setQuoteContext(null);
+              setAmount("");
+              setDestinationAddress("");
+              setRefundAddress("");
+              setDestinationAddressTouched(false);
+              setRefundAddressTouched(false);
               // A fresh swap gets a fresh ephemeral address: reusing one across
               // two swaps would let the provider link them.
               setEphemeralAddress("");
@@ -488,9 +761,23 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit }) => {
         )}
       </ScrollPaneTop>
 
+      {contactsOpen && (
+        <ContactPicker
+          contacts={chainContacts}
+          chain={counterpartyChain}
+          modalIsOpen={contactsOpen}
+          closeModal={() => setContactsOpen(false)}
+          onSelect={(address) => {
+            setActiveAddress(address);
+            setActiveAddressTouched(true);
+          }}
+        />
+      )}
+
       {insufficientOpen && (
         <InsufficientFunds
           spendable={spendable}
+          maxSpendableForSwap={maxSpendableForSwap}
           modalIsOpen={insufficientOpen}
           closeModal={() => setInsufficientOpen(false)}
           onReduce={setAmount}

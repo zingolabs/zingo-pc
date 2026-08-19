@@ -1,0 +1,14 @@
+/*
+ * SwapKit's edge refusing the request outright — a region or ISP block.
+ *
+ * Warning colours rather than error: nothing is broken and nothing was lost,
+ * the service is simply out of reach from here, and there is something the
+ * user can do about it. Ported from the mobile wallet's `regionBlockBanner`.
+ */
+.regionblockbanner {
+  border-radius: 12px;
+  border: 1px solid var(--color-warning);
+  padding: 12px;
+  margin-bottom: 16px;
+  color: var(--color-warning);
+}

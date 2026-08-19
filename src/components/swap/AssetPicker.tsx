@@ -103,7 +103,7 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
                 textAlign: "left",
               }}
             >
-              <TokenLogo token={token} size={32} />
+              <TokenLogo token={token} size={32} surfaceColor="var(--color-background)" />
               <div>
                 <div>
                   {token.ticker} <span className={cstyles.sublight}>{token.chain}</span>

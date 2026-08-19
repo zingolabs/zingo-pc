@@ -47,6 +47,7 @@ export { swapRecordToValueTransfer, isOutboundSwap } from "./swapRecordToValueTr
 export { formatAmountForDisplay } from "./formatAmountForDisplay";
 export { swapRowLabel } from "./swapRowLabel";
 export { extractFiatValueBasis } from "./quoteFiatBasis";
+export { describeEmptyQuote } from "./describeEmptyQuote";
 export { providerShortLabel, providerLongLabel } from "./providerLabels";
 export { convertFeeToAsset, formatFeeAmount, assetShortLabel } from "./feeConversion";
 export type { FeeConversionType } from "./feeConversion";

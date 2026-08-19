@@ -51,6 +51,24 @@ export type QuoteRouteType = {
   meta?: Record<string, unknown>;
 };
 
+/**
+ * Why one provider declined to quote.
+ *
+ * SwapKit answers 200 with an empty `routes[]` and fills this instead, so a
+ * refusal is not an HTTP error and never reaches the error path. It is the
+ * only place the reason exists: without it "no route" is indistinguishable
+ * from a dead market, when the usual cause is simply an amount below the
+ * provider minimum — which `minAmount` states exactly.
+ */
+export type QuoteProviderErrorType = {
+  provider?: string;
+  /** e.g. `"sellAssetAmountTooSmall"`. */
+  errorCode?: string;
+  message?: string;
+  /** Smallest sell amount this provider accepts, in sell-asset units. */
+  minAmount?: string;
+};
+
 export type QuoteResponseType = {
   /**
    * Opaque identifier for the whole quote (covers all `routes[]`). Echoed
@@ -61,6 +79,8 @@ export type QuoteResponseType = {
   assets?: QuoteRouteAssetType[];
   /** Available routes. */
   routes: QuoteRouteType[];
+  /** Per-provider refusals, present when `routes[]` comes back empty. */
+  providerErrors?: QuoteProviderErrorType[];
   /** Anything else SwapKit returns we have not modelled. */
   meta?: Record<string, unknown>;
 };

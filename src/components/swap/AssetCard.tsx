@@ -1,0 +1,182 @@
+import React from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faAddressBook, faBookmark, faChevronDown, faXmark } from "@fortawesome/free-solid-svg-icons";
+
+import cstyles from "../common/Common.module.css";
+import styles from "./AssetCard.module.css";
+import type { TokenEntryType } from "../../swap";
+import TokenLogo from "./TokenLogo";
+import { ZEC_TOKEN_ENTRY } from "./swapAssets";
+
+/**
+ * One side of the swap: what the asset is, how much of it, and where it lands.
+ *
+ * Ported from the mobile wallet's `renderAssetCard`. The whole side lives in
+ * one card — chip, amount and address together — because they describe a
+ * single thing; splitting them into separate rows down the screen, which is
+ * what this screen did before, left the user assembling the meaning
+ * themselves.
+ *
+ * ZEC is non-selectable, being the fixed side of every swap here, so its chip
+ * is inert and carries no chevron. Both chips still go through the same
+ * `TokenLogo` so the two sides look like the same kind of thing.
+ */
+export type AssetCardProps = {
+  role: "source" | "destination";
+  isZec: boolean;
+  /** The counterparty asset, when this side is not ZEC. */
+  token: TokenEntryType | null;
+  /** Right of the title: spendable balance, or whatever the side can say. */
+  balanceLabel?: string;
+  amount: string;
+  /** Source amounts are typed; destination amounts are the quote's estimate. */
+  editable: boolean;
+  invalid?: boolean;
+  onChangeAmount?: (value: string) => void;
+  /** Line under the amount — fiat value, or why the amount is refused. */
+  amountSub?: React.ReactNode;
+  onSelectAsset?: () => void;
+  selectDisabled?: boolean;
+  address?: {
+    label: string;
+    value: string;
+    placeholder?: string;
+    /** Already gated on "touched" by the caller; this only draws it. */
+    invalid?: boolean;
+    errorText?: string;
+    onChange: (value: string) => void;
+    onBlur?: () => void;
+    /** Opens the contact list for this chain. */
+    onPick?: () => void;
+    /** Saves the current value as a contact. Absent once it already is one. */
+    onSave?: () => void;
+  };
+};
+
+const AssetCard: React.FC<AssetCardProps> = ({
+  role,
+  isZec,
+  token,
+  balanceLabel,
+  amount,
+  editable,
+  invalid,
+  onChangeAmount,
+  amountSub,
+  onSelectAsset,
+  selectDisabled,
+  address,
+}) => {
+  const title = role === "source" ? "You Send" : "You Receive (Estimated)";
+  const entry = isZec ? ZEC_TOKEN_ENTRY : token;
+  const symbol = isZec ? "ZEC" : (token?.ticker ?? "Choose");
+
+  const chipInner = (
+    <>
+      <TokenLogo token={entry} size={22} surfaceColor="var(--color-background-dark)" />
+      <span className={styles.chipsymbol} style={isZec ? { color: "var(--color-primary)" } : undefined}>
+        {symbol}
+      </span>
+      {!isZec && <FontAwesomeIcon icon={faChevronDown} style={{ fontSize: 12 }} />}
+    </>
+  );
+
+  return (
+    <div className={styles.card}>
+      <div className={styles.headerrow}>
+        <div className={styles.cardlabel}>{title}</div>
+        <div className={styles.cardlabel}>{balanceLabel ?? ""}</div>
+      </div>
+
+      <div className={styles.bodyrow}>
+        {isZec ? (
+          <div className={styles.chip}>{chipInner}</div>
+        ) : (
+          <button
+            type="button"
+            className={`${styles.chip} ${styles.chipbutton}`}
+            onClick={onSelectAsset}
+            disabled={selectDisabled}
+            aria-label={token ? `Change asset, currently ${token.ticker ?? ""}` : "Choose an asset"}
+          >
+            {chipInner}
+          </button>
+        )}
+
+        <div className={styles.amountcol}>
+          {editable ? (
+            <input
+              className={`${styles.amountinput} ${invalid ? styles.amountinvalid : ""}`}
+              value={amount}
+              onChange={(e) => onChangeAmount?.(e.target.value)}
+              placeholder="0"
+              inputMode="decimal"
+              autoComplete="off"
+              spellCheck={false}
+              aria-label="Amount"
+            />
+          ) : (
+            <div className={styles.amounttext}>{amount || "0"}</div>
+          )}
+          {amountSub && <div className={`${cstyles.sublight} ${styles.amountsub}`}>{amountSub}</div>}
+        </div>
+      </div>
+
+      {address && (
+        <div className={styles.addressblock}>
+          <div className={`${cstyles.sublight} ${styles.addresslabel}`}>{address.label}</div>
+          {/* Field and its actions share a border, so they read as one control
+              rather than a box with loose buttons beside it. */}
+          <div className={`${styles.addressrow} ${address.invalid ? styles.addressinvalid : ""}`}>
+            <input
+              className={styles.addressinput}
+              value={address.value}
+              onChange={(e) => address.onChange(e.target.value)}
+              onBlur={address.onBlur}
+              placeholder={address.placeholder}
+              autoComplete="off"
+              spellCheck={false}
+              aria-label={address.label}
+            />
+            {address.value.length > 0 && (
+              <button
+                type="button"
+                className={styles.addressaction}
+                onClick={() => address.onChange("")}
+                aria-label="Clear the address"
+                title="Clear"
+              >
+                <FontAwesomeIcon icon={faXmark} />
+              </button>
+            )}
+            {address.onPick && (
+              <button
+                type="button"
+                className={styles.addressaction}
+                onClick={address.onPick}
+                aria-label="Choose from contacts"
+                title="Contacts"
+              >
+                <FontAwesomeIcon icon={faAddressBook} />
+              </button>
+            )}
+            {address.onSave && (
+              <button
+                type="button"
+                className={styles.addressaction}
+                onClick={address.onSave}
+                aria-label="Save as a contact"
+                title="Save as contact"
+              >
+                <FontAwesomeIcon icon={faBookmark} />
+              </button>
+            )}
+          </div>
+          {address.invalid && address.errorText && <div className={styles.errortext}>{address.errorText}</div>}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default AssetCard;

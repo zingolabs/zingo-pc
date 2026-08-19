@@ -7,9 +7,23 @@ import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 
+/**
+ * Down to the zatoshi, dropping anything finer. `toFixed` would round up and
+ * name a figure the wallet does not hold.
+ */
+function truncateToZatoshis(amount: number): string {
+  return (Math.floor(amount * 1e8) / 1e8).toFixed(8);
+}
+
 type InsufficientFundsProps = {
   /** Shielded balance the wallet can spend, in ZEC display units. */
   spendable: number;
+  /**
+   * Balance minus what the live route charges on the sell side — the largest
+   * amount that can actually be swapped. Falls back to the balance when no
+   * quote has landed yet and the fees are therefore unknown.
+   */
+  maxSpendableForSwap: number;
   modalIsOpen: boolean;
   closeModal: () => void;
   onReduce: (amount: string) => void;
@@ -19,14 +33,20 @@ type InsufficientFundsProps = {
  * Shown when the amount asked for is more than the wallet can spend.
  *
  * It offers the way out rather than only naming the problem: reducing to the
- * spendable balance is the action the user would otherwise perform by hand.
+ * largest swappable amount is the action the user would otherwise perform by
+ * hand. Offering the bare balance instead would walk them into the same
+ * refusal, since the route's fees come out of that same balance.
  *
- * That figure is the balance, not a quotable maximum. The network fee still
- * comes out of it, so a swap of exactly this much can still be refused for
- * being a few thousand zatoshis short. The copy says so instead of presenting
- * it as a guaranteed fit.
+ * Truncated rather than rounded, to 8 decimals: rounding up would name a
+ * figure a hair above what the wallet holds.
  */
-const InsufficientFunds: React.FC<InsufficientFundsProps> = ({ spendable, modalIsOpen, closeModal, onReduce }) => (
+const InsufficientFunds: React.FC<InsufficientFundsProps> = ({
+  spendable,
+  maxSpendableForSwap,
+  modalIsOpen,
+  closeModal,
+  onReduce,
+}) => (
   <Modal
     isOpen={modalIsOpen}
     onRequestClose={closeModal}
@@ -48,20 +68,22 @@ const InsufficientFunds: React.FC<InsufficientFundsProps> = ({ spendable, modalI
         wallet, and try again.
       </div>
 
-      {spendable > 0 && (
+      {maxSpendableForSwap > 0 && (
         <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
           <button
             type="button"
             className={cstyles.primarybutton}
             onClick={() => {
-              onReduce(spendable.toFixed(8));
+              onReduce(truncateToZatoshis(maxSpendableForSwap));
               closeModal();
             }}
           >
-            Reduce to {spendable.toFixed(8)} ZEC
+            Reduce to {truncateToZatoshis(maxSpendableForSwap)} ZEC
           </button>
           <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
-            That is the whole spendable balance. The fee comes out of it, so the swap may still need a little less.
+            {maxSpendableForSwap < spendable
+              ? "That is the spendable balance less this route's fees."
+              : "That is the whole spendable balance. Fees come out of it, so the swap may still need a little less."}
           </div>
         </div>
       )}

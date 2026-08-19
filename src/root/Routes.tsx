@@ -431,9 +431,12 @@ const AppRoutes: React.FC = () => {
   }, [avoidedServers, currentWallet, openErrorModal, switchServer]);
 
   // --- address book ---
-  const addAddressBookEntry = useCallback((label: string, address: string, chain: ServerChainNameEnum) => {
-    setAddressBookState((prev) => AddressbookImpl.addEntry(prev, label, address, chain));
-  }, []);
+  const addAddressBookEntry = useCallback(
+    (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => {
+      setAddressBookState((prev) => AddressbookImpl.addEntry(prev, label, address, chain, swapChain));
+    },
+    [],
+  );
 
   const removeAddressBookEntry = useCallback((label: string) => {
     setAddressBookState((prev) => AddressbookImpl.removeEntry(prev, label));
@@ -699,7 +702,10 @@ const AppRoutes: React.FC = () => {
               <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
               <Route path={routes.INSIGHT} element={<Insight />} />
               <Route path={routes.HISTORY} element={<History />} />
-              <Route path={routes.SWAP} element={<Swap sendSwapDeposit={runRPCSendSwapDeposit} />} />
+              <Route
+                path={routes.SWAP}
+                element={<Swap sendSwapDeposit={runRPCSendSwapDeposit} addAddressBookEntry={addAddressBookEntry} />}
+              />
               <Route path={routes.MESSAGES} element={<Messages />} />
               <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
               <Route
