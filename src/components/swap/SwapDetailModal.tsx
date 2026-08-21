@@ -2,7 +2,7 @@ import React, { useContext, useMemo, useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCopy, faExternalLinkAlt, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faCopy, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
@@ -211,8 +211,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
             </button>
           )}
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-            Close &nbsp;
-            <FontAwesomeIcon icon={faXmark} />
+            Cancel
           </button>
         </div>
       </div>

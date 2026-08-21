@@ -8,13 +8,14 @@ import {
 } from "react-accessible-accordion";
 import styles from "../Addressbook.module.css";
 import cstyles from "../../common/Common.module.css";
-import { AddressBookEntryClass } from "../../appstate";
+import { AddressBookEntryClass, ServerChainNameEnum, ZEC_SWAP_CHAIN } from "../../appstate";
 import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
 import { isZnsAlias } from "../../../utils/zns";
 import { useCopy } from "../../common/useCopy";
+import { chainDisplayName } from "../../swap/chainDisplayName";
 
 type AddressBookItemProps = {
   item: AddressBookEntryClass;
@@ -27,15 +28,27 @@ type AddressBookItemProps = {
 const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeAddressBookEntry, showChain }) => {
   const navigate = useNavigate();
   const context = useContext(ContextApp);
-  const { readOnly, setSendTo, currentWallet } = context;
+  const { readOnly, setSendTo, setSwapTo, currentWallet } = context;
   const [expandAddress, setExpandAddress] = useState<boolean>(false);
   const { copied, copy } = useCopy(1500);
+
+  // A contact written before the field existed is a Zcash one: there was no way
+  // to store anything else. The read migration stamps them, so this is only the
+  // belt to that braces.
+  const swapChain = item.swapChain ?? ZEC_SWAP_CHAIN;
+  const isZecContact = swapChain === ZEC_SWAP_CHAIN;
 
   // "Send To" only makes sense when the active wallet is on the same network as
   // the contact — sending a mainnet address from a testnet wallet would fail.
   // The entry is still visible (when "Show all networks" is enabled) but the
-  // action is hidden to avoid mistakes.
-  const sendIsAvailable = !!currentWallet && currentWallet.chain_name === item.chain;
+  // action is hidden to avoid mistakes. A non-ZEC contact is never sendable
+  // from here: this wallet holds no BTC to send.
+  const sendIsAvailable = isZecContact && !!currentWallet && currentWallet.chain_name === item.chain;
+
+  // The mirror image: only a non-ZEC contact can be the far side of a swap,
+  // since ZEC is the fixed near side of every swap this wallet performs. Swaps
+  // are mainnet-only, which is the same gate the menu entry uses.
+  const swapIsAvailable = !isZecContact && !readOnly && currentWallet?.chain_name === ServerChainNameEnum.mainChainName;
 
   return (
     <AccordionItem
@@ -48,7 +61,17 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
           <div className={cstyles.flexspacebetween}>
             <div>
               {item.label}
-              {showChain && item.chain && (
+              {/* Which chain the address belongs to is the first thing that
+                  matters now that the book holds more than Zcash, so a non-ZEC
+                  contact always says so. The Zcash network only appears
+                  alongside it when the parent is showing every network, which
+                  is the only time it is ambiguous. */}
+              {!isZecContact && (
+                <span className={`${cstyles.small} ${cstyles.sublight}`} style={{ marginLeft: 8 }}>
+                  [{chainDisplayName(swapChain) || swapChain}]
+                </span>
+              )}
+              {isZecContact && showChain && item.chain && (
                 <span className={`${cstyles.small} ${cstyles.sublight}`} style={{ marginLeft: 8 }}>
                   [{Utils.chainDisplayName(item.chain)}]
                 </span>
@@ -116,6 +139,18 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
               }}
             >
               Send To
+            </button>
+          )}
+          {swapIsAvailable && (
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                setSwapTo({ address: item.address, swapChain });
+                navigate(routes.SWAP);
+              }}
+            >
+              Swap To
             </button>
           )}
           <button type="button" className={cstyles.primarybutton} onClick={() => removeAddressBookEntry(item.label)}>

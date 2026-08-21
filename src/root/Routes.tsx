@@ -453,6 +453,13 @@ const AppRoutes: React.FC = () => {
     setSendPageStateState(newState);
   }, []);
 
+  // Handed to the Swap screen by the Address Book. Cleared by the screen once
+  // read, so it prefills the field on arrival and never again.
+  const [swapToState, setSwapToState] = useState<{ address: string; swapChain: string } | null>(null);
+  const setSwapTo = useCallback((t: { address: string; swapChain: string } | null): void => {
+    setSwapToState(t);
+  }, []);
+
   const setAddLabel = useCallback((ab: AddressBookEntryClass): void => {
     setAddLabelStateState(ab);
   }, []);
@@ -568,6 +575,7 @@ const AppRoutes: React.FC = () => {
       saplingPool,
       transparentPool,
       addLabelState,
+      swapToState,
       errorModal,
       confirmModal,
       openErrorModal,
@@ -575,6 +583,7 @@ const AppRoutes: React.FC = () => {
       openConfirmModal,
       closeConfirmModal,
       setSendTo,
+      setSwapTo,
       calculateShieldFee,
       handleShieldButton,
       setAddLabel,
@@ -616,6 +625,7 @@ const AppRoutes: React.FC = () => {
       saplingPool,
       transparentPool,
       addLabelState,
+      swapToState,
       errorModal,
       confirmModal,
       openErrorModal,
@@ -623,6 +633,7 @@ const AppRoutes: React.FC = () => {
       openConfirmModal,
       closeConfirmModal,
       setSendTo,
+      setSwapTo,
       calculateShieldFee,
       handleShieldButton,
       setAddLabel,

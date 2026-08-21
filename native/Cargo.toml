@@ -45,26 +45,32 @@ zingolib = { git = "https://github.com/zingolabs/zingolib", branch = "opreturn_o
 pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "opreturn_on_proposal" }
 zingo-netutils = { git="https://github.com/zingolabs/zingolib", branch = "opreturn_on_proposal" }
 
+# These must match zingolib's workspace versions exactly, not merely be
+# semver-compatible with them. Two versions of `zcash_keys` resolve to two
+# distinct `UnifiedFullViewingKey` types with the same path, and zingolib's
+# `TryFrom<&UnifiedKeyStore>` impl only targets its own — the compiler then
+# reports a missing trait impl that looks nothing like a version mismatch.
+#
+# The 0.29/0.30 `zcash_primitives` split that forced the old rc.1 pin is gone:
+# the branch dropped the librustzcash git dependency and now takes every one of
+# these from crates.io. When bumping the zingolib rev, read its workspace
+# Cargo.toml and copy the numbers across.
 zcash_address = "0.13"
-# Keep at rc.1 (matches zingolib@79d575bf's lockfile). rc.4 pulls zcash_primitives
-# 0.30 from crates.io, which collides with pepper-sync's 0.29 (HashSer mismatch) —
-# so after any full `cargo update`, re-pin with `cargo update -p zcash_client_backend
-# --precise 0.24.0-rc.1` (and orchard must stay >=0.15.4 for the Ironwood builder).
-zcash_client_backend = { version = "0.24.0-rc.1", features = [
+zcash_client_backend = { version = "0.24.0-rc.7", features = [
     "lightwalletd-tonic",
     "orchard",
     "transparent-inputs",
 ] }
 zcash_encoding = "0.4"
-zcash_keys = { version = "0.15", features = [
+zcash_keys = { version = "0.16.1", features = [
     "transparent-inputs",
     "sapling",
     "orchard",
 ] }
 zcash_note_encryption = "0.4.2"
-zcash_proofs = "0.29"
+zcash_proofs = "0.30"
 zcash_protocol = "0.10"
-zcash_transparent = "0.9"
+zcash_transparent = "0.10"
 
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 

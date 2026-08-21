@@ -32,7 +32,7 @@ const AssetPair: React.FC<AssetPairProps> = ({ source, destination, onToggleDire
       >
         {/* Not rotated: mobile turns the glyph 90 deg to match its vertical
             stack, and these arrows already point the way this pair runs. */}
-        <SwapFilledIcon size={20} color="currentColor" />
+        <SwapFilledIcon size={15} color="currentColor" />
       </button>
     </div>
 

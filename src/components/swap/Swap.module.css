@@ -12,3 +12,14 @@
   margin-bottom: 16px;
   color: var(--color-warning);
 }
+
+/*
+ * The shared `.well` pads 16px at the sides but only 11px top and bottom. That
+ * asymmetry is easy to miss elsewhere and obvious here, where the cards inside
+ * give it a straight edge to be measured against. Overridden for this screen
+ * rather than changed in the class every other screen shares.
+ */
+.panel {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}

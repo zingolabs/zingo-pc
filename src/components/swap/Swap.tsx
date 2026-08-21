@@ -2,8 +2,6 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 
 import cstyles from "../common/Common.module.css";
 import styles from "./Swap.module.css";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleInfo } from "@fortawesome/free-solid-svg-icons";
 import { ContextApp } from "../../context/ContextAppState";
 import { ServerChainNameEnum } from "../appstate";
 import { useSwapService } from "../../context/ContextSwapService";
@@ -74,7 +72,8 @@ type SwapProps = {
 };
 
 const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => {
-  const { totalBalance, currentWallet, info, readOnly, zecPrice, addressBook } = useContext(ContextApp);
+  const { totalBalance, currentWallet, info, readOnly, zecPrice, addressBook, swapToState, setSwapTo } =
+    useContext(ContextApp);
   const swapService = useSwapService();
 
   const [direction, setDirection] = useState<SwapDirectionEnum>(() =>
@@ -230,6 +229,22 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       setSelectedToken(tokens.find((t) => t.identifier === DEFAULT_TOKEN_IDENTIFIER) ?? tokens[0] ?? null);
     }
   }, [isOutbound, selectedToken, tokens]);
+
+  // Arriving from the Address Book: fill the address and point the asset chip
+  // at that chain. Consumed once and cleared, so coming back to this screen
+  // later does not refill a field the user deliberately emptied. Waits for the
+  // catalog, which is what turns a chain code into a selectable asset.
+  useEffect(() => {
+    if (!swapToState || !tokens || tokens.length === 0) return;
+    const match = tokens.find((t) => (t.chain ?? "").toUpperCase() === swapToState.swapChain.toUpperCase());
+    // The contact is the far side of the swap, so this only makes sense
+    // outbound: that is the direction whose destination the user types.
+    setDirection(SwapDirectionEnum.Outbound);
+    if (match) setSelectedToken(match);
+    setDestinationAddress(swapToState.address);
+    setDestinationAddressTouched(true);
+    setSwapTo(null);
+  }, [swapToState, tokens, setSwapTo]);
 
   const counterpartyChain = selectedToken?.chain ?? "";
 
@@ -491,7 +506,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Swap</div>
 
       <ScrollPaneTop offsetHeight={152}>
-        <div className={cstyles.well} style={{ margin: "0 16px 16px" }}>
+        <div className={`${cstyles.well} ${styles.panel}`} style={{ margin: "0 16px 16px" }}>
           {/* The two sides. The address belongs to whichever card is not ZEC:
               outbound it is where the bought asset lands, inbound it is the
               refund address on the source chain — the same field either way,
@@ -602,7 +617,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
           )}
 
           <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>Slippage tolerance</div>
+            <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.marginbottomsmall}`}>
+              Slippage tolerance
+            </div>
             <button
               type="button"
               onClick={() => setSlippageOpen(true)}
@@ -638,7 +655,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         )}
 
         {!!routes?.length && (
-          <div className={cstyles.well} style={{ margin: "0 16px 16px" }}>
+          <div className={`${cstyles.well} ${styles.panel}`} style={{ margin: "0 16px 16px" }}>
             <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", alignItems: "center" }}>
               <div className={cstyles.large}>Routes</div>
               {/* The ring is the honest reading of how old the rate is, and the
@@ -708,7 +725,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               {insufficientForCommit ? (
                 <button type="button" className={cstyles.primarybutton} onClick={() => setInsufficientOpen(true)}>
                   Insufficient funds &nbsp;
-                  <FontAwesomeIcon icon={faCircleInfo} />
+                  <i className={`${"fas"} ${"fa-info-circle"}`} />
                 </button>
               ) : (
                 <button

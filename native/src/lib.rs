@@ -445,7 +445,7 @@ where
             g
         }
     };
-    f(&mut *guard)
+    f(&mut guard)
 }
 
 fn reset_lightclient() {
@@ -551,7 +551,7 @@ fn construct_uri_load_config(
 fn deinitialize(mut cx: FunctionContext) -> JsResult<JsString> {
     reset_lightclient();
 
-    Ok(cx.string(format!("OK")))
+    Ok(cx.string("OK"))
 }
 
 // Check if there is an existing wallet
@@ -771,7 +771,7 @@ fn write_to_path(wallet_path: &std::path::Path, bytes: &[u8]) -> std::io::Result
         .map_err(|e| std::io::Error::new(e.kind(), format!("write temp {:?}: {}", temp_wallet_path, e)))?;
 
     let file = writer.into_inner()
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("into_inner: {}", e)))?;
+        .map_err(|e| std::io::Error::other(format!("into_inner: {}", e)))?;
 
     file.sync_all()
         .map_err(|e| std::io::Error::new(e.kind(), format!("sync temp {:?}: {}", temp_wallet_path, e)))?;

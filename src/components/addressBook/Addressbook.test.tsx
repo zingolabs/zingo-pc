@@ -8,6 +8,20 @@ jest.mock("../../electronBridge");
 
 // Provide a controllable ZNS resolver — `mock` prefix avoids jest hoist restriction.
 let mockResolveImpl: (alias: string, chain: string) => Promise<any> = async () => ({ ok: false, reason: "not-found" });
+// The swap helpers reach the native address parser once per chain, which is far
+// more than these tests are about — stubbed so a case can state which chains it
+// wants considered.
+let mockPossibleChains: string[] = ["ZEC"];
+let mockChainValid = true;
+jest.mock("../../swap", () => {
+  const actual = jest.requireActual("../../swap");
+  return {
+    ...actual,
+    possibleChainsForAddress: async () => mockPossibleChains,
+    validateAddressForChain: async () => mockChainValid,
+  };
+});
+
 jest.mock("../../utils/zns", () => {
   const actual = jest.requireActual("../../utils/zns");
   return {
@@ -21,6 +35,8 @@ const { native } = require("../../electronBridge");
 
 beforeEach(() => {
   mockResolveImpl = async () => ({ ok: false, reason: "not-found" });
+  mockPossibleChains = ["ZEC"];
+  mockChainValid = true;
   (native.parse_address as jest.Mock).mockReset();
 });
 
@@ -149,7 +165,9 @@ describe("AddressBook", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "u1valid" } });
     await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
-    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "u1valid", ServerChainNameEnum.mainChainName);
+    // The fourth argument is the asset chain. A Zcash address saved here is a
+    // ZEC contact, which is what every entry was before the book held more.
+    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "u1valid", ServerChainNameEnum.mainChainName, "ZEC");
   });
 
   it("recognizes a ZNS alias as valid and shows the 'ZNS' tag", async () => {
@@ -199,5 +217,106 @@ describe("AddressBook", () => {
     expect(screen.queryByText("Tester")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText(/Show contacts from all networks/i));
     expect(screen.getByText("Tester")).toBeInTheDocument();
+  });
+
+  // The address book held Zcash and nothing else until now. These cover the
+  // part that changed: an address on another chain, which the Zcash parser
+  // would refuse outright.
+  describe("non-Zcash contacts", () => {
+    // Adding a non-ZEC contact asks for confirmation first. Cases about what ends
+    // up saved take the confirmation as given; the one below is about the
+    // confirmation itself.
+    const autoConfirm = () => jest.fn((_title: string, _body: string | JSX.Element, action: () => void) => action());
+
+    it("offers a chain picker only when the address leaves the chain in doubt", async () => {
+      mockPossibleChains = ["BTC"];
+      render(<AddressBook {...baseProps} />);
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
+      // A single candidate is not a question worth asking.
+      await waitFor(() => expect(screen.queryByRole("combobox", { name: /chain/i })).not.toBeInTheDocument());
+
+      mockPossibleChains = ["BTC", "LTC"];
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qambiguous" } });
+      expect(await screen.findByRole("combobox", { name: /chain/i })).toBeInTheDocument();
+    });
+
+    it("saves the asset chain alongside the Zcash network", async () => {
+      mockPossibleChains = ["BTC"];
+      const addAddressBookEntry = jest.fn();
+      render(<AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />, {
+        contextOverrides: { openConfirmModal: autoConfirm() },
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+      expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+    });
+
+    it("refuses an address that is not valid for its chain", async () => {
+      mockPossibleChains = ["BTC"];
+      mockChainValid = false;
+      render(<AddressBook {...baseProps} />);
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "not-bitcoin" } });
+      expect(await screen.findByText(/not a valid bitcoin address/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^add$/i })).toBeDisabled();
+    });
+
+    // Shape-only recognition can name a plausible but wrong chain, and a contact
+    // filed under the wrong one becomes a swap sent to the wrong network.
+    it("saves nothing until the detected chain is confirmed", async () => {
+      mockPossibleChains = ["BTC"];
+      const addAddressBookEntry = jest.fn();
+      const openConfirmModal = jest.fn();
+      render(<AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />, {
+        contextOverrides: { openConfirmModal },
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+
+      expect(addAddressBookEntry).not.toHaveBeenCalled();
+      // The dialog names the chain it detected, which is the thing being checked.
+      expect(openConfirmModal).toHaveBeenCalledWith(
+        "Add contact",
+        expect.stringContaining("Bitcoin"),
+        expect.any(Function),
+      );
+
+      // Confirming is what commits it.
+      openConfirmModal.mock.calls[0][2]();
+      expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+    });
+
+    // The two chains answer different questions, and only one of them applies
+    // to a Bitcoin address. Filing it under the wallet's current network would
+    // tag it with a Zcash network it has nothing to do with.
+    it("files a non-Zcash contact under mainnet even from a testnet wallet", async () => {
+      mockPossibleChains = ["BTC"];
+      const addAddressBookEntry = jest.fn();
+      render(<AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />, {
+        contextOverrides: {
+          currentWallet: { chain_name: ServerChainNameEnum.testChainName } as never,
+          openConfirmModal: autoConfirm(),
+        },
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+      expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+    });
+
+    // The network filter is about Zcash networks; a Bitcoin contact has none of
+    // ours to belong to, so hiding it on testnet would lose it for no reason.
+    it("keeps a non-Zcash contact visible whatever network the wallet is on", () => {
+      const btc = new AddressBookEntryClass("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+      const zecTest = new AddressBookEntryClass("Tester", "u1test", ServerChainNameEnum.testChainName);
+      render(<AddressBook {...baseProps} />, { contextOverrides: { addressBook: [btc, zecTest] } });
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+      expect(screen.queryByText("Tester")).not.toBeInTheDocument();
+    });
   });
 });

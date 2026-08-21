@@ -1,6 +1,6 @@
 import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faAddressBook, faBookmark, faChevronDown, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
 
 import cstyles from "../common/Common.module.css";
 import styles from "./AssetCard.module.css";
@@ -138,15 +138,17 @@ const AssetCard: React.FC<AssetCardProps> = ({
               spellCheck={false}
               aria-label={address.label}
             />
+            {/* Same glyphs and labels the Send screen already uses for these
+                two actions, so the same gesture looks the same in both places. */}
             {address.value.length > 0 && (
               <button
                 type="button"
                 className={styles.addressaction}
                 onClick={() => address.onChange("")}
-                aria-label="Clear the address"
-                title="Clear"
+                aria-label="Clear recipient"
+                title="Clear recipient"
               >
-                <FontAwesomeIcon icon={faXmark} />
+                <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
               </button>
             )}
             {address.onPick && (
@@ -155,9 +157,9 @@ const AssetCard: React.FC<AssetCardProps> = ({
                 className={styles.addressaction}
                 onClick={address.onPick}
                 aria-label="Choose from contacts"
-                title="Contacts"
+                title="Choose from contacts"
               >
-                <FontAwesomeIcon icon={faAddressBook} />
+                <i className={`${"fas"} ${"fa-list"} ${"fa-lg"}`} />
               </button>
             )}
             {address.onSave && (
@@ -165,10 +167,10 @@ const AssetCard: React.FC<AssetCardProps> = ({
                 type="button"
                 className={styles.addressaction}
                 onClick={address.onSave}
-                aria-label="Save as a contact"
+                aria-label="Save as contact"
                 title="Save as contact"
               >
-                <FontAwesomeIcon icon={faBookmark} />
+                <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
               </button>
             )}
           </div>

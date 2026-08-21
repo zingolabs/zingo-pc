@@ -2,21 +2,23 @@ import React, { useContext, useEffect, useState } from "react";
 import { Accordion } from "react-accessible-accordion";
 import styles from "./Addressbook.module.css";
 import cstyles from "../common/Common.module.css";
-import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum } from "../appstate";
+import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum, ZEC_SWAP_CHAIN } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
 import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { isZnsAlias, resolveZnsAlias } from "../../utils/zns";
+import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
+import { chainDisplayName } from "../swap/chainDisplayName";
 
 type AddressBookProps = {
-  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum) => void;
+  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
   removeAddressBookEntry: (label: string) => void;
 };
 
 const AddressBook: React.FC<AddressBookProps> = (props) => {
   const context = useContext(ContextApp);
-  const { addressBook, currentWallet, addLabelState, setAddLabel } = context;
+  const { addressBook, currentWallet, addLabelState, setAddLabel, openConfirmModal } = context;
 
   const [currentLabel, setCurrentLabel] = useState<string>(addLabelState.label);
   const [currentAddress, setCurrentAddress] = useState<string>(addLabelState.address);
@@ -27,6 +29,12 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   const [isZns, setIsZns] = useState<boolean>(false);
   const [showAllNetworks, setShowAllNetworks] = useState<boolean>(false);
   const [addressBookSorted, setAddressBookSorted] = useState<AddressBookEntryClass[]>([]);
+  // The asset chain the address belongs to. Narrowed from the address itself
+  // rather than asked for blind: an address is already evidence of its own
+  // chain, and a list of every chain SwapKit routes would be a worse question
+  // than no question. Same approach the mobile wallet takes.
+  const [swapChain, setSwapChain] = useState<string>(ZEC_SWAP_CHAIN);
+  const [possibleChains, setPossibleChains] = useState<string[]>([ZEC_SWAP_CHAIN]);
 
   const currentChain: ServerChainNameEnum = currentWallet
     ? currentWallet.chain_name
@@ -43,10 +51,36 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       setAddButtonEnabled(!_labelError && !_addressError && currentLabel !== "" && currentAddress !== "");
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentLabel, currentAddress]);
+  }, [currentLabel, currentAddress, swapChain]);
 
+  // Which chains this address could belong to, recomputed as it is typed. The
+  // delay keeps a half-typed address from being probed on every keystroke; the
+  // cleanup means only the last one lands.
   useEffect(() => {
-    const visible = showAllNetworks ? addressBook : addressBook.filter((e) => e.chain === currentChain);
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const chains = await possibleChainsForAddress(currentAddress, currentChain);
+      if (cancelled) return;
+      setPossibleChains(chains.length > 0 ? chains : [ZEC_SWAP_CHAIN]);
+      // An address that cannot be the chain currently selected moves the
+      // selection rather than leaving a contradiction on screen.
+      if (chains.length > 0 && !chains.includes(swapChain)) setSwapChain(chains[0]);
+    }, 350);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentAddress, currentChain]);
+
+  // The network filter is about Zcash networks, so it only has authority over
+  // Zcash contacts. A Bitcoin address has no mainnet/testnet of ours to belong
+  // to, and hiding it whenever the wallet is on testnet would lose it for no
+  // reason — it is exactly as swappable either way.
+  useEffect(() => {
+    const visible = showAllNetworks
+      ? addressBook
+      : addressBook.filter((e) => (e.swapChain ?? ZEC_SWAP_CHAIN) !== ZEC_SWAP_CHAIN || e.chain === currentChain);
     setAddressBookSorted([...visible].sort((a, b) => a.label.localeCompare(b.label)));
   }, [addressBook, showAllNetworks, currentChain]);
 
@@ -54,15 +88,47 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     setCurrentLabel(_currentLabel);
   };
 
+  // A pasted payment URI (`bitcoin:…`, `ethereum:…`, and Zcash's own) is
+  // unwrapped down to the bare address; anything else passes through. Without
+  // this a perfectly good pasted URI would fail validation for the scheme
+  // wrapped around it.
   const updateAddress = (_currentAddress: string) => {
-    setCurrentAddress(_currentAddress);
+    setCurrentAddress(extractPlainAddress(_currentAddress).replace(/\s+/g, ""));
   };
 
   const addButtonClicked = () => {
     const { addAddressBookEntry } = props;
 
-    addAddressBookEntry(currentLabel, currentAddress.replace(/ /g, ""), currentChain);
-    clearFields();
+    // The two chains answer different questions. `swapChain` is which asset
+    // the address belongs to. `chain` is which Zcash network the entry lives
+    // in — a real distinction for a ZEC contact, and none at all for a Bitcoin
+    // one, which has no network of ours to belong to. Non-ZEC entries are
+    // therefore filed under mainnet: swaps only happen there, so saving one
+    // while the wallet sits on testnet would tag it with a network that has
+    // nothing to do with it.
+    const entryChain = swapChain === ZEC_SWAP_CHAIN ? currentChain : ServerChainNameEnum.mainChainName;
+    const commit = () => {
+      addAddressBookEntry(currentLabel, currentAddress.replace(/ /g, ""), entryChain, swapChain);
+      clearFields();
+    };
+
+    // A Zcash address was parsed, so its chain is known rather than guessed.
+    if (swapChain === ZEC_SWAP_CHAIN) {
+      commit();
+      return;
+    }
+
+    // Everything else is recognised by shape, and shapes are shared: every EVM
+    // chain uses the same 0x form, and several UTXO chains the same bech32 one.
+    // So the chain here can be a plausible guess rather than a fact, and a
+    // contact filed under the wrong one becomes a swap sent to the wrong
+    // network. Showing what was detected is the last chance to catch that.
+    openConfirmModal(
+      "Add contact",
+      `Addresses on other chains are recognised by their shape, and some chains share a shape. ` +
+        `Confirm this is a ${chainDisplayName(swapChain) || swapChain} address: ${currentAddress}`,
+      commit,
+    );
   };
 
   const validateLabel = (_currentLabel: string) => {
@@ -76,6 +142,26 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
 
   const validateAddress = async (_currentAddress: string) => {
     const chain = currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName;
+
+    // Branch 0: a non-ZEC contact. Its address is checked against its own
+    // chain's rules — a Bitcoin address put through the Zcash parser would be
+    // refused for not being something it was never meant to be. ZNS and the
+    // Zcash address kinds below are Zcash-only concepts, so they are skipped.
+    if (swapChain !== ZEC_SWAP_CHAIN) {
+      if (_currentAddress === "") {
+        return { _addressError: null, _addressKind: undefined, _isZns: false };
+      }
+      const valid = await validateAddressForChain(swapChain, _currentAddress, chain);
+      if (!valid) {
+        return {
+          _addressError: `Not a valid ${chainDisplayName(swapChain) || swapChain} address`,
+          _addressKind: undefined,
+          _isZns: false,
+        };
+      }
+      const dup = addressBook.find((i: AddressBookEntryClass) => i.address === _currentAddress);
+      return { _addressError: dup ? "Duplicate Address" : null, _addressKind: undefined, _isZns: false };
+    }
 
     // Branch A: ZNS alias like "alice.zcash" — accept iff it resolves on the
     // current network. We store the alias itself (not the resolved UA) so the
@@ -119,6 +205,8 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     setAddressError(null);
     setAddressKind(undefined);
     setIsZns(false);
+    setSwapChain(ZEC_SWAP_CHAIN);
+    setPossibleChains([ZEC_SWAP_CHAIN]);
     setAddLabel(new AddressBookEntryClass("", ""));
   };
 
@@ -168,11 +256,35 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           <input
             type="text"
             aria-label="Address"
-            placeholder="Unified | Sapling | Transparent | TEX address | name.zcash"
+            placeholder="Unified | Sapling | Transparent | TEX address | name.zcash | any swappable asset"
             value={currentAddress}
             className={`${cstyles.inputbox} ${cstyles.margintopsmall}`}
             onChange={(e) => updateAddress(e.target.value)}
           />
+
+          {/* Only worth asking when the address itself leaves room for doubt.
+              Most addresses name exactly one chain, and offering a list of one
+              would be a question with a single answer. */}
+          {possibleChains.length > 1 && (
+            <>
+              <div className={cstyles.margintoplarge} />
+              <div className={cstyles.flexspacebetween}>
+                <div className={cstyles.large}>Chain</div>
+              </div>
+              <select
+                aria-label="Chain"
+                className={`${cstyles.inputbox} ${cstyles.margintopsmall}`}
+                value={swapChain}
+                onChange={(e) => setSwapChain(e.target.value)}
+              >
+                {possibleChains.map((chain) => (
+                  <option key={chain} value={chain}>
+                    {chainDisplayName(chain) || chain}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
         </div>
 
         <div className={cstyles.margintoplarge} />
