@@ -370,6 +370,26 @@ export class SwapStore {
   }
 
   /**
+   * Release the binding, so read paths return empty and writes no-op again.
+   *
+   * The binding is module state that outlives any one screen, so without this
+   * it keeps naming the previous wallet's bucket from the moment a wallet is
+   * closed until the next `bindToWallet` resolves. That gap is short, but a
+   * read landing inside it answers with records belonging to a wallet that is
+   * no longer open — the exact cross-wallet exposure the namespacing exists to
+   * prevent.
+   *
+   * Queued like every other operation, so it cannot cut in front of a write
+   * that is still finishing against the wallet being left.
+   */
+  static async unbind(): Promise<void> {
+    return this.enqueue(async () => {
+      currentWalletFingerprint = null;
+      SwapStore.notify([]);
+    });
+  }
+
+  /**
    * Phase 2 — write the current wallet's swap records to the single-slot
    * backup key (overwriting whatever was there) and delete the live bucket.
    * Mirrors `RPCModule.doSaveBackup` for the wallet file: invoked from

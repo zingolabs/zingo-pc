@@ -1,8 +1,7 @@
 import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
 
-import { native } from "../electronBridge";
 import { ChainNameEnum } from "../swap/enums/ChainNameEnum";
-import { SwapService, SwapStore, createSwapService, deriveWalletFingerprint } from "../swap";
+import { SwapService, SwapStore, createSwapService, readCurrentWalletFingerprint } from "../swap";
 import type { SwapRecordType } from "../swap";
 import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
 
@@ -53,10 +52,8 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
 
     (async () => {
       try {
-        const raw = await native.get_ufvk();
+        const fingerprint = await readCurrentWalletFingerprint();
         if (cancelled) return;
-        const ufvk: string = raw ? (JSON.parse(raw).ufvk ?? "") : "";
-        const fingerprint = deriveWalletFingerprint(ufvk);
         if (!fingerprint) {
           console.error("SwapServiceProvider: the wallet yielded an empty fingerprint");
           return;
@@ -81,6 +78,13 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
       cancelled = true;
       if (created) created.stopPolling();
       setService(null);
+      // Release the store along with the service. The binding is module state,
+      // so leaving it set would keep naming the departing wallet's bucket
+      // until the next wallet finishes binding — and a History mounted inside
+      // that window would list swaps belonging to a wallet that is no longer
+      // open. Fire-and-forget: it is queued behind any write still finishing,
+      // and there is nothing useful to do if it fails.
+      SwapStore.unbind().catch((error) => console.error(`SwapServiceProvider: unbind failed ${error}`));
     };
   }, [chainName, enabled, apiKey]);
 

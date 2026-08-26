@@ -19,6 +19,8 @@ import { native, ipcRenderer } from "../../electronBridge";
 import { useLocation } from "react-router-dom";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import RPC from "../../rpc/rpc";
+import { useSwapService } from "../../context/ContextSwapService";
+import { SwapStore, readCurrentWalletFingerprint } from "../../swap";
 
 type AddNewWalletProps = {
   closeModal: () => void;
@@ -46,7 +48,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     mode = locationState.mode;
   }
   const context = useContext(ContextApp);
-  const { openErrorModal, closeErrorModal, currentWallet, wallets, currentWalletOpenError } = context;
+  const { openErrorModal, closeErrorModal, openConfirmModal, currentWallet, wallets, currentWalletOpenError } = context;
+  const swapService = useSwapService();
 
   const [newWalletType, setNewWalletType] = useState<"new" | "seed" | "ufvk" | "file">("new");
   const [seedPhrase, setSeedPhrase] = useState<string>("");
@@ -500,8 +503,50 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     }
   };
 
+  /**
+   * Deleting the wallet is the one flow that destroys its swap records, so it
+   * is the one flow that has to ask first.
+   *
+   * The question is whether any swap still has a deposit the provider can see
+   * and has not settled. Outbound, deleting loses the tracking record while
+   * the swap completes on-chain regardless. Inbound is worse: the payout is
+   * addressed to an ephemeral address of this wallet, so a user without their
+   * seed written down loses the incoming funds outright. Neither is something
+   * to discover afterwards.
+   *
+   * The service is null off mainnet and before it finishes building. That is
+   * "no opinion", not "nothing in flight" — but the same conditions mean no
+   * swap could have been started in this session either, so proceeding
+   * straight to the delete is honest rather than a silent green light.
+   */
   const doDelete = async () => {
+    if (!currentWallet) return;
+    let inflight = false;
+    if (swapService) {
+      try {
+        inflight = await swapService.hasInflightDeposits();
+      } catch (error) {
+        console.error(`Delete Wallet: could not check for in-flight swaps ${error}`);
+      }
+    }
+    if (inflight) {
+      openConfirmModal(
+        "Delete Wallet",
+        "A swap belonging to this wallet is still in flight: its deposit has been paid and the provider has not " +
+          "settled it yet. Deleting now removes the record that tracks it, and if the swap pays out to this wallet " +
+          "you will need its seed phrase to reach those funds. Delete anyway?",
+        () => {
+          performDelete();
+        },
+      );
+      return;
+    }
+    await performDelete();
+  };
+
+  const performDelete = async () => {
     if (!!currentWallet) {
+      openErrorModal("Delete Wallet", "Stopping all the activity with the wallet in order to delete it completely.");
       try {
         await clearTimers();
         const walletExistsResult: boolean = await native.wallet_exists(
@@ -523,6 +568,16 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
             } catch (error) {
               console.error(`Stopping sync Error ${error}`);
             }
+          }
+          // Before `deinitialize`, which is what takes the UFVK — and with it
+          // the only way to name this wallet's swap bucket — out of reach.
+          // Skipped rather than guessed when the fingerprint comes back empty:
+          // a wrong key would wipe a different wallet's records.
+          const fingerprint = await readCurrentWalletFingerprint();
+          if (fingerprint) {
+            await SwapStore.clearForWallet(fingerprint);
+          } else {
+            console.log("Delete Wallet: no fingerprint, leaving the swap bucket alone");
           }
           await RPC.deinitialize();
 
@@ -644,7 +699,10 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       await doSave();
     }
     if (mode === "delete") {
-      openErrorModal("Delete Wallet", "Stopping all the activity with the wallet in order to delete it completely.");
+      // The "stopping all activity" notice moved into `performDelete`, which
+      // is the moment it becomes true. Announcing it here would put it on
+      // screen in front of the in-flight-swap confirmation — both are
+      // react-modal over the same overlay, and this one mounts last.
       await doDelete();
     }
 

@@ -9,6 +9,7 @@ import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
 import { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
+import { isRealLegHash } from "./providers/trackUpdateBase";
 import { DepositInstructionsType } from "./types/DepositInstructionsType";
 import { FiatValueBasisType } from "./types/FiatValueBasisType";
 import { QuoteResponseType, QuoteRouteType } from "./types/QuoteResponseType";
@@ -311,19 +312,29 @@ export class SwapService {
   }
 
   /**
-   * True when there is at least one outbound swap whose deposit tx we have
-   * broadcast and that has not yet reached a terminal status. Consumed by the
-   * account-deletion guard so we can warn the user before wiping data while a
-   * swap deposit is still in flight on-chain.
+   * True when at least one swap has a deposit the provider can already see and
+   * has not yet settled. Consumed by the delete-wallet guard, which needs to
+   * warn before wiping data out from under a swap that is still moving.
+   *
+   * Both directions count, and the inbound case is the sharper of the two.
+   * Outbound means we broadcast a deposit whose payout is still pending:
+   * deleting loses the tracking record while the swap itself completes
+   * on-chain. Inbound means the user paid from another wallet and the payout
+   * is addressed to an ephemeral address of *this* wallet — delete it without
+   * the seed written down and the incoming funds go with it.
+   *
+   * A swap that is merely reserved is deliberately not counted. Nothing has
+   * moved, so a stale quote the user abandoned days ago must not stand between
+   * them and deleting a wallet.
+   *
+   * This is wider than the mobile wallet's version, which counts outbound
+   * broadcasts only. Mobile's guard sits on a wallet-replacement flow that
+   * keeps the seed; zingo-pc's sits on a delete that does not, which is why
+   * the inbound half matters here and not there.
    */
   async hasInflightDeposits(): Promise<boolean> {
     const all = await this.store.readAll();
-    return all.some(
-      (r) =>
-        r.direction === SwapDirectionEnum.Outbound &&
-        !isTerminalStatus(r.status) &&
-        r.broadcast?.status === BroadcastStatusEnum.Broadcasted,
-    );
+    return all.some((r) => !isTerminalStatus(r.status) && hasDepositEvidence(r));
   }
 
   startPolling(): void {
@@ -333,6 +344,20 @@ export class SwapService {
   stopPolling(): void {
     this.poller.stop();
   }
+}
+
+/**
+ * Whether the provider can already see a deposit for this swap.
+ *
+ * Outbound gets its evidence from our own broadcast bookkeeping; inbound from
+ * the source-chain hash, which reaches the record either from the user or from
+ * Midgard. `isRealLegHash` rather than a truthiness check because `/track`
+ * emits an all-zero placeholder for a leg that has not landed, and a record
+ * written before that filter existed can still be carrying one.
+ */
+function hasDepositEvidence(record: SwapRecordType): boolean {
+  if (record.broadcast?.status === BroadcastStatusEnum.Broadcasted) return true;
+  return isRealLegHash(record.observedDepositTxHash);
 }
 
 /**
