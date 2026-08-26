@@ -3,8 +3,10 @@ import Modal from "react-modal";
 
 import cstyles from "../common/Common.module.css";
 import styles from "../history/History.module.css";
+import swapStyles from "./Swap.module.css";
 import Utils from "../../utils/utils";
 import { useCopy } from "../common/useCopy";
+import DepositSlip from "./DepositSlip";
 import { SwapDirectionEnum, SwapKitProviderEnum, providerLongLabel } from "../../swap";
 import type {
   DepositInstructionsType,
@@ -138,7 +140,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   }, [swapService, quoteInput, route, fiatValueBasis, direction, isOutbound, sendSwapDeposit]);
 
   if (postCommit) {
-    const { instructions, txId } = postCommit;
+    const { record, instructions, txId } = postCommit;
     return (
       <Modal
         isOpen
@@ -151,59 +153,64 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
         className={styles.txmodal}
         overlayClassName={styles.txmodalOverlay}
       >
-        <div className={cstyles.large}>{txId ? "Deposit sent" : "Pay this deposit"}</div>
-        {!!error && <div style={{ color: Utils.getCssVariable("--color-error") }}>{error}</div>}
-
-        <div className={cstyles.padtopsmall}>
-          <div className={`${cstyles.sublight} ${cstyles.small}`}>Provider</div>
-          <div>{providerLongLabel(instructions.provider)}</div>
-        </div>
-
-        <div className={cstyles.padtopsmall}>
-          <div className={`${cstyles.sublight} ${cstyles.small}`}>Deposit address</div>
-          <div style={{ wordBreak: "break-all" }}>{instructions.depositAddress}</div>
-          <button type="button" className={cstyles.primarybutton} onClick={() => copy(instructions.depositAddress)}>
-            Copy address
-          </button>
-        </div>
-
-        <div className={cstyles.padtopsmall}>
-          <div className={`${cstyles.sublight} ${cstyles.small}`}>Exact amount</div>
-          <div>{instructions.amountHumanDecimal}</div>
-          {!isOutbound && (
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>
-              Send this amount exactly. A short payment is refunded rather than swapped.
+        <div className={cstyles.verticalflex} style={{ height: "100%" }}>
+          <div className={`${cstyles.center} ${cstyles.large} ${cstyles.padtopsmall}`}>
+            {txId ? "Deposit sent" : "Pay this deposit"}
+          </div>
+          {!!error && (
+            <div className={cstyles.center} style={{ color: Utils.getCssVariable("--color-error") }}>
+              {error}
             </div>
           )}
-        </div>
 
-        {!!instructions.memoText && (
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>Memo</div>
-            <div style={{ wordBreak: "break-all" }}>{instructions.memoText}</div>
-            <button type="button" className={cstyles.primarybutton} onClick={() => copy(instructions.memoText ?? "")}>
-              Copy memo
-            </button>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>
-              The memo is what tells the provider which swap this payment belongs to. A deposit without it cannot be
-              matched.
+          <div style={{ overflowY: "auto", flexGrow: 1 }}>
+            <div className={cstyles.padtopsmall}>
+              <div className={`${cstyles.sublight} ${cstyles.small}`}>Provider</div>
+              <div>{providerLongLabel(instructions.provider)}</div>
             </div>
+
+            {/* The slip renders the QR only while the deposit is still unpaid.
+                An outbound broadcast that succeeded has nothing left to scan;
+                one that failed does, because the deposit is still payable by
+                hand and the address is the useful thing on screen. */}
+            <DepositSlip
+              provider={instructions.provider}
+              direction={direction}
+              sellAsset={record.sellAsset}
+              depositAddress={instructions.depositAddress}
+              amountHumanDecimal={instructions.amountHumanDecimal}
+              memoText={instructions.memoText}
+              expiresAtMs={instructions.expiresAtMs ?? route.expiresAtMs}
+              paid={!!txId}
+              copy={copy}
+            />
+
+            {!!txId && (
+              <div className={cstyles.padtopsmall}>
+                <div className={`${cstyles.sublight} ${cstyles.small}`}>Deposit transaction</div>
+                <div style={{ wordBreak: "break-all" }}>{txId}</div>
+              </div>
+            )}
+
+            {/* Outbound with no txid means the broadcast did not happen. The
+                swap is reserved either way, so the way out is to pay it and
+                come back — the History row carries an action to attach the
+                transaction so tracking resumes. */}
+            {isOutbound && !txId && (
+              <div className={swapStyles.warningbanner}>
+                The swap is reserved but nothing has been sent. Pay the deposit from this wallet or another, then open
+                the swap in History and use &ldquo;Attach deposit transaction&rdquo; so tracking can resume.
+              </div>
+            )}
           </div>
-        )}
 
-        {!!txId && (
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>Deposit transaction</div>
-            <div style={{ wordBreak: "break-all" }}>{txId}</div>
+          {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}
+
+          <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
+            <button type="button" className={cstyles.primarybutton} onClick={onDone}>
+              Done
+            </button>
           </div>
-        )}
-
-        {copied && <div className={cstyles.small}>Copied</div>}
-
-        <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
-          <button type="button" className={cstyles.primarybutton} onClick={onDone}>
-            Done
-          </button>
         </div>
       </Modal>
     );

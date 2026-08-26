@@ -81,13 +81,12 @@ export function isUtxoSourceChain(chain: string): boolean {
  * the address field instead).
  */
 export function memoToHexCalldata(memo: string): string {
-  // Memos are ASCII-only by Maya / THORChain spec (`=:ASSET:ADDR:…`), but
-  // `TextEncoder` is not available in our React Native runtime, so we encode
-  // byte-by-byte from char codes. For the ASCII range this matches UTF-8.
-  let hex = "";
-  for (let i = 0; i < memo.length; i++) {
-    hex += memo.charCodeAt(i).toString(16).padStart(2, "0");
-  }
+  // The same UTF-8 bytes `MayaExecutor` puts in the OP_RETURN, so the hex a
+  // user pastes into an EVM wallet and the bytes this wallet would broadcast
+  // are one encoding rather than two that agree only over ASCII. The mobile
+  // wallet encodes from char codes here because React Native has no
+  // `TextEncoder`; Electron does, so the two paths are the same one.
+  const hex = Array.from(new TextEncoder().encode(memo), (b) => b.toString(16).padStart(2, "0")).join("");
   return `0x${hex}`;
 }
 

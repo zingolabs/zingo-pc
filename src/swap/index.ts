@@ -76,6 +76,25 @@ export type {
 
 export { SwapKitError, SwapKitHttpError, SwapKitNetworkError, classifySwapError } from "./errors";
 
+export {
+  EVM_SOURCE_CHAINS,
+  UTXO_SOURCE_CHAINS,
+  buildEip681Uri,
+  buildMemolessPaymentUri,
+  humanDecimalToBaseUnits,
+  isEvmSourceChain,
+  isUtxoSourceChain,
+  memoToHexCalldata,
+} from "./chainMemoEncoding";
+export {
+  buildDepositQr,
+  exactAmountWarningText,
+  memoFieldHintForChain,
+  providerRequiresMemo,
+  requiresExactAmountWarning,
+} from "./depositGuidance";
+export type { DepositQrType } from "./depositGuidance";
+
 export { isValidChainAddress, SWAP_ADDRESS_CHAINS } from "./addressValidators";
 export { validateAddressForChain } from "./validateAddressForChain";
 export { possibleChainsForAddress } from "./possibleChainsForAddress";

@@ -23,3 +23,41 @@
   padding-top: 20px;
   padding-bottom: 20px;
 }
+
+/*
+ * Warnings on the deposit slip: the memo-placement hint and the exact-amount
+ * rule. Both describe a way to lose a deposit to a refund cycle, so they get
+ * the warning hue and a border rather than sitting as another grey line among
+ * the copy rows. Same shape as `.regionblockbanner` above, tighter because
+ * these sit between rows rather than above a whole panel.
+ */
+.warningbanner {
+  border-radius: 10px;
+  border: 1px solid var(--color-warning);
+  padding: 10px;
+  margin-top: 8px;
+  color: var(--color-warning);
+}
+
+/*
+ * The QR block on the deposit slip. The code renders on a light plate because
+ * a scanner needs the dark-on-light contrast the app's dark background cannot
+ * give it, and the plate is what keeps that from reading as a rendering bug.
+ */
+.qrblock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-primary);
+  margin-top: 8px;
+}
+
+.qrframe {
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 8px;
+  line-height: 0;
+}

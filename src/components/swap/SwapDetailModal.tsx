@@ -8,6 +8,7 @@ import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
 import { ServerChainNameEnum } from "../appstate";
 import { ContextApp } from "../../context/ContextAppState";
+import { useSwapService } from "../../context/ContextSwapService";
 import { useCopy } from "../common/useCopy";
 import { shell } from "../../electronBridge";
 import Utils from "../../utils/utils";
@@ -18,11 +19,13 @@ import {
   canRemoveSwap,
   isPrePaymentStatus,
   isRealLegHash,
+  isTerminalStatus,
   providerLongLabel,
   swapRowLabel,
 } from "../../swap";
 import type { SwapRecordType, TrackerEntryType } from "../../swap";
-import { isEvmSourceChain, memoToHexCalldata } from "../../swap/chainMemoEncoding";
+import { isEvmSourceChain, memoToHexCalldata } from "../../swap";
+import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
 
 type SwapDetailModalProps = {
@@ -49,8 +52,12 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
     blockExplorerTestnetTransactionCustom,
     openConfirmModal,
   } = useContext(ContextApp);
+  const swapService = useSwapService();
   const { copied, copy } = useCopy(1500);
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
+  const [attachHash, setAttachHash] = useState<string>("");
+  const [attaching, setAttaching] = useState<boolean>(false);
+  const [attachError, setAttachError] = useState<string>("");
 
   // Removing is destructive and irreversible, so it asks first — the same
   // treatment `VtModal` gives the equivalent action on a value transfer.
@@ -115,6 +122,47 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
 
   const removable = canRemoveSwap(record.status);
 
+  // A deposit the provider can see is what turns a reserved swap into a
+  // tracked one. Outbound gets it from our own broadcast, inbound from the
+  // hash the user pasted or from Midgard. Until one exists the poller has
+  // nothing to query, so this view has to be the place the user finishes the
+  // job: the instructions to pay, and the way to hand back the transaction.
+  const hasDepositEvidence = isRealLegHash(record.broadcast?.txId) || isRealLegHash(record.observedDepositTxHash);
+  const awaitingDeposit = !isTerminalStatus(record.status) && !hasDepositEvidence;
+
+  /**
+   * Record the source-chain transaction that pays this deposit.
+   *
+   * The two directions write different fields: outbound goes through
+   * `markBroadcasted`, which owns the broadcast block this wallet fills in,
+   * and inbound through `setObservedDepositTxHash`, which is the slot for a
+   * payment made from somewhere else. Both leave the record in a state the
+   * poller will pick up on its next tick.
+   *
+   * Validation stays loose on purpose — a hash is chain-shaped and SwapKit
+   * returns the authoritative error on `/track`. Rejecting the empty string is
+   * the whole of it, plus trimming, because a pasted hash usually arrives with
+   * whitespace around it.
+   */
+  const attachDeposit = async () => {
+    const hash = attachHash.trim();
+    if (!hash || !swapService) return;
+    setAttaching(true);
+    setAttachError("");
+    try {
+      if (isOutbound) {
+        await swapService.markBroadcasted({ recordId: record.recordId, txId: hash });
+      } else {
+        await swapService.setObservedDepositTxHash({ recordId: record.recordId, hash });
+      }
+      setAttachHash("");
+    } catch (error) {
+      setAttachError(`${error}`);
+    } finally {
+      setAttaching(false);
+    }
+  };
+
   return (
     <Modal
       isOpen={modalIsOpen}
@@ -135,6 +183,55 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
         </div>
 
         <div style={{ overflowY: "auto", flexGrow: 1, marginTop: 15 }}>
+          {/* First, because when it applies it is the only thing on this
+              screen the user can act on. Everything below is a record of what
+              was agreed; this is what still has to happen. */}
+          {awaitingDeposit && (
+            <>
+              <SectionHeader label={isOutbound ? "This deposit is unpaid" : "Pay this deposit"} />
+              <DepositSlip
+                provider={record.provider}
+                direction={record.direction}
+                sellAsset={record.sellAsset}
+                depositAddress={record.depositAddress}
+                amountHumanDecimal={record.sellAmountHumanDecimal}
+                memoText={memo}
+                copy={copy}
+              />
+              {swapService && (
+                <div className={cstyles.padtopsmall}>
+                  <div className={`${cstyles.sublight} ${cstyles.small}`}>
+                    {isOutbound
+                      ? "Already paid it from elsewhere? Paste the transaction id so tracking can resume."
+                      : "Already paid it? Paste the transaction id from the wallet you paid from."}
+                  </div>
+                  <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
+                    <input
+                      value={attachHash}
+                      onChange={(e) => setAttachHash(e.target.value)}
+                      placeholder="Transaction id"
+                      style={{ flexGrow: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className={cstyles.primarybutton}
+                      disabled={attaching || attachHash.trim().length === 0}
+                      onClick={attachDeposit}
+                    >
+                      {attaching ? "Working..." : "Attach"}
+                    </button>
+                  </div>
+                  {!!attachError && (
+                    <div className={cstyles.small} style={{ color: Utils.getCssVariable("--color-error") }}>
+                      {attachError}
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
+          <SectionHeader label="Details" />
           <DetailRow label="Provider" value={providerLongLabel(record.provider)} />
           <DetailRow label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
           {!!record.updatedAtMs && (
@@ -162,7 +259,12 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
           <SectionHeader label="Addresses" />
           {!!record.sourceAddress && <DetailRow label="From" value={record.sourceAddress} copy={copy} />}
           <DetailRow label="To" value={record.destinationAddress} copy={copy} />
-          {!!record.depositAddress && <DetailRow label="Deposit" value={record.depositAddress} copy={copy} />}
+          {/* Suppressed while the deposit slip is up: it carries the same
+              address a few rows above, and two copies of one address invite
+              the reader to wonder which is the real one. */}
+          {!!record.depositAddress && !awaitingDeposit && (
+            <DetailRow label="Deposit" value={record.depositAddress} copy={copy} />
+          )}
 
           {hashRows.length > 0 && (
             <>
@@ -173,7 +275,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
             </>
           )}
 
-          {!!memo && (
+          {/* Same reason as the deposit address above — the slip already shows
+              the memo, its hex form, and where on this chain it has to go. */}
+          {!!memo && !awaitingDeposit && (
             <>
               <SectionHeader label="Memo" />
               <DetailRow label="On-chain memo" value={memo} copy={copy} />
