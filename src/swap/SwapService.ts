@@ -289,13 +289,20 @@ export class SwapService {
       updatedAtMs: now,
     };
     await this.store.upsert(updated);
-    // The poller previously short-circuited this record (Maya/THORChain
-    // inbound with no hash); now it has a hash to query. Fire one immediate
-    // tick instead of waiting for the idle interval so the History flips
-    // to a real provider-reported status in seconds, not minutes.
-    this.poller.tickOnce().catch(() => {
-      // tickOnce already logs internally; we intentionally don't await.
-    });
+    // The poller had nothing to ask about for this record (Maya/THORChain
+    // inbound with no hash) and may well have stopped over it — that is
+    // exactly the case its auto-stop exists to catch. Re-arm first, then fire
+    // an immediate tick so the History flips to a real provider-reported
+    // status in seconds rather than at the next idle interval. `start()`
+    // already ticks when it was stopped, so the extra tick is only for the
+    // case where it was running all along.
+    const wasRunning = this.poller.isRunning();
+    this.poller.start();
+    if (wasRunning) {
+      this.poller.tickOnce().catch(() => {
+        // tickOnce already logs internally; we intentionally don't await.
+      });
+    }
     return updated;
   }
 

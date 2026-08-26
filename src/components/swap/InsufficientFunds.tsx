@@ -19,9 +19,10 @@ type InsufficientFundsProps = {
   /** Shielded balance the wallet can spend, in ZEC display units. */
   spendable: number;
   /**
-   * Balance minus what the live route charges on the sell side — the largest
-   * amount that can actually be swapped. Falls back to the balance when no
-   * quote has landed yet and the fees are therefore unknown.
+   * Balance minus what the live route charges on the sell side and minus the
+   * reserve for the deposit's own Zcash network fee — the largest amount that
+   * can actually be swapped. Falls back to the balance when no quote has
+   * landed yet and neither figure is known.
    */
   maxSpendableForSwap: number;
   modalIsOpen: boolean;
@@ -82,7 +83,7 @@ const InsufficientFunds: React.FC<InsufficientFundsProps> = ({
           </button>
           <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
             {maxSpendableForSwap < spendable
-              ? "That is the spendable balance less this route's fees."
+              ? "That is the spendable balance less this route's fees and the deposit's network fee."
               : "That is the whole spendable balance. Fees come out of it, so the swap may still need a little less."}
           </div>
         </div>

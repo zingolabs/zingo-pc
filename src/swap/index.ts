@@ -87,6 +87,7 @@ export {
   isUtxoSourceChain,
   memoToHexCalldata,
 } from "./chainMemoEncoding";
+export { needsEphemeralRoute, zecNetworkFeeReserve } from "./depositRouting";
 export {
   buildDepositQr,
   exactAmountWarningText,

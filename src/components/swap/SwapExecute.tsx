@@ -7,7 +7,7 @@ import swapStyles from "./Swap.module.css";
 import Utils from "../../utils/utils";
 import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
-import { SwapDirectionEnum, SwapKitProviderEnum, providerLongLabel } from "../../swap";
+import { SwapDirectionEnum, needsEphemeralRoute, providerLongLabel } from "../../swap";
 import type {
   DepositInstructionsType,
   FiatValueBasisType,
@@ -26,19 +26,6 @@ import type {
  */
 function zecToZatoshis(amountHumanDecimal: string): number {
   return Math.round(parseFloat(amountHumanDecimal) * 1e8);
-}
-
-/**
- * Whether the deposit has to leave through the ZIP 320 ephemeral hop.
- *
- * Mayachain and THORChain read a swap's refund destination from the inbound
- * transaction's origin, which a shielded spend does not expose, and the
- * ~80-byte OP_RETURN is too tight to carry a `/REFUNDADDR` clause instead.
- * NEAR Intents and Flashnet bind refunds to the per-quote deposit address, so
- * they need none of this and take the cheaper single-hop path.
- */
-function needsEphemeralRoute(provider: SwapKitProviderEnum): boolean {
-  return provider === SwapKitProviderEnum.MayachainStreaming || provider === SwapKitProviderEnum.ThorchainStreaming;
 }
 
 type SwapExecuteProps = {

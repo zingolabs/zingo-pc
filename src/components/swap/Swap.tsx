@@ -16,6 +16,7 @@ import {
   formatAmountForDisplay,
   providerShortLabel,
   validateAddressForChain,
+  zecNetworkFeeReserve,
 } from "../../swap";
 import type { FiatValueBasisType, QuoteInput, RouteOptionType, TokenEntryType } from "../../swap";
 import { ZEC_ASSET, isQuotableToken, tokenToSwapAsset } from "./swapAssets";
@@ -105,9 +106,17 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const [refundAddressTouched, setRefundAddressTouched] = useState<boolean>(false);
   const [addressValid, setAddressValid] = useState<boolean>(true);
 
-  // Reserved once per swap intent and reused across re-quotes. The index is
-  // burned in the wallet even if the user walks away, which costs a BIP32
-  // child slot and nothing else.
+  // The refund-scope address declared to SwapKit as this swap's wallet side.
+  // Reserved once per swap intent and reused across re-quotes, so a provider
+  // cannot tie two unrelated swaps to one identifier.
+  //
+  // On the ephemeral route it is not the address the deposit is spent from:
+  // reserving marks an index used, and the proposal takes the lowest index
+  // that is not. Both belong to this wallet, so a refund read off the on-chain
+  // origin is still recoverable — but the address SwapKit screens is not the
+  // one the vault sees, and each swap consumes two indices rather than one.
+  // See `reserve_ephemeral_address` in native/src/lib.rs for what closing that
+  // needs from zingolib.
   const [ephemeralAddress, setEphemeralAddress] = useState<string>("");
 
   const [routes, setRoutes] = useState<RouteOptionType[] | null>(null);
@@ -445,9 +454,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     const parsed = parseFloat(chosenRoute?.totalFeesInSellAsset ?? "");
     return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
   }, [chosenRoute]);
+  // Held back for the Zcash network fee on the deposit itself, which comes out
+  // of the same balance and which the route's own fees say nothing about.
+  // Zero inbound, where the deposit is paid from another wallet entirely, and
+  // zero before a route names a provider — the amount depends on whether the
+  // deposit takes the two-transaction ephemeral hop.
+  const networkFeeReserve = useMemo(
+    () => (isOutbound && chosenRoute ? zecNetworkFeeReserve(chosenRoute.provider) : 0),
+    [isOutbound, chosenRoute],
+  );
   const maxSpendableForSwap = useMemo(
-    () => Math.max(0, spendable - totalFeesInSellAssetNum),
-    [spendable, totalFeesInSellAssetNum],
+    () => Math.max(0, spendable - totalFeesInSellAssetNum - networkFeeReserve),
+    [spendable, totalFeesInSellAssetNum, networkFeeReserve],
   );
 
   // Whether committing would actually be refused for want of funds. Outbound
@@ -455,8 +473,12 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // balance, so `amount` alone understates what the swap costs. Inbound this is
   // never true: the source account belongs to someone else's wallet.
   const insufficientForCommit = useMemo(
-    () => isOutbound && !!chosenRoute && amountValid && amountNumber + totalFeesInSellAssetNum > spendable,
-    [isOutbound, chosenRoute, amountValid, amountNumber, totalFeesInSellAssetNum, spendable],
+    () =>
+      isOutbound &&
+      !!chosenRoute &&
+      amountValid &&
+      amountNumber + totalFeesInSellAssetNum + networkFeeReserve > spendable,
+    [isOutbound, chosenRoute, amountValid, amountNumber, totalFeesInSellAssetNum, networkFeeReserve, spendable],
   );
 
   // Read inside `requestQuote` to carry the user's pick across a refresh

@@ -2868,9 +2868,25 @@ fn create_new_transparent_address(mut cx: FunctionContext) -> JsResult<JsPromise
 }
 
 /// Reserves a fresh transparent address on the refund (ZIP 320 ephemeral)
-/// scope, so a swap provider sees a one-shot address as the deposit's
-/// source and a refund never links back to the wallet's persistent
-/// t-receiver. The JS layer takes one per swap.
+/// scope, so the address a swap provider is told about is one-shot and a
+/// refund never links back to the wallet's persistent t-receiver. The JS
+/// layer takes one per swap.
+///
+/// It is NOT the address the deposit ends up spending from when the swap
+/// takes the ephemeral route. `generate_refund_addresses` reserves by
+/// inserting into the wallet's address book, and the proposal picks its
+/// ephemeral address with `derive_refund_addresses`, which returns the
+/// lowest index that is NOT yet reserved — so it takes the one after this.
+/// Both are refund-scope addresses of this wallet, so a Mayachain or
+/// THORChain refund read off the on-chain origin still lands somewhere the
+/// wallet can spend; what does not hold is the assumption that the address
+/// declared to SwapKit is the address the vault observes. Reserving out of
+/// band also costs two indices per swap instead of one, and every reserved
+/// index is scanned forever after.
+///
+/// Closing that gap needs zingolib to offer a derive-without-reserving call
+/// (`derive_refund_addresses` is `pub(crate)`), so the JS layer can name the
+/// address the proposal is going to pick instead of consuming one first.
 fn reserve_ephemeral_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {

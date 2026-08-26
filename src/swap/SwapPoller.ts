@@ -153,10 +153,9 @@ export class SwapPoller {
 
     for (const record of all) {
       if (!this.isRunningForGeneration(callerGeneration)) return;
-      if (isTerminalStatus(record.status)) continue;
-      if (!this.registry.has(record.provider)) continue;
+      if (!this.isPollable(record)) continue;
       hasPollableRecord = true;
-      if (!this.shouldPollNow(record, now)) continue;
+      if (!this.isDue(record, now)) continue;
       await this.pollRecord(record, callerGeneration);
     }
 
@@ -175,28 +174,54 @@ export class SwapPoller {
     return callerGeneration === this.generation;
   }
 
-  private shouldPollNow(record: SwapRecordType, now: number): boolean {
+  /**
+   * Whether this record is one the poller has any business querying, ignoring
+   * timing entirely.
+   *
+   * Split from `isDue` because the two answer different questions and only one
+   * of them may keep the interval alive. "Not due yet" means come back in a
+   * minute; "not pollable" means nothing this poller does will ever change
+   * this record, and a tick that treats the second as the first spins forever.
+   * That was the live bug: an outbound Maya swap the user reserved and never
+   * paid is permanently unpollable, and it kept the interval armed for the
+   * lifetime of the process, decrypting the whole store every 20 seconds.
+   *
+   * Three permanent refusals:
+   *
+   *   - **Terminal or unsupported.** Nothing more will arrive, or no executor
+   *     could read it if it did.
+   *   - **Failure budget spent.** Deliberately not reset here; the counters
+   *     live in memory and a fresh launch is the natural moment to retry.
+   *   - **No hash and no way to find one.** Maya and THORChain only honour
+   *     `/track` keyed on the source-chain hash — the deposit address is a
+   *     rotating vault, and passing it returns `Insufficient parameters for
+   *     tracking method detection`. Outbound gets the hash from our broadcast,
+   *     inbound from the user or from Midgard, and Midgard only covers
+   *     Maya/THORChain inbound. Anything left over has nothing to ask about,
+   *     and asking anyway would fill the log with failures the user reads as
+   *     something being broken.
+   *
+   * The third is recoverable from outside: attaching a deposit transaction
+   * writes a hash and re-arms the poller through `SwapService`.
+   */
+  private isPollable(record: SwapRecordType): boolean {
+    if (isTerminalStatus(record.status)) return false;
+    if (!this.registry.has(record.provider)) return false;
+
     const failures = this.failureCounts.get(record.recordId) ?? 0;
     if (failures >= this.config.maxConsecutiveFailures) return false;
 
-    // Maya / THORChain bifrost only honour /track when the source-chain tx
-    // hash is supplied; passing the deposit address (the vault) returns a
-    // generic `Insufficient parameters for tracking method detection` 500.
-    // For inbound records the hash exists only after the user has paid
-    // externally (`observedDepositTxHash`) or after we have broadcast on
-    // outbound. For Maya/THORChain inbound specifically we have a recovery
-    // path via Midgard `/v2/actions?address=<destinationAddress>`, so let
-    // those records through to `pollRecord` where the Midgard discovery
-    // branch can populate the hash. For every other "no hash, no rescue"
-    // combination, skip the tick so we do not generate noise the user sees
-    // as repeated failures in the log.
     const hasHash = !!(record.broadcast?.txId || record.observedDepositTxHash);
-    if (!hasHash && providerKeysOnTxHash(record.provider)) {
-      if (!canDiscoverHashViaMidgard(record)) {
-        return false;
-      }
+    if (!hasHash && providerKeysOnTxHash(record.provider) && !canDiscoverHashViaMidgard(record)) {
+      return false;
     }
 
+    return true;
+  }
+
+  /** Whether enough time has passed, at this record's tier and backoff, to ask again. */
+  private isDue(record: SwapRecordType, now: number): boolean {
+    const failures = this.failureCounts.get(record.recordId) ?? 0;
     const lastPolled = this.lastPolledAtMs.get(record.recordId) ?? 0;
     const baseInterval =
       pickTier(record) === "active" ? this.config.activePollIntervalMs : this.config.idlePollIntervalMs;
