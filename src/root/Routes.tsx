@@ -168,7 +168,13 @@ const AppRoutes: React.FC = () => {
     return () => ipcRenderer.removeListener("mixnet-status", listener);
   }, [setMixnetView]);
 
-  const setReadOnly = useCallback((val: boolean) => setReadOnlyState(val), []);
+  // Pushed to the RPC instance as well as into context, the same way
+  // `setCurrentWallet` does above: the info path is static and reads no
+  // context, and it runs on the task loop where nothing else would tell it.
+  const setReadOnly = useCallback((val: boolean) => {
+    setReadOnlyState(val);
+    rpcRef.current?.setReadOnly(val);
+  }, []);
   const setWallets = useCallback((val: WalletType[]) => setWalletsState(val), []);
   const setBirthday = useCallback((val: number) => setBirthdayState(val), []);
 

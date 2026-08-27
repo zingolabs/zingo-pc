@@ -72,6 +72,13 @@ export default class RPC {
 
   currentWallet: WalletType | null;
 
+  // Pushed from the app the way `currentWallet` is, because the info path is
+  // static and reads no React context. Starts false so a wallet whose kind has
+  // not been read yet is treated as able to spend: the cost of being wrong that
+  // way is a migration plan nobody uses, and the other way is hiding the
+  // migration prompt from a wallet that has funds to move.
+  readOnly: boolean;
+
   updateTimerID?: NodeJS.Timeout;
   timers: NodeJS.Timeout[];
 
@@ -113,6 +120,7 @@ export default class RPC {
     this.fnSetServerHealth = fnSetServerHealth;
 
     this.currentWallet = currentWallet;
+    this.readOnly = false;
 
     this.lastBlockHeight = 0;
 
@@ -300,7 +308,7 @@ export default class RPC {
   }
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
-  static async getInfoObject(): Promise<InfoClass> {
+  static async getInfoObject(canSpend: boolean): Promise<InfoClass> {
     try {
       const infostr: string = await native.info_server();
       if (!infostr) {
@@ -308,7 +316,7 @@ export default class RPC {
         // Empty server info (e.g. offline): keep the Ironwood banners from the
         // local reads.
         const offlineInfo = new InfoClass(infostr);
-        await RPC.populateLocalIronwoodFields(offlineInfo);
+        await RPC.populateLocalIronwoodFields(offlineInfo, canSpend);
         return offlineInfo;
       }
       const infoJSON: RPCInfoType = JSON.parse(infostr);
@@ -336,7 +344,7 @@ export default class RPC {
 
       // Wallet height, Ironwood activation, drain plan and migration progress —
       // all LOCAL reads, so the Dashboard's Ironwood banners survive offline.
-      await RPC.populateLocalIronwoodFields(info);
+      await RPC.populateLocalIronwoodFields(info, canSpend);
 
       return info;
     } catch (err) {
@@ -346,7 +354,7 @@ export default class RPC {
       // can't mask the original error path.
       const info = new InfoClass("Error: to parse info " + err);
       try {
-        await RPC.populateLocalIronwoodFields(info);
+        await RPC.populateLocalIronwoodFields(info, canSpend);
       } catch (e) {
         console.error("Error populating local Ironwood fields", e);
       }
@@ -361,15 +369,23 @@ export default class RPC {
   // survive an offline info_server failure. Being offline only means batches
   // can't broadcast and the server tip is unknown, not that this local state
   // vanished.
-  static async populateLocalIronwoodFields(info: InfoClass): Promise<void> {
+  static async populateLocalIronwoodFields(info: InfoClass, canSpend: boolean): Promise<void> {
     info.walletHeight = await RPC.fetchWalletHeight();
     // NU6.3 / Ironwood activation height, read from zingolib (source of truth).
     info.nu63ActivationHeight = await RPC.fetchIronwoodActivationHeight();
-    // Happy-path drain plan: how much Orchard can move vs is stranded dust.
-    const drainPlan = await RPC.fetchOrchardDrainPlan();
-    info.orchardMigratable = drainPlan.migratable;
-    info.orchardDust = drainPlan.dust;
-    info.orchardFee = drainPlan.fee;
+    // A viewing-key wallet cannot spend, so it cannot migrate, and the
+    // Dashboard already hides the prompt for one behind the same flag.
+    // Planning a drain for it computes an answer nobody can act on, and the
+    // plan needs sync data the wallet may not have yet, so early in a load it
+    // only fails. The fields keep their `InfoClass` defaults, which carry the
+    // same "not known" the plan reports on failure.
+    if (canSpend) {
+      // Happy-path drain plan: how much Orchard can move vs is stranded dust.
+      const drainPlan = await RPC.fetchOrchardDrainPlan();
+      info.orchardMigratable = drainPlan.migratable;
+      info.orchardDust = drainPlan.dust;
+      info.orchardFee = drainPlan.fee;
+    }
     await RPC.populateMigrationFields(info);
   }
 
@@ -404,7 +420,7 @@ export default class RPC {
   }
 
   async fetchInfo(): Promise<void> {
-    const info: InfoClass = await RPC.getInfoObject();
+    const info: InfoClass = await RPC.getInfoObject(!this.readOnly);
 
     this.fnSetInfo(info);
   }
@@ -1301,6 +1317,10 @@ export default class RPC {
 
   setCurrentWallet(cw: WalletType) {
     this.currentWallet = cw;
+  }
+
+  setReadOnly(readOnly: boolean) {
+    this.readOnly = readOnly;
   }
 }
 

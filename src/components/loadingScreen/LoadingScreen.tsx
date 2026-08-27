@@ -793,19 +793,17 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         const walletKindStr: string = await native.wallet_kind();
         const walletKindJSON = JSON.parse(walletKindStr);
 
-        if (walletKindJSON.kind === "Loaded from unified full viewing key" || walletKindJSON.kind === "No keys found") {
-          // ufvk
-          this.props.setBirthday(resultJSON.birthday);
-          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
-          this.props.setReadOnly(true);
-        } else {
-          // seed phrase
-          this.props.setBirthday(resultJSON.birthday);
-          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
-          this.props.setReadOnly(false);
-        }
+        const readOnly: boolean =
+          walletKindJSON.kind === "Loaded from unified full viewing key" || walletKindJSON.kind === "No keys found";
 
-        this.getInfo();
+        this.props.setBirthday(resultJSON.birthday);
+        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
+        this.props.setReadOnly(readOnly);
+
+        // Passed rather than read back from context: `setReadOnly` has only
+        // just been called, so the context still holds the previous wallet's
+        // value on this tick.
+        this.getInfo(!readOnly);
       }
     } catch (error) {
       console.error("Error initializing", error);
@@ -816,12 +814,12 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     }
   };
 
-  getInfo = async () => {
+  getInfo = async (canSpend: boolean) => {
     // Try getting the info.
     try {
       const { runRPCConfigure, setInfo } = this.props;
 
-      const info: InfoClass = await RPC.getInfoObject();
+      const info: InfoClass = await RPC.getInfoObject(canSpend);
 
       if (info.error) {
         this.props.setFetchError("info", `${info.error}`);
