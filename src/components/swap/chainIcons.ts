@@ -33,6 +33,10 @@ import tron from "../../assets/chains/tron.png";
 import xlayer from "../../assets/chains/xlayer.png";
 import xlm from "../../assets/chains/xlm.png";
 import xrp from "../../assets/chains/xrp.png";
+// ZEC is the fixed side of every swap here, so it is never a counterparty and
+// never needs a badge. It is bundled for the main image instead: the chip for
+// it renders before the catalog that names every other logo has arrived.
+import zec from "../../assets/img/zcash-yellow.png";
 
 /**
  * Bundled chain badge icons, keyed by SwapKit chain code (uppercase).
@@ -96,6 +100,7 @@ const CHAIN_ICONS: Record<string, string> = {
   XLAYER: xlayer,
   XLM: xlm,
   XRP: xrp,
+  ZEC: zec,
 };
 
 /**

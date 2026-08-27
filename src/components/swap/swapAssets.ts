@@ -16,7 +16,9 @@ export const ZEC_TOKEN_ENTRY: TokenEntryType = {
   symbol: "ZEC",
   name: "Zcash",
   decimals: 8,
-  logoURI: "https://storage.googleapis.com/token-list-swapkit/images/zec.zec.png",
+  // No `logoURI`: the Zcash mark is bundled (see `chainIcons.ts`), so this chip
+  // draws without a network round trip and without asking a third party for the
+  // one logo in the picker that is ours to hold.
 };
 
 /** ZEC is the fixed side of every swap this wallet performs. */

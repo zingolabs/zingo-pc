@@ -114,11 +114,19 @@ const TokenLogo: React.FC<TokenLogoProps> = ({ token, size, surfaceColor, forceB
   // visible. Everything else stays transparent.
   const imageBg = isDarkLogo(token) ? DARK_LOGO_BACKDROP : "transparent";
 
+  // A bundled icon beats a letter for an asset that IS its chain, and it needs
+  // no network: the ZEC chip renders before the catalog that names every other
+  // logo has even been asked for, and a fetched logo cannot be there in time.
+  // Restricted to native assets on purpose — showing a chain's mark for a token
+  // sitting on it would put Ethereum's logo on USDC.
+  const bundledMain = isNative ? chainIcon : undefined;
+  const mainSrc = dataUri && !mainLoadFailed ? dataUri : bundledMain;
+
   return (
     <div style={{ width: size, height: size, position: "relative", flexShrink: 0 }}>
-      {dataUri && !mainLoadFailed ? (
+      {mainSrc ? (
         <img
-          src={dataUri}
+          src={mainSrc}
           alt=""
           width={size}
           height={size}
