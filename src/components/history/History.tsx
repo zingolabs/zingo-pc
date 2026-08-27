@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
 import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum, TotalBalanceClass } from "../appstate";
@@ -45,6 +45,38 @@ const History: React.FC<HistoryProps> = () => {
   const [shieldFee, setShieldFee] = useState<number>(0);
 
   const swapRecords = useSwapRecords();
+
+  // The block above the list has no fixed height. The balance row gains and
+  // loses a block with the wallet's pools, the shield button comes and goes
+  // with a transparent balance, and the pending notice and the fetch error each
+  // add a line of their own. A constant offset was therefore right for one
+  // wallet and wrong for the next, and when it was too small the pane ran past
+  // the bottom of the window and the last row could not be scrolled to.
+  //
+  // Measuring where the list starts is the quantity that constant was
+  // approximating, so it is measured. `ScrollPaneTop` keeps its contract:
+  // Send draws its buttons below its own pane and would break if the component
+  // decided this for everyone.
+  const headerRef = useRef<HTMLDivElement>(null);
+  const paneRef = useRef<HTMLDivElement>(null);
+  const [paneOffset, setPaneOffset] = useState<number>(203);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (paneRef.current) setPaneOffset(paneRef.current.getBoundingClientRect().top);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    // Watches the header rather than the pane: the pane's height is derived
+    // from this measurement, so observing it would feed back into itself.
+    // jsdom has no ResizeObserver, hence the guard.
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    if (headerRef.current) observer?.observe(headerRef.current);
+    return () => {
+      window.removeEventListener("resize", measure);
+      observer?.disconnect();
+    };
+  }, []);
 
   // Swap rows are merged in rather than deduplicated against the outbound
   // transfer that funded them: the user sees the swap beside the send that
@@ -130,7 +162,7 @@ const History: React.FC<HistoryProps> = () => {
 
   return (
     <div>
-      <div className={`${cstyles.well} ${styles.containermargin}`}>
+      <div ref={headerRef} className={`${cstyles.well} ${styles.containermargin}`}>
         <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
@@ -208,42 +240,44 @@ const History: React.FC<HistoryProps> = () => {
 
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>History</div>
 
-      <ScrollPaneTop offsetHeight={203}>
-        {!valueTransfersSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
+      <div ref={paneRef}>
+        <ScrollPaneTop offsetHeight={paneOffset}>
+          {!valueTransfersSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
-        {valueTransfersSorted && valueTransfersSorted.length === 0 && (
-          <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
-        )}
+          {valueTransfersSorted && valueTransfersSorted.length === 0 && (
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
+          )}
 
-        {valueTransfersSorted &&
-          valueTransfersSorted.length > 0 &&
-          valueTransfersSorted.map((vt: ValueTransferClass, index: number) => {
-            return (
-              <VtItemBlock
-                index={index}
-                key={`${index}-${vt.type}-${vt.txid}`}
-                vt={vt}
-                setValueTransferDetail={handleSetValueTransferDetail}
-                setValueTransferDetailIndex={handleSetValueTransferDetailIndex}
-                setModalIsOpen={handleSetModalIsOpen}
-                currencyName={info.currencyName}
-                addressBookMap={addressBookMap}
-                previousLineWithSameTxid={index === 0 ? false : valueTransfersSorted[index - 1].txid === vt.txid}
-              />
-            );
-          })}
+          {valueTransfersSorted &&
+            valueTransfersSorted.length > 0 &&
+            valueTransfersSorted.map((vt: ValueTransferClass, index: number) => {
+              return (
+                <VtItemBlock
+                  index={index}
+                  key={`${index}-${vt.type}-${vt.txid}`}
+                  vt={vt}
+                  setValueTransferDetail={handleSetValueTransferDetail}
+                  setValueTransferDetailIndex={handleSetValueTransferDetailIndex}
+                  setModalIsOpen={handleSetModalIsOpen}
+                  currencyName={info.currencyName}
+                  addressBookMap={addressBookMap}
+                  previousLineWithSameTxid={index === 0 ? false : valueTransfersSorted[index - 1].txid === vt.txid}
+                />
+              );
+            })}
 
-        {isLoadMoreEnabled && (
-          <button
-            type="button"
-            style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
-            className={cstyles.primarybutton}
-            onClick={show100MoreVtns}
-          >
-            Load more
-          </button>
-        )}
-      </ScrollPaneTop>
+          {isLoadMoreEnabled && (
+            <button
+              type="button"
+              style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
+              className={cstyles.primarybutton}
+              onClick={show100MoreVtns}
+            >
+              Load more
+            </button>
+          )}
+        </ScrollPaneTop>
+      </div>
 
       {modalIsOpen && swapDetailRecord && (
         <SwapDetailModal
