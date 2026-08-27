@@ -23,6 +23,7 @@ import routes from "../../../constants/routes.json";
 
 import { native } from "../../../electronBridge";
 import { useCopy } from "../../common/useCopy";
+import DetailNavigator from "./DetailNavigator";
 
 // zingolib PR #2466 split a VT's single pool into two lists. A VT's identity
 // within a txid now depends on both (used to re-find it after a sync refresh).
@@ -50,6 +51,8 @@ type VtModalInternalProps = {
   currencyName: string;
   addressBookMap: Map<string, string>;
   valueTransfersSliced: ValueTransferClass[];
+  /** Steps the open detail in History, which owns the list and picks the view. */
+  moveDetail: (delta: number) => void;
 };
 
 const VtModalInternal: React.FC<VtModalInternalProps> = ({
@@ -62,6 +65,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
   currencyName,
   addressBookMap,
   valueTransfersSliced,
+  moveDetail,
 }) => {
   const navigate = useNavigate();
   const context = useContext(ContextApp);
@@ -82,7 +86,9 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     blockExplorerTestnetTransactionCustom,
   } = context;
   const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
-  const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
+  // Straight from the prop: History remounts this per row, so the prop is
+  // always the row on screen and a second copy could only fall behind it.
+  const valueTransferIndex = index;
   const [expandAddress, setExpandAddress] = useState(false);
   const [expandTxid, setExpandTxid] = useState(false);
   const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
@@ -128,40 +134,6 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
       }
     }
   });
-
-  const moveValueTransferDetail = (indexParm: number, typeParm: number) => {
-    // -1 -> Previous ValueTransfer
-    //  1 -> Next ValueTransfer
-    if ((indexParm > 0 && typeParm === -1) || (indexParm < valueTransfersSliced.length - 1 && typeParm === 1)) {
-      const newIndex = indexParm + typeParm;
-      const vtNew = getValueTransferAgain(valueTransfersSliced[newIndex]);
-      if (vtNew.length !== 1) {
-        // something really weird is happening...
-        localCloseModal();
-      } else {
-        setValueTransfer(vtNew[0]);
-        setValueTransferIndex(newIndex);
-      }
-    }
-  };
-
-  const handleKeyDown = (event: any) => {
-    if (event.key === "ArrowUp") {
-      // Mover a la transacción anterior
-      moveValueTransferDetail(valueTransferIndex, -1);
-    } else if (event.key === "ArrowDown") {
-      // Mover a la siguiente transacción
-      moveValueTransferDetail(valueTransferIndex, 1);
-    }
-  };
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valueTransferIndex]);
 
   let txid: string = "";
   let typeText: string = "";
@@ -300,45 +272,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
       className={styles.txmodal}
       overlayClassName={styles.txmodalOverlay}
     >
-      {showNavigator && (
-        <div
-          style={{ position: "absolute", alignItems: "center", top: 15, left: 40 }}
-          className={cstyles.horizontalflex}
-        >
-          {valueTransferIndex === 0 ? (
-            <div
-              aria-label="Previous transaction (disabled)"
-              style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
-            >
-              <i className={`${"fas"} ${"fa-arrow-up"} ${"fa-2x"}`} />
-            </div>
-          ) : (
-            <div
-              role="button"
-              aria-label="Previous transaction"
-              style={{ marginRight: 25, cursor: "pointer" }}
-              onClick={() => moveValueTransferDetail(valueTransferIndex, -1)}
-            >
-              <i className={`${"fas"} ${"fa-arrow-up"} ${"fa-2x"}`} />
-            </div>
-          )}
-          <div>{(valueTransferIndex + 1).toString()}</div>
-          {valueTransferIndex === length - 1 ? (
-            <div aria-label="Next transaction (disabled)" style={{ marginLeft: 25, cursor: "pointer", opacity: 0.5 }}>
-              <i className={`${"fas"} ${"fa-arrow-down"} ${"fa-2x"}`} />
-            </div>
-          ) : (
-            <div
-              role="button"
-              aria-label="Next transaction"
-              style={{ marginLeft: 25, cursor: "pointer" }}
-              onClick={() => moveValueTransferDetail(valueTransferIndex, 1)}
-            >
-              <i className={`${"fas"} ${"fa-arrow-down"} ${"fa-2x"}`} />
-            </div>
-          )}
-        </div>
-      )}
+      {showNavigator && <DetailNavigator index={valueTransferIndex} length={length} move={moveDetail} />}
       <div className={cstyles.verticalflex}>
         <div className={cstyles.center}>Transaction Status</div>
 

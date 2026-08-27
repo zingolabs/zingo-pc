@@ -26,11 +26,17 @@ import {
 } from "../../swap";
 import type { SwapRecordType, TrackerEntryType } from "../../swap";
 import { isEvmSourceChain, memoToHexCalldata } from "../../swap";
+import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
 
 type SwapDetailModalProps = {
   record: SwapRecordType;
+  /** Where this swap sits in the list History is showing, and how long it is. */
+  index: number;
+  length: number;
+  /** Steps to the neighbouring row, whatever kind it turns out to be. */
+  moveDetail: (delta: number) => void;
   modalIsOpen: boolean;
   closeModal: () => void;
   onRemove: (record: SwapRecordType) => void;
@@ -41,10 +47,19 @@ type SwapDetailModalProps = {
  * value transfer. The record is read from the live store on every render, so a
  * poller tick that advances the swap reaches an open view without a reopen.
  *
- * There is no previous/next navigator. Swaps are sparse next to transfers, and
- * stepping between two unrelated ones has little to offer.
+ * It carries the same stepper the transfer detail does. History owns the step,
+ * so moving off a swap onto a transfer opens that one instead: the two views
+ * behave as one list rather than as an island inside it.
  */
-const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, closeModal, onRemove }) => {
+const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
+  record,
+  index,
+  length,
+  moveDetail,
+  modalIsOpen,
+  closeModal,
+  onRemove,
+}) => {
   const {
     currentWallet,
     blockExplorerMainnetTransaction,
@@ -171,6 +186,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
       className={styles.txmodal}
       overlayClassName={styles.txmodalOverlay}
     >
+      <DetailNavigator index={index} length={length} move={moveDetail} />
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div
           className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}

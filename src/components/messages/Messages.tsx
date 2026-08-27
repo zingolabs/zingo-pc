@@ -36,6 +36,18 @@ const Messages: React.FC<MessagesProps> = () => {
   const [numVtnsToShow, setNumVtnsToShow] = useState<number>(100);
   const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
   const [messagesSorted, setMessagesSorted] = useState<ValueTransferClass[]>([]);
+
+  // Its own list, stepped the same way History steps its own. The modal no
+  // longer resolves a step itself, so each screen showing it says what its
+  // neighbours are.
+  const moveDetail = (delta: number) => {
+    setValueTransferDetailIndex((current) => {
+      const next = current + delta;
+      if (next < 0 || next >= messagesSorted.length) return current;
+      setValueTransferDetail(messagesSorted[next]);
+      return next;
+    });
+  };
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
@@ -210,7 +222,9 @@ const Messages: React.FC<MessagesProps> = () => {
 
       {modalIsOpen && (
         <VtModal
+          key={valueTransferDetailIndex}
           index={valueTransferDetailIndex}
+          moveDetail={moveDetail}
           length={messagesSorted.length}
           totalLength={messages.length}
           vt={valueTransferDetail}

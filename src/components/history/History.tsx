@@ -149,6 +149,28 @@ const History: React.FC<HistoryProps> = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * Step the open detail to its neighbour in the list on screen.
+   *
+   * Lives here because this is where the list is and where the choice of
+   * detail view is made: setting the row is enough for a swap to open the swap
+   * detail and a transfer the transfer one, so the stepper crosses between them
+   * without either modal knowing the other exists. It used to live inside
+   * `VtModal`, which resolved each step against zingolib's transfers alone and
+   * closed itself on reaching a swap.
+   */
+  const moveDetail = useCallback(
+    (delta: number) => {
+      setValueTransferDetailIndex((current) => {
+        const next = current + delta;
+        if (next < 0 || next >= valueTransfersSorted.length) return current;
+        setValueTransferDetail(valueTransfersSorted[next]);
+        return next;
+      });
+    },
+    [valueTransfersSorted],
+  );
+
   const show100MoreVtns = () => {
     setNumVtnsToShow(numVtnsToShow + 100);
   };
@@ -275,6 +297,9 @@ const History: React.FC<HistoryProps> = () => {
       {modalIsOpen && swapDetailRecord && (
         <SwapDetailModal
           record={swapDetailRecord}
+          index={valueTransferDetailIndex}
+          length={valueTransfersSorted.length}
+          moveDetail={moveDetail}
           modalIsOpen={modalIsOpen}
           closeModal={closeModal}
           onRemove={(r) => removeSwapRecord(r.recordId)}
@@ -283,7 +308,12 @@ const History: React.FC<HistoryProps> = () => {
 
       {modalIsOpen && !swapDetailRecord && (
         <VtModal
+          // Remounted per row: the stepper now lives in History, and a fresh
+          // mount is what re-seeds the modal internals from the row it landed
+          // on rather than the one it opened with.
+          key={valueTransferDetailIndex}
           index={valueTransferDetailIndex}
+          moveDetail={moveDetail}
           length={valueTransfersSorted.length}
           totalLength={mergedValueTransfers.length}
           vt={valueTransferDetail}
