@@ -188,21 +188,45 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     >
       <DetailNavigator index={index} length={length} move={moveDetail} />
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
+        <div className={cstyles.center}>Swap details</div>
+
+        {/* The same header the transfer detail uses, and the arrow means the
+            same thing it does there: down for value arriving, up for value
+            leaving, read on the ZEC side because that is the side this wallet
+            holds. The status sits under the icon where the transfer type sits,
+            keeping its own colour, since a failed or refunded swap is worth
+            seeing before anything else on the screen. */}
         <div
-          className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}
-          style={{ color: statusColor(record.status) }}
+          className={`${cstyles.center} ${cstyles.horizontalflex}`}
+          style={{ width: "100%", alignItems: "center", justifyContent: "center" }}
         >
-          {swapRowLabel(record.status)}
-        </div>
-        {/* The arrow follows the line, not the direction. What is sold is
-            printed on the left and what is received on the right for both
-            directions, so pointing it back at the sold side on an inbound swap
-            made the line read against itself. Amounts go through the same
-            formatter the History row uses, so a provider's 18-decimal string
-            does not read as a different number here than it does there. */}
-        <div className={`${cstyles.center} ${cstyles.large} ${cstyles.padtopsmall}`}>
-          {formatAmountForDisplay(record.sellAmountHumanDecimal)} {sellSymbol} &rarr;{" "}
-          {formatAmountForDisplay(record.actualReceiveAmount ?? record.expectedReceiveAmount)} {receiveSymbol}
+          <div
+            className={`${cstyles.center} ${cstyles.verticalflex}`}
+            style={{ alignItems: "center", justifyContent: "center" }}
+          >
+            <i
+              className={`${"fas"} ${isOutbound ? "fa-arrow-circle-up" : "fa-arrow-circle-down"}`}
+              style={{
+                fontSize: "35px",
+                color: isOutbound ? Utils.getCssVariable("--color-text") : Utils.getCssVariable("--color-primary"),
+              }}
+            />
+            <div style={{ color: statusColor(record.status) }}>{swapRowLabel(record.status)}</div>
+          </div>
+
+          {/* Large rather than the transfer's headline size: this line carries
+              two amounts and two tickers, and at 32px it wraps. The arrow
+              follows the line rather than the direction, since what is sold is
+              printed on the left in both cases. Amounts go through the
+              formatter the History row uses, so a provider's 18-decimal string
+              does not read as one number in the list and another here. */}
+          <div
+            className={`${cstyles.center} ${cstyles.large}`}
+            style={{ marginLeft: 20, color: Utils.getCssVariable("--color-primary") }}
+          >
+            {formatAmountForDisplay(record.sellAmountHumanDecimal)} {sellSymbol} &rarr;{" "}
+            {formatAmountForDisplay(record.actualReceiveAmount ?? record.expectedReceiveAmount)} {receiveSymbol}
+          </div>
         </div>
 
         <div style={{ overflowY: "auto", flexGrow: 1, marginTop: 15 }}>
