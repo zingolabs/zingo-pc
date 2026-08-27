@@ -7,6 +7,7 @@ import swapStyles from "./Swap.module.css";
 import Utils from "../../utils/utils";
 import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
+import { native } from "../../electronBridge";
 import { SwapDirectionEnum, needsEphemeralRoute, providerLongLabel } from "../../swap";
 import type {
   DepositInstructionsType,
@@ -92,6 +93,22 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
     }
 
     if (!isOutbound) {
+      // Claim the refund address this swap was quoted against, so the next
+      // inbound swap is handed the following one. Outbound needs no such call:
+      // paying its own deposit applies a proposal, and that reserves the
+      // address. Inbound is paid from another wallet, so without this every
+      // inbound swap would name the same address and a provider could tie them
+      // together.
+      //
+      // Failure is logged rather than surfaced. The swap is already live at the
+      // provider and the address is still one this wallet watches; what is lost
+      // is the freshness of the next one, which is not worth failing a swap the
+      // user has just committed to.
+      try {
+        await native.reserve_refund_address();
+      } catch (e) {
+        console.error(`SwapExecute: could not reserve the refund address ${e}`);
+      }
       setPostCommit({ record: committed.record, instructions: committed.instructions });
       setCommitting(false);
       return;

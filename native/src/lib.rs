@@ -163,7 +163,8 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_transparent_addresses", get_transparent_addresses)?;
     cx.export_function("create_new_unified_address", create_new_unified_address)?;
     cx.export_function("create_new_transparent_address", create_new_transparent_address)?;
-    cx.export_function("reserve_ephemeral_address", reserve_ephemeral_address)?;
+    cx.export_function("derive_refund_address", derive_refund_address)?;
+    cx.export_function("reserve_refund_address", reserve_refund_address)?;
     cx.export_function("get_wallet_save_required", get_wallet_save_required)?;
     cx.export_function("set_config_wallet_to_test", set_config_wallet_to_test)?;
     cx.export_function("set_config_wallet_to_prod", set_config_wallet_to_prod)?;
@@ -2867,27 +2868,74 @@ fn create_new_transparent_address(mut cx: FunctionContext) -> JsResult<JsPromise
     Ok(promise)
 }
 
-/// Reserves a fresh transparent address on the refund (ZIP 320 ephemeral)
-/// scope, so the address a swap provider is told about is one-shot and a
-/// refund never links back to the wallet's persistent t-receiver. The JS
-/// layer takes one per swap.
+/// The refund (ZIP 320 ephemeral) scope address the wallet's next such
+/// proposal will spend through, so a swap provider that reads a deposit's
+/// origin is told the address it is going to observe. One-shot by scope, so
+/// a refund never links back to the wallet's persistent t-receiver.
 ///
-/// It is NOT the address the deposit ends up spending from when the swap
-/// takes the ephemeral route. `generate_refund_addresses` reserves by
-/// inserting into the wallet's address book, and the proposal picks its
-/// ephemeral address with `derive_refund_addresses`, which returns the
-/// lowest index that is NOT yet reserved — so it takes the one after this.
-/// Both are refund-scope addresses of this wallet, so a Mayachain or
-/// THORChain refund read off the on-chain origin still lands somewhere the
-/// wallet can spend; what does not hold is the assumption that the address
-/// declared to SwapKit is the address the vault observes. Reserving out of
-/// band also costs two indices per swap instead of one, and every reserved
-/// index is scanned forever after.
+/// Derives rather than reserves. Reservation belongs to the apply step, where
+/// a transaction bearing the address comes into existence (zingolib ADR 0010),
+/// and a swap quote the user walks away from is exactly the case that ADR
+/// protects: reserving here would spend an index on a deposit that may never
+/// be paid, and the proposal would then pick the following index anyway, which
+/// is not the one SwapKit was told about.
 ///
-/// Closing that gap needs zingolib to offer a derive-without-reserving call
-/// (`derive_refund_addresses` is `pub(crate)`), so the JS layer can name the
-/// address the proposal is going to pick instead of consuming one first.
-fn reserve_ephemeral_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
+/// Repeated calls answer with the same address until a proposal is applied,
+/// so the JS layer can ask on every re-quote.
+fn derive_refund_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let promise = cx
+        .task(move || -> Result<String, ZingolibError> {
+            with_panic_guard(|| {
+                let guard = LIGHTCLIENT.read().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+                if let Some(lightclient) = &*guard {
+                    RT.block_on(async move {
+                        let wallet = lightclient.wallet().read().await;
+                        let network = wallet.chain_type();
+                        let (id, address) = wallet
+                            .derive_refund_addresses(1, AccountId::ZERO)
+                            .map_err(|e| ZingolibError::Read(e.to_string()))?
+                            .into_iter()
+                            .next()
+                            .ok_or_else(|| {
+                                ZingolibError::Read(
+                                    "derive_refund_addresses returned no address".to_string(),
+                                )
+                            })?;
+                        Ok(json::object! {
+                            "account" => u32::from(id.account_id()),
+                            "address_index" => id.address_index().index(),
+                            "scope" => id.scope().to_string(),
+                            "encoded_address" => transparent::encode_address(&network, address),
+                        }
+                        .pretty(2))
+                    })
+                } else {
+                    Err(ZingolibError::LightclientNotInitialized)
+                }
+            })
+        })
+        .promise(move |mut cx, result| match result {
+            Ok(msg) => Ok(cx.string(msg)),
+            Err(err) => cx.throw_error(err.to_string()),
+        });
+
+    Ok(promise)
+}
+
+/// Claims the address `derive_refund_address` has been answering with, so the
+/// next call moves on to the following index.
+///
+/// An outbound swap needs none of this: it pays its own deposit, and applying
+/// that proposal reserves the address. An inbound swap is paid from another
+/// wallet, so nothing in this one ever builds a transaction bearing the
+/// address, and without a claim here every inbound swap would be handed the
+/// same address. A provider seeing two deposits arrive at one t-address can
+/// tie the swaps together, which is what the refund scope exists to prevent.
+///
+/// Called once the user commits a route, so browsing quotes leaves the index
+/// where it was. The address returned is the one the commit already named to
+/// SwapKit, since nothing reserves refund indices while the review is open.
+fn reserve_refund_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let promise = cx
         .task(move || -> Result<String, ZingolibError> {
             with_panic_guard(|| {
@@ -2896,7 +2944,7 @@ fn reserve_ephemeral_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     RT.block_on(async move {
                         let mut wallet = lightclient.wallet().write().await;
                         let network = wallet.chain_type();
-                        let reserved = wallet
+                        let (id, address) = wallet
                             .generate_refund_addresses(1, AccountId::ZERO)
                             .map_err(|e| ZingolibError::Read(e.to_string()))?
                             .into_iter()
@@ -2906,7 +2954,6 @@ fn reserve_ephemeral_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                     "generate_refund_addresses returned no address".to_string(),
                                 )
                             })?;
-                        let (id, address) = reserved;
                         Ok(json::object! {
                             "account" => u32::from(id.account_id()),
                             "address_index" => id.address_index().index(),

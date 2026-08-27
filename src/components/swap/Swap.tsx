@@ -106,17 +106,15 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const [refundAddressTouched, setRefundAddressTouched] = useState<boolean>(false);
   const [addressValid, setAddressValid] = useState<boolean>(true);
 
-  // The refund-scope address declared to SwapKit as this swap's wallet side.
-  // Reserved once per swap intent and reused across re-quotes, so a provider
-  // cannot tie two unrelated swaps to one identifier.
+  // The refund-scope address declared to SwapKit as this swap's wallet side,
+  // and the one an outbound deposit's ZIP 320 hop will spend through. Held for
+  // the life of a swap intent, and cleared when the intent changes.
   //
-  // On the ephemeral route it is not the address the deposit is spent from:
-  // reserving marks an index used, and the proposal takes the lowest index
-  // that is not. Both belong to this wallet, so a refund read off the on-chain
-  // origin is still recoverable — but the address SwapKit screens is not the
-  // one the vault sees, and each swap consumes two indices rather than one.
-  // See `reserve_ephemeral_address` in native/src/lib.rs for what closing that
-  // needs from zingolib.
+  // Derived rather than reserved, so browsing quotes leaves the wallet's index
+  // where it was. Committing is what claims it: an outbound commit through the
+  // proposal it applies, an inbound one through `SwapExecute`, which has no
+  // proposal to do it for them. Until a commit lands, asking again answers with
+  // the same address.
   const [ephemeralAddress, setEphemeralAddress] = useState<string>("");
 
   const [routes, setRoutes] = useState<RouteOptionType[] | null>(null);
@@ -221,9 +219,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   }, [direction, selectedToken]);
 
   // A swap intent is a direction and an asset; change either and this is a
-  // different swap, so the next quote burns a fresh index. Reusing the address
-  // across intents would let a provider tie two unrelated swaps to one
-  // identifier, which is the whole thing the ephemeral scope exists to avoid.
+  // different swap, so the next quote asks the wallet again. Carrying one
+  // address across intents would let a provider tie two unrelated swaps to a
+  // single identifier, which is the whole thing the ephemeral scope avoids.
   useEffect(() => {
     setEphemeralAddress("");
   }, [direction, selectedToken?.identifier]);
@@ -269,7 +267,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // Whichever field is live for the current direction. Both sit on the non-ZEC
   // chain: outbound the bought asset lands there, inbound the sold asset
   // returns there. The wallet's own ZEC address is never typed — it is the
-  // ephemeral one this screen reserves.
+  // ephemeral one this screen derives.
   const activeAddress = isOutbound ? destinationAddress : refundAddress;
   const setActiveAddress = isOutbound ? setDestinationAddress : setRefundAddress;
   const activeAddressTouched = isOutbound ? destinationAddressTouched : refundAddressTouched;
@@ -339,12 +337,12 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const canQuote = !!swapService && !!selectedToken && amountValid;
   const addressReady = activeAddress.trim().length > 0 && addressValid;
 
-  const reserveEphemeral = useCallback(async (): Promise<string> => {
+  const deriveEphemeral = useCallback(async (): Promise<string> => {
     if (ephemeralAddress) return ephemeralAddress;
-    const raw: string = await native.reserve_ephemeral_address();
+    const raw: string = await native.derive_refund_address();
     const parsed = JSON.parse(raw) as { encoded_address?: string };
     if (!parsed.encoded_address) {
-      throw new Error("the wallet reserved no address for this swap");
+      throw new Error("the wallet named no refund address for this swap");
     }
     setEphemeralAddress(parsed.encoded_address);
     return parsed.encoded_address;
@@ -355,7 +353,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     setQuoting(true);
     setQuoteError("");
     try {
-      const ephemeral = await reserveEphemeral();
+      const ephemeral = await deriveEphemeral();
       const other = tokenToSwapAsset(selectedToken);
       const quoteInput: QuoteInput = {
         sellAsset: isOutbound ? ZEC_ASSET : other,
@@ -413,7 +411,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     } finally {
       setQuoting(false);
     }
-  }, [swapService, selectedToken, isOutbound, amount, slippageBps, reserveEphemeral]);
+  }, [swapService, selectedToken, isOutbound, amount, slippageBps, deriveEphemeral]);
 
   // Quote as soon as there is something to quote, rather than waiting for a
   // press. The debounce is what makes that affordable: an amount typed digit

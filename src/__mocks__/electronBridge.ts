@@ -15,6 +15,9 @@ export const native = {
   get_spendable_balance_with_address: jest.fn(),
   // History
   remove_transaction: jest.fn(),
+  // Swap
+  derive_refund_address: jest.fn(),
+  reserve_refund_address: jest.fn(),
   // Insight
   get_total_value_to_address: jest.fn(),
   get_total_number_of_sends: jest.fn(),
