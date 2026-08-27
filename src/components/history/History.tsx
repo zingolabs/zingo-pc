@@ -9,8 +9,8 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import { ServerHealthLine } from "../serverHealthLine";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
-import { useSwapRecords } from "../../context/ContextSwapService";
-import { SwapStore, swapRecordToValueTransfer } from "../../swap";
+import { useSwapRecords, useValueTransfersWithSwaps } from "../../context/ContextSwapService";
+import { SwapStore } from "../../swap";
 import { ValueTransferKindEnum } from "../appstate";
 import SwapDetailModal from "../swap/SwapDetailModal";
 
@@ -78,14 +78,7 @@ const History: React.FC<HistoryProps> = () => {
     };
   }, []);
 
-  // Swap rows are merged in rather than deduplicated against the outbound
-  // transfer that funded them: the user sees the swap beside the send that
-  // paid for it, so the chronology stays explicit. Sorted by time descending
-  // to match the order zingolib already returns.
-  const mergedValueTransfers = useMemo(() => {
-    if (swapRecords.length === 0) return valueTransfers;
-    return [...valueTransfers, ...swapRecords.map(swapRecordToValueTransfer)].sort((a, b) => b.time - a.time);
-  }, [valueTransfers, swapRecords]);
+  const mergedValueTransfers = useValueTransfersWithSwaps(valueTransfers);
 
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers

@@ -1,7 +1,14 @@
-import React, { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
 
 import { ChainNameEnum } from "../swap/enums/ChainNameEnum";
-import { SwapService, SwapStore, createSwapService, readCurrentWalletFingerprint } from "../swap";
+import {
+  SwapService,
+  SwapStore,
+  createSwapService,
+  readCurrentWalletFingerprint,
+  swapRecordToValueTransfer,
+} from "../swap";
+import type ValueTransferClass from "../components/appstate/classes/ValueTransferClass";
 import type { SwapRecordType } from "../swap";
 import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
 
@@ -97,6 +104,27 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
  */
 export function useSwapService(): SwapService | null {
   return useContext(SwapServiceContext);
+}
+
+/**
+ * zingolib's transfers with this wallet's swaps folded in, newest first.
+ *
+ * A swap moves the user's money, so a list of what their money did is wrong
+ * without them. Both screens that show such a list read it from here rather
+ * than merging their own, which is what keeps the History page and the
+ * Dashboard's summary from disagreeing about the same five rows.
+ *
+ * Swaps are not deduplicated against the outbound transfer that funded them.
+ * The user sees the swap beside the send that paid for it, so the chronology
+ * stays explicit and the zingolib-reported transaction stays visible.
+ */
+export function useValueTransfersWithSwaps(valueTransfers: ValueTransferClass[]): ValueTransferClass[] {
+  const swapRecords = useSwapRecords();
+
+  return useMemo(() => {
+    if (swapRecords.length === 0) return valueTransfers;
+    return [...valueTransfers, ...swapRecords.map(swapRecordToValueTransfer)].sort((a, b) => b.time - a.time);
+  }, [valueTransfers, swapRecords]);
 }
 
 /**

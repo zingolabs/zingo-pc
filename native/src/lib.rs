@@ -939,10 +939,14 @@ fn get_seed(mut cx: FunctionContext) -> JsResult<JsPromise> {
     Ok(promise)
 }
 
+// Reads, so it takes the read lock. It held the write one, which put it behind
+// every other holder for no reason it needed: the swap store binds off this
+// call on a wallet switch, exactly when sync is starting and contending, and
+// the wait showed up as a wallet's swaps arriving late enough to look missing.
 fn get_ufvk_string() -> Result<String, ZingolibError> {
     with_panic_guard(|| {
-        let mut guard = LIGHTCLIENT.write().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
-        if let Some(lightclient) = &mut *guard {
+        let guard = LIGHTCLIENT.read().map_err(|_| ZingolibError::LightclientLockPoisoned)?;
+        if let Some(lightclient) = &*guard {
             RT.block_on(async move {
                 let wallet = lightclient.wallet().read().await;
                 let ufvk: UnifiedFullViewingKey = wallet

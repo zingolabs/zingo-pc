@@ -13,9 +13,12 @@ import {
   SyncStatusScanRangeType,
   TotalBalanceClass,
   ValueTransferClass,
+  ValueTransferKindEnum,
   ValueTransferStatusEnum,
 } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { useValueTransfersWithSwaps } from "../../context/ContextSwapService";
+import { swapRowLabel } from "../../swap";
 import DetailLine from "../detailLine/DetailLine";
 import { ServerHealthLine } from "../serverHealthLine";
 import { useNavigate } from "react-router-dom";
@@ -99,6 +102,12 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     };
   }, []);
   const drainRunning = drainProgress !== null;
+
+  // Swaps belong in "Last transactions" for the same reason they belong in
+  // History: they moved the user's money. A summary that skipped them could
+  // show five older transfers while the swap that just left the wallet sat
+  // above all of them on the History page.
+  const recentTransfers = useValueTransfersWithSwaps(valueTransfers);
 
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
@@ -546,14 +555,14 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                   Last transactions
                   <div>
                     <div className={styles.detailcontainer}>
-                      {!!valueTransfers && !!valueTransfers.length ? (
+                      {!!recentTransfers.length ? (
                         <>
                           <div
                             className={`${styles.detaillines} ${styles.txgrid} ${
                               info.currencyName === "ZEC" ? styles.txgridUsd : styles.txgridNoUsd
                             }`}
                           >
-                            {valueTransfers
+                            {recentTransfers
                               .filter((_, index: number) => index < 5)
                               .map((vt: ValueTransferClass, index: number) => {
                                 // Same fallback chain used everywhere else: prefer the
@@ -572,7 +581,15 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                 return (
                                   <React.Fragment key={index}>
                                     <div className={`${cstyles.sublight} ${styles.txtype}`}>
-                                      {Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)} :
+                                      {/* A swap's state is its own; the five-value
+                                          transfer status cannot tell one awaiting
+                                          its deposit from one the provider is
+                                          already working on. Same call the
+                                          History row makes. */}
+                                      {vt.type === ValueTransferKindEnum.swap
+                                        ? swapRowLabel(vt.swapStatus)
+                                        : Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}{" "}
+                                      :
                                     </div>
                                     <div className={styles.txzec} style={{ color: failedColor }}>
                                       {info.currencyName} {Utils.maxPrecisionTrimmed(vt.amount)}
