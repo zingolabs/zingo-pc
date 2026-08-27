@@ -28,7 +28,7 @@ import AssetPicker from "./AssetPicker";
 import QuotesPicker from "./QuotesPicker";
 import SlippagePicker, { formatSlippagePercent } from "./SlippagePicker";
 import InsufficientFunds from "./InsufficientFunds";
-import ContactPicker from "./ContactPicker";
+import ContactPicker from "../common/ContactPicker";
 
 /** SwapKit's default slippage tolerance, in basis points. */
 const DEFAULT_SLIPPAGE_BPS = 100;
@@ -811,7 +811,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       {contactsOpen && (
         <ContactPicker
           contacts={chainContacts}
-          chain={counterpartyChain}
+          chainLabel={chainDisplayName(counterpartyChain) || counterpartyChain}
           modalIsOpen={contactsOpen}
           closeModal={() => setContactsOpen(false)}
           onSelect={(address) => {

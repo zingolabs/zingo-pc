@@ -2,27 +2,28 @@ import React from "react";
 import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
-import cstyles from "../common/Common.module.css";
+import cstyles from "./Common.module.css";
 import { AddressBookEntryClass } from "../appstate";
-import { chainDisplayName } from "./chainDisplayName";
 
 type ContactPickerProps = {
   /** Already filtered to the chain being asked for. */
   contacts: AddressBookEntryClass[];
-  chain: string;
+  /** What to call that chain, in the title and the empty state. Resolved by the
+   *  caller, which is what keeps this out of SwapKit's chain vocabulary. */
+  chainLabel: string;
   modalIsOpen: boolean;
   closeModal: () => void;
   onSelect: (address: string) => void;
 };
 
 /**
- * Contacts for one chain, to fill the swap's address field.
+ * Contacts for one chain, to fill an address field.
  *
  * Filtering happens before this renders, and the empty state says which chain
  * came up empty: a user with a full address book of Zcash contacts opening
  * this for Bitcoin would otherwise read the blank list as a fault.
  */
-const ContactPicker: React.FC<ContactPickerProps> = ({ contacts, chain, modalIsOpen, closeModal, onSelect }) => (
+const ContactPicker: React.FC<ContactPickerProps> = ({ contacts, chainLabel, modalIsOpen, closeModal, onSelect }) => (
   <Modal
     isOpen={modalIsOpen}
     onRequestClose={closeModal}
@@ -30,15 +31,12 @@ const ContactPicker: React.FC<ContactPickerProps> = ({ contacts, chain, modalIsO
     overlayClassName={styles.txmodalOverlay}
   >
     <div className={cstyles.verticalflex} style={{ height: "100%" }}>
-      <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>
-        {chainDisplayName(chain) || chain} contacts
-      </div>
+      <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>{chainLabel} contacts</div>
 
       <div style={{ overflowY: "auto", flexGrow: 1, marginTop: 12 }}>
         {contacts.length === 0 && (
           <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
-            No {chainDisplayName(chain) || chain} addresses saved yet. Save one from this screen and it will appear
-            here.
+            No {chainLabel} addresses saved yet. Save one from this screen and it will appear here.
           </div>
         )}
         {contacts.map((contact) => (

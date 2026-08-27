@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
@@ -10,6 +10,8 @@ import { ContextApp } from "../../../context/ContextAppState";
 import { isZnsAlias, extractZnsName, resolveZnsAlias } from "../../../utils/zns";
 import { shell } from "../../../electronBridge";
 import routes from "../../../constants/routes.json";
+import ContactPicker from "../../common/ContactPicker";
+import { ZEC_SWAP_CHAIN } from "../../appstate/classes/AddressBookEntryClass";
 
 const Spacer = () => {
   return <div style={{ marginTop: "24px" }} />;
@@ -81,6 +83,20 @@ const ToAddrBox = ({
   // badge survives Send ↔ AddressBook navigation. `znsStatus` is purely transient.
   const [znsAlias, setZnsAliasLocal] = useState<string>(toaddr.znsAlias);
   const [znsStatus, setZnsStatus] = useState<"idle" | "resolving" | "not-found" | "network">("idle");
+  const [contactsOpen, setContactsOpen] = useState<boolean>(false);
+
+  // Zcash contacts only. The address book holds swap contacts too, and those
+  // carry this same `chain` — swaps are mainnet-only, so a Bitcoin address is
+  // stored against the main network with its own `swapChain`. Filtering on the
+  // network alone would offer a Bitcoin address to a Zcash send.
+  const zcashContacts = useMemo(
+    () =>
+      addressBook.filter(
+        (ab: AddressBookEntryClass) =>
+          ab.chain === serverChainName && (ab.swapChain ?? ZEC_SWAP_CHAIN) === ZEC_SWAP_CHAIN,
+      ),
+    [addressBook, serverChainName],
+  );
   // Wrap the setter so every local change is mirrored to the parent state.
   const setZnsAlias = (alias: string) => {
     setZnsAliasLocal(alias);
@@ -340,7 +356,22 @@ const ToAddrBox = ({
                     <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
                   </button>
                 </span>
-              ) : null}
+              ) : (
+                // Nothing typed yet, which is when a saved contact is most
+                // useful. The swap screen offers the same choice on its own
+                // address field; this is the Zcash side of it.
+                zcashContacts.length > 0 && (
+                  <button
+                    type="button"
+                    aria-label="Choose from contacts"
+                    title="Choose from contacts"
+                    onClick={() => setContactsOpen(true)}
+                    style={iconButtonStyle}
+                  >
+                    <i className={`${"fas"} ${"fa-address-book"} ${"fa-lg"}`} />
+                  </button>
+                )
+              )}
             </div>
           </div>
           <div className={`${cstyles.sublight} ${cstyles.green}`}>
@@ -371,6 +402,21 @@ const ToAddrBox = ({
             updateToField(e.target.value, null, null);
           }}
         />
+
+        {contactsOpen && (
+          <ContactPicker
+            contacts={zcashContacts}
+            chainLabel={currencyName === "TAZ" ? "Testnet Zcash" : "Zcash"}
+            modalIsOpen={contactsOpen}
+            closeModal={() => setContactsOpen(false)}
+            onSelect={(address) => {
+              // Straight into the field, so the same validation, ZNS check and
+              // contact badge run as if it had been typed.
+              setToLocal(address);
+              updateToField(address, null, null);
+            }}
+          />
+        )}
 
         <Spacer />
 

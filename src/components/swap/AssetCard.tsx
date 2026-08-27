@@ -159,7 +159,9 @@ const AssetCard: React.FC<AssetCardProps> = ({
                 aria-label="Choose from contacts"
                 title="Choose from contacts"
               >
-                <i className={`${"fas"} ${"fa-list"} ${"fa-lg"}`} />
+                {/* The same icon the sidebar gives the Address Book, so the
+                    button reads as the place it opens rather than as a list. */}
+                <i className={`${"fas"} ${"fa-address-book"} ${"fa-lg"}`} />
               </button>
             )}
             {address.onSave && (
