@@ -795,6 +795,13 @@ ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 // renderer could ask main to fetch anything, which would undo the CSP rather
 // than work within it. Hosts are compared exactly, so a lookalike domain does
 // not pass on a prefix.
+//
+// This `fetch` goes over clearnet while the wallet's indexer traffic rides the
+// mixnet, so SwapKit sees the user's IP beside the asset pair, the amount, and
+// the refund-scope Zcash address a quote names. zingolib ADR 0024 rule 6 ruled
+// on this shape for price-fetch and zingo-pc honours it there. Routing swap
+// traffic the same way is an open decision, recorded with its options in
+// docs/swap-privacy.md. Read that before changing how this request travels.
 const SWAP_HTTP_HOSTS = new Set(["api.swapkit.dev", "midgard.mayachain.info", "midgard.ninerealms.com"]);
 const SWAP_HTTP_MAX_TIMEOUT_MS = 30000;
 
@@ -896,6 +903,12 @@ ipcMain.handle("swapStorage:set", async (_e, key, value) => {
 // Instead the response itself is constrained: https only, an image
 // content-type, and a size cap. A data URI rendered into an `<img>` executes
 // nothing, so the worst a hostile response can do is fail to decode.
+//
+// Two costs come with that, both open and recorded in docs/swap-privacy.md.
+// Any HTTPS URL the renderer names is fetched, which answers whether an
+// arbitrary host serves an image. And the picker renders up to 60 logos at a
+// time, so opening it tells whichever CDNs the catalog names which tokens the
+// user is looking at. The cache below bounds neither entries nor bytes.
 const SWAP_LOGO_MAX_BYTES = 256 * 1024;
 const SWAP_LOGO_TIMEOUT_MS = 8000;
 const swapLogoCache = new Map();
