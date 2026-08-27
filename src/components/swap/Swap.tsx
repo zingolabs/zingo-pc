@@ -669,7 +669,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               and the difference is worth knowing before asking for a quote
               rather than after. Phrased as what the provider sees, since that
               is the fact; the remedy is the user's to choose. */}
-          <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
+          <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.margintoplarge}`}>
             Swaps reach the provider directly, not through the mixnet. Quoting and tracking a swap shows the provider
             your IP address alongside the assets, the amount, and the addresses involved.
           </div>
