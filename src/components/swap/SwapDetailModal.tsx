@@ -17,6 +17,7 @@ import {
   SwapStatusEnum,
   buildTrackerEntries,
   canRemoveSwap,
+  formatAmountForDisplay,
   isPrePaymentStatus,
   isRealLegHash,
   isTerminalStatus,
@@ -177,9 +178,15 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
         >
           {swapRowLabel(record.status)}
         </div>
+        {/* The arrow follows the line, not the direction. What is sold is
+            printed on the left and what is received on the right for both
+            directions, so pointing it back at the sold side on an inbound swap
+            made the line read against itself. Amounts go through the same
+            formatter the History row uses, so a provider's 18-decimal string
+            does not read as a different number here than it does there. */}
         <div className={`${cstyles.center} ${cstyles.large} ${cstyles.padtopsmall}`}>
-          {record.sellAmountHumanDecimal} {sellSymbol} {isOutbound ? "→" : "←"}{" "}
-          {record.actualReceiveAmount ?? record.expectedReceiveAmount} {receiveSymbol}
+          {formatAmountForDisplay(record.sellAmountHumanDecimal)} {sellSymbol} &rarr;{" "}
+          {formatAmountForDisplay(record.actualReceiveAmount ?? record.expectedReceiveAmount)} {receiveSymbol}
         </div>
 
         <div style={{ overflowY: "auto", flexGrow: 1, marginTop: 15 }}>
