@@ -739,7 +739,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               </div>
             )}
 
-            <div className={`${cstyles.center} ${cstyles.horizontalflex} ${cstyles.padtopsmall}`}>
+            <div className={`${cstyles.horizontalflex} ${cstyles.padtopsmall}`} style={{ justifyContent: "center" }}>
               <button
                 type="button"
                 className={cstyles.primarybutton}

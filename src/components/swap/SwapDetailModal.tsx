@@ -308,7 +308,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({ record, modalIsOpen, 
 
         {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}
 
-        <div className={`${cstyles.center} ${cstyles.horizontalflex} ${cstyles.padtopsmall}`}>
+        <div className={`${cstyles.horizontalflex} ${cstyles.padtopsmall}`} style={{ justifyContent: "center" }}>
           {removable && (
             <button type="button" className={cstyles.primarybutton} onClick={confirmRemove}>
               Remove

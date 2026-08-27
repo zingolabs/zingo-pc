@@ -158,7 +158,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
         overlayClassName={styles.txmodalOverlay}
       >
         <div className={cstyles.verticalflex} style={{ height: "100%" }}>
-          <div className={`${cstyles.center} ${cstyles.large} ${cstyles.padtopsmall}`}>
+          <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>
             {txId ? "Deposit sent" : "Pay this deposit"}
           </div>
           {!!error && (
@@ -231,44 +231,52 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
       className={styles.txmodal}
       overlayClassName={styles.txmodalOverlay}
     >
-      <div className={cstyles.large}>Review</div>
+      <div className={cstyles.verticalflex} style={{ height: "100%" }}>
+        <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Review</div>
 
-      <div className={cstyles.padtopsmall}>
-        <div className={`${cstyles.sublight} ${cstyles.small}`}>Route</div>
-        <div>{providerLongLabel(route.provider)}</div>
-      </div>
+        <div style={{ overflowY: "auto", flexGrow: 1 }}>
+          <div className={cstyles.padtopsmall}>
+            <div className={`${cstyles.sublight} ${cstyles.small}`}>Route</div>
+            <div>{providerLongLabel(route.provider)}</div>
+          </div>
 
-      <div className={cstyles.padtopsmall}>
-        <div className={`${cstyles.sublight} ${cstyles.small}`}>You send</div>
-        <div>
-          {quoteInput.sellAmountHumanDecimal} {quoteInput.sellAsset.ticker ?? quoteInput.sellAsset.symbol}
+          <div className={cstyles.padtopsmall}>
+            <div className={`${cstyles.sublight} ${cstyles.small}`}>You send</div>
+            <div>
+              {quoteInput.sellAmountHumanDecimal} {quoteInput.sellAsset.ticker ?? quoteInput.sellAsset.symbol}
+            </div>
+          </div>
+
+          <div className={cstyles.padtopsmall}>
+            <div className={`${cstyles.sublight} ${cstyles.small}`}>You receive, at least</div>
+            <div>
+              {route.minReceiveAmount} {quoteInput.receiveAsset.ticker ?? quoteInput.receiveAsset.symbol}
+            </div>
+            <div className={`${cstyles.sublight} ${cstyles.small}`}>
+              Expected {route.expectedReceiveAmount}. The minimum is what the slippage tolerance guarantees.
+            </div>
+          </div>
+
+          <div className={cstyles.padtopsmall}>
+            <div className={`${cstyles.sublight} ${cstyles.small}`}>Destination</div>
+            <div style={{ wordBreak: "break-all" }}>{quoteInput.destinationAddress}</div>
+          </div>
+
+          {!!error && (
+            <div className={cstyles.padtopsmall} style={{ color: Utils.getCssVariable("--color-error") }}>
+              {error}
+            </div>
+          )}
         </div>
-      </div>
 
-      <div className={cstyles.padtopsmall}>
-        <div className={`${cstyles.sublight} ${cstyles.small}`}>You receive, at least</div>
-        <div>
-          {route.minReceiveAmount} {quoteInput.receiveAsset.ticker ?? quoteInput.receiveAsset.symbol}
+        <div className={`${cstyles.horizontalflex} ${cstyles.padtopsmall}`} style={{ justifyContent: "center" }}>
+          <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={commit}>
+            {committing ? "Working..." : isOutbound ? "Swap and send deposit" : "Start the swap"}
+          </button>
+          <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={onDone}>
+            Cancel
+          </button>
         </div>
-        <div className={`${cstyles.sublight} ${cstyles.small}`}>
-          Expected {route.expectedReceiveAmount}. The minimum is what the slippage tolerance guarantees.
-        </div>
-      </div>
-
-      <div className={cstyles.padtopsmall}>
-        <div className={`${cstyles.sublight} ${cstyles.small}`}>Destination</div>
-        <div style={{ wordBreak: "break-all" }}>{quoteInput.destinationAddress}</div>
-      </div>
-
-      {!!error && <div style={{ color: Utils.getCssVariable("--color-error") }}>{error}</div>}
-
-      <div className={`${cstyles.center} ${cstyles.horizontalflex} ${cstyles.padtopsmall}`}>
-        <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={commit}>
-          {committing ? "Working..." : isOutbound ? "Swap and send deposit" : "Start the swap"}
-        </button>
-        <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={onDone}>
-          Cancel
-        </button>
       </div>
     </Modal>
   );
