@@ -11,24 +11,22 @@ shipped alongside the decision is the disclosure: the Swap screen now says the
 provider sees the user's IP, so the mixnet indicator and this screen stop
 disagreeing.
 
-Two related findings were accepted in the same pass. The SwapKit API key ships
-in the bundle, which has no client-side fix. `native/Cargo.toml` pins zingolib
-by branch against ADR 0024 rule 7, which stands until that branch merges.
+One related finding was accepted in the same pass: `native/Cargo.toml` pins
+zingolib by branch against ADR 0024 rule 7, which stands until that branch
+merges.
 
-## What a third party learns today
+## The shape of it
 
-Per quote, SwapKit sees the user's IP alongside the asset pair, the amount, the
-slippage tolerance, and both addresses: the counterparty's, and the
-refund-scope Zcash address this wallet derived. That last one is the part worth
-naming plainly. It correlates a Zcash address the wallet controls with an IP
-and with an identity on another chain, which is the correlation a shielded
-wallet exists to prevent, arriving through a side door.
+A quote is an ordinary HTTPS request to the provider, so the provider sees
+where it came from along with what it asks. The request has to carry wallet
+addresses to be answerable at all, which is what makes this more than a
+network-level observation: it puts an address the wallet controls beside
+something that identifies the machine. Tracking repeats that for as long as the
+swap runs, and the Midgard queries behave the same way.
 
-Committing adds nothing new. Polling repeats the association for as long as the
-swap runs, every 20 to 90 seconds.
-
-Midgard sees the destination address of inbound Maya and THORChain swaps, on
-the same terms, whenever the poller probes for a source-chain hash.
+Keeping those two apart is what a shielded wallet is for, and here they are
+not. That is the whole of the concern, and it is why the decision above is a
+deferral rather than a dismissal.
 
 Token logos are a separate leak with a different shape. Their hosts arrive
 inside SwapKit's catalog rather than being ours to know, and the asset picker
@@ -104,7 +102,3 @@ truth once it does.
 `native/Cargo.toml` pins zingolib by branch. ADR 0024 rule 7: "Consumers
 declare exactly one wallet dependency: zingolib at a git rev, never a branch."
 A one-line change once `opreturn_on_proposal` lands.
-
-The SwapKit API key ships in the renderer bundle, extractable from any build.
-No client-side fix exists for a distributed desktop app, so the key is public
-in practice and belongs behind rate limits and rotation on SwapKit's side.

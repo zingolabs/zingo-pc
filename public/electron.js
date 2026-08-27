@@ -797,11 +797,11 @@ ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 // not pass on a prefix.
 //
 // This `fetch` goes over clearnet while the wallet's indexer traffic rides the
-// mixnet, so SwapKit sees the user's IP beside the asset pair, the amount, and
-// the refund-scope Zcash address a quote names. zingolib ADR 0024 rule 6 ruled
-// on this shape for price-fetch and zingo-pc honours it there. Routing swap
-// traffic the same way is an open decision, recorded with its options in
-// docs/swap-privacy.md. Read that before changing how this request travels.
+// mixnet, so a swap reaches the provider with none of the cover a send has.
+// zingolib ADR 0024 rule 6 ruled on this shape for price-fetch and zingo-pc
+// honours it there. Doing the same for swap traffic was deferred rather than
+// rejected, with the reasoning and the options in docs/swap-privacy.md. Read
+// that before changing how this request travels.
 const SWAP_HTTP_HOSTS = new Set(["api.swapkit.dev", "midgard.mayachain.info", "midgard.ninerealms.com"]);
 const SWAP_HTTP_MAX_TIMEOUT_MS = 30000;
 
