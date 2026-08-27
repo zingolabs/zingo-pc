@@ -6,8 +6,10 @@ import { SwapStore } from "./SwapStore";
 import { TokenCatalog } from "./TokenCatalog";
 import { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
+import { SwapErrorCategoryEnum } from "./enums/SwapErrorCategoryEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
+import { SwapKitError } from "./errors";
 import { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
 import { isRealLegHash } from "./providers/trackUpdateBase";
 import { DepositInstructionsType } from "./types/DepositInstructionsType";
@@ -148,16 +150,30 @@ export class SwapService {
     // on the API key, so we do not pass affiliate params explicitly. Trusting
     // the dashboard is intentional: passing stale values from the repo would
     // override the live config and silently break revenue capture.
-    const response = await this.client.quote({
-      sellAsset: input.sellAsset.swapKitId,
-      buyAsset: input.receiveAsset.swapKitId,
-      sellAmount: input.sellAmountHumanDecimal,
-      sourceAddress: input.sourceAddress,
-      destinationAddress: input.destinationAddress,
-      // SwapKit expects slippage as a percentage number (e.g. `2` for 2%),
-      // not basis points and not a string.
-      slippage: input.slippageBps !== undefined ? input.slippageBps / 100 : undefined,
-    });
+    let response: QuoteResponseType;
+    try {
+      response = await this.client.quote({
+        sellAsset: input.sellAsset.swapKitId,
+        buyAsset: input.receiveAsset.swapKitId,
+        sellAmount: input.sellAmountHumanDecimal,
+        sourceAddress: input.sourceAddress,
+        destinationAddress: input.destinationAddress,
+        // SwapKit expects slippage as a percentage number (e.g. `2` for 2%),
+        // not basis points and not a string.
+        slippage: input.slippageBps !== undefined ? input.slippageBps / 100 : undefined,
+      });
+    } catch (error) {
+      // SwapKit says "no route" two ways: 200 with an empty `routes[]` beside a
+      // `providerErrors[]`, and 404 with `noRoutesFound`. Both are answers
+      // about the market rather than faults, and only the first reached the
+      // screen as one — the second arrived as a raw HTTP error, which reads
+      // like a broken wallet to someone whose amount was merely too small.
+      // Normalising here leaves the caller one shape to render. Anything else
+      // still throws.
+      const asEmptyQuote = emptyQuoteFromNoRouteError(error);
+      if (!asEmptyQuote) throw error;
+      return { routes: [], rawResponse: asEmptyQuote };
+    }
 
     const routes = (response.routes ?? [])
       .map((route) =>
@@ -350,6 +366,38 @@ export class SwapService {
 
   stopPolling(): void {
     this.poller.stop();
+  }
+}
+
+/**
+ * Reads a refusal that means "no route" back into the shape a 200 would have
+ * carried, so `describeEmptyQuote` can explain it the same way either way.
+ *
+ * Returns null for everything else. Only the refusal the error classifier
+ * already calls `NoQuoteOrLiquidity` takes this path, so a transport failure,
+ * a rejected key, or a provider outage still throws and still reaches the user
+ * as the fault it is.
+ *
+ * The body is searched for the same `providerErrors` the 200 shape carries. A
+ * 404 that includes them still names the minimum the user needs; one that does
+ * not leaves the empty list, and the caller falls back to its generic sentence
+ * rather than inventing a figure.
+ */
+function emptyQuoteFromNoRouteError(error: unknown): QuoteResponseType | null {
+  if (!(error instanceof SwapKitError)) return null;
+  if (error.category !== SwapErrorCategoryEnum.NoQuoteOrLiquidity) return null;
+  return { routes: [], providerErrors: parseProviderErrors(error.body) };
+}
+
+function parseProviderErrors(body: string | undefined): QuoteResponseType["providerErrors"] {
+  if (!body) return undefined;
+  try {
+    const parsed = JSON.parse(body) as QuoteResponseType;
+    return Array.isArray(parsed.providerErrors) ? parsed.providerErrors : undefined;
+  } catch {
+    // A body that is not JSON says nothing about minimums. The generic
+    // sentence is the honest answer.
+    return undefined;
   }
 }
 

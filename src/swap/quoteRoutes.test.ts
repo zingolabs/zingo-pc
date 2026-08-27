@@ -1,5 +1,7 @@
 import { SwapService } from "./SwapService";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
+import { SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
+import { SwapKitHttpError, SwapKitNetworkError } from "./errors";
 import { createDefaultProviderRegistry } from "./providers/ProviderRegistry";
 import type { SwapKitClient } from "./SwapKitClient";
 import type { SwapPoller } from "./SwapPoller";
@@ -245,6 +247,102 @@ describe("fee aggregation", () => {
     const { service } = serviceReturning({ routes: [route({ fees })] });
 
     expect((await askForQuote(service)).routes[0].feesRaw).toEqual(fees);
+  });
+});
+
+describe("a refusal that means no route", () => {
+  const failing = (error: unknown) => {
+    const quote = jest.fn(async () => {
+      throw error;
+    });
+    return new SwapService({
+      client: { quote } as unknown as SwapKitClient,
+      registry: createDefaultProviderRegistry(),
+      store: null as unknown as typeof SwapStore,
+      poller: null as unknown as SwapPoller,
+      tokenCatalog: null as unknown as TokenCatalog,
+    });
+  };
+
+  // The shape a small amount produces. It arrives as a thrown HTTP error while
+  // the 200 answer for the same condition arrives as data, and only the second
+  // was ever explained to the user.
+  const noRoutes404 = (body: unknown) =>
+    new SwapKitHttpError({
+      operation: SwapOperationEnum.Quote,
+      httpStatus: 404,
+      body: JSON.stringify(body),
+    });
+
+  it("turns SwapKit's 404 into the empty quote its 200 would have been", async () => {
+    const { routes, rawResponse } = await askForQuote(
+      failing(noRoutes404({ message: "No routes found for NEAR.USDC -> ZEC.ZEC", error: "noRoutesFound" })),
+    );
+
+    expect(routes).toEqual([]);
+    expect(rawResponse.routes).toEqual([]);
+  });
+
+  // The caller reads the minimum off `providerErrors`, so a 404 that carries
+  // them still names the amount that would work.
+  it("keeps the provider errors when the refusal carries them", async () => {
+    const { rawResponse } = await askForQuote(
+      failing(
+        noRoutes404({
+          error: "noRoutesFound",
+          providerErrors: [{ provider: "NEAR", errorCode: "sellAssetAmountTooSmall", minAmount: "0.01068069" }],
+        }),
+      ),
+    );
+
+    expect(rawResponse.providerErrors).toEqual([
+      { provider: "NEAR", errorCode: "sellAssetAmountTooSmall", minAmount: "0.01068069" },
+    ]);
+  });
+
+  it("leaves the provider errors out rather than inventing them", async () => {
+    const { rawResponse } = await askForQuote(failing(noRoutes404({ error: "noRoutesFound" })));
+
+    expect(rawResponse.providerErrors).toBeUndefined();
+  });
+
+  it("survives a refusal whose body is not JSON", async () => {
+    const error = new SwapKitHttpError({
+      operation: SwapOperationEnum.Quote,
+      httpStatus: 404,
+      body: "no route",
+    });
+
+    await expect(askForQuote(failing(error))).resolves.toMatchObject({ routes: [] });
+  });
+
+  // The half that matters most. Only the refusal the classifier already calls
+  // NoQuoteOrLiquidity is read as an answer; everything else is still a fault
+  // and still reaches the user as one.
+  it("still throws a rejected key", async () => {
+    const error = new SwapKitHttpError({
+      operation: SwapOperationEnum.Quote,
+      httpStatus: 403,
+      body: JSON.stringify({ message: "Invalid API key" }),
+    });
+
+    await expect(askForQuote(failing(error))).rejects.toThrow(/Invalid API key/);
+  });
+
+  it("still throws when the provider is down", async () => {
+    const error = new SwapKitHttpError({ operation: SwapOperationEnum.Quote, httpStatus: 503, body: "" });
+
+    await expect(askForQuote(failing(error))).rejects.toThrow(/503/);
+  });
+
+  it("still throws a transport failure", async () => {
+    const error = new SwapKitNetworkError(SwapOperationEnum.Quote, new Error("socket hang up"));
+
+    await expect(askForQuote(failing(error))).rejects.toThrow(/socket hang up/);
+  });
+
+  it("still throws anything that is not a SwapKit error at all", async () => {
+    await expect(askForQuote(failing(new Error("boom")))).rejects.toThrow("boom");
   });
 });
 
