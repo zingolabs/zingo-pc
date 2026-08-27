@@ -112,32 +112,40 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               : Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
           </div>
           <div className={`${cstyles.padtopsmall} ${cstyles.sublight}`}>{timePart}</div>
-          {(vt.status === ValueTransferStatusEnum.calculated ||
-            vt.status === ValueTransferStatusEnum.transmitted ||
-            vt.status === ValueTransferStatusEnum.mempool ||
-            vt.status === ValueTransferStatusEnum.failed) && (
-            <div
-              style={{
-                color:
-                  vt.status === ValueTransferStatusEnum.failed
-                    ? Utils.getCssVariable("--color-error")
-                    : vt.status === ValueTransferStatusEnum.calculated ||
-                        vt.status === ValueTransferStatusEnum.transmitted
-                      ? Utils.getCssVariable("--color-warning")
-                      : Utils.getCssVariable("--color-primary-disable"),
-              }}
-            >
-              {vt.status === ValueTransferStatusEnum.calculated
-                ? "Calculated"
-                : vt.status === ValueTransferStatusEnum.transmitted
-                  ? "Transmitted"
-                  : vt.status === ValueTransferStatusEnum.mempool
-                    ? "In Mempool"
-                    : vt.status === ValueTransferStatusEnum.failed
-                      ? "Failed"
-                      : ""}
-            </div>
-          )}
+          {/* Not on a swap row. Calculated, Transmitted and In Mempool describe
+              where a Zcash transaction sits on its way into a block, which a
+              swap is not doing: it is waiting on a deposit, or on a provider
+              moving funds across chains. Its own state is already the label
+              above, and `swapRowLabel` covers every one of them, so this line
+              could only restate it in the wrong vocabulary. The mapped status
+              still colours the amount, which is why the mapping stays. */}
+          {!isSwapRow &&
+            (vt.status === ValueTransferStatusEnum.calculated ||
+              vt.status === ValueTransferStatusEnum.transmitted ||
+              vt.status === ValueTransferStatusEnum.mempool ||
+              vt.status === ValueTransferStatusEnum.failed) && (
+              <div
+                style={{
+                  color:
+                    vt.status === ValueTransferStatusEnum.failed
+                      ? Utils.getCssVariable("--color-error")
+                      : vt.status === ValueTransferStatusEnum.calculated ||
+                          vt.status === ValueTransferStatusEnum.transmitted
+                        ? Utils.getCssVariable("--color-warning")
+                        : Utils.getCssVariable("--color-primary-disable"),
+                }}
+              >
+                {vt.status === ValueTransferStatusEnum.calculated
+                  ? "Calculated"
+                  : vt.status === ValueTransferStatusEnum.transmitted
+                    ? "Transmitted"
+                    : vt.status === ValueTransferStatusEnum.mempool
+                      ? "In Mempool"
+                      : vt.status === ValueTransferStatusEnum.failed
+                        ? "Failed"
+                        : ""}
+              </div>
+            )}
         </div>
         <div className={styles.txaddressmemofeeamount}>
           <div className={styles.txaddressmemo}>
