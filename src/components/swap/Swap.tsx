@@ -663,6 +663,16 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               {quoting ? "Quoting..." : quoteError ? "" : "Waiting for a quote..."}
             </div>
           )}
+
+          {/* Stated because the mixnet indicator does not cover this screen.
+              A user reading it as "my traffic is private" would be wrong here,
+              and the difference is worth knowing before asking for a quote
+              rather than after. Phrased as what the provider sees, since that
+              is the fact; the remedy is the user's to choose. */}
+          <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
+            Swaps reach the provider directly, not through the mixnet. Quoting and tracking a swap shows the provider
+            your IP address alongside the assets, the amount, and the addresses involved.
+          </div>
         </div>
 
         {quoteError && (

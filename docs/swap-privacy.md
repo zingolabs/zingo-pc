@@ -4,8 +4,16 @@ The swap layer's HTTP leaves the machine over clearnet. `swapHttp:request`,
 `swapLogo:get`, and the Midgard queries all run `fetch` from the main process
 with no proxy, while the wallet's own indexer traffic rides the Nym mixnet.
 
-This is recorded rather than fixed. The routing decision is open, and the
-options are in **Deciding it** below.
+**Decided 2026-08-27: this ships as it is.** Routing swap traffic through the
+mixnet is deferred, not rejected, and the options are kept in **If it is
+revisited** below so whoever picks it up does not repeat the analysis. What
+shipped alongside the decision is the disclosure: the Swap screen now says the
+provider sees the user's IP, so the mixnet indicator and this screen stop
+disagreeing.
+
+Two related findings were accepted in the same pass. The SwapKit API key ships
+in the bundle, which has no client-side fix. `native/Cargo.toml` pins zingolib
+by branch against ADR 0024 rule 7, which stands until that branch merges.
 
 ## What a third party learns today
 
@@ -25,18 +33,29 @@ the same terms, whenever the poller probes for a source-chain hash.
 Token logos are a separate leak with a different shape. Their hosts arrive
 inside SwapKit's catalog rather than being ours to know, and the asset picker
 renders up to 60 at a time, so opening it contacts whatever CDNs the catalog
-names and tells each one which tokens the user is looking at. `swapLogo:get`
-also accepts any HTTPS URL from the renderer, which makes it a probe for
-whether an arbitrary host returns an image. The response is constrained
-(image content-type, a 256 KB cap, handed back as a data URI, so nothing
-executes), and its cache has no bound on entries or bytes.
+names and tells each one which tokens the user is looking at. That part
+remains.
 
-## What the disclaimer says
+Two things about them were fixed rather than accepted. `swapLogo:get` used to
+fetch any HTTPS URL the renderer named, which answered whether an arbitrary
+host serves an image; it now accepts only hosts harvested from the catalog as
+it passes through `swapHttp:request`, so the allowlist comes from SwapKit
+rather than from a guess here. And the cache, which held data URIs of up to
+256 KB with no bound, now evicts oldest-first under a byte budget and
+remembers a logo that would not load so the picker stops asking for it.
+
+## What the user is told
 
 `MixnetModal` says the mixnet "hides your IP from the indexer when you send".
 Scoped to the indexer, so the text is accurate as written. It is also not what
 a user reads off a green mixnet indicator, and a swap sends more to SwapKit
 than a send sends to an indexer.
+
+The Swap screen closes that gap directly rather than leaving the reader to
+infer it, in the words the decision above settled on: swaps reach the provider
+directly, and quoting or tracking one shows the provider an IP address
+alongside the assets, the amount, and the addresses. Stated as what the
+provider sees, since that is the fact, and the remedy is the user's to choose.
 
 ## The precedent
 
@@ -59,7 +78,10 @@ semantic sentences: the IP-correlation disclaimer and refusal remedies", so
 whatever is decided here should reach the user in zingolib's words rather than
 a second set invented in this repo.
 
-## Deciding it
+## If it is revisited
+
+Deferred on 2026-08-27, with the analysis kept so the next attempt starts here
+rather than at the beginning.
 
 **Through zingolib.** A mixnet-capable HTTP call in zingolib that zingo-pc
 consumes, the way price already works. What ADR 0024 asks for by rule 1's "one
@@ -72,9 +94,10 @@ holds. Self-contained and small. It also puts mixnet transport policy back in a
 renderer, which is the divergence ADR 0024 was written to end, and would be the
 fourth place that policy lives.
 
-**Neither, said out loud.** Leave the traffic on clearnet and say so on the
-Swap screen, so the indicator and the behaviour stop disagreeing. Cheap and
-honest. The correlation still happens.
+The third option, saying it out loud and leaving the traffic where it is, is
+what shipped. It costs nothing to keep if either of the above lands later: a
+screen that has stopped claiming privacy it does not have is still telling the
+truth once it does.
 
 ## Adjacent
 

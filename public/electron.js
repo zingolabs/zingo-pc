@@ -831,11 +831,38 @@ ipcMain.handle("swapHttp:request", async (_e, request) => {
       headers: headers ?? {},
       ...(body !== undefined && body !== null && { body }),
     });
-    return { ok: response.ok, status: response.status, text: await response.text() };
+    const text = await response.text();
+    if (response.ok) rememberLogoHosts(parsed, text);
+    return { ok: response.ok, status: response.status, text };
   } finally {
     clearTimeout(timer);
   }
 });
+
+// Hosts SwapKit named as logo sources in its own catalog, which is the only
+// authority on them: `logoURI` arrives inside the `/tokens` response, so an
+// allowlist written here would be a guess that breaks when the CDN moves.
+// Harvesting the answer as it passes through gives `swapLogo:get` a list that
+// maintains itself and that the renderer cannot widen.
+const swapLogoHosts = new Set();
+
+// Read with a pattern rather than JSON.parse: the shape of a catalog entry has
+// drifted across SwapKit revisions often enough that the executors carry
+// fallback chains for it, while the field name has not moved. This also skips
+// a second parse of a megabyte the renderer is about to parse anyway.
+const LOGO_URI_PATTERN = /"logoURI"\s*:\s*"(https:\/\/[^"]+)"/g;
+
+function rememberLogoHosts(parsedUrl, text) {
+  if (!parsedUrl.pathname.startsWith("/tokens")) return;
+  for (const [, logoUrl] of text.matchAll(LOGO_URI_PATTERN)) {
+    try {
+      swapLogoHosts.add(new URL(logoUrl).hostname);
+    } catch {
+      // A malformed entry names no host to allow. The token still lists; its
+      // logo falls back to the letter avatar.
+    }
+  }
+}
 
 // Swap records persist encrypted at rest, matching what the mobile wallet gets
 // from react-native-encrypted-storage: safeStorage derives its key from the OS
@@ -899,19 +926,41 @@ ipcMain.handle("swapStorage:set", async (_e, key, value) => {
 // know — `logoURI` arrives inside SwapKit's catalog response, so any allowlist
 // would be a guess that breaks silently when the CDN moves.
 //
-// This is deliberately not the host-allowlisted shape `swapHttp:request` uses.
-// Instead the response itself is constrained: https only, an image
-// content-type, and a size cap. A data URI rendered into an `<img>` executes
-// nothing, so the worst a hostile response can do is fail to decode.
+// Allowlisted the same way `swapHttp:request` is, from a list SwapKit writes
+// rather than one hardcoded here: `rememberLogoHosts` collects the hosts named
+// in the catalog as it passes through, and nothing else is fetched. The
+// response is constrained on top of that, by an image content-type and a size
+// cap, and a data URI rendered into an `<img>` executes nothing.
 //
-// Two costs come with that, both open and recorded in docs/swap-privacy.md.
-// Any HTTPS URL the renderer names is fetched, which answers whether an
-// arbitrary host serves an image. And the picker renders up to 60 logos at a
-// time, so opening it tells whichever CDNs the catalog names which tokens the
-// user is looking at. The cache below bounds neither entries nor bytes.
+// What remains is recorded in docs/swap-privacy.md: the picker renders up to 60
+// logos at a time, so opening it tells whichever CDNs the catalog names which
+// tokens the user is looking at, over clearnet like the rest of the swap layer.
 const SWAP_LOGO_MAX_BYTES = 256 * 1024;
 const SWAP_LOGO_TIMEOUT_MS = 8000;
+
+// Ceiling on everything the cache holds at once. A catalog runs to about a
+// thousand tokens, so caching all of them at the per-logo maximum would reach
+// hundreds of megabytes for pictures the size of a favicon. Sized to hold a
+// realistic session's worth and evict rather than grow: a miss costs one
+// refetch, which is what the cache was already doing before this entry existed.
+const SWAP_LOGO_CACHE_MAX_BYTES = 16 * 1024 * 1024;
+
+// Insertion-ordered, so the first key is the oldest and eviction reads off the
+// front. Values are the data URI, or null for a logo that would not load.
 const swapLogoCache = new Map();
+let swapLogoCacheBytes = 0;
+
+function cacheLogo(url, dataUri) {
+  swapLogoCache.set(url, dataUri);
+  swapLogoCacheBytes += dataUri === null ? 0 : dataUri.length;
+  while (swapLogoCacheBytes > SWAP_LOGO_CACHE_MAX_BYTES) {
+    const oldest = swapLogoCache.keys().next();
+    if (oldest.done) break;
+    const evicted = swapLogoCache.get(oldest.value);
+    swapLogoCache.delete(oldest.value);
+    swapLogoCacheBytes -= evicted === null ? 0 : evicted.length;
+  }
+}
 
 ipcMain.handle("swapLogo:get", async (_e, url) => {
   if (swapLogoCache.has(url)) return swapLogoCache.get(url);
@@ -922,24 +971,38 @@ ipcMain.handle("swapLogo:get", async (_e, url) => {
   } catch {
     return null;
   }
-  if (parsed.protocol !== "https:") return null;
+  // Only hosts SwapKit's own catalog named as logo sources. Before the catalog
+  // has been through `swapHttp:request` the set is empty and every logo falls
+  // back to its letter avatar, which is the right way round: a token is only
+  // ever drawn from a catalog entry, so a URL arriving before one is a URL the
+  // catalog did not supply.
+  if (parsed.protocol !== "https:" || !swapLogoHosts.has(parsed.hostname)) return null;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), SWAP_LOGO_TIMEOUT_MS);
   try {
     const response = await fetch(url, { signal: controller.signal });
     const contentType = response.headers.get("content-type") ?? "";
-    if (!response.ok || !contentType.startsWith("image/")) return null;
+    if (!response.ok || !contentType.startsWith("image/")) {
+      // SwapKit's CDN lists logos that 404. Remembering the refusal keeps the
+      // picker from asking again every time it renders that token.
+      cacheLogo(url, null);
+      return null;
+    }
 
     const bytes = Buffer.from(await response.arrayBuffer());
-    if (bytes.byteLength > SWAP_LOGO_MAX_BYTES) return null;
+    if (bytes.byteLength > SWAP_LOGO_MAX_BYTES) {
+      cacheLogo(url, null);
+      return null;
+    }
 
     const dataUri = `data:${contentType.split(";")[0]};base64,${bytes.toString("base64")}`;
-    swapLogoCache.set(url, dataUri);
+    cacheLogo(url, dataUri);
     return dataUri;
   } catch {
     // A logo that will not load is a missing picture, never an error worth
-    // interrupting a swap for. The caller draws its fallback.
+    // interrupting a swap for. The caller draws its fallback. Not remembered:
+    // a timeout or a dropped connection says nothing about the URL.
     return null;
   } finally {
     clearTimeout(timer);
