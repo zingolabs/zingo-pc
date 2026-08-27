@@ -60,32 +60,64 @@ const inbound = (overrides: Partial<SwapRecordType> = {}): SwapRecordType =>
     receiveAsset: ZEC,
     destinationAddress: "t1ephemeral",
     sourceAddress: "bc1qrefund",
+    // The sides swap with the assets. Inheriting the outbound basis would
+    // price BTC at 30 and ZEC at 60000, which no assertion about either side
+    // could then be trusted.
+    fiatValueBasis: { sellUsdUnitPrice: 60000, receiveUsdUnitPrice: 30, capturedAt: 0 },
     ...overrides,
   });
 
 describe("the amount on the row", () => {
-  // Rows read as money leaving or arriving, so each direction shows the ZEC
-  // side: what left for outbound, what arrived for inbound.
-  it("shows what left the wallet on an outbound swap", () => {
-    expect(swapRecordToValueTransfer(outbound()).amount).toBe(1.5);
+  // The ZEC leg of a swap already has its own row beside this one, and those
+  // are not deduplicated away. Repeating the ZEC figure here would say what
+  // the neighbouring row already said, so the row carries the side nothing
+  // else in the wallet can show.
+  it("shows what is being bought on an outbound swap", () => {
+    const vt = swapRecordToValueTransfer(outbound());
+
+    expect(vt.amount).toBe(0.002);
+    expect(vt.swapAssetTicker).toBe("BTC");
   });
 
-  it("shows what arrived on an inbound swap", () => {
-    expect(swapRecordToValueTransfer(inbound()).amount).toBe(0.002);
+  it("shows what was paid on an inbound swap", () => {
+    const vt = swapRecordToValueTransfer(inbound());
+
+    expect(vt.amount).toBe(1.5);
+    expect(vt.swapAssetTicker).toBe("BTC");
   });
 
   // Once the provider reports what it really paid out, that beats the
-  // quote-time estimate the row started with.
-  it("prefers the realised amount over the estimate once inbound settles", () => {
-    expect(swapRecordToValueTransfer(inbound({ actualReceiveAmount: "0.0031" })).amount).toBe(0.0031);
+  // quote-time estimate the outbound row started with.
+  it("prefers the realised payout over the estimate once outbound settles", () => {
+    expect(swapRecordToValueTransfer(outbound({ actualReceiveAmount: "0.0031" })).amount).toBe(0.0031);
   });
 
-  it("keeps the outbound row on the amount sent, whatever the payout turns out to be", () => {
-    expect(swapRecordToValueTransfer(outbound({ actualReceiveAmount: "0.0031" })).amount).toBe(1.5);
+  // Inbound reads the amount the user sent, which is fixed at commit time, so
+  // a payout figure arriving later does not move it.
+  it("keeps the inbound row on the amount paid", () => {
+    expect(swapRecordToValueTransfer(inbound({ actualReceiveAmount: "0.0031" })).amount).toBe(1.5);
   });
 
   it("falls back to zero rather than NaN when an amount is unreadable", () => {
-    expect(swapRecordToValueTransfer(outbound({ sellAmountHumanDecimal: "" })).amount).toBe(0);
+    expect(swapRecordToValueTransfer(inbound({ sellAmountHumanDecimal: "" })).amount).toBe(0);
+  });
+});
+
+describe("the price on the row", () => {
+  // Pricing a BTC amount at the ZEC rate would be a wrong number rather than a
+  // missing one, so the row carries the counterparty's own price, captured
+  // when the route was quoted.
+  it("carries the price of the side it is showing", () => {
+    expect(swapRecordToValueTransfer(outbound()).swapUsdUnitPrice).toBe(60000);
+    expect(swapRecordToValueTransfer(inbound()).swapUsdUnitPrice).toBe(60000);
+  });
+
+  // Zero is what the renderers read as "no figure to show", and it is what
+  // SwapKit pricing neither side leaves behind.
+  it("reports zero when the quote priced nothing", () => {
+    const unpriced = outbound({ fiatValueBasis: { sellUsdUnitPrice: 0, receiveUsdUnitPrice: 0, capturedAt: 0 } });
+
+    expect(swapRecordToValueTransfer(unpriced).swapUsdUnitPrice).toBe(0);
   });
 });
 

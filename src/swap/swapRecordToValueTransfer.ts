@@ -31,16 +31,30 @@ import { SwapRecordType } from "./types/SwapRecordType";
 export function swapRecordToValueTransfer(record: SwapRecordType): ValueTransferClass {
   const txid = record.broadcast?.txId ?? record.observedDepositTxHash ?? record.depositAddress;
   const isInbound = record.direction === SwapDirectionEnum.Inbound;
-  // History row "amount" mirrors the row's conventional reading: an
-  // outbound swap shows what LEFT the wallet (the sell-side ZEC), an
-  // inbound swap shows what ENTERED the wallet (the receive-side ZEC).
-  // For inbound we prefer the realised amount surfaced by `/track`
-  // (`actualReceiveAmount`) and fall back to the quote-time estimate
-  // (`expectedReceiveAmount`) for swaps still in flight.
+  // The row shows the side that is NOT ZEC, whichever direction the swap runs.
+  //
+  // The ZEC leg already has its own row beside this one: the deposit this
+  // wallet broadcast for an outbound swap, the payout it received for an
+  // inbound one. Those are zingolib's own transfers and are deliberately not
+  // deduplicated away, so a swap row repeating the ZEC figure would say what
+  // the row above it already said. The counterparty asset is the part of the
+  // swap nothing else in the wallet can show.
+  //
+  // Outbound that is still moving carries the quote-time estimate, since the
+  // provider has not reported a payout yet. The row's status label is what
+  // says so.
+  const counterpartyAsset = isInbound ? record.sellAsset : record.receiveAsset;
   const displayAmountStr = isInbound
-    ? (record.actualReceiveAmount ?? record.expectedReceiveAmount)
-    : record.sellAmountHumanDecimal;
+    ? record.sellAmountHumanDecimal
+    : (record.actualReceiveAmount ?? record.expectedReceiveAmount);
   const displayAmount = parseFloat(displayAmountStr);
+  // Captured when the route was quoted, so the figure is what the swap was
+  // worth when it ran rather than what that asset is worth today. Zero means
+  // SwapKit priced neither side, and the renderers hide the column at zero
+  // rather than print a number with nothing behind it.
+  const counterpartyUsdUnitPrice = isInbound
+    ? record.fiatValueBasis.sellUsdUnitPrice
+    : record.fiatValueBasis.receiveUsdUnitPrice;
 
   return {
     txid,
@@ -63,6 +77,8 @@ export function swapRecordToValueTransfer(record: SwapRecordType): ValueTransfer
     swapRecordId: record.recordId,
     swapIsInbound: isInbound,
     swapStatus: record.status,
+    swapAssetTicker: counterpartyAsset.ticker ?? counterpartyAsset.symbol,
+    swapUsdUnitPrice: counterpartyUsdUnitPrice,
   };
 }
 

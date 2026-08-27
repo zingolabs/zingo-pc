@@ -27,6 +27,11 @@ export default class ValueTransferClass {
   swapRecordId?: string;
   swapIsInbound?: boolean;
   swapStatus?: string;
+  // The counterparty asset the row's `amount` is denominated in, and its USD
+  // unit price at quote time. A swap row does not show ZEC, so it cannot use
+  // the wallet's currency name or the ZEC price the way every other row does.
+  swapAssetTicker?: string;
+  swapUsdUnitPrice?: number;
 
   constructor(
     type: ValueTransferKindEnum,

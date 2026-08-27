@@ -572,6 +572,13 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                 // The tx's own recorded price, never the current one (a years-old
                                 // amount at today's price is meaningless); missing renders `USD --`.
                                 const price: number = vt.zec_price || 0;
+                                // A swap row carries the counterparty asset, so
+                                // it brings its own unit and its own quote-time
+                                // price. The wallet's currency and the ZEC price
+                                // would label and value it as something it is not.
+                                const isSwapRow: boolean = vt.type === ValueTransferKindEnum.swap;
+                                const amountUnit: string = isSwapRow ? (vt.swapAssetTicker ?? "") : info.currencyName;
+                                const rowPrice: number = isSwapRow ? (vt.swapUsdUnitPrice ?? 0) : price;
                                 const failed: boolean = vt.status === ValueTransferStatusEnum.failed;
                                 const failedColor: string | undefined = failed
                                   ? Utils.getCssVariable("--color-error")
@@ -592,14 +599,14 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                       :
                                     </div>
                                     <div className={styles.txzec} style={{ color: failedColor }}>
-                                      {info.currencyName} {Utils.maxPrecisionTrimmed(vt.amount)}
+                                      {amountUnit} {Utils.maxPrecisionTrimmed(vt.amount)}
                                     </div>
                                     {info.currencyName === "ZEC" && (
                                       <div
                                         className={styles.txusd}
                                         style={{ color: failedColor ?? Utils.getCssVariable("--color-primary") }}
                                       >
-                                        {Utils.getZecToUsdString(price, vt.amount)}
+                                        {Utils.getZecToUsdString(rowPrice, vt.amount)}
                                       </div>
                                     )}
                                   </React.Fragment>

@@ -46,7 +46,16 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
   // transfers from before zingolib recorded per-tx prices) renders `USD --`
   // rather than a wrong figure.
   const price: number = vt.zec_price || 0;
-  const priceString: string = currencyName === "ZEC" ? Utils.getZecToUsdString(price, amount) : "";
+  // A swap row is denominated in the counterparty asset, so it carries its own
+  // unit and its own price. Pricing a BTC amount at the ZEC rate would not be
+  // an empty column, it would be a wrong number.
+  const isSwapRow: boolean = vt.type === ValueTransferKindEnum.swap;
+  const amountUnit: string = isSwapRow ? (vt.swapAssetTicker ?? "") : currencyName;
+  const priceString: string = isSwapRow
+    ? Utils.getZecToUsdString(vt.swapUsdUnitPrice ?? 0, amount)
+    : currencyName === "ZEC"
+      ? Utils.getZecToUsdString(price, amount)
+      : "";
 
   //if (index === 0) {
   //  vt.status = ValueTransferStatusEnum.failed;
@@ -173,7 +182,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                       vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
                   }}
                 >
-                  {currencyName} {bigPart}
+                  {amountUnit} {bigPart}
                 </span>
                 <span
                   style={{
