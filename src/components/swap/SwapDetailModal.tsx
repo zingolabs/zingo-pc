@@ -14,7 +14,6 @@ import { shell } from "../../electronBridge";
 import Utils from "../../utils/utils";
 import {
   SwapDirectionEnum,
-  SwapStatusEnum,
   buildTrackerEntries,
   canRemoveSwap,
   formatAmountForDisplay,
@@ -193,9 +192,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
         {/* The same header the transfer detail uses, and the arrow means the
             same thing it does there: down for value arriving, up for value
             leaving, read on the ZEC side because that is the side this wallet
-            holds. The status sits under the icon where the transfer type sits,
-            keeping its own colour, since a failed or refunded swap is worth
-            seeing before anything else on the screen. */}
+            holds. The state sits under the icon where the transfer type sits,
+            in plain text like that one. It needs no colour of its own to carry
+            a failure, since it says "Swap failed" outright. */}
         <div
           className={`${cstyles.center} ${cstyles.horizontalflex}`}
           style={{ width: "100%", alignItems: "center", justifyContent: "center" }}
@@ -211,7 +210,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 color: isOutbound ? Utils.getCssVariable("--color-text") : Utils.getCssVariable("--color-primary"),
               }}
             />
-            <div style={{ color: statusColor(record.status) }}>{swapRowLabel(record.status)}</div>
+            {swapRowLabel(record.status)}
           </div>
 
           {/* Large rather than the transfer's headline size: this line carries
@@ -371,28 +370,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     </Modal>
   );
 };
-
-/**
- * Terminal failures take the same error colour History gives a failed
- * transfer, so the two surfaces agree on what "this did not succeed" looks
- * like. `IncompleteDeposit` stays on the warning hue: the provider holds the
- * funds and will refund or accept a top-up, so reading it as lost would be
- * wrong.
- */
-function statusColor(status: SwapStatusEnum): string {
-  switch (status) {
-    case SwapStatusEnum.Completed:
-      return Utils.getCssVariable("--color-primary");
-    case SwapStatusEnum.Failed:
-    case SwapStatusEnum.Refunded:
-    case SwapStatusEnum.Expired:
-      return Utils.getCssVariable("--color-error");
-    case SwapStatusEnum.IncompleteDeposit:
-      return Utils.getCssVariable("--color-warning");
-    default:
-      return Utils.getCssVariable("--color-text");
-  }
-}
 
 function SectionHeader({ label }: { label: string }) {
   return (
