@@ -250,12 +250,15 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               guarantees; what the route actually expects to pay belongs here,
               as the note explaining the gap rather than a figure competing
               with it. */}
-          <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
+          <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.margintoplarge}`}>
             Expected {route.expectedReceiveAmount}. The minimum is what the slippage tolerance guarantees.
           </div>
 
           {!!error && (
-            <div className={cstyles.padtopsmall} style={{ color: Utils.getCssVariable("--color-error") }}>
+            <div
+              className={`${cstyles.center} ${cstyles.margintoplarge}`}
+              style={{ color: Utils.getCssVariable("--color-error") }}
+            >
               {error}
             </div>
           )}
