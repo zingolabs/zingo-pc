@@ -77,6 +77,45 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
 
+  const broadcast = useCallback(
+    async (record: SwapRecordType, instructions: DepositInstructionsType) => {
+      try {
+        const txIds = await sendSwapDeposit({
+          depositAddress: instructions.depositAddress,
+          amountAtomic: zecToZatoshis(instructions.amountHumanDecimal),
+          memoBytes: instructions.memoBytes,
+          routeViaEphemeral: needsEphemeralRoute(instructions.provider),
+        });
+        // The provider watches the transaction that pays the vault, which is
+        // the last one: a two-hop send emits shielded → ephemeral first. Taking
+        // the last regardless of length also survives a future step being added
+        // in the middle.
+        const depositTxId = txIds[txIds.length - 1];
+        const broadcasted = await swapService.markBroadcasted({
+          recordId: record.recordId,
+          txId: depositTxId,
+          allTxIds: txIds,
+        });
+        setError("");
+        setPostCommit({ record: broadcasted, instructions, txId: depositTxId });
+      } catch (e) {
+        // Falling back to the instructions rather than an error alone: the swap
+        // is reserved and payable by hand, so the address and amount are the
+        // useful thing to show.
+        setError(`The deposit did not broadcast: ${e}`);
+        setPostCommit({ record, instructions });
+      }
+    },
+    [swapService, sendSwapDeposit],
+  );
+
+  const retry = useCallback(async () => {
+    if (!postCommit) return;
+    setCommitting(true);
+    await broadcast(postCommit.record, postCommit.instructions);
+    setCommitting(false);
+  }, [postCommit, broadcast]);
+
   const commit = useCallback(async () => {
     setCommitting(true);
     setError("");
@@ -115,34 +154,9 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
       return;
     }
 
-    try {
-      const txIds = await sendSwapDeposit({
-        depositAddress: committed.instructions.depositAddress,
-        amountAtomic: zecToZatoshis(committed.instructions.amountHumanDecimal),
-        memoBytes: committed.instructions.memoBytes,
-        routeViaEphemeral: needsEphemeralRoute(committed.instructions.provider),
-      });
-      // The provider watches the transaction that pays the vault, which is the
-      // last one: a two-hop send emits shielded → ephemeral first. Taking the
-      // last regardless of length also survives a future step being added in
-      // the middle.
-      const depositTxId = txIds[txIds.length - 1];
-      const record = await swapService.markBroadcasted({
-        recordId: committed.record.recordId,
-        txId: depositTxId,
-        allTxIds: txIds,
-      });
-      setPostCommit({ record, instructions: committed.instructions, txId: depositTxId });
-    } catch (e) {
-      // Falling back to the instructions rather than an error alone: the swap
-      // is reserved and payable by hand, so the address and amount are the
-      // useful thing to show.
-      setError(`The deposit did not broadcast: ${e}`);
-      setPostCommit({ record: committed.record, instructions: committed.instructions });
-    } finally {
-      setCommitting(false);
-    }
-  }, [swapService, quoteInput, route, fiatValueBasis, direction, isOutbound, sendSwapDeposit]);
+    await broadcast(committed.record, committed.instructions);
+    setCommitting(false);
+  }, [swapService, quoteInput, route, fiatValueBasis, direction, isOutbound, broadcast]);
 
   if (postCommit) {
     const { record, instructions, txId } = postCommit;
@@ -163,7 +177,10 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
             {txId ? "Deposit sent" : "Pay this deposit"}
           </div>
           {!!error && (
-            <div className={cstyles.center} style={{ color: Utils.getCssVariable("--color-error") }}>
+            <div
+              className={`${cstyles.center} ${cstyles.margintoplarge}`}
+              style={{ color: Utils.getCssVariable("--color-error") }}
+            >
               {error}
             </div>
           )}
@@ -197,16 +214,24 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
                 transaction so tracking resumes. */}
             {isOutbound && !txId && (
               <div className={swapStyles.warningbanner}>
-                The swap is reserved but nothing has been sent. Pay the deposit from this wallet or another, then open
-                the swap in History and use &ldquo;Attach deposit transaction&rdquo; so tracking can resume.
+                The swap is reserved but nothing has been sent. Try the deposit again once whatever stopped it is
+                cleared, or pay it from another wallet and use &ldquo;Attach deposit transaction&rdquo; on the swap in
+                History so tracking can resume.
               </div>
             )}
           </div>
 
           {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}
 
-          <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
-            <button type="button" className={cstyles.primarybutton} onClick={onDone}>
+          <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
+            {/* Only outbound gets this: an inbound deposit is paid from the
+                user's other wallet, so there is nothing here to send again. */}
+            {isOutbound && !txId && (
+              <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={retry}>
+                {committing ? "Working..." : "Try the deposit again"}
+              </button>
+            )}
+            <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={onDone}>
               Done
             </button>
           </div>

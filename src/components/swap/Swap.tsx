@@ -7,6 +7,7 @@ import { ServerChainNameEnum } from "../appstate";
 import { useSwapService } from "../../context/ContextSwapService";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import Utils from "../../utils/utils";
+import { describeSendRoute } from "../../rpc/components/mixnetPresenter";
 import { native } from "../../electronBridge";
 import {
   SwapDirectionEnum,
@@ -74,7 +75,7 @@ type SwapProps = {
 };
 
 const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => {
-  const { totalBalance, currentWallet, info, readOnly, zecPrice, addressBook, swapToState, setSwapTo } =
+  const { totalBalance, currentWallet, info, readOnly, zecPrice, addressBook, swapToState, setSwapTo, mixnetView } =
     useContext(ContextApp);
   const swapService = useSwapService();
 
@@ -673,6 +674,19 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             Swaps reach the provider directly, not through the mixnet. Quoting and tracking a swap shows the provider
             your IP address alongside the assets, the amount, and the addresses involved.
           </div>
+
+          {/* The deposit is an ordinary ZEC send, so it takes the route Mixnet
+              Mode dictates and refuses in the states nobody consented to. Said
+              here, beside the sentence about the provider, because the two
+              halves of a swap travel differently and only one of them is
+              covered by the line above. */}
+          {isOutbound && (
+            <div
+              className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}
+            >
+              {describeSendRoute(mixnetView)}
+            </div>
+          )}
         </div>
 
         {quoteError && (
@@ -761,7 +775,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                 <button
                   type="button"
                   className={cstyles.primarybutton}
-                  disabled={!chosenRoute || !addressReady}
+                  disabled={!chosenRoute || !addressReady || (isOutbound && mixnetView.sendBlocked)}
                   onClick={() => setReviewing(true)}
                 >
                   Review

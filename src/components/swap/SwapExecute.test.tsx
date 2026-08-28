@@ -77,7 +77,7 @@ const quoteInput = (direction: SwapDirectionEnum): QuoteInput => ({
   destinationAddress: direction === SwapDirectionEnum.Outbound ? "bc1qdestination" : EPHEMERAL,
 });
 
-const renderExecute = (direction: SwapDirectionEnum) => {
+const renderExecute = (direction: SwapDirectionEnum, deposit?: jest.Mock) => {
   const commitRoute = jest.fn(async () => ({
     record: record(direction),
     instructions: {
@@ -88,7 +88,7 @@ const renderExecute = (direction: SwapDirectionEnum) => {
     },
   }));
   const markBroadcasted = jest.fn(async () => record(direction));
-  const sendSwapDeposit = jest.fn(async () => ["a".repeat(64)]);
+  const sendSwapDeposit = deposit ?? jest.fn(async () => ["a".repeat(64)]);
   const swapService = { commitRoute, markBroadcasted } as unknown as SwapService;
 
   render(
@@ -102,7 +102,7 @@ const renderExecute = (direction: SwapDirectionEnum) => {
       onDone={jest.fn()}
     />,
   );
-  return { commitRoute, sendSwapDeposit };
+  return { commitRoute, markBroadcasted, sendSwapDeposit };
 };
 
 beforeEach(() => {
@@ -144,5 +144,66 @@ describe("SwapExecute refund-address claiming", () => {
 
     await screen.findByText("Pay this deposit");
     expect(screen.getByText("bc1qdeposit")).toBeInTheDocument();
+  });
+});
+
+describe("SwapExecute deposit retry", () => {
+  // The failure that prompted this was a mixnet proxy dying between the commit
+  // and the send. The route is reserved at the provider by then, so the whole
+  // swap turned on a transport fault the user could clear in one click.
+  it("offers the deposit again when the broadcast fails", async () => {
+    const deposit = jest.fn(async () => {
+      throw new Error("the Nym mixnet proxy died");
+    });
+    renderExecute(SwapDirectionEnum.Outbound, deposit as unknown as jest.Mock);
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText(/the deposit did not broadcast/i);
+    expect(screen.getByRole("button", { name: /try the deposit again/i })).toBeInTheDocument();
+  });
+
+  // Retrying must pay the reserved swap, not open a second one: committing
+  // again would reserve another route and another deposit address, and the
+  // user would be holding two swaps for one intention.
+  it("pays the reserved swap on the retry rather than committing a second one", async () => {
+    const deposit = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("the Nym mixnet proxy died"))
+      .mockResolvedValueOnce(["b".repeat(64)]);
+    const { commitRoute } = renderExecute(SwapDirectionEnum.Outbound, deposit as unknown as jest.Mock);
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    fireEvent.click(await screen.findByRole("button", { name: /try the deposit again/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(commitRoute).toHaveBeenCalledTimes(1);
+    expect(deposit).toHaveBeenCalledTimes(2);
+  });
+
+  // A successful retry has to clear the failure it followed, or the screen
+  // says the deposit was both sent and not sent.
+  it("clears the earlier failure once the retry lands", async () => {
+    const deposit = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("the Nym mixnet proxy died"))
+      .mockResolvedValueOnce(["b".repeat(64)]);
+    renderExecute(SwapDirectionEnum.Outbound, deposit as unknown as jest.Mock);
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    fireEvent.click(await screen.findByRole("button", { name: /try the deposit again/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(screen.queryByText(/the deposit did not broadcast/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /try the deposit again/i })).not.toBeInTheDocument();
+  });
+
+  // An inbound deposit is paid from the user's other wallet. There is nothing
+  // here to send again, so offering to would be a button that cannot work.
+  it("does not offer a retry on an inbound swap", async () => {
+    renderExecute(SwapDirectionEnum.Inbound);
+    fireEvent.click(screen.getByRole("button", { name: /start the swap/i }));
+
+    await screen.findByText("Pay this deposit");
+    expect(screen.queryByRole("button", { name: /try the deposit again/i })).not.toBeInTheDocument();
   });
 });
