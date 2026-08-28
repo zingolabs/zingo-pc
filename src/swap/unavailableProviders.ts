@@ -73,6 +73,21 @@ export function unavailableProviders({
 }
 
 /**
+ * Refusals whose cause is known well enough to say what it means, keyed by the
+ * code with its punctuation and casing removed — SwapKit writes them
+ * `snake_case` in one place and `camelCase` in another.
+ *
+ * A refusal not listed here is passed through rather than paraphrased. What
+ * makes an entry earnable is knowing what the user should take from it, and
+ * for a code nobody has seen that is a guess.
+ */
+const KNOWN_REFUSALS: Readonly<Record<string, string>> = {
+  // Not about this swap at all: the provider is turning requests away for the
+  // moment, and the quote refreshes on its own.
+  ratelimited: "The provider is refusing requests for the moment. The next quote may reach it.",
+};
+
+/**
  * One provider's refusal, in the user's terms.
  *
  * A missing entry is its own answer: SwapKit considered the pair and returned
@@ -83,15 +98,28 @@ function describeRefusal(error: QuoteProviderErrorType | undefined, sellAssetTic
   const unit = sellAssetTicker ? ` ${sellAssetTicker}` : "";
   if (!error) return "Does not trade this pair.";
 
-  if (error.errorCode === "sellAssetAmountTooSmall") {
+  const code = normaliseCode(error.errorCode) || normaliseCode(error.message);
+
+  if (code === "sellassetamounttoosmall") {
     const minimum = formatAmountForDisplay(error.minAmount);
     // A minimum of zero is the formatter saying it could not read one, not a
     // provider that accepts nothing.
     return minimum === "0" ? "The amount is below this provider's minimum." : `Needs at least ${minimum}${unit}.`;
   }
 
-  // The provider's own words when it gave any. They are written for a
-  // developer rather than a user, but a specific sentence beats a vague one,
-  // and paraphrasing an error code we have never seen would be a guess.
-  return error.message?.trim() || "Not available for this swap right now.";
+  const known = KNOWN_REFUSALS[code];
+  if (known) return known;
+
+  const message = error.message?.trim();
+  // A message with a space in it is prose the provider wrote, and a specific
+  // sentence beats a vague one even when it reads like a developer wrote it.
+  // A single run-together token is not prose, it is an identifier: printing
+  // `rate_limited` on screen tells the user nothing they can read.
+  if (message && message.includes(" ")) return message;
+  return "Not available for this swap right now.";
+}
+
+/** A code with its casing and separators removed, so the two spellings SwapKit uses compare equal. */
+function normaliseCode(raw: string | undefined): string {
+  return (raw ?? "").toLowerCase().replace(/[^a-z0-9]/g, "");
 }

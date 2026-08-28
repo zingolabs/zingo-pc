@@ -101,6 +101,49 @@ describe("unavailableProviders", () => {
     expect(result[0].reason).toBe("pool is paused");
   });
 
+  // What Flashnet actually returned. A bare identifier is not prose, and
+  // `rate_limited` on screen tells the user nothing they can read — least of
+  // all that it is not about their swap and will likely pass.
+  it("says what a rate-limited provider means", () => {
+    const result = unavailableProviders({
+      response: response([{ provider: "FLASHNET", errorCode: "rate_limited", message: "rate_limited" }]),
+      supported: [SwapKitProviderEnum.Flashnet],
+      routes: [],
+    });
+
+    expect(result[0].reason).toBe("The provider is refusing requests for the moment. The next quote may reach it.");
+  });
+
+  // SwapKit writes its codes snake_case in one place and camelCase in another.
+  it("reads a refusal code in either spelling", () => {
+    const camel = unavailableProviders({
+      response: response([{ provider: "FLASHNET", errorCode: "rateLimited" }]),
+      supported: [SwapKitProviderEnum.Flashnet],
+      routes: [],
+    });
+    const minimum = unavailableProviders({
+      response: response([{ provider: "NEAR", errorCode: "sell_asset_amount_too_small", minAmount: "2" }]),
+      supported: [SwapKitProviderEnum.Near],
+      routes: [],
+      sellAssetTicker: "ZEC",
+    });
+
+    expect(camel[0].reason).toMatch(/refusing requests/);
+    expect(minimum[0].reason).toBe("Needs at least 2 ZEC.");
+  });
+
+  // An identifier reaching the screen is the bug this closes. Anything not
+  // recognised falls back to a sentence rather than printing the token.
+  it("does not print a bare code it does not recognise", () => {
+    const result = unavailableProviders({
+      response: response([{ provider: "FLASHNET", errorCode: "somethingNew", message: "somethingNew" }]),
+      supported: [SwapKitProviderEnum.Flashnet],
+      routes: [],
+    });
+
+    expect(result[0].reason).toBe("Not available for this swap right now.");
+  });
+
   it("falls back to a plain sentence when the refusal says nothing useful", () => {
     const result = unavailableProviders({
       response: response([{ provider: "FLASHNET", errorCode: "somethingNew" }]),
