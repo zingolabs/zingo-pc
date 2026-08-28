@@ -2,6 +2,7 @@ import React from "react";
 import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
+import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
 import { convertFeeToAsset, formatFeeAmount } from "../../swap";
 import type { FeeConversionType, SwapRecordType } from "../../swap";
@@ -42,7 +43,7 @@ const FeesBreakdown: React.FC<FeesBreakdownProps> = ({ record, modalIsOpen, clos
     <Modal
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
-      className={styles.txmodal}
+      className={swapStyles.narrowmodal}
       overlayClassName={styles.txmodalOverlay}
     >
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>

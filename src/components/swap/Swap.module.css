@@ -55,6 +55,35 @@
   margin-top: 8px;
 }
 
+/*
+ * A modal for content that is a short list rather than a page of detail.
+ *
+ * The shared `.txmodal` holds 800px because a transaction detail needs it for
+ * addresses and memos. A fee breakdown is a label and an amount per line, and
+ * at that width most of the box is empty.
+ *
+ * Written out in full rather than layered over `.txmodal`: two single-class
+ * selectors carry the same specificity, so which one won would depend on the
+ * order the bundler happened to emit them in.
+ */
+.narrowmodal {
+  top: 12.5%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -5%);
+  opacity: 1;
+  position: absolute;
+  width: 480px;
+  /* Never wider than the window on a small one, where 480px plus the overlay
+     would otherwise reach past both edges. */
+  max-width: calc(100vw - 64px);
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--color-background);
+  border: var(--color-primary) 4px solid;
+}
+
 .qrframe {
   background: #ffffff;
   padding: 8px;
