@@ -125,48 +125,6 @@ describe("unavailableProviders", () => {
   });
 });
 
-describe("unavailableProviders across a provider's two forms", () => {
-  const BOTH_MAYA = [SwapKitProviderEnum.MayachainStreaming, SwapKitProviderEnum.Mayachain] as const;
-
-  // SwapKit counts streaming and single-shot as two providers. To the user
-  // they are MayaChain, and two rows saying so would read as two failures.
-  it("collapses them into one row", () => {
-    const result = unavailableProviders({
-      response: response(),
-      supported: BOTH_MAYA,
-      routes: [],
-    });
-
-    expect(result).toEqual([{ provider: SwapKitProviderEnum.MayachainStreaming, reason: "Does not trade this pair." }]);
-  });
-
-  // "Needs at least 0.42 ZEC" is worth reading; "does not trade this pair" is
-  // what we say when nothing was said. The stated reason wins whichever form
-  // it arrived on.
-  it("keeps the form that gave a reason", () => {
-    const result = unavailableProviders({
-      response: response([{ provider: "MAYACHAIN", errorCode: "sellAssetAmountTooSmall", minAmount: "0.42" }]),
-      supported: BOTH_MAYA,
-      routes: [],
-      sellAssetTicker: "ZEC",
-    });
-
-    expect(result).toEqual([{ provider: SwapKitProviderEnum.Mayachain, reason: "Needs at least 0.42 ZEC." }]);
-  });
-
-  // A route through single-shot Maya is a MayaChain route. Reporting the
-  // streaming form as unavailable beside it would contradict the row above it.
-  it("says nothing about a provider that quoted under its other form", () => {
-    const result = unavailableProviders({
-      response: response(),
-      supported: BOTH_MAYA,
-      routes: [route(SwapKitProviderEnum.Mayachain)],
-    });
-
-    expect(result).toEqual([]);
-  });
-});
-
 describe("unavailableProviders and routes this app cannot take", () => {
   // The failure mode this exists to end: SwapKit offers a route, no executor
   // handles it, and it vanishes. On screen that is identical to the provider
@@ -196,18 +154,5 @@ describe("unavailableProviders and routes this app cannot take", () => {
     });
 
     expect(result).toEqual([{ provider: SwapKitProviderEnum.Flashnet, reason: "Needs at least 1 ZEC." }]);
-  });
-
-  // Streaming quoted, single-shot did not: the provider is available, and
-  // saying otherwise beside a route the user can take would be nonsense.
-  it("says nothing about a provider whose other form quoted", () => {
-    const result = unavailableProviders({
-      response: response(),
-      supported: [SwapKitProviderEnum.MayachainStreaming],
-      routes: [route(SwapKitProviderEnum.MayachainStreaming)],
-      unsupportedRoutes: [route(SwapKitProviderEnum.Mayachain)],
-    });
-
-    expect(result).toEqual([]);
   });
 });

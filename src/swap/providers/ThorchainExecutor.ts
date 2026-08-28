@@ -29,11 +29,7 @@ import { extractVaultMemoDeposit } from "./vaultMemoDeposit";
  * which is what makes that first attempt legible if the shape differs.
  */
 export class ThorchainExecutor implements ProviderExecutor {
-  readonly provider: SwapKitProviderEnum.ThorchainStreaming | SwapKitProviderEnum.Thorchain;
-
-  constructor(provider: SwapKitProviderEnum.ThorchainStreaming | SwapKitProviderEnum.Thorchain) {
-    this.provider = provider;
-  }
+  readonly provider = SwapKitProviderEnum.ThorchainStreaming;
 
   extractDepositInstructions(context: ExtractDepositInstructionsContext): DepositInstructionsType {
     const { swapResponse, sellAmountHumanDecimal } = context;

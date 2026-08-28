@@ -51,7 +51,7 @@ const context = (swapResponse: SwapResponseType): ExtractDepositInstructionsCont
 const decodeMemo = (bytes: Uint8Array | undefined): string => (bytes ? new TextDecoder().decode(bytes) : "");
 
 describe("MayaExecutor deposit instructions", () => {
-  const executor = new MayaExecutor(SwapKitProviderEnum.MayachainStreaming);
+  const executor = new MayaExecutor();
 
   it("reads the vault and memo from the documented shape", () => {
     const instructions = executor.extractDepositInstructions(
@@ -212,18 +212,12 @@ describe("ProviderRegistry", () => {
   });
 
   it("refuses to be built with two executors for one provider", () => {
-    expect(
-      () =>
-        new ProviderRegistry([
-          new MayaExecutor(SwapKitProviderEnum.MayachainStreaming),
-          new MayaExecutor(SwapKitProviderEnum.MayachainStreaming),
-        ]),
-    ).toThrow(/duplicate/i);
+    expect(() => new ProviderRegistry([new MayaExecutor(), new MayaExecutor()])).toThrow(/duplicate/i);
   });
 });
 
 describe("ThorchainExecutor deposit instructions", () => {
-  const executor = new ThorchainExecutor(SwapKitProviderEnum.ThorchainStreaming);
+  const executor = new ThorchainExecutor();
   const THOR_MEMO = "=:ZEC.ZEC:t1destination:0/1/0";
 
   it("reads the vault and memo the way Maya's response is read", () => {
@@ -237,18 +231,6 @@ describe("ThorchainExecutor deposit instructions", () => {
     expect(instructions.memoText).toBe(THOR_MEMO);
     expect(decodeMemo(instructions.memoBytes)).toBe(THOR_MEMO);
     expect(instructions.provider).toBe(SwapKitProviderEnum.ThorchainStreaming);
-  });
-
-  // The record has to carry the name it was quoted under, or the poller looks
-  // up the wrong indexer and the tracker links point at the wrong chain.
-  it("records the provider it was constructed for", () => {
-    const single = new ThorchainExecutor(SwapKitProviderEnum.Thorchain);
-    const instructions = single.extractDepositInstructions(
-      context({ tx: { to: VAULT, memo: THOR_MEMO, chainId: "zcash" } }),
-    );
-
-    expect(instructions.provider).toBe(SwapKitProviderEnum.Thorchain);
-    expect(instructions.providerData.kind).toBe(SwapKitProviderEnum.Thorchain);
   });
 
   // A deposit paid to the right vault with no memo is a deposit THORChain

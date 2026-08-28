@@ -41,17 +41,9 @@ import { extractVaultMemoDeposit } from "./vaultMemoDeposit";
  *
  * Streaming meta is preserved on the record (`providerData`) so the UI can
  * render "streaming over N blocks" without re-querying the response.
- *
- * Constructed once per Maya provider identity. SwapKit quotes streaming and
- * single-shot Maya as two providers and the deposit it asks for is the same,
- * so the difference is which name the record carries, not what this does.
  */
 export class MayaExecutor implements ProviderExecutor {
-  readonly provider: SwapKitProviderEnum.MayachainStreaming | SwapKitProviderEnum.Mayachain;
-
-  constructor(provider: SwapKitProviderEnum.MayachainStreaming | SwapKitProviderEnum.Mayachain) {
-    this.provider = provider;
-  }
+  readonly provider = SwapKitProviderEnum.MayachainStreaming;
 
   extractDepositInstructions(context: ExtractDepositInstructionsContext): DepositInstructionsType {
     const { swapResponse, sellAmountHumanDecimal } = context;

@@ -19,10 +19,8 @@ import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 export function providerShortLabel(provider: SwapKitProviderEnum): string {
   switch (provider) {
     case SwapKitProviderEnum.MayachainStreaming:
-    case SwapKitProviderEnum.Mayachain:
       return "MayaChain";
     case SwapKitProviderEnum.ThorchainStreaming:
-    case SwapKitProviderEnum.Thorchain:
       return "THORChain";
     case SwapKitProviderEnum.Near:
       return "NEAR";
@@ -39,10 +37,6 @@ export function providerLongLabel(provider: SwapKitProviderEnum): string {
   switch (provider) {
     case SwapKitProviderEnum.MayachainStreaming:
       return "Mayachain Streaming";
-    case SwapKitProviderEnum.Mayachain:
-      return "Mayachain";
-    case SwapKitProviderEnum.Thorchain:
-      return "THORChain";
     case SwapKitProviderEnum.ThorchainStreaming:
       return "THORChain Streaming";
     case SwapKitProviderEnum.Near:

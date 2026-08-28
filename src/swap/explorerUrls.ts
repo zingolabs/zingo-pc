@@ -69,10 +69,8 @@ export function buildChainExplorerUrl(args: {
 export function buildProviderExplorerUrl(provider: SwapKitProviderEnum, hash: string): string | null {
   switch (provider) {
     case SwapKitProviderEnum.MayachainStreaming:
-    case SwapKitProviderEnum.Mayachain:
       return `https://mayanode.mayachain.info/mayachain/tx/details/${hash}`;
     case SwapKitProviderEnum.ThorchainStreaming:
-    case SwapKitProviderEnum.Thorchain:
       return `https://thornode.ninerealms.com/thorchain/tx/details/${hash}`;
     default:
       return null;

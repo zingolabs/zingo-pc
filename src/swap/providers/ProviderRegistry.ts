@@ -59,10 +59,8 @@ export class ProviderRegistry {
  */
 export function createDefaultProviderRegistry(): ProviderRegistry {
   return new ProviderRegistry([
-    new MayaExecutor(SwapKitProviderEnum.MayachainStreaming),
-    new MayaExecutor(SwapKitProviderEnum.Mayachain),
-    new ThorchainExecutor(SwapKitProviderEnum.ThorchainStreaming),
-    new ThorchainExecutor(SwapKitProviderEnum.Thorchain),
+    new MayaExecutor(),
+    new ThorchainExecutor(),
     new NearIntentsExecutor(),
     new FlashnetExecutor(),
   ]);

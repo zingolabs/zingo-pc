@@ -12,16 +12,19 @@
  *   No other code paths should hard-code provider identifiers.
  */
 export enum SwapKitProviderEnum {
-  // Providers that route ZEC as source/destination, each with an executor.
+  // The providers this app has an executor for.
   //
-  // SwapKit counts a streaming swap and a single-shot one as two providers,
-  // and quotes either. Both are listed: a route named MAYACHAIN rather than
-  // MAYACHAIN_STREAMING is a perfectly good route, and one this app could not
-  // take would be dropped without a word.
+  // `/providers` on 2026-08-28: NEAR and Flashnet both list `zcash` as
+  // supported and enabled. Mayachain Streaming lists it as supported with
+  // `enabledChainIds: []` — every chain switched off, not Zcash in
+  // particular. THORChain Streaming does not list `zcash` at all yet; its
+  // executor is here ahead of that, since the Zcash support was announced
+  // before SwapKit could route it.
+  //
+  // Only the streaming forms exist. SwapKit publishes no plain MAYACHAIN or
+  // THORCHAIN provider, so there is nothing to register for one.
   MayachainStreaming = "MAYACHAIN_STREAMING",
-  Mayachain = "MAYACHAIN",
   ThorchainStreaming = "THORCHAIN_STREAMING",
-  Thorchain = "THORCHAIN",
   Near = "NEAR",
   Flashnet = "FLASHNET",
 
