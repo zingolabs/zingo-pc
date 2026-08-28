@@ -64,7 +64,7 @@ const ContactPicker: React.FC<ContactPickerProps> = ({ contacts, chainLabel, mod
         ))}
       </div>
 
-      <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
+      <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
         <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
           Cancel
         </button>

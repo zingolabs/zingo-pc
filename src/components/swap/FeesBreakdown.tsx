@@ -6,6 +6,7 @@ import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
 import { convertFeeToAsset, formatFeeAmount } from "../../swap";
 import type { FeeConversionType, SwapRecordType } from "../../swap";
+import { Field } from "./DetailField";
 
 type FeesBreakdownProps = {
   record: SwapRecordType;
@@ -54,26 +55,18 @@ const FeesBreakdown: React.FC<FeesBreakdownProps> = ({ record, modalIsOpen, clos
             <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>This swap recorded no itemised fees.</div>
           )}
           {rows.map((row) => (
-            <div key={row.key} className={cstyles.padtopsmall}>
-              <div className={`${cstyles.sublight} ${cstyles.small}`}>{row.label}</div>
-              <div>{feeText(row.conversion, receiveSymbol)}</div>
-            </div>
+            <Field key={row.key} label={row.label} value={feeText(row.conversion, receiveSymbol)} />
           ))}
 
           {!!record.totalFeesInReceiveAsset && (
             <>
               <hr style={{ width: "100%" }} />
-              <div className={cstyles.padtopsmall}>
-                <div className={`${cstyles.sublight} ${cstyles.small}`}>Total</div>
-                <div>
-                  {formatFeeAmount(record.totalFeesInReceiveAsset)} {receiveSymbol}
-                </div>
-              </div>
+              <Field label="Total" value={`${formatFeeAmount(record.totalFeesInReceiveAsset)} ${receiveSymbol}`} />
             </>
           )}
         </div>
 
-        <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
+        <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
             Cancel
           </button>

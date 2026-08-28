@@ -4,6 +4,7 @@ import Modal from "react-modal";
 import styles from "../history/History.module.css";
 import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
+import { Field } from "./DetailField";
 
 type SaveContactProps = {
   /** The address being saved, shown so the user can see what they are naming. */
@@ -46,10 +47,7 @@ const SaveContact: React.FC<SaveContactProps> = ({ address, chainLabel, modalIsO
       <div className={cstyles.verticalflex}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Save contact</div>
 
-        <div className={cstyles.padtopsmall}>
-          <div className={cstyles.sublight}>{chainLabel} address</div>
-          <div className={cstyles.breakword}>{address}</div>
-        </div>
+        <Field label={`${chainLabel} address`} value={address} />
 
         <div className={cstyles.padtopsmall}>
           <div className={cstyles.sublight}>Name</div>

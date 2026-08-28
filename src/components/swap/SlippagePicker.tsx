@@ -81,7 +81,7 @@ const SlippagePicker: React.FC<SlippagePickerProps> = ({ slippageBps, modalIsOpe
         </div>
 
         <div className={cstyles.padtopsmall}>
-          <div className={`${cstyles.sublight} ${cstyles.small}`}>Custom (%)</div>
+          <div className={cstyles.sublight}>Custom (%)</div>
           <div className={cstyles.horizontalflex} style={{ gap: 8, alignItems: "center" }}>
             <div className={swapStyles.fieldrow} style={{ width: 100 }}>
               <input
@@ -113,7 +113,7 @@ const SlippagePicker: React.FC<SlippagePickerProps> = ({ slippageBps, modalIsOpe
 
         <div style={{ flexGrow: 1 }} />
 
-        <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
+        <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
             Cancel
           </button>

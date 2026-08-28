@@ -7,6 +7,7 @@ import swapStyles from "./Swap.module.css";
 import Utils from "../../utils/utils";
 import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
+import { Field, FieldRow } from "./DetailField";
 import { native } from "../../electronBridge";
 import { SwapDirectionEnum, needsEphemeralRoute, providerLongLabel } from "../../swap";
 import type {
@@ -168,10 +169,9 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           )}
 
           <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1 }}>
-            <div className={cstyles.padtopsmall}>
-              <div className={`${cstyles.sublight} ${cstyles.small}`}>Provider</div>
-              <div>{providerLongLabel(instructions.provider)}</div>
-            </div>
+            <FieldRow>
+              <Field label="Provider" value={providerLongLabel(instructions.provider)} />
+            </FieldRow>
 
             {/* The slip renders the QR only while the deposit is still unpaid.
                 An outbound broadcast that succeeded has nothing left to scan;
@@ -189,12 +189,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               copy={copy}
             />
 
-            {!!txId && (
-              <div className={cstyles.padtopsmall}>
-                <div className={`${cstyles.sublight} ${cstyles.small}`}>Deposit transaction</div>
-                <div style={{ wordBreak: "break-all" }}>{txId}</div>
-              </div>
-            )}
+            {!!txId && <Field label="Deposit transaction" value={txId} />}
 
             {/* Outbound with no txid means the broadcast did not happen. The
                 swap is reserved either way, so the way out is to pay it and
@@ -210,7 +205,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
           {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}
 
-          <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
+          <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
             <button type="button" className={cstyles.primarybutton} onClick={onDone}>
               Done
             </button>
@@ -235,31 +230,28 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Review</div>
 
         <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1 }}>
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>Route</div>
-            <div>{providerLongLabel(route.provider)}</div>
-          </div>
+          <FieldRow>
+            <Field
+              label="You send"
+              value={`${quoteInput.sellAmountHumanDecimal} ${quoteInput.sellAsset.ticker ?? quoteInput.sellAsset.symbol}`}
+            />
+            <Field
+              label="You receive, at least"
+              value={`${route.minReceiveAmount} ${quoteInput.receiveAsset.ticker ?? quoteInput.receiveAsset.symbol}`}
+            />
+          </FieldRow>
 
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>You send</div>
-            <div>
-              {quoteInput.sellAmountHumanDecimal} {quoteInput.sellAsset.ticker ?? quoteInput.sellAsset.symbol}
-            </div>
-          </div>
+          <FieldRow>
+            <Field label="Route" value={providerLongLabel(route.provider)} />
+            <Field label="Destination" value={quoteInput.destinationAddress} />
+          </FieldRow>
 
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>You receive, at least</div>
-            <div>
-              {route.minReceiveAmount} {quoteInput.receiveAsset.ticker ?? quoteInput.receiveAsset.symbol}
-            </div>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>
-              Expected {route.expectedReceiveAmount}. The minimum is what the slippage tolerance guarantees.
-            </div>
-          </div>
-
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>Destination</div>
-            <div style={{ wordBreak: "break-all" }}>{quoteInput.destinationAddress}</div>
+          {/* The minimum is the number above because it is the one the swap
+              guarantees; what the route actually expects to pay belongs here,
+              as the note explaining the gap rather than a figure competing
+              with it. */}
+          <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
+            Expected {route.expectedReceiveAmount}. The minimum is what the slippage tolerance guarantees.
           </div>
 
           {!!error && (
@@ -269,7 +261,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           )}
         </div>
 
-        <div className={`${cstyles.horizontalflex} ${cstyles.padtopsmall}`} style={{ justifyContent: "center" }}>
+        <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
           <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={commit}>
             {committing ? "Working..." : isOutbound ? "Swap and send deposit" : "Start the swap"}
           </button>

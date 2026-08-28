@@ -91,7 +91,7 @@ const InsufficientFunds: React.FC<InsufficientFundsProps> = ({
 
       <div style={{ flexGrow: 1 }} />
 
-      <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
+      <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
         <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
           Cancel
         </button>

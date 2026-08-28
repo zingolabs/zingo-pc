@@ -1,7 +1,7 @@
 import React from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCopy, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
+import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 
 import cstyles from "../common/Common.module.css";
 import styles from "./Swap.module.css";
@@ -16,6 +16,7 @@ import {
   requiresExactAmountWarning,
 } from "../../swap";
 import type { SwapAssetType, SwapDirectionEnum, SwapKitProviderEnum } from "../../swap";
+import { CopyField, Field } from "./DetailField";
 
 /**
  * Everything a user needs in order to pay a swap's deposit from outside this
@@ -84,58 +85,34 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
         </div>
       )}
 
-      <CopyRow label="Deposit address" value={depositAddress} copy={copy} />
+      <CopyField label="Deposit address" value={depositAddress} copy={copy} />
 
-      <CopyRow label="Exact amount" value={`${amountHumanDecimal} ${amountTicker}`} copy={copy} />
+      <CopyField label="Exact amount" value={`${amountHumanDecimal} ${amountTicker}`} copy={copy} />
       {showExactAmount && <div className={styles.warningbanner}>{exactAmountWarningText(sellAsset.chain)}</div>}
 
       {!!memoText && (
         <>
-          <CopyRow label="Memo" value={memoText} copy={copy} />
+          <CopyField label="Memo" value={memoText} copy={copy} />
           {/* EVM wallets take the memo as a 0x hex blob in the data field, never
               as the raw string. Pre-encoding it here removes the manual ASCII →
               hex step that lost a deposit on 2026-06-27. */}
           {isEvmSourceChain(sellAsset.chain) && (
-            <CopyRow label="Memo (hex calldata)" value={memoToHexCalldata(memoText)} copy={copy} />
+            <CopyField label="Memo (hex calldata)" value={memoToHexCalldata(memoText)} copy={copy} />
           )}
           {showMemoHint && <div className={styles.warningbanner}>{memoFieldHintForChain(sellAsset.chain)}</div>}
         </>
       )}
 
       {!!expiresAtMs && (
-        <div className={cstyles.padtopsmall}>
-          <div className={`${cstyles.sublight} ${cstyles.small}`}>Send before</div>
-          <div>{new Date(expiresAtMs).toLocaleString()}</div>
+        <>
+          <Field label="Send before" value={new Date(expiresAtMs).toLocaleString()} />
           <div className={`${cstyles.sublight} ${cstyles.small}`}>
             After this the provider may reprice the route. A late deposit is refunded rather than lost.
           </div>
-        </div>
+        </>
       )}
     </>
   );
 };
-
-/**
- * A labelled value with a copy button. Every row on this slip is something the
- * user retypes into another wallet, so none of them are display-only.
- */
-function CopyRow({ label, value, copy }: { label: string; value: string; copy: (value: string) => void }) {
-  return (
-    <div className={cstyles.padtopsmall}>
-      <div className={`${cstyles.sublight} ${cstyles.small}`}>{label}</div>
-      <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
-        <div style={{ wordBreak: "break-all" }}>{value}</div>
-        <button
-          type="button"
-          aria-label={`Copy ${label}`}
-          style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}
-          onClick={() => copy(value)}
-        >
-          <FontAwesomeIcon icon={faCopy} />
-        </button>
-      </div>
-    </div>
-  );
-}
 
 export default DepositSlip;

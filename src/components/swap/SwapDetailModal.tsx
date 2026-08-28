@@ -2,7 +2,7 @@ import React, { useContext, useMemo, useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCopy, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
+import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
@@ -29,6 +29,7 @@ import { isEvmSourceChain, memoToHexCalldata } from "../../swap";
 import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
+import { CopyField, Field, FieldRow } from "./DetailField";
 
 type SwapDetailModalProps = {
   record: SwapRecordType;
@@ -286,22 +287,22 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               third of the height. */}
           <hr style={{ width: "100%" }} />
 
-          <div className={`${cstyles.flexspacebetween} ${cstyles.padtopsmall}`}>
+          <FieldRow>
             <Field label="Provider" value={providerLongLabel(record.provider)} />
             <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
             {!!record.routeId && <Field label="Route id" value={record.routeId} />}
-          </div>
+          </FieldRow>
 
-          <div className={`${cstyles.flexspacebetween} ${cstyles.padtopsmall}`}>
+          <FieldRow>
             <Field label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
             {!!record.updatedAtMs && (
               <Field label="Updated" value={dateformat(record.updatedAtMs, "mmm dd, yyyy HH:MM")} />
             )}
-          </div>
+          </FieldRow>
 
           <hr style={{ width: "100%" }} />
 
-          <div className={`${cstyles.flexspacebetween} ${cstyles.padtopsmall}`}>
+          <FieldRow>
             <Field label="Sent" value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}`} />
             <Field
               label="Expected"
@@ -310,12 +311,12 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             {!!record.minReceiveAmount && (
               <Field label="Minimum" value={`${formatAmountForDisplay(record.minReceiveAmount)} ${receiveSymbol}`} />
             )}
-          </div>
+          </FieldRow>
 
           {/* No rule above it: a fee is an amount, so it belongs with the ones
               it was taken from rather than in a section of its own. */}
           {!!record.feesRaw?.length && (
-            <div className={`${cstyles.flexspacebetween} ${cstyles.padtopsmall}`} style={{ alignItems: "flex-end" }}>
+            <FieldRow style={{ alignItems: "flex-end" }}>
               <Field
                 label="Total fees"
                 value={`${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
@@ -331,24 +332,24 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               >
                 Fee breakdown
               </button>
-            </div>
+            </FieldRow>
           )}
 
           <SectionHeader label="Addresses" />
-          {!!record.sourceAddress && <DetailRow label="From" value={record.sourceAddress} copy={copy} />}
-          <DetailRow label="To" value={record.destinationAddress} copy={copy} />
+          {!!record.sourceAddress && <CopyField label="From" value={record.sourceAddress} copy={copy} />}
+          <CopyField label="To" value={record.destinationAddress} copy={copy} />
           {/* Suppressed while the deposit slip is up: it carries the same
               address a few rows above, and two copies of one address invite
               the reader to wonder which is the real one. */}
           {!!record.depositAddress && !awaitingDeposit && (
-            <DetailRow label="Deposit" value={record.depositAddress} copy={copy} />
+            <CopyField label="Deposit" value={record.depositAddress} copy={copy} />
           )}
 
           {hashRows.length > 0 && (
             <>
               <SectionHeader label="Transactions" />
               {hashRows.map((row) => (
-                <DetailRow key={row.value} label={row.label} value={row.value} copy={copy} />
+                <CopyField key={row.value} label={row.label} value={row.value} copy={copy} />
               ))}
             </>
           )}
@@ -358,9 +359,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           {!!memo && !awaitingDeposit && (
             <>
               <SectionHeader label="Memo" />
-              <DetailRow label="On-chain memo" value={memo} copy={copy} />
+              <CopyField label="On-chain memo" value={memo} copy={copy} />
               {isEvmSourceChain(record.sellAsset.chain) && (
-                <DetailRow label="Hex calldata" value={memoToHexCalldata(memo)} copy={copy} />
+                <CopyField label="Hex calldata" value={memoToHexCalldata(memo)} copy={copy} />
               )}
             </>
           )}
@@ -415,43 +416,6 @@ function SectionHeader({ label }: { label: string }) {
       <hr style={{ width: "100%" }} />
       <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.large} ${cstyles.padtopsmall}`}>{label}</div>
     </>
-  );
-}
-
-/**
- * A fact in a row of them, labelled above rather than beside.
- *
- * The shape the transfer detail uses for the same job, so the two screens read
- * as one design. `DetailRow` below is the same label and the same value, given
- * its own line and a copy button, for the ones long enough to want both.
- */
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div className={cstyles.padtopsmall}>
-      <div className={cstyles.sublight}>{label}</div>
-      <div className={cstyles.breakword}>{value}</div>
-    </div>
-  );
-}
-
-function DetailRow({ label, value, copy }: { label: string; value: string; copy?: (value: string) => void }) {
-  return (
-    <div className={cstyles.padtopsmall}>
-      <div className={cstyles.sublight}>{label}</div>
-      <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
-        <div className={cstyles.breakword}>{value}</div>
-        {copy && (
-          <button
-            type="button"
-            aria-label={`Copy ${label}`}
-            style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}
-            onClick={() => copy(value)}
-          >
-            <FontAwesomeIcon icon={faCopy} />
-          </button>
-        )}
-      </div>
-    </div>
   );
 }
 
