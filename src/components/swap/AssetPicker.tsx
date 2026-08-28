@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
+import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
 import type { TokenEntryType } from "../../swap";
 import TokenLogo from "./TokenLogo";
@@ -68,13 +69,15 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Choose an asset</div>
 
-        <input
-          autoFocus
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search by ticker, name or chain"
-          style={{ width: "100%", marginTop: 12 }}
-        />
+        <div className={swapStyles.fieldrow} style={{ marginTop: 12 }}>
+          <input
+            autoFocus
+            className={swapStyles.fieldinput}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by ticker, name or chain"
+          />
+        </div>
 
         <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 12 }}>
           {matches.length === 0 && (

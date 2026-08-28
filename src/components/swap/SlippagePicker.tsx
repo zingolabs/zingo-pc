@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
+import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 
@@ -82,15 +83,18 @@ const SlippagePicker: React.FC<SlippagePickerProps> = ({ slippageBps, modalIsOpe
         <div className={cstyles.padtopsmall}>
           <div className={`${cstyles.sublight} ${cstyles.small}`}>Custom (%)</div>
           <div className={cstyles.horizontalflex} style={{ gap: 8, alignItems: "center" }}>
-            <input
-              value={custom}
-              onChange={(e) => setCustom(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") applyCustom();
-              }}
-              placeholder={formatSlippagePercent(slippageBps)}
-              style={{ width: 100 }}
-            />
+            <div className={swapStyles.fieldrow} style={{ width: 100 }}>
+              <input
+                className={swapStyles.fieldinput}
+                value={custom}
+                onChange={(e) => setCustom(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") applyCustom();
+                }}
+                placeholder={formatSlippagePercent(slippageBps)}
+                inputMode="decimal"
+              />
+            </div>
             <button type="button" className={cstyles.primarybutton} onClick={applyCustom}>
               Apply
             </button>

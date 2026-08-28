@@ -6,6 +6,7 @@ import { faCopy, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
+import swapStyles from "./Swap.module.css";
 import { ServerChainNameEnum } from "../appstate";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapService } from "../../context/ContextSwapService";
@@ -252,12 +253,14 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                       : "Already paid it? Paste the transaction id from the wallet you paid from."}
                   </div>
                   <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
-                    <input
-                      value={attachHash}
-                      onChange={(e) => setAttachHash(e.target.value)}
-                      placeholder="Transaction id"
-                      style={{ flexGrow: 1 }}
-                    />
+                    <div className={swapStyles.fieldrow} style={{ flexGrow: 1 }}>
+                      <input
+                        className={swapStyles.fieldinput}
+                        value={attachHash}
+                        onChange={(e) => setAttachHash(e.target.value)}
+                        placeholder="Transaction id"
+                      />
+                    </div>
                     <button
                       type="button"
                       className={cstyles.primarybutton}

@@ -53,17 +53,19 @@ const SaveContact: React.FC<SaveContactProps> = ({ address, chainLabel, modalIsO
 
         <div className={cstyles.padtopsmall}>
           <div className={cstyles.sublight}>Name</div>
-          <input
-            autoFocus
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            // Enter saves, since the field is the only thing to fill in.
-            onKeyDown={(e) => {
-              if (e.key === "Enter") save();
-            }}
-            placeholder="What to call this contact"
-            style={{ width: "100%" }}
-          />
+          <div className={swapStyles.fieldrow}>
+            <input
+              autoFocus
+              className={swapStyles.fieldinput}
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              // Enter saves, since the field is the only thing to fill in.
+              onKeyDown={(e) => {
+                if (e.key === "Enter") save();
+              }}
+              placeholder="What to call this contact"
+            />
+          </div>
         </div>
 
         <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
