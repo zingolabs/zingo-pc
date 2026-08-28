@@ -16,6 +16,8 @@ import {
   extractFiatValueBasis,
   formatAmountForDisplay,
   providerShortLabel,
+  quoteAddressPair,
+  quoteBindsAddress,
   validateAddressForChain,
   zecNetworkFeeReserve,
 } from "../../swap";
@@ -349,6 +351,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     return parsed.encoded_address;
   }, [ephemeralAddress]);
 
+  // The counterparty address the next quote should carry, empty while there
+  // is nothing valid to carry. Trimmed here so the value compared against the
+  // committed quote below is the same one that was sent.
+  const boundAddress = addressReady ? activeAddress.trim() : "";
+
   const requestQuote = useCallback(async () => {
     if (!swapService || !selectedToken) return;
     setQuoting(true);
@@ -361,11 +368,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         receiveAsset: isOutbound ? other : ZEC_ASSET,
         // SwapKit reads a dot-separated decimal whatever the user's locale.
         sellAmountHumanDecimal: amount.replace(",", "."),
-        // Placeholders on the wallet side only. SwapKit prices without
-        // reading these, and the review materialises the real pair before
-        // anything is committed.
-        sourceAddress: isOutbound ? ephemeral : "",
-        destinationAddress: isOutbound ? "" : ephemeral,
+        ...quoteAddressPair({ isOutbound, ephemeralAddress: ephemeral, boundAddress }),
         slippageBps,
       };
       const result = await swapService.quote(quoteInput);
@@ -412,7 +415,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     } finally {
       setQuoting(false);
     }
-  }, [swapService, selectedToken, isOutbound, amount, slippageBps, deriveEphemeral]);
+  }, [swapService, selectedToken, isOutbound, amount, slippageBps, boundAddress, deriveEphemeral]);
 
   // Quote as soon as there is something to quote, rather than waiting for a
   // press. The debounce is what makes that affordable: an amount typed digit
@@ -431,7 +434,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     // amount changes, which would restart the debounce on every keystroke and
     // then fire immediately once it settled, defeating the delay.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canQuote, reviewing, amount, slippageBps, selectedToken, direction, quoteAttemptFailed]);
+  }, [canQuote, reviewing, amount, slippageBps, selectedToken, direction, boundAddress, quoteAttemptFailed]);
 
   // Any input change that could make a previously-failed attempt worth
   // retrying clears the flag, so the auto-fire schedules again for the new
@@ -440,9 +443,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // flicker it away before the replacement lands.
   useEffect(() => {
     setQuoteAttemptFailed(false);
-  }, [amount, slippageBps, selectedToken, direction]);
+  }, [amount, slippageBps, selectedToken, direction, boundAddress]);
 
   const chosenRoute = useMemo(() => routes?.find((r) => r.routeId === chosenRouteId) ?? null, [routes, chosenRouteId]);
+
+  // Whether the routes on screen were quoted for the address on screen. They
+  // are not, briefly, whenever the address is entered or edited after a quote
+  // has already landed, and committing one of those asks the provider to
+  // honour a route it built for somewhere else.
+  const routesBindAddress = useMemo(
+    () => quoteBindsAddress({ quoted: quoteContext?.quoteInput ?? null, isOutbound, boundAddress }),
+    [quoteContext, boundAddress, isOutbound],
+  );
 
   // The largest amount that can actually be swapped: the balance minus what
   // the route charges on the sell side. Offering the bare balance would send
@@ -775,7 +787,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                 <button
                   type="button"
                   className={cstyles.primarybutton}
-                  disabled={!chosenRoute || !addressReady || (isOutbound && mixnetView.sendBlocked)}
+                  disabled={!chosenRoute || !routesBindAddress || (isOutbound && mixnetView.sendBlocked)}
                   onClick={() => setReviewing(true)}
                 >
                   Review
@@ -788,14 +800,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         {reviewing && chosenRoute && quoteContext && (
           <SwapExecute
             swapService={swapService}
-            // The addresses are read in here, not at quote time: SwapKit
-            // prices without them, and this is the first moment they bind
-            // anything. Everything else stays as it was quoted.
-            quoteInput={{
-              ...quoteContext.quoteInput,
-              sourceAddress: isOutbound ? ephemeralAddress : activeAddress,
-              destinationAddress: isOutbound ? activeAddress : ephemeralAddress,
-            }}
+            // Exactly what was quoted, addresses included. Substituting them
+            // here was what produced routes the provider would not commit:
+            // the route it minted named a different destination from the one
+            // the swap call then asked it to pay.
+            quoteInput={quoteContext.quoteInput}
             route={chosenRoute}
             fiatValueBasis={quoteContext.fiatValueBasis}
             direction={direction}

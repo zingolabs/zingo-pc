@@ -88,6 +88,7 @@ export {
   memoToHexCalldata,
 } from "./chainMemoEncoding";
 export { needsEphemeralRoute, zecNetworkFeeReserve } from "./depositRouting";
+export { quoteAddressPair, quoteBindsAddress } from "./quoteAddressBinding";
 export {
   buildDepositQr,
   exactAmountWarningText,
