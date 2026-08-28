@@ -29,6 +29,7 @@ import QuotesPicker from "./QuotesPicker";
 import SlippagePicker, { formatSlippagePercent } from "./SlippagePicker";
 import InsufficientFunds from "./InsufficientFunds";
 import ContactPicker from "../common/ContactPicker";
+import SaveContact from "./SaveContact";
 
 /** SwapKit's default slippage tolerance, in basis points. */
 const DEFAULT_SLIPPAGE_BPS = 100;
@@ -143,6 +144,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const [slippageBps, setSlippageBps] = useState<number>(DEFAULT_SLIPPAGE_BPS);
   const [insufficientOpen, setInsufficientOpen] = useState<boolean>(false);
   const [contactsOpen, setContactsOpen] = useState<boolean>(false);
+  const [saveContactOpen, setSaveContactOpen] = useState<boolean>(false);
 
   const spendable = totalBalance?.totalSpendableBalance ?? 0;
 
@@ -301,10 +303,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // Saving asks for the label, which is the only thing the contact needs that
   // is not already on screen. `chain` is mainnet because swaps are mainnet-only;
   // `swapChain` is what actually identifies a Bitcoin or Ethereum address.
-  const saveActiveAddress = () => {
-    const label = window.prompt(`Save this ${chainDisplayName(counterpartyChain) || counterpartyChain} address as:`);
-    if (!label) return;
-    addAddressBookEntry(label.trim(), activeAddress.trim(), ServerChainNameEnum.mainChainName, counterpartyChain);
+  const saveActiveAddress = (label: string) => {
+    addAddressBookEntry(label, activeAddress.trim(), ServerChainNameEnum.mainChainName, counterpartyChain);
   };
 
   const amountNumber = parseFloat(amount.replace(",", "."));
@@ -567,7 +567,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                     onPick: () => setContactsOpen(true),
                     onSave:
                       activeAddress.trim().length > 0 && addressValid && !activeAddressSaved
-                        ? saveActiveAddress
+                        ? () => setSaveContactOpen(true)
                         : undefined,
                   },
             }}
@@ -597,7 +597,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                     onPick: () => setContactsOpen(true),
                     onSave:
                       activeAddress.trim().length > 0 && addressValid && !activeAddressSaved
-                        ? saveActiveAddress
+                        ? () => setSaveContactOpen(true)
                         : undefined,
                   }
                 : undefined,
@@ -807,6 +807,16 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
           />
         )}
       </ScrollPaneTop>
+
+      {saveContactOpen && (
+        <SaveContact
+          address={activeAddress.trim()}
+          chainLabel={chainDisplayName(counterpartyChain) || counterpartyChain}
+          modalIsOpen={saveContactOpen}
+          closeModal={() => setSaveContactOpen(false)}
+          onSave={saveActiveAddress}
+        />
+      )}
 
       {contactsOpen && (
         <ContactPicker
