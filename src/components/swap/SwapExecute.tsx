@@ -186,10 +186,6 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           )}
 
           <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1 }}>
-            <FieldRow>
-              <Field label="Provider" value={providerLongLabel(instructions.provider)} />
-            </FieldRow>
-
             {/* The slip renders the QR only while the deposit is still unpaid.
                 An outbound broadcast that succeeded has nothing left to scan;
                 one that failed does, because the deposit is still payable by
@@ -203,6 +199,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               memoText={instructions.memoText}
               expiresAtMs={instructions.expiresAtMs ?? route.expiresAtMs}
               paid={!!txId}
+              leadingFields={<Field label="Provider" value={providerLongLabel(instructions.provider)} />}
               copy={copy}
             />
 

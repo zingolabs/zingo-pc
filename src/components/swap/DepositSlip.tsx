@@ -16,7 +16,7 @@ import {
   requiresExactAmountWarning,
 } from "../../swap";
 import type { SwapAssetType, SwapDirectionEnum, SwapKitProviderEnum } from "../../swap";
-import { CopyField, Field } from "./DetailField";
+import { CopyField, Field, FieldRow } from "./DetailField";
 
 /**
  * Everything a user needs in order to pay a swap's deposit from outside this
@@ -46,6 +46,12 @@ export type DepositSlipProps = {
    * paid deposit invites paying it twice.
    */
   paid?: boolean;
+  /**
+   * Fields to open the compact row with. The caller owns them because what
+   * belongs beside the amount differs by surface: the execute screen has a
+   * provider to name, the detail view already names it further up.
+   */
+  leadingFields?: React.ReactNode;
   copy: (value: string) => void;
 };
 
@@ -58,6 +64,7 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
   memoText,
   expiresAtMs,
   paid,
+  leadingFields,
   copy,
 }) => {
   const qr = paid ? null : buildDepositQr({ sellAsset, depositAddress, amountHumanDecimal, memoText });
@@ -85,10 +92,31 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
         </div>
       )}
 
-      <CopyField label="Deposit address" value={depositAddress} copy={copy} />
-
-      <CopyField label="Exact amount" value={`${amountHumanDecimal} ${amountTicker}`} copy={copy} />
+      <FieldRow>
+        {leadingFields}
+        <CopyField label="Exact amount" value={`${amountHumanDecimal} ${amountTicker}`} copy={copy} />
+        {!!expiresAtMs && (
+          <Field
+            label="Send before"
+            value={
+              <>
+                {new Date(expiresAtMs).toLocaleString()}
+                {/* Kept in the column with the deadline it qualifies, rather
+                    than as a loose line under the row belonging to nothing.
+                    Measured, because a sentence this long left unconstrained
+                    is the widest thing in the row and squashes the two fields
+                    beside it into a corner. */}
+                <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ maxWidth: 260 }}>
+                  After this the provider may reprice the route. A late deposit is refunded rather than lost.
+                </div>
+              </>
+            }
+          />
+        )}
+      </FieldRow>
       {showExactAmount && <div className={styles.warningbanner}>{exactAmountWarningText(sellAsset.chain)}</div>}
+
+      <CopyField label="Deposit address" value={depositAddress} copy={copy} />
 
       {!!memoText && (
         <>
@@ -100,15 +128,6 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
             <CopyField label="Memo (hex calldata)" value={memoToHexCalldata(memoText)} copy={copy} />
           )}
           {showMemoHint && <div className={styles.warningbanner}>{memoFieldHintForChain(sellAsset.chain)}</div>}
-        </>
-      )}
-
-      {!!expiresAtMs && (
-        <>
-          <Field label="Send before" value={new Date(expiresAtMs).toLocaleString()} />
-          <div className={`${cstyles.sublight} ${cstyles.small}`}>
-            After this the provider may reprice the route. A late deposit is refunded rather than lost.
-          </div>
         </>
       )}
     </>
