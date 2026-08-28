@@ -21,7 +21,9 @@ import { SwapKitProviderEnum } from "../enums/SwapKitProviderEnum";
  */
 
 export type MayachainStreamingProviderData = {
-  kind: SwapKitProviderEnum.MayachainStreaming;
+  /** Streaming and single-shot are separate providers at SwapKit; the deposit
+   *  they ask for is identical, so one shape records both. */
+  kind: SwapKitProviderEnum.MayachainStreaming | SwapKitProviderEnum.Mayachain;
   /** Inbound vault address (rotates server-side). Sourced from `inboundAddress`. */
   vaultAddress: string;
   /** The full Mayachain swap memo embedded as OP_RETURN. */
@@ -61,9 +63,12 @@ export type ChainflipProviderData = {
 };
 
 export type ThorchainStreamingProviderData = {
-  kind: SwapKitProviderEnum.ThorchainStreaming;
+  kind: SwapKitProviderEnum.ThorchainStreaming | SwapKitProviderEnum.Thorchain;
   vaultAddress: string;
   memo: string;
+  /** Mirrors Maya's, and absent unless SwapKit sends the streaming meta. */
+  streamingIntervalBlocks?: number;
+  maxStreamingQuantity?: number;
 };
 
 export type GenericProviderData = {

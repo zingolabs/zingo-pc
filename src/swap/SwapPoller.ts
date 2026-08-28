@@ -4,6 +4,7 @@ import { SwapStore } from "./SwapStore";
 import { ProviderRegistry } from "./providers/ProviderRegistry";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
+import { isThorchainFamily } from "./thorchainFamily";
 import { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
 import { TrackingStatusEnum } from "./enums/TrackingStatusEnum";
 import { SwapRecordType } from "./types/SwapRecordType";
@@ -369,10 +370,7 @@ function canDiscoverHashViaMidgard(record: SwapRecordType): boolean {
   if (record.direction !== SwapDirectionEnum.Inbound) return false;
   if (record.observedDepositTxHash) return false;
   if (record.broadcast?.txId) return false;
-  return (
-    record.provider === SwapKitProviderEnum.MayachainStreaming ||
-    record.provider === SwapKitProviderEnum.ThorchainStreaming
-  );
+  return isThorchainFamily(record.provider);
 }
 
 /**

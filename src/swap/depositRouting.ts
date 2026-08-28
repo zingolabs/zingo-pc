@@ -1,4 +1,5 @@
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
+import { isThorchainFamily } from "./thorchainFamily";
 
 /**
  * How this wallet pays an outbound deposit, and what that costs on the Zcash
@@ -19,7 +20,7 @@ import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
  * they need no wallet-controlled origin and take the cheaper single-hop path.
  */
 export function needsEphemeralRoute(provider: SwapKitProviderEnum): boolean {
-  return provider === SwapKitProviderEnum.MayachainStreaming || provider === SwapKitProviderEnum.ThorchainStreaming;
+  return isThorchainFamily(provider);
 }
 
 /**

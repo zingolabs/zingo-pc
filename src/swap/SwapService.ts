@@ -188,25 +188,36 @@ export class SwapService {
       };
     }
 
-    const routes = (response.routes ?? [])
+    const projected = (response.routes ?? [])
       .map((route) =>
         toRouteOption(route, input.sellAsset.swapKitId, input.receiveAsset.swapKitId, input.sellAmountHumanDecimal),
       )
-      .filter((route): route is RouteOptionType => route !== null)
-      .filter((route) => this.registry.has(route.provider));
+      .filter((route): route is RouteOptionType => route !== null);
 
-    return { routes, unavailable: this.describeUnavailable(response, routes, input), rawResponse: response };
+    // Split rather than filtered: a route through a provider with no executor
+    // is a real offer this app cannot take, and dropping it without a trace is
+    // indistinguishable on screen from the provider never having answered.
+    const routes = projected.filter((route) => this.registry.has(route.provider));
+    const unsupportedRoutes = projected.filter((route) => !this.registry.has(route.provider));
+
+    return {
+      routes,
+      unavailable: this.describeUnavailable(response, routes, input, unsupportedRoutes),
+      rawResponse: response,
+    };
   }
 
   private describeUnavailable(
     response: QuoteResponseType,
     routes: readonly RouteOptionType[],
     input: QuoteInput,
+    unsupportedRoutes: readonly RouteOptionType[] = [],
   ): UnavailableProviderType[] {
     return unavailableProviders({
       response,
       supported: this.registry.supportedProviders(),
       routes,
+      unsupportedRoutes,
       sellAssetTicker: input.sellAsset.ticker,
     });
   }

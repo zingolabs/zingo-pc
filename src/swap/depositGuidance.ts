@@ -1,5 +1,6 @@
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
+import { isThorchainFamily } from "./thorchainFamily";
 import {
   buildEip681Uri,
   buildMemolessPaymentUri,
@@ -185,5 +186,5 @@ export function memoFieldHintForChain(chain: string): string {
  * address, so a memo banner there would describe a field nobody reads.
  */
 export function providerRequiresMemo(provider: SwapKitProviderEnum): boolean {
-  return provider === SwapKitProviderEnum.MayachainStreaming || provider === SwapKitProviderEnum.ThorchainStreaming;
+  return isThorchainFamily(provider);
 }

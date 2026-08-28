@@ -1,5 +1,6 @@
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { formatAmountForDisplay } from "./formatAmountForDisplay";
+import { providerShortLabel } from "./providerLabels";
 import type { QuoteProviderErrorType, QuoteResponseType } from "./types/QuoteResponseType";
 import type { RouteOptionType } from "./types/RouteOptionType";
 
@@ -23,11 +24,17 @@ export type UnavailableProviderType = {
  * Only the providers this wallet can actually execute are listed. SwapKit
  * refuses on behalf of a dozen it offers, and a list of routes that could
  * never have been taken teaches nothing.
+ *
+ * One row per provider as the user knows it. SwapKit counts a streaming swap
+ * and a single-shot one separately, so MayaChain alone would otherwise fill
+ * two rows saying the same thing — and where the two forms disagree, the one
+ * that gave a reason is the one worth reading.
  */
 export function unavailableProviders({
   response,
   supported,
   routes,
+  unsupportedRoutes,
   sellAssetTicker,
 }: {
   response: QuoteResponseType;
@@ -35,6 +42,12 @@ export function unavailableProviders({
   supported: readonly SwapKitProviderEnum[];
   /** The routes that did come back, whose providers are not missing. */
   routes: readonly RouteOptionType[];
+  /**
+   * Routes SwapKit offered through a provider with no executor. These were
+   * dropped silently until now, which is the worst way to lose an option: it
+   * is indistinguishable from the provider never having answered.
+   */
+  unsupportedRoutes?: readonly RouteOptionType[];
   sellAssetTicker?: string;
 }): UnavailableProviderType[] {
   const quoted = new Set(routes.map((route) => route.provider));
@@ -46,12 +59,42 @@ export function unavailableProviders({
     if (error.provider) errors.set(error.provider.toUpperCase(), error);
   }
 
-  return supported
-    .filter((provider) => !quoted.has(provider))
-    .map((provider) => ({
-      provider,
-      reason: describeRefusal(errors.get(provider.toUpperCase()), sellAssetTicker),
-    }));
+  const rows: UnavailableProviderType[] = [];
+  const seen = new Map<string, number>();
+  for (const provider of supported) {
+    if (quoted.has(provider)) continue;
+    const error = errors.get(provider.toUpperCase());
+    const row = { provider, reason: describeRefusal(error, sellAssetTicker) };
+    const label = providerShortLabel(provider);
+    const at = seen.get(label);
+    if (at === undefined) {
+      seen.set(label, rows.length);
+      rows.push(row);
+    } else if (error) {
+      // A stated refusal displaces the silence recorded for the other form of
+      // the same provider: "needs at least 0.42 ZEC" is worth reading and
+      // "does not trade this pair" is what we say when nothing was said.
+      rows[at] = row;
+    }
+  }
+
+  // A provider that quoted under one of its forms is available, whatever the
+  // other form did. Dropping the row here rather than skipping it above,
+  // because the form that quoted may be read after the one that refused.
+  const quotedLabels = new Set([...quoted].map(providerShortLabel));
+  const visible = rows.filter((row) => !quotedLabels.has(providerShortLabel(row.provider)));
+
+  // A route this app cannot take is a different fact from a provider that did
+  // not offer one, and the user can do nothing about either — but only one of
+  // them is a gap on our side, and saying so is how it stops going unnoticed.
+  for (const route of unsupportedRoutes ?? []) {
+    const label = providerShortLabel(route.provider);
+    if (quotedLabels.has(label)) continue;
+    if (visible.some((row) => providerShortLabel(row.provider) === label)) continue;
+    visible.push({ provider: route.provider, reason: "This wallet cannot swap through this provider yet." });
+  }
+
+  return visible;
 }
 
 /**

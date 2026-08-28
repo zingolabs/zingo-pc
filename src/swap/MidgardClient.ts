@@ -27,9 +27,15 @@ import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
  * client class handles both providers with only the host swap.
  */
 
+// Keyed per provider identity rather than per chain: SwapKit counts
+// streaming and single-shot as two providers, and a record carries whichever
+// name it was quoted under. A missing entry here is a swap whose inbound hash
+// can never be discovered, so both forms are listed.
 const MIDGARD_HOSTS: Partial<Record<SwapKitProviderEnum, string>> = {
   [SwapKitProviderEnum.MayachainStreaming]: "https://midgard.mayachain.info",
+  [SwapKitProviderEnum.Mayachain]: "https://midgard.mayachain.info",
   [SwapKitProviderEnum.ThorchainStreaming]: "https://midgard.ninerealms.com",
+  [SwapKitProviderEnum.Thorchain]: "https://midgard.ninerealms.com",
 };
 
 const MIDGARD_TIMEOUT_MS = 10_000;

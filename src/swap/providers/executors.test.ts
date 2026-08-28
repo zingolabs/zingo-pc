@@ -1,5 +1,6 @@
 import { FlashnetExecutor } from "./FlashnetExecutor";
 import { MayaExecutor } from "./MayaExecutor";
+import { ThorchainExecutor } from "./ThorchainExecutor";
 import { NearIntentsExecutor } from "./NearIntentsExecutor";
 import { ProviderRegistry, createDefaultProviderRegistry } from "./ProviderRegistry";
 import { SwapKitProviderEnum } from "../enums/SwapKitProviderEnum";
@@ -50,7 +51,7 @@ const context = (swapResponse: SwapResponseType): ExtractDepositInstructionsCont
 const decodeMemo = (bytes: Uint8Array | undefined): string => (bytes ? new TextDecoder().decode(bytes) : "");
 
 describe("MayaExecutor deposit instructions", () => {
-  const executor = new MayaExecutor();
+  const executor = new MayaExecutor(SwapKitProviderEnum.MayachainStreaming);
 
   it("reads the vault and memo from the documented shape", () => {
     const instructions = executor.extractDepositInstructions(
@@ -211,6 +212,55 @@ describe("ProviderRegistry", () => {
   });
 
   it("refuses to be built with two executors for one provider", () => {
-    expect(() => new ProviderRegistry([new MayaExecutor(), new MayaExecutor()])).toThrow(/duplicate/i);
+    expect(
+      () =>
+        new ProviderRegistry([
+          new MayaExecutor(SwapKitProviderEnum.MayachainStreaming),
+          new MayaExecutor(SwapKitProviderEnum.MayachainStreaming),
+        ]),
+    ).toThrow(/duplicate/i);
+  });
+});
+
+describe("ThorchainExecutor deposit instructions", () => {
+  const executor = new ThorchainExecutor(SwapKitProviderEnum.ThorchainStreaming);
+  const THOR_MEMO = "=:ZEC.ZEC:t1destination:0/1/0";
+
+  it("reads the vault and memo the way Maya's response is read", () => {
+    const instructions = executor.extractDepositInstructions(
+      context({
+        tx: { to: VAULT, memo: THOR_MEMO, chainId: "zcash" },
+      }),
+    );
+
+    expect(instructions.depositAddress).toBe(VAULT);
+    expect(instructions.memoText).toBe(THOR_MEMO);
+    expect(decodeMemo(instructions.memoBytes)).toBe(THOR_MEMO);
+    expect(instructions.provider).toBe(SwapKitProviderEnum.ThorchainStreaming);
+  });
+
+  // The record has to carry the name it was quoted under, or the poller looks
+  // up the wrong indexer and the tracker links point at the wrong chain.
+  it("records the provider it was constructed for", () => {
+    const single = new ThorchainExecutor(SwapKitProviderEnum.Thorchain);
+    const instructions = single.extractDepositInstructions(
+      context({ tx: { to: VAULT, memo: THOR_MEMO, chainId: "zcash" } }),
+    );
+
+    expect(instructions.provider).toBe(SwapKitProviderEnum.Thorchain);
+    expect(instructions.providerData.kind).toBe(SwapKitProviderEnum.Thorchain);
+  });
+
+  // A deposit paid to the right vault with no memo is a deposit THORChain
+  // cannot attribute to a swap, so a missing one has to stop the commit rather
+  // than persist a half-built record.
+  it("refuses a response with no memo", () => {
+    expect(() => executor.extractDepositInstructions(context({ inboundAddress: VAULT }))).toThrow(/missing memo/i);
+  });
+
+  it("refuses a response with no vault address", () => {
+    expect(() => executor.extractDepositInstructions(context({ tx: { memo: THOR_MEMO, chainId: "zcash" } }))).toThrow(
+      /missing inbound vault address/i,
+    );
   });
 });

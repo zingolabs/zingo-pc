@@ -5,6 +5,7 @@ import { SwapRecordType } from "../types/SwapRecordType";
 import { TrackResponseType } from "../types/TrackResponseType";
 import { ExtractDepositInstructionsContext, ProviderExecutor } from "./ProviderExecutor";
 import { applyDefaultTrackUpdate } from "./trackUpdateBase";
+import { extractVaultMemoDeposit } from "./vaultMemoDeposit";
 
 /**
  * Provider executor for Mayachain Streaming swaps.
@@ -40,73 +41,31 @@ import { applyDefaultTrackUpdate } from "./trackUpdateBase";
  *
  * Streaming meta is preserved on the record (`providerData`) so the UI can
  * render "streaming over N blocks" without re-querying the response.
+ *
+ * Constructed once per Maya provider identity. SwapKit quotes streaming and
+ * single-shot Maya as two providers and the deposit it asks for is the same,
+ * so the difference is which name the record carries, not what this does.
  */
 export class MayaExecutor implements ProviderExecutor {
-  readonly provider = SwapKitProviderEnum.MayachainStreaming;
+  readonly provider: SwapKitProviderEnum.MayachainStreaming | SwapKitProviderEnum.Mayachain;
+
+  constructor(provider: SwapKitProviderEnum.MayachainStreaming | SwapKitProviderEnum.Mayachain) {
+    this.provider = provider;
+  }
 
   extractDepositInstructions(context: ExtractDepositInstructionsContext): DepositInstructionsType {
     const { swapResponse, sellAmountHumanDecimal } = context;
-    const vaultAddress =
-      swapResponse.tx?.to ??
-      swapResponse.inboundAddress ??
-      pickString(swapResponse, [
-        ["inboundAddress"],
-        ["vault"],
-        ["vaultAddress"],
-        ["address"],
-        ["depositAddress"],
-        ["tx", "address"],
-      ]);
-    // SwapKit's /v3/swap response shape has drifted across provider revisions;
-    // we have observed the Maya memo land at `tx.memo`, top-level `memo`,
-    // `meta.memo`, and inside `transient.providerDetails.memo`. Try the
-    // documented spot first then fall through the known alternatives — any
-    // single non-empty value wins.
-    const baseMemo =
-      swapResponse.tx?.memo ??
-      pickString(swapResponse, [
-        ["memo"],
-        ["data", "memo"],
-        ["meta", "memo"],
-        ["transient", "memo"],
-        ["transient", "providerDetails", "memo"],
-        ["provider", "memo"],
-      ]);
+    const { vaultAddress, memoText } = extractVaultMemoDeposit(swapResponse, "MayaExecutor");
 
-    if (!vaultAddress || !baseMemo) {
-      // Surface the raw shape on the device log so we can pin down where the
-      // missing field actually lives and adapt — better than swallowing the
-      // structure behind a generic error message.
-      try {
-        console.log("MayaExecutor: /v3/swap response shape", JSON.stringify(swapResponse, null, 2));
-      } catch {
-        console.log("MayaExecutor: /v3/swap response (unstringifiable):", swapResponse);
-      }
-    }
-    if (!vaultAddress) {
-      throw new Error(
-        "MayaExecutor: SwapKit /v3/swap response missing inbound vault address (tx.to / inboundAddress / probed fallbacks).",
-      );
-    }
-    if (!baseMemo) {
-      throw new Error(
-        `MayaExecutor: SwapKit /v3/swap response missing memo. Probed: tx.memo, memo, data.memo, meta.memo, transient.memo, transient.providerDetails.memo, provider.memo. Top-level keys present: ${Object.keys(
-          swapResponse,
-        ).join(", ")}`,
-      );
-    }
-
-    // Use SwapKit's memo verbatim. The `routeViaEphemeral` flag in the deposit
+    // SwapKit's memo is used verbatim. The `routeViaEphemeral` flag in the deposit
     // broadcast wraps the send in a ZIP-320 two-hop proposal so Maya observes
     // a wallet-controlled ephemeral t-addr as the `from_address` and uses it
     // as the refund destination — no in-memo `/REFUNDADDR` needed (and we
     // couldn't fit one anyway: the typical ~70-byte streaming memo plus a
     // 35-byte t-addr would exceed the 80-byte OP_RETURN standardness cap and
     // librustzcash would refuse to build the tx).
-    const memoText = baseMemo;
-
     const providerData: MayachainStreamingProviderData = {
-      kind: SwapKitProviderEnum.MayachainStreaming,
+      kind: this.provider,
       vaultAddress,
       memo: memoText,
       streamingIntervalBlocks: swapResponse.meta?.streamingInterval,
@@ -114,7 +73,7 @@ export class MayaExecutor implements ProviderExecutor {
     };
 
     return {
-      provider: SwapKitProviderEnum.MayachainStreaming,
+      provider: this.provider,
       depositAddress: vaultAddress,
       amountHumanDecimal: sellAmountHumanDecimal,
       memoBytes: new TextEncoder().encode(memoText),
@@ -126,27 +85,4 @@ export class MayaExecutor implements ProviderExecutor {
   applyTrackUpdate(record: SwapRecordType, response: TrackResponseType): SwapRecordType {
     return applyDefaultTrackUpdate(record, response);
   }
-}
-
-/**
- * Walk a list of dotted-key paths against the raw `/v3/swap` response,
- * returning the first non-empty string found. Used to absorb shape drift
- * across SwapKit revisions without hard-coupling the executor to one
- * historical capture.
- */
-function pickString(obj: unknown, paths: ReadonlyArray<ReadonlyArray<string>>): string | undefined {
-  for (const path of paths) {
-    let cursor: unknown = obj;
-    for (const segment of path) {
-      if (cursor === null || typeof cursor !== "object") {
-        cursor = undefined;
-        break;
-      }
-      cursor = (cursor as Record<string, unknown>)[segment];
-    }
-    if (typeof cursor === "string" && cursor.length > 0) {
-      return cursor;
-    }
-  }
-  return undefined;
 }

@@ -12,17 +12,22 @@
  *   No other code paths should hard-code provider identifiers.
  */
 export enum SwapKitProviderEnum {
-  // Providers that currently route ZEC as source/destination, per
-  // `/providers`.supportedChainIds. These are the only ones we need executors
-  // for today.
+  // Providers that route ZEC as source/destination, each with an executor.
+  //
+  // SwapKit counts a streaming swap and a single-shot one as two providers,
+  // and quotes either. Both are listed: a route named MAYACHAIN rather than
+  // MAYACHAIN_STREAMING is a perfectly good route, and one this app could not
+  // take would be dropped without a word.
   MayachainStreaming = "MAYACHAIN_STREAMING",
+  Mayachain = "MAYACHAIN",
+  ThorchainStreaming = "THORCHAIN_STREAMING",
+  Thorchain = "THORCHAIN",
   Near = "NEAR",
   Flashnet = "FLASHNET",
 
   // Providers SwapKit exposes today but that do not route ZEC. Listed here so
   // unknown identifiers in quote responses are recognised by the enum even
   // when we have no executor; the registry filter drops them downstream.
-  ThorchainStreaming = "THORCHAIN_STREAMING",
   Chainflip = "CHAINFLIP",
   ChainflipStreaming = "CHAINFLIP_STREAMING",
   Harbor = "HARBOR",

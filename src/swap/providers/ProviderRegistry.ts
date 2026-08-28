@@ -2,6 +2,7 @@ import { SwapKitProviderEnum } from "../enums/SwapKitProviderEnum";
 import { FlashnetExecutor } from "./FlashnetExecutor";
 import { MayaExecutor } from "./MayaExecutor";
 import { NearIntentsExecutor } from "./NearIntentsExecutor";
+import { ThorchainExecutor } from "./ThorchainExecutor";
 import { ProviderExecutor } from "./ProviderExecutor";
 
 /**
@@ -57,5 +58,12 @@ export class ProviderRegistry {
  * filter out unsupported routes returned by SwapKit without crashing.
  */
 export function createDefaultProviderRegistry(): ProviderRegistry {
-  return new ProviderRegistry([new MayaExecutor(), new NearIntentsExecutor(), new FlashnetExecutor()]);
+  return new ProviderRegistry([
+    new MayaExecutor(SwapKitProviderEnum.MayachainStreaming),
+    new MayaExecutor(SwapKitProviderEnum.Mayachain),
+    new ThorchainExecutor(SwapKitProviderEnum.ThorchainStreaming),
+    new ThorchainExecutor(SwapKitProviderEnum.Thorchain),
+    new NearIntentsExecutor(),
+    new FlashnetExecutor(),
+  ]);
 }
