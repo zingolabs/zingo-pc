@@ -277,29 +277,50 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             </>
           )}
 
-          <SectionHeader label="Details" />
-          <DetailRow label="Provider" value={providerLongLabel(record.provider)} />
-          <DetailRow label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
-          {!!record.updatedAtMs && (
-            <DetailRow label="Updated" value={dateformat(record.updatedAtMs, "mmm dd, yyyy HH:MM")} />
-          )}
-          <DetailRow label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
-          {!!record.routeId && <DetailRow label="Route id" value={record.routeId} copy={copy} />}
+          {/* Laid out the way the transfer detail lays its own facts out: a
+              rule, then a row of label-over-value columns. What was a stack of
+              one-per-line rows under a heading is the same information in a
+              third of the height. */}
+          <hr style={{ width: "100%" }} />
 
-          <SectionHeader label="Amounts" />
-          <DetailRow label="Sent" value={`${record.sellAmountHumanDecimal} ${sellSymbol}`} />
-          <DetailRow label="Expected" value={`${record.expectedReceiveAmount} ${receiveSymbol}`} />
-          {!!record.minReceiveAmount && (
-            <DetailRow label="Minimum" value={`${record.minReceiveAmount} ${receiveSymbol}`} />
-          )}
+          <div className={cstyles.flexspacebetween}>
+            <Field label="Provider" value={providerLongLabel(record.provider)} />
+            <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
+            {!!record.routeId && <Field label="Route id" value={record.routeId} />}
+          </div>
 
+          <div className={cstyles.flexspacebetween}>
+            <Field label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
+            {!!record.updatedAtMs && (
+              <Field label="Updated" value={dateformat(record.updatedAtMs, "mmm dd, yyyy HH:MM")} />
+            )}
+          </div>
+
+          <hr style={{ width: "100%" }} />
+
+          <div className={cstyles.flexspacebetween}>
+            <Field label="Sent" value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}`} />
+            <Field
+              label="Expected"
+              value={`${formatAmountForDisplay(record.expectedReceiveAmount)} ${receiveSymbol}`}
+            />
+            {!!record.minReceiveAmount && (
+              <Field label="Minimum" value={`${formatAmountForDisplay(record.minReceiveAmount)} ${receiveSymbol}`} />
+            )}
+          </div>
+
+          {/* No rule above it: a fee is an amount, so it belongs with the ones
+              it was taken from rather than in a section of its own. */}
           {!!record.feesRaw?.length && (
-            <>
-              <SectionHeader label="Fees" />
+            <div className={cstyles.flexspacebetween} style={{ alignItems: "flex-end" }}>
+              <Field
+                label="Total fees"
+                value={`${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
+              />
               <button type="button" className={cstyles.primarybutton} onClick={() => setFeesOpen(true)}>
                 Fee breakdown
               </button>
-            </>
+            </div>
           )}
 
           <SectionHeader label="Addresses" />
@@ -333,28 +354,34 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             </>
           )}
 
+          {/* No heading and no rule: three buttons that open a tracker say what
+              they are, and a rule under them was the last thing on the screen
+              rather than a separator between two things. */}
           {trackers.length > 0 && (
-            <>
-              <SectionHeader label="Track this swap" />
+            <div
+              className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`}
+              style={{ justifyContent: "center", flexWrap: "wrap" }}
+            >
               {trackers.map((tracker) => (
                 <button
                   key={tracker.key}
                   type="button"
                   className={cstyles.primarybutton}
-                  style={{ display: "block", marginBottom: 6 }}
                   onClick={() => shell.openExternal(tracker.url)}
                 >
                   {tracker.label} &nbsp;
                   <FontAwesomeIcon icon={faExternalLinkAlt} />
                 </button>
               ))}
-            </>
+            </div>
           )}
         </div>
 
         {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}
 
-        <div className={`${cstyles.horizontalflex} ${cstyles.padtopsmall}`} style={{ justifyContent: "center" }}>
+        {/* Space rather than a rule. The buttons are the end of the screen, not
+            the start of another section. */}
+        <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
           {removable && (
             <button type="button" className={cstyles.primarybutton} onClick={confirmRemove}>
               Remove
@@ -375,8 +402,24 @@ function SectionHeader({ label }: { label: string }) {
   return (
     <>
       <hr style={{ width: "100%" }} />
-      <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>{label}</div>
+      <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>{label}</div>
     </>
+  );
+}
+
+/**
+ * A fact in a row of them, labelled above rather than beside.
+ *
+ * The shape the transfer detail uses for the same job, so the two screens read
+ * as one design. `DetailRow` below is still the shape for anything long enough
+ * to want its own line and a copy button.
+ */
+function Field({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className={cstyles.sublight}>{label}</div>
+      <div className={cstyles.breakword}>{value}</div>
+    </div>
   );
 }
 
