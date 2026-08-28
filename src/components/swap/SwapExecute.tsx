@@ -167,7 +167,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
             </div>
           )}
 
-          <div style={{ overflowY: "auto", flexGrow: 1 }}>
+          <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1 }}>
             <div className={cstyles.padtopsmall}>
               <div className={`${cstyles.sublight} ${cstyles.small}`}>Provider</div>
               <div>{providerLongLabel(instructions.provider)}</div>
@@ -234,7 +234,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Review</div>
 
-        <div style={{ overflowY: "auto", flexGrow: 1 }}>
+        <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1 }}>
           <div className={cstyles.padtopsmall}>
             <div className={`${cstyles.sublight} ${cstyles.small}`}>Route</div>
             <div>{providerLongLabel(route.provider)}</div>

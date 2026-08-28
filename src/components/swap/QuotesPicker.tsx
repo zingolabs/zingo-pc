@@ -51,7 +51,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Quotes returned</div>
 
-        <div style={{ overflowY: "auto", flexGrow: 1, marginTop: 12 }}>
+        <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 12 }}>
           {routes.map((route) => {
             const selected = route.routeId === selectedRouteId;
             const recommended = route.tags?.includes("RECOMMENDED");

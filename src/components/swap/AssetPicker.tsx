@@ -76,7 +76,7 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
           style={{ width: "100%", marginTop: 12 }}
         />
 
-        <div style={{ overflowY: "auto", flexGrow: 1, marginTop: 12 }}>
+        <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 12 }}>
           {matches.length === 0 && (
             <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Nothing in the catalog matches that.</div>
           )}

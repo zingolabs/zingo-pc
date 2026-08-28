@@ -228,7 +228,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           </div>
         </div>
 
-        <div style={{ overflowY: "auto", flexGrow: 1, marginTop: 15 }}>
+        <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 15 }}>
           {/* First, because when it applies it is the only thing on this
               screen the user can act on. Everything below is a record of what
               was agreed; this is what still has to happen. */}

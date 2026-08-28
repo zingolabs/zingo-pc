@@ -48,7 +48,7 @@ const FeesBreakdown: React.FC<FeesBreakdownProps> = ({ record, modalIsOpen, clos
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Fee breakdown</div>
 
-        <div style={{ overflowY: "auto", flexGrow: 1, marginTop: 15 }}>
+        <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 15 }}>
           {rows.length === 0 && (
             <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>This swap recorded no itemised fees.</div>
           )}

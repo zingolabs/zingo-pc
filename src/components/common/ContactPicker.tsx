@@ -33,7 +33,7 @@ const ContactPicker: React.FC<ContactPickerProps> = ({ contacts, chainLabel, mod
     <div className={cstyles.verticalflex} style={{ height: "100%" }}>
       <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>{chainLabel} contacts</div>
 
-      <div style={{ overflowY: "auto", flexGrow: 1, marginTop: 12 }}>
+      <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 12 }}>
         {contacts.length === 0 && (
           <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
             No {chainLabel} addresses saved yet. Save one from this screen and it will appear here.
