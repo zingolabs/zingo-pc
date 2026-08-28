@@ -65,7 +65,7 @@ const FeesBreakdown: React.FC<FeesBreakdownProps> = ({ record, modalIsOpen, clos
               <div className={cstyles.padtopsmall}>
                 <div className={`${cstyles.sublight} ${cstyles.small}`}>Total</div>
                 <div>
-                  {record.totalFeesInReceiveAsset} {receiveSymbol}
+                  {formatFeeAmount(record.totalFeesInReceiveAsset)} {receiveSymbol}
                 </div>
               </div>
             </>
@@ -91,10 +91,13 @@ function feeText(conversion: FeeConversionType, receiveSymbol: string): string {
   switch (conversion.kind) {
     case "identity":
       return `${formatFeeAmount(conversion.amountInTarget)} ${receiveSymbol}`;
+    // The original is the provider's own string, which for an ERC20 fee runs to
+    // 18 decimals. It goes through the same formatter as the converted figure
+    // so one line does not carry two precisions.
     case "converted":
-      return `${formatFeeAmount(conversion.amountInTarget)} ${receiveSymbol} (${conversion.originalAmount} ${conversion.originalAsset})`;
+      return `${formatFeeAmount(conversion.amountInTarget)} ${receiveSymbol} (${formatFeeAmount(conversion.originalAmount)} ${conversion.originalAsset})`;
     case "unconvertible":
-      return `${conversion.originalAmount} ${conversion.originalAsset}`;
+      return `${formatFeeAmount(conversion.originalAmount)} ${conversion.originalAsset}`;
   }
 }
 
