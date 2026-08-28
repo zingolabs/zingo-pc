@@ -283,13 +283,13 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               third of the height. */}
           <hr style={{ width: "100%" }} />
 
-          <div className={cstyles.flexspacebetween}>
+          <div className={`${cstyles.flexspacebetween} ${cstyles.padtopsmall}`}>
             <Field label="Provider" value={providerLongLabel(record.provider)} />
             <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
             {!!record.routeId && <Field label="Route id" value={record.routeId} />}
           </div>
 
-          <div className={cstyles.flexspacebetween}>
+          <div className={`${cstyles.flexspacebetween} ${cstyles.padtopsmall}`}>
             <Field label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
             {!!record.updatedAtMs && (
               <Field label="Updated" value={dateformat(record.updatedAtMs, "mmm dd, yyyy HH:MM")} />
@@ -298,7 +298,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
 
           <hr style={{ width: "100%" }} />
 
-          <div className={cstyles.flexspacebetween}>
+          <div className={`${cstyles.flexspacebetween} ${cstyles.padtopsmall}`}>
             <Field label="Sent" value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}`} />
             <Field
               label="Expected"
@@ -312,12 +312,20 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           {/* No rule above it: a fee is an amount, so it belongs with the ones
               it was taken from rather than in a section of its own. */}
           {!!record.feesRaw?.length && (
-            <div className={cstyles.flexspacebetween} style={{ alignItems: "flex-end" }}>
+            <div className={`${cstyles.flexspacebetween} ${cstyles.padtopsmall}`} style={{ alignItems: "flex-end" }}>
               <Field
                 label="Total fees"
                 value={`${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
               />
-              <button type="button" className={cstyles.primarybutton} onClick={() => setFeesOpen(true)}>
+              {/* The shared button reserves 8px on each side for sitting beside
+                  another one. At the end of a row it has nothing to sit beside,
+                  and that margin reads as the row stopping short. */}
+              <button
+                type="button"
+                className={cstyles.primarybutton}
+                style={{ marginRight: 0 }}
+                onClick={() => setFeesOpen(true)}
+              >
                 Fee breakdown
               </button>
             </div>
@@ -402,7 +410,7 @@ function SectionHeader({ label }: { label: string }) {
   return (
     <>
       <hr style={{ width: "100%" }} />
-      <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>{label}</div>
+      <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.large} ${cstyles.padtopsmall}`}>{label}</div>
     </>
   );
 }
@@ -411,12 +419,12 @@ function SectionHeader({ label }: { label: string }) {
  * A fact in a row of them, labelled above rather than beside.
  *
  * The shape the transfer detail uses for the same job, so the two screens read
- * as one design. `DetailRow` below is still the shape for anything long enough
- * to want its own line and a copy button.
+ * as one design. `DetailRow` below is the same label and the same value, given
+ * its own line and a copy button, for the ones long enough to want both.
  */
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className={cstyles.padtopsmall}>
       <div className={cstyles.sublight}>{label}</div>
       <div className={cstyles.breakword}>{value}</div>
     </div>
@@ -426,9 +434,9 @@ function Field({ label, value }: { label: string; value: string }) {
 function DetailRow({ label, value, copy }: { label: string; value: string; copy?: (value: string) => void }) {
   return (
     <div className={cstyles.padtopsmall}>
-      <div className={`${cstyles.sublight} ${cstyles.small}`}>{label}</div>
+      <div className={cstyles.sublight}>{label}</div>
       <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
-        <div style={{ wordBreak: "break-all" }}>{value}</div>
+        <div className={cstyles.breakword}>{value}</div>
         {copy && (
           <button
             type="button"
