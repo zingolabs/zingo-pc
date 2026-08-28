@@ -188,7 +188,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     >
       <DetailNavigator index={index} length={length} move={moveDetail} />
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
-        <div className={cstyles.center}>Swap details</div>
+        <div className={cstyles.center}>Swap Status</div>
 
         {/* The same header the transfer detail uses, and the arrow means the
             same thing it does there: down for value arriving, up for value
