@@ -5,10 +5,12 @@ import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import { SwapDirectionEnum, formatAmountForDisplay, providerShortLabel } from "../../swap";
-import type { RouteOptionType } from "../../swap";
+import type { RouteOptionType, UnavailableProviderType } from "../../swap";
 
 type QuotesPickerProps = {
   routes: RouteOptionType[];
+  /** Supported providers that returned no route, and what they said about why. */
+  unavailable: UnavailableProviderType[];
   selectedRouteId: string;
   receiveSymbol: string;
   sellSymbol: string;
@@ -28,9 +30,15 @@ type QuotesPickerProps = {
  * The fee is read in the asset the user is parting with for an outbound swap
  * and in the one arriving for an inbound one, which is the side they are
  * actually counting in each case.
+ *
+ * The providers that returned nothing are listed too, greyed and inert. A
+ * quote that offers one route looks the same whether the other providers do
+ * not trade the pair or merely want a larger amount, and only one of those is
+ * something the user can do anything about.
  */
 const QuotesPicker: React.FC<QuotesPickerProps> = ({
   routes,
+  unavailable,
   selectedRouteId,
   receiveSymbol,
   sellSymbol,
@@ -118,6 +126,28 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
               </button>
             );
           })}
+
+          {unavailable.length > 0 && (
+            <>
+              {/* Below the routes, and after a rule, because these are not
+                  choices. Mixed in among the selectable ones they would read
+                  as options that happen to be dimmed. */}
+              <hr style={{ width: "100%" }} />
+              {unavailable.map((entry) => (
+                <div
+                  key={entry.provider}
+                  className={cstyles.sublight}
+                  style={{ marginBottom: 8, padding: 10, borderRadius: 4, border: "1px solid transparent" }}
+                >
+                  <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between" }}>
+                    <div>{providerShortLabel(entry.provider)}</div>
+                    <div className={cstyles.small}>Unavailable</div>
+                  </div>
+                  <div className={`${cstyles.small} ${cstyles.padtopsmall}`}>{entry.reason}</div>
+                </div>
+              ))}
+            </>
+          )}
         </div>
 
         <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>

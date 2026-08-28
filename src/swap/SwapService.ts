@@ -19,6 +19,8 @@ import { RouteOptionType } from "./types/RouteOptionType";
 import { SwapAssetType } from "./types/SwapAssetType";
 import { SwapRecordType } from "./types/SwapRecordType";
 import { TokenEntryType } from "./types/TokensResponseType";
+import { unavailableProviders } from "./unavailableProviders";
+import type { UnavailableProviderType } from "./unavailableProviders";
 
 /**
  * Top-level orchestrator that the UI layer interacts with.
@@ -66,6 +68,13 @@ export type QuoteInput = {
 
 export type QuoteResult = {
   routes: RouteOptionType[];
+  /**
+   * The providers this app supports that returned no route, with what they
+   * said about why. Reported alongside the routes rather than only when there
+   * are none, because "one provider answered and two did not" is the case the
+   * user cannot otherwise account for.
+   */
+  unavailable: UnavailableProviderType[];
   rawResponse: QuoteResponseType;
 };
 
@@ -172,7 +181,11 @@ export class SwapService {
       // still throws.
       const asEmptyQuote = emptyQuoteFromNoRouteError(error);
       if (!asEmptyQuote) throw error;
-      return { routes: [], rawResponse: asEmptyQuote };
+      return {
+        routes: [],
+        unavailable: this.describeUnavailable(asEmptyQuote, [], input),
+        rawResponse: asEmptyQuote,
+      };
     }
 
     const routes = (response.routes ?? [])
@@ -182,7 +195,20 @@ export class SwapService {
       .filter((route): route is RouteOptionType => route !== null)
       .filter((route) => this.registry.has(route.provider));
 
-    return { routes, rawResponse: response };
+    return { routes, unavailable: this.describeUnavailable(response, routes, input), rawResponse: response };
+  }
+
+  private describeUnavailable(
+    response: QuoteResponseType,
+    routes: readonly RouteOptionType[],
+    input: QuoteInput,
+  ): UnavailableProviderType[] {
+    return unavailableProviders({
+      response,
+      supported: this.registry.supportedProviders(),
+      routes,
+      sellAssetTicker: input.sellAsset.ticker,
+    });
   }
 
   async commitRoute(args: CommitRouteArgs): Promise<CommitRouteResult> {

@@ -89,6 +89,8 @@ export {
 } from "./chainMemoEncoding";
 export { needsEphemeralRoute, zecNetworkFeeReserve } from "./depositRouting";
 export { quoteAddressPair, quoteBindsAddress } from "./quoteAddressBinding";
+export { unavailableProviders } from "./unavailableProviders";
+export type { UnavailableProviderType } from "./unavailableProviders";
 export {
   buildDepositQr,
   exactAmountWarningText,

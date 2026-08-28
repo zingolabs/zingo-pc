@@ -62,6 +62,19 @@ const route = (overrides: Partial<QuoteRouteType> = {}): QuoteRouteType => ({
   ...overrides,
 });
 
+const failing = (error: unknown) => {
+  const quote = jest.fn(async () => {
+    throw error;
+  });
+  return new SwapService({
+    client: { quote } as unknown as SwapKitClient,
+    registry: createDefaultProviderRegistry(),
+    store: null as unknown as typeof SwapStore,
+    poller: null as unknown as SwapPoller,
+    tokenCatalog: null as unknown as TokenCatalog,
+  });
+};
+
 const askForQuote = (service: SwapService) =>
   service.quote({
     sellAsset: ZEC,
@@ -251,19 +264,6 @@ describe("fee aggregation", () => {
 });
 
 describe("a refusal that means no route", () => {
-  const failing = (error: unknown) => {
-    const quote = jest.fn(async () => {
-      throw error;
-    });
-    return new SwapService({
-      client: { quote } as unknown as SwapKitClient,
-      registry: createDefaultProviderRegistry(),
-      store: null as unknown as typeof SwapStore,
-      poller: null as unknown as SwapPoller,
-      tokenCatalog: null as unknown as TokenCatalog,
-    });
-  };
-
   // The shape a small amount produces. It arrives as a thrown HTTP error while
   // the 200 answer for the same condition arrives as data, and only the second
   // was ever explained to the user.
@@ -370,5 +370,48 @@ describe("slippage", () => {
     await askForQuote(service);
 
     expect(quote).toHaveBeenCalledWith(expect.objectContaining({ slippage: undefined }));
+  });
+});
+
+describe("providers that returned nothing", () => {
+  // The screen shows a single route and no way to tell whether the others do
+  // not trade the pair or merely want a larger amount. The quote already
+  // carries the answer; before this it was read only when there were no
+  // routes at all.
+  it("reports the refusals beside the routes, not only instead of them", async () => {
+    const { service } = serviceReturning({
+      routes: [route({ providers: [SwapKitProviderEnum.Near] })],
+      providerErrors: [{ provider: "MAYACHAIN_STREAMING", errorCode: "sellAssetAmountTooSmall", minAmount: "0.42" }],
+    });
+
+    const { routes, unavailable } = await askForQuote(service);
+
+    expect(routes.map((r) => r.provider)).toEqual([SwapKitProviderEnum.Near]);
+    expect(unavailable).toEqual([
+      { provider: SwapKitProviderEnum.MayachainStreaming, reason: "Needs at least 0.42 ZEC." },
+      { provider: SwapKitProviderEnum.Flashnet, reason: "Does not trade this pair." },
+    ]);
+  });
+
+  // A 404 is the same answer in a different envelope, and the list it feeds is
+  // the same list.
+  it("reports them for a refusal that arrived as a 404", async () => {
+    const { unavailable } = await askForQuote(
+      failing(
+        new SwapKitHttpError({
+          operation: SwapOperationEnum.Quote,
+          httpStatus: 404,
+          body: JSON.stringify({
+            error: "noRoutesFound",
+            providerErrors: [{ provider: "NEAR", errorCode: "sellAssetAmountTooSmall", minAmount: "0.01068069" }],
+          }),
+        }),
+      ),
+    );
+
+    expect(unavailable).toContainEqual({
+      provider: SwapKitProviderEnum.Near,
+      reason: "Needs at least 0.01068069 ZEC.",
+    });
   });
 });

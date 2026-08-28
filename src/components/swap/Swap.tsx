@@ -21,7 +21,13 @@ import {
   validateAddressForChain,
   zecNetworkFeeReserve,
 } from "../../swap";
-import type { FiatValueBasisType, QuoteInput, RouteOptionType, TokenEntryType } from "../../swap";
+import type {
+  FiatValueBasisType,
+  QuoteInput,
+  RouteOptionType,
+  TokenEntryType,
+  UnavailableProviderType,
+} from "../../swap";
 import { ZEC_ASSET, isQuotableToken, tokenToSwapAsset } from "./swapAssets";
 import SwapExecute from "./SwapExecute";
 import AssetPair from "./AssetPair";
@@ -122,6 +128,10 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const [ephemeralAddress, setEphemeralAddress] = useState<string>("");
 
   const [routes, setRoutes] = useState<RouteOptionType[] | null>(null);
+  // Alongside the routes rather than derived from them: what a provider said
+  // about refusing is in the quote response, and nothing in the routes it
+  // returned can reconstruct it.
+  const [unavailable, setUnavailable] = useState<UnavailableProviderType[]>([]);
   const [chosenRouteId, setChosenRouteId] = useState<string>("");
   const [quoteContext, setQuoteContext] = useState<{
     quoteInput: QuoteInput;
@@ -211,12 +221,12 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // in place. Clearing here instead would blank the panel on every keystroke
   // and bring it back a second later.
   //
-  // The addresses are not here either, and not in the quote's inputs: SwapKit
-  // prices on assets, amount and slippage alone. They are read into the
-  // pinned request when the user opens the review, which is the moment they
-  // start to matter.
+  // The address is not here either, though it is in the quote's inputs. It
+  // re-quotes through the same auto-fire as the amount, for the same reason:
+  // typing one should replace the numbers rather than blank the panel.
   useEffect(() => {
     setRoutes(null);
+    setUnavailable([]);
     setChosenRouteId("");
     setQuoteContext(null);
     setReviewing(false);
@@ -327,6 +337,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     if (amountValid) return;
     const timer = setTimeout(() => {
       setRoutes(null);
+      setUnavailable([]);
       setChosenRouteId("");
       setQuoteContext(null);
       setQuoteError("");
@@ -394,6 +405,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         return (sameProvider ?? result.routes[0])?.routeId ?? "";
       });
       setRoutes(result.routes);
+      setUnavailable(result.unavailable);
       setRefreshedAtMs(Date.now());
       // Pinned alongside the routes because they describe the request that
       // produced them, and the commit has to use the same inputs the user was
@@ -410,6 +422,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     } catch (error) {
       setQuoteError(`${error}`);
       setRoutes(null);
+      setUnavailable([]);
       setQuoteContext(null);
       setQuoteAttemptFailed(true);
     } finally {
@@ -769,10 +782,16 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               <button
                 type="button"
                 className={cstyles.primarybutton}
-                disabled={routes.length < 2}
+                // Openable on a single route when there are refusals to read:
+                // "why is there only one" is the question that list answers.
+                disabled={routes.length < 2 && unavailable.length === 0}
                 onClick={() => setQuotesOpen(true)}
               >
-                {routes.length < 2 ? "Only one route" : `Compare ${routes.length} routes`}
+                {routes.length >= 2
+                  ? `Compare ${routes.length} routes`
+                  : unavailable.length > 0
+                    ? "Why only one route?"
+                    : "Only one route"}
               </button>
               {/* The button changes identity rather than always saying
                   "Review" and then explaining a refusal in a modal. Only a
@@ -816,6 +835,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             onDone={() => {
               setReviewing(false);
               setRoutes(null);
+              setUnavailable([]);
               setChosenRouteId("");
               setQuoteContext(null);
               setAmount("");
@@ -876,6 +896,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       {quotesOpen && !!routes?.length && (
         <QuotesPicker
           routes={routes}
+          unavailable={unavailable}
           selectedRouteId={chosenRouteId}
           receiveSymbol={isOutbound ? (selectedToken?.ticker ?? "") : "ZEC"}
           sellSymbol={isOutbound ? "ZEC" : (selectedToken?.ticker ?? "")}
