@@ -68,6 +68,8 @@ export default class RPC {
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
   fnSetMixnetView: (view: MixnetView) => void;
+  /** Last price-fetch failure, so the same one is logged once and not every cycle. */
+  private lastPriceFailure: string = "";
   fnSetServerHealth: (health: ServerHealthState) => void;
 
   currentWallet: WalletType | null;
@@ -1268,15 +1270,32 @@ export default class RPC {
       return;
     }
 
-    // Mixnet-only, fail-closed (ADR 0024 arc 6). Until Mixnet Mode wiring
-    // lands in pc the call refuses every time, so a refusal is the steady
-    // state, not an error worth logging on the 5s cadence.
+    // Mixnet-only, fail-closed (ADR 0024 arc 6): the fetch refuses in every
+    // state but ready and the deliberate switched-off, and never falls back to
+    // clearnet without consent.
+    //
+    // A refusal used to be swallowed on the reasoning that Mixnet Mode was not
+    // wired here yet, so refusing was the steady state and logging it on a 5s
+    // cadence would be noise. The wiring landed; the silence outlived it. A
+    // ready tunnel that cannot fetch a price is a fault, and the quiet made it
+    // indistinguishable from the ordinary refusal — including from the case
+    // this app already knows about, where the phase still reads "ready"
+    // because nym-proxy survived a suspend that killed its gateways.
     try {
       const resultStr: string = await native.zec_price_over_mixnet();
       const resultJSON = JSON.parse(resultStr);
       this.fnSetZecPrice(resultJSON.current_price);
-    } catch {
+      this.lastPriceFailure = "";
+    } catch (error) {
       this.fnSetZecPrice(0);
+      // Once per distinct reason rather than once per cycle: the same refusal
+      // repeating every five seconds is what the silence was avoiding, and it
+      // is still not worth reading twelve times a minute.
+      const reason = `${error}`;
+      if (reason !== this.lastPriceFailure) {
+        this.lastPriceFailure = reason;
+        console.log(`RPC: the ZEC price fetch failed — ${reason}`);
+      }
     }
   }
 
