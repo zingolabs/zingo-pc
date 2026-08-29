@@ -4,6 +4,7 @@ import styles from "./Addressbook.module.css";
 import cstyles from "../common/Common.module.css";
 import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum, ZEC_SWAP_CHAIN } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import Utils from "../../utils/utils";
 import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
@@ -197,6 +198,10 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     return { _addressError, _addressKind, _isZns: false };
   };
 
+  // Measured rather than assumed: without it the pane ran past the bottom of
+  // the window and the last contact could not be scrolled to.
+  const { paneRef, paneOffset } = usePaneOffset(327);
+
   const clearFields = () => {
     setCurrentLabel("");
     setCurrentAddress("");
@@ -340,22 +345,28 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </div>
         )}
 
-        <ScrollPaneTop offsetHeight={327}>
-          <div className={styles.addressbooklist}>
-            {addressBookSorted && addressBookSorted.length > 0 && (
-              <Accordion>
-                {addressBookSorted.map((item: AddressBookEntryClass) => (
-                  <AddressBookItem
-                    key={item.label}
-                    item={item}
-                    removeAddressBookEntry={props.removeAddressBookEntry}
-                    showChain={showAllNetworks}
-                  />
-                ))}
-              </Accordion>
-            )}
-          </div>
-        </ScrollPaneTop>
+        {/* The form above this is not a fixed height: each field's validation
+            line appears and disappears, the chain select exists only for an
+            address that could belong to more than one, and the column header
+            only while there is something under it. */}
+        <div ref={paneRef}>
+          <ScrollPaneTop offsetHeight={paneOffset}>
+            <div className={styles.addressbooklist}>
+              {addressBookSorted && addressBookSorted.length > 0 && (
+                <Accordion>
+                  {addressBookSorted.map((item: AddressBookEntryClass) => (
+                    <AddressBookItem
+                      key={item.label}
+                      item={item}
+                      removeAddressBookEntry={props.removeAddressBookEntry}
+                      showChain={showAllNetworks}
+                    />
+                  ))}
+                </Accordion>
+              )}
+            </div>
+          </ScrollPaneTop>
+        </div>
       </div>
     </div>
   );

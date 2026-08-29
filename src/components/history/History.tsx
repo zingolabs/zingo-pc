@@ -1,8 +1,9 @@
-import React, { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
 import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum, TotalBalanceClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import VtItemBlock from "./components/VtItemBlock";
 import VtModal from "./components/VtModal";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
@@ -49,34 +50,9 @@ const History: React.FC<HistoryProps> = () => {
   // The block above the list has no fixed height. The balance row gains and
   // loses a block with the wallet's pools, the shield button comes and goes
   // with a transparent balance, and the pending notice and the fetch error each
-  // add a line of their own. A constant offset was therefore right for one
-  // wallet and wrong for the next, and when it was too small the pane ran past
-  // the bottom of the window and the last row could not be scrolled to.
-  //
-  // Measuring where the list starts is the quantity that constant was
-  // approximating, so it is measured. `ScrollPaneTop` keeps its contract:
-  // Send draws its buttons below its own pane and would break if the component
-  // decided this for everyone.
-  const headerRef = useRef<HTMLDivElement>(null);
-  const paneRef = useRef<HTMLDivElement>(null);
-  const [paneOffset, setPaneOffset] = useState<number>(203);
-
-  useLayoutEffect(() => {
-    const measure = () => {
-      if (paneRef.current) setPaneOffset(paneRef.current.getBoundingClientRect().top);
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    // Watches the header rather than the pane: the pane's height is derived
-    // from this measurement, so observing it would feed back into itself.
-    // jsdom has no ResizeObserver, hence the guard.
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    if (headerRef.current) observer?.observe(headerRef.current);
-    return () => {
-      window.removeEventListener("resize", measure);
-      observer?.disconnect();
-    };
-  }, []);
+  // add a line of their own, so a constant offset was right for one wallet and
+  // wrong for the next.
+  const { paneRef, paneOffset } = usePaneOffset(203);
 
   const mergedValueTransfers = useValueTransfersWithSwaps(valueTransfers);
 
@@ -177,7 +153,7 @@ const History: React.FC<HistoryProps> = () => {
 
   return (
     <div>
-      <div ref={headerRef} className={`${cstyles.well} ${styles.containermargin}`}>
+      <div className={`${cstyles.well} ${styles.containermargin}`}>
         <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
