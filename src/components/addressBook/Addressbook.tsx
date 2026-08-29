@@ -322,10 +322,14 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                     <ChainBadge chain={swapChain} size={20} />
                   </span>
                   <div className={cstyles.fieldinput}>{chainDisplayName(swapChain) || swapChain}</div>
+                  {/* No colour of its own, the way the swap screen's asset chip
+                      leaves its chevron to inherit — which is what `color:
+                      inherit` on the button above is for. Same size as that
+                      one, since they mark the same thing. */}
                   <i
                     className={`${"fas"} ${"fa-chevron-down"}`}
                     data-testid="chain-chevron"
-                    style={{ paddingRight: 12, color: "var(--color-primary)" }}
+                    style={{ paddingRight: 12, fontSize: 12 }}
                   />
                 </button>
               </div>
