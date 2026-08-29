@@ -52,7 +52,7 @@ const InsufficientFunds: React.FC<InsufficientFundsProps> = ({
   <Modal
     isOpen={modalIsOpen}
     onRequestClose={closeModal}
-    className={swapStyles.narrowmodal}
+    className={swapStyles.messagemodal}
     overlayClassName={styles.txmodalOverlay}
   >
     <div className={cstyles.verticalflex} style={{ height: "100%" }}>

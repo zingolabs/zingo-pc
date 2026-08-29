@@ -113,15 +113,32 @@
   transform: translate(-50%, -5%);
   opacity: 1;
   position: absolute;
-  width: 480px;
-  /* Never wider than the window on a small one, where 480px plus the overlay
-     would otherwise reach past both edges. */
+  width: var(--swap-modal-width, 480px);
+  /* Never wider than the window on a small one, where the chosen width plus
+     the overlay would otherwise reach past both edges. */
   max-width: calc(100vw - 64px);
   max-height: calc(100vh - 130px);
   overflow-y: auto;
   padding: 16px;
   background: var(--color-background);
   border: var(--color-primary) 4px solid;
+}
+
+/*
+ * The same box, sized for a sentence rather than a list.
+ *
+ * A fee breakdown is a label and an amount per line and reads well at 480px;
+ * a message has to fit its sentences on one line each, and at 480 the longer
+ * of them wrapped and turned a two-line message into three.
+ *
+ * Done with a custom property rather than a second width declaration: both
+ * classes land on the same element, and two single-class selectors setting
+ * `width` would be decided by the order the bundler happened to emit them in.
+ * Setting the variable here and reading it there has no such contest.
+ */
+.messagemodal {
+  composes: narrowmodal;
+  --swap-modal-width: 600px;
 }
 
 .qrframe {
