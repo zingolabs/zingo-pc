@@ -390,18 +390,20 @@ const ToAddrBox = ({
             {znsStatus === "idle" && addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
           </div>
         </div>
-        <input
-          type="text"
-          aria-label="Recipient address"
-          placeholder="Unified | Sapling | Transparent | TEX address | name.zcash"
-          className={cstyles.inputbox}
-          value={toLocal}
-          readOnly={!!znsAlias}
-          onChange={(e) => {
-            setToLocal(e.target.value);
-            updateToField(e.target.value, null, null);
-          }}
-        />
+        <div className={cstyles.fieldrow}>
+          <input
+            type="text"
+            aria-label="Recipient address"
+            placeholder="Unified | Sapling | Transparent | TEX address | name.zcash"
+            className={cstyles.fieldinput}
+            value={toLocal}
+            readOnly={!!znsAlias}
+            onChange={(e) => {
+              setToLocal(e.target.value);
+              updateToField(e.target.value, null, null);
+            }}
+          />
+        </div>
 
         {contactsOpen && (
           <ContactPicker
@@ -432,12 +434,12 @@ const ToAddrBox = ({
                 ) : null}
               </div>
             </div>
-            <div className={cstyles.flexspacebetween}>
+            <div className={cstyles.fieldrow}>
               <input
                 type="number"
                 aria-label="Amount"
                 step="any"
-                className={cstyles.inputbox}
+                className={cstyles.fieldinput}
                 value={isNaN(amountLocal) ? "" : amountLocal}
                 onChange={(e) => {
                   setAmountLocal(Number(e.target.value));
@@ -447,7 +449,7 @@ const ToAddrBox = ({
               <button
                 type="button"
                 aria-label="Set maximum amount"
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                style={{ background: "none", border: "none", padding: "0 10px 0 0", cursor: "pointer" }}
                 onClick={() => setMaxAmount(fromAmount)}
               >
                 <img className={styles.toaddrbutton} src={ArrowUpLight} alt="" />
@@ -478,12 +480,12 @@ const ToAddrBox = ({
                 </div>
               </div>
             </div>
-            <div className={cstyles.flexspacebetween}>
+            <div className={cstyles.fieldrow}>
               <input
                 type="number"
                 aria-label="Transaction fee"
                 step="any"
-                className={cstyles.inputbox}
+                className={cstyles.fieldinput}
                 value={isNaN(sendFee) ? "" : sendFee}
                 disabled={true}
               />
@@ -507,25 +509,31 @@ const ToAddrBox = ({
                 )}
               </div>
             </div>
-            <TextareaAutosize
-              className={cstyles.inputbox}
-              value={memoLocal}
-              disabled={isMemoDisabled}
-              onChange={(e) => {
-                setMemoLocal(e.target.value);
-                updateToField(null, null, e.target.value);
-              }}
-              minRows={2}
-              maxRows={5}
-            />
-            {toaddr.memoReplyTo && (
+            <div className={cstyles.fieldrowmulti}>
               <TextareaAutosize
-                className={cstyles.inputbox}
-                value={toaddr.memoReplyTo}
-                disabled={true}
+                aria-label="Memo"
+                className={cstyles.fieldtextarea}
+                value={memoLocal}
+                disabled={isMemoDisabled}
+                onChange={(e) => {
+                  setMemoLocal(e.target.value);
+                  updateToField(null, null, e.target.value);
+                }}
                 minRows={2}
                 maxRows={5}
               />
+            </div>
+            {toaddr.memoReplyTo && (
+              <div className={`${cstyles.fieldrowmulti} ${cstyles.margintopsmall}`}>
+                <TextareaAutosize
+                  aria-label="Reply-to address"
+                  className={cstyles.fieldtextarea}
+                  value={toaddr.memoReplyTo}
+                  disabled={true}
+                  minRows={2}
+                  maxRows={5}
+                />
+              </div>
             )}
           </div>
         )}
