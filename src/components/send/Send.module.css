@@ -6,9 +6,16 @@
   overflow-y: auto;
 }
 
+/*
+ * The set-maximum arrow, which now sits inside the amount field rather than
+ * beside it. The 13px top margin was what lined it up against a bare input;
+ * in a flex row that centres its children it only pushed the arrow 13px below
+ * centre. `display: block` drops the descender space an inline image reserves
+ * under itself, which would offset it again by a couple of pixels.
+ */
 .toaddrbutton {
   height: 24px;
-  margin-top: 13px;
+  display: block;
 }
 
 .toaddrbutton:hover {
