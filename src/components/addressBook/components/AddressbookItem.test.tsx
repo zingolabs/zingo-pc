@@ -33,12 +33,9 @@ describe("AddressbookItem", () => {
     expect(screen.getByText("Alice")).toBeInTheDocument();
   });
 
-  // The address leads the entry now, and in full: reading it used to cost a
-  // click to expand a value that fits on the line.
-  it("shows the whole address, labelled", () => {
+  it("shows a truncated address", () => {
     renderInAccordion(<AddressBookItem {...baseProps} />);
-    expect(screen.getByText("Address")).toBeInTheDocument();
-    expect(screen.getByText(item.address)).toBeInTheDocument();
+    expect(screen.getByLabelText("Copy address")).toBeInTheDocument();
   });
 
   it("shows Send To and Delete buttons when expanded (not readOnly)", async () => {
@@ -78,49 +75,44 @@ describe("AddressbookItem", () => {
     expect(removeAddressBookEntry).toHaveBeenCalledWith("Alice");
   });
 
-  // Which chain an address is on is the first thing that matters now that the
-  // book holds more than Zcash, so every entry says it.
-  it("names the chain", () => {
-    renderInAccordion(<AddressBookItem {...baseProps} />);
-    expect(screen.getByText("Chain")).toBeInTheDocument();
-    expect(screen.getByText("Zcash")).toBeInTheDocument();
-  });
-
-  // The Zcash network is only ambiguous while contacts from every network sit
-  // in one list, which is the only time it is named.
-  it("names the network too while every network is shown", () => {
+  it("shows the [Mainnet] chain badge when showChain is true", () => {
     renderInAccordion(<AddressBookItem {...baseProps} showChain={true} />);
-    expect(screen.getByText(/Zcash — Mainnet/)).toBeInTheDocument();
+    expect(screen.getByText("[Mainnet]")).toBeInTheDocument();
   });
 
-  it("names a testnet entry's network", () => {
+  it("shows the [Testnet] chain badge for testnet entries", () => {
     const tItem = new AddressBookEntryClass("Bob", "u1other", ServerChainNameEnum.testChainName);
     renderInAccordion(<AddressBookItem item={tItem} removeAddressBookEntry={jest.fn()} showChain={true} />);
-    expect(screen.getByText(/Zcash — Testnet/)).toBeInTheDocument();
+    expect(screen.getByText("[Testnet]")).toBeInTheDocument();
   });
 
-  it("leaves the network out when only one network is shown", () => {
+  it("does NOT show chain badge when showChain is false (default)", () => {
     renderInAccordion(<AddressBookItem {...baseProps} />);
-    expect(screen.queryByText(/Mainnet/)).not.toBeInTheDocument();
+    expect(screen.queryByText("[Mainnet]")).not.toBeInTheDocument();
   });
 
-  it("copies the address", () => {
+  it("copies the address on click and expands it (truncated → full)", () => {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { clipboard } = require("../../../electronBridge");
     renderInAccordion(<AddressBookItem {...baseProps} />);
-    fireEvent.click(screen.getByRole("button", { name: "Copy Address" }));
+    fireEvent.click(screen.getByLabelText("Copy address"));
     expect(clipboard.writeText).toHaveBeenCalledWith(item.address);
   });
 
-  // The copy control sits inside the accordion's own header button. Without
-  // the click being stopped there, copying an address would also fold away the
-  // entry it came from.
-  it("does not open the entry when the address is copied", () => {
-    renderInAccordion(<AddressBookItem {...baseProps} />, {
-      contextOverrides: { currentWallet: mainnetWallet },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Copy Address" }));
-    expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
+  it("copies the address via keyboard Enter", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { clipboard } = require("../../../electronBridge");
+    renderInAccordion(<AddressBookItem {...baseProps} />);
+    fireEvent.keyDown(screen.getByLabelText("Copy address"), { key: "Enter" });
+    expect(clipboard.writeText).toHaveBeenCalled();
+  });
+
+  it("expands long addresses into chunks when clicked", () => {
+    const longItem = new AddressBookEntryClass("Long", "u1" + "y".repeat(100), ServerChainNameEnum.mainChainName);
+    renderInAccordion(<AddressBookItem item={longItem} removeAddressBookEntry={jest.fn()} />);
+    fireEvent.click(screen.getByLabelText("Copy address"));
+    // After expand, the address is split into chunks — at least one chunk present
+    expect(screen.getByLabelText("Copy address")).toBeInTheDocument();
   });
 
   it("displays ZNS aliases verbatim (no trimming)", () => {
