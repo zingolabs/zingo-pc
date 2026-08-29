@@ -360,3 +360,36 @@ describe("AddressBook chain field", () => {
     expect(within(field).getByTestId("chain-chevron")).toBeInTheDocument();
   });
 });
+
+describe("AddressBook validation ticks", () => {
+  // An empty field has no error, which is not the same as being right. The
+  // tick used to greet an untouched form claiming both fields were good.
+  it("shows nothing on either field before anything is typed", () => {
+    render(<AddressBook {...baseProps} />);
+    expect(screen.queryByTestId("label-valid")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("address-valid")).not.toBeInTheDocument();
+  });
+
+  it("ticks each field once it holds something valid", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    render(<AddressBook {...baseProps} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Alice" } });
+    expect(await screen.findByTestId("label-valid")).toBeInTheDocument();
+    expect(screen.queryByTestId("address-valid")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "u1valid" } });
+    expect(await screen.findByTestId("address-valid")).toBeInTheDocument();
+  });
+
+  it("shows the error rather than a tick when the content is wrong", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue("");
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "garbage" } });
+
+    expect(await screen.findByText("Invalid Address")).toBeInTheDocument();
+    expect(screen.queryByTestId("address-valid")).not.toBeInTheDocument();
+  });
+});

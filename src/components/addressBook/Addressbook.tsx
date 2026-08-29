@@ -250,10 +250,13 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               {!isZns && addressKind === AddressKindEnum.unified && "Unified"}
             </div>
             <div className={cstyles.validationerror}>
-              {!addressError ? (
-                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
-              ) : (
-                <span className={cstyles.red}>{addressError}</span>
+              {/* An empty field has no error, which is not the same as being
+                  right — the tick used to greet an untouched form claiming
+                  both fields were good before anything was typed. Nothing is
+                  shown until there is something to judge. */}
+              {!!addressError && <span className={cstyles.red}>{addressError}</span>}
+              {!addressError && currentAddress !== "" && (
+                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} data-testid="address-valid" />
               )}
             </div>
           </div>
@@ -273,10 +276,9 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               <div className={cstyles.flexspacebetween}>
                 <div>Label</div>
                 <div className={cstyles.validationerror}>
-                  {!labelError ? (
-                    <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
-                  ) : (
-                    <span className={cstyles.red}>{labelError}</span>
+                  {!!labelError && <span className={cstyles.red}>{labelError}</span>}
+                  {!labelError && currentLabel !== "" && (
+                    <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} data-testid="label-valid" />
                   )}
                 </div>
               </div>
@@ -306,7 +308,11 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                   type="button"
                   aria-label="Chain"
                   className={`${cstyles.fieldrow} ${cstyles.margintopsmall}`}
-                  style={{ width: "100%", cursor: "pointer", textAlign: "left" }}
+                  // `color: inherit` because a button does not inherit it:
+                  // without it everything in here that does not set its own
+                  // takes the platform's default button text, which on this
+                  // dark field is the colour of the field itself.
+                  style={{ width: "100%", cursor: "pointer", textAlign: "left", color: "inherit" }}
                   onClick={() => setChainPickerOpen(true)}
                 >
                   {/* The badge says which chain without being read, and the
@@ -319,7 +325,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                   <i
                     className={`${"fas"} ${"fa-chevron-down"}`}
                     data-testid="chain-chevron"
-                    style={{ paddingRight: 12 }}
+                    style={{ paddingRight: 12, color: "var(--color-primary)" }}
                   />
                 </button>
               </div>
