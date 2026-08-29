@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import AddressBook from "./Addressbook";
 import { AddressBookEntryClass, ServerChainNameEnum } from "../appstate";
@@ -342,5 +342,21 @@ describe("AddressBook", () => {
       expect(screen.getByText("Bob")).toBeInTheDocument();
       expect(screen.queryByText("Tester")).not.toBeInTheDocument();
     });
+  });
+});
+
+describe("AddressBook chain field", () => {
+  // The badge answers "which chain" before the label is read, and the chevron
+  // is what says the field is a choice rather than something the form worked
+  // out and is telling you.
+  it("shows the selected chain and marks the field as a choice", async () => {
+    mockPossibleChains = ["BTC", "LTC"];
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qambiguous" } });
+
+    const field = await screen.findByRole("button", { name: /^chain$/i });
+    expect(field).toHaveTextContent("Bitcoin");
+    expect(within(field).getByTestId("chain-badge")).toBeInTheDocument();
+    expect(within(field).getByTestId("chain-chevron")).toBeInTheDocument();
   });
 });

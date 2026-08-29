@@ -4,7 +4,7 @@ import Modal from "react-modal";
 import styles from "../history/History.module.css";
 import cstyles from "./Common.module.css";
 import { chainDisplayName } from "../swap/chainDisplayName";
-import { getChainIcon } from "../swap/chainIcons";
+import { ChainBadge } from "./ChainBadge";
 
 type ChainPickerProps = {
   /** Chain codes to choose between, in the order they should be offered. */
@@ -73,7 +73,6 @@ const ChainPicker: React.FC<ChainPickerProps> = ({ chains, selected, modalIsOpen
             <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No chain matches that.</div>
           )}
           {matches.map((chain) => {
-            const icon = getChainIcon(chain);
             const name = chainDisplayName(chain);
             return (
               <button
@@ -96,28 +95,7 @@ const ChainPicker: React.FC<ChainPickerProps> = ({ chains, selected, modalIsOpen
                   textAlign: "left",
                 }}
               >
-                {/* A chain with no bundled badge still gets a circle, so the
-                    rows line up and the text starts in the same place. */}
-                {icon ? (
-                  <img src={icon} alt="" width={32} height={32} style={{ borderRadius: "50%" }} />
-                ) : (
-                  <div
-                    aria-hidden="true"
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      background: "var(--color-background-dark)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 11,
-                      fontWeight: 600,
-                    }}
-                  >
-                    {chain.slice(0, 3).toUpperCase()}
-                  </div>
-                )}
+                <ChainBadge chain={chain} size={32} />
                 <div>
                   <div>{name || chain}</div>
                   {/* Only when it says something the line above did not. For

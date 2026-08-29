@@ -6,6 +6,7 @@ import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum, ZEC_SWAP_C
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import ChainPicker from "../common/ChainPicker";
+import { ChainBadge } from "../common/ChainBadge";
 import Utils from "../../utils/utils";
 import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
@@ -308,8 +309,18 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                   style={{ width: "100%", cursor: "pointer", textAlign: "left" }}
                   onClick={() => setChainPickerOpen(true)}
                 >
+                  {/* The badge says which chain without being read, and the
+                      chevron says the field is a choice rather than something
+                      the form worked out and is telling you. */}
+                  <span style={{ display: "flex", paddingLeft: 12 }}>
+                    <ChainBadge chain={swapChain} size={20} />
+                  </span>
                   <div className={cstyles.fieldinput}>{chainDisplayName(swapChain) || swapChain}</div>
-                  <i className={`${"fas"} ${"fa-chevron-down"}`} style={{ paddingRight: 12 }} />
+                  <i
+                    className={`${"fas"} ${"fa-chevron-down"}`}
+                    data-testid="chain-chevron"
+                    style={{ paddingRight: 12 }}
+                  />
                 </button>
               </div>
             )}

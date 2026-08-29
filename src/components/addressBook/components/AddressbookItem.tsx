@@ -16,6 +16,7 @@ import { ContextApp } from "../../../context/ContextAppState";
 import { isZnsAlias } from "../../../utils/zns";
 import { useCopy } from "../../common/useCopy";
 import { chainDisplayName } from "../../swap/chainDisplayName";
+import { ChainBadge } from "../../common/ChainBadge";
 
 type AddressBookItemProps = {
   item: AddressBookEntryClass;
@@ -59,7 +60,10 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
           <div className={cstyles.flexspacebetween}>
-            <div>
+            {/* The badge leads, so the chain reads off the list without the
+                bracketed tag having to be found and parsed on every row. */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+              <ChainBadge chain={swapChain} size={24} />
               {item.label}
               {/* Which chain the address belongs to is the first thing that
                   matters now that the book holds more than Zcash, so a non-ZEC
