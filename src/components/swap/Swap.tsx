@@ -29,6 +29,7 @@ import type {
   UnavailableProviderType,
 } from "../../swap";
 import { ZEC_ASSET, isQuotableToken, tokenToSwapAsset } from "./swapAssets";
+import { pickChainAsset } from "./pickChainAsset";
 import SwapExecute from "./SwapExecute";
 import AssetPair from "./AssetPair";
 import { chainDisplayName } from "./chainDisplayName";
@@ -252,20 +253,27 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     }
   }, [isOutbound, selectedToken, tokens]);
 
-  // Arriving from the Address Book: fill the address and point the asset chip
-  // at that chain. Consumed once and cleared, so coming back to this screen
-  // later does not refill a field the user deliberately emptied. Waits for the
-  // catalog, which is what turns a chain code into a selectable asset.
+  // Arriving from the Address Book, first half: point the direction and the
+  // asset chip at the contact's chain. Waits for the catalog, which is what
+  // turns a chain code into a selectable asset.
+  //
+  // The address is deliberately not set here. Choosing the asset changes the
+  // counterparty chain, and the effect below that clears an address whenever
+  // the chain changes runs in that same commit and wiped it — which is why
+  // arriving from the Address Book used to land on an empty field.
   useEffect(() => {
     if (!swapToState || !tokens || tokens.length === 0) return;
-    const match = tokens.find((t) => (t.chain ?? "").toUpperCase() === swapToState.swapChain.toUpperCase());
+    const match = pickChainAsset(tokens, swapToState.swapChain);
+    if (!match) {
+      // Nothing in the catalog sits on that chain, so there is no swap to set
+      // up. Dropped rather than left pending, which would retry forever.
+      setSwapTo(null);
+      return;
+    }
     // The contact is the far side of the swap, so this only makes sense
     // outbound: that is the direction whose destination the user types.
     setDirection(SwapDirectionEnum.Outbound);
-    if (match) setSelectedToken(match);
-    setDestinationAddress(swapToState.address);
-    setDestinationAddressTouched(true);
-    setSwapTo(null);
+    setSelectedToken(match);
   }, [swapToState, tokens, setSwapTo]);
 
   const counterpartyChain = selectedToken?.chain ?? "";
@@ -278,6 +286,21 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     setDestinationAddressTouched(false);
     setRefundAddressTouched(false);
   }, [direction, counterpartyChain]);
+
+  // Arriving from the Address Book, second half: the asset has landed and the
+  // chain now matches the contact's, so the address goes in and the handoff is
+  // consumed. Declared after the effect above so that in the commit where the
+  // chain changes, the clear runs first and this writes over it.
+  //
+  // Consumed once, so coming back to this screen later does not refill a field
+  // the user deliberately emptied.
+  useEffect(() => {
+    if (!swapToState || !isOutbound) return;
+    if (counterpartyChain.toUpperCase() !== swapToState.swapChain.toUpperCase()) return;
+    setDestinationAddress(swapToState.address);
+    setDestinationAddressTouched(true);
+    setSwapTo(null);
+  }, [swapToState, isOutbound, counterpartyChain, setSwapTo]);
 
   // Whichever field is live for the current direction. Both sit on the non-ZEC
   // chain: outbound the bought asset lands there, inbound the sold asset
