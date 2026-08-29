@@ -1,5 +1,4 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
@@ -9,8 +8,8 @@ import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
 import { ContextApp } from "../../../context/ContextAppState";
 import { isZnsAlias, extractZnsName, resolveZnsAlias } from "../../../utils/zns";
 import { shell } from "../../../electronBridge";
-import routes from "../../../constants/routes.json";
 import ContactPicker from "../../common/ContactPicker";
+import SaveContact from "../../common/SaveContact";
 import { ZEC_SWAP_CHAIN } from "../../appstate/classes/AddressBookEntryClass";
 
 const Spacer = () => {
@@ -35,6 +34,7 @@ type ToAddrBoxProps = {
   serverChainName: "" | ServerChainNameEnum;
   block: number;
   currencyName: string;
+  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
 };
 
 const ToAddrBox = ({
@@ -55,10 +55,10 @@ const ToAddrBox = ({
   serverChainName,
   block,
   currencyName,
+  addAddressBookEntry,
 }: ToAddrBoxProps) => {
   const context = useContext(ContextApp);
-  const { addressBook, setAddLabel } = context;
-  const navigate = useNavigate();
+  const { addressBook } = context;
 
   const [toLocal, setToLocal] = useState<string>(toaddr.to);
   const [amountLocal, setAmountLocal] = useState<number>(toaddr.amount);
@@ -76,6 +76,10 @@ const ToAddrBox = ({
   const [znsAlias, setZnsAliasLocal] = useState<string>(toaddr.znsAlias);
   const [znsStatus, setZnsStatus] = useState<"idle" | "resolving" | "not-found" | "network">("idle");
   const [contactsOpen, setContactsOpen] = useState<boolean>(false);
+  const [saveContactOpen, setSaveContactOpen] = useState<boolean>(false);
+  // Named once: the contact list and the save prompt should call the chain the
+  // same thing on the same screen.
+  const zcashChainLabel = currencyName === "TAZ" ? "Testnet Zcash" : "Zcash";
 
   // Zcash contacts only. The address book holds swap contacts too, and those
   // carry this same `chain` — swaps are mainnet-only, so a Bitcoin address is
@@ -360,20 +364,36 @@ const ToAddrBox = ({
               className={cstyles.fieldaction}
               aria-label="Save as contact"
               title="Save as contact"
-              onClick={() => {
-                setAddLabel(new AddressBookEntryClass("", saveTarget));
-                navigate(routes.ADDRESSBOOK);
-              }}
+              onClick={() => setSaveContactOpen(true)}
             >
               <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
             </button>
           )}
         </div>
 
+        {saveContactOpen && (
+          <SaveContact
+            address={saveTarget}
+            chainLabel={zcashChainLabel}
+            modalIsOpen={saveContactOpen}
+            closeModal={() => setSaveContactOpen(false)}
+            // ZEC, and the network this wallet is on — the same pair the
+            // Address Book screen files a Zcash contact under.
+            onSave={(label) =>
+              addAddressBookEntry(
+                label,
+                saveTarget,
+                serverChainName || ServerChainNameEnum.mainChainName,
+                ZEC_SWAP_CHAIN,
+              )
+            }
+          />
+        )}
+
         {contactsOpen && (
           <ContactPicker
             contacts={zcashContacts}
-            chainLabel={currencyName === "TAZ" ? "Testnet Zcash" : "Zcash"}
+            chainLabel={zcashChainLabel}
             modalIsOpen={contactsOpen}
             closeModal={() => setContactsOpen(false)}
             onSelect={(address) => {

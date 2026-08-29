@@ -704,7 +704,13 @@ const AppRoutes: React.FC = () => {
             <Routes>
               <Route
                 path={routes.SEND}
-                element={<Send sendTransaction={runRPCSendTransaction} setSendPageState={setSendPageState} />}
+                element={
+                  <Send
+                    sendTransaction={runRPCSendTransaction}
+                    setSendPageState={setSendPageState}
+                    addAddressBookEntry={addAddressBookEntry}
+                  />
+                }
               />
               <Route path={routes.RECEIVE} element={<Receive />} />
               <Route

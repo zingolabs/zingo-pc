@@ -26,9 +26,11 @@ import getSendManyJSON from "./components/getSendManyJSON";
 type SendProps = {
   sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string>;
   setSendPageState: (sendPageState: SendPageStateClass) => void;
+  /** Files the recipient under a name, without leaving the screen. */
+  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
 };
 
-const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
+const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddressBookEntry }) => {
   const context = useContext(ContextApp);
   const {
     addressesUnified,
@@ -338,6 +340,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
               serverChainName={currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName}
               block={info.latestBlock >= info.walletHeight ? info.latestBlock : info.walletHeight}
               currencyName={info.currencyName}
+              addAddressBookEntry={addAddressBookEntry}
             />
           </ScrollPaneTop>
         </div>

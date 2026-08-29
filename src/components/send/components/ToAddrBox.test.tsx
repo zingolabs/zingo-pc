@@ -60,6 +60,7 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof ToAddrBox>> = 
     serverChainName: ServerChainNameEnum.mainChainName,
     block: 1_000_000,
     currencyName: "ZEC",
+    addAddressBookEntry: jest.fn(),
     ...overrides,
   };
 };
@@ -202,13 +203,19 @@ describe("ToAddrBox", () => {
     expect(updateToField).toHaveBeenCalledWith("", null, null);
   });
 
-  it("triggers Save Contact for a ZNS alias", async () => {
-    const setAddLabel = jest.fn();
+  // The alias is stored, not the address it resolves to, so the contact
+  // re-resolves every time it is used.
+  it("saves a ZNS alias under the name given, without leaving the screen", async () => {
+    const addAddressBookEntry = jest.fn();
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
-    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { setAddLabel } });
+    render(<ToAddrBox {...makeProps({ toaddr, addAddressBookEntry })} />);
+
     fireEvent.click(screen.getByLabelText(/Save as contact/i));
-    expect(setAddLabel).toHaveBeenCalledWith(new AddressBookEntryClass("", "alice.zcash"));
-    expect(mockNavigate).toHaveBeenCalled();
+    fireEvent.change(await screen.findByRole("textbox", { name: /name/i }), { target: { value: "Alice" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "alice.zcash", ServerChainNameEnum.mainChainName, "ZEC");
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it("renders 'Contact & ZNS: ...' when the alias already matches an existing contact", async () => {

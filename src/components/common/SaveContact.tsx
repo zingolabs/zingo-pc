@@ -2,9 +2,9 @@ import React, { useState } from "react";
 import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
-import swapStyles from "./Swap.module.css";
-import cstyles from "../common/Common.module.css";
-import { Field } from "./DetailField";
+import swapStyles from "../swap/Swap.module.css";
+import cstyles from "./Common.module.css";
+import { Field } from "../swap/DetailField";
 
 type SaveContactProps = {
   /** The address being saved, shown so the user can see what they are naming. */
@@ -22,10 +22,12 @@ type SaveContactProps = {
  * This was a `window.prompt`, which Electron does not implement: pressing save
  * threw `prompt() is not supported` and nothing reached the address book.
  *
- * Asking here rather than sending the user to the Address Book, which is how
- * the Send screen does it. Send survives the trip because its form lives in
- * context; the swap form is local state, so leaving would discard the amount,
- * the address and the quote on screen just to name a contact.
+ * Asking here rather than sending the user to the Address Book, which is what
+ * both screens used to do. The swap form is local state, so leaving would
+ * discard the amount, the address and the quote just to name a contact; Send's
+ * form survives the trip, but arriving on another screen to answer one
+ * question is a detour either way, and a contact should be saved the same way
+ * wherever it is saved from.
  */
 const SaveContact: React.FC<SaveContactProps> = ({ address, chainLabel, modalIsOpen, closeModal, onSave }) => {
   const [label, setLabel] = useState<string>("");
@@ -54,6 +56,9 @@ const SaveContact: React.FC<SaveContactProps> = ({ address, chainLabel, modalIsO
           <div className={cstyles.fieldrow}>
             <input
               autoFocus
+              // The label above is a sibling, not a `<label for>`, so the field
+              // had no accessible name of its own.
+              aria-label="Name"
               className={cstyles.fieldinput}
               value={label}
               onChange={(e) => setLabel(e.target.value)}

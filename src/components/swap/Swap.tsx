@@ -38,7 +38,7 @@ import QuotesPicker from "./QuotesPicker";
 import SlippagePicker, { formatSlippagePercent } from "./SlippagePicker";
 import InsufficientFunds from "./InsufficientFunds";
 import ContactPicker from "../common/ContactPicker";
-import SaveContact from "./SaveContact";
+import SaveContact from "../common/SaveContact";
 
 /** SwapKit's default slippage tolerance, in basis points. */
 const DEFAULT_SLIPPAGE_BPS = 100;
