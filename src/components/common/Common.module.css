@@ -236,6 +236,38 @@
   outline: none;
 }
 
+/*
+ * A field whose control grows down the page instead of sitting on one line.
+ *
+ * `align-items: center` pins a two-line memo to the middle of the box and lets
+ * the padding above and below drift apart as it grows, so this stretches
+ * instead. Composed rather than written out: both classes land on the same
+ * element and both set `align-items`, but they are in one stylesheet, where
+ * source order is the file's own and not the bundler's.
+ */
+.fieldrowmulti {
+  composes: fieldrow;
+  align-items: stretch;
+}
+
+/*
+ * The textarea form of `.fieldinput`. The browser's resize grip goes because
+ * the control already sizes itself to its content, and a grip that fights the
+ * autosizing only lets the user break the layout.
+ */
+.fieldtextarea {
+  composes: fieldinput;
+  resize: none;
+  line-height: 1.5;
+}
+
+/* A field the user cannot type into — the fee, which the wallet computes. */
+.fieldinput:disabled {
+  color: var(--color-text);
+  opacity: 0.7;
+  cursor: default;
+}
+
 .inputbox {
   width: calc(100% - 16px);
   font-family:

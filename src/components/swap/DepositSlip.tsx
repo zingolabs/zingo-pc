@@ -1,11 +1,7 @@
 import React from "react";
 import { QRCodeSVG } from "qrcode.react";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
-
 import cstyles from "../common/Common.module.css";
 import styles from "./Swap.module.css";
-import { shell } from "../../electronBridge";
 import {
   buildDepositQr,
   exactAmountWarningText,
@@ -83,12 +79,6 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
             <QRCodeSVG value={qr.value} size={180} level="M" marginSize={0} />
           </div>
           <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.center}`}>{qr.hint}</div>
-          {qr.openable && (
-            <button type="button" className={cstyles.primarybutton} onClick={() => shell.openExternal(qr.value)}>
-              Open in a wallet &nbsp;
-              <FontAwesomeIcon icon={faExternalLinkAlt} />
-            </button>
-          )}
         </div>
       )}
 

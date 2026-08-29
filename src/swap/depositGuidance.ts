@@ -29,8 +29,6 @@ import { SwapAssetType } from "./types/SwapAssetType";
 export type DepositQrType = {
   /** QR payload: a full payment URI, or a bare deposit address. */
   value: string;
-  /** True when the payload is a URI a wallet can be asked to open. */
-  openable: boolean;
   /** Caption under the QR, stating what the payload does and does not carry. */
   hint: string;
 };
@@ -48,8 +46,7 @@ export type DepositQrType = {
  *      strict about. Native gas assets only; a token would make the wallet
  *      send the gas token instead.
  *   3. **No memo and no URI scheme for the chain** — the bare deposit address,
- *      marked `openable: false`, so the user can at least scan the address and
- *      type the amount from the row below.
+ *      so the user can at least scan it and type the amount from the row below.
  *
  * Returns `null` when a memo exists but no URI can carry it: a UTXO BIP-21 URI
  * silently drops the OP_RETURN, and a QR that looks complete while omitting
@@ -77,8 +74,7 @@ export function buildDepositQr(args: {
     if (!memoUri) return null;
     return {
       value: memoUri,
-      openable: true,
-      hint: "Scan this from any wallet that supports payment URIs, or open it on this device. The address, the exact amount and the memo are all included.",
+      hint: "Scan this from any wallet that supports payment URIs. The address, the exact amount and the memo are all included.",
     };
   }
 
@@ -95,14 +91,12 @@ export function buildDepositQr(args: {
   if (memolessUri) {
     return {
       value: memolessUri,
-      openable: true,
-      hint: "Scan this from any wallet that supports payment URIs, or open it on this device. The address and the exact amount are both included.",
+      hint: "Scan this from any wallet that supports payment URIs. The address and the exact amount are both included.",
     };
   }
 
   return {
     value: depositAddress,
-    openable: false,
     hint: "Scan to fill the deposit address in your wallet, then enter the exact amount shown below by hand.",
   };
 }

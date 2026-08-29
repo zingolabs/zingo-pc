@@ -58,7 +58,7 @@ describe("buildDepositQr", () => {
       memoText: MAYA_MEMO,
     });
     expect(qr).not.toBeNull();
-    expect(qr?.openable).toBe(true);
+    expect(qr?.hint).toMatch(/Scan this from any wallet that supports payment URIs/);
     expect(qr?.value).toContain("ethereum:0x1111111111111111111111111111111111111111@1");
     expect(qr?.value).toContain("value=1000000000000000");
     // The memo travels as calldata, hex-encoded, never as the raw string.
@@ -86,7 +86,7 @@ describe("buildDepositQr", () => {
       depositAddress: "bc1qexampleexampleexampleexampleexampleex",
       amountHumanDecimal: "0.01",
     });
-    expect(qr?.openable).toBe(true);
+    expect(qr?.hint).toMatch(/Scan this from any wallet that supports payment URIs/);
     expect(qr?.value).toBe("bitcoin:bc1qexampleexampleexampleexampleexampleex?amount=0.01");
   });
 
@@ -99,7 +99,7 @@ describe("buildDepositQr", () => {
       depositAddress: "0x2222222222222222222222222222222222222222",
       amountHumanDecimal: "25",
     });
-    expect(qr?.openable).toBe(false);
+    expect(qr?.hint).toMatch(/type the amount from the row below|enter the exact amount shown below/);
     expect(qr?.value).toBe("0x2222222222222222222222222222222222222222");
     expect(qr?.hint).toContain("by hand");
   });
@@ -110,7 +110,7 @@ describe("buildDepositQr", () => {
       depositAddress: "deadbeef.near",
       amountHumanDecimal: "5",
     });
-    expect(qr?.openable).toBe(false);
+    expect(qr?.hint).toMatch(/type the amount from the row below|enter the exact amount shown below/);
     expect(qr?.value).toBe("deadbeef.near");
   });
 

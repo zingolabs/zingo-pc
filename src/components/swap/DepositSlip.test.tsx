@@ -91,12 +91,14 @@ describe("DepositSlip", () => {
     expect(screen.queryByText(/Send EXACTLY this amount/)).not.toBeInTheDocument();
   });
 
-  it("opens the payment URI through the shell when the QR is openable", () => {
+  // The slip used to offer to hand the URI to the OS. The bridge only ever
+  // let `https://` through, so the button did nothing at all in a packaged
+  // build — and this test passed anyway, because it mocks the bridge above the
+  // allowlist that rejected it.
+  it("offers no button beside the QR", () => {
     renderSlip({ provider: SwapKitProviderEnum.Near });
-    fireEvent.click(screen.getByText(/Open in a wallet/));
-    expect(shell.openExternal).toHaveBeenCalledWith(
-      "ethereum:0x1111111111111111111111111111111111111111@1?value=1000000000000000",
-    );
+    expect(screen.queryByText(/Open in a wallet/)).not.toBeInTheDocument();
+    expect(shell.openExternal).not.toHaveBeenCalled();
   });
 
   // A UTXO memo cannot ride in a BIP-21 URI, so there is deliberately no QR
