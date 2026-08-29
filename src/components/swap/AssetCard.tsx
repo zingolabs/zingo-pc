@@ -45,6 +45,12 @@ export type AssetCardProps = {
     placeholder?: string;
     /** Already gated on "touched" by the caller; this only draws it. */
     invalid?: boolean;
+    /**
+     * The address parses for this chain. Not gated on "touched": a valid
+     * address is valid the moment it is, and seeing that happen is how a user
+     * knows the field is being checked at all.
+     */
+    valid?: boolean;
     errorText?: string;
     onChange: (value: string) => void;
     onBlur?: () => void;
@@ -149,6 +155,19 @@ const AssetCard: React.FC<AssetCardProps> = ({
               spellCheck={false}
               aria-label={address.label}
             />
+            {/* The same tick the address book shows, in the same green. The
+                error under the field says what is wrong once they have moved
+                on; this says the field is being read while they type. */}
+            {address.valid && (
+              <span
+                className={cstyles.fieldaction}
+                data-testid="address-valid"
+                aria-label="Address is valid"
+                role="img"
+              >
+                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
+              </span>
+            )}
             {/* Same glyphs and labels the Send screen already uses for these
                 two actions, so the same gesture looks the same in both places. */}
             {address.value.length > 0 && (
