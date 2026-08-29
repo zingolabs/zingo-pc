@@ -17,14 +17,6 @@ const Spacer = () => {
   return <div style={{ marginTop: "24px" }} />;
 };
 
-const iconButtonStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  color: "inherit",
-  cursor: "pointer",
-  padding: 0,
-};
-
 type ToAddrBoxProps = {
   toaddr: ToAddrClass;
   zecPrice: number;
@@ -266,6 +258,13 @@ const ToAddrBox = ({
     return entry ? entry.label : null;
   };
   const contactLabel = getContactLabel(toLocal);
+  const znsIsContact = addressBook.some(
+    (ab: AddressBookEntryClass) => ab.address === znsAlias && ab.chain === serverChainName,
+  );
+  // A ZNS alias is saved as the alias rather than the address it resolves to,
+  // so the contact re-resolves every time it is used.
+  const saveTarget = znsAlias || (addressIsValid === 1 ? toLocal : "");
+  const canSave = !!saveTarget && !(znsAlias ? znsIsContact : !!contactLabel);
 
   return (
     <div>
@@ -273,105 +272,15 @@ const ToAddrBox = ({
         <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
           <div className={cstyles.horizontalflex}>
             <div className={cstyles.sublight}>To </div>
-            <div style={{ fontWeight: 900, marginLeft: 20 }}>
-              {znsAlias ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <span className={cstyles.green}>
-                    {addressBook.some(
-                      (ab: AddressBookEntryClass) => ab.address === znsAlias && ab.chain === serverChainName,
-                    )
-                      ? "Contact & ZNS"
-                      : "ZNS"}
-                    {": "}
-                    {znsAlias}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="View on zcashnames.com"
-                    title="View on zcashnames.com"
-                    onClick={() => {
-                      const name = encodeURIComponent(extractZnsName(znsAlias) ?? "");
-                      const env = serverChainName === ServerChainNameEnum.testChainName ? "&env=testnet" : "";
-                      shell.openExternal(`https://www.zcashnames.com/explorer?name=${name}${env}`);
-                    }}
-                    style={iconButtonStyle}
-                  >
-                    <i className={`${"fas"} ${"fa-external-link-square-alt"} ${"fa-lg"}`} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Clear ZNS alias"
-                    title="Clear ZNS alias"
-                    onClick={clearToAddress}
-                    style={iconButtonStyle}
-                  >
-                    <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
-                  </button>
-                  {!addressBook.some(
-                    (ab: AddressBookEntryClass) => ab.address === znsAlias && ab.chain === serverChainName,
-                  ) && (
-                    <button
-                      type="button"
-                      aria-label="Save as contact"
-                      title="Save as contact"
-                      onClick={() => {
-                        // Save the ALIAS (not the resolved UA) so the contact re-resolves
-                        // every time it's used — matches the ZNS philosophy.
-                        setAddLabel(new AddressBookEntryClass("", znsAlias));
-                        navigate(routes.ADDRESSBOOK);
-                      }}
-                      style={iconButtonStyle}
-                    >
-                      <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
-                    </button>
-                  )}
-                </span>
-              ) : contactLabel ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <span className={cstyles.green}>Contact: {contactLabel}</span>
-                  <button
-                    type="button"
-                    aria-label="Clear recipient"
-                    title="Clear recipient"
-                    onClick={clearToAddress}
-                    style={iconButtonStyle}
-                  >
-                    <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
-                  </button>
-                </span>
-              ) : toLocal && addressIsValid === 1 ? (
-                // Valid pasted/typed address that isn't yet in the contacts list —
-                // offer to save it. We store the resolved UA verbatim.
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <button
-                    type="button"
-                    aria-label="Save as contact"
-                    title="Save as contact"
-                    onClick={() => {
-                      setAddLabel(new AddressBookEntryClass("", toLocal));
-                      navigate(routes.ADDRESSBOOK);
-                    }}
-                    style={iconButtonStyle}
-                  >
-                    <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
-                  </button>
-                </span>
-              ) : (
-                // Nothing typed yet, which is when a saved contact is most
-                // useful. The swap screen offers the same choice on its own
-                // address field; this is the Zcash side of it.
-                zcashContacts.length > 0 && (
-                  <button
-                    type="button"
-                    aria-label="Choose from contacts"
-                    title="Choose from contacts"
-                    onClick={() => setContactsOpen(true)}
-                    style={iconButtonStyle}
-                  >
-                    <i className={`${"fas"} ${"fa-address-book"} ${"fa-lg"}`} />
-                  </button>
-                )
-              )}
+            {/* What the recipient is stays here beside the label. What can be
+                done about it moved into the field below, which is where the
+                swap screen keeps the same three actions. */}
+            <div style={{ fontWeight: 900, marginLeft: 20 }} className={cstyles.green}>
+              {znsAlias
+                ? `${znsIsContact ? "Contact & ZNS" : "ZNS"}: ${znsAlias}`
+                : contactLabel
+                  ? `Contact: ${contactLabel}`
+                  : ""}
             </div>
           </div>
           <div className={`${cstyles.sublight} ${cstyles.green}`}>
@@ -390,6 +299,9 @@ const ToAddrBox = ({
             {znsStatus === "idle" && addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
           </div>
         </div>
+        {/* Field and its actions share a border, so they read as one control
+            rather than a box with loose buttons above it. Same glyphs, same
+            order and same colour as the swap screen's address field. */}
         <div className={cstyles.fieldrow}>
           <input
             type="text"
@@ -403,6 +315,59 @@ const ToAddrBox = ({
               updateToField(e.target.value, null, null);
             }}
           />
+          {!!znsAlias && (
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="View on zcashnames.com"
+              title="View on zcashnames.com"
+              onClick={() => {
+                const name = encodeURIComponent(extractZnsName(znsAlias) ?? "");
+                const env = serverChainName === ServerChainNameEnum.testChainName ? "&env=testnet" : "";
+                shell.openExternal(`https://www.zcashnames.com/explorer?name=${name}${env}`);
+              }}
+            >
+              <i className={`${"fas"} ${"fa-external-link-square-alt"} ${"fa-lg"}`} />
+            </button>
+          )}
+          {toLocal.length > 0 && (
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="Clear recipient"
+              title="Clear recipient"
+              onClick={clearToAddress}
+            >
+              <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
+            </button>
+          )}
+          {zcashContacts.length > 0 && (
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="Choose from contacts"
+              title="Choose from contacts"
+              onClick={() => setContactsOpen(true)}
+            >
+              {/* The icon the sidebar gives the Address Book, so the button
+                  reads as the place it opens rather than as a list. */}
+              <i className={`${"fas"} ${"fa-address-book"} ${"fa-lg"}`} />
+            </button>
+          )}
+          {canSave && (
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="Save as contact"
+              title="Save as contact"
+              onClick={() => {
+                setAddLabel(new AddressBookEntryClass("", saveTarget));
+                navigate(routes.ADDRESSBOOK);
+              }}
+            >
+              <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
+            </button>
+          )}
         </div>
 
         {contactsOpen && (

@@ -308,6 +308,10 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     () => (addressBook ?? []).filter((c) => (c.swapChain ?? "") === counterpartyChain),
     [addressBook, counterpartyChain],
   );
+  const activeContactLabel = useMemo(
+    () => chainContacts.find((c) => c.address === activeAddress)?.label,
+    [chainContacts, activeAddress],
+  );
   const activeAddressSaved = useMemo(
     () => chainContacts.some((c) => c.address === activeAddress),
     [chainContacts, activeAddress],
@@ -584,6 +588,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                 ? undefined
                 : {
                     label: "Your refund address on the source chain",
+                    contactLabel: activeContactLabel,
                     value: activeAddress,
                     placeholder: "Enter address",
                     invalid: addressShowError,
@@ -614,6 +619,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               address: isOutbound
                 ? {
                     label: `Your ${chainDisplayName(counterpartyChain) || counterpartyChain} address`,
+                    contactLabel: activeContactLabel,
                     value: activeAddress,
                     placeholder: "Enter address",
                     invalid: addressShowError,

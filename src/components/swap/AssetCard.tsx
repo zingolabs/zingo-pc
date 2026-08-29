@@ -39,6 +39,8 @@ export type AssetCardProps = {
   selectDisabled?: boolean;
   address?: {
     label: string;
+    /** Name this address is filed under, when it is one. */
+    contactLabel?: string;
     value: string;
     placeholder?: string;
     /** Already gated on "touched" by the caller; this only draws it. */
@@ -124,12 +126,21 @@ const AssetCard: React.FC<AssetCardProps> = ({
 
       {address && (
         <div className={styles.addressblock}>
-          <div className={`${cstyles.sublight} ${styles.addresslabel}`}>{address.label}</div>
+          {/* The name beside the label rather than inside the field: what the
+              address is belongs with its title, and the field itself is for
+              the address and the things to do with it. Same arrangement the
+              Send screen uses. */}
+          <div className={cstyles.flexspacebetween}>
+            <div className={`${cstyles.sublight} ${styles.addresslabel}`}>{address.label}</div>
+            {!!address.contactLabel && (
+              <div className={`${cstyles.green} ${styles.addresslabel}`}>Contact: {address.contactLabel}</div>
+            )}
+          </div>
           {/* Field and its actions share a border, so they read as one control
               rather than a box with loose buttons beside it. */}
-          <div className={`${styles.addressrow} ${address.invalid ? styles.addressinvalid : ""}`}>
+          <div className={`${cstyles.fieldrow} ${address.invalid ? styles.addressinvalid : ""}`}>
             <input
-              className={styles.addressinput}
+              className={cstyles.fieldinput}
               value={address.value}
               onChange={(e) => address.onChange(e.target.value)}
               onBlur={address.onBlur}
@@ -143,7 +154,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
             {address.value.length > 0 && (
               <button
                 type="button"
-                className={styles.addressaction}
+                className={cstyles.fieldaction}
                 onClick={() => address.onChange("")}
                 aria-label="Clear recipient"
                 title="Clear recipient"
@@ -154,7 +165,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
             {address.onPick && (
               <button
                 type="button"
-                className={styles.addressaction}
+                className={cstyles.fieldaction}
                 onClick={address.onPick}
                 aria-label="Choose from contacts"
                 title="Choose from contacts"
@@ -167,7 +178,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
             {address.onSave && (
               <button
                 type="button"
-                className={styles.addressaction}
+                className={cstyles.fieldaction}
                 onClick={address.onSave}
                 aria-label="Save as contact"
                 title="Save as contact"

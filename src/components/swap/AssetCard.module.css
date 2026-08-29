@@ -154,22 +154,6 @@
   font-size: 12px;
 }
 
-.addressinput {
-  font-size: 14px;
-  font-weight: 600;
-  padding: 10px 12px;
-  border: none;
-  background: none;
-  color: var(--color-text);
-  flex: 1;
-  min-width: 0;
-}
-
-.addressinput:focus {
-  outline: none;
-  border-color: var(--color-primary);
-}
-
 .addressinvalid {
   border-color: var(--color-error);
 }
@@ -224,27 +208,10 @@
 }
 
 /* Field plus its actions, sharing one border so they read as a single control. */
-.addressrow {
-  display: flex;
-  align-items: center;
-  border-radius: 12px;
-  border: 1px solid var(--color-zingo);
-  background-color: var(--color-background-dark);
-}
-
-.addressrow:focus-within {
-  border-color: var(--color-primary);
-}
-
-.addressaction {
-  flex-shrink: 0;
-  padding: 0 8px;
-  border: none;
-  background: none;
-  color: var(--color-primary);
-  cursor: pointer;
-  font-size: 14px;
-}
+/* The row, the input and the actions are `.fieldrow`, `.fieldinput` and
+ * `.fieldaction` in the common stylesheet — this card is where that shape
+ * started, and keeping a second copy here is how the two drift apart. Only the
+ * invalid state stays, since it is this field that can be wrong. */
 
 .addressaction:hover {
   filter: brightness(1.3);

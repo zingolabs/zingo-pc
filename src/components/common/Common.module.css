@@ -261,6 +261,23 @@
   line-height: 1.5;
 }
 
+/*
+ * An action inside a field: clear it, pick from contacts, save what is in it.
+ *
+ * Carried in the field's own colour rather than the text's, because these are
+ * things to do rather than things to read. `flex-shrink: 0` keeps them their
+ * own width while the input beside them gives way.
+ */
+.fieldaction {
+  flex-shrink: 0;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--color-primary);
+  cursor: pointer;
+  font-size: 14px;
+}
+
 /* A field the user cannot type into — the fee, which the wallet computes. */
 .fieldinput:disabled {
   color: var(--color-text);
