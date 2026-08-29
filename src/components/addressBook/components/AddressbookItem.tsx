@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   AccordionItemButton,
@@ -13,9 +13,9 @@ import { ZcashURITarget } from "../../../utils/uris";
 import routes from "../../../constants/routes.json";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
-import { isZnsAlias } from "../../../utils/zns";
 import { useCopy } from "../../common/useCopy";
 import { chainDisplayName } from "../../swap/chainDisplayName";
+import { CopyField, Field, FieldRow } from "../../swap/DetailField";
 
 type AddressBookItemProps = {
   item: AddressBookEntryClass;
@@ -29,7 +29,6 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
   const navigate = useNavigate();
   const context = useContext(ContextApp);
   const { readOnly, setSendTo, setSwapTo, currentWallet } = context;
-  const [expandAddress, setExpandAddress] = useState<boolean>(false);
   const { copied, copy } = useCopy(1500);
 
   // A contact written before the field existed is a Zcash one: there was no way
@@ -50,6 +49,16 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
   // are mainnet-only, which is the same gate the menu entry uses.
   const swapIsAvailable = !isZecContact && !readOnly && currentWallet?.chain_name === ServerChainNameEnum.mainChainName;
 
+  // Which chain the address belongs to, which is the first thing that matters
+  // now that the book holds more than Zcash. A Zcash contact names its network
+  // too, but only while the parent is showing every network — that is the only
+  // time mainnet and testnet contacts sit in one list and the entry is
+  // ambiguous without it.
+  const chainLabel =
+    isZecContact && showChain && item.chain
+      ? `${chainDisplayName(swapChain) || swapChain} — ${Utils.chainDisplayName(item.chain)}`
+      : chainDisplayName(swapChain) || swapChain;
+
   return (
     <AccordionItem
       key={item.label.replace(/\s/g, "")}
@@ -58,73 +67,17 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
     >
       <AccordionItemHeading>
         <AccordionItemButton className={cstyles.accordionHeader}>
-          <div className={cstyles.flexspacebetween}>
-            <div>
-              {item.label}
-              {/* Which chain the address belongs to is the first thing that
-                  matters now that the book holds more than Zcash, so a non-ZEC
-                  contact always says so. The Zcash network only appears
-                  alongside it when the parent is showing every network, which
-                  is the only time it is ambiguous. */}
-              {!isZecContact && (
-                <span className={`${cstyles.small} ${cstyles.sublight}`} style={{ marginLeft: 8 }}>
-                  [{chainDisplayName(swapChain) || swapChain}]
-                </span>
-              )}
-              {isZecContact && showChain && item.chain && (
-                <span className={`${cstyles.small} ${cstyles.sublight}`} style={{ marginLeft: 8 }}>
-                  [{Utils.chainDisplayName(item.chain)}]
-                </span>
-              )}
-            </div>
-            {!!item.address && (
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-                {copied && <span className={cstyles.highlight}>Copied!</span>}
-                <div
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Copy address"
-                  style={{ cursor: "pointer" }}
-                  onClick={() => {
-                    if (item.address) {
-                      copy(item.address);
-                      setExpandAddress(true);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      if (item.address) {
-                        copy(item.address);
-                        setExpandAddress(true);
-                      }
-                    }
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                    {/* ZNS aliases are short and human-readable — show them in full
-                      without any trimming, both collapsed and expanded. */}
-                    {isZnsAlias(item.address) ? (
-                      item.address
-                    ) : (
-                      <>
-                        {!expandAddress && Utils.trimToSmall(item.address, 10)}
-                        {expandAddress && (
-                          <>
-                            {item.address.length < 80
-                              ? item.address
-                              : Utils.splitStringIntoChunks(item.address, 3).map((item) => (
-                                  <div key={item}>{item}</div>
-                                ))}
-                          </>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          {/* The address leads, because it is what the entry is. The name
+              somebody gave it and the chain it sits on describe it, and read
+              underneath in the shape every other detail in the app uses.
+              Shown in full: the entry used to open on a click to reveal the
+              rest, which cost a click to read a value that fits. */}
+          {!!item.address && <CopyField label="Address" value={item.address} copy={copy} />}
+          <FieldRow>
+            <Field label="Label" value={item.label} />
+            <Field label="Chain" value={chainLabel} />
+          </FieldRow>
+          {copied && <div className={`${cstyles.small} ${cstyles.highlight}`}>Copied!</div>}
         </AccordionItemButton>
       </AccordionItemHeading>
       <AccordionItemPanel>

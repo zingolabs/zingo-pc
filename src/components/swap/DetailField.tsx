@@ -41,7 +41,13 @@ export function CopyField({ label, value, copy }: { label: string; value: string
           type="button"
           aria-label={`Copy ${label}`}
           style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}
-          onClick={() => copy(value)}
+          // Copying is the whole of what this button does. The address book
+          // puts one inside an accordion header, where letting the click
+          // through would also fold the entry the user just copied from.
+          onClick={(e) => {
+            e.stopPropagation();
+            copy(value);
+          }}
         >
           <FontAwesomeIcon icon={faCopy} />
         </button>

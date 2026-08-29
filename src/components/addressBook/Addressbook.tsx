@@ -338,13 +338,6 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           <span className={cstyles.small}>Show contacts from all networks</span>
         </div>
 
-        {addressBookSorted && addressBookSorted.length > 0 && (
-          <div className={`${cstyles.flexspacebetween} ${cstyles.xlarge} ${cstyles.marginnegativetitle}`}>
-            <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>
-            <div style={{ marginRight: 100, marginBottom: 15 }}>Address</div>
-          </div>
-        )}
-
         {/* The form above this is not a fixed height: each field's validation
             line appears and disappears, the chain select exists only for an
             address that could belong to more than one, and the column header
