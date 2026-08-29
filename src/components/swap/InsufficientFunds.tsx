@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faWallet } from "@fortawesome/free-solid-svg-icons";
 
 import styles from "../history/History.module.css";
+import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 
@@ -51,7 +52,7 @@ const InsufficientFunds: React.FC<InsufficientFundsProps> = ({
   <Modal
     isOpen={modalIsOpen}
     onRequestClose={closeModal}
-    className={styles.txmodal}
+    className={swapStyles.narrowmodal}
     overlayClassName={styles.txmodalOverlay}
   >
     <div className={cstyles.verticalflex} style={{ height: "100%" }}>
@@ -65,9 +66,9 @@ const InsufficientFunds: React.FC<InsufficientFundsProps> = ({
       <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Insufficient funds</div>
 
       <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
-        Your spendable ZEC does not cover this amount plus the network fee. Lower the amount, or add more ZEC to the
-        wallet, and try again.
+        Your spendable ZEC does not cover this amount plus the network fee.
       </div>
+      <div className={cstyles.center}>Lower the amount, or add more ZEC to the wallet, and try again.</div>
 
       {maxSpendableForSwap > 0 && (
         <div className={`${cstyles.center} ${cstyles.padtopsmall}`}>
