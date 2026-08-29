@@ -228,30 +228,15 @@ describe("AddressBook", () => {
     // confirmation itself.
     const autoConfirm = () => jest.fn((_title: string, _body: string | JSX.Element, action: () => void) => action());
 
-    it("states the chain for any address, and offers the list only in doubt", async () => {
+    // An address is evidence of its own chain, so typing one moves the
+    // selection off the Zcash default rather than leaving a contradiction.
+    it("moves the selection to the chain the address belongs to", async () => {
       mockPossibleChains = ["BTC"];
       render(<AddressBook {...baseProps} />);
+      expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Zcash");
+
       fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
-
-      // One candidate is a fact the form worked out, so it is stated and not
-      // offered as a list of one.
-      const field = await screen.findByRole("button", { name: /^chain$/i });
-      expect(field).toHaveTextContent("Bitcoin");
-      await waitFor(() => expect(field).toBeDisabled());
-      expect(screen.queryByTestId("chain-chevron")).not.toBeInTheDocument();
-
-      mockPossibleChains = ["BTC", "LTC"];
-      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qambiguous" } });
-      await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).not.toBeDisabled());
-      expect(screen.getByTestId("chain-chevron")).toBeInTheDocument();
-    });
-
-    // Nothing is known about an empty field, and the candidate list falls back
-    // to Zcash — so it would assert a chain the user never named.
-    it("says nothing about the chain before an address reads", async () => {
-      mockPossibleChains = ["BTC"];
-      render(<AddressBook {...baseProps} />);
-      expect(screen.queryByRole("button", { name: /^chain$/i })).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Bitcoin"));
     });
 
     // The field opens the same kind of list the swap screen picks assets from,
@@ -365,15 +350,16 @@ describe("AddressBook chain field", () => {
   // The badge answers "which chain" before the label is read, and the chevron
   // is what says the field is a choice rather than something the form worked
   // out and is telling you.
-  it("shows the selected chain and marks the field as a choice", async () => {
-    mockPossibleChains = ["BTC", "LTC"];
+  // The field is part of the form, not a conclusion the form reaches: it is
+  // there from the first paint, set to Zcash, and says it can be changed.
+  it("is present and changeable on an untouched form", () => {
     render(<AddressBook {...baseProps} />);
-    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qambiguous" } });
 
-    const field = await screen.findByRole("button", { name: /^chain$/i });
-    expect(field).toHaveTextContent("Bitcoin");
+    const field = screen.getByRole("button", { name: /^chain$/i });
+    expect(field).toHaveTextContent("Zcash");
+    expect(field).not.toBeDisabled();
     expect(within(field).getByTestId("chain-badge")).toBeInTheDocument();
-    await waitFor(() => expect(within(field).getByTestId("chain-chevron")).toBeInTheDocument());
+    expect(within(field).getByTestId("chain-chevron")).toBeInTheDocument();
   });
 });
 

@@ -38,11 +38,6 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   // than no question. Same approach the mobile wallet takes.
   const [swapChain, setSwapChain] = useState<string>(ZEC_SWAP_CHAIN);
   const [possibleChains, setPossibleChains] = useState<string[]>([ZEC_SWAP_CHAIN]);
-  // The address the candidates were worked out for. `swapChain` settles 350ms
-  // behind what is typed, so without this the chain field would spend that gap
-  // naming the previous address's chain — or the Zcash fallback — for the one
-  // now on screen.
-  const [chainsResolvedFor, setChainsResolvedFor] = useState<string>("");
 
   const currentChain: ServerChainNameEnum = currentWallet
     ? currentWallet.chain_name
@@ -73,10 +68,6 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       // An address that cannot be the chain currently selected moves the
       // selection rather than leaving a contradiction on screen.
       if (chains.length > 0 && !chains.includes(swapChain)) setSwapChain(chains[0]);
-      // Nothing recognised it, so there is no chain to name. Marked unresolved
-      // rather than resolved-to-the-fallback, which would put "Zcash" against
-      // an address no parser claimed.
-      setChainsResolvedFor(chains.length > 0 ? currentAddress : "");
     }, 350);
     return () => {
       cancelled = true;
@@ -215,10 +206,6 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
 
   const [chainPickerOpen, setChainPickerOpen] = useState<boolean>(false);
 
-  // More than one chain shares this address's shape, so which one it is has to
-  // be asked rather than concluded.
-  const chainIsAChoice = possibleChains.length > 1;
-
   const clearFields = () => {
     setCurrentLabel("");
     setCurrentAddress("");
@@ -306,65 +293,51 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               </div>
             </div>
 
-            {/* Shown for any address that reads, not only an ambiguous one.
-                Which chain a contact is filed under decides where a swap to it
-                is sent, and the Add button already stops to confirm it — so it
-                is worth reading before then, whether or not it can be changed.
+            {/* Always here, defaulting to Zcash, and always changeable. Which
+                chain a contact is filed under decides where a swap to it is
+                sent — the Add button already stops to confirm it — so it is a
+                field the user fills in, not a conclusion the form reaches and
+                shows only when it feels uncertain.
 
-                Withheld until a chain has actually been worked out for the
-                address now on screen. A field that names the wrong chain for a
-                moment is worse than one that waits, and waiting is also what
-                ends the flicker: it was the Zcash fallback, landing between
-                keystrokes, that made this appear and disappear mid-word. */}
-            {chainsResolvedFor !== "" && chainsResolvedFor === currentAddress && (
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div>Chain</div>
-                {/* A button rather than a select. The chain is recognised by
+                The address narrows what it can be set to: an address is
+                evidence of its own chain, so once one is typed the list is the
+                chains that could hold it, and the selection moves to one of
+                them. With the field empty every chain is offered. */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div>Chain</div>
+              {/* A button rather than a select. The chain is recognised by
                     its badge before it is read, which a native select has
                     nowhere to put — and it rendered as whatever the platform
                     decided, next to two fields that did not. */}
-                {/* A choice only where there is one. With a single candidate
-                    this is a fact the form worked out, so it says so and does
-                    not offer a list of one. */}
-                <button
-                  type="button"
-                  aria-label="Chain"
-                  className={`${cstyles.fieldrow} ${cstyles.margintopsmall}`}
-                  disabled={!chainIsAChoice}
-                  // `color: inherit` because a button does not inherit it:
-                  // without it everything in here that does not set its own
-                  // takes the platform's default button text, which on this
-                  // dark field is the colour of the field itself — and a
-                  // disabled one is greyed by the same mechanism.
-                  style={{
-                    width: "100%",
-                    cursor: chainIsAChoice ? "pointer" : "default",
-                    textAlign: "left",
-                    color: "inherit",
-                  }}
-                  onClick={() => setChainPickerOpen(true)}
-                >
-                  {/* The badge says which chain without being read, and the
+              <button
+                type="button"
+                aria-label="Chain"
+                className={`${cstyles.fieldrow} ${cstyles.margintopsmall}`}
+                // `color: inherit` because a button does not inherit it:
+                // without it everything in here that does not set its own takes
+                // the platform's default button text, which on this dark field
+                // is the colour of the field itself.
+                style={{ width: "100%", cursor: "pointer", textAlign: "left", color: "inherit" }}
+                onClick={() => setChainPickerOpen(true)}
+              >
+                {/* The badge says which chain without being read, and the
                       chevron says the field is a choice rather than something
                       the form worked out and is telling you. */}
-                  <span style={{ display: "flex", paddingLeft: 12 }}>
-                    <ChainBadge chain={swapChain} size={20} />
-                  </span>
-                  <div className={cstyles.fieldinput}>{chainDisplayName(swapChain) || swapChain}</div>
-                  {/* No colour of its own, the way the swap screen's asset chip
+                <span style={{ display: "flex", paddingLeft: 12 }}>
+                  <ChainBadge chain={swapChain} size={20} />
+                </span>
+                <div className={cstyles.fieldinput}>{chainDisplayName(swapChain) || swapChain}</div>
+                {/* No colour of its own, the way the swap screen's asset chip
                       leaves its chevron to inherit — which is what `color:
                       inherit` on the button above is for. Same size as that
                       one, since they mark the same thing: that this opens. */}
-                  {chainIsAChoice && (
-                    <i
-                      className={`${"fas"} ${"fa-chevron-down"}`}
-                      data-testid="chain-chevron"
-                      style={{ paddingRight: 12, fontSize: 12 }}
-                    />
-                  )}
-                </button>
-              </div>
-            )}
+                <i
+                  className={`${"fas"} ${"fa-chevron-down"}`}
+                  data-testid="chain-chevron"
+                  style={{ paddingRight: 12, fontSize: 12 }}
+                />
+              </button>
+            </div>
           </div>
         </div>
 
