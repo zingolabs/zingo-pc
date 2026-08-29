@@ -422,7 +422,12 @@ const ToAddrBox = ({
 
         <Spacer />
 
-        <div className={`${cstyles.well} ${cstyles.flexspacebetween}`}>
+        {/* No well of its own. The whole box is already one, and a second
+            inset these two fields by another 16px a side while the address
+            above and the memo below sat flush against the outer edge. Its dark
+            background was the same colour the fields carry, so only the
+            misalignment ever showed. */}
+        <div className={cstyles.flexspacebetween}>
           <div style={{ width: "60%" }} className={cstyles.verticalflex}>
             <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
               <div className={cstyles.sublight}>Amount</div>
