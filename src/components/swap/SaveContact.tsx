@@ -51,10 +51,10 @@ const SaveContact: React.FC<SaveContactProps> = ({ address, chainLabel, modalIsO
 
         <div className={cstyles.padtopsmall}>
           <div className={cstyles.sublight}>Name</div>
-          <div className={swapStyles.fieldrow}>
+          <div className={cstyles.fieldrow}>
             <input
               autoFocus
-              className={swapStyles.fieldinput}
+              className={cstyles.fieldinput}
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               // Enter saves, since the field is the only thing to fill in.

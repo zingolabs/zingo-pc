@@ -56,46 +56,6 @@
 }
 
 /*
- * A text field, in the shape the swap screen's address field already has.
- *
- * The border and the background live on the wrapper rather than the input, so
- * a field can carry a button or an icon beside the text and still read as one
- * control. `:focus-within` is what lets the wrapper light up when the input
- * inside it takes focus.
- *
- * Lifted here from AssetCard once three more fields wanted it: the asset
- * search, the contact name, and the deposit transaction. Those were bare
- * inputs with a width nudged inline, which is what made them look like
- * something the browser drew rather than part of this screen.
- */
-.fieldrow {
-  display: flex;
-  align-items: center;
-  border-radius: 12px;
-  border: 1px solid var(--color-zingo);
-  background-color: var(--color-background-dark);
-}
-
-.fieldrow:focus-within {
-  border-color: var(--color-primary);
-}
-
-.fieldinput {
-  font-size: 14px;
-  font-weight: 600;
-  padding: 10px 12px;
-  border: none;
-  background: none;
-  color: var(--color-text);
-  flex: 1;
-  min-width: 0;
-}
-
-.fieldinput:focus {
-  outline: none;
-}
-
-/*
  * A modal for content that is a short list rather than a page of detail.
  *
  * The shared `.txmodal` holds 800px because a transaction detail needs it for

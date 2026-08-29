@@ -194,6 +194,48 @@
   width: 100%;
 }
 
+/*
+ * A text field, in the shape the swap screen's address field has.
+ *
+ * The border and the background live on the wrapper rather than the input, so
+ * a field can carry a button, an icon or a select beside the text and still
+ * read as one control. `:focus-within` is what lets the wrapper light up when
+ * the input inside it takes focus.
+ *
+ * Started life on the swap asset card, moved to the swap stylesheet once three
+ * more fields there wanted it, and lives here now that the address book form
+ * does too. The alternative each time was a bare input with a width nudged
+ * inline, which looks like something the browser drew rather than part of the
+ * screen it is on.
+ */
+.fieldrow {
+  display: flex;
+  align-items: center;
+  border-radius: 12px;
+  border: 1px solid var(--color-zingo);
+  background-color: var(--color-background-dark);
+}
+
+.fieldrow:focus-within {
+  border-color: var(--color-primary);
+}
+
+.fieldinput {
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  flex: 1;
+  min-width: 0;
+}
+
+.fieldinput:focus {
+  outline: none;
+}
+
 .inputbox {
   width: calc(100% - 16px);
   font-family:

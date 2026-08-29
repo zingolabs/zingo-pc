@@ -220,29 +220,14 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Address Book</div>
 
       <div className={styles.addressbookcontainer}>
+        {/* The address goes first because it is what the entry is, and because
+            it decides what the chain selector below can offer. The name and the
+            chain describe it and share the line under it — stacked one per row
+            with a large gap between each, this form took most of the screen and
+            left the list it belongs to a strip at the bottom. */}
         <div className={`${cstyles.well} ${cstyles.center}`}>
           <div className={cstyles.flexspacebetween}>
-            <div className={cstyles.large}>Label</div>
-            <div className={cstyles.validationerror}>
-              {!labelError ? (
-                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
-              ) : (
-                <span className={cstyles.red}>{labelError}</span>
-              )}
-            </div>
-          </div>
-          <input
-            type="text"
-            aria-label="Label"
-            value={currentLabel}
-            className={`${cstyles.inputbox} ${cstyles.margintopsmall}`}
-            onChange={(e) => updateLabel(e.target.value)}
-          />
-
-          <div className={cstyles.margintoplarge} />
-
-          <div className={cstyles.flexspacebetween}>
-            <div className={cstyles.large}>Address</div>
+            <div>Address</div>
             <div className={`${cstyles.sublight} ${cstyles.green}`}>
               {isZns && "ZNS"}
               {!isZns && addressKind === AddressKindEnum.tex && "TEX"}
@@ -258,43 +243,67 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               )}
             </div>
           </div>
-          <input
-            type="text"
-            aria-label="Address"
-            placeholder="Unified | Sapling | Transparent | TEX address | name.zcash | any swappable asset"
-            value={currentAddress}
-            className={`${cstyles.inputbox} ${cstyles.margintopsmall}`}
-            onChange={(e) => updateAddress(e.target.value)}
-          />
+          <div className={`${cstyles.fieldrow} ${cstyles.margintopsmall}`}>
+            <input
+              type="text"
+              aria-label="Address"
+              className={cstyles.fieldinput}
+              placeholder="Unified | Sapling | Transparent | TEX | name.zcash | any swappable asset"
+              value={currentAddress}
+              onChange={(e) => updateAddress(e.target.value)}
+            />
+          </div>
 
-          {/* Only worth asking when the address itself leaves room for doubt.
-              Most addresses name exactly one chain, and offering a list of one
-              would be a question with a single answer. */}
-          {possibleChains.length > 1 && (
-            <>
-              <div className={cstyles.margintoplarge} />
+          <div className={cstyles.horizontalflex} style={{ gap: 16, marginTop: 12, alignItems: "flex-start" }}>
+            <div style={{ flex: 2, minWidth: 0 }}>
               <div className={cstyles.flexspacebetween}>
-                <div className={cstyles.large}>Chain</div>
+                <div>Label</div>
+                <div className={cstyles.validationerror}>
+                  {!labelError ? (
+                    <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
+                  ) : (
+                    <span className={cstyles.red}>{labelError}</span>
+                  )}
+                </div>
               </div>
-              <select
-                aria-label="Chain"
-                className={`${cstyles.inputbox} ${cstyles.margintopsmall}`}
-                value={swapChain}
-                onChange={(e) => setSwapChain(e.target.value)}
-              >
-                {possibleChains.map((chain) => (
-                  <option key={chain} value={chain}>
-                    {chainDisplayName(chain) || chain}
-                  </option>
-                ))}
-              </select>
-            </>
-          )}
+              <div className={`${cstyles.fieldrow} ${cstyles.margintopsmall}`}>
+                <input
+                  type="text"
+                  aria-label="Label"
+                  className={cstyles.fieldinput}
+                  value={currentLabel}
+                  onChange={(e) => updateLabel(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Only worth asking when the address itself leaves room for doubt.
+                Most addresses name exactly one chain, and offering a list of
+                one would be a question with a single answer — so the name takes
+                the whole line whenever there is nothing to ask. */}
+            {possibleChains.length > 1 && (
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div>Chain</div>
+                <div className={`${cstyles.fieldrow} ${cstyles.margintopsmall}`}>
+                  <select
+                    aria-label="Chain"
+                    className={cstyles.fieldinput}
+                    value={swapChain}
+                    onChange={(e) => setSwapChain(e.target.value)}
+                  >
+                    {possibleChains.map((chain) => (
+                      <option key={chain} value={chain}>
+                        {chainDisplayName(chain) || chain}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className={cstyles.margintoplarge} />
-
-        <div className={cstyles.center}>
+        <div className={cstyles.center} style={{ marginTop: 16 }}>
           <button
             type="button"
             className={cstyles.primarybutton}
@@ -309,12 +318,12 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
         </div>
 
         <div
-          className={cstyles.margintoplarge}
           style={{
             display: "flex",
             justifyContent: "center",
             alignItems: "center",
             gap: 12,
+            marginTop: 16,
             // The Label/Address column header below uses `marginnegativetitle`
             // (-20px top) and was overlapping this row, eating the clicks.
             // Keep clear of it with a stacking context + extra bottom space.
