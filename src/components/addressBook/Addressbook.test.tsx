@@ -228,16 +228,30 @@ describe("AddressBook", () => {
     // confirmation itself.
     const autoConfirm = () => jest.fn((_title: string, _body: string | JSX.Element, action: () => void) => action());
 
-    it("offers a chain picker only when the address leaves the chain in doubt", async () => {
+    it("states the chain for any address, and offers the list only in doubt", async () => {
       mockPossibleChains = ["BTC"];
       render(<AddressBook {...baseProps} />);
       fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
-      // A single candidate is not a question worth asking.
-      await waitFor(() => expect(screen.queryByRole("button", { name: /^chain$/i })).not.toBeInTheDocument());
+
+      // One candidate is a fact the form worked out, so it is stated and not
+      // offered as a list of one.
+      const field = await screen.findByRole("button", { name: /^chain$/i });
+      expect(field).toHaveTextContent("Bitcoin");
+      await waitFor(() => expect(field).toBeDisabled());
+      expect(screen.queryByTestId("chain-chevron")).not.toBeInTheDocument();
 
       mockPossibleChains = ["BTC", "LTC"];
       fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qambiguous" } });
-      expect(await screen.findByRole("button", { name: /^chain$/i })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).not.toBeDisabled());
+      expect(screen.getByTestId("chain-chevron")).toBeInTheDocument();
+    });
+
+    // Nothing is known about an empty field, and the candidate list falls back
+    // to Zcash — so it would assert a chain the user never named.
+    it("says nothing about the chain before an address reads", async () => {
+      mockPossibleChains = ["BTC"];
+      render(<AddressBook {...baseProps} />);
+      expect(screen.queryByRole("button", { name: /^chain$/i })).not.toBeInTheDocument();
     });
 
     // The field opens the same kind of list the swap screen picks assets from,
@@ -251,7 +265,9 @@ describe("AddressBook", () => {
       fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
       fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qambiguous" } });
 
-      fireEvent.click(await screen.findByRole("button", { name: /^chain$/i }));
+      const chainField = await screen.findByRole("button", { name: /^chain$/i });
+      await waitFor(() => expect(chainField).not.toBeDisabled());
+      fireEvent.click(chainField);
       fireEvent.click(await screen.findByRole("button", { name: /litecoin/i }));
 
       await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
@@ -357,7 +373,7 @@ describe("AddressBook chain field", () => {
     const field = await screen.findByRole("button", { name: /^chain$/i });
     expect(field).toHaveTextContent("Bitcoin");
     expect(within(field).getByTestId("chain-badge")).toBeInTheDocument();
-    expect(within(field).getByTestId("chain-chevron")).toBeInTheDocument();
+    await waitFor(() => expect(within(field).getByTestId("chain-chevron")).toBeInTheDocument());
   });
 });
 
