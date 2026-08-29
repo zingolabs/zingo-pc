@@ -17,6 +17,7 @@ import {
   ValueTransferStatusEnum,
 } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import { useValueTransfersWithSwaps } from "../../context/ContextSwapService";
 import { swapRowLabel } from "../../swap";
 import DetailLine from "../detailLine/DetailLine";
@@ -66,6 +67,8 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   const migrationPct: number = info.migrationBatchesTotal
     ? Math.round((info.migrationBatchesConfirmed / info.migrationBatchesTotal) * 100)
     : 0;
+
+  const { paneRef, paneOffset } = usePaneOffset(260);
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -548,210 +551,218 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
       <div className={styles.detailcontainer}>
         <div className={cstyles.containermargin}>
-          <ScrollPaneTop offsetHeight={260}>
-            <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", padding: 20 }}>
-              {currentWallet !== null && !currentWalletOpenError && (
-                <div style={{ width: "48%", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-                  Last transactions
-                  <div>
-                    <div className={styles.detailcontainer}>
-                      {!!recentTransfers.length ? (
-                        <>
-                          <div
-                            className={`${styles.detaillines} ${styles.txgrid} ${
-                              info.currencyName === "ZEC" ? styles.txgridUsd : styles.txgridNoUsd
-                            }`}
-                          >
-                            {recentTransfers
-                              .filter((_, index: number) => index < 5)
-                              .map((vt: ValueTransferClass, index: number) => {
-                                // Same fallback chain used everywhere else: prefer the
-                                // per-tx price snapshot, fall back to current zecPrice
-                                // so the USD column doesn't read "USD --" while the
-                                // server-info panel right next to it shows a price.
-                                // The tx's own recorded price, never the current one (a years-old
-                                // amount at today's price is meaningless); missing renders `USD --`.
-                                const price: number = vt.zec_price || 0;
-                                // A swap row carries the counterparty asset, so
-                                // it brings its own unit and its own quote-time
-                                // price. The wallet's currency and the ZEC price
-                                // would label and value it as something it is not.
-                                const isSwapRow: boolean = vt.type === ValueTransferKindEnum.swap;
-                                const amountUnit: string = isSwapRow ? (vt.swapAssetTicker ?? "") : info.currencyName;
-                                const rowPrice: number = isSwapRow ? (vt.swapUsdUnitPrice ?? 0) : price;
-                                const failed: boolean = vt.status === ValueTransferStatusEnum.failed;
-                                const failedColor: string | undefined = failed
-                                  ? Utils.getCssVariable("--color-error")
-                                  : undefined;
-                                // Three grid columns (see .txgrid): transfer type on the
-                                // left, ZEC amount left-aligned, smaller USD right-aligned.
-                                return (
-                                  <React.Fragment key={index}>
-                                    <div className={`${cstyles.sublight} ${styles.txtype}`}>
-                                      {/* A swap's state is its own; the five-value
+          {/* The balance block above gains a line per pool the wallet holds
+              and another for the shield button, so its height belongs to the
+              wallet rather than to the screen. */}
+          <div ref={paneRef}>
+            <ScrollPaneTop offsetHeight={paneOffset}>
+              <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", padding: 20 }}>
+                {currentWallet !== null && !currentWalletOpenError && (
+                  <div style={{ width: "48%", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
+                    Last transactions
+                    <div>
+                      <div className={styles.detailcontainer}>
+                        {!!recentTransfers.length ? (
+                          <>
+                            <div
+                              className={`${styles.detaillines} ${styles.txgrid} ${
+                                info.currencyName === "ZEC" ? styles.txgridUsd : styles.txgridNoUsd
+                              }`}
+                            >
+                              {recentTransfers
+                                .filter((_, index: number) => index < 5)
+                                .map((vt: ValueTransferClass, index: number) => {
+                                  // Same fallback chain used everywhere else: prefer the
+                                  // per-tx price snapshot, fall back to current zecPrice
+                                  // so the USD column doesn't read "USD --" while the
+                                  // server-info panel right next to it shows a price.
+                                  // The tx's own recorded price, never the current one (a years-old
+                                  // amount at today's price is meaningless); missing renders `USD --`.
+                                  const price: number = vt.zec_price || 0;
+                                  // A swap row carries the counterparty asset, so
+                                  // it brings its own unit and its own quote-time
+                                  // price. The wallet's currency and the ZEC price
+                                  // would label and value it as something it is not.
+                                  const isSwapRow: boolean = vt.type === ValueTransferKindEnum.swap;
+                                  const amountUnit: string = isSwapRow ? (vt.swapAssetTicker ?? "") : info.currencyName;
+                                  const rowPrice: number = isSwapRow ? (vt.swapUsdUnitPrice ?? 0) : price;
+                                  const failed: boolean = vt.status === ValueTransferStatusEnum.failed;
+                                  const failedColor: string | undefined = failed
+                                    ? Utils.getCssVariable("--color-error")
+                                    : undefined;
+                                  // Three grid columns (see .txgrid): transfer type on the
+                                  // left, ZEC amount left-aligned, smaller USD right-aligned.
+                                  return (
+                                    <React.Fragment key={index}>
+                                      <div className={`${cstyles.sublight} ${styles.txtype}`}>
+                                        {/* A swap's state is its own; the five-value
                                           transfer status cannot tell one awaiting
                                           its deposit from one the provider is
                                           already working on. Same call the
                                           History row makes. */}
-                                      {vt.type === ValueTransferKindEnum.swap
-                                        ? swapRowLabel(vt.swapStatus)
-                                        : Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}{" "}
-                                      :
-                                    </div>
-                                    <div className={styles.txzec} style={{ color: failedColor }}>
-                                      {amountUnit} {Utils.maxPrecisionTrimmed(vt.amount)}
-                                    </div>
-                                    {info.currencyName === "ZEC" && (
-                                      <div
-                                        className={styles.txusd}
-                                        style={{ color: failedColor ?? Utils.getCssVariable("--color-primary") }}
-                                      >
-                                        {Utils.getZecToUsdString(rowPrice, vt.amount)}
+                                        {vt.type === ValueTransferKindEnum.swap
+                                          ? swapRowLabel(vt.swapStatus)
+                                          : Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}{" "}
+                                        :
                                       </div>
-                                    )}
-                                  </React.Fragment>
-                                );
-                              })}
-                          </div>
-                          <button
-                            type="button"
-                            style={{
-                              width: "100%",
-                              textAlign: "right",
-                              color: Utils.getCssVariable("--color-primary"),
-                              marginTop: 20,
-                              cursor: "pointer",
-                              background: "none",
-                              border: "none",
-                              padding: 0,
-                              font: "inherit",
-                            }}
-                            onClick={() => navigateToHistory()}
-                          >
-                            See more...
-                          </button>
-                        </>
-                      ) : (
-                        <div className={styles.detaillines}>No Transactions Yet</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {currentWallet !== null &&
-                !currentWalletOpenError &&
-                !!info &&
-                !!info.serverUri &&
-                !!info.chainName &&
-                !!info.latestBlock && (
-                  <div style={{ width: "48%", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
-                    Server info
-                    <div>
-                      <div className={styles.detailcontainer}>
-                        <div className={styles.detaillines}>
-                          <DetailLine label="Server URI" value={info ? info.serverUri : ""} />
-                          <DetailLine label="Server Network" value={Utils.chainDisplayName(info.chainName)} />
-                          <DetailLine label="Server Version" value={info.version} />
-                          <DetailLine label="Zingolib Version" value={info.zingolib} />
-                          <DetailLine label="Block Height" value={`${info.latestBlock}`} />
-                          {info.currencyName === "ZEC" && (
-                            <DetailLine label="ZEC Price" value={zecPrice ? `USD ${zecPrice.toFixed(2)}` : "USD --"} />
-                          )}
-                        </div>
+                                      <div className={styles.txzec} style={{ color: failedColor }}>
+                                        {amountUnit} {Utils.maxPrecisionTrimmed(vt.amount)}
+                                      </div>
+                                      {info.currencyName === "ZEC" && (
+                                        <div
+                                          className={styles.txusd}
+                                          style={{ color: failedColor ?? Utils.getCssVariable("--color-primary") }}
+                                        >
+                                          {Utils.getZecToUsdString(rowPrice, vt.amount)}
+                                        </div>
+                                      )}
+                                    </React.Fragment>
+                                  );
+                                })}
+                            </div>
+                            <button
+                              type="button"
+                              style={{
+                                width: "100%",
+                                textAlign: "right",
+                                color: Utils.getCssVariable("--color-primary"),
+                                marginTop: 20,
+                                cursor: "pointer",
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                font: "inherit",
+                              }}
+                              onClick={() => navigateToHistory()}
+                            >
+                              See more...
+                            </button>
+                          </>
+                        ) : (
+                          <div className={styles.detaillines}>No Transactions Yet</div>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
 
-              {currentWallet === null && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    width: "100%",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginTop: 100,
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      width: "80%",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      marginTop: 50,
-                      marginBottom: 20,
-                    }}
-                  >
-                    There is no wallets added.
-                  </div>
-                  <button
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={() => {
-                      navigate(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
-                    }}
-                  >
-                    Add New Wallet
-                  </button>
-                </div>
-              )}
+                {currentWallet !== null &&
+                  !currentWalletOpenError &&
+                  !!info &&
+                  !!info.serverUri &&
+                  !!info.chainName &&
+                  !!info.latestBlock && (
+                    <div style={{ width: "48%", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
+                      Server info
+                      <div>
+                        <div className={styles.detailcontainer}>
+                          <div className={styles.detaillines}>
+                            <DetailLine label="Server URI" value={info ? info.serverUri : ""} />
+                            <DetailLine label="Server Network" value={Utils.chainDisplayName(info.chainName)} />
+                            <DetailLine label="Server Version" value={info.version} />
+                            <DetailLine label="Zingolib Version" value={info.zingolib} />
+                            <DetailLine label="Block Height" value={`${info.latestBlock}`} />
+                            {info.currencyName === "ZEC" && (
+                              <DetailLine
+                                label="ZEC Price"
+                                value={zecPrice ? `USD ${zecPrice.toFixed(2)}` : "USD --"}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
-              {!!currentWalletOpenError && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    width: "100%",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginTop: 100,
-                  }}
-                >
+                {currentWallet === null && (
                   <div
                     style={{
                       display: "flex",
-                      width: "80%",
+                      flexDirection: "column",
+                      width: "100%",
                       justifyContent: "center",
                       alignItems: "center",
-                      marginTop: 50,
-                      marginBottom: 20,
+                      marginTop: 100,
                     }}
                   >
-                    {`Error Opening the current Wallet: ${currentWalletOpenError}`}
+                    <div
+                      style={{
+                        display: "flex",
+                        width: "80%",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginTop: 50,
+                        marginBottom: 20,
+                      }}
+                    >
+                      There is no wallets added.
+                    </div>
+                    <button
+                      type="button"
+                      className={cstyles.primarybutton}
+                      onClick={() => {
+                        navigate(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
+                      }}
+                    >
+                      Add New Wallet
+                    </button>
                   </div>
-                  <div className={cstyles.verticalbuttons}>
-                    {/* First, and least drastic: plenty of open failures are a
+                )}
+
+                {!!currentWalletOpenError && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      width: "100%",
+                      justifyContent: "center",
+                      alignItems: "center",
+                      marginTop: 100,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        width: "80%",
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginTop: 50,
+                        marginBottom: 20,
+                      }}
+                    >
+                      {`Error Opening the current Wallet: ${currentWalletOpenError}`}
+                    </div>
+                    <div className={cstyles.verticalbuttons}>
+                      {/* First, and least drastic: plenty of open failures are a
                         server blip or a sync still settling, and simply going
                         round again clears them. */}
-                    <button type="button" className={cstyles.primarybutton} onClick={reopenWallet}>
-                      Try Again
-                    </button>
-                    <button
-                      type="button"
-                      className={cstyles.primarybutton}
-                      onClick={() => {
-                        navigate(routes.ADDNEWWALLET, { state: { mode: "settings" } });
-                      }}
-                    >
-                      Wallet Settings
-                    </button>
-                    <button
-                      type="button"
-                      className={cstyles.primarybutton}
-                      onClick={() => {
-                        navigate(routes.ADDNEWWALLET, { state: { mode: "delete" } });
-                      }}
-                    >
-                      Delete Wallet
-                    </button>
+                      <button type="button" className={cstyles.primarybutton} onClick={reopenWallet}>
+                        Try Again
+                      </button>
+                      <button
+                        type="button"
+                        className={cstyles.primarybutton}
+                        onClick={() => {
+                          navigate(routes.ADDNEWWALLET, { state: { mode: "settings" } });
+                        }}
+                      >
+                        Wallet Settings
+                      </button>
+                      <button
+                        type="button"
+                        className={cstyles.primarybutton}
+                        onClick={() => {
+                          navigate(routes.ADDNEWWALLET, { state: { mode: "delete" } });
+                        }}
+                      >
+                        Delete Wallet
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          </ScrollPaneTop>
+                )}
+              </div>
+            </ScrollPaneTop>
+          </div>
         </div>
       </div>
     </div>
