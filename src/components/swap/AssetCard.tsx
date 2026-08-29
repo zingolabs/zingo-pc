@@ -132,14 +132,28 @@ const AssetCard: React.FC<AssetCardProps> = ({
 
       {address && (
         <div className={styles.addressblock}>
-          {/* The name beside the label rather than inside the field: what the
-              address is belongs with its title, and the field itself is for
-              the address and the things to do with it. Same arrangement the
-              Send screen uses. */}
+          {/* The label line carries what the address is and whether it reads,
+              which is the arrangement the Send screen uses: the name beside
+              the title on the left, the verdict at the far right. The field
+              below is left for the address and the things to do with it. */}
           <div className={cstyles.flexspacebetween}>
-            <div className={`${cstyles.sublight} ${styles.addresslabel}`}>{address.label}</div>
-            {!!address.contactLabel && (
-              <div className={`${cstyles.green} ${styles.addresslabel}`}>Contact: {address.contactLabel}</div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 12, minWidth: 0 }}>
+              <div className={`${cstyles.sublight} ${styles.addresslabel}`}>{address.label}</div>
+              {!!address.contactLabel && (
+                <div className={`${cstyles.green} ${styles.addresslabel} ${cstyles.breakword}`}>
+                  Contact: {address.contactLabel}
+                </div>
+              )}
+            </div>
+            {address.valid && (
+              <span
+                className={styles.addresslabel}
+                data-testid="address-valid"
+                aria-label="Address is valid"
+                role="img"
+              >
+                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
+              </span>
             )}
           </div>
           {/* Field and its actions share a border, so they read as one control
@@ -155,19 +169,6 @@ const AssetCard: React.FC<AssetCardProps> = ({
               spellCheck={false}
               aria-label={address.label}
             />
-            {/* The same tick the address book shows, in the same green. The
-                error under the field says what is wrong once they have moved
-                on; this says the field is being read while they type. */}
-            {address.valid && (
-              <span
-                className={cstyles.fieldaction}
-                data-testid="address-valid"
-                aria-label="Address is valid"
-                role="img"
-              >
-                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
-              </span>
-            )}
             {/* Same glyphs and labels the Send screen already uses for these
                 two actions, so the same gesture looks the same in both places. */}
             {address.value.length > 0 && (
