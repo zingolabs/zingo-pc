@@ -233,11 +233,35 @@ describe("AddressBook", () => {
       render(<AddressBook {...baseProps} />);
       fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
       // A single candidate is not a question worth asking.
-      await waitFor(() => expect(screen.queryByRole("combobox", { name: /chain/i })).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByRole("button", { name: /^chain$/i })).not.toBeInTheDocument());
 
       mockPossibleChains = ["BTC", "LTC"];
       fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qambiguous" } });
-      expect(await screen.findByRole("combobox", { name: /chain/i })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: /^chain$/i })).toBeInTheDocument();
+    });
+
+    // The field opens the same kind of list the swap screen picks assets from,
+    // rather than a native select that shows one line and no badge.
+    it("takes the chain from the picker it opens", async () => {
+      mockPossibleChains = ["BTC", "LTC"];
+      const addAddressBookEntry = jest.fn();
+      render(<AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />, {
+        contextOverrides: { openConfirmModal: autoConfirm() },
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qambiguous" } });
+
+      fireEvent.click(await screen.findByRole("button", { name: /^chain$/i }));
+      fireEvent.click(await screen.findByRole("button", { name: /litecoin/i }));
+
+      await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+      expect(addAddressBookEntry).toHaveBeenCalledWith(
+        "Bob",
+        "bc1qambiguous",
+        ServerChainNameEnum.mainChainName,
+        "LTC",
+      );
     });
 
     it("saves the asset chain alongside the Zcash network", async () => {

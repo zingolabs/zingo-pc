@@ -5,6 +5,7 @@ import cstyles from "../common/Common.module.css";
 import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum, ZEC_SWAP_CHAIN } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
+import ChainPicker from "../common/ChainPicker";
 import Utils from "../../utils/utils";
 import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
@@ -202,6 +203,8 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   // the window and the last contact could not be scrolled to.
   const { paneRef, paneOffset } = usePaneOffset(327);
 
+  const [chainPickerOpen, setChainPickerOpen] = useState<boolean>(false);
+
   const clearFields = () => {
     setCurrentLabel("");
     setCurrentAddress("");
@@ -217,6 +220,16 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
 
   return (
     <div>
+      {chainPickerOpen && (
+        <ChainPicker
+          chains={possibleChains}
+          selected={swapChain}
+          modalIsOpen={chainPickerOpen}
+          closeModal={() => setChainPickerOpen(false)}
+          onSelect={setSwapChain}
+        />
+      )}
+
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Address Book</div>
 
       <div className={styles.addressbookcontainer}>
@@ -284,20 +297,20 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
             {possibleChains.length > 1 && (
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div>Chain</div>
-                <div className={`${cstyles.fieldrow} ${cstyles.margintopsmall}`}>
-                  <select
-                    aria-label="Chain"
-                    className={cstyles.fieldinput}
-                    value={swapChain}
-                    onChange={(e) => setSwapChain(e.target.value)}
-                  >
-                    {possibleChains.map((chain) => (
-                      <option key={chain} value={chain}>
-                        {chainDisplayName(chain) || chain}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* A button rather than a select. The chain is recognised by
+                    its badge before it is read, which a native select has
+                    nowhere to put — and it rendered as whatever the platform
+                    decided, next to two fields that did not. */}
+                <button
+                  type="button"
+                  aria-label="Chain"
+                  className={`${cstyles.fieldrow} ${cstyles.margintopsmall}`}
+                  style={{ width: "100%", cursor: "pointer", textAlign: "left" }}
+                  onClick={() => setChainPickerOpen(true)}
+                >
+                  <div className={cstyles.fieldinput}>{chainDisplayName(swapChain) || swapChain}</div>
+                  <i className={`${"fas"} ${"fa-chevron-down"}`} style={{ paddingRight: 12 }} />
+                </button>
               </div>
             )}
           </div>
