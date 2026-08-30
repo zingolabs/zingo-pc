@@ -259,7 +259,8 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                 <div
                   style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}
                 >
-                  <div
+                  <button
+                    type="button"
                     className={cstyles.primarybutton}
                     onClick={() =>
                       Utils.openTxid(
@@ -276,9 +277,10 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                   >
                     View TXID &nbsp;
                     <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
-                  </div>
+                  </button>
                   {txids.length > 1 && (
-                    <div
+                    <button
+                      type="button"
                       style={{ marginTop: 5 }}
                       className={cstyles.primarybutton}
                       onClick={() =>
@@ -296,10 +298,11 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                     >
                       View TXID &nbsp;
                       <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
-                    </div>
+                    </button>
                   )}
                   {txids.length > 2 && (
-                    <div
+                    <button
+                      type="button"
                       style={{ marginTop: 5 }}
                       className={cstyles.primarybutton}
                       onClick={() =>
@@ -317,7 +320,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                     >
                       View TXID &nbsp;
                       <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
-                    </div>
+                    </button>
                   )}
                 </div>
               )}

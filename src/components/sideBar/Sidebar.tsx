@@ -654,18 +654,28 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
           </div>
         )}
         {currentWallet && (
-          <div
+          <button
+            type="button"
             className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}
             onClick={() => setMixnetModalIsOpen(true)}
-            style={{ cursor: "pointer" }}
+            style={{
+              cursor: "pointer",
+              background: "none",
+              border: "none",
+              font: "inherit",
+              color: "inherit",
+              textAlign: "left",
+              width: "100%",
+            }}
             title="Nym mixnet settings"
+            aria-label="Nym mixnet settings"
           >
             <div>
               <i className={`${mixnetInd.colorClass} fas ${mixnetInd.iconClass}`} />
               &nbsp; {mixnetInd.label}
             </div>
             {mixnetView.narration && <div className={cstyles.small}>{mixnetView.narration}</div>}
-          </div>
+          </button>
         )}
       </div>
     </div>

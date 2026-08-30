@@ -471,7 +471,8 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
             </div>
 
             {!isSwapRow && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-              <div
+              <button
+                type="button"
                 className={cstyles.primarybutton}
                 onClick={() =>
                   Utils.openTxid(
@@ -488,7 +489,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
               >
                 View TXID &nbsp;
                 <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
-              </div>
+              </button>
             )}
           </div>
         )}
