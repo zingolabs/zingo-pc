@@ -742,24 +742,27 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
             style={{ margin: "5px 10px", alignItems: "center", flexWrap: "nowrap" }}
           >
             <div className={cstyles.sublight}>Wallet Alias/Description</div>
-            <input
-              aria-label="Wallet alias"
-              disabled={mode === "delete"}
-              placeholder="Ex: My Zcash Wallet"
-              type="text"
-              className={cstyles.inputbox}
-              style={{ width: "60%", marginLeft: "20px" }}
-              value={alias}
-              onChange={(e) => updateAlias(e)}
-            />
+            <div className={cstyles.fieldrow} style={{ width: "60%", marginLeft: "20px" }}>
+              <input
+                aria-label="Wallet alias"
+                disabled={mode === "delete"}
+                placeholder="Ex: My Zcash Wallet"
+                type="text"
+                className={cstyles.fieldinput}
+                value={alias}
+                onChange={(e) => updateAlias(e)}
+              />
+            </div>
             <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
               Network
               <select
                 aria-label="Network"
                 disabled={mode !== "addnew"}
-                className={cstyles.inputbox}
+                className={cstyles.fieldinput}
                 style={{
                   marginLeft: "20px",
+                  borderRadius: 12,
+                  border: "1px solid var(--color-zingo)",
                   color: selectedChain === "" ? Utils.getCssVariable("--color-zingo") : undefined,
                 }}
                 value={selectedChain}
@@ -804,8 +807,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               <div className={cstyles.sublight}>Type of Wallet creation</div>
               <select
                 aria-label="Type of wallet creation"
-                className={cstyles.inputbox}
-                style={{ width: "80%", marginLeft: "20px" }}
+                className={cstyles.fieldinput}
+                style={{ width: "80%", marginLeft: "20px", borderRadius: 12, border: "1px solid var(--color-zingo)" }}
                 value={newWalletType}
                 onChange={(e) => {
                   setNewWalletType(e.target.value as "new" | "seed" | "ufvk" | "file");
@@ -825,63 +828,72 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           {newWalletType === "seed" && mode === "addnew" && (
             <div style={{ margin: "5px 10px" }}>
               <div className={cstyles.sublight}>Please enter your seed phrase</div>
-              <TextareaAutosize
-                aria-label="Seed phrase"
-                placeholder="Enter your 24 recovery words"
-                className={cstyles.inputbox}
-                value={seedPhrase}
-                onChange={(e) => updateSeedPhrase(e)}
-              />
+              <div className={cstyles.fieldrowmulti}>
+                <TextareaAutosize
+                  aria-label="Seed phrase"
+                  placeholder="Enter your 24 recovery words"
+                  className={cstyles.fieldtextarea}
+                  value={seedPhrase}
+                  onChange={(e) => updateSeedPhrase(e)}
+                />
+              </div>
               <div className={cstyles.sublight}>
                 {`Wallet Birthday. If you don’t know this, it is OK to enter ‘${activationHeight[selectedChain]}’`}
               </div>
-              <input
-                aria-label="Wallet birthday"
-                placeholder={`>= ${activationHeight[selectedChain]}`}
-                type="number"
-                className={cstyles.inputbox}
-                value={birthday}
-                onChange={(e) => updateBirthday(e)}
-              />
+              <div className={cstyles.fieldrow}>
+                <input
+                  aria-label="Wallet birthday"
+                  placeholder={`>= ${activationHeight[selectedChain]}`}
+                  type="number"
+                  className={cstyles.fieldinput}
+                  value={birthday}
+                  onChange={(e) => updateBirthday(e)}
+                />
+              </div>
             </div>
           )}
 
           {newWalletType === "ufvk" && mode === "addnew" && (
             <div style={{ margin: "5px 10px" }}>
               <div className={cstyles.sublight}>Please enter your Unified Full Viewing Key</div>
-              <TextareaAutosize
-                aria-label="Unified Full Viewing Key"
-                placeholder="Ex: uview..."
-                className={cstyles.inputbox}
-                value={ufvk}
-                onChange={(e) => updateUfvk(e)}
-              />
+              <div className={cstyles.fieldrowmulti}>
+                <TextareaAutosize
+                  aria-label="Unified Full Viewing Key"
+                  placeholder="Ex: uview..."
+                  className={cstyles.fieldtextarea}
+                  value={ufvk}
+                  onChange={(e) => updateUfvk(e)}
+                />
+              </div>
               <div className={cstyles.sublight}>
                 {`Wallet Birthday. If you don’t know this, it is OK to enter ‘${activationHeight[selectedChain]}’`}
               </div>
-              <input
-                aria-label="Wallet birthday"
-                placeholder={`>= ${activationHeight[selectedChain]}`}
-                type="number"
-                className={cstyles.inputbox}
-                value={birthday}
-                onChange={(e) => updateBirthday(e)}
-              />
+              <div className={cstyles.fieldrow}>
+                <input
+                  aria-label="Wallet birthday"
+                  placeholder={`>= ${activationHeight[selectedChain]}`}
+                  type="number"
+                  className={cstyles.fieldinput}
+                  value={birthday}
+                  onChange={(e) => updateBirthday(e)}
+                />
+              </div>
             </div>
           )}
 
           {newWalletType === "file" && mode === "addnew" && (
             <div style={{ margin: "5px 10px" }}>
               <div className={cstyles.sublight}>Please enter your Wallet File Name stored in the Zcash folder</div>
-              <input
-                aria-label="Wallet file name"
-                placeholder="Ex: zingo-wallet-renamed....dat"
-                type="text"
-                className={cstyles.inputbox}
-                style={{ width: "90%", marginLeft: "20px" }}
-                value={file}
-                onChange={(e) => updateFile(e)}
-              />
+              <div className={cstyles.fieldrow} style={{ width: "90%", marginLeft: "20px" }}>
+                <input
+                  aria-label="Wallet file name"
+                  placeholder="Ex: zingo-wallet-renamed....dat"
+                  type="text"
+                  className={cstyles.fieldinput}
+                  value={file}
+                  onChange={(e) => updateFile(e)}
+                />
+              </div>
             </div>
           )}
 
@@ -891,16 +903,17 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               style={{ margin: "5px 10px", alignItems: "center", flexWrap: "nowrap" }}
             >
               <div className={cstyles.sublight}>File Name</div>
-              <input
-                aria-label="File name"
-                disabled={true}
-                type="text"
-                className={cstyles.inputbox}
-                style={{ width: "85%", marginLeft: "20px" }}
-                value={
-                  currentWallet && currentWallet.creationType === CreationTypeEnum.Main ? "zingo-wallet.dat" : file
-                }
-              />
+              <div className={cstyles.fieldrow} style={{ width: "85%", marginLeft: "20px" }}>
+                <input
+                  aria-label="File name"
+                  disabled={true}
+                  type="text"
+                  className={cstyles.fieldinput}
+                  value={
+                    currentWallet && currentWallet.creationType === CreationTypeEnum.Main ? "zingo-wallet.dat" : file
+                  }
+                />
+              </div>
             </div>
           )}
 
@@ -999,8 +1012,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                         <select
                           aria-label="Server list"
                           disabled={selectedSelection !== "list"}
-                          className={cstyles.inputbox}
-                          style={{ marginLeft: "20px" }}
+                          className={cstyles.fieldinput}
+                          style={{ marginLeft: "20px", borderRadius: 12, border: "1px solid var(--color-zingo)" }}
                           value={listServer}
                           onChange={(e) => {
                             setListServer(e.target.value);
@@ -1041,19 +1054,20 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                       <div className={`${cstyles.well} ${cstyles.horizontalflex}`}>
                         <div style={{ width: "75%", padding: 0, margin: 0, flexWrap: "nowrap" }}>
                           URI
-                          <input
-                            aria-label="Custom server URI"
-                            placeholder="https://------.---:---"
-                            disabled={selectedSelection !== "custom"}
-                            type="text"
-                            className={cstyles.inputbox}
-                            style={{ marginLeft: "20px", width: "80%" }}
-                            value={customServer}
-                            onChange={(e) => {
-                              setCustomServer(e.target.value);
-                              setSelectedServer(e.target.value);
-                            }}
-                          />
+                          <div className={cstyles.fieldrow} style={{ marginLeft: "20px", width: "80%" }}>
+                            <input
+                              aria-label="Custom server URI"
+                              placeholder="https://------.---:---"
+                              disabled={selectedSelection !== "custom"}
+                              type="text"
+                              className={cstyles.fieldinput}
+                              value={customServer}
+                              onChange={(e) => {
+                                setCustomServer(e.target.value);
+                                setSelectedServer(e.target.value);
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1082,8 +1096,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
             <select
               aria-label="Sync performance level"
               disabled={mode === "delete"}
-              className={cstyles.inputbox}
-              style={{ width: "80%", marginLeft: "20px" }}
+              className={cstyles.fieldinput}
+              style={{ width: "80%", marginLeft: "20px", borderRadius: 12, border: "1px solid var(--color-zingo)" }}
               value={performanceLevel}
               onChange={(e) => {
                 setPerformanceLevel(e.target.value as PerformanceLevelEnum);
