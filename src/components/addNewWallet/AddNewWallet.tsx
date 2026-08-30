@@ -21,6 +21,8 @@ import ScrollPaneTop from "../scrollPane/ScrollPane";
 import RPC from "../../rpc/rpc";
 import { useSwapService } from "../../context/ContextSwapService";
 import { SwapStore, readCurrentWalletFingerprint } from "../../swap";
+import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type AddNewWalletProps = {
   closeModal: () => void;
@@ -944,7 +946,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                       style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
                       onClick={() => setServerExpanded(!serverExpanded)}
                     >
-                      <i className={`${"fas"} ${"fa-chevron-down"} ${"fa-1x"}`} />
+                      <FontAwesomeIcon icon={faChevronDown} />
                     </div>
                     <div style={{ cursor: "pointer" }} onClick={() => setServerExpanded(!serverExpanded)}>
                       {selectedServer}
@@ -964,7 +966,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                         style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
                         onClick={() => setServerExpanded(!serverExpanded)}
                       >
-                        <i className={`${"fas"} ${"fa-chevron-up"} ${"fa-1x"}`} />
+                        <FontAwesomeIcon icon={faChevronUp} />
                       </div>
                     </div>
                     {mode === "settings" && (

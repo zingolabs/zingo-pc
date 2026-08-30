@@ -18,13 +18,19 @@ import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import { ContextApp } from "../../../context/ContextAppState";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowCircleDown,
+  faArrowCircleUp,
+  faExternalLinkSquareAlt,
+  faTriangleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
 import routes from "../../../constants/routes.json";
 
 import { native } from "../../../electronBridge";
 import { useCopy } from "../../common/useCopy";
 import { Field, FieldRow } from "../../common/DetailField";
 import DetailNavigator from "./DetailNavigator";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
 // zingolib PR #2466 split a VT's single pool into two lists. A VT's identity
 // within a txid now depends on both (used to re-find it after a sync refresh).
@@ -138,7 +144,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
 
   let txid: string = "";
   let typeText: string = "";
-  let typeIcon: string = "";
+  let typeIcon: IconDefinition | null = null;
   let typeColor: string = "";
   let confirmations: number = 0;
   let status: ValueTransferStatusEnum | "" = "";
@@ -176,10 +182,10 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     txid = valueTransfer.txid;
     typeText = Utils.VTTypeWithConfirmations(valueTransfer.type, valueTransfer.status, valueTransfer.confirmations);
     if (valueTransfer.type === ValueTransferKindEnum.received || ValueTransferKindEnum.shield) {
-      typeIcon = "fa-arrow-circle-down";
+      typeIcon = faArrowCircleDown;
       typeColor = "var(--color-primary)";
     } else {
-      typeIcon = "fa-arrow-circle-up";
+      typeIcon = faArrowCircleUp;
       typeColor = "var(--color-text)";
     }
 
@@ -285,7 +291,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
             className={`${cstyles.center} ${cstyles.verticalflex}`}
             style={{ alignItems: "center", justifyContent: "center" }}
           >
-            <i className={`${"fas"} ${typeIcon}`} style={{ fontSize: "35px", color: typeColor }} />
+            {typeIcon && <FontAwesomeIcon icon={typeIcon} style={{ fontSize: "35px", color: typeColor }} />}
             {typeText}
           </div>
 
@@ -490,7 +496,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                 }
               >
                 View TXID &nbsp;
-                <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
+                <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
               </button>
             )}
           </div>

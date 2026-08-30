@@ -11,6 +11,15 @@ import { shell } from "../../../electronBridge";
 import ContactPicker from "../../common/ContactPicker";
 import SaveContact from "../../common/SaveContact";
 import { ZEC_SWAP_CHAIN } from "../../appstate/classes/AddressBookEntryClass";
+import {
+  faAddressBook,
+  faCheck,
+  faExternalLinkSquareAlt,
+  faInfoCircle,
+  faTimesCircle,
+  faUserPlus,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const Spacer = () => {
   return <div style={{ marginTop: "24px" }} />;
@@ -298,7 +307,7 @@ const ToAddrBox = ({
             {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
             {znsStatus === "network" && <span className={cstyles.red}>ZNS lookup failed</span>}
             {znsStatus === "idle" && addressIsValid === 1 && (
-              <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
+              <FontAwesomeIcon icon={faCheck} className={cstyles.green} />
             )}
             {znsStatus === "idle" && addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
           </div>
@@ -331,7 +340,7 @@ const ToAddrBox = ({
                 shell.openExternal(`https://www.zcashnames.com/explorer?name=${name}${env}`);
               }}
             >
-              <i className={`${"fas"} ${"fa-external-link-square-alt"} ${"fa-lg"}`} />
+              <FontAwesomeIcon icon={faExternalLinkSquareAlt} size="lg" />
             </button>
           )}
           {toLocal.length > 0 && (
@@ -342,7 +351,7 @@ const ToAddrBox = ({
               title="Clear recipient"
               onClick={clearToAddress}
             >
-              <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
+              <FontAwesomeIcon icon={faTimesCircle} size="lg" />
             </button>
           )}
           {zcashContacts.length > 0 && (
@@ -355,7 +364,7 @@ const ToAddrBox = ({
             >
               {/* The icon the sidebar gives the Address Book, so the button
                   reads as the place it opens rather than as a list. */}
-              <i className={`${"fas"} ${"fa-address-book"} ${"fa-lg"}`} />
+              <FontAwesomeIcon icon={faAddressBook} size="lg" />
             </button>
           )}
           {canSave && (
@@ -366,7 +375,7 @@ const ToAddrBox = ({
               title="Save as contact"
               onClick={() => setSaveContactOpen(true)}
             >
-              <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
+              <FontAwesomeIcon icon={faUserPlus} size="lg" />
             </button>
           )}
         </div>
@@ -461,7 +470,7 @@ const ToAddrBox = ({
                   {sendFeeError && !amountError && addressIsValid !== -1 && (
                     <span>
                       &nbsp;
-                      <i className={`${cstyles.red} ${"fas"} ${"fa-info-circle"}`} />
+                      <FontAwesomeIcon icon={faInfoCircle} className={cstyles.red} />
                     </span>
                   )}
                 </div>

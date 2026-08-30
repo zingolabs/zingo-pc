@@ -2,12 +2,14 @@ import React from "react";
 import { Link } from "react-router-dom";
 import styles from "../Sidebar.module.css";
 import routes from "../../../constants/routes.json";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type SidebarMenuItemProps = {
   name: string;
   routeName: string;
   currentRoute: string;
-  iconname: string;
+  iconname: IconDefinition;
 };
 
 const SidebarMenuItem = ({ name, routeName, currentRoute, iconname }: SidebarMenuItemProps) => {
@@ -26,7 +28,7 @@ const SidebarMenuItem = ({ name, routeName, currentRoute, iconname }: SidebarMen
     <div className={`${styles.sidebarmenuitem} ${activeColorClass}`}>
       <Link to={routeName} aria-current={isActive ? "page" : undefined}>
         <span className={activeColorClass}>
-          <i className={`${"fas"} ${iconname}`} />
+          <FontAwesomeIcon icon={iconname} />
           &nbsp; &nbsp;
           {name}
         </span>

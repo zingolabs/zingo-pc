@@ -1,6 +1,8 @@
 import React, { useEffect } from "react";
 
 import cstyles from "../../common/Common.module.css";
+import { faArrowDown, faArrowUp } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type DetailNavigatorProps = {
   /** Position of the row on screen, within the list History is showing. */
@@ -43,7 +45,7 @@ const DetailNavigator: React.FC<DetailNavigatorProps> = ({ index, length, move }
         style={{ marginRight: 25, cursor: "pointer", ...(atFirst ? { opacity: 0.5 } : {}) }}
         onClick={atFirst ? undefined : () => move(-1)}
       >
-        <i className={`${"fas"} ${"fa-arrow-up"} ${"fa-2x"}`} />
+        <FontAwesomeIcon icon={faArrowUp} size="2x" />
       </div>
       <div>{(index + 1).toString()}</div>
       <div
@@ -52,7 +54,7 @@ const DetailNavigator: React.FC<DetailNavigatorProps> = ({ index, length, move }
         style={{ marginLeft: 25, cursor: "pointer", ...(atLast ? { opacity: 0.5 } : {}) }}
         onClick={atLast ? undefined : () => move(1)}
       >
-        <i className={`${"fas"} ${"fa-arrow-down"} ${"fa-2x"}`} />
+        <FontAwesomeIcon icon={faArrowDown} size="2x" />
       </div>
     </div>
   );

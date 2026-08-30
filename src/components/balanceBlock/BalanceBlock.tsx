@@ -1,6 +1,8 @@
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import BalanceBlockProps from "./components/BalanceBlockProps";
+import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const BalanceBlock: React.FC<BalanceBlockProps> = ({
   zecValue,
@@ -21,7 +23,11 @@ const BalanceBlock: React.FC<BalanceBlockProps> = ({
         <div className={cstyles.small}>
           {topLabel}
           {tooltip && (
-            <i className="fas fa-info-circle" title={tooltip} style={{ marginLeft: 6, cursor: "help", opacity: 0.8 }} />
+            <FontAwesomeIcon
+              icon={faInfoCircle}
+              title={tooltip}
+              style={{ marginLeft: 6, cursor: "help", opacity: 0.8 }}
+            />
           )}
         </div>
       )}

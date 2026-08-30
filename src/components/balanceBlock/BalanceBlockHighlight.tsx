@@ -2,6 +2,8 @@ import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import BalanceBlockProps from "./components/BalanceBlockProps";
 import { ValueTransferStatusEnum } from "../appstate";
+import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
   zecValue,
@@ -25,7 +27,7 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
           {tooltip && (
             <span>
               &nbsp;
-              <i className={`${cstyles.green} ${"fas"} ${"fa-info-circle"}`} />
+              <FontAwesomeIcon icon={faInfoCircle} className={cstyles.green} />
             </span>
           )}
         </div>

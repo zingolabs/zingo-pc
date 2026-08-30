@@ -21,6 +21,8 @@ import ConfirmModalToAddr from "./SendConfirmModalToAddr";
 
 import { native } from "../../../electronBridge";
 import { ContextApp } from "../../../context/ContextAppState";
+import { faExternalLinkSquareAlt } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 // Internal because we're using withRouter just below
 type SendConfirmModalProps = {
@@ -281,7 +283,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                     }
                   >
                     View TXID &nbsp;
-                    <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
+                    <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                   </button>
                   {txids.length > 1 && (
                     <button
@@ -302,7 +304,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                       }
                     >
                       View TXID &nbsp;
-                      <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
+                      <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                     </button>
                   )}
                   {txids.length > 2 && (
@@ -324,7 +326,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                       }
                     >
                       View TXID &nbsp;
-                      <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
+                      <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                     </button>
                   )}
                 </div>

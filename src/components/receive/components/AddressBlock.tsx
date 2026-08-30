@@ -22,6 +22,8 @@ import RPC from "../../../rpc/rpc";
 
 import { ipcRenderer, isSandboxed } from "../../../electronBridge";
 import { useCopy } from "../../common/useCopy";
+import { faExternalLinkSquareAlt, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type AddressBlockProps = {
   address: UnifiedAddressClass | TransparentAddressClass;
@@ -149,8 +151,8 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     {/* Only where the gloss appears. A Sapling-only address says
                         nothing about Ironwood, so it gets nothing to explain. */}
                     {(address as UnifiedAddressClass).has_orchard && (
-                      <i
-                        className="fas fa-info-circle"
+                      <FontAwesomeIcon
+                        icon={faInfoCircle}
                         title={IRONWOOD_RECEIVER_TOOLTIP}
                         style={{ marginLeft: 6, cursor: "help", opacity: 0.8 }}
                       />
@@ -192,7 +194,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                       )
                     }
                   >
-                    View on explorer <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
+                    View on explorer <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                   </button>
                 )}
                 {type === "t" &&

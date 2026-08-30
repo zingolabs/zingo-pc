@@ -13,6 +13,8 @@ import { ContextApp } from "../../context/ContextAppState";
 import { isZnsAlias, resolveZnsAlias } from "../../utils/zns";
 import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
 import { chainDisplayName } from "../swap/chainDisplayName";
+import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type AddressBookProps = {
   addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
@@ -331,8 +333,8 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                       leaves its chevron to inherit — which is what `color:
                       inherit` on the button above is for. Same size as that
                       one, since they mark the same thing: that this opens. */}
-                <i
-                  className={`${"fas"} ${"fa-chevron-down"}`}
+                <FontAwesomeIcon
+                  icon={faChevronDown}
                   data-testid="chain-chevron"
                   style={{ paddingRight: 12, fontSize: 12 }}
                 />

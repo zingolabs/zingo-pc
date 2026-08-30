@@ -1,6 +1,6 @@
 import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
+import { faAddressBook, faCheck, faChevronDown, faTimesCircle, faUserPlus } from "@fortawesome/free-solid-svg-icons";
 
 import cstyles from "../common/Common.module.css";
 import styles from "./AssetCard.module.css";
@@ -158,7 +158,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
                 aria-label="Address is valid"
                 role="img"
               >
-                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
+                <FontAwesomeIcon icon={faCheck} className={cstyles.green} />
               </span>
             )}
           </div>
@@ -185,7 +185,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
                 aria-label="Clear recipient"
                 title="Clear recipient"
               >
-                <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
+                <FontAwesomeIcon icon={faTimesCircle} size="lg" />
               </button>
             )}
             {address.onPick && (
@@ -198,7 +198,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
               >
                 {/* The same icon the sidebar gives the Address Book, so the
                     button reads as the place it opens rather than as a list. */}
-                <i className={`${"fas"} ${"fa-address-book"} ${"fa-lg"}`} />
+                <FontAwesomeIcon icon={faAddressBook} size="lg" />
               </button>
             )}
             {address.onSave && (
@@ -209,7 +209,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
                 aria-label="Save as contact"
                 title="Save as contact"
               >
-                <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
+                <FontAwesomeIcon icon={faUserPlus} size="lg" />
               </button>
             )}
           </div>

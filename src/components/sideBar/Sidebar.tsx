@@ -17,6 +17,20 @@ import BlockExplorerModal from "./components/BlockExplorerModal";
 import { useCopy } from "../common/useCopy";
 
 import { ipcRenderer, native } from "../../electronBridge";
+import {
+  faAddressBook,
+  faCheck,
+  faComments,
+  faDownload,
+  faHome,
+  faList,
+  faPaperPlane,
+  faRightLeft,
+  faSync,
+  faTimesCircle,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
 // Modal content for "Wallet Seed Phrase / Viewing Key" extracted to its own
 // component because the inline copy feedback for UFVK / birthday relies on
@@ -41,7 +55,7 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
     return (
       <div className={cstyles.verticalflex} style={{ alignItems: "center", padding: 24 }}>
         <div style={{ marginBottom: 12 }}>Retrieving seed phrase / viewing key&hellip;</div>
-        <i className={`${"fas"} ${"fa-sync"} ${"fa-spin"}`} />
+        <FontAwesomeIcon icon={faSync} spin />
       </div>
     );
   }
@@ -165,16 +179,16 @@ type SidebarProps = {
 
 // The Sidebar's compact Mixnet Mode line: colour, icon, and label for the
 // current view. Mirrors the sync-status blocks it sits beside.
-function mixnetIndicator(view: MixnetView): { colorClass: string; iconClass: string; label: string } {
+function mixnetIndicator(view: MixnetView): { colorClass: string; icon: IconDefinition; label: string } {
   switch (view.statusKey) {
     case "mixnet.status.ready":
-      return { colorClass: cstyles.green, iconClass: "fa-check", label: "Mixnet ready" };
+      return { colorClass: cstyles.green, icon: faCheck, label: "Mixnet ready" };
     case "mixnet.status.bootstrapping":
-      return { colorClass: cstyles.yellow, iconClass: "fa-sync", label: "Mixnet connecting" };
+      return { colorClass: cstyles.yellow, icon: faSync, label: "Mixnet connecting" };
     case "mixnet.status.off":
-      return { colorClass: cstyles.yellow, iconClass: "fa-times-circle", label: "Mixnet off (clearnet)" };
+      return { colorClass: cstyles.yellow, icon: faTimesCircle, label: "Mixnet off (clearnet)" };
     default:
-      return { colorClass: cstyles.red, iconClass: "fa-times-circle", label: "Mixnet unavailable" };
+      return { colorClass: cstyles.red, icon: faTimesCircle, label: "Mixnet unavailable" };
   }
 }
 
@@ -562,14 +576,14 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
           name="Dashboard"
           routeName={routes.DASHBOARD}
           currentRoute={location.pathname}
-          iconname="fa-home"
+          iconname={faHome}
         />
         {!readOnly && currentWallet !== null && !currentWalletOpenError && (
           <SidebarMenuItem
             name="Send"
             routeName={routes.SEND}
             currentRoute={location.pathname}
-            iconname="fa-paper-plane"
+            iconname={faPaperPlane}
           />
         )}
         {currentWallet !== null && !currentWalletOpenError && (
@@ -577,7 +591,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
             name="Receive"
             routeName={routes.RECEIVE}
             currentRoute={location.pathname}
-            iconname="fa-download"
+            iconname={faDownload}
           />
         )}
         {/* Two reasons the entry can be absent rather than dead. SwapKit routes
@@ -591,7 +605,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
               name="Swap"
               routeName={routes.SWAP}
               currentRoute={location.pathname}
-              iconname="fa-right-left"
+              iconname={faRightLeft}
             />
           )}
         {currentWallet !== null && !currentWalletOpenError && (
@@ -599,7 +613,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
             name="History"
             routeName={routes.HISTORY}
             currentRoute={location.pathname}
-            iconname="fa-list"
+            iconname={faList}
           />
         )}
         {currentWallet !== null && !currentWalletOpenError && (
@@ -607,14 +621,14 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
             name="Messages"
             routeName={routes.MESSAGES}
             currentRoute={location.pathname}
-            iconname="fa-comments"
+            iconname={faComments}
           />
         )}
         <SidebarMenuItem
           name="Address Book"
           routeName={routes.ADDRESSBOOK}
           currentRoute={location.pathname}
-          iconname="fa-address-book"
+          iconname={faAddressBook}
         />
       </div>
 
@@ -623,9 +637,9 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
             <div>
               {info.latestBlock === info.walletHeight ? (
-                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
+                <FontAwesomeIcon icon={faCheck} className={cstyles.green} />
               ) : (
-                <i className={`${cstyles.yellow} ${"fas"} ${"fa-check"}`} />
+                <FontAwesomeIcon icon={faCheck} className={cstyles.yellow} />
               )}
               &nbsp; {info.walletHeight} &nbsp;
             </div>
@@ -635,7 +649,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         {stateSync === "SYNCING" && (
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
             <div>
-              <i className={`${cstyles.yellow} ${"fas"} ${"fa-sync"}`} />
+              <FontAwesomeIcon icon={faSync} className={cstyles.yellow} />
               &nbsp; Syncing
             </div>
             <div>{`${progress}%`}</div>
@@ -643,13 +657,13 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         )}
         {stateSync === "DISCONNECTED" && (
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
-            <i className={`${cstyles.yellow} ${"fas"} ${"fa-times-circle"}`} />
+            <FontAwesomeIcon icon={faTimesCircle} className={cstyles.yellow} />
             &nbsp; Not Connected
           </div>
         )}
         {stateSync === "CONNECTING" && (
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
-            <i className={`${cstyles.yellow} ${"fas"} ${"fa-times-circle"}`} />
+            <FontAwesomeIcon icon={faTimesCircle} className={cstyles.yellow} />
             &nbsp; Connecting...
           </div>
         )}
@@ -671,7 +685,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
             aria-label="Nym mixnet settings"
           >
             <div>
-              <i className={`${mixnetInd.colorClass} fas ${mixnetInd.iconClass}`} />
+              <FontAwesomeIcon icon={mixnetInd.icon} className={mixnetInd.colorClass} />
               &nbsp; {mixnetInd.label}
             </div>
             {mixnetView.narration && <div className={cstyles.small}>{mixnetView.narration}</div>}

@@ -40,6 +40,8 @@ import SlippagePicker, { formatSlippagePercent } from "./SlippagePicker";
 import InsufficientFunds from "./InsufficientFunds";
 import ContactPicker from "../common/ContactPicker";
 import SaveContact from "../common/SaveContact";
+import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 /** SwapKit's default slippage tolerance, in basis points. */
 const DEFAULT_SLIPPAGE_BPS = 100;
@@ -823,7 +825,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               {insufficientForCommit ? (
                 <button type="button" className={cstyles.primarybutton} onClick={() => setInsufficientOpen(true)}>
                   Insufficient funds &nbsp;
-                  <i className={`${"fas"} ${"fa-info-circle"}`} />
+                  <FontAwesomeIcon icon={faInfoCircle} />
                 </button>
               ) : (
                 <button

@@ -2,7 +2,7 @@ import React, { useContext, useMemo, useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
+import { faArrowCircleDown, faArrowCircleUp, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
 
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
@@ -203,8 +203,8 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             className={`${cstyles.center} ${cstyles.verticalflex}`}
             style={{ alignItems: "center", justifyContent: "center" }}
           >
-            <i
-              className={`${"fas"} ${isOutbound ? "fa-arrow-circle-up" : "fa-arrow-circle-down"}`}
+            <FontAwesomeIcon
+              icon={isOutbound ? faArrowCircleUp : faArrowCircleDown}
               style={{
                 fontSize: "35px",
                 color: isOutbound ? "var(--color-text)" : "var(--color-primary)",
