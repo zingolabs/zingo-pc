@@ -48,7 +48,7 @@ const PayURIModal = ({
                 type="text"
                 aria-label="Payment URI"
                 className={cstyles.fieldinput}
-                placeholder="URI"
+                placeholder="zcash:--------?amount=---"
                 value={modalInput}
                 onChange={(e) => setModalInput(e.target.value)}
               />
