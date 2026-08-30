@@ -919,7 +919,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                   onChange={(e) => updateSeedPhrase(e)}
                 />
               </div>
-              <div className={cstyles.sublight}>
+              <div className={`${cstyles.sublight} ${cstyles.margintoplarge}`}>
                 {`Wallet Birthday. If you don’t know this, it is OK to enter ‘${activationHeight[selectedChain]}’`}
               </div>
               <div className={cstyles.fieldrow}>
@@ -947,7 +947,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                   onChange={(e) => updateUfvk(e)}
                 />
               </div>
-              <div className={cstyles.sublight}>
+              <div className={`${cstyles.sublight} ${cstyles.margintoplarge}`}>
                 {`Wallet Birthday. If you don’t know this, it is OK to enter ‘${activationHeight[selectedChain]}’`}
               </div>
               <div className={cstyles.fieldrow}>
