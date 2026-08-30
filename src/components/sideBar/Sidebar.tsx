@@ -63,11 +63,17 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
   // Each sensitive value (seed, UFVK, birthday) lives inside this card so it's
   // visually distinct from the surrounding explanatory text. Thin accent border
   // and a slightly smaller font keep the data legible without dominating.
+  // The box each of these three values sits in: the seed phrase, the viewing
+  // key and the birthday.
+  //
+  // Little space above, plenty below. The label belongs to the box under it and
+  // should read as attached to it; what needs the room is the gap to whatever
+  // comes next, so the three do not run together into one column of boxes.
   const dataBoxStyle: React.CSSProperties = {
     border: "1px solid var(--color-primary)",
     borderRadius: 4,
     padding: 12,
-    marginTop: 8,
+    marginTop: 2,
     marginBottom: 16,
     fontSize: "0.85em",
   };
