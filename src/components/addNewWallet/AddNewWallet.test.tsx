@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import AddNewWallet from "./AddNewWallet";
 import { ipcRenderer } from "../../electronBridge";
@@ -109,5 +109,59 @@ describe("AddNewWallet server picker", () => {
     const option = await within(select).findByRole("option", { name: /one\.zec\.rocks/ });
 
     expect(option.textContent).toBe("https://one.zec.rocks:443 - Mainnet");
+  });
+});
+
+describe("AddNewWallet automatic server", () => {
+  // The block starts collapsed, and only appears once the settings read has
+  // resolved a chain — so opening it is an await, as it is for the picker above.
+  const openServerBlock = async () => fireEvent.click((await screen.findAllByText("Selected Server"))[0]);
+
+  // It was hidden outside settings, so a new wallet could never be created on
+  // Automatic — even though the code stored exactly that when nothing was
+  // picked, and the validation then refused to let that happen.
+  it("offers Automatic while creating a wallet", async () => {
+    render(<AddNewWallet {...baseProps} />, { initialRoute: "/addnewwallet" });
+    await openServerBlock();
+
+    expect(screen.getByRole("radio", { name: "Automatic" })).toBeInTheDocument();
+  });
+
+  // The case that needed care. `init_new` dials the chosen server to build the
+  // wallet, so Automatic has to resolve one for the chain being created —
+  // never the app's saved URI, which belongs to whatever chain it was last on.
+  it("resolves a server for the chain being created, not the one last used", async () => {
+    liveList.mockResolvedValue([liveServer("https://testnet.example:443", ServerChainNameEnum.testChainName)]);
+    render(<AddNewWallet {...baseProps} />, { initialRoute: "/addnewwallet" });
+    await openServerBlock();
+
+    fireEvent.change(screen.getByRole("combobox", { name: /network/i }), {
+      target: { value: ServerChainNameEnum.testChainName },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Automatic" }));
+
+    await waitFor(() => expect(liveList).toHaveBeenCalledWith(ServerChainNameEnum.testChainName));
+  });
+
+  // Changing the chain afterwards has to re-resolve. Automatic says how to
+  // pick, not which server, so it survives the change — and the server it
+  // resolved for the previous chain must not.
+  it("re-resolves when the chain changes underneath it", async () => {
+    liveList.mockResolvedValue([liveServer("https://mainnet.example:443")]);
+    render(<AddNewWallet {...baseProps} />, { initialRoute: "/addnewwallet" });
+    await openServerBlock();
+
+    fireEvent.change(screen.getByRole("combobox", { name: /network/i }), {
+      target: { value: ServerChainNameEnum.mainChainName },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Automatic" }));
+    await waitFor(() => expect(liveList).toHaveBeenCalledWith(ServerChainNameEnum.mainChainName));
+
+    liveList.mockClear();
+    fireEvent.change(screen.getByRole("combobox", { name: /network/i }), {
+      target: { value: ServerChainNameEnum.testChainName },
+    });
+
+    await waitFor(() => expect(liveList).toHaveBeenCalledWith(ServerChainNameEnum.testChainName));
   });
 });

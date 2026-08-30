@@ -13,7 +13,7 @@ import {
 } from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
-import selectFastestServer from "../../utils/selectFastestServer";
+import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
 import Utils from "../../utils/utils";
 import { native, ipcRenderer } from "../../electronBridge";
 import { useLocation } from "react-router-dom";
@@ -67,6 +67,10 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
   const [selectedSelection, setSelectedSelection] = useState<ServerSelectionEnum | "">("");
 
   const [autoServer, setAutoServer] = useState<string>("");
+  // The radio is disabled while this is true. Picking a server means racing a
+  // few of them over the network, and letting Create fire in the meantime
+  // would build the wallet against whichever URI happened to be in the field.
+  const [autoResolving, setAutoResolving] = useState<boolean>(false);
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
 
@@ -114,6 +118,75 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     regtest: 1,
     "": 1,
   };
+
+  // Which server "Automatic" means for a chain, right now.
+  //
+  // Creation cannot defer this the way a launch can: `init_new` connects to
+  // `selectedServer` to build the wallet, so by then it has to be a real
+  // server for the chain being created — and the app's saved URI belongs to
+  // whatever chain it was last on, which is the whole hazard when the new
+  // wallet is the first on a different one.
+  //
+  // Same order LoadingScreen uses, and the same two helpers: the live registry
+  // for that chain, raced for speed because the registry ranks by uptime and a
+  // reliable server answering in ten seconds is not the one to build on; then
+  // the static list for that chain; and it gives up rather than guessing, so a
+  // caller can say so instead of dialling another chain's server.
+  const resolveAutoServer = useCallback(async (chain: ServerChainNameEnum): Promise<string> => {
+    const live: ServerClass[] = await fetchServerList(chain);
+    const candidates: ServerClass[] =
+      live.length > 0
+        ? live.slice(0, RACE_CANDIDATES)
+        : serverUrisList().filter((sv: ServerClass) => sv.chain_name === chain && !sv.obsolete);
+    if (candidates.length === 0) return "";
+    const quickest: ServerClass | null = await selectFastestServer(candidates);
+    return quickest ? quickest.uri : candidates[0].uri;
+  }, []);
+
+  // Choosing Automatic, and re-choosing it when the chain changes underneath.
+  //
+  // In settings the wallet already has a server for its chain and the chain
+  // cannot change, so the existing one stands until the next launch re-picks.
+  // Creating is the case that has to resolve now.
+  const chooseAutomaticFor = useCallback(
+    async (chain: ServerChainNameEnum) => {
+      setSelectedSelection(ServerSelectionEnum.auto);
+      if (mode !== "addnew") {
+        setSelectedServer(autoServer);
+        return;
+      }
+      setAutoResolving(true);
+      try {
+        const uri = await resolveAutoServer(chain);
+        if (uri) {
+          setAutoServer(uri);
+          setSelectedServer(uri);
+        } else {
+          // Nothing answered for this chain. Said plainly, and the selection
+          // dropped — leaving it on Automatic with another chain's server is
+          // what creation would then dial.
+          setSelectedServer("");
+          setSelectedSelection("");
+          openErrorModal(
+            "Automatic server",
+            `No server could be reached for ${chain}. Choose one from the list, or enter a custom one.`,
+          );
+        }
+      } finally {
+        setAutoResolving(false);
+      }
+    },
+    [mode, autoServer, resolveAutoServer, openErrorModal],
+  );
+
+  const chooseAutomatic = useCallback(() => {
+    if (mode !== "addnew") {
+      void chooseAutomaticFor(ServerChainNameEnum.mainChainName);
+      return;
+    }
+    if (!selectedChain) return;
+    void chooseAutomaticFor(selectedChain);
+  }, [mode, selectedChain, chooseAutomaticFor]);
 
   const initialServerValue = useCallback(
     (server: string, _chain_name: ServerChainNameEnum | "", selection: ServerSelectionEnum | "") => {
@@ -631,7 +704,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       isSubmittingRef.current = false;
       return;
     }
-    if (selectedSelection !== ServerSelectionEnum.auto && (!selectedServer || !selectedSelection)) {
+    if (!selectedServer || !selectedSelection) {
       openErrorModal("Create Wallet", "Please select a server before creating a wallet.");
       isSubmittingRef.current = false;
       return;
@@ -768,7 +841,16 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                 value={selectedChain}
                 onChange={(e) => {
                   setServerExpanded(true);
-                  setSelectedChain(e.target.value as ServerChainNameEnum | "");
+                  const chain = e.target.value as ServerChainNameEnum | "";
+                  setSelectedChain(chain);
+                  // Automatic is a choice about how to pick, not about which
+                  // server, so it survives the chain change and re-picks for
+                  // the new one. Everything below decides a specific server,
+                  // and those are the ones a new chain invalidates.
+                  if (selectedSelection === ServerSelectionEnum.auto) {
+                    if (chain) void chooseAutomaticFor(chain);
+                    return;
+                  }
                   if (servers.filter((s) => s.chain_name === e.target.value).length === 0) {
                     setSelectedSelection(ServerSelectionEnum.custom);
                     setSelectedServer(customServer);
@@ -967,26 +1049,21 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                         <FontAwesomeIcon icon={faChevronUp} />
                       </div>
                     </div>
-                    {mode === "settings" && (
-                      <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
-                        <input
-                          checked={selectedSelection === ServerSelectionEnum.auto}
-                          style={{ accentColor: "var(--color-primary)" }}
-                          type="radio"
-                          name="selection"
-                          value={ServerSelectionEnum.auto}
-                          onClick={() => {
-                            setSelectedSelection(ServerSelectionEnum.auto);
-                            setSelectedServer(autoServer);
-                          }}
-                          onChange={() => {
-                            setSelectedSelection(ServerSelectionEnum.auto);
-                            setSelectedServer(autoServer);
-                          }}
-                        />
-                        Automatic
-                      </div>
-                    )}
+                    <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
+                      <input
+                        checked={selectedSelection === ServerSelectionEnum.auto}
+                        style={{ accentColor: "var(--color-primary)" }}
+                        type="radio"
+                        name="selection"
+                        aria-label="Automatic"
+                        value={ServerSelectionEnum.auto}
+                        disabled={autoResolving}
+                        onClick={() => chooseAutomatic()}
+                        onChange={() => chooseAutomatic()}
+                      />
+                      Automatic
+                      {autoResolving && <span className={cstyles.sublight}>&nbsp; finding a server…</span>}
+                    </div>
                     {servers.filter((s) => s.chain_name === selectedChain).length > 0 && (
                       <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
                         <input
@@ -994,6 +1071,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                           style={{ accentColor: "var(--color-primary)" }}
                           type="radio"
                           name="selection"
+                          aria-label="From the list"
                           value={ServerSelectionEnum.list}
                           onClick={() => {
                             setSelectedSelection(ServerSelectionEnum.list);
@@ -1040,6 +1118,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                         style={{ accentColor: "var(--color-primary)" }}
                         type="radio"
                         name="selection"
+                        aria-label="Custom"
                         value={"custom"}
                         onClick={() => {
                           setSelectedSelection(ServerSelectionEnum.custom);
@@ -1053,8 +1132,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                       Custom
                       <div className={`${cstyles.well} ${cstyles.horizontalflex}`}>
                         <div style={{ width: "75%", padding: 0, margin: 0, flexWrap: "nowrap" }}>
-                          URI
-                          <div className={cstyles.fieldrow} style={{ marginLeft: "20px", width: "80%" }}>
+                          <div className={cstyles.fieldrow} style={{ width: "100%" }}>
                             <input
                               aria-label="Custom server URI"
                               placeholder="https://------.---:---"
