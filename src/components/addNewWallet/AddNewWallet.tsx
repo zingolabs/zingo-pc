@@ -616,7 +616,22 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       );
       return;
     }
-    await performDelete();
+    // The in-flight case above asks about a swap. This asks about the wallet,
+    // which is the part that does not come back: the file is removed, and only
+    // a seed phrase kept elsewhere recovers what was in it. Until now the only
+    // thing between a click and that was the screen it sits on.
+    //
+    // It names the wallet rather than saying "this wallet". Getting here means
+    // opening the screen for one of several, and the alias is what tells the
+    // user which one they are actually on.
+    openConfirmModal(
+      "Delete Wallet",
+      `Delete "${currentWallet.alias}"? Its wallet file is removed from this computer. ` +
+        `If you have its seed phrase you can restore it later; without one, anything left in it is gone.`,
+      () => {
+        performDelete();
+      },
+    );
   };
 
   const performDelete = async () => {
@@ -699,15 +714,19 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
 
     isSubmittingRef.current = true;
 
-    if (!selectedChain) {
-      openErrorModal("Create Wallet", "Please select a Network before creating a wallet.");
-      isSubmittingRef.current = false;
-      return;
-    }
-    if (!selectedServer || !selectedSelection) {
-      openErrorModal("Create Wallet", "Please select a server before creating a wallet.");
-      isSubmittingRef.current = false;
-      return;
+    const title = mode === "settings" ? "Save Wallet Settings" : "Create Wallet";
+    const verb = mode === "settings" ? "saving" : "creating";
+    if (mode !== "delete") {
+      if (!selectedChain) {
+        openErrorModal(title, `Please select a Network before ${verb} a wallet.`);
+        isSubmittingRef.current = false;
+        return;
+      }
+      if (!selectedServer || !selectedSelection) {
+        openErrorModal(title, `Please select a server before ${verb} a wallet.`);
+        isSubmittingRef.current = false;
+        return;
+      }
     }
 
     if (mode === "addnew") {

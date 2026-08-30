@@ -199,6 +199,7 @@ class MenuBuilder {
         },
         {
           label: "&Nym Mixnet",
+          accelerator: "Ctrl+N",
           click: () => {
             mainWindow.webContents.send("mixnet-settings");
           },
@@ -346,6 +347,7 @@ class MenuBuilder {
           },
           {
             label: "&Nym Mixnet",
+            accelerator: "Ctrl+N",
             click: () => {
               mainWindow.webContents.send("mixnet-settings");
             },

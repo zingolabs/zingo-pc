@@ -165,3 +165,43 @@ describe("AddNewWallet automatic server", () => {
     await waitFor(() => expect(liveList).toHaveBeenCalledWith(ServerChainNameEnum.testChainName));
   });
 });
+
+describe("AddNewWallet delete confirmation", () => {
+  const wallet = {
+    id: 1,
+    alias: "Savings",
+    fileName: "zingo-wallet.dat",
+    chain_name: ServerChainNameEnum.mainChainName,
+  } as never;
+
+  // Deleting removes the wallet file, and until now the only thing between a
+  // click and that was the screen the button sits on. The in-flight-swap
+  // confirmation existed, but only when a swap was in flight.
+  it("asks before deleting, naming the wallet", async () => {
+    const openConfirmModal = jest.fn();
+    render(<AddNewWallet {...baseProps} />, {
+      initialRoute: { pathname: "/addnewwallet", state: { mode: "delete" } } as never,
+      contextOverrides: { currentWallet: wallet, openConfirmModal },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^delete wallet$/i }));
+
+    await waitFor(() => expect(openConfirmModal).toHaveBeenCalled());
+    expect(openConfirmModal.mock.calls[0][1]).toContain("Savings");
+  });
+
+  // The confirmation is a question, so declining it has to leave the wallet
+  // alone — the action only runs from the callback the modal invokes.
+  it("does nothing until the confirmation is accepted", async () => {
+    const openConfirmModal = jest.fn();
+    render(<AddNewWallet {...baseProps} />, {
+      initialRoute: { pathname: "/addnewwallet", state: { mode: "delete" } } as never,
+      contextOverrides: { currentWallet: wallet, openConfirmModal },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^delete wallet$/i }));
+
+    await waitFor(() => expect(openConfirmModal).toHaveBeenCalled());
+    expect(baseProps.clearTimers).not.toHaveBeenCalled();
+  });
+});
