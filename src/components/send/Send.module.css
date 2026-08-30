@@ -40,15 +40,6 @@
   padding-bottom: 8px;
 }
 
-.confirmOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(100, 100, 100, 0.5);
-}
-
 .containermargin {
   margin: 16px;
   margin-top: 5px;

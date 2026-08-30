@@ -322,6 +322,14 @@
   border: var(--color-primary) 4px solid;
 }
 
+/*
+ * The dim behind every modal in the app.
+ *
+ * It was written out three times — here, in History.module.css as
+ * `txmodalOverlay` and in Send.module.css as `confirmOverlay` — with the same
+ * six declarations each time. Nothing distinguished them but which screen
+ * happened to need one first.
+ */
 .modalOverlay {
   position: fixed;
   top: 0;

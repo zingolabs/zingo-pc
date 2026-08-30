@@ -169,7 +169,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
         shouldCloseOnOverlayClick={false}
         shouldCloseOnEsc={false}
         className={styles.txmodal}
-        overlayClassName={styles.txmodalOverlay}
+        overlayClassName={cstyles.modalOverlay}
       >
         <div className={cstyles.verticalflex} style={{ height: "100%" }}>
           <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>
@@ -242,7 +242,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
       shouldCloseOnOverlayClick={!committing}
       shouldCloseOnEsc={!committing}
       className={styles.txmodal}
-      overlayClassName={styles.txmodalOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Review</div>

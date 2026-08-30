@@ -53,7 +53,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
       className={styles.txmodal}
-      overlayClassName={styles.txmodalOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Quotes returned</div>

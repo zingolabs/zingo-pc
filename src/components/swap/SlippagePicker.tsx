@@ -52,7 +52,7 @@ const SlippagePicker: React.FC<SlippagePickerProps> = ({ slippageBps, modalIsOpe
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
       className={styles.txmodal}
-      overlayClassName={styles.txmodalOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Slippage tolerance</div>

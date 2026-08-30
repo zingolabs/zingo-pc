@@ -3,7 +3,6 @@ import Modal from "react-modal";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faWallet } from "@fortawesome/free-solid-svg-icons";
 
-import styles from "../history/History.module.css";
 import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
 
@@ -52,7 +51,7 @@ const InsufficientFunds: React.FC<InsufficientFundsProps> = ({
     isOpen={modalIsOpen}
     onRequestClose={closeModal}
     className={swapStyles.messagemodal}
-    overlayClassName={styles.txmodalOverlay}
+    overlayClassName={cstyles.modalOverlay}
   >
     <div className={cstyles.verticalflex} style={{ height: "100%" }}>
       <div className={`${cstyles.center} ${cstyles.padtopsmall}`} style={{ color: "var(--color-warning)" }}>

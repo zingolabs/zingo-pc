@@ -271,7 +271,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
       isOpen={modalIsOpen}
       onRequestClose={localCloseModal}
       className={styles.txmodal}
-      overlayClassName={styles.txmodalOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
       {showNavigator && <DetailNavigator index={valueTransferIndex} length={length} move={moveDetail} />}
       <div className={cstyles.verticalflex}>

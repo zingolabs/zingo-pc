@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import Modal from "react-modal";
 
-import styles from "../history/History.module.css";
 import swapStyles from "../swap/Swap.module.css";
 import cstyles from "./Common.module.css";
 import { Field } from "./DetailField";
@@ -44,7 +43,7 @@ const SaveContact: React.FC<SaveContactProps> = ({ address, chainLabel, modalIsO
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
       className={swapStyles.narrowmodal}
-      overlayClassName={styles.txmodalOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Save contact</div>

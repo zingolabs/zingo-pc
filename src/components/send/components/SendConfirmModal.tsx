@@ -349,7 +349,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
       className={styles.confirmModal}
-      overlayClassName={styles.confirmOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex}>
         <div className={`${cstyles.marginbottomlarge} ${cstyles.center}`}>Confirm Transaction</div>

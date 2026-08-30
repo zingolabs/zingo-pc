@@ -183,7 +183,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
       className={styles.txmodal}
-      overlayClassName={styles.txmodalOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
       <DetailNavigator index={index} length={length} move={moveDetail} />
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>

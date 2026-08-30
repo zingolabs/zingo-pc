@@ -63,7 +63,7 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
       className={styles.txmodal}
-      overlayClassName={styles.txmodalOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Choose an asset</div>
