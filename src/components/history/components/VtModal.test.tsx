@@ -365,3 +365,32 @@ describe("VtModal", () => {
     expect(closeModal).toHaveBeenCalled();
   });
 });
+
+describe("VtModal copy targets", () => {
+  // They were a `div` carrying an onClick: a click target and nothing else,
+  // with no tab stop, no Enter and nothing announced to a screen reader. The
+  // address book and the swap detail both offer this gesture through a real
+  // control, and this is the screen those two were modelled on.
+  it("offers the address and the transaction id as buttons", () => {
+    const vt = makeVt();
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
+
+    expect(screen.getByRole("button", { name: /copy address/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /copy transaction id/i })).toBeInTheDocument();
+  });
+
+  it("copies the address when its button is pressed", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { clipboard } = require("../../../electronBridge");
+    const vt = makeVt();
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /copy address/i }));
+
+    expect(clipboard.writeText).toHaveBeenCalled();
+  });
+});

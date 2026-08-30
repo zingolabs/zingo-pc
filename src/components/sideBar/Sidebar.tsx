@@ -103,12 +103,14 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
             {ufvkCopied && <span className={cstyles.highlight}>Copied!</span>}
           </div>
 
-          <div
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             aria-label="Copy viewing key"
             style={{
               ...dataBoxStyle,
+              background: "none",
+              border: "none",
+              font: "inherit",
               cursor: "pointer",
               textAlign: "center",
               wordBreak: "break-word",
@@ -116,15 +118,9 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
               fontWeight: "bolder",
             }}
             onClick={() => copyUfvk(ufvkStr)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                copyUfvk(ufvkStr);
-              }
-            }}
           >
             {ufvkStr}
-          </div>
+          </button>
         </>
       )}
       <div
@@ -138,12 +134,14 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
         <span style={{ color: "white", fontWeight: "bolder" }}>Birthday</span>
         {birthdayCopied && <span className={cstyles.highlight}>Copied!</span>}
       </div>
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         aria-label="Copy birthday"
         style={{
           ...dataBoxStyle,
+          background: "none",
+          border: "none",
+          font: "inherit",
           marginBottom: 0,
           alignSelf: "center",
           minWidth: 120,
@@ -153,15 +151,9 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
           fontWeight: "bolder",
         }}
         onClick={() => copyBirthday(birthdayStr)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            copyBirthday(birthdayStr);
-          }
-        }}
       >
         {birthdayStr}
-      </div>
+      </button>
     </div>
   );
 };

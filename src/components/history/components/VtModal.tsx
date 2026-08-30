@@ -437,8 +437,19 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                   </span>
                 )}
               </div>
-              <div
-                style={{ cursor: "pointer" }}
+              <button
+                type="button"
+                aria-label="Copy transaction id"
+                title="Copy transaction id"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "inherit",
+                  font: "inherit",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
                 onClick={() => {
                   if (txid) {
                     copyTxid(txid);
@@ -456,7 +467,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                     </>
                   )}
                 </div>
-              </div>
+              </button>
             </div>
 
             {!isSwapRow && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
@@ -501,8 +512,19 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                 </div>
               )}
               <div className={cstyles.verticalflex}>
-                <div
-                  style={{ cursor: "pointer" }}
+                <button
+                  type="button"
+                  aria-label="Copy address"
+                  title="Copy address"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "inherit",
+                    font: "inherit",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
                   onClick={() => {
                     if (address) {
                       copyAddress(address);
@@ -520,7 +542,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                       </>
                     )}
                   </div>
-                </div>
+                </button>
               </div>
             </div>
 
