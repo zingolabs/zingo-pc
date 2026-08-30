@@ -24,6 +24,7 @@ import {
 } from "../../swap";
 import type { SwapRecordType, TrackerEntryType } from "../../swap";
 import { isEvmSourceChain, memoToHexCalldata } from "../../swap";
+import { hashRowsForRecord } from "../../swap/hashRowsForRecord";
 import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
@@ -114,26 +115,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const receiveSymbol = record.receiveAsset.ticker ?? record.receiveAsset.chain ?? record.receiveAsset.symbol;
   const memo = (record.providerData as { memo?: string } | undefined)?.memo;
 
-  // Every hash the record carries, filtered through `isRealLegHash`. Records
-  // written by an older build can still hold an all-zero placeholder until the
-  // next poller tick rewrites them, and a placeholder would render a row that
-  // copies nothing and links nowhere.
-  const hashRows: Array<{ label: string; value: string }> = [];
-  if (isRealLegHash(record.observedDepositTxHash)) {
-    hashRows.push({ label: "Deposit", value: record.observedDepositTxHash as string });
-  }
-  if (record.broadcast?.allTxIds && record.broadcast.allTxIds.length > 0) {
-    record.broadcast.allTxIds.forEach((hop, index) => {
-      if (!isRealLegHash(hop)) return;
-      const isLast = index === (record.broadcast?.allTxIds?.length ?? 0) - 1;
-      hashRows.push({ label: isLast ? "Broadcast" : `Broadcast hop ${index + 1}`, value: hop });
-    });
-  } else if (isRealLegHash(record.broadcast?.txId)) {
-    hashRows.push({ label: "Broadcast", value: record.broadcast?.txId as string });
-  }
-  if (isRealLegHash(record.destinationTxHash)) {
-    hashRows.push({ label: "Destination", value: record.destinationTxHash as string });
-  }
+  const uniqueHashRows = hashRowsForRecord(record);
 
   const removable = canRemoveSwap(record.status);
 
@@ -343,11 +325,11 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             <CopyField label="Deposit" value={record.depositAddress} copy={copy} />
           )}
 
-          {hashRows.length > 0 && (
+          {uniqueHashRows.length > 0 && (
             <>
               <SectionHeader label="Transactions" />
-              {hashRows.map((row) => (
-                <CopyField key={row.value} label={row.label} value={row.value} copy={copy} />
+              {uniqueHashRows.map((row) => (
+                <CopyField key={`${row.label}-${row.value}`} label={row.label} value={row.value} copy={copy} />
               ))}
             </>
           )}
