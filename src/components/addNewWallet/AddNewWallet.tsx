@@ -755,16 +755,14 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                 onChange={(e) => updateAlias(e)}
               />
             </div>
-            <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
-              Network
+            <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center", flex: 1 }}>
+              <div className={cstyles.sublight}>Network</div>
               <select
                 aria-label="Network"
                 disabled={mode !== "addnew"}
                 className={cstyles.fieldselect}
                 style={{
                   marginLeft: "20px",
-                  borderRadius: 12,
-                  border: "1px solid var(--color-zingo)",
                   color: selectedChain === "" ? "var(--color-zingo)" : undefined,
                 }}
                 value={selectedChain}
