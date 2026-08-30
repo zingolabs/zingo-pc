@@ -763,7 +763,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                   marginLeft: "20px",
                   borderRadius: 12,
                   border: "1px solid var(--color-zingo)",
-                  color: selectedChain === "" ? Utils.getCssVariable("--color-zingo") : undefined,
+                  color: selectedChain === "" ? "var(--color-zingo)" : undefined,
                 }}
                 value={selectedChain}
                 onChange={(e) => {
@@ -926,7 +926,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                   marginTop: 10,
                   marginBottom: 10,
                   marginLeft: "-20px",
-                  backgroundColor: Utils.getCssVariable("--color-background"),
+                  backgroundColor: "var(--color-background)",
                 }}
               />
 
@@ -971,7 +971,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                       <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
                         <input
                           checked={selectedSelection === ServerSelectionEnum.auto}
-                          style={{ accentColor: Utils.getCssVariable("--color-primary") }}
+                          style={{ accentColor: "var(--color-primary)" }}
                           type="radio"
                           name="selection"
                           value={ServerSelectionEnum.auto}
@@ -991,7 +991,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                       <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
                         <input
                           checked={selectedSelection === ServerSelectionEnum.list}
-                          style={{ accentColor: Utils.getCssVariable("--color-primary") }}
+                          style={{ accentColor: "var(--color-primary)" }}
                           type="radio"
                           name="selection"
                           value={ServerSelectionEnum.list}
@@ -1037,7 +1037,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                     <div style={{ margin: "5px 10px" }}>
                       <input
                         checked={selectedSelection === "custom"}
-                        style={{ accentColor: Utils.getCssVariable("--color-primary") }}
+                        style={{ accentColor: "var(--color-primary)" }}
                         type="radio"
                         name="selection"
                         value={"custom"}
@@ -1084,7 +1084,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               marginTop: 10,
               marginBottom: 10,
               marginLeft: "-20px",
-              backgroundColor: Utils.getCssVariable("--color-background"),
+              backgroundColor: "var(--color-background)",
             }}
           />
 

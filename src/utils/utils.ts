@@ -15,6 +15,22 @@ export const NO_CONNECTION: string = "Could not connect to the Server";
 
 export default class Utils {
   // recover the var from the Global CSS.
+  /**
+   * A palette colour as a string JavaScript can hold.
+   *
+   * Not the way to colour something. `var(--color-error)` written straight
+   * into a style is, because the browser resolves it and keeps resolving it;
+   * this reads the computed value once, at the moment it is called, so a
+   * colour taken this way is frozen until the component renders again. With
+   * one fixed palette that is the same colour either way, which is exactly why
+   * two idioms lived side by side for so long — and why the day a second
+   * palette arrives, whichever call sites still use this would keep painting
+   * the old one.
+   *
+   * It earns its place where the value cannot be a CSS function: a canvas the
+   * chart library paints on, or a component prop that may end up as an SVG
+   * presentation attribute. Six call sites, and they are the only ones.
+   */
   static getCssVariable(variableName: string): string {
     return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
   }

@@ -3,7 +3,6 @@ import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
-import Utils from "../../utils/utils";
 import { SwapDirectionEnum, formatAmountForDisplay, providerShortLabel } from "../../swap";
 import type { RouteOptionType, UnavailableProviderType } from "../../swap";
 
@@ -84,9 +83,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                   color: "inherit",
                   cursor: "pointer",
                   background: selected ? "var(--color-background-dark)" : "none",
-                  border: `1px solid ${
-                    selected ? Utils.getCssVariable("--color-primary") : "var(--color-background-dark)"
-                  }`,
+                  border: `1px solid ${selected ? "var(--color-primary)" : "var(--color-background-dark)"}`,
                 }}
               >
                 <div
@@ -96,10 +93,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                   <div>
                     {providerShortLabel(route.provider)}
                     {recommended && (
-                      <span
-                        className={cstyles.small}
-                        style={{ marginLeft: 8, color: Utils.getCssVariable("--color-primary") }}
-                      >
+                      <span className={cstyles.small} style={{ marginLeft: 8, color: "var(--color-primary)" }}>
                         Optimal
                       </span>
                     )}
@@ -119,7 +113,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                     conditions on the route. Shown rather than summarised: it
                     is the provider's statement about its own risk. */}
                 {!!route.warningsText && (
-                  <div className={cstyles.small} style={{ color: Utils.getCssVariable("--color-warning") }}>
+                  <div className={cstyles.small} style={{ color: "var(--color-warning)" }}>
                     {route.warningsText}
                   </div>
                 )}

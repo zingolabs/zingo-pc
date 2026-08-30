@@ -34,14 +34,14 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
       <div className={`${cstyles.highlight} ${cstyles.xlarge}`}>
         <span
           style={{
-            color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+            color: status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
           }}
         >
           {currencyName} {bigPart}
         </span>
         <span
           style={{
-            color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+            color: status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
           }}
           className={`${cstyles.small} ${cstyles.zecsmallpart}`}
         >
@@ -51,7 +51,7 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
       {currencyName === "ZEC" && (
         <div
           style={{
-            color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+            color: status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
           }}
           className={`${cstyles.sublight} ${cstyles.small}`}
         >
@@ -66,14 +66,14 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
             <div className={`${cstyles.highlight} ${cstyles.small}`}>
               <span
                 style={{
-                  color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                  color: status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
                 }}
               >
                 {currencyName} {bigPartConfirmed}
               </span>
               <span
                 style={{
-                  color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                  color: status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
                 }}
                 className={`${cstyles.small} ${cstyles.zecsmallpart}`}
               >
@@ -83,7 +83,7 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
             {currencyName === "ZEC" && (
               <div
                 style={{
-                  color: status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                  color: status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
                   marginLeft: 5,
                 }}
                 className={`${cstyles.sublight} ${cstyles.small}`}

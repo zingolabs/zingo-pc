@@ -367,7 +367,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
           {!!fetchError && !!fetchError.error && (
             <>
               <hr />
-              <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable("--color-error") }}>
+              <div className={cstyles.balancebox} style={{ color: "var(--color-error)" }}>
                 {fetchError.command + ": " + fetchError.error}
               </div>
             </>
@@ -587,9 +587,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                   const amountUnit: string = isSwapRow ? (vt.swapAssetTicker ?? "") : info.currencyName;
                                   const rowPrice: number = isSwapRow ? (vt.swapUsdUnitPrice ?? 0) : price;
                                   const failed: boolean = vt.status === ValueTransferStatusEnum.failed;
-                                  const failedColor: string | undefined = failed
-                                    ? Utils.getCssVariable("--color-error")
-                                    : undefined;
+                                  const failedColor: string | undefined = failed ? "var(--color-error)" : undefined;
                                   // Three grid columns (see .txgrid): transfer type on the
                                   // left, ZEC amount left-aligned, smaller USD right-aligned.
                                   return (
@@ -611,7 +609,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                       {info.currencyName === "ZEC" && (
                                         <div
                                           className={styles.txusd}
-                                          style={{ color: failedColor ?? Utils.getCssVariable("--color-primary") }}
+                                          style={{ color: failedColor ?? "var(--color-primary)" }}
                                         >
                                           {Utils.getZecToUsdString(rowPrice, vt.amount)}
                                         </div>
@@ -625,7 +623,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                               style={{
                                 width: "100%",
                                 textAlign: "right",
-                                color: Utils.getCssVariable("--color-primary"),
+                                color: "var(--color-primary)",
                                 marginTop: 20,
                                 cursor: "pointer",
                                 background: "none",

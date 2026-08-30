@@ -599,9 +599,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               // fiat value, which mobile shows on the ZEC side only — it is
               // the one asset this wallet holds a price for.
               amountSub: overBalance ? (
-                <span style={{ color: Utils.getCssVariable("--color-error") }}>
-                  That is more than the spendable balance.
-                </span>
+                <span style={{ color: "var(--color-error)" }}>That is more than the spendable balance.</span>
               ) : isOutbound && amountValid && zecPrice > 0 ? (
                 Utils.getZecToUsdString(zecPrice, amountNumber)
               ) : undefined,
@@ -685,10 +683,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
           )}
 
           {catalogError && (
-            <div
-              className={`${cstyles.center} ${cstyles.padtopsmall}`}
-              style={{ color: Utils.getCssVariable("--color-error") }}
-            >
+            <div className={`${cstyles.center} ${cstyles.padtopsmall}`} style={{ color: "var(--color-error)" }}>
               {catalogError}
             </div>
           )}
@@ -746,10 +741,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         </div>
 
         {quoteError && (
-          <div
-            className={`${cstyles.center} ${cstyles.margintoplarge}`}
-            style={{ color: Utils.getCssVariable("--color-error") }}
-          >
+          <div className={`${cstyles.center} ${cstyles.margintoplarge}`} style={{ color: "var(--color-error)" }}>
             {quoteError}
           </div>
         )}
@@ -802,7 +794,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                   {chosenRoute.estimatedTimeText ? ` — ${chosenRoute.estimatedTimeText}` : ""}
                 </div>
                 {!!chosenRoute.warningsText && (
-                  <div className={cstyles.small} style={{ color: Utils.getCssVariable("--color-warning") }}>
+                  <div className={cstyles.small} style={{ color: "var(--color-warning)" }}>
                     {chosenRoute.warningsText}
                   </div>
                 )}

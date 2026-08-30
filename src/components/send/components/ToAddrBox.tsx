@@ -450,10 +450,7 @@ const ToAddrBox = ({
             <div style={{ marginBottom: 5 }} className={cstyles.horizontalflex}>
               <div
                 style={{
-                  color:
-                    sendFeeError && !amountError && addressIsValid
-                      ? Utils.getCssVariable("--color-error")
-                      : Utils.getCssVariable("--color-text"),
+                  color: sendFeeError && !amountError && addressIsValid ? "var(--color-error)" : "var(--color-text)",
                 }}
                 className={cstyles.sublight}
               >

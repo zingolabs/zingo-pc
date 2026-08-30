@@ -75,9 +75,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           borderBottomLeftRadius: vt.type === ValueTransferKindEnum.received ? 0 : 20,
           opacity: vt.status === ValueTransferStatusEnum.failed ? 0.2 : 1,
           backgroundColor:
-            vt.type === ValueTransferKindEnum.received
-              ? Utils.getCssVariable("--color-primary-disable")
-              : Utils.getCssVariable("--color-primary"),
+            vt.type === ValueTransferKindEnum.received ? "var(--color-primary-disable)" : "var(--color-primary)",
         }}
         role="button"
         tabIndex={0}
@@ -184,7 +182,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           </div>
         )}
         {vt.status === ValueTransferStatusEnum.failed && (
-          <div style={{ color: Utils.getCssVariable("--color-error"), marginLeft: 10, marginRight: 10 }}>Failed</div>
+          <div style={{ color: "var(--color-error)", marginLeft: 10, marginRight: 10 }}>Failed</div>
         )}
       </div>
     </div>

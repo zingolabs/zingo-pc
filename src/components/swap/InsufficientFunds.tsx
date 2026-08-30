@@ -6,7 +6,6 @@ import { faWallet } from "@fortawesome/free-solid-svg-icons";
 import styles from "../history/History.module.css";
 import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
-import Utils from "../../utils/utils";
 
 /**
  * Down to the zatoshi, dropping anything finer. `toFixed` would round up and
@@ -56,10 +55,7 @@ const InsufficientFunds: React.FC<InsufficientFundsProps> = ({
     overlayClassName={styles.txmodalOverlay}
   >
     <div className={cstyles.verticalflex} style={{ height: "100%" }}>
-      <div
-        className={`${cstyles.center} ${cstyles.padtopsmall}`}
-        style={{ color: Utils.getCssVariable("--color-warning") }}
-      >
+      <div className={`${cstyles.center} ${cstyles.padtopsmall}`} style={{ color: "var(--color-warning)" }}>
         <FontAwesomeIcon icon={faWallet} size="3x" />
       </div>
 

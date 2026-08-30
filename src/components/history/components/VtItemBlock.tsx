@@ -98,13 +98,13 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
             style={{
               color:
                 vt.confirmations === 0
-                  ? Utils.getCssVariable("--color-primary-disable")
+                  ? "var(--color-primary-disable)"
                   : vt.type === ValueTransferKindEnum.received ||
                       vt.type === ValueTransferKindEnum.shield ||
                       vt.type === ValueTransferKindEnum.migration ||
                       (vt.type === ValueTransferKindEnum.swap && vt.swapIsInbound)
-                    ? Utils.getCssVariable("--color-primary")
-                    : Utils.getCssVariable("--color-text"),
+                    ? "var(--color-primary)"
+                    : "var(--color-text)",
             }}
           >
             {vt.type === ValueTransferKindEnum.swap
@@ -128,11 +128,11 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                 style={{
                   color:
                     vt.status === ValueTransferStatusEnum.failed
-                      ? Utils.getCssVariable("--color-error")
+                      ? "var(--color-error)"
                       : vt.status === ValueTransferStatusEnum.calculated ||
                           vt.status === ValueTransferStatusEnum.transmitted
-                        ? Utils.getCssVariable("--color-warning")
-                        : Utils.getCssVariable("--color-primary-disable"),
+                        ? "var(--color-warning)"
+                        : "var(--color-primary-disable)",
                 }}
               >
                 {vt.status === ValueTransferStatusEnum.calculated
@@ -186,16 +186,14 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               <div className={cstyles.padtopsmall}>
                 <span
                   style={{
-                    color:
-                      vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                    color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
                   }}
                 >
                   {amountUnit} {bigPart}
                 </span>
                 <span
                   style={{
-                    color:
-                      vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                    color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
                   }}
                   className={`${cstyles.small} ${cstyles.zecsmallpart}`}
                 >
@@ -204,8 +202,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               </div>
               <div
                 style={{
-                  color:
-                    vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                  color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
                 }}
                 className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}
               >

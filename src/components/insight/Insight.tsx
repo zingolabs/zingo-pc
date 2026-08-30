@@ -203,7 +203,7 @@ const Insight: React.FC<InsightProps> = () => {
             justifyContent: "space-between",
             marginTop: 5,
             marginBottom: 5,
-            borderBottomColor: Utils.getCssVariable("--color-zingo"),
+            borderBottomColor: "var(--color-zingo)",
             borderBottomWidth: address !== "fee" ? 1 : 0,
           }}
         >
@@ -249,7 +249,7 @@ const Insight: React.FC<InsightProps> = () => {
             )}
           </div>
         </div>
-        <div style={{ height: 1, backgroundColor: Utils.getCssVariable("--color-zingo") }} />
+        <div style={{ height: 1, backgroundColor: "var(--color-zingo)" }} />
       </div>
     );
   };
@@ -339,7 +339,7 @@ const Insight: React.FC<InsightProps> = () => {
                               return null;
                             }
                           })}
-                          <div style={{ height: 1, backgroundColor: Utils.getCssVariable("--color-zingo") }} />
+                          <div style={{ height: 1, backgroundColor: "var(--color-zingo)" }} />
                           {dataSent.datasets[0].data.map((value: number, index: number) => {
                             if (value > 0 && dataSent.labels[index] !== "fee") {
                               return line(

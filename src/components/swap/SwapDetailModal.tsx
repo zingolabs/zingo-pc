@@ -11,7 +11,6 @@ import { ContextApp } from "../../context/ContextAppState";
 import { useSwapService } from "../../context/ContextSwapService";
 import { useCopy } from "../common/useCopy";
 import { shell } from "../../electronBridge";
-import Utils from "../../utils/utils";
 import {
   SwapDirectionEnum,
   buildTrackerEntries,
@@ -208,7 +207,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               className={`${"fas"} ${isOutbound ? "fa-arrow-circle-up" : "fa-arrow-circle-down"}`}
               style={{
                 fontSize: "35px",
-                color: isOutbound ? Utils.getCssVariable("--color-text") : Utils.getCssVariable("--color-primary"),
+                color: isOutbound ? "var(--color-text)" : "var(--color-primary)",
               }}
             />
             {swapRowLabel(record.status)}
@@ -222,7 +221,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               does not read as one number in the list and another here. */}
           <div
             className={`${cstyles.center} ${cstyles.large}`}
-            style={{ marginLeft: 20, color: Utils.getCssVariable("--color-primary") }}
+            style={{ marginLeft: 20, color: "var(--color-primary)" }}
           >
             {formatAmountForDisplay(record.sellAmountHumanDecimal)} {sellSymbol} &rarr;{" "}
             {formatAmountForDisplay(record.actualReceiveAmount ?? record.expectedReceiveAmount)} {receiveSymbol}
@@ -271,7 +270,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                     </button>
                   </div>
                   {!!attachError && (
-                    <div className={cstyles.small} style={{ color: Utils.getCssVariable("--color-error") }}>
+                    <div className={cstyles.small} style={{ color: "var(--color-error)" }}>
                       {attachError}
                     </div>
                   )}

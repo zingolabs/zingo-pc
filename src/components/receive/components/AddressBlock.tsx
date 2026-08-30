@@ -216,7 +216,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 style={{
                   borderWidth: type === "u" ? 1 : 0,
                   borderStyle: "solid",
-                  borderColor: Utils.getCssVariable("--color-primary"),
+                  borderColor: "var(--color-primary)",
                   paddingTop: 10,
                   paddingBottom: 10,
                 }}
@@ -285,7 +285,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
-                    color: Utils.getCssVariable("--color-zingo"),
+                    color: "var(--color-zingo)",
                   }}
                 >
                   {"Click to download"}
@@ -299,7 +299,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
         style={{
           height: 1,
           width: "98%",
-          backgroundColor: Utils.getCssVariable("--color-primary"),
+          backgroundColor: "var(--color-primary)",
           alignSelf: "center",
           marginBottom: 10,
         }}

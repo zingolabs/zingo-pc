@@ -222,7 +222,7 @@ const History: React.FC<HistoryProps> = () => {
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable("--color-error") }}>
+            <div className={cstyles.balancebox} style={{ color: "var(--color-error)" }}>
               {fetchError.command + ": " + fetchError.error}
             </div>
           </>

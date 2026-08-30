@@ -3,7 +3,6 @@ import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
-import Utils from "../../utils/utils";
 
 /** 0.5%, 1%, 2%, 3%. */
 const PRESETS_BPS: ReadonlyArray<number> = [50, 100, 200, 300];
@@ -101,10 +100,7 @@ const SlippagePicker: React.FC<SlippagePickerProps> = ({ slippageBps, modalIsOpe
         </div>
 
         {Math.round(parseFloat(custom.replace(",", ".")) * 100) > WARNING_THRESHOLD_BPS && (
-          <div
-            className={`${cstyles.padtopsmall} ${cstyles.small}`}
-            style={{ color: Utils.getCssVariable("--color-warning") }}
-          >
+          <div className={`${cstyles.padtopsmall} ${cstyles.small}`} style={{ color: "var(--color-warning)" }}>
             Above {formatSlippagePercent(WARNING_THRESHOLD_BPS)}% the tolerance no longer protects you. A route could
             fill at a fraction of the quote and still be accepted.
           </div>

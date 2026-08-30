@@ -4,7 +4,6 @@ import Modal from "react-modal";
 import cstyles from "../common/Common.module.css";
 import styles from "../history/History.module.css";
 import swapStyles from "./Swap.module.css";
-import Utils from "../../utils/utils";
 import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
 import { Field, FieldRow } from "../common/DetailField";
@@ -177,10 +176,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
             {txId ? "Deposit sent" : "Pay this deposit"}
           </div>
           {!!error && (
-            <div
-              className={`${cstyles.center} ${cstyles.margintoplarge}`}
-              style={{ color: Utils.getCssVariable("--color-error") }}
-            >
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`} style={{ color: "var(--color-error)" }}>
               {error}
             </div>
           )}
@@ -277,10 +273,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           </div>
 
           {!!error && (
-            <div
-              className={`${cstyles.center} ${cstyles.margintoplarge}`}
-              style={{ color: Utils.getCssVariable("--color-error") }}
-            >
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`} style={{ color: "var(--color-error)" }}>
               {error}
             </div>
           )}

@@ -1,7 +1,6 @@
 import React from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./DetailLine.module.css";
-import Utils from "../../utils/utils";
 
 type DetailLineProps = {
   label: string;
@@ -24,7 +23,7 @@ const DetailLine = ({ label, value, failed }: DetailLineProps) => {
   return (
     <div className={styles.detailline}>
       <div className={cstyles.sublight}>{label}</div>
-      <div className={cstyles.breakword} style={failed ? { color: Utils.getCssVariable("--color-error") } : {}}>
+      <div className={cstyles.breakword} style={failed ? { color: "var(--color-error)" } : {}}>
         {value}
       </div>
     </div>

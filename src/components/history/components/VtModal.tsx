@@ -177,10 +177,10 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     typeText = Utils.VTTypeWithConfirmations(valueTransfer.type, valueTransfer.status, valueTransfer.confirmations);
     if (valueTransfer.type === ValueTransferKindEnum.received || ValueTransferKindEnum.shield) {
       typeIcon = "fa-arrow-circle-down";
-      typeColor = Utils.getCssVariable("--color-primary");
+      typeColor = "var(--color-primary)";
     } else {
       typeIcon = "fa-arrow-circle-up";
-      typeColor = Utils.getCssVariable("--color-text");
+      typeColor = "var(--color-text)";
     }
 
     datePart = dateformat(valueTransfer.time * 1000, "mmm dd, yyyy");
@@ -339,10 +339,10 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                 style={{
                   color:
                     status === ValueTransferStatusEnum.failed
-                      ? Utils.getCssVariable("--color-error")
+                      ? "var(--color-error)"
                       : status === ValueTransferStatusEnum.transmitted || status === ValueTransferStatusEnum.calculated
-                        ? Utils.getCssVariable("--color-primary")
-                        : Utils.getCssVariable("--color-primary-disable"),
+                        ? "var(--color-primary)"
+                        : "var(--color-primary-disable)",
                   fontSize: 12,
                   fontWeight: "700",
                   textAlign: "center",
@@ -358,7 +358,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
             {status === ValueTransferStatusEnum.confirmed && confirmations >= 0 && confirmations < 3 && (
               <div
                 style={{
-                  color: Utils.getCssVariable("--color-primary-disable"),
+                  color: "var(--color-primary-disable)",
                   fontSize: 12,
                   opacity: 1,
                   fontWeight: "700",
@@ -404,11 +404,11 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                   style={{
                     color:
                       status === ValueTransferStatusEnum.failed
-                        ? Utils.getCssVariable("--color-error")
+                        ? "var(--color-error)"
                         : status === ValueTransferStatusEnum.calculated ||
                             status === ValueTransferStatusEnum.transmitted
-                          ? Utils.getCssVariable("--color-warning")
-                          : Utils.getCssVariable("--color-primary-disable"),
+                          ? "var(--color-warning)"
+                          : "var(--color-primary-disable)",
                   }}
                 >
                   {status === ValueTransferStatusEnum.calculated
