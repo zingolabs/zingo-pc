@@ -8,6 +8,7 @@ import {
   InfoClass,
   TotalBalanceClass,
   AddressKindEnum,
+  AddressBookEntryClass,
   ToAddrClass,
   ServerChainNameEnum,
 } from "../../appstate";
@@ -63,6 +64,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
     blockExplorerMainnetTransactionCustom,
     blockExplorerTestnetTransactionCustom,
     zecPrice,
+    addressBook,
   } = context;
 
   const [sendingTotal, setSendingTotal] = useState<number>(0);
@@ -76,6 +78,12 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
 
   const toAddress: string = sendPageState.toaddr.znsAlias || sendPageState.toaddr.to;
   const toAmount: number = sendPageState.toaddr.amount;
+  const { bigPart: amountBigPart, smallPart: amountSmallPart } = Utils.splitZecAmountIntoBigSmall(toAmount);
+  // The name this address is filed under, if any — the same thing the detail
+  // shows above the address itself.
+  const contactLabel: string | undefined = addressBook?.find(
+    (entry: AddressBookEntryClass) => entry.address === toAddress,
+  )?.label;
   const memoText: string = `${sendPageState.toaddr.memo ?? ""}${sendPageState.toaddr.memoReplyTo ?? ""}`;
 
   const currentChainName = currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName;
@@ -390,44 +398,96 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
           <ScrollPaneTop offsetHeight={paneOffset}>
             <hr style={{ width: "100%" }} />
 
-            {/* Abbreviated, and expanded by the same press that copies it —
-                the gesture the transfer detail and the address book both use
-                for an address too long to read at a glance. */}
-            <div className={cstyles.padtopsmall}>
-              <div className={cstyles.sublight}>To</div>
-              <button
-                type="button"
-                aria-label="Copy recipient address"
-                title="Copy recipient address"
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "inherit",
-                  font: "inherit",
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  copyAddress(toAddress);
-                  setExpandAddress(true);
-                }}
-              >
-                <div className={cstyles.breakword}>{expandAddress ? toAddress : Utils.trimToSmall(toAddress, 10)}</div>
-              </button>
-              {addressCopied && <div className={`${cstyles.small} ${cstyles.highlight}`}>Copied!</div>}
-            </div>
+            {/* The address block the transfer detail draws: the label carries
+                the "Copied!" flash, the contact name sits under it when the
+                address has one, and the value abbreviates until the press
+                that copies it also opens it. */}
+            {!!toAddress && (
+              <div className={cstyles.padtopsmall}>
+                <div className={cstyles.sublight}>
+                  Address
+                  {addressCopied && (
+                    <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
+                      Copied!
+                    </span>
+                  )}
+                </div>
+                {!!contactLabel && (
+                  <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
+                    {contactLabel}
+                  </div>
+                )}
+                <div className={cstyles.verticalflex}>
+                  <button
+                    type="button"
+                    aria-label="Copy address"
+                    title="Copy address"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      color: "inherit",
+                      font: "inherit",
+                      textAlign: "left",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      copyAddress(toAddress);
+                      setExpandAddress(true);
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
+                      {!expandAddress && Utils.trimToSmall(toAddress, 10)}
+                      {expandAddress && (
+                        <>
+                          {toAddress.length < 80
+                            ? toAddress
+                            : Utils.splitStringIntoChunks(toAddress, 3).map((item) => <div key={item}>{item}</div>)}
+                        </>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
 
+            {/* Amount and fee each carry their fiat value underneath, the way
+                the detail states them. The price is the one in context — this
+                send happens now, so the rate that matters is the current one
+                rather than a basis captured alongside a past transfer. */}
             <FieldRow>
-              <Field label="Amount" value={`${info.currencyName} ${Utils.maxPrecisionTrimmed(toAmount)}`} />
-              {info.currencyName === "ZEC" && (
-                <Field label="Value" value={Utils.getZecToUsdString(zecPrice, toAmount)} />
-              )}
+              <Field
+                label="Amount"
+                value={
+                  <>
+                    <div>
+                      <span>
+                        {info.currencyName} {amountBigPart}
+                      </span>
+                      <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{amountSmallPart}</span>
+                    </div>
+                    {info.currencyName === "ZEC" && (
+                      <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, toAmount)}</div>
+                    )}
+                  </>
+                }
+              />
+
+              <Field label="Privacy" value={privacyLevel} />
             </FieldRow>
 
             <FieldRow>
-              <Field label="Fee" value={`${info.currencyName} ${Utils.maxPrecisionTrimmed(sendFee)}`} />
-              <Field label="Privacy" value={privacyLevel} />
+              <Field
+                label="Transaction Fee"
+                value={
+                  <>
+                    {info.currencyName} {Utils.maxPrecisionTrimmed(sendFee)}
+                    {info.currencyName === "ZEC" && (
+                      <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, sendFee)}</div>
+                    )}
+                  </>
+                }
+              />
             </FieldRow>
 
             {!!memoText && (

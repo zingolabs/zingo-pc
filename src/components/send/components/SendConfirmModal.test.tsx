@@ -401,7 +401,7 @@ describe("SendConfirmModal layout", () => {
 
     expect(screen.queryByText(to)).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /copy recipient address/i }));
+    fireEvent.click(screen.getByRole("button", { name: /copy address/i }));
 
     expect(clipboard.writeText).toHaveBeenCalledWith(to);
     expect(screen.getByText(to)).toBeInTheDocument();
@@ -411,8 +411,21 @@ describe("SendConfirmModal layout", () => {
     render(<SendConfirmModal {...makeProps()} />);
 
     expect(screen.getByText("Amount")).toBeInTheDocument();
-    expect(screen.getByText("Fee")).toBeInTheDocument();
+    expect(screen.getByText("Transaction Fee")).toBeInTheDocument();
     expect(await screen.findByText("Privacy")).toBeInTheDocument();
+  });
+
+  // The amount and the fee each state their fiat value underneath, which is
+  // what the detail does — and the rate is the live one, because the send has
+  // not happened yet.
+  it("puts a fiat value under both figures, from the current price", () => {
+    const props = makeProps({ toaddr: { amount: 2 }, sendFee: 0.0001 });
+    // The fiat lines are gated on the wallet actually being on ZEC.
+    props.info.currencyName = "ZEC";
+    render(<SendConfirmModal {...props} />, { contextOverrides: { zecPrice: 50 } });
+
+    expect(screen.getByText("USD 100.00")).toBeInTheDocument();
+    expect(screen.getByText("USD < 0.01")).toBeInTheDocument();
   });
 
   // No row at all rather than an empty one: most sends carry no memo, and a
