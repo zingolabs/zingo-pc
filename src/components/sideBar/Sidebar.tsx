@@ -684,11 +684,11 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
             onClick={() => setMixnetModalIsOpen(true)}
             style={{
               cursor: "pointer",
-              background: "none",
+              // No background: `.blackbg` on the class list is the background,
+              // and no text-align: the tiles above inherit theirs.
               border: "none",
               font: "inherit",
               color: "inherit",
-              textAlign: "left",
               width: "100%",
             }}
             title="Nym mixnet settings"

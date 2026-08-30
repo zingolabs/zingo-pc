@@ -304,8 +304,9 @@
  * surfaces painted a colour nobody chose. Two triangles meeting at a point
  * cost a few lines and stay in the palette.
  *
- * The right padding then keeps the text clear of the arrow rather than of the
- * border.
+ * It sits the same 12px off the border that the value sits off the other one,
+ * so the field reads as having one margin rather than two. The right padding
+ * then keeps the text clear of the arrow rather than of the border.
  */
 .fieldselect {
   composes: fieldinput;
@@ -317,13 +318,13 @@
     linear-gradient(45deg, transparent 50%, var(--color-text) 50%),
     linear-gradient(135deg, var(--color-text) 50%, transparent 50%);
   background-position:
-    right 23px center,
-    right 18px center;
+    right 17px center,
+    right 12px center;
   background-size:
     5px 5px,
     5px 5px;
   background-repeat: no-repeat;
-  padding-right: 36px;
+  padding-right: 30px;
 }
 
 .fieldselect option {
