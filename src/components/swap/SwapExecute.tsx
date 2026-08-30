@@ -7,7 +7,7 @@ import swapStyles from "./Swap.module.css";
 import Utils from "../../utils/utils";
 import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
-import { Field, FieldRow } from "./DetailField";
+import { Field, FieldRow } from "../common/DetailField";
 import { native } from "../../electronBridge";
 import { SwapDirectionEnum, needsEphemeralRoute, providerLongLabel } from "../../swap";
 import type {

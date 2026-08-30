@@ -2,7 +2,7 @@ import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCopy } from "@fortawesome/free-solid-svg-icons";
 
-import cstyles from "../common/Common.module.css";
+import cstyles from "./Common.module.css";
 
 /**
  * One labelled fact, and the same one with a copy button.

@@ -4,7 +4,7 @@ import Modal from "react-modal";
 import styles from "../history/History.module.css";
 import swapStyles from "../swap/Swap.module.css";
 import cstyles from "./Common.module.css";
-import { Field } from "../swap/DetailField";
+import { Field } from "./DetailField";
 
 type SaveContactProps = {
   /** The address being saved, shown so the user can see what they are naming. */

@@ -12,7 +12,7 @@ import {
   requiresExactAmountWarning,
 } from "../../swap";
 import type { SwapAssetType, SwapDirectionEnum, SwapKitProviderEnum } from "../../swap";
-import { CopyField, Field, FieldRow } from "./DetailField";
+import { CopyField, Field, FieldRow } from "../common/DetailField";
 
 /**
  * Everything a user needs in order to pay a swap's deposit from outside this

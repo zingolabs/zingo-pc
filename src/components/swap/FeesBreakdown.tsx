@@ -6,7 +6,7 @@ import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
 import { convertFeeToAsset, formatFeeAmount } from "../../swap";
 import type { FeeConversionType, SwapRecordType } from "../../swap";
-import { Field } from "./DetailField";
+import { Field } from "../common/DetailField";
 
 type FeesBreakdownProps = {
   record: SwapRecordType;

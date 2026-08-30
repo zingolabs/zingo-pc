@@ -28,7 +28,7 @@ import { isEvmSourceChain, memoToHexCalldata } from "../../swap";
 import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
-import { CopyField, Field, FieldRow } from "./DetailField";
+import { CopyField, Field, FieldRow } from "../common/DetailField";
 
 type SwapDetailModalProps = {
   record: SwapRecordType;

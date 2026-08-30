@@ -23,6 +23,7 @@ import routes from "../../../constants/routes.json";
 
 import { native } from "../../../electronBridge";
 import { useCopy } from "../../common/useCopy";
+import { Field, FieldRow } from "../../common/DetailField";
 import DetailNavigator from "./DetailNavigator";
 
 // zingolib PR #2466 split a VT's single pool into two lists. A VT's identity
@@ -373,56 +374,57 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-        <div className={cstyles.flexspacebetween}>
-          <div>
-            <div className={cstyles.sublight}>Time</div>
-            <div>
-              {datePart} {timePart}
-            </div>
-          </div>
+        <FieldRow>
+          <Field label="Time" value={`${datePart} ${timePart}`} />
 
           {fees > 0 && (
-            <div>
-              <div className={cstyles.sublight}>Transaction Fee</div>
-              <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
-              {currencyName === "ZEC" && <div className={cstyles.sublight}>{Utils.getZecToUsdString(price, fees)}</div>}
-            </div>
+            <Field
+              label="Transaction Fee"
+              value={
+                <>
+                  ZEC {Utils.maxPrecisionTrimmed(fees)}
+                  {currencyName === "ZEC" && (
+                    <div className={cstyles.sublight}>{Utils.getZecToUsdString(price, fees)}</div>
+                  )}
+                </>
+              }
+            />
           )}
 
-          <div>
-            <div className={cstyles.sublight}>Confirmations</div>
-            <div>{confirmations}</div>
-          </div>
+          <Field label="Confirmations" value={String(confirmations)} />
 
           {(status === ValueTransferStatusEnum.calculated ||
             status === ValueTransferStatusEnum.transmitted ||
             status === ValueTransferStatusEnum.mempool ||
             status === ValueTransferStatusEnum.failed) && (
-            <div>
-              <div className={cstyles.sublight}>Status</div>
-              <div
-                style={{
-                  color:
-                    status === ValueTransferStatusEnum.failed
-                      ? Utils.getCssVariable("--color-error")
-                      : status === ValueTransferStatusEnum.calculated || status === ValueTransferStatusEnum.transmitted
-                        ? Utils.getCssVariable("--color-warning")
-                        : Utils.getCssVariable("--color-primary-disable"),
-                }}
-              >
-                {status === ValueTransferStatusEnum.calculated
-                  ? "Calculated"
-                  : status === ValueTransferStatusEnum.transmitted
-                    ? "Transmitted"
-                    : status === ValueTransferStatusEnum.mempool
-                      ? "In Mempool"
-                      : status === ValueTransferStatusEnum.failed
-                        ? "Failed"
-                        : ""}
-              </div>
-            </div>
+            <Field
+              label="Status"
+              value={
+                <span
+                  style={{
+                    color:
+                      status === ValueTransferStatusEnum.failed
+                        ? Utils.getCssVariable("--color-error")
+                        : status === ValueTransferStatusEnum.calculated ||
+                            status === ValueTransferStatusEnum.transmitted
+                          ? Utils.getCssVariable("--color-warning")
+                          : Utils.getCssVariable("--color-primary-disable"),
+                  }}
+                >
+                  {status === ValueTransferStatusEnum.calculated
+                    ? "Calculated"
+                    : status === ValueTransferStatusEnum.transmitted
+                      ? "Transmitted"
+                      : status === ValueTransferStatusEnum.mempool
+                        ? "In Mempool"
+                        : status === ValueTransferStatusEnum.failed
+                          ? "Failed"
+                          : ""}
+                </span>
+              }
+            />
           )}
-        </div>
+        </FieldRow>
 
         <div className={cstyles.margintoplarge} />
 
@@ -567,38 +569,29 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
 
         <div className={cstyles.margintoplarge} />
 
-        <div className={cstyles.flexspacebetween}>
-          <div className={cstyles.verticalflex}>
-            <div className={cstyles.sublight}>Amount</div>
-            <div className={cstyles.verticalflex}>
-              <div className={cstyles.verticalflex}>
+        <FieldRow>
+          <Field
+            label="Amount"
+            value={
+              <>
                 <div>
                   <span>
                     {currencyName} {bigPart}
                   </span>
                   <span className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPart}</span>
                 </div>
-              </div>
-              <div className={cstyles.verticalflex}>
                 <div className={cstyles.sublight}>{priceString}</div>
-              </div>
-            </div>
-          </div>
+              </>
+            }
+          />
 
-          {poolsText && (
-            <div className={cstyles.verticalflex}>
-              <div className={cstyles.sublight}>Pools</div>
-              <div className={cstyles.flexspacebetween}>
-                <div>{poolsText}</div>
-              </div>
-            </div>
-          )}
-        </div>
+          {poolsText && <Field label="Pools" value={poolsText} />}
+        </FieldRow>
 
         <div className={cstyles.margintoplarge} />
 
         {memos && memos.length > 0 && !!memos.join("") && (
-          <div>
+          <div className={cstyles.padtopsmall}>
             <div className={cstyles.sublight}>Memo</div>
             <div className={cstyles.flexspacebetween}>
               <div
