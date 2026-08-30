@@ -43,14 +43,16 @@ const PayURIModal = ({
         )}
         {!readOnly && (
           <div className={cstyles.well} style={{ textAlign: "center" }}>
-            <input
-              type="text"
-              aria-label="Payment URI"
-              className={cstyles.inputbox}
-              placeholder="URI"
-              value={modalInput}
-              onChange={(e) => setModalInput(e.target.value)}
-            />
+            <div className={cstyles.fieldrow}>
+              <input
+                type="text"
+                aria-label="Payment URI"
+                className={cstyles.fieldinput}
+                placeholder="URI"
+                value={modalInput}
+                onChange={(e) => setModalInput(e.target.value)}
+              />
+            </div>
           </div>
         )}
       </div>

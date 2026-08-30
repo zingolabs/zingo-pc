@@ -22,8 +22,8 @@ const SelectWallet = ({ navigateToLoadingScreenChangingWallet }: SelectWalletPro
       {currentWallet !== null && (
         <div style={{ justifyContent: "center", alignItems: "center", marginBottom: 20 }}>
           <select
-            className={cstyles.inputbox}
-            style={{ marginLeft: 7 }}
+            className={cstyles.fieldinput}
+            style={{ marginLeft: 7, borderRadius: 12, border: "1px solid var(--color-zingo)" }}
             value={currentWallet.id}
             onChange={async (e) => {
               openErrorModal("Change Wallet", "Opening the new active Wallet selected");
