@@ -24,12 +24,16 @@ import { useLayoutEffect, useRef, useState } from "react";
  * that literally would size the pane to the whole window, which is the exact
  * overflow this hook exists to prevent.
  *
- * `ScrollPaneTop` keeps its existing contract rather than measuring itself:
- * Send draws its buttons below its own pane, and a component that decided this
- * for everyone would break it.
+ * `ScrollPaneTop` keeps its existing contract rather than measuring itself.
+ * What a pane may occupy is not always the window below its own top: a screen
+ * can draw buttons under the list, and that space is the pane's to leave alone.
+ * Attach `footerRef` to whatever sits below and its height comes off too; leave
+ * it unattached and nothing does, which is every screen whose pane runs to the
+ * bottom of the window.
  */
 export function usePaneOffset(fallback: number) {
   const paneRef = useRef<HTMLDivElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
   const [paneOffset, setPaneOffset] = useState<number>(fallback);
 
   // Deliberately without a dependency list: the point is to run after every
@@ -37,25 +41,34 @@ export function usePaneOffset(fallback: number) {
   // nothing about.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
-    const top = measure(paneRef.current);
-    if (top === null) return;
-    setPaneOffset((previous) => (previous === top ? previous : top));
+    const next = measure(paneRef.current, footerRef.current);
+    if (next === null) return;
+    setPaneOffset((previous) => (previous === next ? previous : next));
   });
 
   useLayoutEffect(() => {
     const remeasure = () => {
-      const top = measure(paneRef.current);
-      if (top !== null) setPaneOffset(top);
+      const next = measure(paneRef.current, footerRef.current);
+      if (next !== null) setPaneOffset(next);
     };
     window.addEventListener("resize", remeasure);
     return () => window.removeEventListener("resize", remeasure);
   }, []);
 
-  return { paneRef, paneOffset };
+  return { paneRef, footerRef, paneOffset };
 }
 
-/** The pane's distance from the top of the viewport, or null when there is no layout to read. */
-function measure(pane: HTMLDivElement | null): number | null {
+/**
+ * Everything the window height owes to something other than the pane: the
+ * distance down to it, plus the height of whatever is drawn beneath it. Null
+ * when there is no layout to read.
+ *
+ * Only the footer's height is taken, never its position. Its position moves
+ * when the pane is resized and its height does not, which is what keeps this
+ * from measuring its own effect.
+ */
+function measure(pane: HTMLDivElement | null, footer: HTMLDivElement | null): number | null {
   const top = pane?.getBoundingClientRect().top;
-  return top === undefined || top <= 0 ? null : top;
+  if (top === undefined || top <= 0) return null;
+  return top + (footer?.getBoundingClientRect().height ?? 0);
 }

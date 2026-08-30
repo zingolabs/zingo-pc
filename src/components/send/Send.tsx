@@ -11,6 +11,7 @@ import {
 } from "../appstate";
 import Utils from "../../utils/utils";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import { BalanceBlockHighlight } from "../balanceBlock";
 import { describeSendRoute } from "../../rpc/components/mixnetPresenter";
 import { ServerHealthLine } from "../serverHealthLine";
@@ -47,6 +48,11 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
     zecPrice,
     mixnetView,
   } = context;
+
+  // Both the route line and the button row sit under the pane, and the route
+  // line wraps or does not depending on which of four sentences it is showing.
+  // A constant could only be right for one of them.
+  const { paneRef, footerRef, paneOffset } = usePaneOffset(308);
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
   const [sendButtonEnabled, setSendButtonEnabled] = useState<boolean>(false);
@@ -320,8 +326,8 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Send</div>
 
       <div className={styles.horizontalcontainer}>
-        <div className={cstyles.containermarginleft}>
-          <ScrollPaneTop offsetHeight={308}>
+        <div className={cstyles.containermarginleft} ref={paneRef}>
+          <ScrollPaneTop offsetHeight={paneOffset}>
             <ToAddrBox
               toaddr={sendPageState.toaddr}
               zecPrice={zecPrice}
@@ -345,27 +351,31 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
           </ScrollPaneTop>
         </div>
 
-        {/* Above the buttons, not beside them: .verticalbuttons is a flex row.
-            Always shown, and never in red — only two of the four states are a
-            problem, and the other two are just the route the send will take. */}
-        <div
-          className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}
-        >
-          {describeSendRoute(mixnetView)}
-        </div>
-
-        <div className={cstyles.verticalbuttons}>
-          <button
-            type="button"
-            disabled={!sendButtonEnabled || mixnetView.sendBlocked}
-            className={cstyles.primarybutton}
-            onClick={openModal}
+        {/* Everything below the pane, measured as one: the pane may have the
+            window less its own top and less all of this. */}
+        <div ref={footerRef}>
+          {/* Above the buttons, not beside them: .verticalbuttons is a flex row.
+              Always shown, and never in red — only two of the four states are a
+              problem, and the other two are just the route the send will take. */}
+          <div
+            className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}
           >
-            Send
-          </button>
-          <button type="button" className={cstyles.primarybutton} onClick={clearToAddrs}>
-            Clear
-          </button>
+            {describeSendRoute(mixnetView)}
+          </div>
+
+          <div className={cstyles.verticalbuttons}>
+            <button
+              type="button"
+              disabled={!sendButtonEnabled || mixnetView.sendBlocked}
+              className={cstyles.primarybutton}
+              onClick={openModal}
+            >
+              Send
+            </button>
+            <button type="button" className={cstyles.primarybutton} onClick={clearToAddrs}>
+              Clear
+            </button>
+          </div>
         </div>
       </div>
     </div>

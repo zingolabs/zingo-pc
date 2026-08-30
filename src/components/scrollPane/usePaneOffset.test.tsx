@@ -59,3 +59,39 @@ describe("usePaneOffset", () => {
     jest.restoreAllMocks();
   });
 });
+
+describe("usePaneOffset with a footer", () => {
+  function Footed({ footerHeight }: { footerHeight: number }) {
+    const { paneRef, footerRef, paneOffset } = usePaneOffset(203);
+    return (
+      <div>
+        <div ref={paneRef} data-testid="pane" />
+        <div ref={footerRef} style={{ height: footerHeight }} />
+        <div data-testid="offset">{paneOffset}</div>
+      </div>
+    );
+  }
+
+  // A pane with buttons under it may not have the whole window below its top.
+  // Without this, Send and the send confirmation could not use the hook at all,
+  // which is why both were still passing a constant.
+  it("leaves the footer's height to the footer", () => {
+    jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ top: 400, height: 90 } as DOMRect);
+
+    render(<Footed footerHeight={90} />);
+
+    expect(screen.getByTestId("offset")).toHaveTextContent("490");
+    jest.restoreAllMocks();
+  });
+
+  // Every screen whose pane runs to the bottom leaves the ref unattached, and
+  // has to keep measuring exactly what it did before.
+  it("subtracts nothing when no footer is attached", () => {
+    jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ top: 400, height: 90 } as DOMRect);
+
+    render(<Harness headerHeight={0} />);
+
+    expect(screen.getByTestId("offset")).toHaveTextContent("400");
+    jest.restoreAllMocks();
+  });
+});

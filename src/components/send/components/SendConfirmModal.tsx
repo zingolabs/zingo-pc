@@ -13,6 +13,7 @@ import {
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import ScrollPaneTop from "../../scrollPane/ScrollPane";
+import { usePaneOffset } from "../../scrollPane/usePaneOffset";
 import routes from "../../../constants/routes.json";
 import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
@@ -44,6 +45,10 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   modalIsOpen,
   sendFee,
 }) => {
+  // The Cancel and Send row sits under the pane, and the block above it grows
+  // with the number of recipients — so neither end of the pane is a constant.
+  const { paneRef, footerRef, paneOffset } = usePaneOffset(350);
+
   const navigate = useNavigate();
   const context = useContext(ContextApp);
   const {
@@ -367,8 +372,8 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
           </div>
         </div>
 
-        <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
-          <ScrollPaneTop offsetHeight={350}>
+        <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`} ref={paneRef}>
+          <ScrollPaneTop offsetHeight={paneOffset}>
             <div className={cstyles.verticalflex}>
               {[sendPageState.toaddr].map((t) => (
                 <ConfirmModalToAddr key={t.to} toaddr={t} info={info} zecPrice={zecPrice} />
@@ -395,7 +400,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
           </ScrollPaneTop>
         </div>
 
-        <div className={cstyles.buttoncontainer}>
+        <div className={cstyles.buttoncontainer} ref={footerRef}>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
             Cancel
           </button>
