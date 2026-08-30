@@ -51,24 +51,9 @@ const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
     <Modal
       isOpen={isOpen}
       onRequestClose={onClose}
-      className={cstyles.modalOverlay}
+      className={cstyles.centredsheet}
       overlayClassName={cstyles.modalOverlay}
-      style={{
-        content: {
-          background: "var(--color-background)",
-          border: "4px solid var(--color-primary)",
-          borderRadius: 8,
-          padding: 32,
-          maxWidth: 560,
-          margin: "auto",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          position: "absolute",
-          right: "auto",
-          bottom: "auto",
-        },
-      }}
+      style={{ content: { maxWidth: 560 } }}
     >
       <div className={`${cstyles.xlarge} ${cstyles.center}`}>Import Data</div>
 

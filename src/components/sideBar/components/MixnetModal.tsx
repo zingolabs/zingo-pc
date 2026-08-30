@@ -54,24 +54,9 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
     <Modal
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
-      className={cstyles.modalOverlay}
+      className={cstyles.centredsheet}
       overlayClassName={cstyles.modalOverlay}
-      style={{
-        content: {
-          background: "var(--color-background)",
-          border: "4px solid var(--color-primary)",
-          borderRadius: 8,
-          padding: 32,
-          maxWidth: 520,
-          margin: "auto",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          position: "absolute",
-          right: "auto",
-          bottom: "auto",
-        },
-      }}
+      style={{ content: { maxWidth: 520 } }}
     >
       <div
         className={cstyles.xlarge}
