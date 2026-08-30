@@ -14,14 +14,16 @@ import {
 import Utils from "../../../utils/utils";
 import ScrollPaneTop from "../../scrollPane/ScrollPane";
 import { usePaneOffset } from "../../scrollPane/usePaneOffset";
+import { useCopy } from "../../common/useCopy";
+import { Field, FieldRow } from "../../common/DetailField";
+import { BalanceBlockHighlight } from "../../balanceBlock";
 import routes from "../../../constants/routes.json";
 import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
-import ConfirmModalToAddr from "./SendConfirmModalToAddr";
 
 import { native } from "../../../electronBridge";
 import { ContextApp } from "../../../context/ContextAppState";
-import { faExternalLinkSquareAlt } from "@fortawesome/free-solid-svg-icons";
+import { faArrowCircleUp, faExternalLinkSquareAlt } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 // Internal because we're using withRouter just below
@@ -64,9 +66,17 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   } = context;
 
   const [sendingTotal, setSendingTotal] = useState<number>(0);
-  const [bigPart, setBigPart] = useState<string>("");
-  const [smallPart, setSmallPart] = useState<string>("");
   const [privacyLevel, setPrivacyLevel] = useState<string>("");
+
+  // The recipient, and the two things this screen does with it: reveal the
+  // whole of it, and put it on the clipboard. One press does both, which is
+  // the gesture the transfer detail and the address book already use.
+  const [expandAddress, setExpandAddress] = useState<boolean>(false);
+  const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
+
+  const toAddress: string = sendPageState.toaddr.znsAlias || sendPageState.toaddr.to;
+  const toAmount: number = sendPageState.toaddr.amount;
+  const memoText: string = `${sendPageState.toaddr.memo ?? ""}${sendPageState.toaddr.memoReplyTo ?? ""}`;
 
   const currentChainName = currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName;
 
@@ -207,10 +217,6 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   useEffect(() => {
     const sendingTotal: number = sendPageState.toaddr.amount + sendFee;
     setSendingTotal(sendingTotal);
-    const { bigPart, smallPart }: { bigPart: string; smallPart: string } =
-      Utils.splitZecAmountIntoBigSmall(sendingTotal);
-    setBigPart(bigPart);
-    setSmallPart(smallPart);
     (async () => {
       const privacyLevel: string = await getPrivacyLevel(sendPageState.toaddr);
       setPrivacyLevel(privacyLevel);
@@ -354,51 +360,88 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
       overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex}>
-        <div className={`${cstyles.marginbottomlarge} ${cstyles.center}`}>Confirm Transaction</div>
-        <div className={cstyles.flex}>
+        {/* The same header the transfer detail uses, because this is the same
+            transaction one screen earlier: the direction as an icon, what is
+            happening under it, and the total beside them. */}
+        <div className={cstyles.center}>Confirm Transaction</div>
+
+        <div
+          className={`${cstyles.center} ${cstyles.horizontalflex}`}
+          style={{ width: "100%", alignItems: "center", justifyContent: "center" }}
+        >
           <div
-            className={`${cstyles.highlight} ${cstyles.xlarge} ${cstyles.flexspacebetween} ${cstyles.well} ${cstyles.maxwidth}`}
+            className={`${cstyles.center} ${cstyles.verticalflex}`}
+            style={{ alignItems: "center", justifyContent: "center" }}
           >
-            <div>Total</div>
-            <div className={`${cstyles.right} ${cstyles.verticalflex}`}>
-              <div>
-                <span>
-                  {info.currencyName} {bigPart}
-                </span>
-                <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{smallPart}</span>
-              </div>
-              {info.currencyName === "ZEC" && (
-                <div className={cstyles.normal}>{Utils.getZecToUsdString(zecPrice, sendingTotal)}</div>
-              )}
-            </div>
+            <FontAwesomeIcon icon={faArrowCircleUp} style={{ fontSize: "35px", color: "var(--color-text)" }} />
+            Sending
+          </div>
+
+          <div className={cstyles.center} style={{ marginLeft: 20 }}>
+            <BalanceBlockHighlight
+              zecValue={sendingTotal}
+              usdValue={info.currencyName === "ZEC" ? Utils.getZecToUsdString(zecPrice, sendingTotal) : ""}
+              currencyName={info.currencyName}
+            />
           </div>
         </div>
 
         <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`} ref={paneRef}>
           <ScrollPaneTop offsetHeight={paneOffset}>
-            <div className={cstyles.verticalflex}>
-              {[sendPageState.toaddr].map((t) => (
-                <ConfirmModalToAddr key={t.to} toaddr={t} info={info} zecPrice={zecPrice} />
-              ))}
-            </div>
-            <ConfirmModalToAddr
-              toaddr={{ to: "Fee", amount: sendFee, memo: "", memoReplyTo: "", znsAlias: "" }}
-              info={info}
-              zecPrice={zecPrice}
-            />
+            <hr style={{ width: "100%" }} />
 
-            <div className={cstyles.well}>
-              <div className={`${cstyles.flexspacebetween} ${cstyles.margintoplarge}`}>
-                <div className={styles.confirmModalAddress}>Privacy Level</div>
-                <div className={`${cstyles.verticalflex} ${cstyles.right}`}>
-                  <div className={cstyles.large}>
-                    <div>
-                      <span>{privacyLevel}</span>
-                    </div>
+            {/* Abbreviated, and expanded by the same press that copies it —
+                the gesture the transfer detail and the address book both use
+                for an address too long to read at a glance. */}
+            <div className={cstyles.padtopsmall}>
+              <div className={cstyles.sublight}>To</div>
+              <button
+                type="button"
+                aria-label="Copy recipient address"
+                title="Copy recipient address"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "inherit",
+                  font: "inherit",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  copyAddress(toAddress);
+                  setExpandAddress(true);
+                }}
+              >
+                <div className={cstyles.breakword}>{expandAddress ? toAddress : Utils.trimToSmall(toAddress, 10)}</div>
+              </button>
+              {addressCopied && <div className={`${cstyles.small} ${cstyles.highlight}`}>Copied!</div>}
+            </div>
+
+            <FieldRow>
+              <Field label="Amount" value={`${info.currencyName} ${Utils.maxPrecisionTrimmed(toAmount)}`} />
+              {info.currencyName === "ZEC" && (
+                <Field label="Value" value={Utils.getZecToUsdString(zecPrice, toAmount)} />
+              )}
+            </FieldRow>
+
+            <FieldRow>
+              <Field label="Fee" value={`${info.currencyName} ${Utils.maxPrecisionTrimmed(sendFee)}`} />
+              <Field label="Privacy" value={privacyLevel} />
+            </FieldRow>
+
+            {!!memoText && (
+              <div className={cstyles.padtopsmall}>
+                <div className={cstyles.sublight}>Memo</div>
+                {/* Five rows, then it scrolls. A long memo used to grow the
+                    modal until the buttons left the screen. */}
+                <div className={cstyles.fieldrowmulti} style={{ maxHeight: "7.5em", overflowY: "auto" }}>
+                  <div className={`${cstyles.fieldtextarea} ${cstyles.breakword}`} style={{ whiteSpace: "pre-wrap" }}>
+                    {memoText}
                   </div>
                 </div>
               </div>
-            </div>
+            )}
           </ScrollPaneTop>
         </div>
 
