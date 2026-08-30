@@ -125,6 +125,9 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
               background: "none",
               border: "none",
               font: "inherit",
+              // A button inherits neither, and the platform default for both is
+              // meant for a grey chrome button rather than this dark panel.
+              color: "inherit",
               cursor: "pointer",
               textAlign: "center",
               wordBreak: "break-word",
@@ -156,6 +159,7 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
           background: "none",
           border: "none",
           font: "inherit",
+          color: "inherit",
           marginBottom: 0,
           alignSelf: "center",
           minWidth: 120,
