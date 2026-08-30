@@ -38,7 +38,7 @@ const LockScreen: React.FC<Props> = ({ onUnlock }) => {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--bg-color, #1a1a2e)",
+        background: "var(--color-background)",
         zIndex: 9999,
       }}
     >

@@ -119,8 +119,8 @@ const BlockExplorerModal = ({ modalIsOpen, closeModal, modalTitle }: BlockExplor
       overlayClassName={cstyles.modalOverlay}
       style={{
         content: {
-          background: "var(--bg-color, #1a1a2e)",
-          border: "1px solid #444",
+          background: "var(--color-background)",
+          border: "4px solid var(--color-primary)",
           borderRadius: 8,
           padding: 32,
           maxWidth: 640,
