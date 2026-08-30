@@ -52,7 +52,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 20px;
 }
 
 /* The asset chip: logo + ticker, plus a chevron when it opens the picker. */
@@ -99,6 +99,11 @@
   align-items: flex-end;
   min-width: 0;
   flex: 1;
+}
+
+.amountfield {
+  width: 100%;
+  max-width: 200px;
 }
 
 .amountinput {

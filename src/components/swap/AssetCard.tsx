@@ -116,7 +116,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
               figure keeps its own size and weight — it is the headline of the
               card, not another line of form — but it no longer floats loose
               beside controls that all have an edge. */}
-          <div className={cstyles.fieldrow} style={{ width: "100%" }}>
+          <div className={`${cstyles.fieldrow} ${styles.amountfield}`}>
             {editable ? (
               <input
                 className={`${styles.amountinput} ${invalid ? styles.amountinvalid : ""}`}
