@@ -63,12 +63,29 @@ export default class Utils {
                                         : "";
   }
 
+  /**
+   * The head and tail of a long string with an ellipsis between them, and the
+   * string itself when it is not long enough for that to help.
+   *
+   * The two slices are taken from opposite ends, so a string shorter than
+   * twice `numChars` makes them overlap and the shared middle is printed
+   * twice — a short address came out reading as two copies of itself with
+   * dots in between. At exactly twice, nothing is repeated but the result is
+   * three characters longer than what it replaced.
+   *
+   * So the abbreviation only happens once it is actually an abbreviation:
+   * past both slices plus the ellipsis that joins them.
+   */
   static trimToSmall(addr?: string, numChars?: number): string {
     if (!addr) {
       return "";
     }
     const trimSize: number = numChars || 5;
-    return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
+    const ELLIPSIS = "...";
+    if (addr.length <= trimSize * 2 + ELLIPSIS.length) {
+      return addr;
+    }
+    return `${addr.slice(0, trimSize)}${ELLIPSIS}${addr.slice(addr.length - trimSize)}`;
   }
 
   static async getAddressChainName(addr: string): Promise<string | undefined> {

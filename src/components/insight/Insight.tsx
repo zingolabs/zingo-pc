@@ -224,7 +224,7 @@ const Insight: React.FC<InsightProps> = () => {
                 flexWrap: "wrap",
               }}
             >
-              <div>{address.length > 10 ? Utils.trimToSmall(address, 6) : address}</div>
+              <div>{Utils.trimToSmall(address, 6)}</div>
             </div>
           </div>
           <div
