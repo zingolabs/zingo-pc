@@ -269,11 +269,12 @@
  * hold their columns while it is being typed. The swap card sets the same
  * size on its own amount; the two are not shared because that element also
  * sets a colour, and two stylesheets setting `color` on one element is
- * decided by whichever the bundler emits last.
+ * decided by whichever the bundler emits last. Change one and change the
+ * other: `.amountinput` and `.amounttext` in AssetCard.module.css.
  */
 .fieldamount {
   composes: fieldinput;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   padding: 6px 12px;

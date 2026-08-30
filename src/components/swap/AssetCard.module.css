@@ -109,7 +109,7 @@
 }
 
 .amountinput {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   text-align: right;
   padding: 6px 12px;
@@ -130,7 +130,7 @@
 
 /* The destination amount is read-only: it is the quote's estimate, not input. */
 .amounttext {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   text-align: right;
   padding: 6px 12px;
