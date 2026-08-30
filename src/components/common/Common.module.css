@@ -362,17 +362,33 @@
   padding-top: 24px;
 }
 
+/*
+ * The dialog box: confirmations, errors, and the seed phrase and viewing key.
+ *
+ * Centred on its own height rather than started a quarter of the way down.
+ * The old `top: 25%` with a `-12.5%` transform pulled back an eighth of the
+ * box, not an eighth of the window — so a short dialog sat about where it
+ * meant to and a tall one, the seed phrase and viewing key together being the
+ * tallest, began well down the screen and ran off the bottom. `top: 50%` with
+ * `-50%` puts the middle of the box at the middle of the window whatever its
+ * height.
+ *
+ * And a ceiling, which it had none of: past that it scrolls instead of
+ * growing past the window. Every other modal class here already does both.
+ */
 .modal {
-  top: 25%;
+  top: 50%;
   left: 12.5%;
   right: 12.5%;
   bottom: auto;
   opacity: 1;
-  transform: translate(0%, -12.5%);
+  transform: translateY(-50%);
   background: var(--color-background);
   position: absolute;
   padding: 16px;
   min-width: 800px;
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
   border: var(--color-primary) 4px solid;
 }
 
