@@ -293,16 +293,37 @@
  * options against the app's dark ground. The `option` rule says the same
  * thing again for the platforms that ask for it directly.
  *
- * The extra right padding is what holds the platform's arrow off the border.
- * It is drawn at the inner edge of the padding box, so this is the only way
- * to move it without taking over the arrow entirely.
+ * The arrow is ours, not the platform's. Chromium draws its own against the
+ * border box and ignores padding entirely, so no amount of it moves the arrow
+ * off the edge — the only way to place one is to turn that one off with
+ * `appearance: none` and draw a replacement.
+ *
+ * Drawn from two gradients rather than an image, because an image would have
+ * to carry the colour as a literal: a data URI cannot read a custom property,
+ * and hardcoding `--color-text` here is exactly the thing that left five
+ * surfaces painted a colour nobody chose. Two triangles meeting at a point
+ * cost a few lines and stay in the palette.
+ *
+ * The right padding then keeps the text clear of the arrow rather than of the
+ * border.
  */
 .fieldselect {
   composes: fieldinput;
   border-radius: 12px;
   border: 1px solid var(--color-zingo);
   background-color: var(--color-background-dark);
-  padding-right: 30px;
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--color-text) 50%),
+    linear-gradient(135deg, var(--color-text) 50%, transparent 50%);
+  background-position:
+    right 23px center,
+    right 18px center;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 36px;
 }
 
 .fieldselect option {
