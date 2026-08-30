@@ -828,7 +828,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                 onChange={(e) => updateAlias(e)}
               />
             </div>
-            <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center", flex: 1 }}>
+            <div className={cstyles.horizontalflex} style={{ marginLeft: 10, alignItems: "center", flex: 1 }}>
               <div className={cstyles.sublight}>Network</div>
               <select
                 aria-label="Network"
