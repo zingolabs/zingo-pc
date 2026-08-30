@@ -262,6 +262,24 @@
 }
 
 /*
+ * The figure a form is actually about — an amount to send, a fee it will cost.
+ *
+ * Larger and heavier than a field of text, because it is a number the user
+ * checks rather than a line they fill in, and `tabular-nums` so the digits
+ * hold their columns while it is being typed. The swap card sets the same
+ * size on its own amount; the two are not shared because that element also
+ * sets a colour, and two stylesheets setting `color` on one element is
+ * decided by whichever the bundler emits last.
+ */
+.fieldamount {
+  composes: fieldinput;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 6px 12px;
+}
+
+/*
  * An action inside a field: clear it, pick from contacts, save what is in it.
  *
  * Carried in the field's own colour rather than the text's, because these are

@@ -112,20 +112,26 @@ const AssetCard: React.FC<AssetCardProps> = ({
         )}
 
         <div className={styles.amountcol}>
-          {editable ? (
-            <input
-              className={`${styles.amountinput} ${invalid ? styles.amountinvalid : ""}`}
-              value={amount}
-              onChange={(e) => onChangeAmount?.(e.target.value)}
-              placeholder="0"
-              inputMode="decimal"
-              autoComplete="off"
-              spellCheck={false}
-              aria-label="Amount"
-            />
-          ) : (
-            <div className={styles.amounttext}>{amount || "0"}</div>
-          )}
+          {/* In the same bordered box every other field on the app wears. The
+              figure keeps its own size and weight — it is the headline of the
+              card, not another line of form — but it no longer floats loose
+              beside controls that all have an edge. */}
+          <div className={cstyles.fieldrow} style={{ width: "100%" }}>
+            {editable ? (
+              <input
+                className={`${styles.amountinput} ${invalid ? styles.amountinvalid : ""}`}
+                value={amount}
+                onChange={(e) => onChangeAmount?.(e.target.value)}
+                placeholder="0"
+                inputMode="decimal"
+                autoComplete="off"
+                spellCheck={false}
+                aria-label="Amount"
+              />
+            ) : (
+              <div className={styles.amounttext}>{amount || "0"}</div>
+            )}
+          </div>
           {amountSub && <div className={`${cstyles.sublight} ${styles.amountsub}`}>{amountSub}</div>}
         </div>
       </div>

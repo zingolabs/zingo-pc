@@ -429,7 +429,7 @@ const ToAddrBox = ({
                 type="number"
                 aria-label="Amount"
                 step="any"
-                className={cstyles.fieldinput}
+                className={cstyles.fieldamount}
                 value={isNaN(amountLocal) ? "" : amountLocal}
                 onChange={(e) => {
                   setAmountLocal(Number(e.target.value));
@@ -475,7 +475,7 @@ const ToAddrBox = ({
                 type="number"
                 aria-label="Transaction fee"
                 step="any"
-                className={cstyles.fieldinput}
+                className={cstyles.fieldamount}
                 value={isNaN(sendFee) ? "" : sendFee}
                 disabled={true}
               />

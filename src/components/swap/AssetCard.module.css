@@ -105,7 +105,7 @@
   font-size: 24px;
   font-weight: 700;
   text-align: right;
-  padding: 0;
+  padding: 6px 12px;
   width: 100%;
   min-width: 0;
   border: none;
@@ -126,6 +126,7 @@
   font-size: 24px;
   font-weight: 700;
   text-align: right;
+  padding: 6px 12px;
   color: var(--color-primary-disable);
   width: 100%;
   overflow: hidden;
