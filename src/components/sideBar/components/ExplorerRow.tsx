@@ -28,8 +28,8 @@ const ExplorerRow = ({
         <div className={cstyles.small}>{label}</div>
         <select
           aria-label={ariaLabel}
-          className={cstyles.fieldinput}
-          style={{ marginLeft: 16, minWidth: 220, borderRadius: 12, border: "1px solid var(--color-zingo)" }}
+          className={cstyles.fieldselect}
+          style={{ marginLeft: 16, minWidth: 220 }}
           value={value}
           onChange={(e) => onChange(e.target.value as BlockExplorerEnum)}
         >

@@ -760,7 +760,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               <select
                 aria-label="Network"
                 disabled={mode !== "addnew"}
-                className={cstyles.fieldinput}
+                className={cstyles.fieldselect}
                 style={{
                   marginLeft: "20px",
                   borderRadius: 12,
@@ -809,8 +809,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               <div className={cstyles.sublight}>Type of Wallet creation</div>
               <select
                 aria-label="Type of wallet creation"
-                className={cstyles.fieldinput}
-                style={{ width: "80%", marginLeft: "20px", borderRadius: 12, border: "1px solid var(--color-zingo)" }}
+                className={cstyles.fieldselect}
+                style={{ width: "80%", marginLeft: "20px" }}
                 value={newWalletType}
                 onChange={(e) => {
                   setNewWalletType(e.target.value as "new" | "seed" | "ufvk" | "file");
@@ -1014,8 +1014,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                         <select
                           aria-label="Server list"
                           disabled={selectedSelection !== "list"}
-                          className={cstyles.fieldinput}
-                          style={{ marginLeft: "20px", borderRadius: 12, border: "1px solid var(--color-zingo)" }}
+                          className={cstyles.fieldselect}
+                          style={{ marginLeft: "20px" }}
                           value={listServer}
                           onChange={(e) => {
                             setListServer(e.target.value);
@@ -1098,8 +1098,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
             <select
               aria-label="Sync performance level"
               disabled={mode === "delete"}
-              className={cstyles.fieldinput}
-              style={{ width: "80%", marginLeft: "20px", borderRadius: 12, border: "1px solid var(--color-zingo)" }}
+              className={cstyles.fieldselect}
+              style={{ width: "80%", marginLeft: "20px" }}
               value={performanceLevel}
               onChange={(e) => {
                 setPerformanceLevel(e.target.value as PerformanceLevelEnum);

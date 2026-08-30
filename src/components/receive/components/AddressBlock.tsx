@@ -226,8 +226,8 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 {type === "u" && (
                   <select
                     aria-label="New address type"
-                    className={cstyles.fieldinput}
-                    style={{ marginLeft: 10, borderRadius: 12, border: "1px solid var(--color-zingo)" }}
+                    className={cstyles.fieldselect}
+                    style={{ marginLeft: 10 }}
                     value={unifiedCreateType}
                     onChange={(e) => {
                       setUnifiedCreateType(e.target.value as "o" | "z" | "oz");

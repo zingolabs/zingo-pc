@@ -280,6 +280,37 @@
 }
 
 /*
+ * A select as a field.
+ *
+ * It carries the border itself rather than through a `.fieldrow`, because it
+ * draws its own arrow and holds nothing beside its text — a row around it
+ * would be an element for nothing.
+ *
+ * The background is the part that cannot be inherited. `.fieldinput` sets
+ * `background: none` because on an input the row behind it supplies one; a
+ * select has no row, and the list the platform pops open takes its colours
+ * from the control — so a transparent select opens a near-white list of
+ * options against the app's dark ground. The `option` rule says the same
+ * thing again for the platforms that ask for it directly.
+ *
+ * The extra right padding is what holds the platform's arrow off the border.
+ * It is drawn at the inner edge of the padding box, so this is the only way
+ * to move it without taking over the arrow entirely.
+ */
+.fieldselect {
+  composes: fieldinput;
+  border-radius: 12px;
+  border: 1px solid var(--color-zingo);
+  background-color: var(--color-background-dark);
+  padding-right: 30px;
+}
+
+.fieldselect option {
+  background-color: var(--color-background-dark);
+  color: var(--color-text);
+}
+
+/*
  * An action inside a field: clear it, pick from contacts, save what is in it.
  *
  * Carried in the field's own colour rather than the text's, because these are

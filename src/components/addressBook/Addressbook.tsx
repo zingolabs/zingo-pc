@@ -336,7 +336,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                 <FontAwesomeIcon
                   icon={faChevronDown}
                   data-testid="chain-chevron"
-                  style={{ paddingRight: 12, fontSize: 12 }}
+                  style={{ paddingRight: 18, fontSize: 12 }}
                 />
               </button>
             </div>
