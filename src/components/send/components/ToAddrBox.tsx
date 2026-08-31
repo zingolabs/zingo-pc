@@ -22,7 +22,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const Spacer = () => {
-  return <div style={{ marginTop: "24px" }} />;
+  return <div style={{ marginTop: "14px" }} />;
 };
 
 type ToAddrBoxProps = {

@@ -353,7 +353,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
 
         {/* Everything below the pane, measured as one: the pane may have the
             window less its own top and less all of this. */}
-        <div ref={footerRef}>
+        <div ref={footerRef} style={{ paddingBottom: 10 }}>
           {/* Above the buttons, not beside them: .verticalbuttons is a flex row.
               Always shown, and never in red — only two of the four states are a
               problem, and the other two are just the route the send will take. */}
