@@ -1,6 +1,6 @@
 import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faAddressBook, faCheck, faChevronDown, faTimesCircle, faUserPlus } from "@fortawesome/free-solid-svg-icons";
+import { faAddressBook, faCheck, faTimesCircle, faUserPlus } from "@fortawesome/free-solid-svg-icons";
 
 import cstyles from "../common/Common.module.css";
 import styles from "./AssetCard.module.css";
@@ -18,7 +18,7 @@ import { ZEC_TOKEN_ENTRY } from "./swapAssets";
  * themselves.
  *
  * ZEC is non-selectable, being the fixed side of every swap here, so its chip
- * is inert and carries no chevron. Both chips still go through the same
+ * is inert and carries no caret. Both chips still go through the same
  * `TokenLogo` so the two sides look like the same kind of thing.
  */
 export type AssetCardProps = {
@@ -85,7 +85,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
       <span className={styles.chipsymbol} style={isZec ? { color: "var(--color-primary)" } : undefined}>
         {symbol}
       </span>
-      {!isZec && <FontAwesomeIcon icon={faChevronDown} style={{ fontSize: 12 }} />}
+      {!isZec && <span className={cstyles.selectcaret} />}
     </>
   );
 

@@ -13,8 +13,6 @@ import { ContextApp } from "../../context/ContextAppState";
 import { isZnsAlias, resolveZnsAlias } from "../../utils/zns";
 import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
 import { chainDisplayName } from "../swap/chainDisplayName";
-import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type AddressBookProps = {
   addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
@@ -323,21 +321,18 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                 onClick={() => setChainPickerOpen(true)}
               >
                 {/* The badge says which chain without being read, and the
-                      chevron says the field is a choice rather than something
+                      caret says the field is a choice rather than something
                       the form worked out and is telling you. */}
                 <span style={{ display: "flex", paddingLeft: 12 }}>
                   <ChainBadge chain={swapChain} size={20} />
                 </span>
                 <div className={cstyles.fieldinput}>{chainDisplayName(swapChain) || swapChain}</div>
-                {/* No colour of its own, the way the swap screen's asset chip
-                      leaves its chevron to inherit — which is what `color:
-                      inherit` on the button above is for. Same size as that
-                      one, since they mark the same thing: that this opens. */}
-                <FontAwesomeIcon
-                  icon={faChevronDown}
-                  data-testid="chain-chevron"
-                  style={{ paddingRight: 18, fontSize: 12 }}
-                />
+                {/* The same triangle a real select draws, and the same one the
+                      swap screen's asset chip carries: they all mark that this
+                      opens. No colour of its own — the caret takes the field's,
+                      which is what `color: inherit` on the button above is
+                      for. The margin is the padding the icon used to carry. */}
+                <span className={cstyles.selectcaret} data-testid="chain-caret" style={{ marginRight: 18 }} />
               </button>
             </div>
           </div>

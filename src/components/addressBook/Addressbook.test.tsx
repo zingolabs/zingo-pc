@@ -359,7 +359,7 @@ describe("AddressBook chain field", () => {
     expect(field).toHaveTextContent("Zcash");
     expect(field).not.toBeDisabled();
     expect(within(field).getByTestId("chain-badge")).toBeInTheDocument();
-    expect(within(field).getByTestId("chain-chevron")).toBeInTheDocument();
+    expect(within(field).getByTestId("chain-caret")).toBeInTheDocument();
   });
 });
 

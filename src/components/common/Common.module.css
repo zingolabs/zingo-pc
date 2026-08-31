@@ -334,6 +334,35 @@
 }
 
 /*
+ * The mark that says "this opens a list", for the fields that only look like
+ * selects: the swap screen's asset chip, the address book's chain.
+ *
+ * Drawn from the same pair of gradients as `.fieldselect` above rather than
+ * set as an icon, so a real select and a button dressed as one carry the same
+ * shape at the same weight. Two 5px squares cut on opposite diagonals, laid
+ * side by side into one 10px triangle.
+ *
+ * `currentColor` rather than `--color-text`: these sit inside the field's own
+ * text, and both sites already lean on inheriting from it. `flex-shrink: 0`
+ * keeps it its own size while the label beside it gives way.
+ */
+.selectcaret {
+  width: 10px;
+  height: 5px;
+  flex-shrink: 0;
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position:
+    left 0 center,
+    left 5px center;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+
+/*
  * An action inside a field: clear it, pick from contacts, save what is in it.
  *
  * Carried in the field's own colour rather than the text's, because these are

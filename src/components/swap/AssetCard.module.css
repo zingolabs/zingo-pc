@@ -61,7 +61,7 @@
   flex-direction: row;
   align-items: center;
   gap: 6px;
-  /* More room on the right than the left: the chevron ends the chip, and at an
+  /* More room on the right than the left: the caret ends the chip, and at an
      even 12px it sat against a corner curving away from it. */
   padding: 8px 18px 8px 12px;
   border-radius: 20px;
