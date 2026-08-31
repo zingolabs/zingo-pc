@@ -1432,7 +1432,36 @@ function killProxy() {
   }
 }
 
-ipcMain.handle("mixnet:get-status", () => mixnetStatusSnapshot());
+// The wallet keeps its own Mixnet Mode state machine, and it can forsake a
+// transport whose proxy process is still perfectly alive — a lost tunnel, a
+// gateway that stopped answering. This bookkeeping only ever watched the child
+// process, so that death was invisible here: the indicator stayed on ready
+// while every mixnet-only surface refused, and the only symptom the user got
+// was a price that never arrived.
+//
+// Asked on the renderer's existing five-second poll rather than a timer of its
+// own, and only when this side still believes it is ready — that is the one
+// direction in which this side's answer can be the dangerous kind of wrong.
+async function walletForsookTheTransport() {
+  try {
+    const raw = await requireNative("mixnet_status").mixnet_status();
+    return JSON.parse(raw).mode === "died";
+  } catch {
+    // No wallet attached yet, or the read itself failed. Neither is evidence
+    // of a death, so this side's own phase stands.
+    return false;
+  }
+}
+
+ipcMain.handle("mixnet:get-status", async () => {
+  const snapshot = mixnetStatusSnapshot();
+  if (snapshot.mode !== "ready") return snapshot;
+  if (!(await walletForsookTheTransport())) return snapshot;
+  // Recorded rather than just returned, so the push channel, the menu, and a
+  // later kill all see the same state this answer reports.
+  setMixnetPhase("died");
+  return mixnetStatusSnapshot();
+});
 ipcMain.handle("mixnet:enable", async () => {
   mixnet.intent = "on";
   if (mixnet.socks5Addr) await attachCurrentWallet();

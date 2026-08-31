@@ -189,7 +189,12 @@ type SidebarProps = {
 
 // The Sidebar's compact Mixnet Mode line: colour, icon, and label for the
 // current view. Mirrors the sync-status blocks it sits beside.
-function mixnetIndicator(view: MixnetView): { colorClass: string; icon: IconDefinition; label: string } {
+function mixnetIndicator(view: MixnetView): {
+  colorClass: string;
+  icon: IconDefinition;
+  label: string;
+  hint?: string;
+} {
   switch (view.statusKey) {
     case "mixnet.status.ready":
       return { colorClass: cstyles.green, icon: faCheck, label: "Mixnet ready" };
@@ -197,6 +202,13 @@ function mixnetIndicator(view: MixnetView): { colorClass: string; icon: IconDefi
       return { colorClass: cstyles.yellow, icon: faSync, label: "Mixnet connecting" };
     case "mixnet.status.off":
       return { colorClass: cstyles.yellow, icon: faTimesCircle, label: "Mixnet off (clearnet)" };
+    case "mixnet.status.died":
+      return {
+        colorClass: cstyles.red,
+        icon: faTimesCircle,
+        label: "Mixnet died",
+        hint: "Click to restart",
+      };
     default:
       return { colorClass: cstyles.red, icon: faTimesCircle, label: "Mixnet unavailable" };
   }
@@ -698,7 +710,11 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
               <FontAwesomeIcon icon={mixnetInd.icon} className={mixnetInd.colorClass} />
               &nbsp; {mixnetInd.label}
             </div>
-            {mixnetView.narration && <div className={cstyles.small}>{mixnetView.narration}</div>}
+            {mixnetView.narration ? (
+              <div className={cstyles.small}>{mixnetView.narration}</div>
+            ) : (
+              !!mixnetInd.hint && <div className={cstyles.small}>{mixnetInd.hint}</div>
+            )}
           </button>
         )}
       </div>
