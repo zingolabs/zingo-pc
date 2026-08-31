@@ -1279,12 +1279,43 @@ const mixnet = {
   exits: [],
   narration: null,
   phase: "unattached", // unattached | bootstrapping | ready | switched_off | died
+  // The wallet's own published Mixnet Mode, refreshed on the renderer's poll.
+  // Held rather than folded into `phase`, because `phase` is what this side
+  // knows about a child process and that stays true on its own terms; this is
+  // what the wallet knows about having a route through it. Null until read.
+  wallet: null,
 };
+
+// A running proxy is not a route. The proxy announcing its address is all
+// `phase: "ready"` has ever meant, and the wallet can be nowhere near able to
+// use it: not yet attached, attached but still proving the tunnel, or having
+// given up on it. Reporting the proxy's readiness as the wallet's was the
+// mirage — green while every mixnet-only surface refused, and a price that
+// never came with nothing on screen to explain it.
+//
+// So while the proxy is up the wallet's answer is the one that ships. Its two
+// unusable-yet states both read as connecting rather than ready, and its
+// narration comes with them when it has one.
+function readyStateOfRecord() {
+  const wallet = mixnet.wallet;
+  if (!wallet) return { mode: "ready", socks5_addr: mixnet.socks5Addr };
+  switch (wallet.mode) {
+    case "died":
+      return { mode: "died", death: wallet.death || { at: Date.now() } };
+    case "unattached":
+    case "bootstrapping":
+      return wallet.bootstrap_detail
+        ? { mode: "bootstrapping", bootstrap_detail: wallet.bootstrap_detail }
+        : { mode: "bootstrapping" };
+    default:
+      return { mode: "ready", socks5_addr: mixnet.socks5Addr };
+  }
+}
 
 function mixnetStatusSnapshot() {
   switch (mixnet.phase) {
     case "ready":
-      return { mode: "ready", socks5_addr: mixnet.socks5Addr };
+      return readyStateOfRecord();
     case "bootstrapping":
       return mixnet.narration
         ? { mode: "bootstrapping", bootstrap_detail: mixnet.narration }
@@ -1422,6 +1453,10 @@ function killProxy() {
   mixnet.child = null;
   mixnet.socks5Addr = null;
   mixnet.exits = [];
+  // The wallet's verdict was about the transport being torn down, not the one
+  // that replaces it; carrying it over would report the new proxy dead on
+  // arrival.
+  mixnet.wallet = null;
   if (child) {
     try {
       child.stdin.end(); // the proxy's stdin-EOF watchdog tears it down
@@ -1432,39 +1467,58 @@ function killProxy() {
   }
 }
 
-// The wallet keeps its own Mixnet Mode state machine, and it can forsake a
-// transport whose proxy process is still perfectly alive — a lost tunnel, a
-// gateway that stopped answering. This bookkeeping only ever watched the child
-// process, so that death was invisible here: the indicator stayed on ready
-// while every mixnet-only surface refused, and the only symptom the user got
-// was a price that never arrived.
+// Refreshed on the renderer's existing five-second poll rather than on a timer
+// of its own, and only while the proxy is up, which is the only time the answer
+// is consulted.
 //
-// Asked on the renderer's existing five-second poll rather than a timer of its
-// own, and only when this side still believes it is ready — that is the one
-// direction in which this side's answer can be the dangerous kind of wrong.
-async function walletForsookTheTransport() {
+// Kept as the wallet's current answer rather than recorded as a verdict here.
+// Writing a death into `phase` made it a one-way door: the next poll saw a
+// phase that was no longer ready, skipped the read that would have noticed the
+// recovery, and left the indicator red until someone pressed a button.
+// A death arrives with a typed cause — the stage it failed at, what it was
+// reaching for, and the cause chain outermost-first — and nothing was reading
+// it. "The connection never establishes" is not something to guess at when the
+// transport says why. Once per distinct death, on the same reasoning as the
+// price failure: this is on a five-second poll.
+let lastReportedDeath = "";
+
+function reportWalletDeath(wallet) {
+  if (!wallet || wallet.mode !== "died") {
+    lastReportedDeath = "";
+    return;
+  }
+  const detail = wallet.death && wallet.death.detail;
+  const story = detail
+    ? `${JSON.stringify(detail.stage)} against ${detail.target}: ${(detail.cause_chain || []).join(" ← ")}`
+    : "no cause held";
+  if (story === lastReportedDeath) return;
+  lastReportedDeath = story;
+  console.log(`[mixnet] the wallet gave up on the transport — ${story}`);
+}
+
+async function refreshWalletMixnetStatus() {
   try {
-    const raw = await requireNative("mixnet_status").mixnet_status();
-    return JSON.parse(raw).mode === "died";
+    mixnet.wallet = JSON.parse(await requireNative("mixnet_status").mixnet_status());
+    reportWalletDeath(mixnet.wallet);
   } catch {
-    // No wallet attached yet, or the read itself failed. Neither is evidence
-    // of a death, so this side's own phase stands.
-    return false;
+    // No wallet loaded yet, or the read itself failed. Neither is evidence
+    // about the transport, so the proxy's own phase stands.
+    mixnet.wallet = null;
   }
 }
 
 ipcMain.handle("mixnet:get-status", async () => {
-  const snapshot = mixnetStatusSnapshot();
-  if (snapshot.mode !== "ready") return snapshot;
-  if (!(await walletForsookTheTransport())) return snapshot;
-  // Recorded rather than just returned, so the push channel, the menu, and a
-  // later kill all see the same state this answer reports.
-  setMixnetPhase("died");
+  if (mixnet.phase === "ready") await refreshWalletMixnetStatus();
   return mixnetStatusSnapshot();
 });
 ipcMain.handle("mixnet:enable", async () => {
   mixnet.intent = "on";
-  if (mixnet.socks5Addr) await attachCurrentWallet();
+  // Attaching again to a transport the wallet has given up on is the same
+  // proxy and the same broken tunnel: it returned instantly, went green, and
+  // changed nothing, which is exactly how it looked. A death takes the proxy
+  // down and brings a new one up — the restart the refusal text promises.
+  if (mixnetStatusSnapshot().mode === "died") restartMixnet("the wallet gave up on the transport");
+  else if (mixnet.socks5Addr) await attachCurrentWallet();
   else spawnProxy();
   return mixnetStatusSnapshot();
 });
