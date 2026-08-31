@@ -1303,8 +1303,52 @@ function emitMixnetStatus() {
   if (win && !win.isDestroyed()) win.webContents.send("mixnet-status", mixnetStatusSnapshot());
 }
 
+// ── Coming back after the proxy dies ──────────────────────────────────────
+//
+// The three restarts already here — resume, unlock, and refocus after a long
+// while away — all answer "the machine was away". None of them answers the
+// proxy dying while the app is in use, which is the case that leaves the
+// wallet reporting no price with the indicator on "died" and nothing coming to
+// fix it. The child's own exit is the health signal, and nothing acted on it.
+//
+// Backed off rather than immediate, and finite. A proxy that dies once has
+// lost its gateways; one that dies four times in a row cannot start, and
+// retrying that forever would spin a subprocess behind an indicator that never
+// settles. After the last attempt it stays down and the user re-enables it,
+// which is what the refusal already tells them to do.
+const MIXNET_RETRY_DELAYS_MS = [2000, 5000, 15000, 30000];
+let mixnetCrashes = 0;
+let mixnetRetryTimer = null;
+
+function cancelMixnetRetry() {
+  if (mixnetRetryTimer !== null) {
+    clearTimeout(mixnetRetryTimer);
+    mixnetRetryTimer = null;
+  }
+}
+
+function scheduleMixnetRetry() {
+  const wait = MIXNET_RETRY_DELAYS_MS[mixnetCrashes];
+  if (wait === undefined) {
+    console.log(`[mixnet] proxy exited ${mixnetCrashes} times running; leaving it down until re-enabled`);
+    return;
+  }
+  mixnetCrashes += 1;
+  console.log(`[mixnet] proxy exited; respawning in ${wait / 1000}s (attempt ${mixnetCrashes})`);
+  cancelMixnetRetry();
+  mixnetRetryTimer = setTimeout(() => {
+    mixnetRetryTimer = null;
+    if (mixnet.intent === "on" && !mixnet.child) spawnProxy();
+  }, wait);
+}
+
 function setMixnetPhase(phase) {
   mixnet.phase = phase;
+  // Reaching ready is what proves the last respawn worked, so the budget for
+  // the next failure starts over. Without this a tunnel that drops once an
+  // hour would exhaust four attempts across a long session and then stop
+  // recovering.
+  if (phase === "ready") mixnetCrashes = 0;
   emitMixnetStatus();
 }
 
@@ -1363,11 +1407,17 @@ function spawnProxy() {
     mixnet.child = null;
     mixnet.socks5Addr = null;
     mixnet.exits = [];
-    if (mixnet.intent === "on") setMixnetPhase("died");
+    if (mixnet.intent === "on") {
+      setMixnetPhase("died");
+      scheduleMixnetRetry();
+    }
   });
 }
 
 function killProxy() {
+  // Whoever is killing it decides what happens next; a retry scheduled by an
+  // earlier death would otherwise respawn behind them.
+  cancelMixnetRetry();
   const child = mixnet.child;
   mixnet.child = null;
   mixnet.socks5Addr = null;
@@ -1435,6 +1485,7 @@ let mixnetBlurredAt = null;
 function restartMixnet(reason) {
   if (mixnet.intent !== "on") return; // deliberately off: leave it off
   console.log(`[mixnet] restarting after ${reason}`);
+  mixnetCrashes = 0;
   killProxy();
   // Detach the native side from the address that is about to disappear. Failure
   // is not interesting — a client that was never attached throws here — and must
