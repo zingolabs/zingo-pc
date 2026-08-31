@@ -398,62 +398,68 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
           <ScrollPaneTop offsetHeight={paneOffset}>
             <hr style={{ width: "100%" }} />
 
-            {/* The address block the transfer detail draws: the label carries
-                the "Copied!" flash, the contact name sits under it when the
-                address has one, and the value abbreviates until the press
-                that copies it also opens it. */}
-            {!!toAddress && (
-              <div className={cstyles.padtopsmall}>
-                <div className={cstyles.sublight}>
-                  Address
-                  {addressCopied && (
-                    <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
-                      Copied!
-                    </span>
-                  )}
-                </div>
-                {!!contactLabel && (
-                  <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
-                    {contactLabel}
+            {/* Two rows rather than a block and two: the address beside what
+                sending to it costs in privacy, and then the two figures. The
+                address block itself is the transfer detail's — the "Copied!"
+                flash rides on the label, the contact name it is filed under
+                sits between label and value, and the value abbreviates until
+                the press that copies it also opens it. */}
+            <FieldRow>
+              {!!toAddress && (
+                <div className={cstyles.padtopsmall} style={{ minWidth: 0 }}>
+                  <div className={cstyles.sublight}>
+                    Address
+                    {addressCopied && (
+                      <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
+                        Copied!
+                      </span>
+                    )}
                   </div>
-                )}
-                <div className={cstyles.verticalflex}>
-                  <button
-                    type="button"
-                    aria-label="Copy address"
-                    title="Copy address"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      color: "inherit",
-                      font: "inherit",
-                      textAlign: "left",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => {
-                      copyAddress(toAddress);
-                      setExpandAddress(true);
-                    }}
-                  >
-                    <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                      {!expandAddress && Utils.trimToSmall(toAddress, 10)}
-                      {expandAddress && (
-                        <>
-                          {toAddress.length < 80
-                            ? toAddress
-                            : Utils.splitStringIntoChunks(toAddress, 3).map((item) => <div key={item}>{item}</div>)}
-                        </>
-                      )}
+                  {!!contactLabel && (
+                    <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
+                      {contactLabel}
                     </div>
-                  </button>
+                  )}
+                  <div className={cstyles.verticalflex}>
+                    <button
+                      type="button"
+                      aria-label="Copy address"
+                      title="Copy address"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        color: "inherit",
+                        font: "inherit",
+                        textAlign: "left",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => {
+                        copyAddress(toAddress);
+                        setExpandAddress(true);
+                      }}
+                    >
+                      <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
+                        {!expandAddress && Utils.trimToSmall(toAddress, 10)}
+                        {expandAddress && (
+                          <>
+                            {toAddress.length < 80
+                              ? toAddress
+                              : Utils.splitStringIntoChunks(toAddress, 3).map((item) => <div key={item}>{item}</div>)}
+                          </>
+                        )}
+                      </div>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Amount and fee each carry their fiat value underneath, the way
-                the detail states them. The price is the one in context — this
-                send happens now, so the rate that matters is the current one
+              <Field label="Privacy" value={privacyLevel} />
+            </FieldRow>
+
+            {/* Each figure carries its fiat value underneath, the way the
+                detail states them. The price is the one in context — this send
+                has not happened, so the rate that matters is the one now
                 rather than a basis captured alongside a past transfer. */}
             <FieldRow>
               <Field
@@ -473,10 +479,6 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                 }
               />
 
-              <Field label="Privacy" value={privacyLevel} />
-            </FieldRow>
-
-            <FieldRow>
               <Field
                 label="Transaction Fee"
                 value={
