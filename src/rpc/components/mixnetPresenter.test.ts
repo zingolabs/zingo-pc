@@ -1,4 +1,10 @@
-import { deriveMixnetView, UNKNOWN_MIXNET_VIEW, MixnetView, describeSendRoute } from "./mixnetPresenter";
+import {
+  deriveMixnetView,
+  UNKNOWN_MIXNET_VIEW,
+  MixnetView,
+  describeSendRoute,
+  describeMixnetDeath,
+} from "./mixnetPresenter";
 import { RPCMixnetStatusType } from "./RPCMixnetStatusType";
 
 describe("deriveMixnetView", () => {
@@ -12,6 +18,7 @@ describe("deriveMixnetView", () => {
           narration: null,
           sendBlocked: true,
           recovery: "reenable",
+          death: null,
         },
       ],
       [
@@ -22,6 +29,7 @@ describe("deriveMixnetView", () => {
           narration: null,
           sendBlocked: false,
           recovery: "reenable",
+          death: null,
         },
       ],
       [
@@ -32,6 +40,7 @@ describe("deriveMixnetView", () => {
           narration: "connecting to gateway",
           sendBlocked: true,
           recovery: "wait",
+          death: null,
         },
       ],
       [
@@ -42,6 +51,7 @@ describe("deriveMixnetView", () => {
           narration: null,
           sendBlocked: false,
           recovery: "none",
+          death: null,
         },
       ],
       [
@@ -52,6 +62,7 @@ describe("deriveMixnetView", () => {
           narration: null,
           sendBlocked: true,
           recovery: "reenable",
+          death: { at: 1753900000000 },
         },
       ],
     ];
@@ -108,5 +119,36 @@ describe("describeSendRoute", () => {
     for (const mode of modes) {
       expect(describeSendRoute(deriveMixnetView({ mode })).length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("describeMixnetDeath", () => {
+  it("says the stage, the target, and the chain outermost-first", () => {
+    expect(
+      describeMixnetDeath({
+        at: 1753900000000,
+        detail: {
+          stage: "socks-handshake",
+          target: "https://indexer.example:443",
+          cause_chain: ["price fetch failed", "connection reset by peer"],
+        },
+      }),
+    ).toBe("the SOCKS handshake against https://indexer.example:443 — price fetch failed ← connection reset by peer");
+  });
+
+  it("renders a timeout with the bound it exceeded", () => {
+    expect(
+      describeMixnetDeath({
+        at: 1753900000000,
+        detail: { stage: { "timed-out": { after_ms: 25000 } }, target: "https://indexer.example:443", cause_chain: [] },
+      }),
+    ).toBe("timed out after 25s against https://indexer.example:443");
+  });
+
+  // The transport is allowed to die without a held cause, and an empty line
+  // reads worse than no line: the caller renders nothing.
+  it("has nothing to say when no cause was held", () => {
+    expect(describeMixnetDeath({ at: 1753900000000 })).toBeNull();
+    expect(describeMixnetDeath(null)).toBeNull();
   });
 });
