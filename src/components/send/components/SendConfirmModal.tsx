@@ -13,7 +13,6 @@ import {
   ServerChainNameEnum,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
-import ScrollPaneTop from "../../scrollPane/ScrollPane";
 import { usePaneOffset } from "../../scrollPane/usePaneOffset";
 import { useCopy } from "../../common/useCopy";
 import { Field, FieldRow } from "../../common/DetailField";
@@ -394,117 +393,119 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
           </div>
         </div>
 
-        <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`} ref={paneRef}>
-          <ScrollPaneTop offsetHeight={paneOffset}>
-            <hr style={{ width: "100%" }} />
+        <div
+          className={cstyles.verticalflex}
+          ref={paneRef}
+          style={{ marginTop: 8, maxHeight: `calc(100vh - ${paneOffset}px)`, overflowY: "auto", overflowX: "hidden" }}
+        >
+          <hr style={{ width: "100%" }} />
 
-            {/* Two rows rather than a block and two: the address beside what
+          {/* Two rows rather than a block and two: the address beside what
                 sending to it costs in privacy, and then the two figures. The
                 address block itself is the transfer detail's — the "Copied!"
                 flash rides on the label, the contact name it is filed under
                 sits between label and value, and the value abbreviates until
                 the press that copies it also opens it. */}
-            <FieldRow>
-              {!!toAddress && (
-                <div className={cstyles.padtopsmall} style={{ minWidth: 0 }}>
-                  <div className={cstyles.sublight}>
-                    Address
-                    {addressCopied && (
-                      <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
-                        Copied!
-                      </span>
-                    )}
-                  </div>
-                  {!!contactLabel && (
-                    <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
-                      {contactLabel}
-                    </div>
+          <FieldRow>
+            {!!toAddress && (
+              <div className={cstyles.padtopsmall} style={{ minWidth: 0 }}>
+                <div className={cstyles.sublight}>
+                  Address
+                  {addressCopied && (
+                    <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
+                      Copied!
+                    </span>
                   )}
-                  <div className={cstyles.verticalflex}>
-                    <button
-                      type="button"
-                      aria-label="Copy address"
-                      title="Copy address"
-                      style={{
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        color: "inherit",
-                        font: "inherit",
-                        textAlign: "left",
-                        cursor: "pointer",
-                      }}
-                      onClick={() => {
-                        copyAddress(toAddress);
-                        setExpandAddress(true);
-                      }}
-                    >
-                      <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                        {!expandAddress && Utils.trimToSmall(toAddress, 10)}
-                        {expandAddress && (
-                          <>
-                            {toAddress.length < 80
-                              ? toAddress
-                              : Utils.splitStringIntoChunks(toAddress, 3).map((item) => <div key={item}>{item}</div>)}
-                          </>
-                        )}
-                      </div>
-                    </button>
-                  </div>
                 </div>
-              )}
-
-              <Field label="Privacy" value={privacyLevel} />
-            </FieldRow>
-
-            {/* Each figure carries its fiat value underneath, the way the
-                detail states them. The price is the one in context — this send
-                has not happened, so the rate that matters is the one now
-                rather than a basis captured alongside a past transfer. */}
-            <FieldRow>
-              <Field
-                label="Amount"
-                value={
-                  <>
-                    <div>
-                      <span>
-                        {info.currencyName} {amountBigPart}
-                      </span>
-                      <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{amountSmallPart}</span>
-                    </div>
-                    {info.currencyName === "ZEC" && (
-                      <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, toAmount)}</div>
-                    )}
-                  </>
-                }
-              />
-
-              <Field
-                label="Transaction Fee"
-                value={
-                  <>
-                    {info.currencyName} {Utils.maxPrecisionTrimmed(sendFee)}
-                    {info.currencyName === "ZEC" && (
-                      <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, sendFee)}</div>
-                    )}
-                  </>
-                }
-              />
-            </FieldRow>
-
-            {!!memoText && (
-              <div className={cstyles.padtopsmall}>
-                <div className={cstyles.sublight}>Memo</div>
-                {/* Five rows, then it scrolls. A long memo used to grow the
-                    modal until the buttons left the screen. */}
-                <div className={cstyles.fieldrowmulti} style={{ maxHeight: "7.5em", overflowY: "auto" }}>
-                  <div className={`${cstyles.fieldtextarea} ${cstyles.breakword}`} style={{ whiteSpace: "pre-wrap" }}>
-                    {memoText}
+                {!!contactLabel && (
+                  <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
+                    {contactLabel}
                   </div>
+                )}
+                <div className={cstyles.verticalflex}>
+                  <button
+                    type="button"
+                    aria-label="Copy address"
+                    title="Copy address"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      color: "inherit",
+                      font: "inherit",
+                      textAlign: "left",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      copyAddress(toAddress);
+                      setExpandAddress(true);
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
+                      {!expandAddress && Utils.trimToSmall(toAddress, 10)}
+                      {expandAddress && (
+                        <>
+                          {toAddress.length < 80
+                            ? toAddress
+                            : Utils.splitStringIntoChunks(toAddress, 3).map((item) => <div key={item}>{item}</div>)}
+                        </>
+                      )}
+                    </div>
+                  </button>
                 </div>
               </div>
             )}
-          </ScrollPaneTop>
+
+            <Field label="Privacy" value={privacyLevel} />
+          </FieldRow>
+
+          {/* Each figure carries its fiat value underneath, the way the
+                detail states them. The price is the one in context — this send
+                has not happened, so the rate that matters is the one now
+                rather than a basis captured alongside a past transfer. */}
+          <FieldRow>
+            <Field
+              label="Amount"
+              value={
+                <>
+                  <div>
+                    <span>
+                      {info.currencyName} {amountBigPart}
+                    </span>
+                    <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{amountSmallPart}</span>
+                  </div>
+                  {info.currencyName === "ZEC" && (
+                    <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, toAmount)}</div>
+                  )}
+                </>
+              }
+            />
+
+            <Field
+              label="Transaction Fee"
+              value={
+                <>
+                  {info.currencyName} {Utils.maxPrecisionTrimmed(sendFee)}
+                  {info.currencyName === "ZEC" && (
+                    <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, sendFee)}</div>
+                  )}
+                </>
+              }
+            />
+          </FieldRow>
+
+          {!!memoText && (
+            <div className={cstyles.padtopsmall}>
+              <div className={cstyles.sublight}>Memo</div>
+              {/* Five rows, then it scrolls. A long memo used to grow the
+                    modal until the buttons left the screen. */}
+              <div className={cstyles.fieldrowmulti} style={{ maxHeight: "7.5em", overflowY: "auto" }}>
+                <div className={`${cstyles.fieldtextarea} ${cstyles.breakword}`} style={{ whiteSpace: "pre-wrap" }}>
+                  {memoText}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className={cstyles.buttoncontainer} ref={footerRef}>
