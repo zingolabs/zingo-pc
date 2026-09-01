@@ -375,13 +375,23 @@ export default class RPC {
     info.walletHeight = await RPC.fetchWalletHeight();
     // NU6.3 / Ironwood activation height, read from zingolib (source of truth).
     info.nu63ActivationHeight = await RPC.fetchIronwoodActivationHeight();
-    // A viewing-key wallet cannot spend, so it cannot migrate, and the
-    // Dashboard already hides the prompt for one behind the same flag.
-    // Planning a drain for it computes an answer nobody can act on, and the
-    // plan needs sync data the wallet may not have yet, so early in a load it
-    // only fails. The fields keep their `InfoClass` defaults, which carry the
-    // same "not known" the plan reports on failure.
-    if (canSpend) {
+    // Two reasons not to ask, and the fields keep their `InfoClass` defaults
+    // either way — the same "not known" the plan reports on failure.
+    //
+    // A viewing-key wallet cannot spend, so it cannot migrate; the Dashboard
+    // already hides the prompt for one behind this same flag, and planning a
+    // drain for it computes an answer nobody can act on.
+    //
+    // A wallet with no sync data cannot be planned against at all. That is not
+    // a guess: zingolib derives the plan's anchor from
+    // `last_known_chain_height`, and `walletHeight` read one line above comes
+    // from that very field, so a zero here is exactly the condition under
+    // which the plan returns `NoSyncData`. A wallet created moments ago always
+    // is, which is what put "Error orchard drain plan: Wallet error." in the
+    // console on the first load of every new wallet — an error-level line for
+    // an ordinary state, indistinguishable from a real fault because the
+    // refusal crosses the boundary as bare prose with its cause dropped.
+    if (canSpend && info.walletHeight > 0) {
       // Happy-path drain plan: how much Orchard can move vs is stranded dust.
       const drainPlan = await RPC.fetchOrchardDrainPlan();
       info.orchardMigratable = drainPlan.migratable;
