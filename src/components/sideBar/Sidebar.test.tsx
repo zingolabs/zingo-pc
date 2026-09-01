@@ -46,10 +46,6 @@ jest.mock("./components/BlockExplorerModal", () => ({
   __esModule: true,
   default: jest.fn(() => null),
 }));
-jest.mock("./components/SelectWallet", () => ({
-  __esModule: true,
-  default: jest.fn(() => null),
-}));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Sidebar = require("./Sidebar").default;

@@ -3,10 +3,10 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  width: 100%;
-  /* BalanceBlock already brings 16px of its own padding underneath, so the gap
-     is pulled back rather than added to. */
-  margin-bottom: -4px;
+  /* Sized to its content. It used to span the screen's well and pull itself
+     back over the BalanceBlock below; it now sits at one end of the wallet
+     bar, where stretching would push the URI away from the dot that grades
+     it. */
   padding: 0;
   border: none;
   background: none;

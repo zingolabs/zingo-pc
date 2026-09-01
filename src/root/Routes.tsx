@@ -35,6 +35,7 @@ import selectFastestServer from "../utils/selectFastestServer";
 import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
+import { WalletBar } from "../components/walletBar";
 import { History } from "../components/history";
 import { Swap } from "../components/swap";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
@@ -693,14 +694,18 @@ const AppRoutes: React.FC = () => {
         <div style={{ overflow: "hidden" }}>
           {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
             <div className={cstyles.sidebarcontainer}>
-              <Sidebar
-                doRescan={runRPCRescan}
-                navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
-              />
+              <Sidebar doRescan={runRPCRescan} />
             </div>
           )}
 
           <div className={cstyles.contentcontainer}>
+            {/* Above the routes rather than inside any of them: the wallet you
+                are in and the server it talks to are true of every screen, and
+                the server line had already been pasted into five of them
+                separately. It hides itself when there is no wallet. */}
+            {location.pathname !== routes.LOADING && !location.pathname.toLowerCase().includes("zingo") && (
+              <WalletBar navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet} />
+            )}
             <Routes>
               <Route
                 path={routes.SEND}

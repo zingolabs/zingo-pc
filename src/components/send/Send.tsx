@@ -14,7 +14,6 @@ import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import { BalanceBlockHighlight } from "../balanceBlock";
 import { describeSendRoute } from "../../rpc/components/mixnetPresenter";
-import { ServerHealthLine } from "../serverHealthLine";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
 import ToAddrBox from "./components/ToAddrBox";
@@ -283,7 +282,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
       />
 
       <div className={`${cstyles.well} ${styles.containermargin}`}>
-        <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"

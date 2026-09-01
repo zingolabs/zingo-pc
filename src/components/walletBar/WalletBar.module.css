@@ -1,0 +1,34 @@
+/*
+ * One line above every screen: which wallet you are in, and which server it
+ * is talking to.
+ *
+ * The horizontal margins match `.containermargin`, the 5px every screen's
+ * outer well already uses, so the bar sits flush with the panel beneath it
+ * rather than floating on its own inset.
+ */
+.bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 5px 5px 0 5px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  background-color: var(--color-background-dark);
+}
+
+/*
+ * The selector gives way and the server line keeps its width. A wallet alias
+ * is the part that varies without bound, so it is the part that absorbs a
+ * narrow window; the server's URI and dot are near-fixed and read as one
+ * unit, which is why they do not shrink.
+ */
+.selector {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.server {
+  flex: 0 0 auto;
+}

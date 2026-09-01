@@ -11,7 +11,6 @@ import { MixnetView } from "../../rpc/components/mixnetPresenter";
 import MixnetModal from "./components/MixnetModal";
 import { Logo } from "../logo";
 import APP_VERSION from "../../version";
-import SelectWallet from "./components/SelectWallet";
 import { ServerChainNameEnum, WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
 import { useCopy } from "../common/useCopy";
@@ -184,7 +183,6 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
 
 type SidebarProps = {
   doRescan: () => void;
-  navigateToLoadingScreenChangingWallet: () => void;
 };
 
 // The Sidebar's compact Mixnet Mode line: colour, icon, and label for the
@@ -214,7 +212,7 @@ function mixnetIndicator(view: MixnetView): {
   }
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChangingWallet }) => {
+const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const context = useContext(ContextApp);
@@ -593,7 +591,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       </div>
 
       <div className={styles.sidebar}>
-        <SelectWallet navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet} />
         <SidebarMenuItem
           name="Dashboard"
           routeName={routes.DASHBOARD}

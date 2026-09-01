@@ -1,8 +1,8 @@
 import React, { useContext } from "react";
-import cstyles from "../../common/Common.module.css";
-import { ContextApp } from "../../../context/ContextAppState";
-import { ServerChainNameEnum, WalletType } from "../../appstate";
-import { ipcRenderer } from "../../../electronBridge";
+import cstyles from "../common/Common.module.css";
+import { ContextApp } from "../../context/ContextAppState";
+import { ServerChainNameEnum, WalletType } from "../appstate";
+import { ipcRenderer } from "../../electronBridge";
 
 type SelectWalletProps = {
   navigateToLoadingScreenChangingWallet: () => void;

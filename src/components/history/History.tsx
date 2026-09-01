@@ -7,7 +7,6 @@ import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import VtItemBlock from "./components/VtItemBlock";
 import VtModal from "./components/VtModal";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
-import { ServerHealthLine } from "../serverHealthLine";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapRecords, useValueTransfersWithSwaps } from "../../context/ContextSwapService";
@@ -154,7 +153,6 @@ const History: React.FC<HistoryProps> = () => {
   return (
     <div>
       <div className={`${cstyles.well} ${styles.containermargin}`}>
-        <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
