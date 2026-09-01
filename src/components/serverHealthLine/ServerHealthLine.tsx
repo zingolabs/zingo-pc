@@ -5,6 +5,7 @@ import ServerPickerModal from "./ServerPickerModal";
 import { ContextApp } from "../../context/ContextAppState";
 import routes from "../../constants/routes.json";
 import { ServerSelectionEnum } from "../appstate";
+import Utils from "../../utils/utils";
 import { ServerHealthLevel, deriveServerHealth } from "../../rpc/components/serverHealth";
 import { rotationCandidates } from "../../utils/pickRotationTarget";
 
@@ -27,7 +28,7 @@ const DOT_TOOLTIP: Record<ServerHealthLevel, string> = {
 };
 
 /**
- * The active server, its selection mode and a health dot, right-aligned above
+ * The active server, its network, its selection mode and a health dot, right-aligned above
  * the balances so a long URI grows leftwards and never moves anything.
  *
  * Clicking follows the mode, not the colour. The mode says who owns the choice
@@ -53,6 +54,11 @@ const ServerHealthLine: React.FC = () => {
   const uri: string = currentWallet.uri || info.serverUri || "";
   const level: ServerHealthLevel = deriveServerHealth(serverHealth);
   const mode: ServerSelectionEnum = currentWallet.selection;
+  // Which network this wallet is on. Nothing else on screen says: the
+  // selector's optgroups label it, but a closed select shows only the alias.
+  // Empty for a chain name that is none of the three, which renders nothing
+  // rather than an empty badge.
+  const network: string = Utils.chainDisplayName(currentWallet.chain_name);
 
   const onClick = async () => {
     if (mode === ServerSelectionEnum.auto) {
@@ -76,6 +82,11 @@ const ServerHealthLine: React.FC = () => {
     <>
       <button type="button" className={styles.line} onClick={onClick} aria-label="Active server health">
         <span className={styles.uri}>{uri}</span>
+        {/* Network before selection mode: which chain you are on outranks who
+            chose the server on it. Both wear the same badge — they are two
+            facts about the same connection, and giving one its own colour
+            would make it a warning, which is a different claim. */}
+        {!!network && <span className={styles.badge}>{network}</span>}
         {mode && <span className={styles.badge}>{mode}</span>}
         {/* The dot carries the tooltip itself, so it is the thing you hover and
             the thing that explains itself. */}

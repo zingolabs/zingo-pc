@@ -67,12 +67,30 @@ beforeEach(() => {
   liveList.mockReset().mockResolvedValue([]);
 });
 
-test("shows the active server, its mode and a dot", () => {
+test("shows the active server, its network, its mode and a dot", () => {
   show(ServerSelectionEnum.auto, HEALTHY);
 
   expect(screen.getByText("https://zec.rocks:443")).toBeInTheDocument();
+  expect(screen.getByText("Mainnet")).toBeInTheDocument();
   expect(screen.getByText("auto")).toBeInTheDocument();
   expect(dotHealth()).toBe("ok");
+});
+
+// The wallet selector's optgroups label the network, but a closed select shows
+// only the alias — so without this the app never says which chain it is on.
+test("names whichever network the wallet is on", () => {
+  render(<ServerHealthLine />, {
+    contextOverrides: {
+      currentWallet: { ...wallet(ServerSelectionEnum.auto), chain_name: ServerChainNameEnum.testChainName },
+      serverHealth: fold(HEALTHY),
+      openConfirmModal,
+      openErrorModal,
+      rotateServer,
+    },
+  });
+
+  expect(screen.getByText("Testnet")).toBeInTheDocument();
+  expect(screen.queryByText("Mainnet")).not.toBeInTheDocument();
 });
 
 // The mode comes off the wallet record, which makes this the one place the app
