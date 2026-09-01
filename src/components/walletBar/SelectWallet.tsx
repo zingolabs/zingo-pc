@@ -20,54 +20,52 @@ const SelectWallet = ({ navigateToLoadingScreenChangingWallet }: SelectWalletPro
   return (
     <>
       {currentWallet !== null && (
-        <div style={{ marginBottom: 20 }}>
-          <select
-            className={cstyles.fieldselect}
-            style={{ display: "block", width: "calc(100% - 20px)", margin: "0 10px" }}
-            value={currentWallet.id}
-            onChange={async (e) => {
-              openErrorModal("Change Wallet", "Opening the new active Wallet selected");
-              const id: number = Number(e.target.value);
-              await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
-              navigateToLoadingScreenChangingWallet();
-            }}
-          >
-            {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.mainChainName).length > 0 && (
-              <optgroup label="MAINNET">
-                {walletsSorted
-                  .filter((w: WalletType) => w.chain_name === ServerChainNameEnum.mainChainName)
-                  .map((w: WalletType) => (
-                    <option key={w.id} value={w.id}>
-                      {w.alias + " - [" + w.creationType + "]" + (w.id === currentWallet.id ? " \u2714" : "")}
-                    </option>
-                  ))}
-              </optgroup>
-            )}
-            {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.testChainName).length > 0 && (
-              <optgroup label="TESTNET">
-                {walletsSorted
-                  .filter((w: WalletType) => w.chain_name === ServerChainNameEnum.testChainName)
-                  .map((w: WalletType) => (
-                    <option key={w.id} value={w.id}>
-                      {w.alias + " - [" + w.creationType + "]" + (w.id === currentWallet.id ? " \u2714" : "")}
-                    </option>
-                  ))}
-              </optgroup>
-            )}
-            {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.regtestChainName).length >
-              0 && (
-              <optgroup label="REGTEST">
-                {walletsSorted
-                  .filter((w: WalletType) => w.chain_name === ServerChainNameEnum.regtestChainName)
-                  .map((w: WalletType) => (
-                    <option key={w.id} value={w.id}>
-                      {w.alias + " - [" + w.creationType + "]" + (w.id === currentWallet.id ? " \u2714" : "")}
-                    </option>
-                  ))}
-              </optgroup>
-            )}
-          </select>
-        </div>
+        <select
+          className={cstyles.fieldselect}
+          style={{ display: "block", width: "100%" }}
+          value={currentWallet.id}
+          onChange={async (e) => {
+            openErrorModal("Change Wallet", "Opening the new active Wallet selected");
+            const id: number = Number(e.target.value);
+            await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: id });
+            navigateToLoadingScreenChangingWallet();
+          }}
+        >
+          {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.mainChainName).length > 0 && (
+            <optgroup label="MAINNET">
+              {walletsSorted
+                .filter((w: WalletType) => w.chain_name === ServerChainNameEnum.mainChainName)
+                .map((w: WalletType) => (
+                  <option key={w.id} value={w.id}>
+                    {w.alias + " - [" + w.creationType + "]" + (w.id === currentWallet.id ? " \u2714" : "")}
+                  </option>
+                ))}
+            </optgroup>
+          )}
+          {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.testChainName).length > 0 && (
+            <optgroup label="TESTNET">
+              {walletsSorted
+                .filter((w: WalletType) => w.chain_name === ServerChainNameEnum.testChainName)
+                .map((w: WalletType) => (
+                  <option key={w.id} value={w.id}>
+                    {w.alias + " - [" + w.creationType + "]" + (w.id === currentWallet.id ? " \u2714" : "")}
+                  </option>
+                ))}
+            </optgroup>
+          )}
+          {walletsSorted.filter((w: WalletType) => w.chain_name === ServerChainNameEnum.regtestChainName).length >
+            0 && (
+            <optgroup label="REGTEST">
+              {walletsSorted
+                .filter((w: WalletType) => w.chain_name === ServerChainNameEnum.regtestChainName)
+                .map((w: WalletType) => (
+                  <option key={w.id} value={w.id}>
+                    {w.alias + " - [" + w.creationType + "]" + (w.id === currentWallet.id ? " \u2714" : "")}
+                  </option>
+                ))}
+            </optgroup>
+          )}
+        </select>
       )}
     </>
   );

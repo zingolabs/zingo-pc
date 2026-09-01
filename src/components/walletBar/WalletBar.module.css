@@ -2,9 +2,12 @@
  * One line above every screen: which wallet you are in, and which server it
  * is talking to.
  *
+ * No ground of its own. It is not a panel, it is a caption over one — the
+ * screen's own well sits directly beneath it, and a second dark box above
+ * that one only read as a second panel.
+ *
  * The horizontal margins match `.containermargin`, the 5px every screen's
- * outer well already uses, so the bar sits flush with the panel beneath it
- * rather than floating on its own inset.
+ * well already uses, so the two edges line up.
  */
 .bar {
   display: flex;
@@ -12,10 +15,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin: 5px 5px 0 5px;
-  padding: 6px 10px;
-  border-radius: 12px;
-  background-color: var(--color-background-dark);
+  margin: 8px 5px;
 }
 
 /*
@@ -27,6 +27,17 @@
 .selector {
   flex: 1 1 auto;
   min-width: 0;
+}
+
+/*
+ * `.fieldselect` brings `.fieldinput`'s 10px of vertical padding, which is
+ * right for a form field standing on its own and too tall for a band whose
+ * whole purpose is to be thin. Trimmed here rather than there: that class
+ * dresses every field in the app and none of the others should move.
+ */
+.selector select {
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
 .server {
