@@ -19,23 +19,30 @@
 }
 
 /*
- * The selector gives way and the server line keeps its width. A wallet alias
- * is the part that varies without bound, so it is the part that absorbs a
- * narrow window; the server's URI and dot are near-fixed and read as one
- * unit, which is why they do not shrink.
+ * Sized to the longest wallet name rather than to the space available, which
+ * is what a native select does when nothing overrides it. The width is the
+ * widest option's, so it holds still as you switch between them instead of
+ * resizing under the cursor.
+ *
+ * It is still the half that gives way when the window narrows: an alias varies
+ * without bound, while the server's URI and dot are near-fixed and read as one
+ * unit. `0 1 auto` is exactly that — take what you need, yield it back first.
  */
 .selector {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
 }
 
 /*
- * `.fieldselect` brings `.fieldinput`'s 10px of vertical padding, which is
- * right for a form field standing on its own and too tall for a band whose
- * whole purpose is to be thin. Trimmed here rather than there: that class
- * dresses every field in the app and none of the others should move.
+ * Never wider than the room it was given, however long the alias runs.
+ *
+ * The padding comes down from the 10px `.fieldselect` inherits, which is right
+ * for a form field standing on its own and too tall for a band whose whole
+ * purpose is to be thin. Trimmed here rather than there: that class dresses
+ * every field in the app and none of the others should move.
  */
 .selector select {
+  max-width: 100%;
   padding-top: 6px;
   padding-bottom: 6px;
 }
