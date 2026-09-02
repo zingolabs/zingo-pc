@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../test-utils";
 import ServerHealthLine from "./ServerHealthLine";
 import {
@@ -12,18 +12,20 @@ import {
 } from "../appstate";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "../../rpc/components/serverHealth";
 import fetchServerList from "../../utils/fetchServerList";
-import selectFastestServer from "../../utils/selectFastestServer";
+import selectFastestServer, { latencyOf } from "../../utils/selectFastestServer";
 
 jest.mock("../../electronBridge");
 jest.mock("../../utils/fetchServerList");
 jest.mock("../../utils/selectFastestServer", () => ({
   __esModule: true,
   default: jest.fn(),
+  latencyOf: jest.fn(),
   RACE_CANDIDATES: 3,
 }));
 
 const liveList = fetchServerList as jest.MockedFunction<typeof fetchServerList>;
 const race = selectFastestServer as jest.MockedFunction<typeof selectFastestServer>;
+const probe = latencyOf as jest.MockedFunction<typeof latencyOf>;
 
 const mockNavigate = jest.fn();
 jest.mock("react-router-dom", () => ({
@@ -79,6 +81,9 @@ beforeEach(() => {
   switchServer.mockReset();
   liveList.mockReset().mockResolvedValue([]);
   race.mockReset().mockResolvedValue(null);
+  // The picker times its own list; without an answer here every row would
+  // settle on "no answer" and the sweep would say nothing.
+  probe.mockReset().mockResolvedValue(12);
 });
 
 test("shows the active server, its network, its mode and a dot", () => {
@@ -337,5 +342,75 @@ test("the picker labels servers the way the settings list does", async () => {
   show(ServerSelectionEnum.list, HEALTHY);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
 
-  expect(await screen.findByText("https://one.zec.rocks:443 - Mainnet _ 42 ms.")).toBeInTheDocument();
+  expect(await screen.findByText("https://one.zec.rocks:443 - Mainnet _ 12 ms.")).toBeInTheDocument();
+});
+
+// Until this machine has an answer the registry's estimate is all there is, so
+// it is shown — marked borrowed with a tilde rather than passed off as ours.
+// The probe is held pending, because in a test it otherwise resolves before
+// the borrowed value can be seen at all.
+test("the picker shows the registry estimate while it measures", async () => {
+  liveList.mockResolvedValue([
+    {
+      uri: "https://one.zec.rocks:443",
+      chain_name: ServerChainNameEnum.mainChainName,
+      latency: 42,
+      default: false,
+      obsolete: false,
+    },
+  ]);
+  let answer: (ms: number | null) => void = () => {};
+  probe.mockImplementation(() => new Promise<number | null>((resolve) => (answer = resolve)));
+
+  show(ServerSelectionEnum.list, HEALTHY);
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
+  expect(await screen.findByText("https://one.zec.rocks:443 - Mainnet _ ~42 ms.")).toBeInTheDocument();
+
+  await act(async () => {
+    answer(12);
+  });
+  expect(await screen.findByText("https://one.zec.rocks:443 - Mainnet _ 12 ms.")).toBeInTheDocument();
+});
+
+// A server that is listed and does not answer is worth saying so about: it is
+// the one fact the registry's own number cannot tell this user.
+test("the picker says which servers did not answer", async () => {
+  liveList.mockResolvedValue([
+    {
+      uri: "https://silent.example:443",
+      chain_name: ServerChainNameEnum.mainChainName,
+      latency: 42,
+      default: false,
+      obsolete: false,
+    },
+  ]);
+  probe.mockResolvedValue(null);
+  show(ServerSelectionEnum.list, HEALTHY);
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
+  expect(await screen.findByText("https://silent.example:443 - Mainnet _ no answer")).toBeInTheDocument();
+});
+
+// Quickest first once every answer is in. The registry's order is its own ping
+// from its own vantage point, which is not this user's.
+test("the picker reorders on what it measured", async () => {
+  liveList.mockResolvedValue(
+    ["https://slow.example:443", "https://quick.example:443"].map((uri) => ({
+      uri,
+      chain_name: ServerChainNameEnum.mainChainName,
+      latency: 10,
+      default: false,
+      obsolete: false,
+    })),
+  );
+  probe.mockImplementation(async (server) => (server.uri === "https://quick.example:443" ? 5 : 500));
+  show(ServerSelectionEnum.list, HEALTHY);
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
+  await screen.findByText("https://quick.example:443 - Mainnet _ 5 ms.");
+  await waitFor(() => {
+    const rows = screen.getAllByRole("button").filter((b) => b.textContent?.includes("example:443"));
+    expect(rows[0].textContent).toContain("quick.example");
+  });
 });
