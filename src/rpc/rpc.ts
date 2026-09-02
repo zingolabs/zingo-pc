@@ -371,6 +371,25 @@ export default class RPC {
   // survive an offline info_server failure. Being offline only means batches
   // can't broadcast and the server tip is unknown, not that this local state
   // vanished.
+  // Whether scanning has caught up to the tip, as a local read — the same
+  // kind as the two heights above, and read here rather than threaded from the
+  // caller because both callers are static and neither holds it.
+  //
+  // Anything short of both counters at 100 is "not yet", including a status
+  // that will not parse or does not carry them. The cost of being wrong that
+  // way is one cycle of not asking for a plan; the cost of being wrong the
+  // other way is the error line this exists to stop.
+  static async syncHasCaughtUp(): Promise<boolean> {
+    try {
+      const status: SyncStatusType = JSON.parse(await native.status_sync());
+      return (
+        (status.percentage_total_outputs_scanned ?? 0) >= 100 && (status.percentage_total_blocks_scanned ?? 0) >= 100
+      );
+    } catch {
+      return false;
+    }
+  }
+
   static async populateLocalIronwoodFields(info: InfoClass, canSpend: boolean): Promise<void> {
     info.walletHeight = await RPC.fetchWalletHeight();
     // NU6.3 / Ironwood activation height, read from zingolib (source of truth).
@@ -387,11 +406,17 @@ export default class RPC {
     // `last_known_chain_height`, and `walletHeight` read one line above comes
     // from that very field, so a zero here is exactly the condition under
     // which the plan returns `NoSyncData`. A wallet created moments ago always
-    // is, which is what put "Error orchard drain plan: Wallet error." in the
-    // console on the first load of every new wallet — an error-level line for
-    // an ordinary state, indistinguishable from a real fault because the
-    // refusal crosses the boundary as bare prose with its cause dropped.
-    if (canSpend && info.walletHeight > 0) {
+    // is.
+    //
+    // And a wallet still scanning cannot be planned against either, for a
+    // second reason. Until every block in a note's spend window is scanned,
+    // spend detection is incomplete for the notes the plan would select, and
+    // zingolib refuses with `SyncIncomplete` rather than plan against a
+    // half-read wallet. Both refusals cross the boundary as the same bare
+    // "Wallet error." with the cause dropped, so neither can be told from a
+    // real fault after the fact — the only way not to log an error for an
+    // ordinary state is not to provoke it.
+    if (canSpend && info.walletHeight > 0 && (await RPC.syncHasCaughtUp())) {
       // Happy-path drain plan: how much Orchard can move vs is stranded dust.
       const drainPlan = await RPC.fetchOrchardDrainPlan();
       info.orchardMigratable = drainPlan.migratable;
