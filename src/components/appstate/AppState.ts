@@ -111,6 +111,8 @@ export default class AppState {
   serverHealth: ServerHealthState;
   rotateServer: () => void;
   switchServer: (uri: string) => void;
+  /** Hand the choice of server back to the wallet, keeping the one in use. */
+  delegateServerChoice: () => void;
   reopenWallet: () => void;
   avoidedServers: string[];
 
@@ -164,6 +166,7 @@ export default class AppState {
     this.serverHealth = INITIAL_SERVER_HEALTH;
     this.rotateServer = () => {};
     this.switchServer = () => {};
+    this.delegateServerChoice = () => {};
     this.reopenWallet = () => {};
     this.avoidedServers = [];
     this.blockExplorerMainnetTransaction = BlockExplorerEnum.Zcashexplorer;

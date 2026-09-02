@@ -56,6 +56,7 @@ export const defaultAppState: AppState = {
   serverHealth: INITIAL_SERVER_HEALTH,
   rotateServer: () => {},
   switchServer: () => {},
+  delegateServerChoice: () => {},
   reopenWallet: () => {},
   avoidedServers: [],
   blockExplorerMainnetTransaction: BlockExplorerEnum.Zcashexplorer,

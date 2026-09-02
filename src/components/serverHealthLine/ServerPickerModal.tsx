@@ -3,7 +3,7 @@ import Modal from "react-modal";
 import cstyles from "../common/Common.module.css";
 import styles from "./ServerHealthLine.module.css";
 import { ContextApp } from "../../context/ContextAppState";
-import { ServerChainNameEnum, ServerClass } from "../appstate";
+import { ServerChainNameEnum, ServerClass, ServerSelectionEnum } from "../appstate";
 import fetchServerList from "../../utils/fetchServerList";
 import serverUrisList from "../../utils/serverUrisList";
 import Utils from "../../utils/utils";
@@ -25,7 +25,7 @@ type ServerPickerModalProps = {
  * follow its server onto a different one.
  */
 const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, closeModal, chainName, currentUri }) => {
-  const { switchServer } = useContext(ContextApp);
+  const { switchServer, delegateServerChoice, currentWallet } = useContext(ContextApp);
   const [servers, setServers] = useState<ServerClass[]>([]);
 
   // Fetched when the modal opens rather than on mount, so a line that is never
@@ -92,6 +92,28 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
             Cancel
           </button>
         </div>
+        {/* The way out of picking by hand, in the place picking by hand
+            happens. Without it the only route back to automatic was the
+            wallet settings screen, which is a long way to go to stop making a
+            decision.
+
+            Not offered to a wallet already on auto — the picker is reachable
+            from there now, and a button that would change nothing reads as
+            one that failed. */}
+        {currentWallet && currentWallet.selection !== ServerSelectionEnum.auto && (
+          <div className={cstyles.buttoncontainer}>
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                delegateServerChoice();
+                closeModal();
+              }}
+            >
+              Auto
+            </button>
+          </div>
+        )}
       </div>
     </Modal>
   );

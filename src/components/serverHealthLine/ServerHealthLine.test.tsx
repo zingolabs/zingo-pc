@@ -38,6 +38,7 @@ const wallet = (selection: ServerSelectionEnum): WalletType => ({
 const fold = (outcomes: boolean[]): ServerHealthState =>
   outcomes.reduce((state, answered) => recordProbe(state, answered), INITIAL_SERVER_HEALTH);
 
+const delegateServerChoice = jest.fn();
 const openConfirmModal = jest.fn();
 const openErrorModal = jest.fn();
 const rotateServer = jest.fn();
@@ -50,6 +51,7 @@ const show = (selection: ServerSelectionEnum, outcomes: boolean[]) =>
       openConfirmModal,
       openErrorModal,
       rotateServer,
+      delegateServerChoice,
     },
   });
 
@@ -64,6 +66,7 @@ beforeEach(() => {
   openConfirmModal.mockReset();
   openErrorModal.mockReset();
   rotateServer.mockReset();
+  delegateServerChoice.mockReset();
   liveList.mockReset().mockResolvedValue([]);
 });
 
@@ -86,6 +89,7 @@ test("names whichever network the wallet is on", () => {
       openConfirmModal,
       openErrorModal,
       rotateServer,
+      delegateServerChoice,
     },
   });
 
@@ -183,6 +187,31 @@ test.each([[HEALTHY], [DEAD]])("list opens the picker in place, dot at %#", asyn
   expect(await screen.findByText(/Choose a Mainnet server/)).toBeInTheDocument();
   expect(mockNavigate).not.toHaveBeenCalled();
   expect(openConfirmModal).not.toHaveBeenCalled();
+});
+
+// Picking by hand is what put the wallet on `list`; this is the way back out
+// of it, in the place the picking happens. Without it the only route to
+// automatic was the wallet settings screen.
+test("the picker offers a way back to automatic", async () => {
+  show(ServerSelectionEnum.list, HEALTHY);
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+  await screen.findByText("Choose a Mainnet server");
+
+  fireEvent.click(screen.getByRole("button", { name: "Auto" }));
+  expect(delegateServerChoice).toHaveBeenCalledTimes(1);
+});
+
+// A button that would change nothing reads as one that failed, and the picker
+// is reachable from auto now.
+test("the picker does not offer automatic to a wallet already on it", async () => {
+  show(ServerSelectionEnum.auto, HEALTHY);
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
+  await waitFor(() => expect(openConfirmModal).toHaveBeenCalledTimes(1));
+  openConfirmModal.mock.calls[0][3].action();
+  await screen.findByText("Choose a Mainnet server");
+
+  expect(screen.queryByRole("button", { name: "Auto" })).not.toBeInTheDocument();
 });
 
 test("renders nothing without a wallet", () => {

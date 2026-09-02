@@ -435,6 +435,28 @@ const AppRoutes: React.FC = () => {
     [currentWallet, openErrorModal, setCurrentWallet, setWallets, navigateToLoadingScreenChangingWallet],
   );
 
+  // Hand the choice of server back to the wallet.
+  //
+  // The mode changes and the server does not. Auto means "you may move me",
+  // not "move me now": the one in use was reachable a moment ago, and throwing
+  // away a working connection to prove the point would cost a reload for
+  // nothing. Rotation is what moves it, on its own trigger, when this one
+  // stops answering.
+  //
+  // So no reopen either, unlike `switchServer` — nothing the session is
+  // talking to has changed.
+  const delegateServerChoice = useCallback(async () => {
+    const wallet: WalletType | null = currentWallet;
+    if (!wallet || wallet.selection === ServerSelectionEnum.auto) {
+      return;
+    }
+    const relaxed: WalletType = { ...wallet, selection: ServerSelectionEnum.auto };
+    await ipcRenderer.invoke("wallets:update", relaxed);
+    await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: ServerSelectionEnum.auto });
+    setCurrentWallet(relaxed);
+    setWallets(await ipcRenderer.invoke("wallets:all"));
+  }, [currentWallet, setCurrentWallet, setWallets]);
+
   const rotateServer = useCallback(async () => {
     const wallet: WalletType | null = currentWallet;
     if (!wallet?.uri) {
@@ -615,6 +637,7 @@ const AppRoutes: React.FC = () => {
       serverHealth,
       rotateServer,
       switchServer,
+      delegateServerChoice,
       reopenWallet: navigateToLoadingScreenChangingWallet,
       avoidedServers,
       blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
@@ -665,6 +688,7 @@ const AppRoutes: React.FC = () => {
       serverHealth,
       rotateServer,
       switchServer,
+      delegateServerChoice,
       navigateToLoadingScreenChangingWallet,
       avoidedServers,
       blockExplorerConfig,
