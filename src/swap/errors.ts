@@ -99,10 +99,22 @@ function isEdgeBlockedResponse(httpStatus: number, body: string): boolean {
 function extractServerReason(body: string): string {
   if (!body) return "";
   try {
-    const parsed = JSON.parse(body) as { message?: string; error?: string };
+    const parsed = JSON.parse(body) as { message?: string; error?: string; title?: string; detail?: string };
     const parts = [parsed.message, parsed.error].filter((s): s is string => typeof s === "string" && s.length > 0);
     if (parts.length > 0) {
       return parts.join(" / ").slice(0, 240);
+    }
+    // Not every JSON body is SwapKit's. Its edge answers a gateway timeout in
+    // RFC 7807 problem shape — `title` names the fault, `detail` explains it,
+    // and neither is the `message`/`error` pair above. Without this the whole
+    // document fell through to the raw-body branch and a 504 reached the
+    // screen as its own JSON, Cloudflare documentation URL and all.
+    //
+    // `detail` first: it is the sentence worth reading, and `title` only
+    // repeats the status code this message already carries.
+    const problem = [parsed.detail, parsed.title].filter((s): s is string => typeof s === "string" && s.length > 0);
+    if (problem.length > 0) {
+      return problem[0].slice(0, 240);
     }
   } catch {
     // not JSON

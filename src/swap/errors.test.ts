@@ -144,3 +144,41 @@ describe("classifySwapError", () => {
     expect(classifySwapError("a string somebody threw")).toBe(SwapErrorCategoryEnum.Unknown);
   });
 });
+
+describe("a gateway timeout from the edge", () => {
+  // Cloudflare answers a 504 in RFC 7807 problem shape, which is JSON but not
+  // SwapKit's JSON: `title` and `detail` where the API uses `message` and
+  // `error`. It used to fall through to the raw-body branch and reach the
+  // screen as the whole document, documentation URL included.
+  const CLOUDFLARE_504 = JSON.stringify({
+    type: "https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-5xx-errors/error-504/",
+    title: "Error 504: Gateway time-out",
+    status: 504,
+    detail: "The origin web server did not respond to Cloudflare within the timeout period.",
+  });
+
+  it("states the detail and nothing else", () => {
+    const error = httpError(504, CLOUDFLARE_504);
+
+    expect(error.message).toBe(
+      "SwapKit quote HTTP 504: The origin web server did not respond to Cloudflare within the timeout period.",
+    );
+    expect(error.message).not.toContain("developers.cloudflare.com");
+    expect(error.message).not.toContain('"status"');
+  });
+
+  it("falls back to the title when no detail is carried", () => {
+    const error = httpError(504, JSON.stringify({ title: "Error 504: Gateway time-out", status: 504 }));
+
+    expect(error.message).toContain("Error 504: Gateway time-out");
+  });
+
+  // SwapKit's own shape still wins: it is the one that says something about
+  // the swap rather than about the plumbing in front of it.
+  it("prefers SwapKit's own fields when the body carries both", () => {
+    const error = httpError(504, JSON.stringify({ error: "noRoutesFound", detail: "some edge prose" }));
+
+    expect(error.message).toContain("noRoutesFound");
+    expect(error.message).not.toContain("some edge prose");
+  });
+});
