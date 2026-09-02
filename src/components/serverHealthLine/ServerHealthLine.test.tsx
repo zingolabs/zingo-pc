@@ -137,7 +137,7 @@ test("auto also offers to choose a server by hand", async () => {
 
   await waitFor(() => expect(openConfirmModal).toHaveBeenCalledTimes(1));
   const alternate = openConfirmModal.mock.calls[0][3];
-  expect(alternate).toEqual({ label: "Choose Server", action: expect.any(Function) });
+  expect(alternate).toEqual({ label: "Servers List", action: expect.any(Function) });
 
   // The picker is not up until that button is the one pressed.
   expect(screen.queryByText("Choose a Mainnet server")).not.toBeInTheDocument();

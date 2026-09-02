@@ -39,9 +39,21 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
               Cancel
             </button>
           </div>
-          {/* Between the two, so Cancel stays where the eye looks for it and
-              Confirm keeps the end of the row. It closes the dialog like the
-              others: whatever it opens takes over from here. */}
+          <div className={cstyles.buttoncontainer}>
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                runAction();
+                closeModal();
+              }}
+            >
+              Confirm
+            </button>
+          </div>
+          {/* Last in the row. It leads somewhere else rather than settling the
+              question asked, so it sits past the answer to it. It closes the
+              dialog like the others: whatever it opens takes over from here. */}
           {alternate && (
             <div className={cstyles.buttoncontainer}>
               <button
@@ -56,18 +68,6 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
               </button>
             </div>
           )}
-          <div className={cstyles.buttoncontainer}>
-            <button
-              type="button"
-              className={cstyles.primarybutton}
-              onClick={() => {
-                runAction();
-                closeModal();
-              }}
-            >
-              Confirm
-            </button>
-          </div>
         </div>
       </div>
     </Modal>

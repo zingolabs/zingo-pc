@@ -79,7 +79,7 @@ const ServerHealthLine: React.FC = () => {
       // Choosing there switches them to `list`, because naming a server by
       // hand is what that mode means.
       openConfirmModal("Change Server", `${DOT_TOOLTIP[level]} Move to another server?`, rotateServer, {
-        label: "Choose Server",
+        label: "Servers List",
         action: () => setPickerOpen(true),
       });
     } else if (mode === ServerSelectionEnum.list) {
