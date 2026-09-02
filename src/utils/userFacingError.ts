@@ -11,7 +11,7 @@
  * Only the last clause is a fact about the user's money. Everything before it
  * is bookkeeping — worth keeping in the console, worth nothing on screen.
  *
- * Three layers accrete, and each is stripped for its own reason:
+ * Two layers are stripped, each for its own reason:
  *
  *   - Electron's IPC wrapper names the remote method it was invoking. That is
  *     an implementation detail of how the renderer reaches the wallet.
@@ -19,9 +19,9 @@
  *     an Error is interpolated into a string, and zingolib's `ZingolibError`
  *     opens every one of its own variants with it too — a type that calls
  *     itself an error, next to a caller that says so again.
- *   - `read: ` names which kind of native call it was. Its siblings — `sync:`,
- *     `rescan:`, `saving wallet:` — each name something the user asked for and
- *     are left alone; a read is the one that names nothing they did.
+ * What is left alone is the wallet's own label for what it was doing —
+ * `read:`, `sync:`, `rescan:`, `saving wallet:`. Judging them one by one only
+ * produces a rule that holds for whichever one prompted it, so they all stay.
  *
  * Deliberately not a translation or a rewrite. The wallet's own words are the
  * accurate ones, and inventing friendlier prose here would put this file in
@@ -34,9 +34,6 @@ const IPC_WRAPPER = /^Error invoking remote method '[^']*':\s*/;
 // Both JavaScript and `ZingolibError` add this, so it can appear several times
 // over, and stripping one can expose the next.
 const ERROR_PREFIX = /^Error:\s*/;
-
-// The native side's own label for a read, which names no user action.
-const READ_PREFIX = /^read:\s*/;
 
 export function userFacingError(error: unknown): string {
   // `error.message` rather than `String(error)`: the latter is what puts the
@@ -51,8 +48,6 @@ export function userFacingError(error: unknown): string {
     if (shorter === message) break;
     message = shorter;
   }
-
-  message = message.replace(READ_PREFIX, "");
 
   // Nothing left to show means the layers were the whole message. Say that
   // rather than render an empty line, which reads as no error at all.
