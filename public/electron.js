@@ -1334,52 +1334,65 @@ function emitMixnetStatus() {
   if (win && !win.isDestroyed()) win.webContents.send("mixnet-status", mixnetStatusSnapshot());
 }
 
-// ── Coming back after the proxy dies ──────────────────────────────────────
+// ── Recovering a lost transport ───────────────────────────────────────────
 //
-// The three restarts already here — resume, unlock, and refocus after a long
-// while away — all answer "the machine was away". None of them answers the
-// proxy dying while the app is in use, which is the case that leaves the
-// wallet reporting no price with the indicator on "died" and nothing coming to
-// fix it. The child's own exit is the health signal, and nothing acted on it.
+// The policy is zingo-mobile's `MixnetCoordinator`, kept deliberately close to
+// it so one Mixnet Mode does not mean two things across the two apps.
 //
-// Backed off rather than immediate, and finite. A proxy that dies once has
-// lost its gateways; one that dies four times in a row cannot start, and
-// retrying that forever would spin a subprocess behind an indicator that never
-// settles. After the last attempt it stays down and the user re-enables it,
-// which is what the refusal already tells them to do.
-const MIXNET_RETRY_DELAYS_MS = [2000, 5000, 15000, 30000];
-let mixnetCrashes = 0;
-let mixnetRetryTimer = null;
+// What it says: a transport that reports `died` is lost and recovers on its
+// own, exponentially backed off from 3s to a 60s ceiling, indefinitely. Only a
+// deliberate switch-off stops the loop, because absence of a transport is
+// never consent to clearnet — the user chooses that or nothing does. Reaching
+// a settled state resets the growth: ready, or the switched-off the user
+// asked for.
+//
+// Two differences from the version this replaces, both learned from mobile.
+// It triggers on the status polled rather than on the child process exiting —
+// the case in front of us is a proxy that is alive, accepts connections and
+// carries nothing, and no exit ever fires for it. And it does not give up
+// after a fixed number of tries: a wallet left open for a day through a bad
+// hour should come back, and one that never does costs a subprocess every
+// minute, which is cheaper than never recovering.
+const MIXNET_RECONNECT_BASE_MS = 3_000;
+const MIXNET_RECONNECT_MAX_MS = 60_000;
+let mixnetReconnectDelay = MIXNET_RECONNECT_BASE_MS;
+let mixnetReconnectTimer = null;
 
-function cancelMixnetRetry() {
-  if (mixnetRetryTimer !== null) {
-    clearTimeout(mixnetRetryTimer);
-    mixnetRetryTimer = null;
+function clearMixnetReconnectTimer() {
+  if (mixnetReconnectTimer !== null) {
+    clearTimeout(mixnetReconnectTimer);
+    mixnetReconnectTimer = null;
   }
 }
 
-function scheduleMixnetRetry() {
-  const wait = MIXNET_RETRY_DELAYS_MS[mixnetCrashes];
-  if (wait === undefined) {
-    console.log(`[mixnet] proxy exited ${mixnetCrashes} times running; leaving it down until re-enabled`);
-    return;
-  }
-  mixnetCrashes += 1;
-  console.log(`[mixnet] proxy exited; respawning in ${wait / 1000}s (attempt ${mixnetCrashes})`);
-  cancelMixnetRetry();
-  mixnetRetryTimer = setTimeout(() => {
-    mixnetRetryTimer = null;
-    if (mixnet.intent === "on" && !mixnet.child) spawnProxy();
+// Timer and growth both, for a transport that settled or that the user took
+// down deliberately.
+function cancelMixnetReconnect() {
+  clearMixnetReconnectTimer();
+  mixnetReconnectDelay = MIXNET_RECONNECT_BASE_MS;
+}
+
+function scheduleMixnetReconnect(reason) {
+  if (mixnet.intent !== "on") return; // deliberately off: leave it off
+  if (mixnetReconnectTimer !== null) return; // one already in flight
+  const wait = mixnetReconnectDelay;
+  console.log(`[mixnet] transport lost (${reason}); reconnecting in ${wait / 1000}s`);
+  mixnetReconnectTimer = setTimeout(() => {
+    mixnetReconnectTimer = null;
+    // Grown before the attempt, not after it. Reaching ready is what resets
+    // the growth, so an attempt that works never pays for the doubling.
+    mixnetReconnectDelay = Math.min(mixnetReconnectDelay * 2, MIXNET_RECONNECT_MAX_MS);
+    if (mixnet.intent !== "on") return;
+    // A proxy still running has not exited, it has stopped carrying. Taking it
+    // down and bringing a new one up is the only thing that replaces its
+    // gateways; spawning is for the case where it really is gone.
+    if (mixnet.child) restartMixnet("the transport was lost");
+    else spawnProxy();
   }, wait);
 }
 
 function setMixnetPhase(phase) {
   mixnet.phase = phase;
-  // Reaching ready is what proves the last respawn worked, so the budget for
-  // the next failure starts over. Without this a tunnel that drops once an
-  // hour would exhaust four attempts across a long session and then stop
-  // recovering.
-  if (phase === "ready") mixnetCrashes = 0;
   emitMixnetStatus();
 }
 
@@ -1440,15 +1453,17 @@ function spawnProxy() {
     mixnet.exits = [];
     if (mixnet.intent === "on") {
       setMixnetPhase("died");
-      scheduleMixnetRetry();
+      scheduleMixnetReconnect("the proxy exited");
     }
   });
 }
 
 function killProxy() {
-  // Whoever is killing it decides what happens next; a retry scheduled by an
-  // earlier death would otherwise respawn behind them.
-  cancelMixnetRetry();
+  // Whoever is killing it decides what happens next; a reconnect scheduled by
+  // an earlier loss would otherwise respawn behind them. The timer only —
+  // a restart is an attempt like any other and keeps the backoff it inherited,
+  // exactly as mobile's start does.
+  clearMixnetReconnectTimer();
   const child = mixnet.child;
   mixnet.child = null;
   mixnet.socks5Addr = null;
@@ -1509,7 +1524,14 @@ async function refreshWalletMixnetStatus() {
 
 ipcMain.handle("mixnet:get-status", async () => {
   if (mixnet.phase === "ready") await refreshWalletMixnetStatus();
-  return mixnetStatusSnapshot();
+  const snapshot = mixnetStatusSnapshot();
+  // Mobile's rule, on the status rather than the process: a settled transport
+  // ends the cycle and resets the growth, a lost one starts or continues it,
+  // and bootstrapping is left alone so an attempt on its way up is not counted
+  // as another loss.
+  if (snapshot.mode === "ready" || snapshot.mode === "switched_off") cancelMixnetReconnect();
+  else if (snapshot.mode === "died") scheduleMixnetReconnect("the wallet gave up on the transport");
+  return snapshot;
 });
 ipcMain.handle("mixnet:enable", async () => {
   mixnet.intent = "on";
@@ -1524,6 +1546,7 @@ ipcMain.handle("mixnet:enable", async () => {
 });
 ipcMain.handle("mixnet:disable", async () => {
   mixnet.intent = "off";
+  cancelMixnetReconnect();
   killProxy();
   try {
     await requireNative("stop_mixnet").stop_mixnet();
@@ -1568,7 +1591,6 @@ let mixnetBlurredAt = null;
 function restartMixnet(reason) {
   if (mixnet.intent !== "on") return; // deliberately off: leave it off
   console.log(`[mixnet] restarting after ${reason}`);
-  mixnetCrashes = 0;
   killProxy();
   // Detach the native side from the address that is about to disappear. Failure
   // is not interesting — a client that was never attached throws here — and must
