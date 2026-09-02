@@ -743,8 +743,36 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         </div>
 
         {quoteError && (
-          <div className={`${cstyles.center} ${cstyles.margintoplarge}`} style={{ color: "var(--color-error)" }}>
-            {quoteError}
+          <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
+            <div style={{ color: "var(--color-error)" }}>{quoteError}</div>
+            {/* The countdown ring is the hand-refresh for a quote that worked,
+                and it lives in the Routes panel — which is not rendered when
+                there are no routes. So the one manual retry the screen had
+                disappeared exactly when it was needed, and the only way back
+                was to disturb an input the user did not want to change.
+
+                A failure is not always about the inputs: an edge timeout, a
+                provider blip and a pool that had no liquidity a minute ago all
+                clear on their own. Same two calls the ring makes — the flag
+                that suppresses the automatic retry has to go, or the request
+                would be the last one this screen ever sends for these inputs.
+
+                It takes the ring's cooldown too. The reason for that limit is
+                the same here and stronger: the failures worth retrying are the
+                ones where the far end is already struggling. */}
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              style={{ marginTop: 12 }}
+              disabled={quoting || reviewing || nowMs < manualRefreshCooldownUntilMs}
+              onClick={() => {
+                setManualRefreshCooldownUntilMs(Date.now() + MANUAL_REFRESH_COOLDOWN_MS);
+                setQuoteAttemptFailed(false);
+                requestQuote();
+              }}
+            >
+              {quoting ? "Quoting..." : "Try Again"}
+            </button>
           </div>
         )}
 
