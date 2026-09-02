@@ -1,4 +1,5 @@
 import cstyles from "../common/Common.module.css";
+import styles from "./BalanceBlock.module.css";
 import Utils from "../../utils/utils";
 import BalanceBlockProps from "./components/BalanceBlockProps";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
@@ -18,7 +19,7 @@ const BalanceBlock: React.FC<BalanceBlockProps> = ({
     Utils.splitZecAmountIntoBigSmall(zecValueConfirmed ? zecValueConfirmed : 0);
 
   return (
-    <div className={cstyles.padall}>
+    <div className={styles.block}>
       {topLabel && (
         <div className={cstyles.small}>
           {topLabel}

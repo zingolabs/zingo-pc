@@ -1,4 +1,5 @@
 import cstyles from "../common/Common.module.css";
+import styles from "./BalanceBlock.module.css";
 import Utils from "../../utils/utils";
 import BalanceBlockProps from "./components/BalanceBlockProps";
 import { ValueTransferStatusEnum } from "../appstate";
@@ -20,7 +21,7 @@ const BalanceBlockHighlight: React.FC<BalanceBlockProps> = ({
     Utils.splitZecAmountIntoBigSmall(zecValueConfirmed ? zecValueConfirmed : 0);
 
   return (
-    <div style={{ padding: "1em" }} title={tooltip}>
+    <div className={styles.block} title={tooltip}>
       {topLabel && (
         <div className={cstyles.small}>
           {topLabel}
