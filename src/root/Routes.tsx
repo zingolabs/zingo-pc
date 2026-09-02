@@ -421,6 +421,19 @@ const AppRoutes: React.FC = () => {
         openErrorModal("Change Server", `${target} is not responding. Staying on the current server.`);
         return;
       }
+      // A named selection is the user deciding, and it wipes what rotation
+      // had been remembering. Those exclusions are auto's own bookkeeping —
+      // "I already moved away from these" — and they mean nothing once the
+      // user says which server they want, or says to start choosing again.
+      // Left in place they would haunt the next rotation with rejections from
+      // before the decision, and the wallet would run out of servers to move
+      // to without ever having tried them under the new mode.
+      //
+      // A rotation names no selection and so clears nothing: it is the thing
+      // doing the remembering.
+      if (selection) {
+        setAvoidedServers([]);
+      }
       const moved: WalletType = { ...wallet, uri: target, ...(selection ? { selection } : {}) };
       await ipcRenderer.invoke("wallets:update", moved);
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: target });
@@ -449,6 +462,9 @@ const AppRoutes: React.FC = () => {
     if (!wallet || wallet.selection === ServerSelectionEnum.auto) {
       return;
     }
+    // Same clean slate as a named switch: this is the same decision, taken
+    // where the server happens to already be the one auto would pick.
+    setAvoidedServers([]);
     const relaxed: WalletType = { ...wallet, selection: ServerSelectionEnum.auto };
     await ipcRenderer.invoke("wallets:update", relaxed);
     await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: ServerSelectionEnum.auto });
