@@ -34,8 +34,11 @@ export const shell = {
 };
 
 export const ipcRenderer = {
-  on: jest.fn(),
-  off: jest.fn(),
+  // Returns a disposer, as the real bridge does: the preload owns the
+  // registration because contextBridge proxies anything named from this side.
+  // A mock that returned nothing would let a component forget to unsubscribe
+  // and still pass.
+  on: jest.fn(() => jest.fn()),
   invoke: jest.fn(),
   send: jest.fn(),
 };

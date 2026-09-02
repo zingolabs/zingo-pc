@@ -321,17 +321,16 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
 
   // Handle menu items
   useEffect(() => {
-    // contextBridge wraps every function argument in a new proxy each time it
-    // crosses the context boundary, so ipcRenderer.off() cannot match the proxy
-    // that ipcRenderer.on() received — the old listener is never removed.
-    // React 18 StrictMode runs effects twice (mount → cleanup → mount), which
-    // causes two listeners to accumulate.  The `active` flag makes stale
-    // closures silently no-op so only the latest registration acts on events.
-    let active = true;
+    // `on` hands back the disposer, which is the only thing that can cancel
+    // the subscription: contextBridge proxies every function on the way across,
+    // so nothing named from here would be recognised on the other side.
+    //
+    // Until it did, removal silently removed nothing and a flag was kept so
+    // that listeners which could not be unregistered would at least no-op.
+    // They are unregistered now, so there is nothing left to silence.
 
     // About
     const about = (_event: any) => {
-      if (!active) return;
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
@@ -363,7 +362,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
     };
 
     const payuri = (_event: any, uri: string) => {
-      if (!active) return;
       if (!uri) {
         // Manual path (menu / Ctrl+P): open modal so the user can type the URI.
         openPayURIModal("");
@@ -384,13 +382,11 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
 
     // Block Explorer Selection
     const blockexplorer = (_event: any) => {
-      if (!active) return;
       setBlockExplorerModalIsOpen(true);
     };
 
     // Export Seed
     const seed = async (_event: any) => {
-      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Seed Phrase/Viewing Key", "There is not an active Wallet to perform the action.");
         return;
@@ -433,20 +429,17 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
         const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
         const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
 
-        if (!active) return;
         openErrorModal(
           "Wallet Seed Phrase / Viewing Key",
           <SeedUfvkModalContent seedStr={seedStr} ufvkStr={ufvkStr} birthday={birthdayRef.current} />,
         );
       } catch (error) {
-        if (!active) return;
         console.error(`Error reading seed/ufvk ${error}`);
         openErrorModal("Wallet Seed Phrase / Viewing Key", `${error}`);
       }
     };
 
     const rescan = async (_event: any) => {
-      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Rescan Wallet", "There is not an active Wallet to perform the action.");
       } else {
@@ -455,12 +448,10 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
     };
 
     const addnewwallet = (_event: any) => {
-      if (!active) return;
       navigate(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
     };
 
     const settingswallet = (_event: any) => {
-      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Settings", "There is not an active Wallet to perform the action.");
       } else {
@@ -469,7 +460,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
     };
 
     const insight = (_event: any) => {
-      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Financial Insight", "There is not an active Wallet to perform the action.");
       } else {
@@ -478,7 +468,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
     };
 
     const deletewallet = (_event: any) => {
-      if (!active) return;
       if (!currentWalletRef.current) {
         openErrorModal("Delete Wallet", "There is not an active Wallet to perform the action.");
       } else {
@@ -487,34 +476,23 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
     };
 
     const mixnetsettings = (_event: any) => {
-      if (!active) return;
       setMixnetModalIsOpen(true);
     };
 
-    ipcRenderer.on("about", about);
-    ipcRenderer.on("payuri", payuri);
-    ipcRenderer.on("blockexplorer", blockexplorer);
-    ipcRenderer.on("seed", seed);
-    ipcRenderer.on("rescan", rescan);
-    ipcRenderer.on("addnewwallet", addnewwallet);
-    ipcRenderer.on("settingswallet", settingswallet);
-    ipcRenderer.on("deletewallet", deletewallet);
-    ipcRenderer.on("mixnet-settings", mixnetsettings);
-    ipcRenderer.on("insight", insight);
+    const subscriptions = [
+      ipcRenderer.on("about", about),
+      ipcRenderer.on("payuri", payuri),
+      ipcRenderer.on("blockexplorer", blockexplorer),
+      ipcRenderer.on("seed", seed),
+      ipcRenderer.on("rescan", rescan),
+      ipcRenderer.on("addnewwallet", addnewwallet),
+      ipcRenderer.on("settingswallet", settingswallet),
+      ipcRenderer.on("deletewallet", deletewallet),
+      ipcRenderer.on("mixnet-settings", mixnetsettings),
+      ipcRenderer.on("insight", insight),
+    ];
 
-    return () => {
-      active = false;
-      ipcRenderer.off("about", about);
-      ipcRenderer.off("payuri", payuri);
-      ipcRenderer.off("blockexplorer", blockexplorer);
-      ipcRenderer.off("seed", seed);
-      ipcRenderer.off("rescan", rescan);
-      ipcRenderer.off("addnewwallet", addnewwallet);
-      ipcRenderer.off("settingswallet", settingswallet);
-      ipcRenderer.off("deletewallet", deletewallet);
-      ipcRenderer.off("mixnet-settings", mixnetsettings);
-      ipcRenderer.off("insight", insight);
-    };
+    return () => subscriptions.forEach((cancel) => cancel());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

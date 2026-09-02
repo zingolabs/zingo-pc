@@ -17,3 +17,24 @@ if (typeof globalThis.TextEncoder === "undefined") {
 if (typeof globalThis.TextDecoder === "undefined") {
   globalThis.TextDecoder = TextDecoder as typeof globalThis.TextDecoder;
 }
+
+// `resetMocks` clears every mock implementation before each test, including
+// the shared electronBridge mock's `ipcRenderer.on`. That one has to keep
+// returning a disposer: the real bridge does, because contextBridge proxies
+// any function named from the renderer and only the preload can cancel what
+// it registered. A mock returning `undefined` fails at unmount with "cancel is
+// not a function", which says nothing about the reset that caused it.
+//
+// Re-armed rather than made a plain function, so suites can still assert on
+// what was subscribed.
+beforeEach(() => {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const bridge = require("./__mocks__/electronBridge");
+    if (jest.isMockFunction(bridge.ipcRenderer?.on)) {
+      bridge.ipcRenderer.on.mockImplementation(() => jest.fn());
+    }
+  } catch {
+    // A suite that mocks the bridge itself owns its own arrangement.
+  }
+});

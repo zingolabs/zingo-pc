@@ -165,9 +165,9 @@ const AppRoutes: React.FC = () => {
   // narration, ready, died, switched_off); project it to the view instantly so
   // the indicator never lags the transport.
   useEffect(() => {
-    const listener = (_event: unknown, status: RPCMixnetStatusType) => setMixnetView(deriveMixnetView(status));
-    ipcRenderer.on("mixnet-status", listener);
-    return () => ipcRenderer.removeListener("mixnet-status", listener);
+    return ipcRenderer.on("mixnet-status", (_event: unknown, status: RPCMixnetStatusType) =>
+      setMixnetView(deriveMixnetView(status)),
+    );
   }, [setMixnetView]);
 
   // Pushed to the RPC instance as well as into context, the same way
@@ -272,13 +272,13 @@ const AppRoutes: React.FC = () => {
     })();
 
     const appsecurityListener = () => setSecurityModalOpen(true);
-    ipcRenderer.on("appsecurity", appsecurityListener);
+    const subscriptions = [ipcRenderer.on("appsecurity", appsecurityListener)];
 
     // Change wallet folder location — main process handles the dialog, picker, and restart.
     const changeWalletDirListener = () => {
       ipcRenderer.invoke("wallet-dir:change");
     };
-    ipcRenderer.on("change-wallet-dir", changeWalletDirListener);
+    subscriptions.push(ipcRenderer.on("change-wallet-dir", changeWalletDirListener));
 
     // Import data from another installation — kick off the folder picker, then open the modal.
     const importDataListener = async () => {
@@ -290,7 +290,7 @@ const AppRoutes: React.FC = () => {
       // Cancellation / no-data / same-folder errors are surfaced by main-process dialogs
       // or simply do nothing here — keep the renderer flow quiet.
     };
-    ipcRenderer.on("import-data", importDataListener);
+    subscriptions.push(ipcRenderer.on("import-data", importDataListener));
 
     const appquittingListener = async () => {
       // Best-effort wallet save on shutdown. The wallet is already saved
@@ -303,14 +303,11 @@ const AppRoutes: React.FC = () => {
       await Promise.race([savePromise, cap]);
       ipcRenderer.send("appquitdone");
     };
-    ipcRenderer.on("appquitting", appquittingListener);
+    subscriptions.push(ipcRenderer.on("appquitting", appquittingListener));
 
     return () => {
       if (fetchErrorTimer.current) clearTimeout(fetchErrorTimer.current);
-      ipcRenderer.off("appsecurity", appsecurityListener);
-      ipcRenderer.off("change-wallet-dir", changeWalletDirListener);
-      ipcRenderer.off("import-data", importDataListener);
-      ipcRenderer.off("appquitting", appquittingListener);
+      subscriptions.forEach((cancel) => cancel());
     };
   }, []);
 
