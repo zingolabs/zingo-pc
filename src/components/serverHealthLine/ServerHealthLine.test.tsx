@@ -39,6 +39,7 @@ const fold = (outcomes: boolean[]): ServerHealthState =>
   outcomes.reduce((state, answered) => recordProbe(state, answered), INITIAL_SERVER_HEALTH);
 
 const delegateServerChoice = jest.fn();
+const switchServer = jest.fn();
 const openConfirmModal = jest.fn();
 const openErrorModal = jest.fn();
 const rotateServer = jest.fn();
@@ -52,6 +53,7 @@ const show = (selection: ServerSelectionEnum, outcomes: boolean[]) =>
       openErrorModal,
       rotateServer,
       delegateServerChoice,
+      switchServer,
     },
   });
 
@@ -67,6 +69,7 @@ beforeEach(() => {
   openErrorModal.mockReset();
   rotateServer.mockReset();
   delegateServerChoice.mockReset();
+  switchServer.mockReset();
   liveList.mockReset().mockResolvedValue([]);
 });
 
@@ -90,6 +93,7 @@ test("names whichever network the wallet is on", () => {
       openErrorModal,
       rotateServer,
       delegateServerChoice,
+      switchServer,
     },
   });
 
@@ -189,21 +193,51 @@ test.each([[HEALTHY], [DEAD]])("list opens the picker in place, dot at %#", asyn
   expect(openConfirmModal).not.toHaveBeenCalled();
 });
 
-// Picking by hand is what put the wallet on `list`; this is the way back out
-// of it, in the place the picking happens. Without it the only route to
-// automatic was the wallet settings screen.
-test("the picker offers a way back to automatic", async () => {
+// The registry answers fastest-first, so the head is where an automatic pick
+// lands. Auto takes it, not just the mode: setting the mode while leaving the
+// wallet on a hand-chosen server would only half mean it.
+const registry = (...uris: string[]) =>
+  liveList.mockResolvedValue(
+    uris.map((uri) => ({
+      uri,
+      chain_name: ServerChainNameEnum.mainChainName,
+      latency: 10,
+      default: false,
+      obsolete: false,
+    })),
+  );
+
+const openPickerFromList = async () => {
   show(ServerSelectionEnum.list, HEALTHY);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
   await screen.findByText("Choose a Mainnet server");
+};
+
+test("Auto moves to the head of the list and records the mode", async () => {
+  registry("https://faster.example:443", "https://zec.rocks:443");
+  await openPickerFromList();
+
+  fireEvent.click(screen.getByRole("button", { name: "Auto" }));
+  expect(switchServer).toHaveBeenCalledWith("https://faster.example:443", ServerSelectionEnum.auto);
+  expect(delegateServerChoice).not.toHaveBeenCalled();
+});
+
+// Nothing to move to, so only the mode is recorded — and moving anyway would
+// reopen the wallet against the server it is already on.
+test("Auto records the mode alone when the head is the server in use", async () => {
+  registry("https://zec.rocks:443", "https://slower.example:443");
+  await openPickerFromList();
 
   fireEvent.click(screen.getByRole("button", { name: "Auto" }));
   expect(delegateServerChoice).toHaveBeenCalledTimes(1);
+  expect(switchServer).not.toHaveBeenCalled();
 });
 
-// A button that would change nothing reads as one that failed, and the picker
-// is reachable from auto now.
-test("the picker does not offer automatic to a wallet already on it", async () => {
+// Reachable from auto through the confirmation's third button, and offered
+// there too: pressing it is asking to be moved to the current best, which is
+// a real request rather than a no-op.
+test("Auto is offered to a wallet already on it", async () => {
+  registry("https://faster.example:443", "https://zec.rocks:443");
   show(ServerSelectionEnum.auto, HEALTHY);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
 
@@ -211,7 +245,24 @@ test("the picker does not offer automatic to a wallet already on it", async () =
   openConfirmModal.mock.calls[0][3].action();
   await screen.findByText("Choose a Mainnet server");
 
-  expect(screen.queryByRole("button", { name: "Auto" })).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Auto" }));
+  expect(switchServer).toHaveBeenCalledWith("https://faster.example:443", ServerSelectionEnum.auto);
+});
+
+// A rotation is auto doing what auto is for. It moves the server and must
+// leave the mode alone, which it did not when the switch decided the mode for
+// every caller.
+test("rotating does not turn the wallet into a hand pick", async () => {
+  show(ServerSelectionEnum.auto, HEALTHY);
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
+  await waitFor(() => expect(openConfirmModal).toHaveBeenCalledTimes(1));
+  openConfirmModal.mock.calls[0][2]();
+  expect(rotateServer).toHaveBeenCalledTimes(1);
+  // Rotation goes through its own handler, which calls the switch with no
+  // selection at all — the assertion that matters is that nothing here names
+  // one.
+  expect(switchServer).not.toHaveBeenCalledWith(expect.anything(), ServerSelectionEnum.list);
 });
 
 test("renders nothing without a wallet", () => {

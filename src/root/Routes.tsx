@@ -404,8 +404,13 @@ const AppRoutes: React.FC = () => {
   // every server picked that way looked dead — which is why that path sat unused
   // in the first place. Going round through LoadingScreen is what the wallet
   // settings screen already does, and it is the one that works.
+  // `selection` is what the caller means by the move, and only the caller
+  // knows. A hand pick from the list is the `list` mode by definition; a
+  // rotation is auto doing exactly what auto is for and must stay on it.
+  // Omitted, the mode is left alone — this function moves a server, and
+  // deciding the mode on its behalf turned every rotation into a hand pick.
   const switchServer = useCallback(
-    async (target: string) => {
+    async (target: string, selection?: ServerSelectionEnum) => {
       const wallet: WalletType | null = currentWallet;
       if (!wallet?.uri || target === wallet.uri) {
         return;
@@ -419,15 +424,12 @@ const AppRoutes: React.FC = () => {
         openErrorModal("Change Server", `${target} is not responding. Staying on the current server.`);
         return;
       }
-      // Naming a server by hand IS the list selection — it is what "list"
-      // means — so the choice is recorded alongside the address rather than
-      // leaving a wallet that says "auto" while sitting on a server nothing
-      // auto would have picked. The only caller is the picker, so this cannot
-      // catch a rotation by surprise: that has its own path and stays auto.
-      const moved: WalletType = { ...wallet, uri: target, selection: ServerSelectionEnum.list };
+      const moved: WalletType = { ...wallet, uri: target, ...(selection ? { selection } : {}) };
       await ipcRenderer.invoke("wallets:update", moved);
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: target });
-      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: ServerSelectionEnum.list });
+      if (selection) {
+        await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
+      }
       setCurrentWallet(moved);
       setWallets(await ipcRenderer.invoke("wallets:all"));
       navigateToLoadingScreenChangingWallet();

@@ -14,6 +14,7 @@ import { INITIAL_SERVER_HEALTH, ServerHealthState } from "../../rpc/components/s
 import { ZcashURITarget } from "../../utils/uris";
 import { WalletType } from "./types/WalletType";
 import { BlockExplorerEnum } from "./enums/BlockExplorerEnum";
+import { ServerSelectionEnum } from "./enums/ServerSelectionEnum";
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
@@ -110,7 +111,7 @@ export default class AppState {
   mixnetView: MixnetView;
   serverHealth: ServerHealthState;
   rotateServer: () => void;
-  switchServer: (uri: string) => void;
+  switchServer: (uri: string, selection?: ServerSelectionEnum) => void;
   /** Hand the choice of server back to the wallet, keeping the one in use. */
   delegateServerChoice: () => void;
   reopenWallet: () => void;

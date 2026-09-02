@@ -25,7 +25,7 @@ type ServerPickerModalProps = {
  * follow its server onto a different one.
  */
 const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, closeModal, chainName, currentUri }) => {
-  const { switchServer, delegateServerChoice, currentWallet } = useContext(ContextApp);
+  const { switchServer, delegateServerChoice } = useContext(ContextApp);
   const [servers, setServers] = useState<ServerClass[]>([]);
 
   // Fetched when the modal opens rather than on mount, so a line that is never
@@ -52,7 +52,7 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
   const choose = (uri: string) => {
     closeModal();
     if (uri !== currentUri) {
-      switchServer(uri);
+      switchServer(uri, ServerSelectionEnum.list);
     }
   };
 
@@ -92,21 +92,31 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
             Cancel
           </button>
         </div>
-        {/* The way out of picking by hand, in the place picking by hand
-            happens. Without it the only route back to automatic was the
-            wallet settings screen, which is a long way to go to stop making a
-            decision.
+        {/* Automatic, from the place picking by hand happens. Without it the
+            only route back was the wallet settings screen, which is a long way
+            to go to stop making a decision.
 
-            Not offered to a wallet already on auto — the picker is reachable
-            from there now, and a button that would change nothing reads as
-            one that failed. */}
-        {currentWallet && currentWallet.selection !== ServerSelectionEnum.auto && (
+            It takes the head of the list as well as the mode. The list is
+            ordered by how fast each server answered, so its head is where an
+            automatic pick lands — and a button that set the mode while leaving
+            the wallet on a server chosen by hand would only half mean it.
+
+            Offered whether or not the wallet is already on auto: pressing it
+            there asks to be moved to the current best, which is a real request
+            rather than a no-op.
+
+            When the head is already the server in use there is nothing to move
+            to, so only the mode is recorded. That is the wallet that was on
+            `list` and had happened to pick the fastest one. */}
+        {servers.length > 0 && (
           <div className={cstyles.buttoncontainer}>
             <button
               type="button"
               className={cstyles.primarybutton}
               onClick={() => {
-                delegateServerChoice();
+                const fastest = servers[0];
+                if (fastest.uri === currentUri) delegateServerChoice();
+                else switchServer(fastest.uri, ServerSelectionEnum.auto);
                 closeModal();
               }}
             >
