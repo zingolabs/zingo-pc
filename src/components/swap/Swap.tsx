@@ -28,7 +28,7 @@ import type {
   TokenEntryType,
   UnavailableProviderType,
 } from "../../swap";
-import { ZEC_ASSET, isQuotableToken, tokenToSwapAsset } from "./swapAssets";
+import { ZEC_ASSET, isQuotableToken, isZecWrapper, tokenToSwapAsset } from "./swapAssets";
 import { pickChainAsset } from "./pickChainAsset";
 import SwapExecute from "./SwapExecute";
 import AssetPair from "./AssetPair";
@@ -176,8 +176,12 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     loadCatalogRef.current = token;
     setCatalogRetrying(true);
     try {
+      // Outbound is the direction where the picked asset is what the user
+      // receives, and receiving wrapped ZEC for native ZEC is not a swap
+      // anyone means to make. Inbound keeps them: that is ZEC on Solana or
+      // NEAR coming home, which is exactly what somebody would want.
       const catalog = (await swapService.listRoutableTokens(isOutbound ? "outbound" : "inbound")).filter(
-        isQuotableToken,
+        (token) => isQuotableToken(token) && !(isOutbound && isZecWrapper(token)),
       );
       if (token.cancelled) return;
       setTokens(catalog);

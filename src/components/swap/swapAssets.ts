@@ -53,6 +53,29 @@ export function isQuotableToken(token: TokenEntryType): boolean {
   return !!token.identifier && !!token.chain && !!token.symbol && !!token.chainId && Number.isFinite(token.decimals);
 }
 
+/**
+ * Whether a catalog entry is ZEC wearing another chain's clothes — the
+ * wrapped forms SwapKit lists as `STRK.ZEC-…`, `SOL.ZEC-…` and
+ * `NEAR.ZEC-…`.
+ *
+ * They belong on the source side and not on the destination side, and the
+ * asymmetry is real rather than tidiness. Selling one to receive native ZEC is
+ * a thing somebody wants: it is how ZEC held on Solana comes home. Buying one
+ * with native ZEC is ZEC for ZEC, which is not a swap anyone means to make.
+ *
+ * It also read as broken. The picker offered them, the pick was taken, and the
+ * chip then showed `ZEC` — because that is their ticker — next to the fixed
+ * `ZEC` on the other side. Nothing appeared to have happened.
+ *
+ * Matched on the ticker rather than the identifier prefix, which is the chain
+ * and varies. `ZEC.ZEC` never reaches this: the catalog lists what ZEC can be
+ * swapped against, so it is excluded upstream. The chain test is here anyway,
+ * so that if it ever does appear this says something true about it.
+ */
+export function isZecWrapper(token: TokenEntryType): boolean {
+  return token.ticker?.toUpperCase() === "ZEC" && token.chainId !== ZEC_TOKEN_ENTRY.chainId;
+}
+
 export function tokenToSwapAsset(token: TokenEntryType): SwapAssetType {
   return {
     swapKitId: token.identifier,
