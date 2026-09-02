@@ -12,11 +12,18 @@ import {
 } from "../appstate";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "../../rpc/components/serverHealth";
 import fetchServerList from "../../utils/fetchServerList";
+import selectFastestServer from "../../utils/selectFastestServer";
 
 jest.mock("../../electronBridge");
 jest.mock("../../utils/fetchServerList");
+jest.mock("../../utils/selectFastestServer", () => ({
+  __esModule: true,
+  default: jest.fn(),
+  RACE_CANDIDATES: 3,
+}));
 
 const liveList = fetchServerList as jest.MockedFunction<typeof fetchServerList>;
+const race = selectFastestServer as jest.MockedFunction<typeof selectFastestServer>;
 
 const mockNavigate = jest.fn();
 jest.mock("react-router-dom", () => ({
@@ -71,6 +78,7 @@ beforeEach(() => {
   delegateServerChoice.mockReset();
   switchServer.mockReset();
   liveList.mockReset().mockResolvedValue([]);
+  race.mockReset().mockResolvedValue(null);
 });
 
 test("shows the active server, its network, its mode and a dot", () => {
@@ -213,24 +221,52 @@ const openPickerFromList = async () => {
   await screen.findByText("Choose a Mainnet server");
 };
 
-test("Auto moves to the head of the list and records the mode", async () => {
-  registry("https://faster.example:443", "https://zec.rocks:443");
+const wins = (uri: string) =>
+  race.mockResolvedValue({
+    uri,
+    chain_name: ServerChainNameEnum.mainChainName,
+    latency: 10,
+    default: false,
+    obsolete: false,
+  });
+
+// The winner, not the first row. The registry orders by its own ping from its
+// own vantage point; the wallet races from the user's. Pressing Auto has to
+// land where a restart would, and a restart races.
+test("Auto takes the winner of the race, not the head of the list", async () => {
+  registry("https://head.example:443", "https://second.example:443");
+  wins("https://second.example:443");
   await openPickerFromList();
 
   fireEvent.click(screen.getByRole("button", { name: "Auto" }));
-  expect(switchServer).toHaveBeenCalledWith("https://faster.example:443", ServerSelectionEnum.auto);
+  await waitFor(() =>
+    expect(switchServer).toHaveBeenCalledWith("https://second.example:443", ServerSelectionEnum.auto),
+  );
+  expect(switchServer).not.toHaveBeenCalledWith("https://head.example:443", expect.anything());
   expect(delegateServerChoice).not.toHaveBeenCalled();
 });
 
-// Nothing to move to, so only the mode is recorded — and moving anyway would
+// Nothing to move to, so only the mode is recorded — moving anyway would
 // reopen the wallet against the server it is already on.
-test("Auto records the mode alone when the head is the server in use", async () => {
-  registry("https://zec.rocks:443", "https://slower.example:443");
+test("Auto records the mode alone when the race lands on the server in use", async () => {
+  registry("https://head.example:443", "https://zec.rocks:443");
+  wins("https://zec.rocks:443");
   await openPickerFromList();
 
   fireEvent.click(screen.getByRole("button", { name: "Auto" }));
-  expect(delegateServerChoice).toHaveBeenCalledTimes(1);
+  await waitFor(() => expect(delegateServerChoice).toHaveBeenCalledTimes(1));
   expect(switchServer).not.toHaveBeenCalled();
+});
+
+// A race nobody wins still has to answer. The head is the registry's own best
+// guess, which is the right thing to fall back to.
+test("Auto falls back to the head when no candidate answers", async () => {
+  registry("https://head.example:443", "https://second.example:443");
+  race.mockResolvedValue(null);
+  await openPickerFromList();
+
+  fireEvent.click(screen.getByRole("button", { name: "Auto" }));
+  await waitFor(() => expect(switchServer).toHaveBeenCalledWith("https://head.example:443", ServerSelectionEnum.auto));
 });
 
 // Reachable from auto through the confirmation's third button, and offered
@@ -238,6 +274,7 @@ test("Auto records the mode alone when the head is the server in use", async () 
 // a real request rather than a no-op.
 test("Auto is offered to a wallet already on it", async () => {
   registry("https://faster.example:443", "https://zec.rocks:443");
+  wins("https://faster.example:443");
   show(ServerSelectionEnum.auto, HEALTHY);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
 
@@ -246,7 +283,9 @@ test("Auto is offered to a wallet already on it", async () => {
   await screen.findByText("Choose a Mainnet server");
 
   fireEvent.click(screen.getByRole("button", { name: "Auto" }));
-  expect(switchServer).toHaveBeenCalledWith("https://faster.example:443", ServerSelectionEnum.auto);
+  await waitFor(() =>
+    expect(switchServer).toHaveBeenCalledWith("https://faster.example:443", ServerSelectionEnum.auto),
+  );
 });
 
 // A rotation is auto doing what auto is for. It moves the server and must

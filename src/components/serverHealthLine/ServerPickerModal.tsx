@@ -5,6 +5,7 @@ import styles from "./ServerHealthLine.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import { ServerChainNameEnum, ServerClass, ServerSelectionEnum } from "../appstate";
 import fetchServerList from "../../utils/fetchServerList";
+import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
 import serverUrisList from "../../utils/serverUrisList";
 import Utils from "../../utils/utils";
 
@@ -27,6 +28,9 @@ type ServerPickerModalProps = {
 const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, closeModal, chainName, currentUri }) => {
   const { switchServer, delegateServerChoice } = useContext(ContextApp);
   const [servers, setServers] = useState<ServerClass[]>([]);
+  // The race takes as long as the probes take, so the button says it is busy
+  // and cannot be pressed into starting a second one.
+  const [racing, setRacing] = useState(false);
 
   // Fetched when the modal opens rather than on mount, so a line that is never
   // clicked never asks the registry anything.
@@ -96,31 +100,39 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
             only route back was the wallet settings screen, which is a long way
             to go to stop making a decision.
 
-            It takes the head of the list as well as the mode. The list is
-            ordered by how fast each server answered, so its head is where an
-            automatic pick lands — and a button that set the mode while leaving
-            the wallet on a server chosen by hand would only half mean it.
+            It runs the race a launch runs, rather than taking the head of this
+            list, and the difference is the whole point. The list is ordered by
+            the registry's ping measured from the registry's vantage point,
+            which narrows the field and nothing more; the wallet then races the
+            best few from where the user actually is, and the winner is often
+            not the first row. Taking the head here would land somewhere a
+            restart would not, which is the one thing this button must not do.
 
             Offered whether or not the wallet is already on auto: pressing it
-            there asks to be moved to the current best, which is a real request
-            rather than a no-op.
+            there asks to be raced again, from here and now, which is a real
+            request rather than a no-op.
 
-            When the head is already the server in use there is nothing to move
-            to, so only the mode is recorded. That is the wallet that was on
-            `list` and had happened to pick the fastest one. */}
+            When the winner is the server already in use there is nothing to
+            move to, so only the mode is recorded — moving would reopen the
+            wallet against the server it is already on. */}
         {servers.length > 0 && (
           <div className={cstyles.buttoncontainer}>
             <button
               type="button"
               className={cstyles.primarybutton}
-              onClick={() => {
-                const fastest = servers[0];
-                if (fastest.uri === currentUri) delegateServerChoice();
-                else switchServer(fastest.uri, ServerSelectionEnum.auto);
+              disabled={racing}
+              onClick={async () => {
+                setRacing(true);
+                const candidates = servers.slice(0, RACE_CANDIDATES);
+                const quickest = await selectFastestServer(candidates);
+                const target = quickest ? quickest.uri : candidates[0].uri;
+                setRacing(false);
+                if (target === currentUri) delegateServerChoice();
+                else switchServer(target, ServerSelectionEnum.auto);
                 closeModal();
               }}
             >
-              Auto
+              {racing ? "Choosing..." : "Auto"}
             </button>
           </div>
         )}
