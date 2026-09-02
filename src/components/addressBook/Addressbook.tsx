@@ -87,6 +87,10 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     setAddressBookSorted([...visible].sort((a, b) => a.label.localeCompare(b.label)));
   }, [addressBook, showAllNetworks, currentChain]);
 
+  // Whether the list under the titles has anything in it. The titles are
+  // drawn only when it does; the filter above them always is.
+  const hasVisibleContacts: boolean = !!addressBookSorted && addressBookSorted.length > 0;
+
   const updateLabel = (_currentLabel: string) => {
     setCurrentLabel(_currentLabel);
   };
@@ -352,42 +356,40 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           </button>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            gap: 12,
-            marginTop: 16,
-            // The Label/Address column header below uses `marginnegativetitle`
-            // (-20px top) and was overlapping this row, eating the clicks.
-            // Keep clear of it with a stacking context + extra bottom space.
-            position: "relative",
-            zIndex: 1,
-            marginBottom: 24,
-          }}
-        >
-          <input
-            type="checkbox"
-            aria-label="Show contacts from all networks"
-            checked={showAllNetworks}
-            onChange={(e) => setShowAllNetworks(e.target.checked)}
-            style={{
-              width: 18,
-              height: 18,
-              cursor: "pointer",
-              accentColor: "var(--color-primary)",
-            }}
-          />
-          <span className={cstyles.small}>Show contacts from all networks</span>
-        </div>
+        {/* One row where there were two. The filter used to sit on a line of
+            its own above the column titles, and that line cost the list its
+            height on every visit — while the titles' negative top margin
+            reached up into it and swallowed the clicks, which a stacking
+            context had to be added to stop. Between the two titles it shares
+            their baseline, the overlap is gone and so is the collision, and
+            the list gets the row back.
 
-        {addressBookSorted && addressBookSorted.length > 0 && (
-          <div className={`${cstyles.flexspacebetween} ${cstyles.xlarge} ${cstyles.marginnegativetitle}`}>
-            <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>
-            <div style={{ marginRight: 100, marginBottom: 15 }}>Address</div>
+            The row is drawn whether or not anything is listed. The filter is
+            most worth reaching precisely when the current network shows
+            nothing: that is when the contacts it reveals are all on the other
+            one. With no titles to sit between, it takes the middle itself. */}
+        <div
+          className={`${cstyles.flexspacebetween} ${cstyles.xlarge} ${cstyles.marginnegativetitle}`}
+          style={hasVisibleContacts ? undefined : { justifyContent: "center" }}
+        >
+          {hasVisibleContacts && <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 15 }}>
+            <input
+              type="checkbox"
+              aria-label="Show contacts from all networks"
+              checked={showAllNetworks}
+              onChange={(e) => setShowAllNetworks(e.target.checked)}
+              style={{
+                width: 18,
+                height: 18,
+                cursor: "pointer",
+                accentColor: "var(--color-primary)",
+              }}
+            />
+            <span className={cstyles.small}>Show contacts from all networks</span>
           </div>
-        )}
+          {hasVisibleContacts && <div style={{ marginRight: 100, marginBottom: 15 }}>Address</div>}
+        </div>
 
         {/* The form above this is not a fixed height: each field's validation
             line appears and disappears, the chain select exists only for an

@@ -219,6 +219,22 @@ describe("AddressBook", () => {
     expect(screen.getByText("Tester")).toBeInTheDocument();
   });
 
+  // The filter shares the column titles row, and those are drawn only when
+  // something is listed. It has to outlive them: a wallet whose current
+  // network has no contacts is exactly the one whose contacts are all on the
+  // other network, and this is the only way to reach them.
+  it("offers the network filter even when nothing is listed", () => {
+    const other = new AddressBookEntryClass("Tester", "u1test", ServerChainNameEnum.testChainName);
+    render(<AddressBook {...baseProps} />, {
+      contextOverrides: { addressBook: [other] },
+    });
+
+    expect(screen.queryByText("Tester")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/Show contacts from all networks/i));
+    expect(screen.getByText("Tester")).toBeInTheDocument();
+  });
+
   // The address book held Zcash and nothing else until now. These cover the
   // part that changed: an address on another chain, which the Zcash parser
   // would refuse outright.
