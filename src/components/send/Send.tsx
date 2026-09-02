@@ -10,6 +10,7 @@ import {
   TotalBalanceClass,
 } from "../appstate";
 import Utils from "../../utils/utils";
+import { userFacingError } from "../../utils/userFacingError";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import { BalanceBlockHighlight } from "../balanceBlock";
@@ -244,9 +245,13 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
         _spendable = 0;
       }
     } catch (error: any) {
-      const err = `Error: Critical Error calculate send fee ${error}`;
-      console.log(err);
-      _error = err;
+      // Two audiences, two messages. The console keeps the context — which of
+      // this screen's calls failed — because that is what a bug report needs.
+      // The screen gets the wallet's own last clause, because the layers in
+      // front of it describe how the renderer reaches the wallet and say
+      // nothing about the user's money.
+      console.error(`Critical Error calculate send fee ${error}`);
+      _error = userFacingError(error);
       _spendable = 0;
     }
     return { fee: _fee, error: _error, spendable: _spendable };
