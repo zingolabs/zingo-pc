@@ -82,7 +82,12 @@ export default class AppState {
   // props to context
   openErrorModal: (t: string, b: string | JSX.Element) => void;
   closeErrorModal: () => void;
-  openConfirmModal: (t: string, b: string | JSX.Element, a: () => void) => void;
+  openConfirmModal: (
+    t: string,
+    b: string | JSX.Element,
+    a: () => void,
+    alternate?: { label: string; action: () => void },
+  ) => void;
   closeConfirmModal: () => void;
   setSendTo: (t: ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;

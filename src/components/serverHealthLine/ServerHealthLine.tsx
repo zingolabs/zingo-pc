@@ -70,7 +70,18 @@ const ServerHealthLine: React.FC = () => {
         openErrorModal("Change Server", "This network publishes no other server to move to.");
         return;
       }
-      openConfirmModal("Change Server", `${DOT_TOOLTIP[level]} Move to another server?`, rotateServer);
+      // Rotating is the answer for "this one is misbehaving", and it is the
+      // one auto exists to give. But a user who opened this because they want
+      // a particular server had nowhere to say so: the picker only ever
+      // appeared for a wallet already on `list`, which is a mode they could
+      // only reach through the wallet settings screen.
+      //
+      // Choosing there switches them to `list`, because naming a server by
+      // hand is what that mode means.
+      openConfirmModal("Change Server", `${DOT_TOOLTIP[level]} Move to another server?`, rotateServer, {
+        label: "Choose Server",
+        action: () => setPickerOpen(true),
+      });
     } else if (mode === ServerSelectionEnum.list) {
       setPickerOpen(true);
     } else {

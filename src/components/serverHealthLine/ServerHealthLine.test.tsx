@@ -127,6 +127,24 @@ test.each([[HEALTHY], [DEAD]])("auto always offers to rotate, dot at %#", async 
   expect(rotateServer).toHaveBeenCalledTimes(1);
 });
 
+// Rotating answers "this one is misbehaving". A user who wants a particular
+// server is asking something else, and had nowhere to say it: the picker only
+// ever opened for a wallet already on `list`, a mode reachable only through
+// the wallet settings screen.
+test("auto also offers to choose a server by hand", async () => {
+  show(ServerSelectionEnum.auto, HEALTHY);
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
+  await waitFor(() => expect(openConfirmModal).toHaveBeenCalledTimes(1));
+  const alternate = openConfirmModal.mock.calls[0][3];
+  expect(alternate).toEqual({ label: "Choose Server", action: expect.any(Function) });
+
+  // The picker is not up until that button is the one pressed.
+  expect(screen.queryByText("Choose a Mainnet server")).not.toBeInTheDocument();
+  alternate.action();
+  expect(await screen.findByText("Choose a Mainnet server")).toBeInTheDocument();
+});
+
 // Testnet publishes a single usable server. Asking "move to another server?"
 // there, and then sitting out a probe to answer its own question, was the
 // shape of the bug.

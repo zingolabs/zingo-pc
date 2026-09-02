@@ -26,6 +26,7 @@ import {
   WalletType,
   ServerClass,
   ServerChainNameEnum,
+  ServerSelectionEnum,
   BlockExplorerEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
@@ -328,14 +329,23 @@ const AppRoutes: React.FC = () => {
     setErrorModalState(modal);
   }, []);
 
-  const openConfirmModal = useCallback((title: string, body: string | JSX.Element, runAction: () => void) => {
-    const modal = new ConfirmModalClass();
-    modal.modalIsOpen = true;
-    modal.title = title;
-    modal.body = body;
-    modal.runAction = runAction;
-    setConfirmModalState(modal);
-  }, []);
+  const openConfirmModal = useCallback(
+    (
+      title: string,
+      body: string | JSX.Element,
+      runAction: () => void,
+      alternate?: { label: string; action: () => void },
+    ) => {
+      const modal = new ConfirmModalClass();
+      modal.modalIsOpen = true;
+      modal.title = title;
+      modal.body = body;
+      modal.runAction = runAction;
+      modal.alternate = alternate;
+      setConfirmModalState(modal);
+    },
+    [],
+  );
 
   const closeConfirmModal = useCallback(() => {
     const modal = new ConfirmModalClass();
@@ -409,9 +419,15 @@ const AppRoutes: React.FC = () => {
         openErrorModal("Change Server", `${target} is not responding. Staying on the current server.`);
         return;
       }
-      const moved: WalletType = { ...wallet, uri: target };
+      // Naming a server by hand IS the list selection — it is what "list"
+      // means — so the choice is recorded alongside the address rather than
+      // leaving a wallet that says "auto" while sitting on a server nothing
+      // auto would have picked. The only caller is the picker, so this cannot
+      // catch a rotation by surprise: that has its own path and stays auto.
+      const moved: WalletType = { ...wallet, uri: target, selection: ServerSelectionEnum.list };
       await ipcRenderer.invoke("wallets:update", moved);
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: target });
+      await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: ServerSelectionEnum.list });
       setCurrentWallet(moved);
       setWallets(await ipcRenderer.invoke("wallets:all"));
       navigateToLoadingScreenChangingWallet();

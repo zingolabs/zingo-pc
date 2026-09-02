@@ -10,7 +10,7 @@ type ConfirmModalProps = {
 const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
   const context = useContext(ContextApp);
   const { confirmModal } = context;
-  const { title, body, modalIsOpen, runAction } = confirmModal;
+  const { title, body, modalIsOpen, runAction, alternate } = confirmModal;
 
   return (
     <Modal
@@ -39,6 +39,23 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
               Cancel
             </button>
           </div>
+          {/* Between the two, so Cancel stays where the eye looks for it and
+              Confirm keeps the end of the row. It closes the dialog like the
+              others: whatever it opens takes over from here. */}
+          {alternate && (
+            <div className={cstyles.buttoncontainer}>
+              <button
+                type="button"
+                className={cstyles.primarybutton}
+                onClick={() => {
+                  alternate.action();
+                  closeModal();
+                }}
+              >
+                {alternate.label}
+              </button>
+            </div>
+          )}
           <div className={cstyles.buttoncontainer}>
             <button
               type="button"
