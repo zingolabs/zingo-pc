@@ -21,6 +21,7 @@ import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
+import { userFacingError } from "../utils/userFacingError";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "./components/serverHealth";
 import {
   FfiBatchReport,
@@ -481,9 +482,16 @@ export default class RPC {
   async fetchSyncPoll(): Promise<void> {
     try {
       // A failed poll rejects (typed error on the throw channel); the catch
-      // below records it as lastPollSyncError. Status replies ("not launched",
-      // "not complete") and the completed JSON still cross on the data channel.
+      // below records it and puts it on screen. Status replies ("not
+      // launched", "not complete") and the completed JSON still cross on the
+      // data channel.
       const returnPoll: string = await native.poll_sync();
+      // Reaching here at all is the sync answering, whatever it answered, so a
+      // failure the user is still being shown is over.
+      if (this.lastPollSyncError) {
+        this.lastPollSyncError = "";
+        this.fnSetFetchError("Sync", "");
+      }
 
       if (returnPoll.toLowerCase().startsWith("sync task has not been launched")) {
         console.log("SYNC POLL -> RUN SYNC", returnPoll);
@@ -515,8 +523,26 @@ export default class RPC {
       console.log("SYNC POLL -> FETCH STATUS");
       void this.fetchSyncStatus();
     } catch (error) {
-      console.error(`Critical Error sync poll ${error}`);
-      this.lastPollSyncError = `${error}`;
+      // A sync that cannot run does not recover by itself, and this fires
+      // every ten seconds for as long as the app is open. Until now all of it
+      // went to a console the user does not have: what they saw was a wallet
+      // that never advanced, with nothing on screen to say why or for how
+      // long. One report reached us only because a user sent their log.
+      //
+      // Once per distinct reason, on the channel the Dashboard and History
+      // already render in the error colour. Repeating it every cycle would be
+      // the same silence in a different key.
+      //
+      // Stripped of the IPC layers it arrives wrapped in, because the last
+      // clause is the one that says anything — "wallet height 34100000 is more
+      // than 100 blocks ahead of best chain height 3470916" tells someone what
+      // is wrong with their wallet; the four wrappers around it do not.
+      const reason = userFacingError(error);
+      if (reason !== this.lastPollSyncError) {
+        console.error(`Critical Error sync poll ${error}`);
+        this.fnSetFetchError("Sync", reason);
+      }
+      this.lastPollSyncError = reason;
     }
   }
 
