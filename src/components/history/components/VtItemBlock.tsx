@@ -183,12 +183,12 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               </div>
             )}
             <div className={cstyles.right}>
-              {/* Labelled like the fee beside it. Two bare figures on one line
-                  need saying which is which, and the fee was the only one that
-                  did. Drawn whether or not there is a fee: a row that named its
-                  amount only when something else stood next to it would be
-                  labelling the neighbour, not the number. */}
-              <div>Amount</div>
+              {/* Labelled only when the fee stands beside it. Two figures on
+                  one line need saying which is which; one on its own is the
+                  amount by being the only thing there, and a label would cost
+                  every row without a fee a line to say what was never in
+                  doubt. */}
+              {fees > 0 && <div>Amount</div>}
               <div className={cstyles.padtopsmall}>
                 <span
                   style={{
