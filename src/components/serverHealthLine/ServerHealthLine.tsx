@@ -14,6 +14,10 @@ import { rotationCandidates } from "../../utils/pickRotationTarget";
 const DOT_COLOUR: Record<ServerHealthLevel, string> = {
   unknown: "var(--color-primary-disable)",
   ok: "var(--color-primary)",
+  // Amber with unstable: both are "answering, but not to be relied on", and a
+  // colour of its own would claim a distinction the user cannot act on
+  // differently. The tooltip is where they part.
+  slow: "var(--color-warning)",
   unstable: "var(--color-warning)",
   down: "var(--color-error)",
 };
@@ -23,6 +27,7 @@ const DOT_COLOUR: Record<ServerHealthLevel, string> = {
 const DOT_TOOLTIP: Record<ServerHealthLevel, string> = {
   unknown: "Waiting for the first check of this server.",
   ok: "This server is answering.",
+  slow: "This server is answering, but taking seconds to do it. The wallet will feel stuck.",
   unstable: "This server has failed some checks this session, but not three in a row.",
   down: "This server has not answered the last three checks.",
 };
