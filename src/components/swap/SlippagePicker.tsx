@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import Modal from "react-modal";
 
-import styles from "../history/History.module.css";
+import styles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
 
 /** 0.5%, 1%, 2%, 3%. */
@@ -51,7 +51,7 @@ const SlippagePicker: React.FC<SlippagePickerProps> = ({ slippageBps, modalIsOpe
     <Modal
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
-      className={styles.txmodal}
+      className={styles.slippagemodal}
       overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>

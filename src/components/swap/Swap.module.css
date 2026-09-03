@@ -107,3 +107,29 @@
   border-radius: 8px;
   line-height: 0;
 }
+
+/*
+ * The slippage sheet: a heading, a sentence, a row of percentages and one
+ * small input.
+ *
+ * It had been borrowing the history detail's modal, which is 800px wide
+ * because it shows addresses and transaction ids. That is twice what this
+ * holds, and it carries the reason for the rest of that class too: at 800px
+ * there is no room to centre, so it is pinned 12.5% from the left. Half the
+ * width has room, so it takes the middle.
+ */
+.slippagemodal {
+  position: absolute;
+  top: 12.5%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -5%);
+  min-width: 400px;
+  max-width: 400px;
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  padding: 16px;
+  opacity: 1;
+  background: var(--color-background);
+  border: var(--color-primary) 4px solid;
+}
