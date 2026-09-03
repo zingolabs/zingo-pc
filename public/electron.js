@@ -423,16 +423,67 @@ async function removeWallet(id) {
   await saveWallets(filtered);
 }
 
+// Writing the wallet list finishes with a rename: the store writes a temporary
+// file and moves it over the real one, so a crash mid-write cannot leave a
+// half-written list. On Windows that move fails with EPERM whenever anything
+// holds the destination for an instant — Defender reading a file that just
+// changed, the search indexer, a folder-syncing client, another copy of the app.
+// It clears on its own in tens of milliseconds, and the writer underneath makes
+// exactly one attempt (write-file-atomic 2.4.3), so a moment's contention
+// surfaced as a hard failure.
+//
+// The app could not recover from it either: the report that prompted this was a
+// user whose server had stopped answering, and whose attempt to pick another one
+// died here — the save is what the change of server needed, so being unable to
+// save left them unable to fix the thing that was wrong.
+//
+// Half a second of patience, spent only on the codes that mean "busy right now".
+// Anything else is a real fault and raised immediately: a full disk or a
+// read-only file will not be fixed by asking again.
+const WRITE_RETRY_DELAYS_MS = [30, 80, 150, 250];
+const BUSY_CODES = new Set(["EPERM", "EBUSY", "EACCES"]);
+
+async function withWriteRetries(what, attempt) {
+  for (let tries = 0; ; tries += 1) {
+    try {
+      return await attempt();
+    } catch (error) {
+      const code = error && error.code;
+      if (!BUSY_CODES.has(code)) throw error;
+      const wait = WRITE_RETRY_DELAYS_MS[tries];
+      if (wait === undefined) {
+        // Said in the terms the user can act on. The code alone names an
+        // operating-system rule, not the thing holding the file.
+        throw new Error(
+          `${what} could not be saved: Windows would not replace the file (${code}). ` +
+            "Something is holding it open — antivirus, a folder-syncing client, or another " +
+            "copy of Zingo PC still running. Close any other Zingo PC window and try again.",
+        );
+      }
+      console.log(`[storage] ${what}: ${code}, retrying in ${wait}ms`);
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+}
+
 async function clearWallets() {
-  return new Promise((resolve, reject) => {
-    storage.remove(STORAGE_KEY, (err) => (err ? reject(err) : resolve()));
-  });
+  return withWriteRetries(
+    "The wallet list",
+    () =>
+      new Promise((resolve, reject) => {
+        storage.remove(STORAGE_KEY, (err) => (err ? reject(err) : resolve()));
+      }),
+  );
 }
 
 async function saveWallets(wallets) {
-  return new Promise((resolve, reject) => {
-    storage.set(STORAGE_KEY, wallets, (err) => (err ? reject(err) : resolve()));
-  });
+  return withWriteRetries(
+    "The wallet list",
+    () =>
+      new Promise((resolve, reject) => {
+        storage.set(STORAGE_KEY, wallets, (err) => (err ? reject(err) : resolve()));
+      }),
+  );
 }
 
 // IPC close-state lives at module level so it survives across createWindow calls on macOS

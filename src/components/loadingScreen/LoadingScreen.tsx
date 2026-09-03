@@ -18,6 +18,7 @@ import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
 import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
 import Utils from "../../utils/utils";
+import { userFacingError } from "../../utils/userFacingError";
 import { Logo } from "../logo";
 import DetailLine from "../detailLine/DetailLine";
 
@@ -145,7 +146,10 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         "Zingo PC could not start",
         <div>
           <div>Something failed while preparing the wallet, and the app cannot continue.</div>
-          <div className={cstyles.margintoplarge}>{String(error)}</div>
+          {/* The wallet's own words, not the four layers of IPC around them.
+              This is the one dialog a user is asked to paste into an issue, so
+              what it shows is what we get to read. */}
+          <div className={cstyles.margintoplarge}>{userFacingError(error)}</div>
           <div className={cstyles.margintoplarge}>
             Please report this at github.com/zingolabs/zingo-pc/issues, including the message above.
           </div>
