@@ -476,10 +476,31 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       const resultJSON = JSON.parse(result);
       const birthday: number = resultJSON.birthday;
 
+      // Both ends, and a warning rather than a refusal.
+      //
+      // The birthday recorded in a .dat is metadata: a wrong one stops the
+      // wallet syncing, and refusing the restore over it would leave the user
+      // without their wallet instead — worse than the fault. So this says what
+      // is wrong and continues, which is what it always did; what it did not
+      // do was look at the upper end, where a slipped digit puts the wallet
+      // ahead of the chain and sync refuses outright.
+      const tipForFile: number | null = await (async () => {
+        try {
+          const height = Number(await native.get_latest_block_server(selectedServer));
+          return Number.isFinite(height) ? height : null;
+        } catch {
+          return null;
+        }
+      })();
       if (birthday < activationHeight[selectedChain]) {
         openErrorModal(
           "Restoring wallet from file",
-          `The birthday found ${birthday} is invalid. The sync process is not going to work.`,
+          `The birthday found (${birthday}) is below the network activation height (${activationHeight[selectedChain]}). The sync process is not going to work.`,
+        );
+      } else if (tipForFile !== null && birthday > tipForFile) {
+        openErrorModal(
+          "Restoring wallet from file",
+          `The birthday found (${birthday}) is past the current block height (${tipForFile}). A wallet cannot start in the future, and this one will not sync until the birthday is corrected.`,
         );
       }
 
