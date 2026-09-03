@@ -92,6 +92,7 @@ export default class RPC {
 
   serverHealth: ServerHealthState;
   healthProbeInFlight: boolean;
+  syncLaunchInFlight: boolean;
   healthProbeAt: number;
 
   constructor(
@@ -134,6 +135,7 @@ export default class RPC {
 
     this.serverHealth = INITIAL_SERVER_HEALTH;
     this.healthProbeInFlight = false;
+    this.syncLaunchInFlight = false;
     this.healthProbeAt = 0;
   }
 
@@ -575,11 +577,33 @@ export default class RPC {
         await native.run_rescan();
         await this.configure();
       } else {
-        // A concurrent launch now returns a clean "already running" status (no
-        // longer an error); the existing sync just keeps going. A genuine
-        // failure rejects and is caught below.
-        const syncStr: string = await native.run_sync();
-        console.log(`Sync: ${syncStr}`);
+        // One launch in flight at a time, the same guard the health probe
+        // beside this one already keeps.
+        //
+        // zingolib answers a concurrent launch with a clean "already running"
+        // and carries on, so this looked free. It is not: every ask costs a
+        // thread from the pool and a round trip to the server, and the poll
+        // asks from both of its branches as well as from the five-second
+        // cycle. While a server misbehaves the answers stop arriving and the
+        // asks do not — a log caught fifteen launches in eighteen seconds,
+        // each holding a thread, which is how a health probe against a server
+        // answering in 150ms came back after 47 seconds.
+        //
+        // A rescan is not covered: that is a deliberate act by the user, it
+        // clears the timers first, and dropping it would ignore them.
+        if (this.syncLaunchInFlight) {
+          return;
+        }
+        this.syncLaunchInFlight = true;
+        try {
+          // A concurrent launch returns a clean "already running" status (no
+          // longer an error); the existing sync just keeps going. A genuine
+          // failure rejects and is caught below.
+          const syncStr: string = await native.run_sync();
+          console.log(`Sync: ${syncStr}`);
+        } finally {
+          this.syncLaunchInFlight = false;
+        }
       }
     } catch (error) {
       console.error(`Critical Error run sync/rescan ${error}`);
