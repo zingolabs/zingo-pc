@@ -769,6 +769,36 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         isSubmittingRef.current = false;
         return;
       }
+      // And an upper bound, which is the one a slipped digit needs.
+      //
+      // A birthday past the chain tip is not a wallet that will catch up
+      // later: zingolib refuses to sync at all — "wallet height N is more than
+      // 100 blocks ahead of best chain height M" — and the app retries that
+      // every ten seconds for as long as it is open, saying nothing on screen.
+      // One extra zero, typed or pasted, and the wallet never works and never
+      // explains why.
+      //
+      // The tip is asked of the server already chosen for this wallet. An
+      // unreachable one leaves it unknown, and an unknown tip must not block a
+      // creation the user may well be doing offline on purpose — the floor
+      // above still holds either way.
+      if (newWalletType === "seed" || newWalletType === "ufvk") {
+        let tip: number | null = null;
+        try {
+          const height = Number(await native.get_latest_block_server(selectedServer));
+          tip = Number.isFinite(height) ? height : null;
+        } catch {
+          tip = null;
+        }
+        if (tip !== null && Number(birthday) > tip) {
+          openErrorModal(
+            "Create Wallet",
+            `The wallet birthday ${birthday} is past the current block height (${tip}). A birthday cannot be in the future — check for a mistyped digit.`,
+          );
+          isSubmittingRef.current = false;
+          return;
+        }
+      }
 
       // run the option
       if (newWalletType === "new") {
