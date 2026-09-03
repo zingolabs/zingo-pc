@@ -1,3 +1,26 @@
+// Every native call runs on the libuv thread pool — Neon's `cx.task` puts it
+// there — and each one blocks its thread with `RT.block_on` for the whole
+// network round trip. The pool is four threads by default.
+//
+// This app asks for more than four at once. The five-second cycle alone fires
+// eleven, and the sync poll, the wallet save and `run_sync` come on top; a
+// sync holds its thread for as long as the sync takes. Past four, the rest
+// queue, and the wait lands on whatever asked next.
+//
+// It showed as a wallet that stopped for a minute at a time and then caught
+// up in a burst, and as `server health: answered in 110785ms` against a
+// server answering the same call in 150ms from another process on the same
+// machine at the same moment. Nothing was slow. Everything was waiting.
+//
+// Sixteen covers the burst with room to spare, and an idle thread costs a
+// stack. It is a mitigation, not a cure: the cure is a native layer that does
+// not hold a thread while the network answers, which is a change on the other
+// side of the boundary.
+//
+// First statement in the file: libuv reads this when it creates the pool, and
+// the pool is created the first time anything uses it.
+process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || "16";
+
 const {
   app,
   BrowserWindow,
