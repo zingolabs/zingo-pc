@@ -204,9 +204,6 @@
     "appId": "co.zingo.pc",
     "buildVersion": "180",
     "artifactName": "${productName}-${version}-${buildVersion}-${arch}.${ext}",
-    "zip": {
-      "artifactName": "${productName}-${version}-${buildVersion}-${arch}-${os}.${ext}"
-    },
     "afterSign": "./afterMasSign.js",
     "afterAllArtifactBuild": "./afterSignHook.js",
     "files": [
