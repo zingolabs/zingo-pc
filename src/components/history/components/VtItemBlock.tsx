@@ -172,7 +172,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
           </div>
           <div className={`${styles.txfeeamount} ${cstyles.right}`}>
             {fees > 0 && (
-              <div className={`${styles.txfee} ${cstyles.right}`}>
+              <div className={cstyles.right}>
                 <div>Transaction Fee</div>
                 <div className={`${cstyles.small} ${cstyles.padtopsmall}`}>
                   <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
@@ -182,7 +182,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                 </div>
               </div>
             )}
-            <div className={`${styles.txamount} ${cstyles.right} ${cstyles.padtopsmall}`}>
+            <div className={cstyles.right}>
               <div className={cstyles.padtopsmall}>
                 <span
                   style={{
