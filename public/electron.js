@@ -1405,7 +1405,27 @@ const mixnet = {
 // narration comes with them when it has one.
 function readyStateOfRecord() {
   const wallet = mixnet.wallet;
-  if (!wallet) return { mode: "ready", socks5_addr: mixnet.socks5Addr };
+  // The proxy's own phase says its listener is up. That is not readiness, and
+  // the wallet is the only one who can say otherwise: `attach_readiness` exists
+  // precisely because a listener accepting TCP proves nothing about the mixnet
+  // carrying data.
+  //
+  // So an unheard wallet reports `bootstrapping`, not `ready`. It used to
+  // report ready, and every launch showed a green indicator for the moment
+  // between the proxy coming up and the wallet being open enough to answer
+  // `mixnet_status` — which then turned yellow and spent the next minute
+  // actually building the tunnel. Green, then yellow, then green teaches the
+  // user that the first green means nothing.
+  //
+  // Not cosmetic either: `ready` is one of the two modes that leave sends
+  // unblocked, so the false green was also opening the send screen on a
+  // transport nobody had confirmed. The wallet core refuses such a send on the
+  // route, but the UI is supposed to be fail-closed on its own.
+  //
+  // `bootstrapping` rather than `unattached` because it is what is happening —
+  // the proxy is up and the tunnel is being built — and because `unattached`
+  // paints a red "Mixnet unavailable" over an ordinary launch.
+  if (!wallet) return { mode: "bootstrapping" };
   switch (wallet.mode) {
     case "died":
       return { mode: "died", death: wallet.death || { at: Date.now() } };
