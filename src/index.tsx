@@ -38,6 +38,29 @@ if (process.env.NODE_ENV !== "development") {
   console.trace = noop;
 }
 
+// The renderer half of the main process's stall probe (see `[main-loop]` in
+// public/electron.js). The app goes silent for ~55s at a time with the sync
+// poll, the wallet save and the health probe stopping together, and those three
+// share nothing except the two JavaScript threads their answers travel through.
+// One probe on each says which — or, if neither is ever late, that both are
+// innocent and the delay is in the native layer's own settle path.
+//
+// Speaks only when late, so silence is the healthy reading and the log stays
+// readable. Development only: production silences the console anyway.
+if (process.env.NODE_ENV === "development") {
+  const TICK_MS = 1_000;
+  const REPORT_MS = 2_000;
+  let lastTick = Date.now();
+  setInterval(() => {
+    const now = Date.now();
+    const sinceLastTick = now - lastTick;
+    lastTick = now;
+    if (sinceLastTick >= REPORT_MS) {
+      console.log(`[renderer-loop] blocked for ${sinceLastTick}ms`);
+    }
+  }, TICK_MS);
+}
+
 const container = document.getElementById("root");
 const root = createRoot(container!);
 

@@ -12,14 +12,18 @@
 // server answering the same call in 150ms from another process on the same
 // machine at the same moment. Nothing was slow. Everything was waiting.
 //
-// Sixteen covers the burst with room to spare, and an idle thread costs a
-// stack. It is a mitigation, not a cure: the cure is a native layer that does
-// not hold a thread while the network answers, which is a change on the other
-// side of the boundary.
+// Raising the pool from here does not work, and the line that used to try was
+// removed rather than left looking like a safeguard. libuv reads
+// UV_THREADPOOL_SIZE once, when it creates the pool, and that happens during
+// Electron's own boot — before this file runs. Measured: sixteen concurrent
+// pool calls from an Electron main script that had just assigned "16" still
+// completed in four batches of four. Set in the environment before launch it
+// works, but an installed .exe has no such environment.
 //
-// First statement in the file: libuv reads this when it creates the pool, and
-// the pool is created the first time anything uses it.
-process.env.UV_THREADPOOL_SIZE = process.env.UV_THREADPOOL_SIZE || "16";
+// So the fix is on the other side of the boundary, and it is done:
+// `spawn_promise` in native/src/lib.rs hands every endpoint to tokio's
+// blocking pool instead of libuv's. Nothing here depends on the pool size any
+// more.
 
 const {
   app,
@@ -42,6 +46,35 @@ const { createServerRegistry } = require("./serverRegistry");
 
 const STORAGE_KEY = "wallets";
 const isDev = !app.isPackaged;
+
+// Is the main process's event loop the thing that stalls?
+//
+// The app goes completely silent for ~55s at a time: the sync poll, the wallet
+// save and the server health probe stop and resume together, within a couple of
+// hundred milliseconds of each other. They share no wallet lock, no server, and
+// since the endpoints moved off `cx.task` no thread pool either — eight of them
+// measured running genuinely in parallel. Things with nothing in common do not
+// stop together by accident; something they all pass through is stalling.
+//
+// This loop is one such thing. Every native answer settles on it (Neon's
+// `Channel` posts the promise's completion to the JS main thread), and every
+// IPC reply leaves through it, so if it blocks, every call looks slow at once.
+//
+// A timer that only speaks when it is late. It is asked to run every second, so
+// a longer gap means the loop could not get to it — and the gap is how long the
+// loop was blocked. Silence is the healthy reading, and the one that would rule
+// the main process out and send the search downstream.
+const LOOP_TICK_MS = 1_000;
+const LOOP_STALL_REPORT_MS = 2_000;
+let lastLoopTick = Date.now();
+setInterval(() => {
+  const now = Date.now();
+  const sinceLastTick = now - lastLoopTick;
+  lastLoopTick = now;
+  if (sinceLastTick >= LOOP_STALL_REPORT_MS) {
+    console.log(`[main-loop] blocked for ${sinceLastTick}ms`);
+  }
+}, LOOP_TICK_MS).unref();
 
 class MenuBuilder {
   mainWindow;
@@ -2267,6 +2300,25 @@ function createWindow() {
       sandbox: true,
       nodeIntegrationInWorker: false,
       preload: path.join(__dirname, "preload.js"),
+      // A minimized wallet has to keep syncing, and by default Chromium will
+      // not let it. Once the window is out of sight it throttles the page's
+      // timers, and the renderer's five-second work cycle — the sync poll, the
+      // wallet save, the server health probe, all of it — drops to one wake-up
+      // per minute.
+      //
+      // Measured, not inferred. A run left minimized reported eight stalls of
+      // 59993, 60000, 59999, 59997, 60001, 60000, 59997ms: exactly a minute
+      // each, to the millisecond, which is a scheduler's quantum and not
+      // anything blocking. Over the same nine minutes the main process's own
+      // loop probe never once fired, so nothing was stuck — the renderer was
+      // simply not being run.
+      //
+      // It is the same symptom as a wallet that stops for a minute at a time
+      // and then catches up in a burst, which is what sent us looking at thread
+      // pools and lock contention. Those were real and are fixed; this was the
+      // rest of it, and no amount of work on the native side would have touched
+      // it, because nothing was slow. The renderer was asleep.
+      backgroundThrottling: false,
     },
   });
 
