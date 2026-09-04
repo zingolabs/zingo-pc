@@ -91,8 +91,9 @@ export default class RPC {
   lastPollSyncError: string;
 
   serverHealth: ServerHealthState;
-  healthProbeInFlight: boolean;
-  syncLaunchInFlight: boolean;
+  // The periodic work currently out, by name. A second ask for something
+  // already asked is dropped, not queued.
+  private readonly inFlight: Set<string> = new Set();
   healthProbeAt: number;
 
   constructor(
@@ -134,8 +135,7 @@ export default class RPC {
     this.lastPollSyncError = "";
 
     this.serverHealth = INITIAL_SERVER_HEALTH;
-    this.healthProbeInFlight = false;
-    this.syncLaunchInFlight = false;
+
     this.healthProbeAt = 0;
   }
 
@@ -143,18 +143,18 @@ export default class RPC {
    * One latest-block call against the active server's URI, folded into the
    * session health.
    *
-   * Guarded two ways: it only runs once its own interval has elapsed, and never
-   * while a previous probe is still out. Without the second guard a server that
-   * stops answering would stack probes and "three failures in a row" would stop
-   * meaning three in a row.
+   * Its own interval is what it still keeps: the cycle offers it every five
+   * seconds and it answers less often than that. Not stacking behind itself is
+   * no longer its business — the cycle drops a repeat ask for anything already
+   * out, which is the rule that keeps "three failures in a row" meaning three
+   * in a row.
    */
   async probeServerHealth(): Promise<void> {
     const uri: string = this.currentWallet?.uri ?? "";
-    if (!uri || this.healthProbeInFlight || Date.now() - this.healthProbeAt < HEALTH_PROBE_INTERVAL_MS) {
+    if (!uri || Date.now() - this.healthProbeAt < HEALTH_PROBE_INTERVAL_MS) {
       return;
     }
 
-    this.healthProbeInFlight = true;
     const start: number = Date.now();
     let answered = false;
     try {
@@ -169,33 +169,62 @@ export default class RPC {
       this.serverHealth = recordProbe(this.serverHealth, answered, durationMs);
       this.fnSetServerHealth(this.serverHealth);
       this.healthProbeAt = Date.now();
-      this.healthProbeInFlight = false;
     }
   }
 
   /** A different server has nothing to do with the last one's record. */
   resetServerHealth(): void {
     this.serverHealth = INITIAL_SERVER_HEALTH;
-    this.healthProbeInFlight = false;
     this.healthProbeAt = 0;
     this.fnSetServerHealth(this.serverHealth);
   }
 
+  /**
+   * Run `work` unless the same work is already out, in which case do nothing.
+   *
+   * The cycle below is a five-second timer whose slowest member can take sixty:
+   * `poll_sync` waits out a full timeout when a server misbehaves, and holds a
+   * thread from the pool the whole time. Nothing waited for the previous cycle,
+   * so twelve of them could be alive at once — and the pool saturated in about
+   * sixteen seconds, after which everything queued behind work that was already
+   * being done. Health probes came back in 47s, then 68s, then 136s, then 160s
+   * against a server answering the same call in 110ms. The times grew because
+   * the queue grew.
+   *
+   * Dropped rather than queued, because a second identical ask answers the same
+   * question as the first. It cannot arrive sooner, and it costs the thread the
+   * next different question needs.
+   *
+   * Per request, not per cycle: a stuck `poll_sync` must not stop the balance
+   * refreshing. That is the whole reason this is keyed.
+   */
+  private async once(key: string, work: () => Promise<unknown>): Promise<void> {
+    if (this.inFlight.has(key)) {
+      return;
+    }
+    this.inFlight.add(key);
+    try {
+      await work();
+    } finally {
+      this.inFlight.delete(key);
+    }
+  }
+
   async runTaskPromises(): Promise<void> {
     await Promise.allSettled([
-      this.fetchSyncPoll(),
-      this.fetchInfo(),
-      this.fetchAddresses(),
-      this.fetchTotalBalance(),
-      this.getZecPrice(),
-      this.getMixnetView(),
-      this.probeServerHealth(),
-      RPC.doSave(),
-      this.fetchTandZandOValueTransfers(),
-      this.fetchTandZandOMessages(),
+      this.once("syncPoll", () => this.fetchSyncPoll()),
+      this.once("info", () => this.fetchInfo()),
+      this.once("addresses", () => this.fetchAddresses()),
+      this.once("balance", () => this.fetchTotalBalance()),
+      this.once("price", () => this.getZecPrice()),
+      this.once("mixnetView", () => this.getMixnetView()),
+      this.once("serverHealth", () => this.probeServerHealth()),
+      this.once("save", () => RPC.doSave()),
+      this.once("valueTransfers", () => this.fetchTandZandOValueTransfers()),
+      this.once("messages", () => this.fetchTandZandOMessages()),
       // Foreground driver: send the current window's due parts and fold in any
       // windows missed while the app was closed. No-op when none in progress.
-      RPC.driveMigration(),
+      this.once("migration", () => RPC.driveMigration()),
     ]);
   }
 
@@ -577,33 +606,22 @@ export default class RPC {
         await native.run_rescan();
         await this.configure();
       } else {
-        // One launch in flight at a time, the same guard the health probe
-        // beside this one already keeps.
-        //
-        // zingolib answers a concurrent launch with a clean "already running"
-        // and carries on, so this looked free. It is not: every ask costs a
-        // thread from the pool and a round trip to the server, and the poll
-        // asks from both of its branches as well as from the five-second
-        // cycle. While a server misbehaves the answers stop arriving and the
-        // asks do not — a log caught fifteen launches in eighteen seconds,
-        // each holding a thread, which is how a health probe against a server
-        // answering in 150ms came back after 47 seconds.
+        // Named like the cycle's members, and dropped the same way. zingolib
+        // answers a concurrent launch with a clean "already running" and
+        // carries on, which made this look free; it is not, because the ask
+        // still costs a thread and a round trip. The poll asks from both of
+        // its branches as well as from the cycle, so while a server misbehaves
+        // the asks keep coming and the answers do not.
         //
         // A rescan is not covered: that is a deliberate act by the user, it
         // clears the timers first, and dropping it would ignore them.
-        if (this.syncLaunchInFlight) {
-          return;
-        }
-        this.syncLaunchInFlight = true;
-        try {
+        await this.once("syncLaunch", async () => {
           // A concurrent launch returns a clean "already running" status (no
           // longer an error); the existing sync just keeps going. A genuine
           // failure rejects and is caught below.
           const syncStr: string = await native.run_sync();
           console.log(`Sync: ${syncStr}`);
-        } finally {
-          this.syncLaunchInFlight = false;
-        }
+        });
       }
     } catch (error) {
       console.error(`Critical Error run sync/rescan ${error}`);
