@@ -13,12 +13,16 @@ import {
 } from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
-import selectFastestServer from "../../utils/selectFastestServer";
+import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
 import Utils from "../../utils/utils";
 import { native, ipcRenderer } from "../../electronBridge";
 import { useLocation } from "react-router-dom";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import RPC from "../../rpc/rpc";
+import { useSwapService } from "../../context/ContextSwapService";
+import { SwapStore, readCurrentWalletFingerprint } from "../../swap";
+import { faChevronDown, faChevronUp } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type AddNewWalletProps = {
   closeModal: () => void;
@@ -46,7 +50,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     mode = locationState.mode;
   }
   const context = useContext(ContextApp);
-  const { openErrorModal, closeErrorModal, currentWallet, wallets, currentWalletOpenError } = context;
+  const { openErrorModal, closeErrorModal, openConfirmModal, currentWallet, wallets, currentWalletOpenError } = context;
+  const swapService = useSwapService();
 
   const [newWalletType, setNewWalletType] = useState<"new" | "seed" | "ufvk" | "file">("new");
   const [seedPhrase, setSeedPhrase] = useState<string>("");
@@ -62,6 +67,10 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
   const [selectedSelection, setSelectedSelection] = useState<ServerSelectionEnum | "">("");
 
   const [autoServer, setAutoServer] = useState<string>("");
+  // The radio is disabled while this is true. Picking a server means racing a
+  // few of them over the network, and letting Create fire in the meantime
+  // would build the wallet against whichever URI happened to be in the field.
+  const [autoResolving, setAutoResolving] = useState<boolean>(false);
   const [customServer, setCustomServer] = useState<string>("");
   const [listServer, setListServer] = useState<string>("");
 
@@ -109,6 +118,75 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     regtest: 1,
     "": 1,
   };
+
+  // Which server "Automatic" means for a chain, right now.
+  //
+  // Creation cannot defer this the way a launch can: `init_new` connects to
+  // `selectedServer` to build the wallet, so by then it has to be a real
+  // server for the chain being created — and the app's saved URI belongs to
+  // whatever chain it was last on, which is the whole hazard when the new
+  // wallet is the first on a different one.
+  //
+  // Same order LoadingScreen uses, and the same two helpers: the live registry
+  // for that chain, raced for speed because the registry ranks by uptime and a
+  // reliable server answering in ten seconds is not the one to build on; then
+  // the static list for that chain; and it gives up rather than guessing, so a
+  // caller can say so instead of dialling another chain's server.
+  const resolveAutoServer = useCallback(async (chain: ServerChainNameEnum): Promise<string> => {
+    const live: ServerClass[] = await fetchServerList(chain);
+    const candidates: ServerClass[] =
+      live.length > 0
+        ? live.slice(0, RACE_CANDIDATES)
+        : serverUrisList().filter((sv: ServerClass) => sv.chain_name === chain && !sv.obsolete);
+    if (candidates.length === 0) return "";
+    const quickest: ServerClass | null = await selectFastestServer(candidates);
+    return quickest ? quickest.uri : candidates[0].uri;
+  }, []);
+
+  // Choosing Automatic, and re-choosing it when the chain changes underneath.
+  //
+  // In settings the wallet already has a server for its chain and the chain
+  // cannot change, so the existing one stands until the next launch re-picks.
+  // Creating is the case that has to resolve now.
+  const chooseAutomaticFor = useCallback(
+    async (chain: ServerChainNameEnum) => {
+      setSelectedSelection(ServerSelectionEnum.auto);
+      if (mode !== "addnew") {
+        setSelectedServer(autoServer);
+        return;
+      }
+      setAutoResolving(true);
+      try {
+        const uri = await resolveAutoServer(chain);
+        if (uri) {
+          setAutoServer(uri);
+          setSelectedServer(uri);
+        } else {
+          // Nothing answered for this chain. Said plainly, and the selection
+          // dropped — leaving it on Automatic with another chain's server is
+          // what creation would then dial.
+          setSelectedServer("");
+          setSelectedSelection("");
+          openErrorModal(
+            "Automatic server",
+            `No server could be reached for ${chain}. Choose one from the list, or enter a custom one.`,
+          );
+        }
+      } finally {
+        setAutoResolving(false);
+      }
+    },
+    [mode, autoServer, resolveAutoServer, openErrorModal],
+  );
+
+  const chooseAutomatic = useCallback(() => {
+    if (mode !== "addnew") {
+      void chooseAutomaticFor(ServerChainNameEnum.mainChainName);
+      return;
+    }
+    if (!selectedChain) return;
+    void chooseAutomaticFor(selectedChain);
+  }, [mode, selectedChain, chooseAutomaticFor]);
 
   const initialServerValue = useCallback(
     (server: string, _chain_name: ServerChainNameEnum | "", selection: ServerSelectionEnum | "") => {
@@ -398,10 +476,31 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       const resultJSON = JSON.parse(result);
       const birthday: number = resultJSON.birthday;
 
+      // Both ends, and a warning rather than a refusal.
+      //
+      // The birthday recorded in a .dat is metadata: a wrong one stops the
+      // wallet syncing, and refusing the restore over it would leave the user
+      // without their wallet instead — worse than the fault. So this says what
+      // is wrong and continues, which is what it always did; what it did not
+      // do was look at the upper end, where a slipped digit puts the wallet
+      // ahead of the chain and sync refuses outright.
+      const tipForFile: number | null = await (async () => {
+        try {
+          const height = Number(await native.get_latest_block_server(selectedServer));
+          return Number.isFinite(height) ? height : null;
+        } catch {
+          return null;
+        }
+      })();
       if (birthday < activationHeight[selectedChain]) {
         openErrorModal(
           "Restoring wallet from file",
-          `The birthday found ${birthday} is invalid. The sync process is not going to work.`,
+          `The birthday found (${birthday}) is below the network activation height (${activationHeight[selectedChain]}). The sync process is not going to work.`,
+        );
+      } else if (tipForFile !== null && birthday > tipForFile) {
+        openErrorModal(
+          "Restoring wallet from file",
+          `The birthday found (${birthday}) is past the current block height (${tipForFile}). A wallet cannot start in the future, and this one will not sync until the birthday is corrected.`,
         );
       }
 
@@ -500,8 +599,65 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     }
   };
 
+  /**
+   * Deleting the wallet is the one flow that destroys its swap records, so it
+   * is the one flow that has to ask first.
+   *
+   * The question is whether any swap still has a deposit the provider can see
+   * and has not settled. Outbound, deleting loses the tracking record while
+   * the swap completes on-chain regardless. Inbound is worse: the payout is
+   * addressed to an ephemeral address of this wallet, so a user without their
+   * seed written down loses the incoming funds outright. Neither is something
+   * to discover afterwards.
+   *
+   * The service is null off mainnet and before it finishes building. That is
+   * "no opinion", not "nothing in flight" — but the same conditions mean no
+   * swap could have been started in this session either, so proceeding
+   * straight to the delete is honest rather than a silent green light.
+   */
   const doDelete = async () => {
+    if (!currentWallet) return;
+    let inflight = false;
+    if (swapService) {
+      try {
+        inflight = await swapService.hasInflightDeposits();
+      } catch (error) {
+        console.error(`Delete Wallet: could not check for in-flight swaps ${error}`);
+      }
+    }
+    if (inflight) {
+      openConfirmModal(
+        "Delete Wallet",
+        "A swap belonging to this wallet is still in flight: its deposit has been paid and the provider has not " +
+          "settled it yet. Deleting now removes the record that tracks it, and if the swap pays out to this wallet " +
+          "you will need its seed phrase to reach those funds. Delete anyway?",
+        () => {
+          performDelete();
+        },
+      );
+      return;
+    }
+    // The in-flight case above asks about a swap. This asks about the wallet,
+    // which is the part that does not come back: the file is removed, and only
+    // a seed phrase kept elsewhere recovers what was in it. Until now the only
+    // thing between a click and that was the screen it sits on.
+    //
+    // It names the wallet rather than saying "this wallet". Getting here means
+    // opening the screen for one of several, and the alias is what tells the
+    // user which one they are actually on.
+    openConfirmModal(
+      "Delete Wallet",
+      `Delete "${currentWallet.alias}"? Its wallet file is removed from this computer. ` +
+        `If you have its seed phrase you can restore it later; without one, anything left in it is gone.`,
+      () => {
+        performDelete();
+      },
+    );
+  };
+
+  const performDelete = async () => {
     if (!!currentWallet) {
+      openErrorModal("Delete Wallet", "Stopping all the activity with the wallet in order to delete it completely.");
       try {
         await clearTimers();
         const walletExistsResult: boolean = await native.wallet_exists(
@@ -523,6 +679,16 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
             } catch (error) {
               console.error(`Stopping sync Error ${error}`);
             }
+          }
+          // Before `deinitialize`, which is what takes the UFVK — and with it
+          // the only way to name this wallet's swap bucket — out of reach.
+          // Skipped rather than guessed when the fingerprint comes back empty:
+          // a wrong key would wipe a different wallet's records.
+          const fingerprint = await readCurrentWalletFingerprint();
+          if (fingerprint) {
+            await SwapStore.clearForWallet(fingerprint);
+          } else {
+            console.log("Delete Wallet: no fingerprint, leaving the swap bucket alone");
           }
           await RPC.deinitialize();
 
@@ -569,15 +735,19 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
 
     isSubmittingRef.current = true;
 
-    if (!selectedChain) {
-      openErrorModal("Create Wallet", "Please select a Network before creating a wallet.");
-      isSubmittingRef.current = false;
-      return;
-    }
-    if (selectedSelection !== ServerSelectionEnum.auto && (!selectedServer || !selectedSelection)) {
-      openErrorModal("Create Wallet", "Please select a server before creating a wallet.");
-      isSubmittingRef.current = false;
-      return;
+    const title = mode === "settings" ? "Save Wallet Settings" : "Create Wallet";
+    const verb = mode === "settings" ? "saving" : "creating";
+    if (mode !== "delete") {
+      if (!selectedChain) {
+        openErrorModal(title, `Please select a Network before ${verb} a wallet.`);
+        isSubmittingRef.current = false;
+        return;
+      }
+      if (!selectedServer || !selectedSelection) {
+        openErrorModal(title, `Please select a server before ${verb} a wallet.`);
+        isSubmittingRef.current = false;
+        return;
+      }
     }
 
     if (mode === "addnew") {
@@ -620,6 +790,36 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         isSubmittingRef.current = false;
         return;
       }
+      // And an upper bound, which is the one a slipped digit needs.
+      //
+      // A birthday past the chain tip is not a wallet that will catch up
+      // later: zingolib refuses to sync at all — "wallet height N is more than
+      // 100 blocks ahead of best chain height M" — and the app retries that
+      // every ten seconds for as long as it is open, saying nothing on screen.
+      // One extra zero, typed or pasted, and the wallet never works and never
+      // explains why.
+      //
+      // The tip is asked of the server already chosen for this wallet. An
+      // unreachable one leaves it unknown, and an unknown tip must not block a
+      // creation the user may well be doing offline on purpose — the floor
+      // above still holds either way.
+      if (newWalletType === "seed" || newWalletType === "ufvk") {
+        let tip: number | null = null;
+        try {
+          const height = Number(await native.get_latest_block_server(selectedServer));
+          tip = Number.isFinite(height) ? height : null;
+        } catch {
+          tip = null;
+        }
+        if (tip !== null && Number(birthday) > tip) {
+          openErrorModal(
+            "Create Wallet",
+            `The wallet birthday ${birthday} is past the current block height (${tip}). A birthday cannot be in the future — check for a mistyped digit.`,
+          );
+          isSubmittingRef.current = false;
+          return;
+        }
+      }
 
       // run the option
       if (newWalletType === "new") {
@@ -644,7 +844,10 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       await doSave();
     }
     if (mode === "delete") {
-      openErrorModal("Delete Wallet", "Stopping all the activity with the wallet in order to delete it completely.");
+      // The "stopping all activity" notice moved into `performDelete`, which
+      // is the moment it becomes true. Announcing it here would put it on
+      // screen in front of the in-flight-swap confirmation — both are
+      // react-modal over the same overlay, and this one mounts last.
       await doDelete();
     }
 
@@ -673,7 +876,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
 
   return (
     <ScrollPaneTop offsetHeight={20}>
-      <div className={`${cstyles.xlarge} ${cstyles.margintopsmall} ${cstyles.center}`}>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>
         {mode === "addnew" ? "Add a New Wallet" : mode === "settings" ? "Wallet Settings" : "Delete Wallet"}
       </div>
 
@@ -684,30 +887,40 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
             style={{ margin: "5px 10px", alignItems: "center", flexWrap: "nowrap" }}
           >
             <div className={cstyles.sublight}>Wallet Alias/Description</div>
-            <input
-              aria-label="Wallet alias"
-              disabled={mode === "delete"}
-              placeholder="Ex: My Zcash Wallet"
-              type="text"
-              className={cstyles.inputbox}
-              style={{ width: "60%", marginLeft: "20px" }}
-              value={alias}
-              onChange={(e) => updateAlias(e)}
-            />
-            <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
-              Network
+            <div className={cstyles.fieldrow} style={{ width: "60%", marginLeft: "20px" }}>
+              <input
+                aria-label="Wallet alias"
+                disabled={mode === "delete"}
+                placeholder="Ex: My Zcash Wallet"
+                type="text"
+                className={cstyles.fieldinput}
+                value={alias}
+                onChange={(e) => updateAlias(e)}
+              />
+            </div>
+            <div className={cstyles.horizontalflex} style={{ marginLeft: 10, alignItems: "center", flex: 1 }}>
+              <div className={cstyles.sublight}>Network</div>
               <select
                 aria-label="Network"
                 disabled={mode !== "addnew"}
-                className={cstyles.inputbox}
+                className={cstyles.fieldselect}
                 style={{
                   marginLeft: "20px",
-                  color: selectedChain === "" ? Utils.getCssVariable("--color-zingo") : undefined,
+                  color: selectedChain === "" ? "var(--color-zingo)" : undefined,
                 }}
                 value={selectedChain}
                 onChange={(e) => {
                   setServerExpanded(true);
-                  setSelectedChain(e.target.value as ServerChainNameEnum | "");
+                  const chain = e.target.value as ServerChainNameEnum | "";
+                  setSelectedChain(chain);
+                  // Automatic is a choice about how to pick, not about which
+                  // server, so it survives the chain change and re-picks for
+                  // the new one. Everything below decides a specific server,
+                  // and those are the ones a new chain invalidates.
+                  if (selectedSelection === ServerSelectionEnum.auto) {
+                    if (chain) void chooseAutomaticFor(chain);
+                    return;
+                  }
                   if (servers.filter((s) => s.chain_name === e.target.value).length === 0) {
                     setSelectedSelection(ServerSelectionEnum.custom);
                     setSelectedServer(customServer);
@@ -746,7 +959,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               <div className={cstyles.sublight}>Type of Wallet creation</div>
               <select
                 aria-label="Type of wallet creation"
-                className={cstyles.inputbox}
+                className={cstyles.fieldselect}
                 style={{ width: "80%", marginLeft: "20px" }}
                 value={newWalletType}
                 onChange={(e) => {
@@ -767,63 +980,72 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           {newWalletType === "seed" && mode === "addnew" && (
             <div style={{ margin: "5px 10px" }}>
               <div className={cstyles.sublight}>Please enter your seed phrase</div>
-              <TextareaAutosize
-                aria-label="Seed phrase"
-                placeholder="Enter your 24 recovery words"
-                className={cstyles.inputbox}
-                value={seedPhrase}
-                onChange={(e) => updateSeedPhrase(e)}
-              />
-              <div className={cstyles.sublight}>
+              <div className={cstyles.fieldrowmulti}>
+                <TextareaAutosize
+                  aria-label="Seed phrase"
+                  placeholder="Enter your 24 recovery words"
+                  className={cstyles.fieldtextarea}
+                  value={seedPhrase}
+                  onChange={(e) => updateSeedPhrase(e)}
+                />
+              </div>
+              <div className={`${cstyles.sublight} ${cstyles.margintoplarge}`}>
                 {`Wallet Birthday. If you don’t know this, it is OK to enter ‘${activationHeight[selectedChain]}’`}
               </div>
-              <input
-                aria-label="Wallet birthday"
-                placeholder={`>= ${activationHeight[selectedChain]}`}
-                type="number"
-                className={cstyles.inputbox}
-                value={birthday}
-                onChange={(e) => updateBirthday(e)}
-              />
+              <div className={cstyles.fieldrow}>
+                <input
+                  aria-label="Wallet birthday"
+                  placeholder={`>= ${activationHeight[selectedChain]}`}
+                  type="number"
+                  className={cstyles.fieldinput}
+                  value={birthday}
+                  onChange={(e) => updateBirthday(e)}
+                />
+              </div>
             </div>
           )}
 
           {newWalletType === "ufvk" && mode === "addnew" && (
             <div style={{ margin: "5px 10px" }}>
               <div className={cstyles.sublight}>Please enter your Unified Full Viewing Key</div>
-              <TextareaAutosize
-                aria-label="Unified Full Viewing Key"
-                placeholder="Ex: uview..."
-                className={cstyles.inputbox}
-                value={ufvk}
-                onChange={(e) => updateUfvk(e)}
-              />
-              <div className={cstyles.sublight}>
+              <div className={cstyles.fieldrowmulti}>
+                <TextareaAutosize
+                  aria-label="Unified Full Viewing Key"
+                  placeholder="Ex: uview..."
+                  className={cstyles.fieldtextarea}
+                  value={ufvk}
+                  onChange={(e) => updateUfvk(e)}
+                />
+              </div>
+              <div className={`${cstyles.sublight} ${cstyles.margintoplarge}`}>
                 {`Wallet Birthday. If you don’t know this, it is OK to enter ‘${activationHeight[selectedChain]}’`}
               </div>
-              <input
-                aria-label="Wallet birthday"
-                placeholder={`>= ${activationHeight[selectedChain]}`}
-                type="number"
-                className={cstyles.inputbox}
-                value={birthday}
-                onChange={(e) => updateBirthday(e)}
-              />
+              <div className={cstyles.fieldrow}>
+                <input
+                  aria-label="Wallet birthday"
+                  placeholder={`>= ${activationHeight[selectedChain]}`}
+                  type="number"
+                  className={cstyles.fieldinput}
+                  value={birthday}
+                  onChange={(e) => updateBirthday(e)}
+                />
+              </div>
             </div>
           )}
 
           {newWalletType === "file" && mode === "addnew" && (
             <div style={{ margin: "5px 10px" }}>
               <div className={cstyles.sublight}>Please enter your Wallet File Name stored in the Zcash folder</div>
-              <input
-                aria-label="Wallet file name"
-                placeholder="Ex: zingo-wallet-renamed....dat"
-                type="text"
-                className={cstyles.inputbox}
-                style={{ width: "90%", marginLeft: "20px" }}
-                value={file}
-                onChange={(e) => updateFile(e)}
-              />
+              <div className={cstyles.fieldrow}>
+                <input
+                  aria-label="Wallet file name"
+                  placeholder="Ex: zingo-wallet-renamed....dat"
+                  type="text"
+                  className={cstyles.fieldinput}
+                  value={file}
+                  onChange={(e) => updateFile(e)}
+                />
+              </div>
             </div>
           )}
 
@@ -833,16 +1055,17 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               style={{ margin: "5px 10px", alignItems: "center", flexWrap: "nowrap" }}
             >
               <div className={cstyles.sublight}>File Name</div>
-              <input
-                aria-label="File name"
-                disabled={true}
-                type="text"
-                className={cstyles.inputbox}
-                style={{ width: "85%", marginLeft: "20px" }}
-                value={
-                  currentWallet && currentWallet.creationType === CreationTypeEnum.Main ? "zingo-wallet.dat" : file
-                }
-              />
+              <div className={cstyles.fieldrow} style={{ width: "85%", marginLeft: "20px" }}>
+                <input
+                  aria-label="File name"
+                  disabled={true}
+                  type="text"
+                  className={cstyles.fieldinput}
+                  value={
+                    currentWallet && currentWallet.creationType === CreationTypeEnum.Main ? "zingo-wallet.dat" : file
+                  }
+                />
+              </div>
             </div>
           )}
 
@@ -855,7 +1078,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                   marginTop: 10,
                   marginBottom: 10,
                   marginLeft: "-20px",
-                  backgroundColor: Utils.getCssVariable("--color-background"),
+                  backgroundColor: "var(--color-background)",
                 }}
               />
 
@@ -873,7 +1096,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                       style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
                       onClick={() => setServerExpanded(!serverExpanded)}
                     >
-                      <i className={`${"fas"} ${"fa-chevron-down"} ${"fa-1x"}`} />
+                      <FontAwesomeIcon icon={faChevronDown} />
                     </div>
                     <div style={{ cursor: "pointer" }} onClick={() => setServerExpanded(!serverExpanded)}>
                       {selectedServer}
@@ -893,36 +1116,32 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                         style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
                         onClick={() => setServerExpanded(!serverExpanded)}
                       >
-                        <i className={`${"fas"} ${"fa-chevron-up"} ${"fa-1x"}`} />
+                        <FontAwesomeIcon icon={faChevronUp} />
                       </div>
                     </div>
-                    {mode === "settings" && (
-                      <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
-                        <input
-                          checked={selectedSelection === ServerSelectionEnum.auto}
-                          style={{ accentColor: Utils.getCssVariable("--color-primary") }}
-                          type="radio"
-                          name="selection"
-                          value={ServerSelectionEnum.auto}
-                          onClick={() => {
-                            setSelectedSelection(ServerSelectionEnum.auto);
-                            setSelectedServer(autoServer);
-                          }}
-                          onChange={() => {
-                            setSelectedSelection(ServerSelectionEnum.auto);
-                            setSelectedServer(autoServer);
-                          }}
-                        />
-                        Automatic
-                      </div>
-                    )}
+                    <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
+                      <input
+                        checked={selectedSelection === ServerSelectionEnum.auto}
+                        style={{ accentColor: "var(--color-primary)" }}
+                        type="radio"
+                        name="selection"
+                        aria-label="Automatic"
+                        value={ServerSelectionEnum.auto}
+                        disabled={autoResolving}
+                        onClick={() => chooseAutomatic()}
+                        onChange={() => chooseAutomatic()}
+                      />
+                      Automatic
+                      {autoResolving && <span className={cstyles.sublight}>&nbsp; finding a server…</span>}
+                    </div>
                     {servers.filter((s) => s.chain_name === selectedChain).length > 0 && (
                       <div className={cstyles.horizontalflex} style={{ margin: "5px 10px", alignItems: "center" }}>
                         <input
                           checked={selectedSelection === ServerSelectionEnum.list}
-                          style={{ accentColor: Utils.getCssVariable("--color-primary") }}
+                          style={{ accentColor: "var(--color-primary)" }}
                           type="radio"
                           name="selection"
+                          aria-label="From the list"
                           value={ServerSelectionEnum.list}
                           onClick={() => {
                             setSelectedSelection(ServerSelectionEnum.list);
@@ -941,7 +1160,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                         <select
                           aria-label="Server list"
                           disabled={selectedSelection !== "list"}
-                          className={cstyles.inputbox}
+                          className={cstyles.fieldselect}
                           style={{ marginLeft: "20px" }}
                           value={listServer}
                           onChange={(e) => {
@@ -966,9 +1185,10 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                     <div style={{ margin: "5px 10px" }}>
                       <input
                         checked={selectedSelection === "custom"}
-                        style={{ accentColor: Utils.getCssVariable("--color-primary") }}
+                        style={{ accentColor: "var(--color-primary)" }}
                         type="radio"
                         name="selection"
+                        aria-label="Custom"
                         value={"custom"}
                         onClick={() => {
                           setSelectedSelection(ServerSelectionEnum.custom);
@@ -982,20 +1202,20 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                       Custom
                       <div className={`${cstyles.well} ${cstyles.horizontalflex}`}>
                         <div style={{ width: "75%", padding: 0, margin: 0, flexWrap: "nowrap" }}>
-                          URI
-                          <input
-                            aria-label="Custom server URI"
-                            placeholder="https://------.---:---"
-                            disabled={selectedSelection !== "custom"}
-                            type="text"
-                            className={cstyles.inputbox}
-                            style={{ marginLeft: "20px", width: "80%" }}
-                            value={customServer}
-                            onChange={(e) => {
-                              setCustomServer(e.target.value);
-                              setSelectedServer(e.target.value);
-                            }}
-                          />
+                          <div className={cstyles.fieldrow} style={{ width: "100%" }}>
+                            <input
+                              aria-label="Custom server URI"
+                              placeholder="https://------.---:---"
+                              disabled={selectedSelection !== "custom"}
+                              type="text"
+                              className={cstyles.fieldinput}
+                              value={customServer}
+                              onChange={(e) => {
+                                setCustomServer(e.target.value);
+                                setSelectedServer(e.target.value);
+                              }}
+                            />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1012,7 +1232,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               marginTop: 10,
               marginBottom: 10,
               marginLeft: "-20px",
-              backgroundColor: Utils.getCssVariable("--color-background"),
+              backgroundColor: "var(--color-background)",
             }}
           />
 
@@ -1024,7 +1244,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
             <select
               aria-label="Sync performance level"
               disabled={mode === "delete"}
-              className={cstyles.inputbox}
+              className={cstyles.fieldselect}
               style={{ width: "80%", marginLeft: "20px" }}
               value={performanceLevel}
               onChange={(e) => {

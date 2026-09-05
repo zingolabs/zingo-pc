@@ -29,11 +29,31 @@ describe("trimToSmall", () => {
   });
 
   it("trims with default 5 chars on each side", () => {
-    expect(Utils.trimToSmall("abcde12345")).toBe("abcde...12345");
+    expect(Utils.trimToSmall("abcde1234567890")).toBe("abcde...67890");
   });
 
   it("trims with custom numChars", () => {
     expect(Utils.trimToSmall("abcdefghij", 3)).toBe("abc...hij");
+  });
+
+  // The two slices come from opposite ends, so below twice `numChars` they
+  // overlap and the shared middle is printed twice. A short address came out
+  // reading as two copies of itself with dots in between.
+  it("returns a short string whole rather than repeating its middle", () => {
+    expect(Utils.trimToSmall("abcde123", 5)).toBe("abcde123");
+    expect(Utils.trimToSmall("abcdef", 5)).toBe("abcdef");
+  });
+
+  // At exactly twice, nothing repeats — but the result is three characters
+  // longer than what it replaced, which is not an abbreviation.
+  it("leaves a string alone when shortening it would make it longer", () => {
+    expect(Utils.trimToSmall("abcde12345")).toBe("abcde12345");
+    expect(Utils.trimToSmall("abcde12345678")).toBe("abcde12345678");
+  });
+
+  // One character past the point where the ellipsis pays for itself.
+  it("starts trimming as soon as trimming saves a character", () => {
+    expect(Utils.trimToSmall("abcde123456789")).toBe("abcde...56789");
   });
 });
 

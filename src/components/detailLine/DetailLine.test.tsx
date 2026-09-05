@@ -14,7 +14,7 @@ describe("DetailLine", () => {
 
   it("displays the label", () => {
     render(<DetailLine label="Address" value="abc123" />);
-    expect(screen.getByText("Address :")).toBeInTheDocument();
+    expect(screen.getByText("Address")).toBeInTheDocument();
   });
 
   it("displays the value", () => {
@@ -24,7 +24,7 @@ describe("DetailLine", () => {
 
   it("renders different label and value without mixing them", () => {
     render(<DetailLine label="Amount" value="1.5 ZEC" />);
-    expect(screen.getByText("Amount :")).toBeInTheDocument();
+    expect(screen.getByText("Amount")).toBeInTheDocument();
     expect(screen.getByText("1.5 ZEC")).toBeInTheDocument();
   });
 });

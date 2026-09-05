@@ -26,6 +26,7 @@ import {
   WalletType,
   ServerClass,
   ServerChainNameEnum,
+  ServerSelectionEnum,
   BlockExplorerEnum,
 } from "../components/appstate";
 import RPC from "../rpc/rpc";
@@ -35,8 +36,11 @@ import selectFastestServer from "../utils/selectFastestServer";
 import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
+import { WalletBar } from "../components/walletBar";
 import { History } from "../components/history";
+import { Swap } from "../components/swap";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
+import { SwapServiceProvider } from "../context/ContextSwapService";
 
 import { native } from "../electronBridge";
 import { Messages } from "../components/messages";
@@ -161,12 +165,18 @@ const AppRoutes: React.FC = () => {
   // narration, ready, died, switched_off); project it to the view instantly so
   // the indicator never lags the transport.
   useEffect(() => {
-    const listener = (_event: unknown, status: RPCMixnetStatusType) => setMixnetView(deriveMixnetView(status));
-    ipcRenderer.on("mixnet-status", listener);
-    return () => ipcRenderer.removeListener("mixnet-status", listener);
+    return ipcRenderer.on("mixnet-status", (_event: unknown, status: RPCMixnetStatusType) =>
+      setMixnetView(deriveMixnetView(status)),
+    );
   }, [setMixnetView]);
 
-  const setReadOnly = useCallback((val: boolean) => setReadOnlyState(val), []);
+  // Pushed to the RPC instance as well as into context, the same way
+  // `setCurrentWallet` does above: the info path is static and reads no
+  // context, and it runs on the task loop where nothing else would tell it.
+  const setReadOnly = useCallback((val: boolean) => {
+    setReadOnlyState(val);
+    rpcRef.current?.setReadOnly(val);
+  }, []);
   const setWallets = useCallback((val: WalletType[]) => setWalletsState(val), []);
   const setBirthday = useCallback((val: number) => setBirthdayState(val), []);
 
@@ -262,13 +272,13 @@ const AppRoutes: React.FC = () => {
     })();
 
     const appsecurityListener = () => setSecurityModalOpen(true);
-    ipcRenderer.on("appsecurity", appsecurityListener);
+    const subscriptions = [ipcRenderer.on("appsecurity", appsecurityListener)];
 
     // Change wallet folder location — main process handles the dialog, picker, and restart.
     const changeWalletDirListener = () => {
       ipcRenderer.invoke("wallet-dir:change");
     };
-    ipcRenderer.on("change-wallet-dir", changeWalletDirListener);
+    subscriptions.push(ipcRenderer.on("change-wallet-dir", changeWalletDirListener));
 
     // Import data from another installation — kick off the folder picker, then open the modal.
     const importDataListener = async () => {
@@ -280,7 +290,7 @@ const AppRoutes: React.FC = () => {
       // Cancellation / no-data / same-folder errors are surfaced by main-process dialogs
       // or simply do nothing here — keep the renderer flow quiet.
     };
-    ipcRenderer.on("import-data", importDataListener);
+    subscriptions.push(ipcRenderer.on("import-data", importDataListener));
 
     const appquittingListener = async () => {
       // Best-effort wallet save on shutdown. The wallet is already saved
@@ -293,14 +303,11 @@ const AppRoutes: React.FC = () => {
       await Promise.race([savePromise, cap]);
       ipcRenderer.send("appquitdone");
     };
-    ipcRenderer.on("appquitting", appquittingListener);
+    subscriptions.push(ipcRenderer.on("appquitting", appquittingListener));
 
     return () => {
       if (fetchErrorTimer.current) clearTimeout(fetchErrorTimer.current);
-      ipcRenderer.off("appsecurity", appsecurityListener);
-      ipcRenderer.off("change-wallet-dir", changeWalletDirListener);
-      ipcRenderer.off("import-data", importDataListener);
-      ipcRenderer.off("appquitting", appquittingListener);
+      subscriptions.forEach((cancel) => cancel());
     };
   }, []);
 
@@ -319,14 +326,23 @@ const AppRoutes: React.FC = () => {
     setErrorModalState(modal);
   }, []);
 
-  const openConfirmModal = useCallback((title: string, body: string | JSX.Element, runAction: () => void) => {
-    const modal = new ConfirmModalClass();
-    modal.modalIsOpen = true;
-    modal.title = title;
-    modal.body = body;
-    modal.runAction = runAction;
-    setConfirmModalState(modal);
-  }, []);
+  const openConfirmModal = useCallback(
+    (
+      title: string,
+      body: string | JSX.Element,
+      runAction: () => void,
+      alternate?: { label: string; action: () => void },
+    ) => {
+      const modal = new ConfirmModalClass();
+      modal.modalIsOpen = true;
+      modal.title = title;
+      modal.body = body;
+      modal.runAction = runAction;
+      modal.alternate = alternate;
+      setConfirmModalState(modal);
+    },
+    [],
+  );
 
   const closeConfirmModal = useCallback(() => {
     const modal = new ConfirmModalClass();
@@ -385,8 +401,13 @@ const AppRoutes: React.FC = () => {
   // every server picked that way looked dead — which is why that path sat unused
   // in the first place. Going round through LoadingScreen is what the wallet
   // settings screen already does, and it is the one that works.
+  // `selection` is what the caller means by the move, and only the caller
+  // knows. A hand pick from the list is the `list` mode by definition; a
+  // rotation is auto doing exactly what auto is for and must stay on it.
+  // Omitted, the mode is left alone — this function moves a server, and
+  // deciding the mode on its behalf turned every rotation into a hand pick.
   const switchServer = useCallback(
-    async (target: string) => {
+    async (target: string, selection?: ServerSelectionEnum) => {
       const wallet: WalletType | null = currentWallet;
       if (!wallet?.uri || target === wallet.uri) {
         return;
@@ -400,15 +421,56 @@ const AppRoutes: React.FC = () => {
         openErrorModal("Change Server", `${target} is not responding. Staying on the current server.`);
         return;
       }
-      const moved: WalletType = { ...wallet, uri: target };
+      // A named selection is the user deciding, and it wipes what rotation
+      // had been remembering. Those exclusions are auto's own bookkeeping —
+      // "I already moved away from these" — and they mean nothing once the
+      // user says which server they want, or says to start choosing again.
+      // Left in place they would haunt the next rotation with rejections from
+      // before the decision, and the wallet would run out of servers to move
+      // to without ever having tried them under the new mode.
+      //
+      // A rotation names no selection and so clears nothing: it is the thing
+      // doing the remembering.
+      if (selection) {
+        setAvoidedServers([]);
+      }
+      const moved: WalletType = { ...wallet, uri: target, ...(selection ? { selection } : {}) };
       await ipcRenderer.invoke("wallets:update", moved);
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: target });
+      if (selection) {
+        await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: selection });
+      }
       setCurrentWallet(moved);
       setWallets(await ipcRenderer.invoke("wallets:all"));
       navigateToLoadingScreenChangingWallet();
     },
     [currentWallet, openErrorModal, setCurrentWallet, setWallets, navigateToLoadingScreenChangingWallet],
   );
+
+  // Hand the choice of server back to the wallet.
+  //
+  // The mode changes and the server does not. Auto means "you may move me",
+  // not "move me now": the one in use was reachable a moment ago, and throwing
+  // away a working connection to prove the point would cost a reload for
+  // nothing. Rotation is what moves it, on its own trigger, when this one
+  // stops answering.
+  //
+  // So no reopen either, unlike `switchServer` — nothing the session is
+  // talking to has changed.
+  const delegateServerChoice = useCallback(async () => {
+    const wallet: WalletType | null = currentWallet;
+    if (!wallet || wallet.selection === ServerSelectionEnum.auto) {
+      return;
+    }
+    // Same clean slate as a named switch: this is the same decision, taken
+    // where the server happens to already be the one auto would pick.
+    setAvoidedServers([]);
+    const relaxed: WalletType = { ...wallet, selection: ServerSelectionEnum.auto };
+    await ipcRenderer.invoke("wallets:update", relaxed);
+    await ipcRenderer.invoke("saveSettings", { key: "serverselection", value: ServerSelectionEnum.auto });
+    setCurrentWallet(relaxed);
+    setWallets(await ipcRenderer.invoke("wallets:all"));
+  }, [currentWallet, setCurrentWallet, setWallets]);
 
   const rotateServer = useCallback(async () => {
     const wallet: WalletType | null = currentWallet;
@@ -429,9 +491,12 @@ const AppRoutes: React.FC = () => {
   }, [avoidedServers, currentWallet, openErrorModal, switchServer]);
 
   // --- address book ---
-  const addAddressBookEntry = useCallback((label: string, address: string, chain: ServerChainNameEnum) => {
-    setAddressBookState((prev) => AddressbookImpl.addEntry(prev, label, address, chain));
-  }, []);
+  const addAddressBookEntry = useCallback(
+    (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => {
+      setAddressBookState((prev) => AddressbookImpl.addEntry(prev, label, address, chain, swapChain));
+    },
+    [],
+  );
 
   const removeAddressBookEntry = useCallback((label: string) => {
     setAddressBookState((prev) => AddressbookImpl.removeEntry(prev, label));
@@ -446,6 +511,13 @@ const AppRoutes: React.FC = () => {
     if (target.memoString) to.memo = target.memoString;
     newState.toaddr = to;
     setSendPageStateState(newState);
+  }, []);
+
+  // Handed to the Swap screen by the Address Book. Cleared by the screen once
+  // read, so it prefills the field on arrival and never again.
+  const [swapToState, setSwapToState] = useState<{ address: string; swapChain: string } | null>(null);
+  const setSwapTo = useCallback((t: { address: string; swapChain: string } | null): void => {
+    setSwapToState(t);
   }, []);
 
   const setAddLabel = useCallback((ab: AddressBookEntryClass): void => {
@@ -521,6 +593,18 @@ const AppRoutes: React.FC = () => {
     }
   }, []);
 
+  const runRPCSendSwapDeposit = useCallback(
+    async (args: {
+      depositAddress: string;
+      amountAtomic: number;
+      memoBytes?: Uint8Array;
+      routeViaEphemeral?: boolean;
+    }): Promise<string[]> => {
+      return rpcRef.current!.sendSwapDeposit(args);
+    },
+    [],
+  );
+
   const runRPCDrainToIronwood = useCallback(async (): Promise<{
     result: RPCIronwoodDrainType | null;
     error: string;
@@ -551,6 +635,7 @@ const AppRoutes: React.FC = () => {
       saplingPool,
       transparentPool,
       addLabelState,
+      swapToState,
       errorModal,
       confirmModal,
       openErrorModal,
@@ -558,6 +643,7 @@ const AppRoutes: React.FC = () => {
       openConfirmModal,
       closeConfirmModal,
       setSendTo,
+      setSwapTo,
       calculateShieldFee,
       handleShieldButton,
       setAddLabel,
@@ -566,6 +652,7 @@ const AppRoutes: React.FC = () => {
       serverHealth,
       rotateServer,
       switchServer,
+      delegateServerChoice,
       reopenWallet: navigateToLoadingScreenChangingWallet,
       avoidedServers,
       blockExplorerMainnetAddress: blockExplorerConfig.blockExplorerMainnetAddress,
@@ -599,6 +686,7 @@ const AppRoutes: React.FC = () => {
       saplingPool,
       transparentPool,
       addLabelState,
+      swapToState,
       errorModal,
       confirmModal,
       openErrorModal,
@@ -606,6 +694,7 @@ const AppRoutes: React.FC = () => {
       openConfirmModal,
       closeConfirmModal,
       setSendTo,
+      setSwapTo,
       calculateShieldFee,
       handleShieldButton,
       setAddLabel,
@@ -614,6 +703,7 @@ const AppRoutes: React.FC = () => {
       serverHealth,
       rotateServer,
       switchServer,
+      delegateServerChoice,
       navigateToLoadingScreenChangingWallet,
       avoidedServers,
       blockExplorerConfig,
@@ -646,70 +736,95 @@ const AppRoutes: React.FC = () => {
       {confirmModal.modalIsOpen && <ConfirmModal closeModal={closeConfirmModal} />}
       {errorModal.modalIsOpen && <ErrorModal closeModal={closeErrorModal} />}
 
-      <div style={{ overflow: "hidden" }}>
-        {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
-          <div className={cstyles.sidebarcontainer}>
-            <Sidebar
-              doRescan={runRPCRescan}
-              navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
-            />
-          </div>
-        )}
+      {/* The swap store binds against the loaded wallet's UFVK, which needs the
+          lightclient up. `currentWallet` is set while the loading screen is
+          still opening the wallet, so it is not that signal: leaving the
+          loading route is. Keyed by the wallet so a switch rebinds the store
+          and re-arms the poller against the new one. */}
+      <SwapServiceProvider
+        key={currentWallet?.id ?? "no-wallet"}
+        chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
+        enabled={!!currentWallet && !currentWalletOpenError && location.pathname !== routes.LOADING}
+      >
+        <div style={{ overflow: "hidden" }}>
+          {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
+            <div className={cstyles.sidebarcontainer}>
+              <Sidebar doRescan={runRPCRescan} />
+            </div>
+          )}
 
-        <div className={cstyles.contentcontainer}>
-          <Routes>
-            <Route
-              path={routes.SEND}
-              element={<Send sendTransaction={runRPCSendTransaction} setSendPageState={setSendPageState} />}
-            />
-            <Route path={routes.RECEIVE} element={<Receive />} />
-            <Route
-              path={routes.ADDRESSBOOK}
-              element={
-                <AddressBook
-                  addAddressBookEntry={addAddressBookEntry}
-                  removeAddressBookEntry={removeAddressBookEntry}
-                />
-              }
-            />
-            <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
-            <Route path={routes.INSIGHT} element={<Insight />} />
-            <Route path={routes.HISTORY} element={<History />} />
-            <Route path={routes.MESSAGES} element={<Messages />} />
-            <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
-            <Route
-              path={routes.ADDNEWWALLET}
-              element={
-                <AddNewWallet
-                  closeModal={navigateToDashboard}
-                  setWallets={setWallets}
-                  setCurrentWallet={setCurrentWallet}
-                  navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
-                  doSaveWallet={() => RPC.doSave()}
-                  clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
-                />
-              }
-            />
-            <Route
-              path={routes.LOADING}
-              element={
-                <LoadingScreen
-                  runRPCConfigure={() => rpcRef.current?.configure()}
-                  setInfo={setInfo}
-                  setReadOnly={setReadOnly}
-                  navigateToDashboard={navigateToDashboard}
-                  setBirthday={setBirthday}
-                  setPools={setPools}
-                  setWallets={setWallets}
-                  setCurrentWallet={setCurrentWallet}
-                  setCurrentWalletOpenError={setCurrentWalletOpenError}
-                  setFetchError={setFetchError}
-                />
-              }
-            />
-          </Routes>
+          <div className={cstyles.contentcontainer}>
+            {/* Above the routes rather than inside any of them: the wallet you
+                are in and the server it talks to are true of every screen, and
+                the server line had already been pasted into five of them
+                separately. It hides itself when there is no wallet. */}
+            {location.pathname !== routes.LOADING && !location.pathname.toLowerCase().includes("zingo") && (
+              <WalletBar navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet} />
+            )}
+            <Routes>
+              <Route
+                path={routes.SEND}
+                element={
+                  <Send
+                    sendTransaction={runRPCSendTransaction}
+                    setSendPageState={setSendPageState}
+                    addAddressBookEntry={addAddressBookEntry}
+                  />
+                }
+              />
+              <Route path={routes.RECEIVE} element={<Receive />} />
+              <Route
+                path={routes.ADDRESSBOOK}
+                element={
+                  <AddressBook
+                    addAddressBookEntry={addAddressBookEntry}
+                    removeAddressBookEntry={removeAddressBookEntry}
+                  />
+                }
+              />
+              <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
+              <Route path={routes.INSIGHT} element={<Insight />} />
+              <Route path={routes.HISTORY} element={<History />} />
+              <Route
+                path={routes.SWAP}
+                element={<Swap sendSwapDeposit={runRPCSendSwapDeposit} addAddressBookEntry={addAddressBookEntry} />}
+              />
+              <Route path={routes.MESSAGES} element={<Messages />} />
+              <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
+              <Route
+                path={routes.ADDNEWWALLET}
+                element={
+                  <AddNewWallet
+                    closeModal={navigateToDashboard}
+                    setWallets={setWallets}
+                    setCurrentWallet={setCurrentWallet}
+                    navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
+                    doSaveWallet={() => RPC.doSave()}
+                    clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
+                  />
+                }
+              />
+              <Route
+                path={routes.LOADING}
+                element={
+                  <LoadingScreen
+                    runRPCConfigure={() => rpcRef.current?.configure()}
+                    setInfo={setInfo}
+                    setReadOnly={setReadOnly}
+                    navigateToDashboard={navigateToDashboard}
+                    setBirthday={setBirthday}
+                    setPools={setPools}
+                    setWallets={setWallets}
+                    setCurrentWallet={setCurrentWallet}
+                    setCurrentWalletOpenError={setCurrentWalletOpenError}
+                    setFetchError={setFetchError}
+                  />
+                }
+              />
+            </Routes>
+          </div>
         </div>
-      </div>
+      </SwapServiceProvider>
     </ContextAppProvider>
   );
 };

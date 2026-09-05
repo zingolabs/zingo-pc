@@ -1,4 +1,4 @@
-import AddressBookEntryClass from "./classes/AddressBookEntryClass";
+import AddressBookEntryClass, { ZEC_SWAP_CHAIN } from "./classes/AddressBookEntryClass";
 import TransparentAddressClass from "./classes/TransparentAddressClass";
 import UnifiedAddressClass from "./classes/UnifiedAddressClass";
 import FetchErrorTypeClass from "./classes/FetchErrorClass";
@@ -37,6 +37,7 @@ import AppState from "./AppState";
 
 export {
   AddressBookEntryClass,
+  ZEC_SWAP_CHAIN,
   TransparentAddressClass,
   UnifiedAddressClass,
   ValueTransferClass,

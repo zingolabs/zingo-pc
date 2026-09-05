@@ -2,6 +2,8 @@ import React from "react";
 import cstyles from "../components/common/Common.module.css";
 import { BlockExplorerEnum, ServerChainNameEnum } from "../components/appstate";
 import Utils from "../utils/utils";
+import { faExternalLinkSquareAlt } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type ShieldResultContentProps = {
   txids: string[];
@@ -45,7 +47,7 @@ const ShieldResultContent: React.FC<ShieldResultContentProps> = ({
               onClick={() => Utils.openTxid(txid, chainName, blockExplorerTransaction, blockExplorerTransactionCustom)}
             >
               View TXID &nbsp;
-              <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
+              <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
             </div>
           ))}
         </div>

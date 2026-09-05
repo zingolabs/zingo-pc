@@ -1,5 +1,5 @@
 import path from "path";
-import { AddressBookEntryClass, ServerChainNameEnum } from "../appstate";
+import { AddressBookEntryClass, ServerChainNameEnum, ZEC_SWAP_CHAIN } from "../appstate";
 import Utils from "../../utils/utils";
 import { isZnsAlias } from "../../utils/zns";
 
@@ -25,13 +25,17 @@ export default class AddressbookImpl {
     await fs.promises.writeFile(fileName, JSON.stringify(ab));
   }
 
+  // `swapChain` defaults to ZEC so the Address Book screen, which only ever
+  // stores Zcash addresses, keeps calling this unchanged. The swap screen
+  // passes the counterparty chain to save a Bitcoin or Ethereum contact.
   static addEntry(
     addressBook: AddressBookEntryClass[],
     label: string,
     address: string,
     chain: ServerChainNameEnum,
+    swapChain: string = ZEC_SWAP_CHAIN,
   ): AddressBookEntryClass[] {
-    const updated = addressBook.concat(new AddressBookEntryClass(label, address, chain));
+    const updated = addressBook.concat(new AddressBookEntryClass(label, address, chain, swapChain));
     AddressbookImpl.writeAddressBook(updated);
     return updated;
   }
@@ -42,30 +46,41 @@ export default class AddressbookImpl {
     return updated;
   }
 
-  // One-shot back-fill of the `chain` field for entries written by older app
-  // versions (or imported via the DMG→MAS / Import flows from a pre-tag file).
-  // For real addresses we parse them to detect the network deterministically;
-  // for ZNS aliases (`*.zcash`) we can't tell from the alias alone, so we
-  // default to mainnet — the user can edit it later if needed.
+  // One-shot back-fill of the `chain` and `swapChain` fields for entries
+  // written by older app versions (or imported via the DMG→MAS / Import flows
+  // from a pre-tag file). For real addresses we parse them to detect the
+  // network deterministically; for ZNS aliases (`*.zcash`) we can't tell from
+  // the alias alone, so we default to mainnet — the user can edit it later if
+  // needed.
+  //
+  // `swapChain` is always 'ZEC' here: every entry that predates the field was
+  // written when the address book held nothing but Zcash addresses.
   static async migrateChainIfMissing(
     entries: AddressBookEntryClass[],
   ): Promise<{ migrated: AddressBookEntryClass[]; changed: boolean }> {
     let changed = false;
     const migrated: AddressBookEntryClass[] = [];
     for (const entry of entries) {
-      if (entry.chain) {
+      if (entry.chain && entry.swapChain) {
         migrated.push(entry);
         continue;
       }
       changed = true;
-      let detected: ServerChainNameEnum | null = null;
-      if (isZnsAlias(entry.address)) {
-        detected = ServerChainNameEnum.mainChainName;
-      } else {
-        detected = await Utils.detectAddressChain(entry.address);
+      // A non-ZEC contact always arrives with both fields set, so anything
+      // missing either one is a Zcash entry from before the split.
+      let detected: ServerChainNameEnum | null = entry.chain ?? null;
+      if (!detected) {
+        detected = isZnsAlias(entry.address)
+          ? ServerChainNameEnum.mainChainName
+          : await Utils.detectAddressChain(entry.address);
       }
       migrated.push(
-        new AddressBookEntryClass(entry.label, entry.address, detected ?? ServerChainNameEnum.mainChainName),
+        new AddressBookEntryClass(
+          entry.label,
+          entry.address,
+          detected ?? ServerChainNameEnum.mainChainName,
+          entry.swapChain ?? ZEC_SWAP_CHAIN,
+        ),
       );
     }
     return { migrated, changed };

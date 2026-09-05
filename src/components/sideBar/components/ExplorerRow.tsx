@@ -28,7 +28,7 @@ const ExplorerRow = ({
         <div className={cstyles.small}>{label}</div>
         <select
           aria-label={ariaLabel}
-          className={cstyles.inputbox}
+          className={cstyles.fieldselect}
           style={{ marginLeft: 16, minWidth: 220 }}
           value={value}
           onChange={(e) => onChange(e.target.value as BlockExplorerEnum)}
@@ -43,15 +43,16 @@ const ExplorerRow = ({
         </select>
       </div>
       {isCustom && (
-        <input
-          aria-label={`${ariaLabel} custom URL`}
-          type="text"
-          className={cstyles.inputbox}
-          placeholder={customPlaceholder}
-          value={customValue}
-          onChange={(e) => onCustomChange(e.target.value)}
-          style={{ width: "100%", marginTop: 8 }}
-        />
+        <div className={cstyles.fieldrow} style={{ marginTop: 8 }}>
+          <input
+            aria-label={`${ariaLabel} custom URL`}
+            type="text"
+            className={cstyles.fieldinput}
+            placeholder={customPlaceholder}
+            value={customValue}
+            onChange={(e) => onCustomChange(e.target.value)}
+          />
+        </div>
       )}
     </div>
   );

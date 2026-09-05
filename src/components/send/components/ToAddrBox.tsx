@@ -1,5 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
@@ -9,18 +8,21 @@ import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
 import { ContextApp } from "../../../context/ContextAppState";
 import { isZnsAlias, extractZnsName, resolveZnsAlias } from "../../../utils/zns";
 import { shell } from "../../../electronBridge";
-import routes from "../../../constants/routes.json";
+import ContactPicker from "../../common/ContactPicker";
+import SaveContact from "../../common/SaveContact";
+import { ZEC_SWAP_CHAIN } from "../../appstate/classes/AddressBookEntryClass";
+import {
+  faAddressBook,
+  faCheck,
+  faExternalLinkSquareAlt,
+  faInfoCircle,
+  faTimesCircle,
+  faUserPlus,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const Spacer = () => {
-  return <div style={{ marginTop: "24px" }} />;
-};
-
-const iconButtonStyle: React.CSSProperties = {
-  background: "none",
-  border: "none",
-  color: "inherit",
-  cursor: "pointer",
-  padding: 0,
+  return <div style={{ marginTop: "14px" }} />;
 };
 
 type ToAddrBoxProps = {
@@ -41,6 +43,7 @@ type ToAddrBoxProps = {
   serverChainName: "" | ServerChainNameEnum;
   block: number;
   currencyName: string;
+  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
 };
 
 const ToAddrBox = ({
@@ -61,10 +64,10 @@ const ToAddrBox = ({
   serverChainName,
   block,
   currencyName,
+  addAddressBookEntry,
 }: ToAddrBoxProps) => {
   const context = useContext(ContextApp);
-  const { addressBook, setAddLabel } = context;
-  const navigate = useNavigate();
+  const { addressBook } = context;
 
   const [toLocal, setToLocal] = useState<string>(toaddr.to);
   const [amountLocal, setAmountLocal] = useState<number>(toaddr.amount);
@@ -81,6 +84,24 @@ const ToAddrBox = ({
   // badge survives Send ↔ AddressBook navigation. `znsStatus` is purely transient.
   const [znsAlias, setZnsAliasLocal] = useState<string>(toaddr.znsAlias);
   const [znsStatus, setZnsStatus] = useState<"idle" | "resolving" | "not-found" | "network">("idle");
+  const [contactsOpen, setContactsOpen] = useState<boolean>(false);
+  const [saveContactOpen, setSaveContactOpen] = useState<boolean>(false);
+  // Named once: the contact list and the save prompt should call the chain the
+  // same thing on the same screen.
+  const zcashChainLabel = currencyName === "TAZ" ? "Testnet Zcash" : "Zcash";
+
+  // Zcash contacts only. The address book holds swap contacts too, and those
+  // carry this same `chain` — swaps are mainnet-only, so a Bitcoin address is
+  // stored against the main network with its own `swapChain`. Filtering on the
+  // network alone would offer a Bitcoin address to a Zcash send.
+  const zcashContacts = useMemo(
+    () =>
+      addressBook.filter(
+        (ab: AddressBookEntryClass) =>
+          ab.chain === serverChainName && (ab.swapChain ?? ZEC_SWAP_CHAIN) === ZEC_SWAP_CHAIN,
+      ),
+    [addressBook, serverChainName],
+  );
   // Wrap the setter so every local change is mirrored to the parent state.
   const setZnsAlias = (alias: string) => {
     setZnsAliasLocal(alias);
@@ -250,6 +271,13 @@ const ToAddrBox = ({
     return entry ? entry.label : null;
   };
   const contactLabel = getContactLabel(toLocal);
+  const znsIsContact = addressBook.some(
+    (ab: AddressBookEntryClass) => ab.address === znsAlias && ab.chain === serverChainName,
+  );
+  // A ZNS alias is saved as the alias rather than the address it resolves to,
+  // so the contact re-resolves every time it is used.
+  const saveTarget = znsAlias || (addressIsValid === 1 ? toLocal : "");
+  const canSave = !!saveTarget && !(znsAlias ? znsIsContact : !!contactLabel);
 
   return (
     <div>
@@ -257,90 +285,15 @@ const ToAddrBox = ({
         <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
           <div className={cstyles.horizontalflex}>
             <div className={cstyles.sublight}>To </div>
-            <div style={{ fontWeight: 900, marginLeft: 20 }}>
-              {znsAlias ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <span className={cstyles.green}>
-                    {addressBook.some(
-                      (ab: AddressBookEntryClass) => ab.address === znsAlias && ab.chain === serverChainName,
-                    )
-                      ? "Contact & ZNS"
-                      : "ZNS"}
-                    {": "}
-                    {znsAlias}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="View on zcashnames.com"
-                    title="View on zcashnames.com"
-                    onClick={() => {
-                      const name = encodeURIComponent(extractZnsName(znsAlias) ?? "");
-                      const env = serverChainName === ServerChainNameEnum.testChainName ? "&env=testnet" : "";
-                      shell.openExternal(`https://www.zcashnames.com/explorer?name=${name}${env}`);
-                    }}
-                    style={iconButtonStyle}
-                  >
-                    <i className={`${"fas"} ${"fa-external-link-square-alt"} ${"fa-lg"}`} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Clear ZNS alias"
-                    title="Clear ZNS alias"
-                    onClick={clearToAddress}
-                    style={iconButtonStyle}
-                  >
-                    <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
-                  </button>
-                  {!addressBook.some(
-                    (ab: AddressBookEntryClass) => ab.address === znsAlias && ab.chain === serverChainName,
-                  ) && (
-                    <button
-                      type="button"
-                      aria-label="Save as contact"
-                      title="Save as contact"
-                      onClick={() => {
-                        // Save the ALIAS (not the resolved UA) so the contact re-resolves
-                        // every time it's used — matches the ZNS philosophy.
-                        setAddLabel(new AddressBookEntryClass("", znsAlias));
-                        navigate(routes.ADDRESSBOOK);
-                      }}
-                      style={iconButtonStyle}
-                    >
-                      <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
-                    </button>
-                  )}
-                </span>
-              ) : contactLabel ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <span className={cstyles.green}>Contact: {contactLabel}</span>
-                  <button
-                    type="button"
-                    aria-label="Clear recipient"
-                    title="Clear recipient"
-                    onClick={clearToAddress}
-                    style={iconButtonStyle}
-                  >
-                    <i className={`${"fas"} ${"fa-times-circle"} ${"fa-lg"}`} />
-                  </button>
-                </span>
-              ) : toLocal && addressIsValid === 1 ? (
-                // Valid pasted/typed address that isn't yet in the contacts list —
-                // offer to save it. We store the resolved UA verbatim.
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
-                  <button
-                    type="button"
-                    aria-label="Save as contact"
-                    title="Save as contact"
-                    onClick={() => {
-                      setAddLabel(new AddressBookEntryClass("", toLocal));
-                      navigate(routes.ADDRESSBOOK);
-                    }}
-                    style={iconButtonStyle}
-                  >
-                    <i className={`${"fas"} ${"fa-user-plus"} ${"fa-lg"}`} />
-                  </button>
-                </span>
-              ) : null}
+            {/* What the recipient is stays here beside the label. What can be
+                done about it moved into the field below, which is where the
+                swap screen keeps the same three actions. */}
+            <div style={{ fontWeight: 900, marginLeft: 20 }} className={cstyles.green}>
+              {znsAlias
+                ? `${znsIsContact ? "Contact & ZNS" : "ZNS"}: ${znsAlias}`
+                : contactLabel
+                  ? `Contact: ${contactLabel}`
+                  : ""}
             </div>
           </div>
           <div className={`${cstyles.sublight} ${cstyles.green}`}>
@@ -354,27 +307,121 @@ const ToAddrBox = ({
             {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
             {znsStatus === "network" && <span className={cstyles.red}>ZNS lookup failed</span>}
             {znsStatus === "idle" && addressIsValid === 1 && (
-              <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
+              <FontAwesomeIcon icon={faCheck} className={cstyles.green} />
             )}
             {znsStatus === "idle" && addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
           </div>
         </div>
-        <input
-          type="text"
-          aria-label="Recipient address"
-          placeholder="Unified | Sapling | Transparent | TEX address | name.zcash"
-          className={cstyles.inputbox}
-          value={toLocal}
-          readOnly={!!znsAlias}
-          onChange={(e) => {
-            setToLocal(e.target.value);
-            updateToField(e.target.value, null, null);
-          }}
-        />
+        {/* Field and its actions share a border, so they read as one control
+            rather than a box with loose buttons above it. Same glyphs, same
+            order and same colour as the swap screen's address field. */}
+        <div className={cstyles.fieldrow}>
+          <input
+            type="text"
+            aria-label="Recipient address"
+            placeholder="Unified | Sapling | Transparent | TEX address | name.zcash"
+            className={cstyles.fieldinput}
+            value={toLocal}
+            readOnly={!!znsAlias}
+            onChange={(e) => {
+              setToLocal(e.target.value);
+              updateToField(e.target.value, null, null);
+            }}
+          />
+          {!!znsAlias && (
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="View on zcashnames.com"
+              title="View on zcashnames.com"
+              onClick={() => {
+                const name = encodeURIComponent(extractZnsName(znsAlias) ?? "");
+                const env = serverChainName === ServerChainNameEnum.testChainName ? "&env=testnet" : "";
+                shell.openExternal(`https://www.zcashnames.com/explorer?name=${name}${env}`);
+              }}
+            >
+              <FontAwesomeIcon icon={faExternalLinkSquareAlt} size="lg" />
+            </button>
+          )}
+          {toLocal.length > 0 && (
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="Clear recipient"
+              title="Clear recipient"
+              onClick={clearToAddress}
+            >
+              <FontAwesomeIcon icon={faTimesCircle} size="lg" />
+            </button>
+          )}
+          {zcashContacts.length > 0 && (
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="Choose from contacts"
+              title="Choose from contacts"
+              onClick={() => setContactsOpen(true)}
+            >
+              {/* The icon the sidebar gives the Address Book, so the button
+                  reads as the place it opens rather than as a list. */}
+              <FontAwesomeIcon icon={faAddressBook} size="lg" />
+            </button>
+          )}
+          {canSave && (
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="Save as contact"
+              title="Save as contact"
+              onClick={() => setSaveContactOpen(true)}
+            >
+              <FontAwesomeIcon icon={faUserPlus} size="lg" />
+            </button>
+          )}
+        </div>
+
+        {saveContactOpen && (
+          <SaveContact
+            address={saveTarget}
+            chainLabel={zcashChainLabel}
+            modalIsOpen={saveContactOpen}
+            closeModal={() => setSaveContactOpen(false)}
+            // ZEC, and the network this wallet is on — the same pair the
+            // Address Book screen files a Zcash contact under.
+            onSave={(label) =>
+              addAddressBookEntry(
+                label,
+                saveTarget,
+                serverChainName || ServerChainNameEnum.mainChainName,
+                ZEC_SWAP_CHAIN,
+              )
+            }
+          />
+        )}
+
+        {contactsOpen && (
+          <ContactPicker
+            contacts={zcashContacts}
+            chainLabel={zcashChainLabel}
+            modalIsOpen={contactsOpen}
+            closeModal={() => setContactsOpen(false)}
+            onSelect={(address) => {
+              // Straight into the field, so the same validation, ZNS check and
+              // contact badge run as if it had been typed.
+              setToLocal(address);
+              updateToField(address, null, null);
+            }}
+          />
+        )}
 
         <Spacer />
 
-        <div className={`${cstyles.well} ${cstyles.flexspacebetween}`}>
+        {/* No well of its own. The whole box is already one, and a second
+            inset these two fields by another 16px a side while the address
+            above and the memo below sat flush against the outer edge. Its dark
+            background was the same colour the fields carry, so only the
+            misalignment ever showed. */}
+        <div className={cstyles.flexspacebetween}>
           <div style={{ width: "60%" }} className={cstyles.verticalflex}>
             <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
               <div className={cstyles.sublight}>Amount</div>
@@ -386,12 +433,12 @@ const ToAddrBox = ({
                 ) : null}
               </div>
             </div>
-            <div className={cstyles.flexspacebetween}>
+            <div className={cstyles.fieldrow}>
               <input
                 type="number"
                 aria-label="Amount"
                 step="any"
-                className={cstyles.inputbox}
+                className={cstyles.fieldamount}
                 value={isNaN(amountLocal) ? "" : amountLocal}
                 onChange={(e) => {
                   setAmountLocal(Number(e.target.value));
@@ -401,7 +448,7 @@ const ToAddrBox = ({
               <button
                 type="button"
                 aria-label="Set maximum amount"
-                style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}
+                style={{ background: "none", border: "none", padding: "0 10px 0 0", cursor: "pointer" }}
                 onClick={() => setMaxAmount(fromAmount)}
               >
                 <img className={styles.toaddrbutton} src={ArrowUpLight} alt="" />
@@ -412,10 +459,7 @@ const ToAddrBox = ({
             <div style={{ marginBottom: 5 }} className={cstyles.horizontalflex}>
               <div
                 style={{
-                  color:
-                    sendFeeError && !amountError && addressIsValid
-                      ? Utils.getCssVariable("--color-error")
-                      : Utils.getCssVariable("--color-text"),
+                  color: sendFeeError && !amountError && addressIsValid ? "var(--color-error)" : "var(--color-text)",
                 }}
                 className={cstyles.sublight}
               >
@@ -426,18 +470,18 @@ const ToAddrBox = ({
                   {sendFeeError && !amountError && addressIsValid !== -1 && (
                     <span>
                       &nbsp;
-                      <i className={`${cstyles.red} ${"fas"} ${"fa-info-circle"}`} />
+                      <FontAwesomeIcon icon={faInfoCircle} className={cstyles.red} />
                     </span>
                   )}
                 </div>
               </div>
             </div>
-            <div className={cstyles.flexspacebetween}>
+            <div className={cstyles.fieldrow}>
               <input
                 type="number"
                 aria-label="Transaction fee"
                 step="any"
-                className={cstyles.inputbox}
+                className={cstyles.fieldamount}
                 value={isNaN(sendFee) ? "" : sendFee}
                 disabled={true}
               />
@@ -461,25 +505,31 @@ const ToAddrBox = ({
                 )}
               </div>
             </div>
-            <TextareaAutosize
-              className={cstyles.inputbox}
-              value={memoLocal}
-              disabled={isMemoDisabled}
-              onChange={(e) => {
-                setMemoLocal(e.target.value);
-                updateToField(null, null, e.target.value);
-              }}
-              minRows={2}
-              maxRows={5}
-            />
-            {toaddr.memoReplyTo && (
+            <div className={cstyles.fieldrowmulti}>
               <TextareaAutosize
-                className={cstyles.inputbox}
-                value={toaddr.memoReplyTo}
-                disabled={true}
+                aria-label="Memo"
+                className={cstyles.fieldtextarea}
+                value={memoLocal}
+                disabled={isMemoDisabled}
+                onChange={(e) => {
+                  setMemoLocal(e.target.value);
+                  updateToField(null, null, e.target.value);
+                }}
                 minRows={2}
                 maxRows={5}
               />
+            </div>
+            {toaddr.memoReplyTo && (
+              <div className={`${cstyles.fieldrowmulti} ${cstyles.margintopsmall}`}>
+                <TextareaAutosize
+                  aria-label="Reply-to address"
+                  className={cstyles.fieldtextarea}
+                  value={toaddr.memoReplyTo}
+                  disabled={true}
+                  minRows={2}
+                  maxRows={5}
+                />
+              </div>
             )}
           </div>
         )}

@@ -21,6 +21,7 @@ import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
+import { userFacingError } from "../utils/userFacingError";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "./components/serverHealth";
 import {
   FfiBatchReport,
@@ -68,9 +69,18 @@ export default class RPC {
   fnSetVerificationProgress: (verificationProgress: number | null) => void;
   fnSetFetchError: (command: string, error: string) => void;
   fnSetMixnetView: (view: MixnetView) => void;
+  /** Last price-fetch failure, so the same one is logged once and not every cycle. */
+  private lastPriceFailure: string = "";
   fnSetServerHealth: (health: ServerHealthState) => void;
 
   currentWallet: WalletType | null;
+
+  // Pushed from the app the way `currentWallet` is, because the info path is
+  // static and reads no React context. Starts false so a wallet whose kind has
+  // not been read yet is treated as able to spend: the cost of being wrong that
+  // way is a migration plan nobody uses, and the other way is hiding the
+  // migration prompt from a wallet that has funds to move.
+  readOnly: boolean;
 
   updateTimerID?: NodeJS.Timeout;
   timers: NodeJS.Timeout[];
@@ -81,7 +91,9 @@ export default class RPC {
   lastPollSyncError: string;
 
   serverHealth: ServerHealthState;
-  healthProbeInFlight: boolean;
+  // The periodic work currently out, by name. A second ask for something
+  // already asked is dropped, not queued.
+  private readonly inFlight: Set<string> = new Set();
   healthProbeAt: number;
 
   constructor(
@@ -113,6 +125,7 @@ export default class RPC {
     this.fnSetServerHealth = fnSetServerHealth;
 
     this.currentWallet = currentWallet;
+    this.readOnly = false;
 
     this.lastBlockHeight = 0;
 
@@ -122,7 +135,7 @@ export default class RPC {
     this.lastPollSyncError = "";
 
     this.serverHealth = INITIAL_SERVER_HEALTH;
-    this.healthProbeInFlight = false;
+
     this.healthProbeAt = 0;
   }
 
@@ -130,18 +143,18 @@ export default class RPC {
    * One latest-block call against the active server's URI, folded into the
    * session health.
    *
-   * Guarded two ways: it only runs once its own interval has elapsed, and never
-   * while a previous probe is still out. Without the second guard a server that
-   * stops answering would stack probes and "three failures in a row" would stop
-   * meaning three in a row.
+   * Its own interval is what it still keeps: the cycle offers it every five
+   * seconds and it answers less often than that. Not stacking behind itself is
+   * no longer its business — the cycle drops a repeat ask for anything already
+   * out, which is the rule that keeps "three failures in a row" meaning three
+   * in a row.
    */
   async probeServerHealth(): Promise<void> {
     const uri: string = this.currentWallet?.uri ?? "";
-    if (!uri || this.healthProbeInFlight || Date.now() - this.healthProbeAt < HEALTH_PROBE_INTERVAL_MS) {
+    if (!uri || Date.now() - this.healthProbeAt < HEALTH_PROBE_INTERVAL_MS) {
       return;
     }
 
-    this.healthProbeInFlight = true;
     const start: number = Date.now();
     let answered = false;
     try {
@@ -156,33 +169,62 @@ export default class RPC {
       this.serverHealth = recordProbe(this.serverHealth, answered, durationMs);
       this.fnSetServerHealth(this.serverHealth);
       this.healthProbeAt = Date.now();
-      this.healthProbeInFlight = false;
     }
   }
 
   /** A different server has nothing to do with the last one's record. */
   resetServerHealth(): void {
     this.serverHealth = INITIAL_SERVER_HEALTH;
-    this.healthProbeInFlight = false;
     this.healthProbeAt = 0;
     this.fnSetServerHealth(this.serverHealth);
   }
 
+  /**
+   * Run `work` unless the same work is already out, in which case do nothing.
+   *
+   * The cycle below is a five-second timer whose slowest member can take sixty:
+   * `poll_sync` waits out a full timeout when a server misbehaves, and holds a
+   * thread from the pool the whole time. Nothing waited for the previous cycle,
+   * so twelve of them could be alive at once — and the pool saturated in about
+   * sixteen seconds, after which everything queued behind work that was already
+   * being done. Health probes came back in 47s, then 68s, then 136s, then 160s
+   * against a server answering the same call in 110ms. The times grew because
+   * the queue grew.
+   *
+   * Dropped rather than queued, because a second identical ask answers the same
+   * question as the first. It cannot arrive sooner, and it costs the thread the
+   * next different question needs.
+   *
+   * Per request, not per cycle: a stuck `poll_sync` must not stop the balance
+   * refreshing. That is the whole reason this is keyed.
+   */
+  private async once(key: string, work: () => Promise<unknown>): Promise<void> {
+    if (this.inFlight.has(key)) {
+      return;
+    }
+    this.inFlight.add(key);
+    try {
+      await work();
+    } finally {
+      this.inFlight.delete(key);
+    }
+  }
+
   async runTaskPromises(): Promise<void> {
     await Promise.allSettled([
-      this.fetchSyncPoll(),
-      this.fetchInfo(),
-      this.fetchAddresses(),
-      this.fetchTotalBalance(),
-      this.getZecPrice(),
-      this.getMixnetView(),
-      this.probeServerHealth(),
-      RPC.doSave(),
-      this.fetchTandZandOValueTransfers(),
-      this.fetchTandZandOMessages(),
+      this.once("syncPoll", () => this.fetchSyncPoll()),
+      this.once("info", () => this.fetchInfo()),
+      this.once("addresses", () => this.fetchAddresses()),
+      this.once("balance", () => this.fetchTotalBalance()),
+      this.once("price", () => this.getZecPrice()),
+      this.once("mixnetView", () => this.getMixnetView()),
+      this.once("serverHealth", () => this.probeServerHealth()),
+      this.once("save", () => RPC.doSave()),
+      this.once("valueTransfers", () => this.fetchTandZandOValueTransfers()),
+      this.once("messages", () => this.fetchTandZandOMessages()),
       // Foreground driver: send the current window's due parts and fold in any
       // windows missed while the app was closed. No-op when none in progress.
-      RPC.driveMigration(),
+      this.once("migration", () => RPC.driveMigration()),
     ]);
   }
 
@@ -300,7 +342,7 @@ export default class RPC {
   }
 
   // Special method to get the Info object. This is used both internally and by the Loading screen
-  static async getInfoObject(): Promise<InfoClass> {
+  static async getInfoObject(canSpend: boolean): Promise<InfoClass> {
     try {
       const infostr: string = await native.info_server();
       if (!infostr) {
@@ -308,7 +350,7 @@ export default class RPC {
         // Empty server info (e.g. offline): keep the Ironwood banners from the
         // local reads.
         const offlineInfo = new InfoClass(infostr);
-        await RPC.populateLocalIronwoodFields(offlineInfo);
+        await RPC.populateLocalIronwoodFields(offlineInfo, canSpend);
         return offlineInfo;
       }
       const infoJSON: RPCInfoType = JSON.parse(infostr);
@@ -336,7 +378,7 @@ export default class RPC {
 
       // Wallet height, Ironwood activation, drain plan and migration progress —
       // all LOCAL reads, so the Dashboard's Ironwood banners survive offline.
-      await RPC.populateLocalIronwoodFields(info);
+      await RPC.populateLocalIronwoodFields(info, canSpend);
 
       return info;
     } catch (err) {
@@ -346,7 +388,7 @@ export default class RPC {
       // can't mask the original error path.
       const info = new InfoClass("Error: to parse info " + err);
       try {
-        await RPC.populateLocalIronwoodFields(info);
+        await RPC.populateLocalIronwoodFields(info, canSpend);
       } catch (e) {
         console.error("Error populating local Ironwood fields", e);
       }
@@ -361,15 +403,58 @@ export default class RPC {
   // survive an offline info_server failure. Being offline only means batches
   // can't broadcast and the server tip is unknown, not that this local state
   // vanished.
-  static async populateLocalIronwoodFields(info: InfoClass): Promise<void> {
+  // Whether scanning has caught up to the tip, as a local read — the same
+  // kind as the two heights above, and read here rather than threaded from the
+  // caller because both callers are static and neither holds it.
+  //
+  // Anything short of both counters at 100 is "not yet", including a status
+  // that will not parse or does not carry them. The cost of being wrong that
+  // way is one cycle of not asking for a plan; the cost of being wrong the
+  // other way is the error line this exists to stop.
+  static async syncHasCaughtUp(): Promise<boolean> {
+    try {
+      const status: SyncStatusType = JSON.parse(await native.status_sync());
+      return (
+        (status.percentage_total_outputs_scanned ?? 0) >= 100 && (status.percentage_total_blocks_scanned ?? 0) >= 100
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  static async populateLocalIronwoodFields(info: InfoClass, canSpend: boolean): Promise<void> {
     info.walletHeight = await RPC.fetchWalletHeight();
     // NU6.3 / Ironwood activation height, read from zingolib (source of truth).
     info.nu63ActivationHeight = await RPC.fetchIronwoodActivationHeight();
-    // Happy-path drain plan: how much Orchard can move vs is stranded dust.
-    const drainPlan = await RPC.fetchOrchardDrainPlan();
-    info.orchardMigratable = drainPlan.migratable;
-    info.orchardDust = drainPlan.dust;
-    info.orchardFee = drainPlan.fee;
+    // Two reasons not to ask, and the fields keep their `InfoClass` defaults
+    // either way — the same "not known" the plan reports on failure.
+    //
+    // A viewing-key wallet cannot spend, so it cannot migrate; the Dashboard
+    // already hides the prompt for one behind this same flag, and planning a
+    // drain for it computes an answer nobody can act on.
+    //
+    // A wallet with no sync data cannot be planned against at all. That is not
+    // a guess: zingolib derives the plan's anchor from
+    // `last_known_chain_height`, and `walletHeight` read one line above comes
+    // from that very field, so a zero here is exactly the condition under
+    // which the plan returns `NoSyncData`. A wallet created moments ago always
+    // is.
+    //
+    // And a wallet still scanning cannot be planned against either, for a
+    // second reason. Until every block in a note's spend window is scanned,
+    // spend detection is incomplete for the notes the plan would select, and
+    // zingolib refuses with `SyncIncomplete` rather than plan against a
+    // half-read wallet. Both refusals cross the boundary as the same bare
+    // "Wallet error." with the cause dropped, so neither can be told from a
+    // real fault after the fact — the only way not to log an error for an
+    // ordinary state is not to provoke it.
+    if (canSpend && info.walletHeight > 0 && (await RPC.syncHasCaughtUp())) {
+      // Happy-path drain plan: how much Orchard can move vs is stranded dust.
+      const drainPlan = await RPC.fetchOrchardDrainPlan();
+      info.orchardMigratable = drainPlan.migratable;
+      info.orchardDust = drainPlan.dust;
+      info.orchardFee = drainPlan.fee;
+    }
     await RPC.populateMigrationFields(info);
   }
 
@@ -404,7 +489,7 @@ export default class RPC {
   }
 
   async fetchInfo(): Promise<void> {
-    const info: InfoClass = await RPC.getInfoObject();
+    const info: InfoClass = await RPC.getInfoObject(!this.readOnly);
 
     this.fnSetInfo(info);
   }
@@ -428,9 +513,16 @@ export default class RPC {
   async fetchSyncPoll(): Promise<void> {
     try {
       // A failed poll rejects (typed error on the throw channel); the catch
-      // below records it as lastPollSyncError. Status replies ("not launched",
-      // "not complete") and the completed JSON still cross on the data channel.
+      // below records it and puts it on screen. Status replies ("not
+      // launched", "not complete") and the completed JSON still cross on the
+      // data channel.
       const returnPoll: string = await native.poll_sync();
+      // Reaching here at all is the sync answering, whatever it answered, so a
+      // failure the user is still being shown is over.
+      if (this.lastPollSyncError) {
+        this.lastPollSyncError = "";
+        this.fnSetFetchError("Sync", "");
+      }
 
       if (returnPoll.toLowerCase().startsWith("sync task has not been launched")) {
         console.log("SYNC POLL -> RUN SYNC", returnPoll);
@@ -462,8 +554,26 @@ export default class RPC {
       console.log("SYNC POLL -> FETCH STATUS");
       void this.fetchSyncStatus();
     } catch (error) {
-      console.error(`Critical Error sync poll ${error}`);
-      this.lastPollSyncError = `${error}`;
+      // A sync that cannot run does not recover by itself, and this fires
+      // every ten seconds for as long as the app is open. Until now all of it
+      // went to a console the user does not have: what they saw was a wallet
+      // that never advanced, with nothing on screen to say why or for how
+      // long. One report reached us only because a user sent their log.
+      //
+      // Once per distinct reason, on the channel the Dashboard and History
+      // already render in the error colour. Repeating it every cycle would be
+      // the same silence in a different key.
+      //
+      // Stripped of the IPC layers it arrives wrapped in, because the last
+      // clause is the one that says anything — "wallet height 34100000 is more
+      // than 100 blocks ahead of best chain height 3470916" tells someone what
+      // is wrong with their wallet; the four wrappers around it do not.
+      const reason = userFacingError(error);
+      if (reason !== this.lastPollSyncError) {
+        console.error(`Critical Error sync poll ${error}`);
+        this.fnSetFetchError("Sync", reason);
+      }
+      this.lastPollSyncError = reason;
     }
   }
 
@@ -496,11 +606,22 @@ export default class RPC {
         await native.run_rescan();
         await this.configure();
       } else {
-        // A concurrent launch now returns a clean "already running" status (no
-        // longer an error); the existing sync just keeps going. A genuine
-        // failure rejects and is caught below.
-        const syncStr: string = await native.run_sync();
-        console.log(`Sync: ${syncStr}`);
+        // Named like the cycle's members, and dropped the same way. zingolib
+        // answers a concurrent launch with a clean "already running" and
+        // carries on, which made this look free; it is not, because the ask
+        // still costs a thread and a round trip. The poll asks from both of
+        // its branches as well as from the cycle, so while a server misbehaves
+        // the asks keep coming and the answers do not.
+        //
+        // A rescan is not covered: that is a deliberate act by the user, it
+        // clears the timers first, and dropping it would ignore them.
+        await this.once("syncLaunch", async () => {
+          // A concurrent launch returns a clean "already running" status (no
+          // longer an error); the existing sync just keeps going. A genuine
+          // failure rejects and is caught below.
+          const syncStr: string = await native.run_sync();
+          console.log(`Sync: ${syncStr}`);
+        });
       }
     } catch (error) {
       console.error(`Critical Error run sync/rescan ${error}`);
@@ -891,6 +1012,43 @@ export default class RPC {
     throw new Error("send returned neither txids nor error");
   }
 
+  /**
+   * Pays a swap's deposit, returning every txid the proposal produced in
+   * chronological order.
+   *
+   * `memoBytes` becomes the transaction's OP_RETURN, which is how Maya and
+   * THORChain read which swap a deposit belongs to. `routeViaEphemeral` sends
+   * it through the ZIP 320 hop so the vault sees an origin the wallet
+   * controls, which is where those two protocols look for a refund
+   * destination. NEAR Intents and Flashnet bind refunds to the per-quote
+   * deposit address instead, so they need neither and take the cheaper
+   * single-hop path.
+   *
+   * The array shape matters to the caller: for a two-hop send the provider
+   * observes the LAST transaction, the one paying the vault, not the shielded
+   * hop that funded the ephemeral address.
+   */
+  async sendSwapDeposit(args: {
+    depositAddress: string;
+    amountAtomic: number;
+    memoBytes?: Uint8Array;
+    routeViaEphemeral?: boolean;
+  }): Promise<string[]> {
+    const sendJson: Array<SendJsonToTypeType> = [
+      {
+        address: args.depositAddress,
+        amount: args.amountAtomic,
+        op_return: args.memoBytes && args.memoBytes.length > 0 ? bytesToHex(args.memoBytes) : undefined,
+        route_via_ephemeral: args.routeViaEphemeral || undefined,
+      },
+    ];
+    const joined: string = await this.sendTransaction(sendJson);
+    return joined
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+  }
+
   // Polls poll_sync until the sync task is no longer running (or a timeout).
   // "Sync task is not complete." is zingolib's only "still running" reply; any
   // other reply (no handle, or a completed JSON result) means it has stopped.
@@ -1215,15 +1373,32 @@ export default class RPC {
       return;
     }
 
-    // Mixnet-only, fail-closed (ADR 0024 arc 6). Until Mixnet Mode wiring
-    // lands in pc the call refuses every time, so a refusal is the steady
-    // state, not an error worth logging on the 5s cadence.
+    // Mixnet-only, fail-closed (ADR 0024 arc 6): the fetch refuses in every
+    // state but ready and the deliberate switched-off, and never falls back to
+    // clearnet without consent.
+    //
+    // A refusal used to be swallowed on the reasoning that Mixnet Mode was not
+    // wired here yet, so refusing was the steady state and logging it on a 5s
+    // cadence would be noise. The wiring landed; the silence outlived it. A
+    // ready tunnel that cannot fetch a price is a fault, and the quiet made it
+    // indistinguishable from the ordinary refusal — including from the case
+    // this app already knows about, where the phase still reads "ready"
+    // because nym-proxy survived a suspend that killed its gateways.
     try {
       const resultStr: string = await native.zec_price_over_mixnet();
       const resultJSON = JSON.parse(resultStr);
       this.fnSetZecPrice(resultJSON.current_price);
-    } catch {
+      this.lastPriceFailure = "";
+    } catch (error) {
       this.fnSetZecPrice(0);
+      // Once per distinct reason rather than once per cycle: the same refusal
+      // repeating every five seconds is what the silence was avoiding, and it
+      // is still not worth reading twelve times a minute.
+      const reason = `${error}`;
+      if (reason !== this.lastPriceFailure) {
+        this.lastPriceFailure = reason;
+        console.log(`RPC: the ZEC price fetch failed — ${reason}`);
+      }
     }
   }
 
@@ -1265,4 +1440,13 @@ export default class RPC {
   setCurrentWallet(cw: WalletType) {
     this.currentWallet = cw;
   }
+
+  setReadOnly(readOnly: boolean) {
+    this.readOnly = readOnly;
+  }
+}
+
+/** Lowercase hex for an OP_RETURN payload, which the Rust side decodes back to bytes. */
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }

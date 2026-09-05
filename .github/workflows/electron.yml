@@ -11,6 +11,13 @@ permissions:
 jobs:
   build:
     runs-on: ${{ matrix.runner }}
+
+    # Released builds must carry the real SwapKit key: the renderer reads it at
+    # build time, and generate-swapkit-secrets.js falls back to a placeholder
+    # that SwapKitClient refuses at runtime. Job-level so every build step gets
+    # it, including the MSIX one that calls electron-builder directly.
+    env:
+      SWAPKIT_API_KEY: ${{ secrets.SWAPKIT_API_KEY }}
     strategy:
       fail-fast: false
       matrix:

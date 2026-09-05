@@ -1,0 +1,135 @@
+/*
+ * SwapKit's edge refusing the request outright — a region or ISP block.
+ *
+ * Warning colours rather than error: nothing is broken and nothing was lost,
+ * the service is simply out of reach from here, and there is something the
+ * user can do about it. Ported from the mobile wallet's `regionBlockBanner`.
+ */
+.regionblockbanner {
+  border-radius: 12px;
+  border: 1px solid var(--color-warning);
+  padding: 12px;
+  margin-bottom: 16px;
+  color: var(--color-warning);
+}
+
+/*
+ * The shared `.well` pads 16px at the sides but only 11px top and bottom. That
+ * asymmetry is easy to miss elsewhere and obvious here, where the cards inside
+ * give it a straight edge to be measured against. Overridden for this screen
+ * rather than changed in the class every other screen shares.
+ */
+.panel {
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+
+/*
+ * Warnings on the deposit slip: the memo-placement hint and the exact-amount
+ * rule. Both describe a way to lose a deposit to a refund cycle, so they get
+ * the warning hue and a border rather than sitting as another grey line among
+ * the copy rows. Same shape as `.regionblockbanner` above, tighter because
+ * these sit between rows rather than above a whole panel.
+ */
+.warningbanner {
+  border-radius: 10px;
+  border: 1px solid var(--color-warning);
+  padding: 10px;
+  margin-top: 8px;
+  color: var(--color-warning);
+}
+
+/*
+ * The QR block on the deposit slip. The code renders on a light plate because
+ * a scanner needs the dark-on-light contrast the app's dark background cannot
+ * give it, and the plate is what keeps that from reading as a rendering bug.
+ */
+.qrblock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  row-gap: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-primary);
+  margin-top: 8px;
+}
+
+/*
+ * A modal for content that is a short list rather than a page of detail.
+ *
+ * The shared `.txmodal` holds 800px because a transaction detail needs it for
+ * addresses and memos. A fee breakdown is a label and an amount per line, and
+ * at that width most of the box is empty.
+ *
+ * Written out in full rather than layered over `.txmodal`: two single-class
+ * selectors carry the same specificity, so which one won would depend on the
+ * order the bundler happened to emit them in.
+ */
+.narrowmodal {
+  top: 12.5%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -5%);
+  opacity: 1;
+  position: absolute;
+  width: var(--swap-modal-width, 480px);
+  /* Never wider than the window on a small one, where the chosen width plus
+     the overlay would otherwise reach past both edges. */
+  max-width: calc(100vw - 64px);
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--color-background);
+  border: var(--color-primary) 4px solid;
+}
+
+/*
+ * The same box, sized for a sentence rather than a list.
+ *
+ * A fee breakdown is a label and an amount per line and reads well at 480px;
+ * a message has to fit its sentences on one line each, and at 480 the longer
+ * of them wrapped and turned a two-line message into three.
+ *
+ * Done with a custom property rather than a second width declaration: both
+ * classes land on the same element, and two single-class selectors setting
+ * `width` would be decided by the order the bundler happened to emit them in.
+ * Setting the variable here and reading it there has no such contest.
+ */
+.messagemodal {
+  composes: narrowmodal;
+  --swap-modal-width: 600px;
+}
+
+.qrframe {
+  background: #ffffff;
+  padding: 8px;
+  border-radius: 8px;
+  line-height: 0;
+}
+
+/*
+ * The slippage sheet: a heading, a sentence, a row of percentages and one
+ * small input.
+ *
+ * It had been borrowing the history detail's modal, which is 800px wide
+ * because it shows addresses and transaction ids. That is twice what this
+ * holds, and it carries the reason for the rest of that class too: at 800px
+ * there is no room to centre, so it is pinned 12.5% from the left. Half the
+ * width has room, so it takes the middle.
+ */
+.slippagemodal {
+  position: absolute;
+  top: 12.5%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -5%);
+  min-width: 400px;
+  max-width: 400px;
+  max-height: calc(100vh - 130px);
+  overflow-y: auto;
+  padding: 16px;
+  opacity: 1;
+  background: var(--color-background);
+  border: var(--color-primary) 4px solid;
+}

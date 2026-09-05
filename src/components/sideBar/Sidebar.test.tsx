@@ -5,14 +5,15 @@ import { InfoClass, ServerChainNameEnum } from "../appstate";
 import routes from "../../constants/routes.json";
 
 // Stable shared mock surfaces — avoids the auto-mock's per-test reset losing them.
-const mockOn = jest.fn();
-const mockOff = jest.fn();
+// The bridge returns a disposer, so the mock must too — a component that
+// forgot to unsubscribe would otherwise pass here and leak in the app.
+const mockOn = jest.fn((_channel: string, _listener: (...args: any[]) => void) => jest.fn());
 const mockInvoke = jest.fn();
 const mockGetSeed = jest.fn();
 const mockGetUfvk = jest.fn();
 jest.mock("../../electronBridge", () => ({
   native: { get_seed: mockGetSeed, get_ufvk: mockGetUfvk },
-  ipcRenderer: { on: mockOn, off: mockOff, invoke: mockInvoke, send: jest.fn() },
+  ipcRenderer: { on: mockOn, invoke: mockInvoke, send: jest.fn() },
   clipboard: { writeText: jest.fn() },
   shell: { openExternal: jest.fn() },
   fs: { promises: { readFile: jest.fn(), writeFile: jest.fn() }, existsSync: jest.fn() },
@@ -46,10 +47,6 @@ jest.mock("./components/BlockExplorerModal", () => ({
   __esModule: true,
   default: jest.fn(() => null),
 }));
-jest.mock("./components/SelectWallet", () => ({
-  __esModule: true,
-  default: jest.fn(() => null),
-}));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Sidebar = require("./Sidebar").default;
@@ -76,6 +73,9 @@ const getListener = (channel: string): ((...args: any[]) => any) | undefined => 
 };
 const installIpcCapture = () => {
   mockInvoke.mockResolvedValue(null);
+  // `resetMocks` wipes implementations before every test, and `on` has to
+  // keep returning a disposer or the component cannot unsubscribe on unmount.
+  mockOn.mockImplementation(() => jest.fn());
 };
 
 const makeWallet = (chain = ServerChainNameEnum.mainChainName) =>

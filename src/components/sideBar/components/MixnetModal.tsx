@@ -1,4 +1,5 @@
 import Modal from "react-modal";
+import { describeMixnetDeath } from "../../../rpc/components/mixnetPresenter";
 import { useContext, useState } from "react";
 import cstyles from "../../common/Common.module.css";
 import { ContextApp } from "../../../context/ContextAppState";
@@ -31,6 +32,7 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
   const active =
     mixnetView.statusKey === "mixnet.status.ready" || mixnetView.statusKey === "mixnet.status.bootstrapping";
   const off = mixnetView.statusKey === "mixnet.status.off";
+  const deathStory: string | null = describeMixnetDeath(mixnetView.death);
   // The transport is absent and nobody consented to clearnet, so sends refuse.
   // Enable is not always a way out — a build with no proxy binary can never
   // start one — and without the opt-out the user is stranded with a wallet that
@@ -54,24 +56,9 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
     <Modal
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
-      className={cstyles.modalOverlay}
+      className={cstyles.centredsheet}
       overlayClassName={cstyles.modalOverlay}
-      style={{
-        content: {
-          background: "var(--bg-color, #1a1a2e)",
-          border: "1px solid #444",
-          borderRadius: 8,
-          padding: 32,
-          maxWidth: 520,
-          margin: "auto",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          position: "absolute",
-          right: "auto",
-          bottom: "auto",
-        },
-      }}
+      style={{ content: { maxWidth: 520 } }}
     >
       <div
         className={cstyles.xlarge}
@@ -97,6 +84,16 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
         {mixnetView.narration && (
           <div className={cstyles.small} style={{ opacity: 0.6, marginTop: 8 }}>
             {mixnetView.narration}
+          </div>
+        )}
+        {/* Why it went, when the transport held a cause. It sits in the same
+            line the bootstrap narration uses — both answer "what is it doing",
+            one forwards and one backwards — but it keeps full contrast rather
+            than the narration's, because this is the part worth reading and
+            worth quoting in a report. */}
+        {deathStory && (
+          <div className={cstyles.small} style={{ marginTop: 8 }}>
+            {deathStory}
           </div>
         )}
       </div>

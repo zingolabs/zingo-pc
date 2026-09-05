@@ -13,10 +13,10 @@ import {
   ValueTransferStatusEnum,
 } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
-import { ServerHealthLine } from "../serverHealthLine";
 import Utils from "../../utils/utils";
 
 type ReceiveProps = {};
@@ -39,6 +39,17 @@ const Receive: React.FC<ReceiveProps> = () => {
     fetchError,
     zecPrice,
   } = context;
+
+  // The block above the tabs varies with the wallet: the shield button, the
+  // pending notice and the fetch error each add a line the constant could not
+  // follow, and when it came out too small the last address fell off the
+  // bottom of the pane.
+  //
+  // One per tab, because a single ref would be handed to whichever panel
+  // rendered last. They measure the same thing today; each measuring its own
+  // costs nothing and does not assume they always will.
+  const unified = usePaneOffset(180);
+  const transparent = usePaneOffset(180);
 
   const [uaddrs, setUaddrs] = useState<UnifiedAddressClass[]>([]);
   const [defaultUaddr, setDefaultUaddr] = useState<string>("");
@@ -96,7 +107,6 @@ const Receive: React.FC<ReceiveProps> = () => {
   return (
     <div>
       <div className={`${cstyles.well} ${styles.containermargin}`}>
-        <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
@@ -164,7 +174,7 @@ const Receive: React.FC<ReceiveProps> = () => {
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable("--color-error") }}>
+            <div className={cstyles.balancebox} style={{ color: "var(--color-error)" }}>
               {fetchError.command + ": " + fetchError.error}
             </div>
           </>
@@ -179,39 +189,43 @@ const Receive: React.FC<ReceiveProps> = () => {
 
           <TabPanel>
             {(orchardPool || saplingPool) && !!uaddrs && uaddrs.length > 0 && (
-              <ScrollPaneTop offsetHeight={180}>
-                <Accordion preExpanded={[defaultUaddr]}>
-                  {uaddrs.map((a: UnifiedAddressClass) => (
-                    <AddressBlock
-                      key={`u-${a.encoded_address}`}
-                      address={a}
-                      currencyName={info.currencyName}
-                      label={addressBookMap.get(a.encoded_address)}
-                      type={"u"}
-                    />
-                  ))}
-                </Accordion>
-              </ScrollPaneTop>
+              <div ref={unified.paneRef}>
+                <ScrollPaneTop offsetHeight={unified.paneOffset}>
+                  <Accordion preExpanded={[defaultUaddr]}>
+                    {uaddrs.map((a: UnifiedAddressClass) => (
+                      <AddressBlock
+                        key={`u-${a.encoded_address}`}
+                        address={a}
+                        currencyName={info.currencyName}
+                        label={addressBookMap.get(a.encoded_address)}
+                        type={"u"}
+                      />
+                    ))}
+                  </Accordion>
+                </ScrollPaneTop>
+              </div>
             )}
           </TabPanel>
 
           <TabPanel>
             {transparentPool && !!taddrs && taddrs.length > 0 && (
-              <ScrollPaneTop offsetHeight={180}>
-                <Accordion preExpanded={[defaultTaddr]}>
-                  {taddrs.map((a: TransparentAddressClass) => (
-                    <AddressBlock
-                      key={`t-${a.encoded_address}`}
-                      address={a}
-                      currencyName={info.currencyName}
-                      label={addressBookMap.get(a.encoded_address)}
-                      type={"t"}
-                      calculateShieldFee={calculateShieldFee}
-                      handleShieldButton={handleShieldButton}
-                    />
-                  ))}
-                </Accordion>
-              </ScrollPaneTop>
+              <div ref={transparent.paneRef}>
+                <ScrollPaneTop offsetHeight={transparent.paneOffset}>
+                  <Accordion preExpanded={[defaultTaddr]}>
+                    {taddrs.map((a: TransparentAddressClass) => (
+                      <AddressBlock
+                        key={`t-${a.encoded_address}`}
+                        address={a}
+                        currencyName={info.currencyName}
+                        label={addressBookMap.get(a.encoded_address)}
+                        type={"t"}
+                        calculateShieldFee={calculateShieldFee}
+                        handleShieldButton={handleShieldButton}
+                      />
+                    ))}
+                  </Accordion>
+                </ScrollPaneTop>
+              </div>
             )}
           </TabPanel>
         </Tabs>

@@ -1,10 +1,20 @@
 .sidebar {
   background-color: var(--color-background-dark);
-  /* Hug the menu content and carry a black bottom strip the same size as the
+  /* The strip of dark above the wallet selector.
+     It has to be padding here rather than a margin on the selector: this is a
+     block container with nothing at its top edge to stop a margin, so the
+     selector's own would collapse straight out of the panel and leave the
+     selector against the top of it. Padding cannot collapse, so the dark
+     shows. Matches the 10px the selector keeps at its sides, which never
+     collapsed because horizontal margins do not. */
+  padding-top: 10px;
+  /* Hug the menu content and carry a black bottom strip roughly matching the
      black gap under the wallet selector at the top (SelectWallet's 20px
-     marginBottom), so the last menu item gets a matching black bottom. The
-     status blocks below sit on the app background, separated by a thin line. */
-  padding-bottom: 20px;
+     marginBottom). Only roughly: a menu item's box is taller than its text
+     (see .sidebarmenuitem), so the last one already trails its own empty
+     space, and a full 20px here read as about twice the gap above. The status
+     blocks below sit on the app background, separated by a thin line. */
+  padding-bottom: 4px;
 }
 
 .sidebarmenuitem {

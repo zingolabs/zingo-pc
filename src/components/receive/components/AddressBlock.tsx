@@ -22,6 +22,8 @@ import RPC from "../../../rpc/rpc";
 
 import { ipcRenderer, isSandboxed } from "../../../electronBridge";
 import { useCopy } from "../../common/useCopy";
+import { faExternalLinkSquareAlt, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type AddressBlockProps = {
   address: UnifiedAddressClass | TransparentAddressClass;
@@ -149,8 +151,8 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     {/* Only where the gloss appears. A Sapling-only address says
                         nothing about Ironwood, so it gets nothing to explain. */}
                     {(address as UnifiedAddressClass).has_orchard && (
-                      <i
-                        className="fas fa-info-circle"
+                      <FontAwesomeIcon
+                        icon={faInfoCircle}
                         title={IRONWOOD_RECEIVER_TOOLTIP}
                         style={{ marginLeft: 6, cursor: "help", opacity: 0.8 }}
                       />
@@ -192,7 +194,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                       )
                     }
                   >
-                    View on explorer <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
+                    View on explorer <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                   </button>
                 )}
                 {type === "t" &&
@@ -216,7 +218,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 style={{
                   borderWidth: type === "u" ? 1 : 0,
                   borderStyle: "solid",
-                  borderColor: Utils.getCssVariable("--color-primary"),
+                  borderColor: "var(--color-primary)",
                   paddingTop: 10,
                   paddingBottom: 10,
                 }}
@@ -224,7 +226,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 {type === "u" && (
                   <select
                     aria-label="New address type"
-                    className={cstyles.inputbox}
+                    className={cstyles.fieldselect}
                     style={{ marginLeft: 10 }}
                     value={unifiedCreateType}
                     onChange={(e) => {
@@ -285,7 +287,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     display: "flex",
                     justifyContent: "center",
                     alignItems: "center",
-                    color: Utils.getCssVariable("--color-zingo"),
+                    color: "var(--color-zingo)",
                   }}
                 >
                   {"Click to download"}
@@ -299,7 +301,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
         style={{
           height: 1,
           width: "98%",
-          backgroundColor: Utils.getCssVariable("--color-primary"),
+          backgroundColor: "var(--color-primary)",
           alignSelf: "center",
           marginBottom: 10,
         }}

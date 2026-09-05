@@ -14,6 +14,7 @@ import { INITIAL_SERVER_HEALTH, ServerHealthState } from "../../rpc/components/s
 import { ZcashURITarget } from "../../utils/uris";
 import { WalletType } from "./types/WalletType";
 import { BlockExplorerEnum } from "./enums/BlockExplorerEnum";
+import { ServerSelectionEnum } from "./enums/ServerSelectionEnum";
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
@@ -74,16 +75,26 @@ export default class AppState {
 
   // The state of the Address Book Screen, as the user create a new label
   addLabelState: AddressBookEntryClass;
+  // A contact the user chose to swap to, handed from the Address Book to the
+  // Swap screen. Null once the screen has consumed it, so returning to Swap
+  // later does not silently refill a field the user cleared.
+  swapToState: { address: string; swapChain: string } | null;
 
   // props to context
   openErrorModal: (t: string, b: string | JSX.Element) => void;
   closeErrorModal: () => void;
-  openConfirmModal: (t: string, b: string | JSX.Element, a: () => void) => void;
+  openConfirmModal: (
+    t: string,
+    b: string | JSX.Element,
+    a: () => void,
+    alternate?: { label: string; action: () => void },
+  ) => void;
   closeConfirmModal: () => void;
   setSendTo: (t: ZcashURITarget) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
   setAddLabel: (a: AddressBookEntryClass) => void;
+  setSwapTo: (t: { address: string; swapChain: string } | null) => void;
 
   // Current USD price per ZEC. Fetched by RPC.getZecPrice on the 5s
   // scheduler, over the mixnet only (ADR 0024 arc 6): the fetch refuses
@@ -100,7 +111,9 @@ export default class AppState {
   mixnetView: MixnetView;
   serverHealth: ServerHealthState;
   rotateServer: () => void;
-  switchServer: (uri: string) => void;
+  switchServer: (uri: string, selection?: ServerSelectionEnum) => void;
+  /** Hand the choice of server back to the wallet, keeping the one in use. */
+  delegateServerChoice: () => void;
   reopenWallet: () => void;
   avoidedServers: string[];
 
@@ -139,6 +152,7 @@ export default class AppState {
     this.saplingPool = true;
     this.transparentPool = true;
     this.addLabelState = new AddressBookEntryClass("", "");
+    this.swapToState = null;
     this.openErrorModal = () => {};
     this.closeErrorModal = () => {};
     this.openConfirmModal = () => {};
@@ -147,11 +161,13 @@ export default class AppState {
     this.calculateShieldFee = async () => 0;
     this.handleShieldButton = () => {};
     this.setAddLabel = () => {};
+    this.setSwapTo = () => {};
     this.zecPrice = 0;
     this.mixnetView = UNKNOWN_MIXNET_VIEW;
     this.serverHealth = INITIAL_SERVER_HEALTH;
     this.rotateServer = () => {};
     this.switchServer = () => {};
+    this.delegateServerChoice = () => {};
     this.reopenWallet = () => {};
     this.avoidedServers = [];
     this.blockExplorerMainnetTransaction = BlockExplorerEnum.Zcashexplorer;

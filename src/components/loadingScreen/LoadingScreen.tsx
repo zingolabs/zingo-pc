@@ -18,6 +18,7 @@ import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
 import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
 import Utils from "../../utils/utils";
+import { userFacingError } from "../../utils/userFacingError";
 import { Logo } from "../logo";
 import DetailLine from "../detailLine/DetailLine";
 
@@ -145,7 +146,10 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         "Zingo PC could not start",
         <div>
           <div>Something failed while preparing the wallet, and the app cannot continue.</div>
-          <div className={cstyles.margintoplarge}>{String(error)}</div>
+          {/* The wallet's own words, not the four layers of IPC around them.
+              This is the one dialog a user is asked to paste into an issue, so
+              what it shows is what we get to read. */}
+          <div className={cstyles.margintoplarge}>{userFacingError(error)}</div>
           <div className={cstyles.margintoplarge}>
             Please report this at github.com/zingolabs/zingo-pc/issues, including the message above.
           </div>
@@ -793,19 +797,17 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         const walletKindStr: string = await native.wallet_kind();
         const walletKindJSON = JSON.parse(walletKindStr);
 
-        if (walletKindJSON.kind === "Loaded from unified full viewing key" || walletKindJSON.kind === "No keys found") {
-          // ufvk
-          this.props.setBirthday(resultJSON.birthday);
-          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
-          this.props.setReadOnly(true);
-        } else {
-          // seed phrase
-          this.props.setBirthday(resultJSON.birthday);
-          this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
-          this.props.setReadOnly(false);
-        }
+        const readOnly: boolean =
+          walletKindJSON.kind === "Loaded from unified full viewing key" || walletKindJSON.kind === "No keys found";
 
-        this.getInfo();
+        this.props.setBirthday(resultJSON.birthday);
+        this.props.setPools(walletKindJSON.orchard, walletKindJSON.sapling, walletKindJSON.transparent);
+        this.props.setReadOnly(readOnly);
+
+        // Passed rather than read back from context: `setReadOnly` has only
+        // just been called, so the context still holds the previous wallet's
+        // value on this tick.
+        this.getInfo(!readOnly);
       }
     } catch (error) {
       console.error("Error initializing", error);
@@ -816,12 +818,12 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     }
   };
 
-  getInfo = async () => {
+  getInfo = async (canSpend: boolean) => {
     // Try getting the info.
     try {
       const { runRPCConfigure, setInfo } = this.props;
 
-      const info: InfoClass = await RPC.getInfoObject();
+      const info: InfoClass = await RPC.getInfoObject(canSpend);
 
       if (info.error) {
         this.props.setFetchError("info", `${info.error}`);

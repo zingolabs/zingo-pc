@@ -8,18 +8,23 @@ import {
   InfoClass,
   TotalBalanceClass,
   AddressKindEnum,
+  AddressBookEntryClass,
   ToAddrClass,
   ServerChainNameEnum,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
-import ScrollPaneTop from "../../scrollPane/ScrollPane";
+import { usePaneOffset } from "../../scrollPane/usePaneOffset";
+import { useCopy } from "../../common/useCopy";
+import { Field, FieldRow } from "../../common/DetailField";
+import { BalanceBlockHighlight } from "../../balanceBlock";
 import routes from "../../../constants/routes.json";
 import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
-import ConfirmModalToAddr from "./SendConfirmModalToAddr";
 
 import { native } from "../../../electronBridge";
 import { ContextApp } from "../../../context/ContextAppState";
+import { faArrowCircleUp, faExternalLinkSquareAlt } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 // Internal because we're using withRouter just below
 type SendConfirmModalProps = {
@@ -44,6 +49,10 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   modalIsOpen,
   sendFee,
 }) => {
+  // The Cancel and Send row sits under the pane, and the block above it grows
+  // with the number of recipients — so neither end of the pane is a constant.
+  const { paneRef, footerRef, paneOffset } = usePaneOffset(350);
+
   const navigate = useNavigate();
   const context = useContext(ContextApp);
   const {
@@ -54,12 +63,27 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
     blockExplorerMainnetTransactionCustom,
     blockExplorerTestnetTransactionCustom,
     zecPrice,
+    addressBook,
   } = context;
 
   const [sendingTotal, setSendingTotal] = useState<number>(0);
-  const [bigPart, setBigPart] = useState<string>("");
-  const [smallPart, setSmallPart] = useState<string>("");
   const [privacyLevel, setPrivacyLevel] = useState<string>("");
+
+  // The recipient, and the two things this screen does with it: reveal the
+  // whole of it, and put it on the clipboard. One press does both, which is
+  // the gesture the transfer detail and the address book already use.
+  const [expandAddress, setExpandAddress] = useState<boolean>(false);
+  const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
+
+  const toAddress: string = sendPageState.toaddr.znsAlias || sendPageState.toaddr.to;
+  const toAmount: number = sendPageState.toaddr.amount;
+  const { bigPart: amountBigPart, smallPart: amountSmallPart } = Utils.splitZecAmountIntoBigSmall(toAmount);
+  // The name this address is filed under, if any — the same thing the detail
+  // shows above the address itself.
+  const contactLabel: string | undefined = addressBook?.find(
+    (entry: AddressBookEntryClass) => entry.address === toAddress,
+  )?.label;
+  const memoText: string = `${sendPageState.toaddr.memo ?? ""}${sendPageState.toaddr.memoReplyTo ?? ""}`;
 
   const currentChainName = currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName;
 
@@ -200,10 +224,6 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   useEffect(() => {
     const sendingTotal: number = sendPageState.toaddr.amount + sendFee;
     setSendingTotal(sendingTotal);
-    const { bigPart, smallPart }: { bigPart: string; smallPart: string } =
-      Utils.splitZecAmountIntoBigSmall(sendingTotal);
-    setBigPart(bigPart);
-    setSmallPart(smallPart);
     (async () => {
       const privacyLevel: string = await getPrivacyLevel(sendPageState.toaddr);
       setPrivacyLevel(privacyLevel);
@@ -259,7 +279,8 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                 <div
                   style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center" }}
                 >
-                  <div
+                  <button
+                    type="button"
                     className={cstyles.primarybutton}
                     onClick={() =>
                       Utils.openTxid(
@@ -275,10 +296,11 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                     }
                   >
                     View TXID &nbsp;
-                    <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
-                  </div>
+                    <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
+                  </button>
                   {txids.length > 1 && (
-                    <div
+                    <button
+                      type="button"
                       style={{ marginTop: 5 }}
                       className={cstyles.primarybutton}
                       onClick={() =>
@@ -295,11 +317,12 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                       }
                     >
                       View TXID &nbsp;
-                      <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
-                    </div>
+                      <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
+                    </button>
                   )}
                   {txids.length > 2 && (
-                    <div
+                    <button
+                      type="button"
                       style={{ marginTop: 5 }}
                       className={cstyles.primarybutton}
                       onClick={() =>
@@ -316,8 +339,8 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                       }
                     >
                       View TXID &nbsp;
-                      <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
-                    </div>
+                      <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
+                    </button>
                   )}
                 </div>
               )}
@@ -341,58 +364,151 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
       className={styles.confirmModal}
-      overlayClassName={styles.confirmOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex}>
-        <div className={`${cstyles.marginbottomlarge} ${cstyles.center}`}>Confirm Transaction</div>
-        <div className={cstyles.flex}>
+        {/* The same header the transfer detail uses, because this is the same
+            transaction one screen earlier: the direction as an icon, what is
+            happening under it, and the total beside them. */}
+        <div className={cstyles.center}>Confirm Transaction</div>
+
+        <div
+          className={`${cstyles.center} ${cstyles.horizontalflex}`}
+          style={{ width: "100%", alignItems: "center", justifyContent: "center" }}
+        >
           <div
-            className={`${cstyles.highlight} ${cstyles.xlarge} ${cstyles.flexspacebetween} ${cstyles.well} ${cstyles.maxwidth}`}
+            className={`${cstyles.center} ${cstyles.verticalflex}`}
+            style={{ alignItems: "center", justifyContent: "center" }}
           >
-            <div>Total</div>
-            <div className={`${cstyles.right} ${cstyles.verticalflex}`}>
-              <div>
-                <span>
-                  {info.currencyName} {bigPart}
-                </span>
-                <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{smallPart}</span>
-              </div>
-              {info.currencyName === "ZEC" && (
-                <div className={cstyles.normal}>{Utils.getZecToUsdString(zecPrice, sendingTotal)}</div>
-              )}
-            </div>
+            <FontAwesomeIcon icon={faArrowCircleUp} style={{ fontSize: "35px", color: "var(--color-text)" }} />
+            Sending
+          </div>
+
+          <div className={cstyles.center} style={{ marginLeft: 20 }}>
+            <BalanceBlockHighlight
+              zecValue={sendingTotal}
+              usdValue={info.currencyName === "ZEC" ? Utils.getZecToUsdString(zecPrice, sendingTotal) : ""}
+              currencyName={info.currencyName}
+            />
           </div>
         </div>
 
-        <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
-          <ScrollPaneTop offsetHeight={350}>
-            <div className={cstyles.verticalflex}>
-              {[sendPageState.toaddr].map((t) => (
-                <ConfirmModalToAddr key={t.to} toaddr={t} info={info} zecPrice={zecPrice} />
-              ))}
-            </div>
-            <ConfirmModalToAddr
-              toaddr={{ to: "Fee", amount: sendFee, memo: "", memoReplyTo: "", znsAlias: "" }}
-              info={info}
-              zecPrice={zecPrice}
+        <div
+          className={cstyles.verticalflex}
+          ref={paneRef}
+          style={{ marginTop: 8, maxHeight: `calc(100vh - ${paneOffset}px)`, overflowY: "auto", overflowX: "hidden" }}
+        >
+          <hr style={{ width: "100%" }} />
+
+          {/* Two rows rather than a block and two: the address beside what
+                sending to it costs in privacy, and then the two figures. The
+                address block itself is the transfer detail's — the "Copied!"
+                flash rides on the label, the contact name it is filed under
+                sits between label and value, and the value abbreviates until
+                the press that copies it also opens it. */}
+          <FieldRow>
+            {!!toAddress && (
+              <div className={cstyles.padtopsmall} style={{ minWidth: 0 }}>
+                <div className={cstyles.sublight}>
+                  Address
+                  {addressCopied && (
+                    <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
+                      Copied!
+                    </span>
+                  )}
+                </div>
+                {!!contactLabel && (
+                  <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
+                    {contactLabel}
+                  </div>
+                )}
+                <div className={cstyles.verticalflex}>
+                  <button
+                    type="button"
+                    aria-label="Copy address"
+                    title="Copy address"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      color: "inherit",
+                      font: "inherit",
+                      textAlign: "left",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      copyAddress(toAddress);
+                      setExpandAddress(true);
+                    }}
+                  >
+                    <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
+                      {!expandAddress && Utils.trimToSmall(toAddress, 10)}
+                      {expandAddress && (
+                        <>
+                          {toAddress.length < 80
+                            ? toAddress
+                            : Utils.splitStringIntoChunks(toAddress, 3).map((item) => <div key={item}>{item}</div>)}
+                        </>
+                      )}
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <Field label="Privacy" value={privacyLevel} />
+          </FieldRow>
+
+          {/* Each figure carries its fiat value underneath, the way the
+                detail states them. The price is the one in context — this send
+                has not happened, so the rate that matters is the one now
+                rather than a basis captured alongside a past transfer. */}
+          <FieldRow>
+            <Field
+              label="Amount"
+              value={
+                <>
+                  <div>
+                    <span>
+                      {info.currencyName} {amountBigPart}
+                    </span>
+                    <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{amountSmallPart}</span>
+                  </div>
+                  {info.currencyName === "ZEC" && (
+                    <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, toAmount)}</div>
+                  )}
+                </>
+              }
             />
 
-            <div className={cstyles.well}>
-              <div className={`${cstyles.flexspacebetween} ${cstyles.margintoplarge}`}>
-                <div className={styles.confirmModalAddress}>Privacy Level</div>
-                <div className={`${cstyles.verticalflex} ${cstyles.right}`}>
-                  <div className={cstyles.large}>
-                    <div>
-                      <span>{privacyLevel}</span>
-                    </div>
-                  </div>
+            <Field
+              label="Transaction Fee"
+              value={
+                <>
+                  {info.currencyName} {Utils.maxPrecisionTrimmed(sendFee)}
+                  {info.currencyName === "ZEC" && (
+                    <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, sendFee)}</div>
+                  )}
+                </>
+              }
+            />
+          </FieldRow>
+
+          {!!memoText && (
+            <div className={cstyles.padtopsmall}>
+              <div className={cstyles.sublight}>Memo</div>
+              {/* Five rows, then it scrolls. A long memo used to grow the
+                    modal until the buttons left the screen. */}
+              <div className={cstyles.fieldrowmulti} style={{ maxHeight: "7.5em", overflowY: "auto" }}>
+                <div className={`${cstyles.fieldtextarea} ${cstyles.breakword}`} style={{ whiteSpace: "pre-wrap" }}>
+                  {memoText}
                 </div>
               </div>
             </div>
-          </ScrollPaneTop>
+          )}
         </div>
 
-        <div className={cstyles.buttoncontainer}>
+        <div className={cstyles.buttoncontainer} ref={footerRef}>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
             Cancel
           </button>

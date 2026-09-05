@@ -122,8 +122,9 @@ describe("SendConfirmModal", () => {
   describe("getPrivacyLevel", () => {
     it("returns '-' when address has no 'to' value", async () => {
       render(<SendConfirmModal {...makeProps({ toaddr: { to: "", amount: 0 } })} />);
-      await screen.findByText("Privacy Level");
-      // privacy level text appears as "-" when blank
+      // The row is labelled "Privacy" now, beside the fee, in the same field
+      // shape the rest of the app states a fact in.
+      await screen.findByText("Privacy");
     });
 
     it("returns '-' when parse_address returns error", async () => {
@@ -379,5 +380,63 @@ describe("SendConfirmModal", () => {
         expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "plain string error"),
       );
     });
+  });
+});
+
+describe("SendConfirmModal layout", () => {
+  // The same header the transfer detail carries, because this is the same
+  // transaction one screen earlier.
+  it("heads with the direction and what is happening", () => {
+    render(<SendConfirmModal {...makeProps()} />);
+    expect(screen.getByText("Sending")).toBeInTheDocument();
+  });
+
+  // Abbreviated in the middle, expanded and copied by the same press — the
+  // gesture the transfer detail and the address book already use.
+  it("abbreviates the address until it is pressed", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { clipboard } = require("../../../electronBridge");
+    const to = "u1fakeaddress0000000000000000000000000000000000000000";
+    render(<SendConfirmModal {...makeProps({ toaddr: { to } })} />);
+
+    expect(screen.queryByText(to)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /copy address/i }));
+
+    expect(clipboard.writeText).toHaveBeenCalledWith(to);
+    expect(screen.getByText(to)).toBeInTheDocument();
+  });
+
+  it("states the amount, the fee and the privacy as labelled fields", async () => {
+    render(<SendConfirmModal {...makeProps()} />);
+
+    expect(screen.getByText("Amount")).toBeInTheDocument();
+    expect(screen.getByText("Transaction Fee")).toBeInTheDocument();
+    expect(await screen.findByText("Privacy")).toBeInTheDocument();
+  });
+
+  // The amount and the fee each state their fiat value underneath, which is
+  // what the detail does — and the rate is the live one, because the send has
+  // not happened yet.
+  it("puts a fiat value under both figures, from the current price", () => {
+    const props = makeProps({ toaddr: { amount: 2 }, sendFee: 0.0001 });
+    // The fiat lines are gated on the wallet actually being on ZEC.
+    props.info.currencyName = "ZEC";
+    render(<SendConfirmModal {...props} />, { contextOverrides: { zecPrice: 50 } });
+
+    expect(screen.getByText("USD 100.00")).toBeInTheDocument();
+    expect(screen.getByText("USD < 0.01")).toBeInTheDocument();
+  });
+
+  // No row at all rather than an empty one: most sends carry no memo, and a
+  // labelled blank is a question the reader has to answer.
+  it("shows the memo only when there is one", () => {
+    const { unmount } = render(<SendConfirmModal {...makeProps()} />);
+    expect(screen.queryByText("Memo")).not.toBeInTheDocument();
+    unmount();
+
+    render(<SendConfirmModal {...makeProps({ toaddr: { memo: "for the coffee" } })} />);
+    expect(screen.getByText("Memo")).toBeInTheDocument();
+    expect(screen.getByText("for the coffee")).toBeInTheDocument();
   });
 });

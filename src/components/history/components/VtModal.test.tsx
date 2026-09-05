@@ -57,6 +57,7 @@ const baseProps = {
   currencyName: "ZEC",
   addressBookMap: new Map<string, string>(),
   valueTransfersSliced: [makeVt()],
+  moveDetail: jest.fn(),
 };
 
 const mainnetWallet = { id: 1, chain_name: ServerChainNameEnum.mainChainName } as any;
@@ -256,22 +257,64 @@ describe("VtModal", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  it("navigates forward when arrow-down is clicked", () => {
+  // The step belongs to the screen that owns the list, so that a row between
+  // two transfers which is not a transfer still gets opened. What the modal
+  // owes is the request.
+  it("asks its parent to step forward when arrow-down is clicked", () => {
+    const moveDetail = jest.fn();
     const vt0 = makeVt({ txid: "tx0", address: "u1a" });
     const vt1 = makeVt({ txid: "tx1", address: "u1b" });
-    render(<VtModalInternal {...baseProps} vt={vt0} valueTransfersSliced={[vt0, vt1]} length={2} index={0} />, {
-      contextOverrides: { valueTransfers: [vt0, vt1] },
-    });
+    render(
+      <VtModalInternal
+        {...baseProps}
+        vt={vt0}
+        valueTransfersSliced={[vt0, vt1]}
+        length={2}
+        index={0}
+        moveDetail={moveDetail}
+      />,
+      { contextOverrides: { valueTransfers: [vt0, vt1] } },
+    );
     fireEvent.click(screen.getByLabelText("Next transaction"));
-    // After move, the index in the navigator should be "2"
-    expect(screen.getByText("2")).toBeInTheDocument();
+    expect(moveDetail).toHaveBeenCalledWith(1);
   });
 
-  it("does NOT navigate forward when on the last item", () => {
+  it("asks its parent to step back when arrow-up is clicked", () => {
+    const moveDetail = jest.fn();
+    const vt0 = makeVt({ txid: "tx0", address: "u1a" });
+    const vt1 = makeVt({ txid: "tx1", address: "u1b" });
+    render(
+      <VtModalInternal
+        {...baseProps}
+        vt={vt1}
+        valueTransfersSliced={[vt0, vt1]}
+        length={2}
+        index={1}
+        moveDetail={moveDetail}
+      />,
+      { contextOverrides: { valueTransfers: [vt0, vt1] } },
+    );
+    fireEvent.click(screen.getByLabelText("Previous transaction"));
+    expect(moveDetail).toHaveBeenCalledWith(-1);
+  });
+
+  it("does not ask to step off either end of the list", () => {
+    const moveDetail = jest.fn();
     const vt0 = makeVt({ txid: "tx0" });
-    render(<VtModalInternal {...baseProps} vt={vt0} valueTransfersSliced={[vt0]} length={1} index={0} />, {
-      contextOverrides: { valueTransfers: [vt0] },
-    });
+    render(
+      <VtModalInternal
+        {...baseProps}
+        vt={vt0}
+        valueTransfersSliced={[vt0]}
+        length={1}
+        index={0}
+        moveDetail={moveDetail}
+      />,
+      { contextOverrides: { valueTransfers: [vt0] } },
+    );
+    fireEvent.click(screen.getByLabelText("Next transaction (disabled)"));
+    fireEvent.click(screen.getByLabelText("Previous transaction (disabled)"));
+    expect(moveDetail).not.toHaveBeenCalled();
     expect(screen.getByText("1")).toBeInTheDocument();
   });
 
@@ -320,5 +363,34 @@ describe("VtModal", () => {
       contextOverrides: { valueTransfers: [] },
     });
     expect(closeModal).toHaveBeenCalled();
+  });
+});
+
+describe("VtModal copy targets", () => {
+  // They were a `div` carrying an onClick: a click target and nothing else,
+  // with no tab stop, no Enter and nothing announced to a screen reader. The
+  // address book and the swap detail both offer this gesture through a real
+  // control, and this is the screen those two were modelled on.
+  it("offers the address and the transaction id as buttons", () => {
+    const vt = makeVt();
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
+
+    expect(screen.getByRole("button", { name: /copy address/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /copy transaction id/i })).toBeInTheDocument();
+  });
+
+  it("copies the address when its button is pressed", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { clipboard } = require("../../../electronBridge");
+    const vt = makeVt();
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /copy address/i }));
+
+    expect(clipboard.writeText).toHaveBeenCalled();
   });
 });

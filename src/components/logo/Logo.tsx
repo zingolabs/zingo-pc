@@ -12,7 +12,7 @@ type LogoProps = {
 const Logo = ({ readOnly, onlyVersion }: LogoProps) => {
   return (
     <>
-      <div style={{ color: Utils.getCssVariable("--color-zingo"), fontWeight: "bold", marginBottom: 10 }}>
+      <div style={{ color: "var(--color-zingo)", fontWeight: "bold", marginTop: 5, marginBottom: 10 }}>
         Zingo PC v{APP_VERSION}
       </div>
       {!onlyVersion && (

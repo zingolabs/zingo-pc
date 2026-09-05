@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import AddNewWallet from "./AddNewWallet";
 import { ipcRenderer } from "../../electronBridge";
@@ -109,5 +109,99 @@ describe("AddNewWallet server picker", () => {
     const option = await within(select).findByRole("option", { name: /one\.zec\.rocks/ });
 
     expect(option.textContent).toBe("https://one.zec.rocks:443 - Mainnet");
+  });
+});
+
+describe("AddNewWallet automatic server", () => {
+  // The block starts collapsed, and only appears once the settings read has
+  // resolved a chain — so opening it is an await, as it is for the picker above.
+  const openServerBlock = async () => fireEvent.click((await screen.findAllByText("Selected Server"))[0]);
+
+  // It was hidden outside settings, so a new wallet could never be created on
+  // Automatic — even though the code stored exactly that when nothing was
+  // picked, and the validation then refused to let that happen.
+  it("offers Automatic while creating a wallet", async () => {
+    render(<AddNewWallet {...baseProps} />, { initialRoute: "/addnewwallet" });
+    await openServerBlock();
+
+    expect(screen.getByRole("radio", { name: "Automatic" })).toBeInTheDocument();
+  });
+
+  // The case that needed care. `init_new` dials the chosen server to build the
+  // wallet, so Automatic has to resolve one for the chain being created —
+  // never the app's saved URI, which belongs to whatever chain it was last on.
+  it("resolves a server for the chain being created, not the one last used", async () => {
+    liveList.mockResolvedValue([liveServer("https://testnet.example:443", ServerChainNameEnum.testChainName)]);
+    render(<AddNewWallet {...baseProps} />, { initialRoute: "/addnewwallet" });
+    await openServerBlock();
+
+    fireEvent.change(screen.getByRole("combobox", { name: /network/i }), {
+      target: { value: ServerChainNameEnum.testChainName },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Automatic" }));
+
+    await waitFor(() => expect(liveList).toHaveBeenCalledWith(ServerChainNameEnum.testChainName));
+  });
+
+  // Changing the chain afterwards has to re-resolve. Automatic says how to
+  // pick, not which server, so it survives the change — and the server it
+  // resolved for the previous chain must not.
+  it("re-resolves when the chain changes underneath it", async () => {
+    liveList.mockResolvedValue([liveServer("https://mainnet.example:443")]);
+    render(<AddNewWallet {...baseProps} />, { initialRoute: "/addnewwallet" });
+    await openServerBlock();
+
+    fireEvent.change(screen.getByRole("combobox", { name: /network/i }), {
+      target: { value: ServerChainNameEnum.mainChainName },
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "Automatic" }));
+    await waitFor(() => expect(liveList).toHaveBeenCalledWith(ServerChainNameEnum.mainChainName));
+
+    liveList.mockClear();
+    fireEvent.change(screen.getByRole("combobox", { name: /network/i }), {
+      target: { value: ServerChainNameEnum.testChainName },
+    });
+
+    await waitFor(() => expect(liveList).toHaveBeenCalledWith(ServerChainNameEnum.testChainName));
+  });
+});
+
+describe("AddNewWallet delete confirmation", () => {
+  const wallet = {
+    id: 1,
+    alias: "Savings",
+    fileName: "zingo-wallet.dat",
+    chain_name: ServerChainNameEnum.mainChainName,
+  } as never;
+
+  // Deleting removes the wallet file, and until now the only thing between a
+  // click and that was the screen the button sits on. The in-flight-swap
+  // confirmation existed, but only when a swap was in flight.
+  it("asks before deleting, naming the wallet", async () => {
+    const openConfirmModal = jest.fn();
+    render(<AddNewWallet {...baseProps} />, {
+      initialRoute: { pathname: "/addnewwallet", state: { mode: "delete" } } as never,
+      contextOverrides: { currentWallet: wallet, openConfirmModal },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^delete wallet$/i }));
+
+    await waitFor(() => expect(openConfirmModal).toHaveBeenCalled());
+    expect(openConfirmModal.mock.calls[0][1]).toContain("Savings");
+  });
+
+  // The confirmation is a question, so declining it has to leave the wallet
+  // alone — the action only runs from the callback the modal invokes.
+  it("does nothing until the confirmation is accepted", async () => {
+    const openConfirmModal = jest.fn();
+    render(<AddNewWallet {...baseProps} />, {
+      initialRoute: { pathname: "/addnewwallet", state: { mode: "delete" } } as never,
+      contextOverrides: { currentWallet: wallet, openConfirmModal },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^delete wallet$/i }));
+
+    await waitFor(() => expect(openConfirmModal).toHaveBeenCalled());
+    expect(baseProps.clearTimers).not.toHaveBeenCalled();
   });
 });

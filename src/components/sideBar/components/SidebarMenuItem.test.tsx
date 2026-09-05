@@ -1,12 +1,13 @@
 import React from "react";
 import { render, screen } from "../../../test-utils";
 import SidebarMenuItem from "./SidebarMenuItem";
+import { faHome } from "@fortawesome/free-solid-svg-icons";
 
 const baseProps = {
   name: "Dashboard",
   routeName: "/dashboard",
   currentRoute: "/send",
-  iconname: "fa-home",
+  iconname: faHome,
 };
 
 describe("SidebarMenuItem", () => {

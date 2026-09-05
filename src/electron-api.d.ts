@@ -22,9 +22,15 @@ declare global {
         openExternal: (url: string) => void;
       };
       ipcRenderer: {
-        on: (channel: string, listener: (...args: any[]) => void) => void;
-        off: (channel: string, listener: (...args: any[]) => void) => void;
-        removeListener: (channel: string, listener: (...args: any[]) => void) => void;
+        /**
+         * Subscribe, and take back the only thing that can unsubscribe.
+         *
+         * There is no `off`. A renderer cannot name a listener the preload
+         * would recognise — contextBridge proxies functions on the way across
+         * — so a channel-and-callback removal silently removes nothing. The
+         * returned disposer closes over the registration itself.
+         */
+        on: (channel: string, listener: (...args: any[]) => void) => () => void;
         invoke: (channel: string, ...args: any[]) => Promise<any>;
         send: (channel: string, ...args: any[]) => void;
       };

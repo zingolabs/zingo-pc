@@ -115,24 +115,9 @@ const BlockExplorerModal = ({ modalIsOpen, closeModal, modalTitle }: BlockExplor
     <Modal
       isOpen={modalIsOpen}
       onRequestClose={closeModal}
-      className={cstyles.modalOverlay}
+      className={cstyles.centredsheet}
       overlayClassName={cstyles.modalOverlay}
-      style={{
-        content: {
-          background: "var(--bg-color, #1a1a2e)",
-          border: "1px solid #444",
-          borderRadius: 8,
-          padding: 32,
-          maxWidth: 640,
-          margin: "auto",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -50%)",
-          position: "absolute",
-          right: "auto",
-          bottom: "auto",
-        },
-      }}
+      style={{ content: { maxWidth: 640 } }}
     >
       <div className={`${cstyles.xlarge} ${cstyles.center}`}>{modalTitle}</div>
 

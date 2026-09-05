@@ -131,3 +131,20 @@ describe("AddressbookItem", () => {
     expect(setSendTo).toHaveBeenCalled();
   });
 });
+
+describe("AddressbookItem chain badge", () => {
+  // The badge reads off the list without the bracketed tag having to be found
+  // and parsed on every row.
+  it("leads the row with the chain's badge", () => {
+    renderInAccordion(<AddressBookItem {...baseProps} />);
+    expect(screen.getByTestId("chain-badge")).toBeInTheDocument();
+  });
+
+  // A contact written before the book held more than Zcash carries no chain.
+  // It is a Zcash one, and gets Zcash's badge rather than a gap.
+  it("gives an entry with no chain recorded the Zcash badge", () => {
+    const legacy = new AddressBookEntryClass("Old", "u1legacy", ServerChainNameEnum.mainChainName);
+    renderInAccordion(<AddressBookItem item={legacy} removeAddressBookEntry={jest.fn()} />);
+    expect(screen.getByTestId("chain-badge")).toBeInTheDocument();
+  });
+});

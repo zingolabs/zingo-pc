@@ -1,4 +1,42 @@
-const { app, BrowserWindow, Menu, shell, ipcMain, dialog, session, clipboard } = require("electron");
+// Every native call runs on the libuv thread pool — Neon's `cx.task` puts it
+// there — and each one blocks its thread with `RT.block_on` for the whole
+// network round trip. The pool is four threads by default.
+//
+// This app asks for more than four at once. The five-second cycle alone fires
+// eleven, and the sync poll, the wallet save and `run_sync` come on top; a
+// sync holds its thread for as long as the sync takes. Past four, the rest
+// queue, and the wait lands on whatever asked next.
+//
+// It showed as a wallet that stopped for a minute at a time and then caught
+// up in a burst, and as `server health: answered in 110785ms` against a
+// server answering the same call in 150ms from another process on the same
+// machine at the same moment. Nothing was slow. Everything was waiting.
+//
+// Raising the pool from here does not work, and the line that used to try was
+// removed rather than left looking like a safeguard. libuv reads
+// UV_THREADPOOL_SIZE once, when it creates the pool, and that happens during
+// Electron's own boot — before this file runs. Measured: sixteen concurrent
+// pool calls from an Electron main script that had just assigned "16" still
+// completed in four batches of four. Set in the environment before launch it
+// works, but an installed .exe has no such environment.
+//
+// So the fix is on the other side of the boundary, and it is done:
+// `spawn_promise` in native/src/lib.rs hands every endpoint to tokio's
+// blocking pool instead of libuv's. Nothing here depends on the pool size any
+// more.
+
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  shell,
+  ipcMain,
+  dialog,
+  session,
+  clipboard,
+  powerMonitor,
+  safeStorage,
+} = require("electron");
 const os = require("os");
 const path = require("path");
 const fs = require("fs");
@@ -8,6 +46,49 @@ const { createServerRegistry } = require("./serverRegistry");
 
 const STORAGE_KEY = "wallets";
 const isDev = !app.isPackaged;
+
+// Is the main process's event loop the thing that stalls?
+//
+// The app goes completely silent for ~55s at a time: the sync poll, the wallet
+// save and the server health probe stop and resume together, within a couple of
+// hundred milliseconds of each other. They share no wallet lock, no server, and
+// since the endpoints moved off `cx.task` no thread pool either — eight of them
+// measured running genuinely in parallel. Things with nothing in common do not
+// stop together by accident; something they all pass through is stalling.
+//
+// This loop is one such thing. Every native answer settles on it (Neon's
+// `Channel` posts the promise's completion to the JS main thread), and every
+// IPC reply leaves through it, so if it blocks, every call looks slow at once.
+//
+// A timer that only speaks when it is late. It is asked to run every second, so
+// a longer gap means the loop could not get to it — and the gap is how long the
+// loop was blocked. Silence is the healthy reading, and the one that would rule
+// the main process out and send the search downstream.
+const LOOP_TICK_MS = 1_000;
+const LOOP_STALL_REPORT_MS = 2_000;
+let lastLoopTick = Date.now();
+setInterval(() => {
+  const now = Date.now();
+  const sinceLastTick = now - lastLoopTick;
+  lastLoopTick = now;
+  if (sinceLastTick < LOOP_STALL_REPORT_MS) return;
+
+  const line = `[main-loop] blocked for ${sinceLastTick}ms`;
+  console.log(line);
+  // A packaged app has no terminal, and `startup.log` only collects what the
+  // renderer's console emits — so on the build a user actually runs, the line
+  // above reaches nobody. That is the one case this probe exists for: a stall
+  // reported from a machine we cannot attach to. Written the same way the
+  // wallet-dir diagnostics are, path resolved per call and failures swallowed,
+  // because a probe that throws is worse than one that says nothing.
+  if (isDev) return;
+  try {
+    require("fs").appendFileSync(
+      require("path").join(app.getPath("userData"), "startup.log"),
+      `${new Date().toISOString()} ${line}\n`,
+    );
+  } catch (_) {}
+}, LOOP_TICK_MS).unref();
 
 class MenuBuilder {
   mainWindow;
@@ -158,6 +239,14 @@ class MenuBuilder {
             mainWindow.webContents.send("payuri");
           },
         },
+        { type: "separator" },
+        {
+          label: "Financial &Insight",
+          accelerator: "Ctrl+I",
+          click: () => {
+            mainWindow.webContents.send("insight");
+          },
+        },
       ],
     };
     const subMenuSettings = {
@@ -180,6 +269,7 @@ class MenuBuilder {
         },
         {
           label: "&Nym Mixnet",
+          accelerator: "Ctrl+N",
           click: () => {
             mainWindow.webContents.send("mixnet-settings");
           },
@@ -297,6 +387,14 @@ class MenuBuilder {
               mainWindow.webContents.send("deletewallet");
             },
           },
+          { type: "separator" },
+          {
+            label: "Financial &Insight",
+            accelerator: "Ctrl+I",
+            click: () => {
+              mainWindow.webContents.send("insight");
+            },
+          },
         ],
       },
       {
@@ -319,6 +417,7 @@ class MenuBuilder {
           },
           {
             label: "&Nym Mixnet",
+            accelerator: "Ctrl+N",
             click: () => {
               mainWindow.webContents.send("mixnet-settings");
             },
@@ -394,16 +493,67 @@ async function removeWallet(id) {
   await saveWallets(filtered);
 }
 
+// Writing the wallet list finishes with a rename: the store writes a temporary
+// file and moves it over the real one, so a crash mid-write cannot leave a
+// half-written list. On Windows that move fails with EPERM whenever anything
+// holds the destination for an instant — Defender reading a file that just
+// changed, the search indexer, a folder-syncing client, another copy of the app.
+// It clears on its own in tens of milliseconds, and the writer underneath makes
+// exactly one attempt (write-file-atomic 2.4.3), so a moment's contention
+// surfaced as a hard failure.
+//
+// The app could not recover from it either: the report that prompted this was a
+// user whose server had stopped answering, and whose attempt to pick another one
+// died here — the save is what the change of server needed, so being unable to
+// save left them unable to fix the thing that was wrong.
+//
+// Half a second of patience, spent only on the codes that mean "busy right now".
+// Anything else is a real fault and raised immediately: a full disk or a
+// read-only file will not be fixed by asking again.
+const WRITE_RETRY_DELAYS_MS = [30, 80, 150, 250];
+const BUSY_CODES = new Set(["EPERM", "EBUSY", "EACCES"]);
+
+async function withWriteRetries(what, attempt) {
+  for (let tries = 0; ; tries += 1) {
+    try {
+      return await attempt();
+    } catch (error) {
+      const code = error && error.code;
+      if (!BUSY_CODES.has(code)) throw error;
+      const wait = WRITE_RETRY_DELAYS_MS[tries];
+      if (wait === undefined) {
+        // Said in the terms the user can act on. The code alone names an
+        // operating-system rule, not the thing holding the file.
+        throw new Error(
+          `${what} could not be saved: Windows would not replace the file (${code}). ` +
+            "Something is holding it open — antivirus, a folder-syncing client, or another " +
+            "copy of Zingo PC still running. Close any other Zingo PC window and try again.",
+        );
+      }
+      console.log(`[storage] ${what}: ${code}, retrying in ${wait}ms`);
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+}
+
 async function clearWallets() {
-  return new Promise((resolve, reject) => {
-    storage.remove(STORAGE_KEY, (err) => (err ? reject(err) : resolve()));
-  });
+  return withWriteRetries(
+    "The wallet list",
+    () =>
+      new Promise((resolve, reject) => {
+        storage.remove(STORAGE_KEY, (err) => (err ? reject(err) : resolve()));
+      }),
+  );
 }
 
 async function saveWallets(wallets) {
-  return new Promise((resolve, reject) => {
-    storage.set(STORAGE_KEY, wallets, (err) => (err ? reject(err) : resolve()));
-  });
+  return withWriteRetries(
+    "The wallet list",
+    () =>
+      new Promise((resolve, reject) => {
+        storage.set(STORAGE_KEY, wallets, (err) => (err ? reject(err) : resolve()));
+      }),
+  );
 }
 
 // IPC close-state lives at module level so it survives across createWindow calls on macOS
@@ -759,6 +909,237 @@ ipcMain.handle("wallets:remove", async (_e, id) => removeWallet(id));
 ipcMain.handle("wallets:clear", async () => clearWallets());
 ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 
+// The swap layer's HTTP, performed here for the same three reasons the ZNS
+// resolver and the server registry are: the renderer's CSP forbids `connect-src`
+// to external hosts, CORS blocks a file:// origin in the packaged app, and
+// sandboxed builds grant network access at the app level.
+//
+// The host allowlist is what keeps this from being an open proxy. Without it a
+// renderer could ask main to fetch anything, which would undo the CSP rather
+// than work within it. Hosts are compared exactly, so a lookalike domain does
+// not pass on a prefix.
+//
+// This `fetch` goes over clearnet while the wallet's indexer traffic rides the
+// mixnet, so a swap reaches the provider with none of the cover a send has.
+// zingolib ADR 0024 rule 6 ruled on this shape for price-fetch and zingo-pc
+// honours it there. Doing the same for swap traffic was deferred rather than
+// rejected, with the reasoning and the options in docs/swap-privacy.md. Read
+// that before changing how this request travels.
+const SWAP_HTTP_HOSTS = new Set(["api.swapkit.dev", "midgard.mayachain.info", "midgard.ninerealms.com"]);
+const SWAP_HTTP_MAX_TIMEOUT_MS = 30000;
+
+ipcMain.handle("swapHttp:request", async (_e, request) => {
+  const { url, method, headers, body, timeoutMs } = request ?? {};
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`swapHttp: unparseable url`);
+  }
+  if (parsed.protocol !== "https:" || !SWAP_HTTP_HOSTS.has(parsed.hostname)) {
+    throw new Error(`swapHttp: refusing ${parsed.protocol}//${parsed.hostname}`);
+  }
+
+  // The renderer aborts with an AbortController it cannot send across IPC, so
+  // the deadline is applied here instead. Capped so a caller cannot pin a
+  // socket open indefinitely.
+  const controller = new AbortController();
+  const deadline = Math.min(Number(timeoutMs) || SWAP_HTTP_MAX_TIMEOUT_MS, SWAP_HTTP_MAX_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), deadline);
+  try {
+    const response = await fetch(url, {
+      method: method === "POST" ? "POST" : "GET",
+      signal: controller.signal,
+      headers: headers ?? {},
+      ...(body !== undefined && body !== null && { body }),
+    });
+    const text = await response.text();
+    if (response.ok) rememberLogoHosts(parsed, text);
+    return { ok: response.ok, status: response.status, text };
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+// Hosts SwapKit named as logo sources in its own catalog, which is the only
+// authority on them: `logoURI` arrives inside the `/tokens` response, so an
+// allowlist written here would be a guess that breaks when the CDN moves.
+// Harvesting the answer as it passes through gives `swapLogo:get` a list that
+// maintains itself and that the renderer cannot widen.
+const swapLogoHosts = new Set();
+
+// Read with a pattern rather than JSON.parse: the shape of a catalog entry has
+// drifted across SwapKit revisions often enough that the executors carry
+// fallback chains for it, while the field name has not moved. This also skips
+// a second parse of a megabyte the renderer is about to parse anyway.
+const LOGO_URI_PATTERN = /"logoURI"\s*:\s*"(https:\/\/[^"]+)"/g;
+
+function rememberLogoHosts(parsedUrl, text) {
+  if (!parsedUrl.pathname.startsWith("/tokens")) return;
+  for (const [, logoUrl] of text.matchAll(LOGO_URI_PATTERN)) {
+    try {
+      swapLogoHosts.add(new URL(logoUrl).hostname);
+    } catch {
+      // A malformed entry names no host to allow. The token still lists; its
+      // logo falls back to the letter avatar.
+    }
+  }
+}
+
+// Swap records persist encrypted at rest, matching what the mobile wallet gets
+// from react-native-encrypted-storage: safeStorage derives its key from the OS
+// keychain (DPAPI on Windows, Keychain on macOS, libsecret on Linux), so the
+// file is unreadable outside the user's session. One file per key, so a corrupt
+// entry cannot take the others down with it.
+//
+// Keys arrive from the renderer and become filenames, so anything outside the
+// namespace SwapStore builds is refused rather than sanitized: a rewritten key
+// would silently read and write the wrong bucket.
+//
+// The keys are colon-separated (`swap:records:<wallet fingerprint>`), and a
+// colon cannot appear in a Windows filename, so it is percent-encoded on the
+// way to disk. `%` is absent from the key alphabet, which keeps that mapping
+// reversible: no two distinct keys can encode to the same filename.
+const SWAP_KEY_PATTERN = /^[A-Za-z0-9_.:-]{1,128}$/;
+
+function swapStoragePath(key) {
+  // A key of only dots would encode to `.` or `..`, which name directories
+  // rather than files.
+  if (typeof key !== "string" || !SWAP_KEY_PATTERN.test(key) || /^\.+$/.test(key)) {
+    throw new Error(`swapStorage: refusing key ${JSON.stringify(key)}`);
+  }
+  const fileName = `${key.replace(/:/g, "%3A")}.bin`;
+  return path.join(app.getPath("userData"), "swap-storage", fileName);
+}
+
+function assertSwapEncryption() {
+  if (!safeStorage.isEncryptionAvailable()) {
+    // Writing plaintext instead would be a silent downgrade of the guarantee
+    // the mobile wallet makes, so the store fails loudly and its callers
+    // surface the failure.
+    throw new Error("swapStorage: OS encryption is unavailable");
+  }
+}
+
+ipcMain.handle("swapStorage:get", async (_e, key) => {
+  const file = swapStoragePath(key);
+  let ciphertext;
+  try {
+    ciphertext = await fs.promises.readFile(file);
+  } catch (e) {
+    if (e.code === "ENOENT") return null;
+    throw e;
+  }
+  assertSwapEncryption();
+  return safeStorage.decryptString(ciphertext);
+});
+
+ipcMain.handle("swapStorage:set", async (_e, key, value) => {
+  const file = swapStoragePath(key);
+  assertSwapEncryption();
+  await fs.promises.mkdir(path.dirname(file), { recursive: true });
+  await fs.promises.writeFile(file, safeStorage.encryptString(String(value)));
+});
+
+// Token logos, fetched here and handed back as data URIs.
+//
+// The renderer cannot load them directly: `img-src` allows 'self' and data:
+// only. Widening it is not an option either, because the host is not ours to
+// know — `logoURI` arrives inside SwapKit's catalog response, so any allowlist
+// would be a guess that breaks silently when the CDN moves.
+//
+// Allowlisted the same way `swapHttp:request` is, from a list SwapKit writes
+// rather than one hardcoded here: `rememberLogoHosts` collects the hosts named
+// in the catalog as it passes through, and nothing else is fetched. The
+// response is constrained on top of that, by an image content-type and a size
+// cap, and a data URI rendered into an `<img>` executes nothing.
+//
+// What remains is recorded in docs/swap-privacy.md: the picker renders up to 60
+// logos at a time, so opening it tells whichever CDNs the catalog names which
+// tokens the user is looking at, over clearnet like the rest of the swap layer.
+const SWAP_LOGO_MAX_BYTES = 256 * 1024;
+const SWAP_LOGO_TIMEOUT_MS = 8000;
+
+// Ceiling on everything the cache holds at once. A catalog runs to about a
+// thousand tokens, so caching all of them at the per-logo maximum would reach
+// hundreds of megabytes for pictures the size of a favicon. Sized to hold a
+// realistic session's worth and evict rather than grow: a miss costs one
+// refetch, which is what the cache was already doing before this entry existed.
+const SWAP_LOGO_CACHE_MAX_BYTES = 16 * 1024 * 1024;
+
+// Insertion-ordered, so the first key is the oldest and eviction reads off the
+// front. Values are the data URI, or null for a logo that would not load.
+const swapLogoCache = new Map();
+let swapLogoCacheBytes = 0;
+
+function cacheLogo(url, dataUri) {
+  swapLogoCache.set(url, dataUri);
+  swapLogoCacheBytes += dataUri === null ? 0 : dataUri.length;
+  while (swapLogoCacheBytes > SWAP_LOGO_CACHE_MAX_BYTES) {
+    const oldest = swapLogoCache.keys().next();
+    if (oldest.done) break;
+    const evicted = swapLogoCache.get(oldest.value);
+    swapLogoCache.delete(oldest.value);
+    swapLogoCacheBytes -= evicted === null ? 0 : evicted.length;
+  }
+}
+
+ipcMain.handle("swapLogo:get", async (_e, url) => {
+  if (swapLogoCache.has(url)) return swapLogoCache.get(url);
+
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null;
+  }
+  // Only hosts SwapKit's own catalog named as logo sources. Before the catalog
+  // has been through `swapHttp:request` the set is empty and every logo falls
+  // back to its letter avatar, which is the right way round: a token is only
+  // ever drawn from a catalog entry, so a URL arriving before one is a URL the
+  // catalog did not supply.
+  if (parsed.protocol !== "https:" || !swapLogoHosts.has(parsed.hostname)) return null;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), SWAP_LOGO_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!response.ok || !contentType.startsWith("image/")) {
+      // SwapKit's CDN lists logos that 404. Remembering the refusal keeps the
+      // picker from asking again every time it renders that token.
+      cacheLogo(url, null);
+      return null;
+    }
+
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.byteLength > SWAP_LOGO_MAX_BYTES) {
+      cacheLogo(url, null);
+      return null;
+    }
+
+    const dataUri = `data:${contentType.split(";")[0]};base64,${bytes.toString("base64")}`;
+    cacheLogo(url, dataUri);
+    return dataUri;
+  } catch {
+    // A logo that will not load is a missing picture, never an error worth
+    // interrupting a swap for. The caller draws its fallback. Not remembered:
+    // a timeout or a dropped connection says nothing about the URL.
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+});
+
+ipcMain.handle("swapStorage:remove", async (_e, key) => {
+  try {
+    await fs.promises.unlink(swapStoragePath(key));
+  } catch (e) {
+    if (e.code !== "ENOENT") throw e;
+  }
+});
+
 // Lazy: app.getPath() requires app.ready — IPC handlers only fire after ready so this is safe.
 // In MAS the containerized path (~/Library/Containers/co.zingo.pc/...) is resolved at runtime.
 let _fsAllowedBases = null;
@@ -898,6 +1279,8 @@ const _NATIVE_NO_PARAM_METHODS = [
   "get_unified_addresses",
   "get_transparent_addresses",
   "create_new_transparent_address",
+  "derive_refund_address",
+  "reserve_refund_address",
   "get_wallet_save_required",
   "set_config_wallet_to_test",
   "get_config_wallet_performance",
@@ -1011,14 +1394,69 @@ const mixnet = {
   intent: "on", // ForcedOn by default (ADR 0024); flipped by the Settings toggle
   child: null,
   socks5Addr: null,
+  // Exit Node identities the proxy announced on NYM_EXIT= lines, which precede
+  // the address line. The attach reports them: zingolib treats Ready as an
+  // address AND a bound exit, and refuses an empty report.
+  exits: [],
   narration: null,
   phase: "unattached", // unattached | bootstrapping | ready | switched_off | died
+  // The wallet's own published Mixnet Mode, refreshed on the renderer's poll.
+  // Held rather than folded into `phase`, because `phase` is what this side
+  // knows about a child process and that stays true on its own terms; this is
+  // what the wallet knows about having a route through it. Null until read.
+  wallet: null,
 };
+
+// A running proxy is not a route. The proxy announcing its address is all
+// `phase: "ready"` has ever meant, and the wallet can be nowhere near able to
+// use it: not yet attached, attached but still proving the tunnel, or having
+// given up on it. Reporting the proxy's readiness as the wallet's was the
+// mirage — green while every mixnet-only surface refused, and a price that
+// never came with nothing on screen to explain it.
+//
+// So while the proxy is up the wallet's answer is the one that ships. Its two
+// unusable-yet states both read as connecting rather than ready, and its
+// narration comes with them when it has one.
+function readyStateOfRecord() {
+  const wallet = mixnet.wallet;
+  // The proxy's own phase says its listener is up. That is not readiness, and
+  // the wallet is the only one who can say otherwise: `attach_readiness` exists
+  // precisely because a listener accepting TCP proves nothing about the mixnet
+  // carrying data.
+  //
+  // So an unheard wallet reports `bootstrapping`, not `ready`. It used to
+  // report ready, and every launch showed a green indicator for the moment
+  // between the proxy coming up and the wallet being open enough to answer
+  // `mixnet_status` — which then turned yellow and spent the next minute
+  // actually building the tunnel. Green, then yellow, then green teaches the
+  // user that the first green means nothing.
+  //
+  // Not cosmetic either: `ready` is one of the two modes that leave sends
+  // unblocked, so the false green was also opening the send screen on a
+  // transport nobody had confirmed. The wallet core refuses such a send on the
+  // route, but the UI is supposed to be fail-closed on its own.
+  //
+  // `bootstrapping` rather than `unattached` because it is what is happening —
+  // the proxy is up and the tunnel is being built — and because `unattached`
+  // paints a red "Mixnet unavailable" over an ordinary launch.
+  if (!wallet) return { mode: "bootstrapping" };
+  switch (wallet.mode) {
+    case "died":
+      return { mode: "died", death: wallet.death || { at: Date.now() } };
+    case "unattached":
+    case "bootstrapping":
+      return wallet.bootstrap_detail
+        ? { mode: "bootstrapping", bootstrap_detail: wallet.bootstrap_detail }
+        : { mode: "bootstrapping" };
+    default:
+      return { mode: "ready", socks5_addr: mixnet.socks5Addr };
+  }
+}
 
 function mixnetStatusSnapshot() {
   switch (mixnet.phase) {
     case "ready":
-      return { mode: "ready", socks5_addr: mixnet.socks5Addr };
+      return readyStateOfRecord();
     case "bootstrapping":
       return mixnet.narration
         ? { mode: "bootstrapping", bootstrap_detail: mixnet.narration }
@@ -1037,6 +1475,63 @@ function emitMixnetStatus() {
   if (win && !win.isDestroyed()) win.webContents.send("mixnet-status", mixnetStatusSnapshot());
 }
 
+// ── Recovering a lost transport ───────────────────────────────────────────
+//
+// The policy is zingo-mobile's `MixnetCoordinator`, kept deliberately close to
+// it so one Mixnet Mode does not mean two things across the two apps.
+//
+// What it says: a transport that reports `died` is lost and recovers on its
+// own, exponentially backed off from 3s to a 60s ceiling, indefinitely. Only a
+// deliberate switch-off stops the loop, because absence of a transport is
+// never consent to clearnet — the user chooses that or nothing does. Reaching
+// a settled state resets the growth: ready, or the switched-off the user
+// asked for.
+//
+// Two differences from the version this replaces, both learned from mobile.
+// It triggers on the status polled rather than on the child process exiting —
+// the case in front of us is a proxy that is alive, accepts connections and
+// carries nothing, and no exit ever fires for it. And it does not give up
+// after a fixed number of tries: a wallet left open for a day through a bad
+// hour should come back, and one that never does costs a subprocess every
+// minute, which is cheaper than never recovering.
+const MIXNET_RECONNECT_BASE_MS = 3_000;
+const MIXNET_RECONNECT_MAX_MS = 60_000;
+let mixnetReconnectDelay = MIXNET_RECONNECT_BASE_MS;
+let mixnetReconnectTimer = null;
+
+function clearMixnetReconnectTimer() {
+  if (mixnetReconnectTimer !== null) {
+    clearTimeout(mixnetReconnectTimer);
+    mixnetReconnectTimer = null;
+  }
+}
+
+// Timer and growth both, for a transport that settled or that the user took
+// down deliberately.
+function cancelMixnetReconnect() {
+  clearMixnetReconnectTimer();
+  mixnetReconnectDelay = MIXNET_RECONNECT_BASE_MS;
+}
+
+function scheduleMixnetReconnect(reason) {
+  if (mixnet.intent !== "on") return; // deliberately off: leave it off
+  if (mixnetReconnectTimer !== null) return; // one already in flight
+  const wait = mixnetReconnectDelay;
+  console.log(`[mixnet] transport lost (${reason}); reconnecting in ${wait / 1000}s`);
+  mixnetReconnectTimer = setTimeout(() => {
+    mixnetReconnectTimer = null;
+    // Grown before the attempt, not after it. Reaching ready is what resets
+    // the growth, so an attempt that works never pays for the doubling.
+    mixnetReconnectDelay = Math.min(mixnetReconnectDelay * 2, MIXNET_RECONNECT_MAX_MS);
+    if (mixnet.intent !== "on") return;
+    // A proxy still running has not exited, it has stopped carrying. Taking it
+    // down and bringing a new one up is the only thing that replaces its
+    // gateways; spawning is for the case where it really is gone.
+    if (mixnet.child) restartMixnet("the transport was lost");
+    else spawnProxy();
+  }, wait);
+}
+
 function setMixnetPhase(phase) {
   mixnet.phase = phase;
   emitMixnetStatus();
@@ -1044,9 +1539,9 @@ function setMixnetPhase(phase) {
 
 // Attach whichever LightClient is current to the running tunnel.
 async function attachCurrentWallet() {
-  if (!mixnet.socks5Addr) return;
+  if (!mixnet.socks5Addr || mixnet.exits.length === 0) return;
   try {
-    await requireNative("attach_mixnet").attach_mixnet(mixnet.socks5Addr);
+    await requireNative("attach_mixnet").attach_mixnet(mixnet.socks5Addr, mixnet.exits);
     setMixnetPhase("ready");
   } catch (e) {
     console.error("[mixnet] attach failed:", e && e.message ? e.message : e);
@@ -1067,7 +1562,10 @@ function spawnProxy() {
     while ((nl = buf.indexOf("\n")) !== -1) {
       const line = buf.slice(0, nl).trim();
       buf = buf.slice(nl + 1);
-      if (line.startsWith("SOCKS5_ADDR=")) {
+      if (line.startsWith("NYM_EXIT=")) {
+        const exit = line.slice("NYM_EXIT=".length).trim();
+        if (exit && !mixnet.exits.includes(exit)) mixnet.exits.push(exit);
+      } else if (line.startsWith("SOCKS5_ADDR=")) {
         mixnet.socks5Addr = line.slice("SOCKS5_ADDR=".length).trim();
         attachCurrentWallet();
       } else if (line.startsWith("NYM_STATUS=")) {
@@ -1084,6 +1582,7 @@ function spawnProxy() {
     if (mixnet.child === child) {
       mixnet.child = null;
       mixnet.socks5Addr = null;
+      mixnet.exits = [];
       setMixnetPhase("unattached");
     }
   });
@@ -1092,14 +1591,28 @@ function spawnProxy() {
     if (deliberate) return;
     mixnet.child = null;
     mixnet.socks5Addr = null;
-    if (mixnet.intent === "on") setMixnetPhase("died");
+    mixnet.exits = [];
+    if (mixnet.intent === "on") {
+      setMixnetPhase("died");
+      scheduleMixnetReconnect("the proxy exited");
+    }
   });
 }
 
 function killProxy() {
+  // Whoever is killing it decides what happens next; a reconnect scheduled by
+  // an earlier loss would otherwise respawn behind them. The timer only —
+  // a restart is an attempt like any other and keeps the backoff it inherited,
+  // exactly as mobile's start does.
+  clearMixnetReconnectTimer();
   const child = mixnet.child;
   mixnet.child = null;
   mixnet.socks5Addr = null;
+  mixnet.exits = [];
+  // The wallet's verdict was about the transport being torn down, not the one
+  // that replaces it; carrying it over would report the new proxy dead on
+  // arrival.
+  mixnet.wallet = null;
   if (child) {
     try {
       child.stdin.end(); // the proxy's stdin-EOF watchdog tears it down
@@ -1110,15 +1623,71 @@ function killProxy() {
   }
 }
 
-ipcMain.handle("mixnet:get-status", () => mixnetStatusSnapshot());
+// Refreshed on the renderer's existing five-second poll rather than on a timer
+// of its own, and only while the proxy is up, which is the only time the answer
+// is consulted.
+//
+// Kept as the wallet's current answer rather than recorded as a verdict here.
+// Writing a death into `phase` made it a one-way door: the next poll saw a
+// phase that was no longer ready, skipped the read that would have noticed the
+// recovery, and left the indicator red until someone pressed a button.
+// A death arrives with a typed cause — the stage it failed at, what it was
+// reaching for, and the cause chain outermost-first — and nothing was reading
+// it. "The connection never establishes" is not something to guess at when the
+// transport says why. Once per distinct death, on the same reasoning as the
+// price failure: this is on a five-second poll.
+let lastReportedDeath = "";
+
+function reportWalletDeath(wallet) {
+  if (!wallet || wallet.mode !== "died") {
+    lastReportedDeath = "";
+    return;
+  }
+  const detail = wallet.death && wallet.death.detail;
+  const story = detail
+    ? `${JSON.stringify(detail.stage)} against ${detail.target}: ${(detail.cause_chain || []).join(" ← ")}`
+    : "no cause held";
+  if (story === lastReportedDeath) return;
+  lastReportedDeath = story;
+  console.log(`[mixnet] the wallet gave up on the transport — ${story}`);
+}
+
+async function refreshWalletMixnetStatus() {
+  try {
+    mixnet.wallet = JSON.parse(await requireNative("mixnet_status").mixnet_status());
+    reportWalletDeath(mixnet.wallet);
+  } catch {
+    // No wallet loaded yet, or the read itself failed. Neither is evidence
+    // about the transport, so the proxy's own phase stands.
+    mixnet.wallet = null;
+  }
+}
+
+ipcMain.handle("mixnet:get-status", async () => {
+  if (mixnet.phase === "ready") await refreshWalletMixnetStatus();
+  const snapshot = mixnetStatusSnapshot();
+  // Mobile's rule, on the status rather than the process: a settled transport
+  // ends the cycle and resets the growth, a lost one starts or continues it,
+  // and bootstrapping is left alone so an attempt on its way up is not counted
+  // as another loss.
+  if (snapshot.mode === "ready" || snapshot.mode === "switched_off") cancelMixnetReconnect();
+  else if (snapshot.mode === "died") scheduleMixnetReconnect("the wallet gave up on the transport");
+  return snapshot;
+});
 ipcMain.handle("mixnet:enable", async () => {
   mixnet.intent = "on";
-  if (mixnet.socks5Addr) await attachCurrentWallet();
+  // Attaching again to a transport the wallet has given up on is the same
+  // proxy and the same broken tunnel: it returned instantly, went green, and
+  // changed nothing, which is exactly how it looked. A death takes the proxy
+  // down and brings a new one up — the restart the refusal text promises.
+  if (mixnetStatusSnapshot().mode === "died") restartMixnet("the wallet gave up on the transport");
+  else if (mixnet.socks5Addr) await attachCurrentWallet();
   else spawnProxy();
   return mixnetStatusSnapshot();
 });
 ipcMain.handle("mixnet:disable", async () => {
   mixnet.intent = "off";
+  cancelMixnetReconnect();
   killProxy();
   try {
     await requireNative("stop_mixnet").stop_mixnet();
@@ -1142,6 +1711,62 @@ ipcMain.handle("mixnet:attach-current", async () => {
     spawnProxy();
   }
   return mixnetStatusSnapshot();
+});
+
+// ── Recovering the tunnel after the machine sleeps ────────────────────────
+//
+// mixnet.phase is a stored value, not a measurement: it moves on lifecycle
+// events (spawn, socks5 detected, child exit, the Settings toggle) and nothing
+// else. When the machine suspends, nym-proxy survives as a process — so nobody
+// declares it dead — while its gateway connections do not. The phase stays
+// "ready" indefinitely, zec_price_over_mixnet fails every 5s into a catch that
+// deliberately stays quiet, and the indicator reports a tunnel that is gone.
+//
+// Switching wallets does not help: attach-current re-attaches to the same dead
+// socks5 address and asserts "ready" again. What does work is the Settings
+// toggle, because disable/enable kills the child and spawns a fresh one. This
+// runs that same sequence without making the user find the switch.
+const MIXNET_STALE_AFTER_MS = 5 * 60 * 1000;
+let mixnetBlurredAt = null;
+
+function restartMixnet(reason) {
+  if (mixnet.intent !== "on") return; // deliberately off: leave it off
+  console.log(`[mixnet] restarting after ${reason}`);
+  killProxy();
+  // Detach the native side from the address that is about to disappear. Failure
+  // is not interesting — a client that was never attached throws here — and must
+  // not stop the respawn.
+  Promise.resolve()
+    .then(() => requireNative("stop_mixnet").stop_mixnet())
+    .catch(() => {})
+    .finally(() => {
+      if (mixnet.intent === "on") spawnProxy();
+    });
+}
+
+app.whenReady().then(() => {
+  // Waking and unlocking are the two moments a laptop's tunnel is known to be
+  // suspect. Not every OS emits both, so both are handled.
+  powerMonitor.on("resume", () => restartMixnet("system resume"));
+  powerMonitor.on("unlock-screen", () => restartMixnet("screen unlock"));
+});
+
+// Focus is the backstop for the cases the OS does not report: a machine that
+// idled without ever suspending, or a suspend event that never arrived. Time
+// away is the trigger rather than any health signal — after a few minutes
+// unattended the cost of a re-bootstrap is lower than the cost of a wallet
+// showing stale prices with a green indicator. Below the threshold nothing
+// happens, so alt-tabbing does not churn the tunnel.
+app.on("browser-window-blur", () => {
+  mixnetBlurredAt = Date.now();
+});
+app.on("browser-window-focus", () => {
+  if (mixnetBlurredAt === null) return;
+  const away = Date.now() - mixnetBlurredAt;
+  mixnetBlurredAt = null;
+  if (away >= MIXNET_STALE_AFTER_MS) {
+    restartMixnet(`${Math.round(away / 60000)} min unfocused`);
+  }
 });
 
 app.on("before-quit", () => killProxy());
@@ -1709,6 +2334,25 @@ function createWindow() {
       sandbox: true,
       nodeIntegrationInWorker: false,
       preload: path.join(__dirname, "preload.js"),
+      // A minimized wallet has to keep syncing, and by default Chromium will
+      // not let it. Once the window is out of sight it throttles the page's
+      // timers, and the renderer's five-second work cycle — the sync poll, the
+      // wallet save, the server health probe, all of it — drops to one wake-up
+      // per minute.
+      //
+      // Measured, not inferred. A run left minimized reported eight stalls of
+      // 59993, 60000, 59999, 59997, 60001, 60000, 59997ms: exactly a minute
+      // each, to the millisecond, which is a scheduler's quantum and not
+      // anything blocking. Over the same nine minutes the main process's own
+      // loop probe never once fired, so nothing was stuck — the renderer was
+      // simply not being run.
+      //
+      // It is the same symptom as a wallet that stops for a minute at a time
+      // and then catches up in a burst, which is what sent us looking at thread
+      // pools and lock contention. Those were real and are fixed; this was the
+      // rest of it, and no amount of work on the native side would have touched
+      // it, because nothing was slow. The renderer was asleep.
+      backgroundThrottling: false,
     },
   });
 

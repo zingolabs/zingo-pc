@@ -31,6 +31,8 @@ const _ALL_NATIVE_METHODS = [
   "get_unified_addresses",
   "get_transparent_addresses",
   "create_new_transparent_address",
+  "derive_refund_address",
+  "reserve_refund_address",
   "get_wallet_save_required",
   "set_config_wallet_to_test",
   "get_config_wallet_performance",
@@ -102,6 +104,7 @@ const ALLOWED_RECEIVE = new Set([
   "import-data",
   "mixnet-status",
   "mixnet-settings",
+  "insight",
 ]);
 
 // Allowed IPC channels that renderer → main can invoke/send.
@@ -137,6 +140,15 @@ const ALLOWED_INVOKE = new Set([
   "mixnet:disable",
   "mixnet:get-status",
   "mixnet:attach-current",
+  // The swap store's encrypted-at-rest persistence. Encryption happens in main,
+  // where safeStorage can reach the OS keychain.
+  "swapStorage:get",
+  "swapStorage:set",
+  "swapStorage:remove",
+  // The swap layer's outbound HTTP, allowlisted by host in main.
+  "swapHttp:request",
+  // Token logos, returned as data URIs so img-src need not be widened.
+  "swapLogo:get",
 ]);
 
 contextBridge.exposeInMainWorld("electronAPI", {
@@ -158,20 +170,25 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 
   ipcRenderer: {
+    // Returns the way to cancel the subscription, and that return is the whole
+    // point of it.
+    //
+    // contextBridge proxies every function that crosses the boundary, so the
+    // object this side registers is never the object the renderer holds. A
+    // renderer calling off() with its own callback asks the emitter to remove
+    // something it has never seen, which it does not do and does not complain
+    // about: the listener stays, the next mount adds another, and eventually
+    // the emitter says eleven have accumulated.
+    //
+    // The disposer is made here, closing over the exact function registered
+    // here. Nothing has to be matched, so nothing can fail to match.
     on: (channel, listener) => {
-      if (ALLOWED_RECEIVE.has(channel)) {
-        ipcRenderer.on(channel, listener);
+      if (!ALLOWED_RECEIVE.has(channel)) {
+        return () => {};
       }
-    },
-    off: (channel, listener) => {
-      if (ALLOWED_RECEIVE.has(channel)) {
-        ipcRenderer.off(channel, listener);
-      }
-    },
-    removeListener: (channel, listener) => {
-      if (ALLOWED_RECEIVE.has(channel)) {
-        ipcRenderer.removeListener(channel, listener);
-      }
+      const registered = (...args) => listener(...args);
+      ipcRenderer.on(channel, registered);
+      return () => ipcRenderer.off(channel, registered);
     },
     invoke: (channel, ...args) => {
       if (ALLOWED_INVOKE.has(channel)) {

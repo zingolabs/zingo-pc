@@ -18,11 +18,19 @@ import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
 import { ContextApp } from "../../../context/ContextAppState";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTriangleExclamation } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowCircleDown,
+  faArrowCircleUp,
+  faExternalLinkSquareAlt,
+  faTriangleExclamation,
+} from "@fortawesome/free-solid-svg-icons";
 import routes from "../../../constants/routes.json";
 
 import { native } from "../../../electronBridge";
 import { useCopy } from "../../common/useCopy";
+import { Field, FieldRow } from "../../common/DetailField";
+import DetailNavigator from "./DetailNavigator";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
 // zingolib PR #2466 split a VT's single pool into two lists. A VT's identity
 // within a txid now depends on both (used to re-find it after a sync refresh).
@@ -50,6 +58,8 @@ type VtModalInternalProps = {
   currencyName: string;
   addressBookMap: Map<string, string>;
   valueTransfersSliced: ValueTransferClass[];
+  /** Steps the open detail in History, which owns the list and picks the view. */
+  moveDetail: (delta: number) => void;
 };
 
 const VtModalInternal: React.FC<VtModalInternalProps> = ({
@@ -62,6 +72,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
   currencyName,
   addressBookMap,
   valueTransfersSliced,
+  moveDetail,
 }) => {
   const navigate = useNavigate();
   const context = useContext(ContextApp);
@@ -82,7 +93,9 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     blockExplorerTestnetTransactionCustom,
   } = context;
   const [valueTransfer, setValueTransfer] = useState<ValueTransferClass | undefined>(vt ? vt : undefined);
-  const [valueTransferIndex, setValueTransferIndex] = useState<number>(index);
+  // Straight from the prop: History remounts this per row, so the prop is
+  // always the row on screen and a second copy could only fall behind it.
+  const valueTransferIndex = index;
   const [expandAddress, setExpandAddress] = useState(false);
   const [expandTxid, setExpandTxid] = useState(false);
   const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
@@ -129,43 +142,9 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     }
   });
 
-  const moveValueTransferDetail = (indexParm: number, typeParm: number) => {
-    // -1 -> Previous ValueTransfer
-    //  1 -> Next ValueTransfer
-    if ((indexParm > 0 && typeParm === -1) || (indexParm < valueTransfersSliced.length - 1 && typeParm === 1)) {
-      const newIndex = indexParm + typeParm;
-      const vtNew = getValueTransferAgain(valueTransfersSliced[newIndex]);
-      if (vtNew.length !== 1) {
-        // something really weird is happening...
-        localCloseModal();
-      } else {
-        setValueTransfer(vtNew[0]);
-        setValueTransferIndex(newIndex);
-      }
-    }
-  };
-
-  const handleKeyDown = (event: any) => {
-    if (event.key === "ArrowUp") {
-      // Mover a la transacción anterior
-      moveValueTransferDetail(valueTransferIndex, -1);
-    } else if (event.key === "ArrowDown") {
-      // Mover a la siguiente transacción
-      moveValueTransferDetail(valueTransferIndex, 1);
-    }
-  };
-
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [valueTransferIndex]);
-
   let txid: string = "";
   let typeText: string = "";
-  let typeIcon: string = "";
+  let typeIcon: IconDefinition | null = null;
   let typeColor: string = "";
   let confirmations: number = 0;
   let status: ValueTransferStatusEnum | "" = "";
@@ -191,15 +170,23 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     return labelStr;
   };
 
+  // A swap row's `txid` is the deposit transaction only once one exists; before
+  // that it falls back to the deposit address, which is no txid at all. So the
+  // two actions that treat the field as a real transaction identifier, the
+  // block-explorer link and the remove call into zingolib, stay off these rows.
+  // Nothing is lost: the on-chain leg of an outbound swap appears as its own
+  // Sent row, which carries the genuine txid.
+  const isSwapRow = valueTransfer?.type === ValueTransferKindEnum.swap;
+
   if (valueTransfer) {
     txid = valueTransfer.txid;
     typeText = Utils.VTTypeWithConfirmations(valueTransfer.type, valueTransfer.status, valueTransfer.confirmations);
     if (valueTransfer.type === ValueTransferKindEnum.received || ValueTransferKindEnum.shield) {
-      typeIcon = "fa-arrow-circle-down";
-      typeColor = Utils.getCssVariable("--color-primary");
+      typeIcon = faArrowCircleDown;
+      typeColor = "var(--color-primary)";
     } else {
-      typeIcon = "fa-arrow-circle-up";
-      typeColor = Utils.getCssVariable("--color-text");
+      typeIcon = faArrowCircleUp;
+      typeColor = "var(--color-text)";
     }
 
     datePart = dateformat(valueTransfer.time * 1000, "mmm dd, yyyy");
@@ -290,47 +277,9 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
       isOpen={modalIsOpen}
       onRequestClose={localCloseModal}
       className={styles.txmodal}
-      overlayClassName={styles.txmodalOverlay}
+      overlayClassName={cstyles.modalOverlay}
     >
-      {showNavigator && (
-        <div
-          style={{ position: "absolute", alignItems: "center", top: 15, left: 40 }}
-          className={cstyles.horizontalflex}
-        >
-          {valueTransferIndex === 0 ? (
-            <div
-              aria-label="Previous transaction (disabled)"
-              style={{ marginRight: 25, cursor: "pointer", opacity: 0.5 }}
-            >
-              <i className={`${"fas"} ${"fa-arrow-up"} ${"fa-2x"}`} />
-            </div>
-          ) : (
-            <div
-              role="button"
-              aria-label="Previous transaction"
-              style={{ marginRight: 25, cursor: "pointer" }}
-              onClick={() => moveValueTransferDetail(valueTransferIndex, -1)}
-            >
-              <i className={`${"fas"} ${"fa-arrow-up"} ${"fa-2x"}`} />
-            </div>
-          )}
-          <div>{(valueTransferIndex + 1).toString()}</div>
-          {valueTransferIndex === length - 1 ? (
-            <div aria-label="Next transaction (disabled)" style={{ marginLeft: 25, cursor: "pointer", opacity: 0.5 }}>
-              <i className={`${"fas"} ${"fa-arrow-down"} ${"fa-2x"}`} />
-            </div>
-          ) : (
-            <div
-              role="button"
-              aria-label="Next transaction"
-              style={{ marginLeft: 25, cursor: "pointer" }}
-              onClick={() => moveValueTransferDetail(valueTransferIndex, 1)}
-            >
-              <i className={`${"fas"} ${"fa-arrow-down"} ${"fa-2x"}`} />
-            </div>
-          )}
-        </div>
-      )}
+      {showNavigator && <DetailNavigator index={valueTransferIndex} length={length} move={moveDetail} />}
       <div className={cstyles.verticalflex}>
         <div className={cstyles.center}>Transaction Status</div>
 
@@ -342,7 +291,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
             className={`${cstyles.center} ${cstyles.verticalflex}`}
             style={{ alignItems: "center", justifyContent: "center" }}
           >
-            <i className={`${"fas"} ${typeIcon}`} style={{ fontSize: "35px", color: typeColor }} />
+            {typeIcon && <FontAwesomeIcon icon={typeIcon} style={{ fontSize: "35px", color: typeColor }} />}
             {typeText}
           </div>
 
@@ -358,7 +307,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
 
         {confirmations === 0 /* not min confirmations applied */ && (
           <>
-            {status === ValueTransferStatusEnum.failed && (
+            {status === ValueTransferStatusEnum.failed && !isSwapRow && (
               <>
                 <hr style={{ width: "100%" }} />
 
@@ -396,10 +345,10 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                 style={{
                   color:
                     status === ValueTransferStatusEnum.failed
-                      ? Utils.getCssVariable("--color-error")
+                      ? "var(--color-error)"
                       : status === ValueTransferStatusEnum.transmitted || status === ValueTransferStatusEnum.calculated
-                        ? Utils.getCssVariable("--color-primary")
-                        : Utils.getCssVariable("--color-primary-disable"),
+                        ? "var(--color-primary)"
+                        : "var(--color-primary-disable)",
                   fontSize: 12,
                   fontWeight: "700",
                   textAlign: "center",
@@ -415,7 +364,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
             {status === ValueTransferStatusEnum.confirmed && confirmations >= 0 && confirmations < 3 && (
               <div
                 style={{
-                  color: Utils.getCssVariable("--color-primary-disable"),
+                  color: "var(--color-primary-disable)",
                   fontSize: 12,
                   opacity: 1,
                   fontWeight: "700",
@@ -431,56 +380,57 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
 
         <hr style={{ width: "100%" }} />
 
-        <div className={cstyles.flexspacebetween}>
-          <div>
-            <div className={cstyles.sublight}>Time</div>
-            <div>
-              {datePart} {timePart}
-            </div>
-          </div>
+        <FieldRow>
+          <Field label="Time" value={`${datePart} ${timePart}`} />
 
           {fees > 0 && (
-            <div>
-              <div className={cstyles.sublight}>Transaction Fee</div>
-              <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
-              {currencyName === "ZEC" && <div className={cstyles.sublight}>{Utils.getZecToUsdString(price, fees)}</div>}
-            </div>
+            <Field
+              label="Transaction Fee"
+              value={
+                <>
+                  ZEC {Utils.maxPrecisionTrimmed(fees)}
+                  {currencyName === "ZEC" && (
+                    <div className={cstyles.sublight}>{Utils.getZecToUsdString(price, fees)}</div>
+                  )}
+                </>
+              }
+            />
           )}
 
-          <div>
-            <div className={cstyles.sublight}>Confirmations</div>
-            <div>{confirmations}</div>
-          </div>
+          <Field label="Confirmations" value={String(confirmations)} />
 
           {(status === ValueTransferStatusEnum.calculated ||
             status === ValueTransferStatusEnum.transmitted ||
             status === ValueTransferStatusEnum.mempool ||
             status === ValueTransferStatusEnum.failed) && (
-            <div>
-              <div className={cstyles.sublight}>Status</div>
-              <div
-                style={{
-                  color:
-                    status === ValueTransferStatusEnum.failed
-                      ? Utils.getCssVariable("--color-error")
-                      : status === ValueTransferStatusEnum.calculated || status === ValueTransferStatusEnum.transmitted
-                        ? Utils.getCssVariable("--color-warning")
-                        : Utils.getCssVariable("--color-primary-disable"),
-                }}
-              >
-                {status === ValueTransferStatusEnum.calculated
-                  ? "Calculated"
-                  : status === ValueTransferStatusEnum.transmitted
-                    ? "Transmitted"
-                    : status === ValueTransferStatusEnum.mempool
-                      ? "In Mempool"
-                      : status === ValueTransferStatusEnum.failed
-                        ? "Failed"
-                        : ""}
-              </div>
-            </div>
+            <Field
+              label="Status"
+              value={
+                <span
+                  style={{
+                    color:
+                      status === ValueTransferStatusEnum.failed
+                        ? "var(--color-error)"
+                        : status === ValueTransferStatusEnum.calculated ||
+                            status === ValueTransferStatusEnum.transmitted
+                          ? "var(--color-warning)"
+                          : "var(--color-primary-disable)",
+                  }}
+                >
+                  {status === ValueTransferStatusEnum.calculated
+                    ? "Calculated"
+                    : status === ValueTransferStatusEnum.transmitted
+                      ? "Transmitted"
+                      : status === ValueTransferStatusEnum.mempool
+                        ? "In Mempool"
+                        : status === ValueTransferStatusEnum.failed
+                          ? "Failed"
+                          : ""}
+                </span>
+              }
+            />
           )}
-        </div>
+        </FieldRow>
 
         <div className={cstyles.margintoplarge} />
 
@@ -495,8 +445,19 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                   </span>
                 )}
               </div>
-              <div
-                style={{ cursor: "pointer" }}
+              <button
+                type="button"
+                aria-label="Copy transaction id"
+                title="Copy transaction id"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "inherit",
+                  font: "inherit",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
                 onClick={() => {
                   if (txid) {
                     copyTxid(txid);
@@ -514,11 +475,12 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                     </>
                   )}
                 </div>
-              </div>
+              </button>
             </div>
 
-            {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-              <div
+            {!isSwapRow && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+              <button
+                type="button"
                 className={cstyles.primarybutton}
                 onClick={() =>
                   Utils.openTxid(
@@ -534,8 +496,8 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                 }
               >
                 View TXID &nbsp;
-                <i className={`${"fas"} ${"fa-external-link-square-alt"}`} />
-              </div>
+                <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
+              </button>
             )}
           </div>
         )}
@@ -559,8 +521,19 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                 </div>
               )}
               <div className={cstyles.verticalflex}>
-                <div
-                  style={{ cursor: "pointer" }}
+                <button
+                  type="button"
+                  aria-label="Copy address"
+                  title="Copy address"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "inherit",
+                    font: "inherit",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
                   onClick={() => {
                     if (address) {
                       copyAddress(address);
@@ -578,7 +551,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                       </>
                     )}
                   </div>
-                </div>
+                </button>
               </div>
             </div>
 
@@ -602,38 +575,29 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
 
         <div className={cstyles.margintoplarge} />
 
-        <div className={cstyles.flexspacebetween}>
-          <div className={cstyles.verticalflex}>
-            <div className={cstyles.sublight}>Amount</div>
-            <div className={cstyles.verticalflex}>
-              <div className={cstyles.verticalflex}>
+        <FieldRow>
+          <Field
+            label="Amount"
+            value={
+              <>
                 <div>
                   <span>
                     {currencyName} {bigPart}
                   </span>
                   <span className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPart}</span>
                 </div>
-              </div>
-              <div className={cstyles.verticalflex}>
                 <div className={cstyles.sublight}>{priceString}</div>
-              </div>
-            </div>
-          </div>
+              </>
+            }
+          />
 
-          {poolsText && (
-            <div className={cstyles.verticalflex}>
-              <div className={cstyles.sublight}>Pools</div>
-              <div className={cstyles.flexspacebetween}>
-                <div>{poolsText}</div>
-              </div>
-            </div>
-          )}
-        </div>
+          {poolsText && <Field label="Pools" value={poolsText} />}
+        </FieldRow>
 
         <div className={cstyles.margintoplarge} />
 
         {memos && memos.length > 0 && !!memos.join("") && (
-          <div>
+          <div className={cstyles.padtopsmall}>
             <div className={cstyles.sublight}>Memo</div>
             <div className={cstyles.flexspacebetween}>
               <div

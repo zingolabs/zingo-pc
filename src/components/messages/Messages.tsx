@@ -5,7 +5,6 @@ import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum, Tot
 import ScrollPaneBottom from "../scrollPane/ScrollPane";
 import MessagesItemBlock from "./components/MessagesItemBlock";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
-import { ServerHealthLine } from "../serverHealthLine";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import VtModal from "../history/components/VtModal";
@@ -36,6 +35,18 @@ const Messages: React.FC<MessagesProps> = () => {
   const [numVtnsToShow, setNumVtnsToShow] = useState<number>(100);
   const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
   const [messagesSorted, setMessagesSorted] = useState<ValueTransferClass[]>([]);
+
+  // Its own list, stepped the same way History steps its own. The modal no
+  // longer resolves a step itself, so each screen showing it says what its
+  // neighbours are.
+  const moveDetail = (delta: number) => {
+    setValueTransferDetailIndex((current) => {
+      const next = current + delta;
+      if (next < 0 || next >= messagesSorted.length) return current;
+      setValueTransferDetail(messagesSorted[next]);
+      return next;
+    });
+  };
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
@@ -94,7 +105,6 @@ const Messages: React.FC<MessagesProps> = () => {
   return (
     <div>
       <div className={`${cstyles.well} ${styles.containermargin}`}>
-        <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
@@ -162,18 +172,16 @@ const Messages: React.FC<MessagesProps> = () => {
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable("--color-error") }}>
+            <div className={cstyles.balancebox} style={{ color: "var(--color-error)" }}>
               {fetchError.command + ": " + fetchError.error}
             </div>
           </>
         )}
       </div>
 
-      <div style={{ marginBottom: 5 }} className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>
-        Messages
-      </div>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Messages</div>
 
-      <ScrollPaneBottom offsetHeight={180} initialScrollType="bottom">
+      <ScrollPaneBottom offsetHeight={203} initialScrollType="bottom">
         {!messagesSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
         {messagesSorted && messagesSorted.length === 0 && (
@@ -212,7 +220,9 @@ const Messages: React.FC<MessagesProps> = () => {
 
       {modalIsOpen && (
         <VtModal
+          key={valueTransferDetailIndex}
           index={valueTransferDetailIndex}
+          moveDetail={moveDetail}
           length={messagesSorted.length}
           totalLength={messages.length}
           vt={valueTransferDetail}

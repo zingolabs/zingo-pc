@@ -3,12 +3,16 @@ import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
 import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum, TotalBalanceClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import VtItemBlock from "./components/VtItemBlock";
 import VtModal from "./components/VtModal";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
-import { ServerHealthLine } from "../serverHealthLine";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
+import { useSwapRecords, useValueTransfersWithSwaps } from "../../context/ContextSwapService";
+import { SwapStore } from "../../swap";
+import { ValueTransferKindEnum } from "../appstate";
+import SwapDetailModal from "../swap/SwapDetailModal";
 
 type HistoryProps = {};
 
@@ -40,6 +44,17 @@ const History: React.FC<HistoryProps> = () => {
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
 
+  const swapRecords = useSwapRecords();
+
+  // The block above the list has no fixed height. The balance row gains and
+  // loses a block with the wallet's pools, the shield button comes and goes
+  // with a transparent balance, and the pending notice and the fetch error each
+  // add a line of their own, so a constant offset was right for one wallet and
+  // wrong for the next.
+  const { paneRef, paneOffset } = usePaneOffset(203);
+
+  const mergedValueTransfers = useValueTransfersWithSwaps(valueTransfers);
+
   useEffect(() => {
     // set somePending as well here when I know there is something new in ValueTransfers
     const pending: number =
@@ -60,12 +75,12 @@ const History: React.FC<HistoryProps> = () => {
   }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   useEffect(() => {
-    setIsLoadMoreEnabled(valueTransfers && numVtnsToShow < valueTransfers.length);
-  }, [numVtnsToShow, valueTransfers]);
+    setIsLoadMoreEnabled(mergedValueTransfers && numVtnsToShow < mergedValueTransfers.length);
+  }, [numVtnsToShow, mergedValueTransfers]);
 
   useEffect(() => {
-    setValueTransfersSorted(valueTransfers.slice(0, numVtnsToShow));
-  }, [numVtnsToShow, valueTransfers]);
+    setValueTransfersSorted(mergedValueTransfers.slice(0, numVtnsToShow));
+  }, [numVtnsToShow, mergedValueTransfers]);
 
   useEffect(() => {
     setAddressBookMap(
@@ -90,6 +105,47 @@ const History: React.FC<HistoryProps> = () => {
     setModalIsOpen(false);
   };
 
+  // A swap row opens its own detail rather than the transfer modal: its fields
+  // are the record's, not zingolib's, and the transfer modal's txid actions
+  // would be reading a deposit address. Read from `swapRecords` on every render
+  // so a poller tick reaches an open detail without reopening it.
+  const swapDetailRecord = useMemo(() => {
+    if (valueTransferDetail?.type !== ValueTransferKindEnum.swap) return undefined;
+    return swapRecords.find((r) => r.recordId === valueTransferDetail.swapRecordId);
+  }, [valueTransferDetail, swapRecords]);
+
+  const removeSwapRecord = useCallback(async (recordId: string) => {
+    closeModal();
+    try {
+      await SwapStore.deleteByRecordId(recordId);
+    } catch (error) {
+      console.error(`History: removing the swap record failed ${error}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Step the open detail to its neighbour in the list on screen.
+   *
+   * Lives here because this is where the list is and where the choice of
+   * detail view is made: setting the row is enough for a swap to open the swap
+   * detail and a transfer the transfer one, so the stepper crosses between them
+   * without either modal knowing the other exists. It used to live inside
+   * `VtModal`, which resolved each step against zingolib's transfers alone and
+   * closed itself on reaching a swap.
+   */
+  const moveDetail = useCallback(
+    (delta: number) => {
+      setValueTransferDetailIndex((current) => {
+        const next = current + delta;
+        if (next < 0 || next >= valueTransfersSorted.length) return current;
+        setValueTransferDetail(valueTransfersSorted[next]);
+        return next;
+      });
+    },
+    [valueTransfersSorted],
+  );
+
   const show100MoreVtns = () => {
     setNumVtnsToShow(numVtnsToShow + 100);
   };
@@ -97,7 +153,6 @@ const History: React.FC<HistoryProps> = () => {
   return (
     <div>
       <div className={`${cstyles.well} ${styles.containermargin}`}>
-        <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
@@ -165,59 +220,76 @@ const History: React.FC<HistoryProps> = () => {
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable("--color-error") }}>
+            <div className={cstyles.balancebox} style={{ color: "var(--color-error)" }}>
               {fetchError.command + ": " + fetchError.error}
             </div>
           </>
         )}
       </div>
 
-      <div style={{ marginBottom: 5 }} className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>
-        History
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>History</div>
+
+      <div ref={paneRef}>
+        <ScrollPaneTop offsetHeight={paneOffset}>
+          {!valueTransfersSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
+
+          {valueTransfersSorted && valueTransfersSorted.length === 0 && (
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
+          )}
+
+          {valueTransfersSorted &&
+            valueTransfersSorted.length > 0 &&
+            valueTransfersSorted.map((vt: ValueTransferClass, index: number) => {
+              return (
+                <VtItemBlock
+                  index={index}
+                  key={`${index}-${vt.type}-${vt.txid}`}
+                  vt={vt}
+                  setValueTransferDetail={handleSetValueTransferDetail}
+                  setValueTransferDetailIndex={handleSetValueTransferDetailIndex}
+                  setModalIsOpen={handleSetModalIsOpen}
+                  currencyName={info.currencyName}
+                  addressBookMap={addressBookMap}
+                  previousLineWithSameTxid={index === 0 ? false : valueTransfersSorted[index - 1].txid === vt.txid}
+                />
+              );
+            })}
+
+          {isLoadMoreEnabled && (
+            <button
+              type="button"
+              style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
+              className={cstyles.primarybutton}
+              onClick={show100MoreVtns}
+            >
+              Load more
+            </button>
+          )}
+        </ScrollPaneTop>
       </div>
 
-      <ScrollPaneTop offsetHeight={180}>
-        {!valueTransfersSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
-
-        {valueTransfersSorted && valueTransfersSorted.length === 0 && (
-          <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
-        )}
-
-        {valueTransfersSorted &&
-          valueTransfersSorted.length > 0 &&
-          valueTransfersSorted.map((vt: ValueTransferClass, index: number) => {
-            return (
-              <VtItemBlock
-                index={index}
-                key={`${index}-${vt.type}-${vt.txid}`}
-                vt={vt}
-                setValueTransferDetail={handleSetValueTransferDetail}
-                setValueTransferDetailIndex={handleSetValueTransferDetailIndex}
-                setModalIsOpen={handleSetModalIsOpen}
-                currencyName={info.currencyName}
-                addressBookMap={addressBookMap}
-                previousLineWithSameTxid={index === 0 ? false : valueTransfersSorted[index - 1].txid === vt.txid}
-              />
-            );
-          })}
-
-        {isLoadMoreEnabled && (
-          <button
-            type="button"
-            style={{ marginLeft: "45%", width: "100px", marginTop: 15 }}
-            className={cstyles.primarybutton}
-            onClick={show100MoreVtns}
-          >
-            Load more
-          </button>
-        )}
-      </ScrollPaneTop>
-
-      {modalIsOpen && (
-        <VtModal
+      {modalIsOpen && swapDetailRecord && (
+        <SwapDetailModal
+          record={swapDetailRecord}
           index={valueTransferDetailIndex}
           length={valueTransfersSorted.length}
-          totalLength={valueTransfers.length}
+          moveDetail={moveDetail}
+          modalIsOpen={modalIsOpen}
+          closeModal={closeModal}
+          onRemove={(r) => removeSwapRecord(r.recordId)}
+        />
+      )}
+
+      {modalIsOpen && !swapDetailRecord && (
+        <VtModal
+          // Remounted per row: the stepper now lives in History, and a fresh
+          // mount is what re-seeds the modal internals from the row it landed
+          // on rather than the one it opened with.
+          key={valueTransferDetailIndex}
+          index={valueTransferDetailIndex}
+          moveDetail={moveDetail}
+          length={valueTransfersSorted.length}
+          totalLength={mergedValueTransfers.length}
           vt={valueTransferDetail}
           modalIsOpen={modalIsOpen}
           closeModal={closeModal}

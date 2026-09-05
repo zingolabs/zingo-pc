@@ -11,12 +11,25 @@ import { MixnetView } from "../../rpc/components/mixnetPresenter";
 import MixnetModal from "./components/MixnetModal";
 import { Logo } from "../logo";
 import APP_VERSION from "../../version";
-import SelectWallet from "./components/SelectWallet";
-import { WalletType } from "../appstate";
+import { ServerChainNameEnum, WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
 import { useCopy } from "../common/useCopy";
 
 import { ipcRenderer, native } from "../../electronBridge";
+import {
+  faAddressBook,
+  faCheck,
+  faComments,
+  faDownload,
+  faHome,
+  faList,
+  faPaperPlane,
+  faRightLeft,
+  faSync,
+  faTimesCircle,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
 // Modal content for "Wallet Seed Phrase / Viewing Key" extracted to its own
 // component because the inline copy feedback for UFVK / birthday relies on
@@ -41,7 +54,7 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
     return (
       <div className={cstyles.verticalflex} style={{ alignItems: "center", padding: 24 }}>
         <div style={{ marginBottom: 12 }}>Retrieving seed phrase / viewing key&hellip;</div>
-        <i className={`${"fas"} ${"fa-sync"} ${"fa-spin"}`} />
+        <FontAwesomeIcon icon={faSync} spin />
       </div>
     );
   }
@@ -49,11 +62,17 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
   // Each sensitive value (seed, UFVK, birthday) lives inside this card so it's
   // visually distinct from the surrounding explanatory text. Thin accent border
   // and a slightly smaller font keep the data legible without dominating.
+  // The box each of these three values sits in: the seed phrase, the viewing
+  // key and the birthday.
+  //
+  // Little space above, plenty below. The label belongs to the box under it and
+  // should read as attached to it; what needs the room is the gap to whatever
+  // comes next, so the three do not run together into one column of boxes.
   const dataBoxStyle: React.CSSProperties = {
     border: "1px solid var(--color-primary)",
     borderRadius: 4,
     padding: 12,
-    marginTop: 8,
+    marginTop: 2,
     marginBottom: 16,
     fontSize: "0.85em",
   };
@@ -87,9 +106,8 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
       {!!ufvkStr && (
         <>
           <div style={{ textAlign: "center" }}>
-            This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet.
-            <br />
-            PLEASE KEEP IT SAFE!
+            This is your wallet&rsquo;s unified full viewing key. It can be used to recover your entire wallet. PLEASE
+            KEEP IT SAFE!
           </div>
           <div
             style={{
@@ -104,12 +122,17 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
             {ufvkCopied && <span className={cstyles.highlight}>Copied!</span>}
           </div>
 
-          <div
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             aria-label="Copy viewing key"
             style={{
               ...dataBoxStyle,
+              background: "none",
+              border: "none",
+              font: "inherit",
+              // A button inherits neither, and the platform default for both is
+              // meant for a grey chrome button rather than this dark panel.
+              color: "inherit",
               cursor: "pointer",
               textAlign: "center",
               wordBreak: "break-word",
@@ -117,15 +140,9 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
               fontWeight: "bolder",
             }}
             onClick={() => copyUfvk(ufvkStr)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                copyUfvk(ufvkStr);
-              }
-            }}
           >
             {ufvkStr}
-          </div>
+          </button>
         </>
       )}
       <div
@@ -139,12 +156,15 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
         <span style={{ color: "white", fontWeight: "bolder" }}>Birthday</span>
         {birthdayCopied && <span className={cstyles.highlight}>Copied!</span>}
       </div>
-      <div
-        role="button"
-        tabIndex={0}
+      <button
+        type="button"
         aria-label="Copy birthday"
         style={{
           ...dataBoxStyle,
+          background: "none",
+          border: "none",
+          font: "inherit",
+          color: "inherit",
           marginBottom: 0,
           alignSelf: "center",
           minWidth: 120,
@@ -154,40 +174,45 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
           fontWeight: "bolder",
         }}
         onClick={() => copyBirthday(birthdayStr)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            copyBirthday(birthdayStr);
-          }
-        }}
       >
         {birthdayStr}
-      </div>
+      </button>
     </div>
   );
 };
 
 type SidebarProps = {
   doRescan: () => void;
-  navigateToLoadingScreenChangingWallet: () => void;
 };
 
 // The Sidebar's compact Mixnet Mode line: colour, icon, and label for the
 // current view. Mirrors the sync-status blocks it sits beside.
-function mixnetIndicator(view: MixnetView): { colorClass: string; iconClass: string; label: string } {
+function mixnetIndicator(view: MixnetView): {
+  colorClass: string;
+  icon: IconDefinition;
+  label: string;
+  hint?: string;
+} {
   switch (view.statusKey) {
     case "mixnet.status.ready":
-      return { colorClass: cstyles.green, iconClass: "fa-check", label: "Mixnet ready" };
+      return { colorClass: cstyles.green, icon: faCheck, label: "Mixnet ready" };
     case "mixnet.status.bootstrapping":
-      return { colorClass: cstyles.yellow, iconClass: "fa-sync", label: "Mixnet connecting" };
+      return { colorClass: cstyles.yellow, icon: faSync, label: "Mixnet connecting" };
     case "mixnet.status.off":
-      return { colorClass: cstyles.yellow, iconClass: "fa-times-circle", label: "Mixnet off (clearnet)" };
+      return { colorClass: cstyles.yellow, icon: faTimesCircle, label: "Mixnet off (clearnet)" };
+    case "mixnet.status.died":
+      return {
+        colorClass: cstyles.red,
+        icon: faTimesCircle,
+        label: "Mixnet died",
+        hint: "Click to restart",
+      };
     default:
-      return { colorClass: cstyles.red, iconClass: "fa-times-circle", label: "Mixnet unavailable" };
+      return { colorClass: cstyles.red, icon: faTimesCircle, label: "Mixnet unavailable" };
   }
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChangingWallet }) => {
+const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const context = useContext(ContextApp);
@@ -296,17 +321,16 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
 
   // Handle menu items
   useEffect(() => {
-    // contextBridge wraps every function argument in a new proxy each time it
-    // crosses the context boundary, so ipcRenderer.off() cannot match the proxy
-    // that ipcRenderer.on() received — the old listener is never removed.
-    // React 18 StrictMode runs effects twice (mount → cleanup → mount), which
-    // causes two listeners to accumulate.  The `active` flag makes stale
-    // closures silently no-op so only the latest registration acts on events.
-    let active = true;
+    // `on` hands back the disposer, which is the only thing that can cancel
+    // the subscription: contextBridge proxies every function on the way across,
+    // so nothing named from here would be recognised on the other side.
+    //
+    // Until it did, removal silently removed nothing and a flag was kept so
+    // that listeners which could not be unregistered would at least no-op.
+    // They are unregistered now, so there is nothing left to silence.
 
     // About
     const about = (_event: any) => {
-      if (!active) return;
       openErrorModal(
         "Zingo PC",
         <div className={cstyles.verticalflex}>
@@ -338,7 +362,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     };
 
     const payuri = (_event: any, uri: string) => {
-      if (!active) return;
       if (!uri) {
         // Manual path (menu / Ctrl+P): open modal so the user can type the URI.
         openPayURIModal("");
@@ -359,13 +382,11 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
 
     // Block Explorer Selection
     const blockexplorer = (_event: any) => {
-      if (!active) return;
       setBlockExplorerModalIsOpen(true);
     };
 
     // Export Seed
     const seed = async (_event: any) => {
-      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Seed Phrase/Viewing Key", "There is not an active Wallet to perform the action.");
         return;
@@ -408,20 +429,17 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
         const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
 
-        if (!active) return;
         openErrorModal(
           "Wallet Seed Phrase / Viewing Key",
           <SeedUfvkModalContent seedStr={seedStr} ufvkStr={ufvkStr} birthday={birthdayRef.current} />,
         );
       } catch (error) {
-        if (!active) return;
         console.error(`Error reading seed/ufvk ${error}`);
         openErrorModal("Wallet Seed Phrase / Viewing Key", `${error}`);
       }
     };
 
     const rescan = async (_event: any) => {
-      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Rescan Wallet", "There is not an active Wallet to perform the action.");
       } else {
@@ -430,12 +448,10 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     };
 
     const addnewwallet = (_event: any) => {
-      if (!active) return;
       navigate(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
     };
 
     const settingswallet = (_event: any) => {
-      if (!active) return;
       if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
         openErrorModal("Wallet Settings", "There is not an active Wallet to perform the action.");
       } else {
@@ -443,8 +459,15 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       }
     };
 
+    const insight = (_event: any) => {
+      if (!currentWalletRef.current || !!currentWalletOpenErrorRef.current) {
+        openErrorModal("Financial Insight", "There is not an active Wallet to perform the action.");
+      } else {
+        navigate(routes.INSIGHT);
+      }
+    };
+
     const deletewallet = (_event: any) => {
-      if (!active) return;
       if (!currentWalletRef.current) {
         openErrorModal("Delete Wallet", "There is not an active Wallet to perform the action.");
       } else {
@@ -453,32 +476,23 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
     };
 
     const mixnetsettings = (_event: any) => {
-      if (!active) return;
       setMixnetModalIsOpen(true);
     };
 
-    ipcRenderer.on("about", about);
-    ipcRenderer.on("payuri", payuri);
-    ipcRenderer.on("blockexplorer", blockexplorer);
-    ipcRenderer.on("seed", seed);
-    ipcRenderer.on("rescan", rescan);
-    ipcRenderer.on("addnewwallet", addnewwallet);
-    ipcRenderer.on("settingswallet", settingswallet);
-    ipcRenderer.on("deletewallet", deletewallet);
-    ipcRenderer.on("mixnet-settings", mixnetsettings);
+    const subscriptions = [
+      ipcRenderer.on("about", about),
+      ipcRenderer.on("payuri", payuri),
+      ipcRenderer.on("blockexplorer", blockexplorer),
+      ipcRenderer.on("seed", seed),
+      ipcRenderer.on("rescan", rescan),
+      ipcRenderer.on("addnewwallet", addnewwallet),
+      ipcRenderer.on("settingswallet", settingswallet),
+      ipcRenderer.on("deletewallet", deletewallet),
+      ipcRenderer.on("mixnet-settings", mixnetsettings),
+      ipcRenderer.on("insight", insight),
+    ];
 
-    return () => {
-      active = false;
-      ipcRenderer.off("about", about);
-      ipcRenderer.off("payuri", payuri);
-      ipcRenderer.off("blockexplorer", blockexplorer);
-      ipcRenderer.off("seed", seed);
-      ipcRenderer.off("rescan", rescan);
-      ipcRenderer.off("addnewwallet", addnewwallet);
-      ipcRenderer.off("settingswallet", settingswallet);
-      ipcRenderer.off("deletewallet", deletewallet);
-      ipcRenderer.off("mixnet-settings", mixnetsettings);
-    };
+    return () => subscriptions.forEach((cancel) => cancel());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -555,19 +569,18 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
       </div>
 
       <div className={styles.sidebar}>
-        <SelectWallet navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet} />
         <SidebarMenuItem
           name="Dashboard"
           routeName={routes.DASHBOARD}
           currentRoute={location.pathname}
-          iconname="fa-home"
+          iconname={faHome}
         />
         {!readOnly && currentWallet !== null && !currentWalletOpenError && (
           <SidebarMenuItem
             name="Send"
             routeName={routes.SEND}
             currentRoute={location.pathname}
-            iconname="fa-paper-plane"
+            iconname={faPaperPlane}
           />
         )}
         {currentWallet !== null && !currentWalletOpenError && (
@@ -575,15 +588,29 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
             name="Receive"
             routeName={routes.RECEIVE}
             currentRoute={location.pathname}
-            iconname="fa-download"
+            iconname={faDownload}
           />
         )}
+        {/* Two reasons the entry can be absent rather than dead. SwapKit routes
+            none of our providers off mainnet, and a swap's deposit is a spend,
+            which a viewing-key wallet cannot make. */}
+        {currentWallet !== null &&
+          !currentWalletOpenError &&
+          !readOnly &&
+          currentWallet.chain_name === ServerChainNameEnum.mainChainName && (
+            <SidebarMenuItem
+              name="Swap"
+              routeName={routes.SWAP}
+              currentRoute={location.pathname}
+              iconname={faRightLeft}
+            />
+          )}
         {currentWallet !== null && !currentWalletOpenError && (
           <SidebarMenuItem
             name="History"
             routeName={routes.HISTORY}
             currentRoute={location.pathname}
-            iconname="fa-list"
+            iconname={faList}
           />
         )}
         {currentWallet !== null && !currentWalletOpenError && (
@@ -591,23 +618,15 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
             name="Messages"
             routeName={routes.MESSAGES}
             currentRoute={location.pathname}
-            iconname="fa-comments"
+            iconname={faComments}
           />
         )}
         <SidebarMenuItem
           name="Address Book"
           routeName={routes.ADDRESSBOOK}
           currentRoute={location.pathname}
-          iconname="fa-address-book"
+          iconname={faAddressBook}
         />
-        {currentWallet !== null && !currentWalletOpenError && (
-          <SidebarMenuItem
-            name="Financial Insight"
-            routeName={routes.INSIGHT}
-            currentRoute={location.pathname}
-            iconname="fa-chart-line"
-          />
-        )}
       </div>
 
       <div className={cstyles.center} style={{ marginTop: 6 }}>
@@ -615,9 +634,9 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
             <div>
               {info.latestBlock === info.walletHeight ? (
-                <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} />
+                <FontAwesomeIcon icon={faCheck} className={cstyles.green} />
               ) : (
-                <i className={`${cstyles.yellow} ${"fas"} ${"fa-check"}`} />
+                <FontAwesomeIcon icon={faCheck} className={cstyles.yellow} />
               )}
               &nbsp; {info.walletHeight} &nbsp;
             </div>
@@ -627,7 +646,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         {stateSync === "SYNCING" && (
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
             <div>
-              <i className={`${cstyles.yellow} ${"fas"} ${"fa-sync"}`} />
+              <FontAwesomeIcon icon={faSync} className={cstyles.yellow} />
               &nbsp; Syncing
             </div>
             <div>{`${progress}%`}</div>
@@ -635,29 +654,43 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan, navigateToLoadingScreenChan
         )}
         {stateSync === "DISCONNECTED" && (
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
-            <i className={`${cstyles.yellow} ${"fas"} ${"fa-times-circle"}`} />
+            <FontAwesomeIcon icon={faTimesCircle} className={cstyles.yellow} />
             &nbsp; Not Connected
           </div>
         )}
         {stateSync === "CONNECTING" && (
           <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
-            <i className={`${cstyles.yellow} ${"fas"} ${"fa-times-circle"}`} />
+            <FontAwesomeIcon icon={faTimesCircle} className={cstyles.yellow} />
             &nbsp; Connecting...
           </div>
         )}
         {currentWallet && (
-          <div
+          <button
+            type="button"
             className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}
             onClick={() => setMixnetModalIsOpen(true)}
-            style={{ cursor: "pointer" }}
+            style={{
+              cursor: "pointer",
+              // No background: `.blackbg` on the class list is the background,
+              // and no text-align: the tiles above inherit theirs.
+              border: "none",
+              font: "inherit",
+              color: "inherit",
+              width: "100%",
+            }}
             title="Nym mixnet settings"
+            aria-label="Nym mixnet settings"
           >
             <div>
-              <i className={`${mixnetInd.colorClass} fas ${mixnetInd.iconClass}`} />
+              <FontAwesomeIcon icon={mixnetInd.icon} className={mixnetInd.colorClass} />
               &nbsp; {mixnetInd.label}
             </div>
-            {mixnetView.narration && <div className={cstyles.small}>{mixnetView.narration}</div>}
-          </div>
+            {mixnetView.narration ? (
+              <div className={cstyles.small}>{mixnetView.narration}</div>
+            ) : (
+              !!mixnetInd.hint && <div className={cstyles.small}>{mixnetInd.hint}</div>
+            )}
+          </button>
         )}
       </div>
     </div>
