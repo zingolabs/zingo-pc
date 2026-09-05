@@ -71,9 +71,23 @@ setInterval(() => {
   const now = Date.now();
   const sinceLastTick = now - lastLoopTick;
   lastLoopTick = now;
-  if (sinceLastTick >= LOOP_STALL_REPORT_MS) {
-    console.log(`[main-loop] blocked for ${sinceLastTick}ms`);
-  }
+  if (sinceLastTick < LOOP_STALL_REPORT_MS) return;
+
+  const line = `[main-loop] blocked for ${sinceLastTick}ms`;
+  console.log(line);
+  // A packaged app has no terminal, and `startup.log` only collects what the
+  // renderer's console emits — so on the build a user actually runs, the line
+  // above reaches nobody. That is the one case this probe exists for: a stall
+  // reported from a machine we cannot attach to. Written the same way the
+  // wallet-dir diagnostics are, path resolved per call and failures swallowed,
+  // because a probe that throws is worse than one that says nothing.
+  if (isDev) return;
+  try {
+    require("fs").appendFileSync(
+      require("path").join(app.getPath("userData"), "startup.log"),
+      `${new Date().toISOString()} ${line}\n`,
+    );
+  } catch (_) {}
 }, LOOP_TICK_MS).unref();
 
 class MenuBuilder {
