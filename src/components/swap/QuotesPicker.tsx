@@ -14,8 +14,8 @@ type QuotesPickerProps = {
   receiveSymbol: string;
   sellSymbol: string;
   /** What these routes were quoted for, already formatted with its symbol.
-   *  Every route in one quote answers the same amount, so it is stated once
-   *  above the list rather than repeated on each row. */
+   *  Carried on every row: the reader compares rows, and each one has to say
+   *  what it is answering. */
   quotedSell?: string;
   direction: SwapDirectionEnum;
   modalIsOpen: boolean;
@@ -62,11 +62,6 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
     >
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Quotes returned</div>
-        {/* The list answers one amount, and which one is the thing a user
-            editing the field cannot otherwise tell. */}
-        {!!quotedSell && (
-          <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small}`}>{quotedSell} →</div>
-        )}
 
         <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 12 }}>
           {routes.map((route) => {
@@ -109,6 +104,11 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                     )}
                   </div>
                   <div className={cstyles.large}>
+                    {/* On every row rather than once above them. Repeating it
+                        is the point: a row read on its own has to carry what
+                        it answers, and a heading over a list is not read with
+                        the line the eye is on. */}
+                    {!!quotedSell && <span className={cstyles.sublight}>{quotedSell} → </span>}
                     {formatAmountForDisplay(route.expectedReceiveAmount)} {receiveSymbol}
                   </div>
                 </div>

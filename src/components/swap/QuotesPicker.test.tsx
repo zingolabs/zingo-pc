@@ -36,14 +36,15 @@ describe("QuotesPicker", () => {
   // what the form holds by the time they read them.
   it("states the amount the routes were quoted for", () => {
     show("0.05 ZEC");
-    expect(screen.getByText(/0\.05 ZEC/)).toBeInTheDocument();
+    expect(screen.getAllByText(/0\.05 ZEC/).length).toBeGreaterThan(0);
   });
 
-  // Stated once above the list, not per row: every route in one quote answers
-  // the same amount, and repeating it is noise the reader learns to skip.
-  it("states it once, however many routes came back", () => {
+  // On every row rather than once above them. Rows are read against each
+  // other, and a heading is not read with the line the eye is on — stated
+  // once, it was not seen at all. Reiterative on purpose.
+  it("repeats it on every route, because each row is read on its own", () => {
     show("0.05 ZEC");
-    expect(screen.getAllByText(/0\.05 ZEC/)).toHaveLength(1);
+    expect(screen.getAllByText(/0\.05 ZEC/)).toHaveLength(2);
   });
 
   it("says nothing when there is no quote to describe", () => {
