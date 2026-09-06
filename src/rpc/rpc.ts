@@ -83,6 +83,7 @@ export default class RPC {
   readOnly: boolean;
 
   updateTimerID?: NodeJS.Timeout;
+  priceTimerID?: NodeJS.Timeout;
   timers: NodeJS.Timeout[];
 
   lastBlockHeight: number;
@@ -130,6 +131,7 @@ export default class RPC {
     this.lastBlockHeight = 0;
 
     this.updateTimerID = undefined;
+    this.priceTimerID = undefined;
     this.timers = [];
 
     this.lastPollSyncError = "";
@@ -216,7 +218,6 @@ export default class RPC {
       this.once("info", () => this.fetchInfo()),
       this.once("addresses", () => this.fetchAddresses()),
       this.once("balance", () => this.fetchTotalBalance()),
-      this.once("price", () => this.getZecPrice()),
       this.once("mixnetView", () => this.getMixnetView()),
       this.once("serverHealth", () => this.probeServerHealth()),
       this.once("save", () => RPC.doSave()),
@@ -257,6 +258,28 @@ export default class RPC {
       this.updateTimerID = setInterval(() => this.runTaskPromises(), 5 * 1000); // 5 secs
     }
 
+    // The price keeps its own clock, and deliberately not a multiple of the
+    // cycle's.
+    //
+    // `zec_price_over_mixnet` holds the wallet's shared lock for the whole
+    // round trip, and over the mixnet that is seconds. Anything needing the
+    // exclusive lock waits behind it — measured: `run_sync` answered in 37 to
+    // 48ms while the tunnel was down and the price fetch failed instantly, and
+    // in 1.7 to 2.2s from the moment the tunnel came up and the fetch started
+    // succeeding. Same cycle, so they were launched together every time.
+    //
+    // Two changes, one timer. Asking every 12.5s instead of every 5 is three
+    // fewer collisions in four, and a ZEC price is not a figure that moves
+    // meaningfully inside five seconds. Being off the cycle's beat is the
+    // other half: 12.5 lands between ticks and drifts against them, so the
+    // fetch that does overlap is not always overlapping the same work.
+    //
+    // The cure is the network call not holding the lock at all, which is
+    // zingolib's to give — the client reference has to outlive the await.
+    if (!this.priceTimerID) {
+      this.priceTimerID = setInterval(() => this.once("price", () => this.getZecPrice()), 12_500);
+    }
+
     await this.sanitizeTimers();
   }
 
@@ -264,6 +287,11 @@ export default class RPC {
     if (this.updateTimerID) {
       clearInterval(this.updateTimerID);
       this.updateTimerID = undefined;
+    }
+
+    if (this.priceTimerID) {
+      clearInterval(this.priceTimerID);
+      this.priceTimerID = undefined;
     }
 
     // and now the array of timers...
@@ -276,6 +304,7 @@ export default class RPC {
   async sanitizeTimers(): Promise<void> {
     this.timers = this.timers.filter((t) => {
       if (this.updateTimerID && t === this.updateTimerID) return true;
+      if (this.priceTimerID && t === this.priceTimerID) return true;
       clearInterval(t);
       return false;
     });
