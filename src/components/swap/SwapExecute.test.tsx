@@ -90,6 +90,8 @@ const renderExecute = (direction: SwapDirectionEnum, deposit?: jest.Mock) => {
   const markBroadcasted = jest.fn(async () => record(direction));
   const sendSwapDeposit = deposit ?? jest.fn(async () => ["a".repeat(64)]);
   const swapService = { commitRoute, markBroadcasted } as unknown as SwapService;
+  const onDone = jest.fn();
+  const onCancel = jest.fn();
 
   render(
     <SwapExecute
@@ -99,10 +101,11 @@ const renderExecute = (direction: SwapDirectionEnum, deposit?: jest.Mock) => {
       fiatValueBasis={{ sellUsdUnitPrice: 30, receiveUsdUnitPrice: 60000, capturedAt: 0 }}
       direction={direction}
       sendSwapDeposit={sendSwapDeposit}
-      onDone={jest.fn()}
+      onDone={onDone}
+      onCancel={onCancel}
     />,
   );
-  return { commitRoute, markBroadcasted, sendSwapDeposit };
+  return { commitRoute, markBroadcasted, sendSwapDeposit, onDone, onCancel };
 };
 
 beforeEach(() => {
@@ -205,5 +208,29 @@ describe("SwapExecute deposit retry", () => {
 
     await screen.findByText("Pay this deposit");
     expect(screen.queryByRole("button", { name: /try the deposit again/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("SwapExecute backing out", () => {
+  // Cancelling a review is not finishing a swap. Both used to call the same
+  // callback, so reading a quote and stepping back wiped the amount, the
+  // addresses and the quote itself — a punishment for looking before leaping.
+  it("cancels without reporting the swap as done", async () => {
+    const { onDone, onCancel } = renderExecute(SwapDirectionEnum.Outbound);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Cancel" }));
+
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("reports done only once the swap has run", async () => {
+    const { onDone, onCancel } = renderExecute(SwapDirectionEnum.Outbound);
+
+    fireEvent.click(await screen.findByRole("button", { name: /Swap and send deposit/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Done" }));
+
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onCancel).not.toHaveBeenCalled();
   });
 });

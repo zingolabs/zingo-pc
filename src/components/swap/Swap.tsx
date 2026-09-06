@@ -915,6 +915,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             // with what was just sent: the next swap is a new decision, and
             // leaving the amount and address sitting there invites repeating a
             // transfer by accident.
+            // Backing out keeps the quote, the amount and the addresses.
+            // Nothing was reserved, so there is nothing to undo, and making
+            // the user retype a swap they merely wanted a second look at is a
+            // punishment for reading.
+            onCancel={() => setReviewing(false)}
             onDone={() => {
               setReviewing(false);
               setRoutes(null);

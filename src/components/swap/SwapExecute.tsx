@@ -40,7 +40,13 @@ type SwapExecuteProps = {
     amountAtomic: number;
     memoBytes?: Uint8Array;
   }) => Promise<string[]>;
+  /** The swap ran and the user is finished with it. The screen behind is
+   *  cleared, because the next swap is a new decision. */
   onDone: () => void;
+  /** The user backed out of the review before committing. Nothing was
+   *  reserved, so the quote, the amount and the addresses all stay: they
+   *  walked up to the edge and stepped back, not away. */
+  onCancel: () => void;
 };
 
 type PostCommit = {
@@ -67,6 +73,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   direction,
   sendSwapDeposit,
   onDone,
+  onCancel,
 }) => {
   const [committing, setCommitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -236,7 +243,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
       isOpen
       // Dismissable here, unlike after the commit: nothing has been reserved
       // yet, so backing out costs the user nothing.
-      onRequestClose={committing ? undefined : onDone}
+      onRequestClose={committing ? undefined : onCancel}
       shouldCloseOnOverlayClick={!committing}
       shouldCloseOnEsc={!committing}
       className={styles.txmodal}
@@ -281,7 +288,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={commit}>
             {committing ? "Working..." : isOutbound ? "Swap and send deposit" : "Start the swap"}
           </button>
-          <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={onDone}>
+          <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={onCancel}>
             Cancel
           </button>
         </div>
