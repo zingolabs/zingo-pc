@@ -1016,37 +1016,53 @@ export default class RPC {
    * Pays a swap's deposit, returning every txid the proposal produced in
    * chronological order.
    *
-   * `memoBytes` becomes the transaction's OP_RETURN, which is how Maya and
-   * THORChain read which swap a deposit belongs to. `routeViaEphemeral` sends
-   * it through the ZIP 320 hop so the vault sees an origin the wallet
-   * controls, which is where those two protocols look for a refund
-   * destination. NEAR Intents and Flashnet bind refunds to the per-quote
-   * deposit address instead, so they need neither and take the cheaper
-   * single-hop path.
+   * A memo goes out as an OP_RETURN, which is how Maya and THORChain know
+   * which swap a deposit belongs to. The wallet cannot attach one to a
+   * shielded spend, so a memo-bearing deposit is two transactions — a
+   * deshield to a transparent address the wallet owns, then that address
+   * paying the vault with the memo — and it goes through its own native
+   * entry point, which sends rather than proposing. A deposit with no memo
+   * is an ordinary send.
    *
-   * The array shape matters to the caller: for a two-hop send the provider
-   * observes the LAST transaction, the one paying the vault, not the shielded
-   * hop that funded the ephemeral address.
+   * The array shape matters to the caller: for the two-transaction shape the
+   * provider observes the LAST transaction, the one paying the vault, not the
+   * deshield that funded it.
    */
   async sendSwapDeposit(args: {
     depositAddress: string;
     amountAtomic: number;
     memoBytes?: Uint8Array;
-    routeViaEphemeral?: boolean;
   }): Promise<string[]> {
-    const sendJson: Array<SendJsonToTypeType> = [
-      {
-        address: args.depositAddress,
-        amount: args.amountAtomic,
-        op_return: args.memoBytes && args.memoBytes.length > 0 ? bytesToHex(args.memoBytes) : undefined,
-        route_via_ephemeral: args.routeViaEphemeral || undefined,
-      },
-    ];
-    const joined: string = await this.sendTransaction(sendJson);
-    return joined
-      .split(",")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    if (!args.memoBytes || args.memoBytes.length === 0) {
+      const sendJson: Array<SendJsonToTypeType> = [
+        { address: args.depositAddress, amount: args.amountAtomic },
+      ];
+      const joined: string = await this.sendTransaction(sendJson);
+      return joined
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    }
+
+    // Sends outright, so the timers come down first the way `sendTransaction`
+    // does: a sync running across a send competes for the wallet's lock.
+    await this.clearTimers();
+    try {
+      const answer: string = await native.send_swap_deposit(
+        args.depositAddress,
+        args.amountAtomic,
+        bytesToHex(args.memoBytes),
+      );
+      // Structured JSON on the data channel, never error prose — `{ txids }`
+      // or `{ error }`, the same contract the send path keeps.
+      const parsed: { txids?: string[]; error?: string } = JSON.parse(answer);
+      if (parsed.error) {
+        throw new Error(parsed.error);
+      }
+      return parsed.txids ?? [];
+    } finally {
+      await this.configure();
+    }
   }
 
   // Polls poll_sync until the sync task is no longer running (or a timeout).

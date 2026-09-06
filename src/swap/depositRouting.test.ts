@@ -1,23 +1,34 @@
-import { needsEphemeralRoute, zecNetworkFeeReserve } from "./depositRouting";
+import { depositCarriesMemo, zecNetworkFeeReserve } from "./depositRouting";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 
-describe("needsEphemeralRoute", () => {
-  // Maya and THORChain read the refund destination off the inbound
-  // transaction's origin, which a shielded spend does not expose.
-  it("is true for the providers that read the deposit's origin", () => {
-    expect(needsEphemeralRoute(SwapKitProviderEnum.MayachainStreaming)).toBe(true);
-    expect(needsEphemeralRoute(SwapKitProviderEnum.ThorchainStreaming)).toBe(true);
+describe("depositCarriesMemo", () => {
+  // Maya and THORChain read which swap a deposit belongs to from its memo,
+  // and their refund destination from the transparent origin the second
+  // transaction exposes.
+  it("is true for the providers whose deposit always carries one", () => {
+    expect(depositCarriesMemo(SwapKitProviderEnum.MayachainStreaming)).toBe(true);
+    expect(depositCarriesMemo(SwapKitProviderEnum.ThorchainStreaming)).toBe(true);
   });
 
-  it("is false for the providers that bind refunds to the deposit address", () => {
-    expect(needsEphemeralRoute(SwapKitProviderEnum.Near)).toBe(false);
-    expect(needsEphemeralRoute(SwapKitProviderEnum.Flashnet)).toBe(false);
+  // SwapKit supplies Flashnet's memo or does not, and which it will do is not
+  // known when the reserve is computed. Answering true reserves for the
+  // dearer shape, which is the safe direction.
+  it("is true for Flashnet, which carries one when SwapKit sends one", () => {
+    expect(depositCarriesMemo(SwapKitProviderEnum.Flashnet)).toBe(true);
+  });
+
+  it("is false for NEAR Intents, which never sends one", () => {
+    expect(depositCarriesMemo(SwapKitProviderEnum.Near)).toBe(false);
   });
 });
 
 describe("zecNetworkFeeReserve", () => {
-  it("reserves for two transactions on the ephemeral route and one otherwise", () => {
+  it("reserves for two transactions when a memo may ride along, and one otherwise", () => {
     expect(zecNetworkFeeReserve(SwapKitProviderEnum.MayachainStreaming)).toBeCloseTo(
+      2 * zecNetworkFeeReserve(SwapKitProviderEnum.Near),
+      12,
+    );
+    expect(zecNetworkFeeReserve(SwapKitProviderEnum.Flashnet)).toBeCloseTo(
       2 * zecNetworkFeeReserve(SwapKitProviderEnum.Near),
       12,
     );
@@ -31,11 +42,10 @@ describe("zecNetworkFeeReserve", () => {
     expect(zecNetworkFeeReserve(SwapKitProviderEnum.Near)).toBeGreaterThan(0);
   });
 
-  // Erring high is the safe direction: too little walks the user into a
-  // proposal that fails after the route is already committed at the provider.
-  // ZIP 317 charges its 5000-zat marginal fee per logical action past a
-  // two-action grace, so a single-transaction deposit cannot plausibly exceed
-  // this.
+  // Erring high is the safe direction: too little walks the user into a send
+  // that fails after the route is already committed at the provider. ZIP 317
+  // charges its 5000-zat marginal fee per logical action past a two-action
+  // grace, so a single-transaction deposit cannot plausibly exceed this.
   it("covers a realistic single-transaction deposit", () => {
     expect(zecNetworkFeeReserve(SwapKitProviderEnum.Near)).toBeGreaterThanOrEqual(0.0002);
   });

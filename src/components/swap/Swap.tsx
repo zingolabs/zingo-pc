@@ -81,7 +81,6 @@ type SwapProps = {
     depositAddress: string;
     amountAtomic: number;
     memoBytes?: Uint8Array;
-    routeViaEphemeral?: boolean;
   }) => Promise<string[]>;
 };
 

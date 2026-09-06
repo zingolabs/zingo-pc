@@ -20,9 +20,9 @@ import { applyDefaultTrackUpdate } from "./trackUpdateBase";
  *     `providerDetails.depositChannelId` — useful for cross-referencing with
  *     the NEAR Intents dashboard but not strictly needed by the user flow.
  *
- * Implication for OP_RETURN: when ZEC is the source asset, the OP_RETURN slot
- * is left empty (no memo). The librustzcash plumbing accepts `None` for
- * `op_return_data` and produces a normal transparent transaction in that case.
+ * Implication for the deposit shape: NEAR sends no memo, so the deposit is an
+ * ordinary single transaction. A memo would force the two-transaction shape,
+ * since the wallet cannot attach an OP_RETURN to a shielded spend.
  *
  * Empirical shape (2026-06-21 mainnet test, ZEC -> ETH via NEAR Intents):
  *

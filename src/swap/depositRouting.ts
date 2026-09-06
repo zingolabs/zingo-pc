@@ -2,25 +2,35 @@ import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { isThorchainFamily } from "./thorchainFamily";
 
 /**
- * How this wallet pays an outbound deposit, and what that costs on the Zcash
- * side before the swap's own fees are counted.
+ * How many Zcash transactions an outbound deposit takes, and what to hold back
+ * for their fees.
  *
- * Both answers hang off the same fact, which is why they live together: Maya
- * and THORChain read a swap's refund destination from the inbound
- * transaction's origin, and a shielded spend does not expose one. Their
- * deposits therefore go through the ZIP 320 ephemeral hop, which is two
- * transactions rather than one — so the routing decision and the fee estimate
- * cannot be allowed to disagree about which providers are involved.
+ * One fact drives both, which is why they live together: a deposit that
+ * carries a memo is two transactions, and the screen has to reserve for what
+ * the send will actually cost.
  */
 
 /**
- * Whether the deposit has to leave through the ZIP 320 ephemeral hop.
+ * Whether this provider's deposit can carry a memo, and therefore whether it
+ * takes two transactions.
  *
- * NEAR Intents and Flashnet bind refunds to the per-quote deposit address, so
- * they need no wallet-controlled origin and take the cheaper single-hop path.
+ * A memo rides in an OP_RETURN, and the wallet cannot attach one to a shielded
+ * spend: it deshields to a transparent address it owns and then spends that to
+ * the vault with the memo attached. Two transactions, two fees.
+ *
+ * Maya and THORChain always carry one — it is how they know which swap a
+ * deposit belongs to, and their refund destination is read from the
+ * transparent origin the second transaction exposes. Flashnet carries one only
+ * when SwapKit supplies it, which is why this asks what the provider *can* do
+ * rather than what a particular quote did: the reserve is computed before the
+ * route is committed, and the memo arrives with the commitment. NEAR Intents
+ * never sends one and stays at a single transaction.
+ *
+ * Erring towards two is the safe direction, for the reason `zecNetworkFeeReserve`
+ * gives.
  */
-export function needsEphemeralRoute(provider: SwapKitProviderEnum): boolean {
-  return isThorchainFamily(provider);
+export function depositCarriesMemo(provider: SwapKitProviderEnum): boolean {
+  return isThorchainFamily(provider) || provider === SwapKitProviderEnum.Flashnet;
 }
 
 /**
@@ -48,16 +58,16 @@ const BUDGETED_ACTIONS = 4;
  *
  * It errs high deliberately. Reserving a few thousand zatoshis too many costs
  * the user a swap amount a hair below what they could have sent; reserving too
- * few walks them into a proposal that fails at `propose_send` with an error
- * about funds, after they have already committed the route at the provider.
- * The two mistakes are not the same size.
+ * few walks them into a send that fails for want of funds, after they have
+ * already committed the route at the provider. The two mistakes are not the
+ * same size.
  *
- * Doubled for the ephemeral route, which is two transactions: the shielded
- * spend that funds the ephemeral address, and the transparent spend that pays
- * the vault. Each pays its own fee.
+ * Doubled for a memo-bearing deposit, which is two transactions: the deshield
+ * that funds the transparent address, and the transparent spend that pays the
+ * vault with the memo. Each pays its own fee.
  */
 export function zecNetworkFeeReserve(provider: SwapKitProviderEnum): number {
   const perTransactionZats = MARGINAL_FEE_ZATS * BUDGETED_ACTIONS;
-  const transactions = needsEphemeralRoute(provider) ? 2 : 1;
+  const transactions = depositCarriesMemo(provider) ? 2 : 1;
   return (perTransactionZats * transactions) / 1e8;
 }

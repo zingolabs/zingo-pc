@@ -87,6 +87,7 @@ export function set_config_wallet_to_prod(performance_level: string, min_confirm
 export function get_config_wallet_performance(): Promise<string>;
 export function get_wallet_version(): Promise<string>;
 export function send(send_json: string): Promise<string>;
+export function send_swap_deposit(vault_address: string, amount: number, memo_hex: string): Promise<string>;
 export function shield(): Promise<string>;
 export function confirm(): Promise<string>;
 export function drain_orchard_to_ironwood(): Promise<string>;

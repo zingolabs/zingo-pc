@@ -41,9 +41,9 @@ crate-type = ["cdylib"]
 # `perspective` is that editorial layer (value transfers, messages, the
 # total_*_to_address reductions). dev moved it behind a default-off feature, so
 # the UI's read model has to opt in.
-zingolib = { git = "https://github.com/zingolabs/zingolib", branch = "opreturn_on_proposal", features = ["nym", "perspective"] }
-pepper-sync = { git="https://github.com/zingolabs/zingolib", branch = "opreturn_on_proposal" }
-zingo-netutils = { git="https://github.com/zingolabs/zingolib", branch = "opreturn_on_proposal" }
+zingolib = { git = "https://github.com/dorianvp/zingolib", branch = "feat/add-opreturn", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/dorianvp/zingolib", branch = "feat/add-opreturn" }
+zingo-netutils = { git = "https://github.com/dorianvp/zingolib", branch = "feat/add-opreturn" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two

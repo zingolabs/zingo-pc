@@ -37,6 +37,7 @@ const _ALL_NATIVE_METHODS = [
   "set_config_wallet_to_test",
   "get_config_wallet_performance",
   "get_wallet_version",
+  "send_swap_deposit",
   "shield",
   "confirm",
   "drain_orchard_to_ironwood",

@@ -77,7 +77,7 @@ use tokio::runtime::Runtime;
 use zcash_protocol::memo::MemoBytes;
 use zingolib::data::receivers::transaction_request_from_receivers;
 use zingolib::mixnet::ExitNodeId;
-use zingolib::wallet::spend::op_return::OpReturnData;
+use zingolib::wallet::op_return::OpReturnData;
 use zingolib::ActivationHeights;
 use zingo_netutils::{GrpcIndexer, Indexer};
 
@@ -184,6 +184,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_config_wallet_performance", get_config_wallet_performance)?;
     cx.export_function("get_wallet_version", get_wallet_version)?;
     cx.export_function("send", send)?;
+    cx.export_function("send_swap_deposit", send_swap_deposit)?;
     cx.export_function("shield", shield)?;
     cx.export_function("confirm", confirm)?;
     cx.export_function("delete_wallet", delete_wallet)?;
@@ -2767,32 +2768,15 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Ok(request) => request,
                     Err(e) => return object! { "error" => format!("Request Error: {e}") }.pretty(2),
                 };
-                // One OP_RETURN per transaction, and one route for the
-                // whole spend, so both are read from the first receiver
-                // rather than the array. Ordinary sends omit them; the
-                // swap deposit flow sets both.
-                let op_return_data = match json_args[0]["op_return"].as_str() {
-                    Some(hex_payload) => {
-                        let bytes = match hex::decode(hex_payload) {
-                            Ok(bytes) => bytes,
-                            Err(e) => return object! { "error" => format!("Invalid op_return hex: {e}") }.pretty(2),
-                        };
-                        match OpReturnData::new(bytes) {
-                            Ok(data) => Some(data),
-                            Err(e) => return object! { "error" => format!("Invalid op_return: {e}") }.pretty(2),
-                        }
-                    }
-                    None => None,
-                };
-                let route_via_ephemeral = json_args[0]["route_via_ephemeral"]
-                    .as_bool()
-                    .unwrap_or(false);
-                match lightclient
-                    .propose_send(request, AccountId::ZERO, op_return_data, route_via_ephemeral)
-                    .await
-                {
+                // A memo-bearing deposit is not proposed here. It has its
+                // own shape and its own entry point, `send_swap_deposit`,
+                // because the wallet cannot attach an OP_RETURN to a
+                // shielded spend at all: that took the owned spend pipeline,
+                // and the pipeline is gone. Anything reaching this function
+                // is an ordinary send.
+                match lightclient.propose_send(request, AccountId::ZERO).await {
                     Ok(proposal) => {
-                        let fee = match proposal.total_fee() {
+                        let fee = match zingolib::data::proposal::total_fee(&proposal) {
                             Ok(fee) => fee,
                             Err(e) => return object! { "error" => e.to_string() }.pretty(2),
                         };
@@ -2801,6 +2785,63 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Err(e) => {
                         object! { "error" => e.to_string() }
                     }
+                }
+                .pretty(2)
+            }))
+        })
+    })
+}
+
+/// Pays a swap deposit that carries a memo, as the two transactions the
+/// shape requires: a deshield to a reserved wallet-owned transparent
+/// address, then a transparent carrier paying the vault with the memo in an
+/// OP_RETURN.
+///
+/// Separate from `send` because it is not a proposal the caller confirms —
+/// it sends, and answers with both txids, the carrier last. `send` quotes a
+/// fee and `confirm` transmits; there is no way to quote this shape without
+/// performing it, and the swap flow never showed that fee to anyone.
+///
+/// Every provider that sends a memo comes through here, including the ones
+/// that used to manage with a single transaction. The wallet cannot attach
+/// an OP_RETURN to a shielded spend any more, so the pair is the only shape
+/// that carries a memo at all. It costs one extra transaction's fee, which
+/// is the price of the memo arriving.
+fn send_swap_deposit(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let vault_address = cx.argument::<JsString>(0)?.value(&mut cx);
+    let amount = cx.argument::<JsNumber>(1)?.value(&mut cx);
+    let memo_hex = cx.argument::<JsString>(2)?.value(&mut cx);
+
+    spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
+        with_initialized_lightclient(|lightclient| {
+            // Validation crosses on the data channel as `{ "error": .. }`,
+            // the same shape `send` uses, so no failure can read as a
+            // success.
+            let amount = match Zatoshis::from_u64(amount as u64) {
+                Ok(amount) => amount,
+                Err(e) => return Ok(object! { "error" => format!("Invalid amount: {e}") }.pretty(2)),
+            };
+            let bytes = match hex::decode(&memo_hex) {
+                Ok(bytes) => bytes,
+                Err(e) => return Ok(object! { "error" => format!("Invalid memo hex: {e}") }.pretty(2)),
+            };
+            let memo = match OpReturnData::new(bytes) {
+                Ok(memo) => memo,
+                Err(e) => return Ok(object! { "error" => format!("Invalid memo: {e}") }.pretty(2)),
+            };
+
+            Ok(RT.block_on(async move {
+                match lightclient
+                    .propose_swap_deposit(&vault_address, amount, memo, AccountId::ZERO, true)
+                    .await
+                {
+                    // Deshield first, carrier last — the order the swap
+                    // flow reads, which takes the last as the deposit the
+                    // provider watches.
+                    Ok(reports) => object! {
+                        "txids" => reports.iter().map(|report| report.txid.to_string()).collect::<Vec<_>>()
+                    },
+                    Err(e) => object! { "error" => cause_chain(&e) },
                 }
                 .pretty(2)
             }))
@@ -2817,15 +2858,18 @@ fn shield(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         if proposal.steps().len() != 1 {
                             return object! { "error" => "shielding transactions should not have multiple proposal steps" }.pretty(2);
                         }
-                        let step = proposal.final_step();
+                        let step = proposal
+                            .steps()
+                            .last();
                         let Some(value_to_shield) = step
-                            .change()
+                            .balance()
+                            .proposed_change()
                             .iter()
                             .try_fold(Zatoshis::ZERO, |acc, c| acc + c.value()) else {
                                 return object! { "error" => "shield amount outside valid range of zatoshis" }
                                     .pretty(2);
                         };
-                        let fee = step.fee();
+                        let fee = step.balance().fee_required();
                         object! {
                             "value_to_shield" => value_to_shield.into_u64(),
                             "fee" => fee.into_u64(),

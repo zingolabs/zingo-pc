@@ -8,7 +8,7 @@ import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
 import { Field, FieldRow } from "../common/DetailField";
 import { native } from "../../electronBridge";
-import { SwapDirectionEnum, needsEphemeralRoute, providerLongLabel } from "../../swap";
+import { SwapDirectionEnum, providerLongLabel } from "../../swap";
 import type {
   DepositInstructionsType,
   FiatValueBasisType,
@@ -39,7 +39,6 @@ type SwapExecuteProps = {
     depositAddress: string;
     amountAtomic: number;
     memoBytes?: Uint8Array;
-    routeViaEphemeral?: boolean;
   }) => Promise<string[]>;
   onDone: () => void;
 };
@@ -83,7 +82,6 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           depositAddress: instructions.depositAddress,
           amountAtomic: zecToZatoshis(instructions.amountHumanDecimal),
           memoBytes: instructions.memoBytes,
-          routeViaEphemeral: needsEphemeralRoute(instructions.provider),
         });
         // The provider watches the transaction that pays the vault, which is
         // the last one: a two-hop send emits shielded → ephemeral first. Taking

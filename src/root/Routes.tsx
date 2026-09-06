@@ -598,7 +598,6 @@ const AppRoutes: React.FC = () => {
       depositAddress: string;
       amountAtomic: number;
       memoBytes?: Uint8Array;
-      routeViaEphemeral?: boolean;
     }): Promise<string[]> => {
       return rpcRef.current!.sendSwapDeposit(args);
     },
