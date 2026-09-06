@@ -492,6 +492,20 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
 
   const chosenRoute = useMemo(() => routes?.find((r) => r.routeId === chosenRouteId) ?? null, [routes, chosenRouteId]);
 
+  // What the routes on screen were actually quoted for.
+  //
+  // Read from the pinned quote input rather than the form, because those two
+  // disagree exactly when it matters: the amount is being edited, the debounce
+  // has not fired, and the figures below still answer the previous one. Taking
+  // it from the form would show the new amount over the old quote's numbers,
+  // which is the confusion this is here to end.
+  const quotedSell: string = useMemo(() => {
+    const input = quoteContext?.quoteInput;
+    if (!input) return "";
+    const symbol = input.sellAsset.ticker ?? input.sellAsset.chain;
+    return `${formatAmountForDisplay(input.sellAmountHumanDecimal)} ${symbol}`;
+  }, [quoteContext]);
+
   // Whether the routes on screen were quoted for the address on screen. They
   // are not, briefly, whenever the address is entered or edited after a quote
   // has already landed, and committing one of those asks the provider to
@@ -819,6 +833,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             {!!chosenRoute && (
               <div className={cstyles.padtopsmall}>
                 <div className={cstyles.large}>
+                  {/* Subordinate to the figure it produced: the headline is
+                      still what arrives. */}
+                  {!!quotedSell && <span className={cstyles.sublight}>{quotedSell} → </span>}
                   {formatAmountForDisplay(chosenRoute.expectedReceiveAmount)}{" "}
                   {isOutbound ? (selectedToken?.ticker ?? "") : "ZEC"}
                 </div>
@@ -956,6 +973,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
           selectedRouteId={chosenRouteId}
           receiveSymbol={isOutbound ? (selectedToken?.ticker ?? "") : "ZEC"}
           sellSymbol={isOutbound ? "ZEC" : (selectedToken?.ticker ?? "")}
+          quotedSell={quotedSell}
           direction={direction}
           modalIsOpen={quotesOpen}
           closeModal={() => setQuotesOpen(false)}

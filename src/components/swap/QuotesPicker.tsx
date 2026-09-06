@@ -13,6 +13,10 @@ type QuotesPickerProps = {
   selectedRouteId: string;
   receiveSymbol: string;
   sellSymbol: string;
+  /** What these routes were quoted for, already formatted with its symbol.
+   *  Every route in one quote answers the same amount, so it is stated once
+   *  above the list rather than repeated on each row. */
+  quotedSell?: string;
   direction: SwapDirectionEnum;
   modalIsOpen: boolean;
   closeModal: () => void;
@@ -41,6 +45,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
   selectedRouteId,
   receiveSymbol,
   sellSymbol,
+  quotedSell,
   direction,
   modalIsOpen,
   closeModal,
@@ -57,6 +62,11 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
     >
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Quotes returned</div>
+        {/* The list answers one amount, and which one is the thing a user
+            editing the field cannot otherwise tell. */}
+        {!!quotedSell && (
+          <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small}`}>{quotedSell} →</div>
+        )}
 
         <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 12 }}>
           {routes.map((route) => {
