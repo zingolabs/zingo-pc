@@ -8,6 +8,7 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import VtModal from "../history/components/VtModal";
+import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 
 type MessagesProps = {};
 
@@ -25,7 +26,6 @@ const Messages: React.FC<MessagesProps> = () => {
     saplingPool,
     transparentPool,
     calculateShieldFee,
-    handleShieldButton,
     zecPrice,
   } = context;
 
@@ -155,20 +155,7 @@ const Messages: React.FC<MessagesProps> = () => {
             />
           )}
         </div>
-        <div className={cstyles.balancebox}>
-          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
-            <>
-              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
-                Shield Transparent Balance (Fee: {shieldFee})
-              </button>
-            </>
-          )}
-          {!!anyPending && (
-            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
-              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
-            </div>
-          )}
-        </div>
+        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />

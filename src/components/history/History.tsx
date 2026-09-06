@@ -13,6 +13,7 @@ import { useSwapRecords, useValueTransfersWithSwaps } from "../../context/Contex
 import { SwapStore } from "../../swap";
 import { ValueTransferKindEnum } from "../appstate";
 import SwapDetailModal from "../swap/SwapDetailModal";
+import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 
 type HistoryProps = {};
 
@@ -29,7 +30,6 @@ const History: React.FC<HistoryProps> = () => {
     saplingPool,
     transparentPool,
     calculateShieldFee,
-    handleShieldButton,
     zecPrice,
   } = context;
 
@@ -203,20 +203,7 @@ const History: React.FC<HistoryProps> = () => {
             />
           )}
         </div>
-        <div className={cstyles.balancebox}>
-          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
-            <>
-              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
-                Shield Transparent Balance (Fee: {shieldFee})
-              </button>
-            </>
-          )}
-          {!!anyPending && (
-            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
-              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
-            </div>
-          )}
-        </div>
+        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />

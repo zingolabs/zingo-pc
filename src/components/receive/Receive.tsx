@@ -18,6 +18,7 @@ import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
+import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 
 type ReceiveProps = {};
 
@@ -157,20 +158,7 @@ const Receive: React.FC<ReceiveProps> = () => {
             />
           )}
         </div>
-        <div className={cstyles.balancebox}>
-          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
-            <>
-              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
-                Shield Transparent Balance (Fee: {shieldFee})
-              </button>
-            </>
-          )}
-          {!!anyPending && (
-            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
-              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
-            </div>
-          )}
-        </div>
+        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />

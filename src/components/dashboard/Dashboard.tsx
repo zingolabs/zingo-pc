@@ -21,6 +21,7 @@ import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import { useValueTransfersWithSwaps } from "../../context/ContextSwapService";
 import { swapRowLabel } from "../../swap";
 import DetailLine from "../detailLine/DetailLine";
+import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 import { useNavigate } from "react-router-dom";
 
 type DashboardProps = {
@@ -44,7 +45,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     saplingPool,
     transparentPool,
     calculateShieldFee,
-    handleShieldButton,
     zecPrice,
     reopenWallet,
   } = context;
@@ -348,20 +348,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
               />
             )}
           </div>
-          <div className={cstyles.balancebox}>
-            {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
-              <>
-                <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
-                  Shield Transparent Balance (Fee: {shieldFee})
-                </button>
-              </>
-            )}
-            {!!anyPending && (
-              <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
-                Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
-              </div>
-            )}
-          </div>
+          <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
           {!!fetchError && !!fetchError.error && (
             <>
               <hr />

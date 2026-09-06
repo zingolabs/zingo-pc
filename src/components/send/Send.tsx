@@ -22,6 +22,7 @@ import SendConfirmModal from "./components/SendConfirmModal";
 import { ContextApp } from "../../context/ContextAppState";
 
 import { native } from "../../electronBridge";
+import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 import getSendManyJSON from "./components/getSendManyJSON";
 
 type SendProps = {
@@ -44,7 +45,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
     currentWallet,
     setSendTo,
     calculateShieldFee,
-    handleShieldButton,
     zecPrice,
     mixnetView,
   } = context;
@@ -302,20 +302,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
             tooltip={tooltip}
           />
         </div>
-        <div className={cstyles.balancebox}>
-          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
-            <>
-              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
-                Shield Transparent Balance (Fee: {shieldFee})
-              </button>
-            </>
-          )}
-          {!!anyPending && (
-            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
-              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
-            </div>
-          )}
-        </div>
+        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
