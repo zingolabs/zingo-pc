@@ -17,6 +17,10 @@ type QuotesPickerProps = {
    *  Carried on every row: the reader compares rows, and each one has to say
    *  what it is answering. */
   quotedSell?: string;
+  /** The symbol the routes are denominated in, from the same quote as
+   *  `quotedSell`. Falls back to `receiveSymbol`, which is the form's answer
+   *  and can disagree with the quote while a new one is in flight. */
+  quotedReceiveSymbol?: string;
   direction: SwapDirectionEnum;
   modalIsOpen: boolean;
   closeModal: () => void;
@@ -46,6 +50,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
   receiveSymbol,
   sellSymbol,
   quotedSell,
+  quotedReceiveSymbol,
   direction,
   modalIsOpen,
   closeModal,
@@ -109,12 +114,12 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                         it answers, and a heading over a list is not read with
                         the line the eye is on. */}
                     {!!quotedSell && <span className={cstyles.sublight}>{quotedSell} → </span>}
-                    {formatAmountForDisplay(route.expectedReceiveAmount)} {receiveSymbol}
+                    {formatAmountForDisplay(route.expectedReceiveAmount)} {quotedReceiveSymbol || receiveSymbol}
                   </div>
                 </div>
 
                 <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
-                  At least {formatAmountForDisplay(route.minReceiveAmount)} {receiveSymbol}
+                  At least {formatAmountForDisplay(route.minReceiveAmount)} {quotedReceiveSymbol || receiveSymbol}
                   {route.estimatedTimeText ? ` — ${route.estimatedTimeText}` : ""}
                   {fee ? ` — fee ${formatAmountForDisplay(fee)} ${feeSymbol}` : ""}
                 </div>

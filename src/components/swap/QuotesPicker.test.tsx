@@ -14,7 +14,7 @@ const route = (routeId: string, expectedReceiveAmount: string, minReceiveAmount:
     minReceiveAmount,
   }) as RouteOptionType;
 
-const show = (quotedSell?: string) =>
+const show = (quotedSell?: string, quotedReceiveSymbol?: string) =>
   render(
     <QuotesPicker
       routes={[route("a", "0.00011", "0.00009"), route("b", "0.00012", "0.00008")]}
@@ -23,6 +23,7 @@ const show = (quotedSell?: string) =>
       receiveSymbol="BTC"
       sellSymbol="ZEC"
       quotedSell={quotedSell}
+      quotedReceiveSymbol={quotedReceiveSymbol}
       direction={SwapDirectionEnum.Outbound}
       modalIsOpen
       closeModal={jest.fn()}
@@ -50,6 +51,23 @@ describe("QuotesPicker", () => {
   it("says nothing when there is no quote to describe", () => {
     show(undefined);
     expect(screen.queryByText(/ZEC →/)).not.toBeInTheDocument();
+  });
+
+  // Both sides of a row come from one quote. Reading the amount from the
+  // quote and the symbol from the form gives a row that contradicts itself
+  // while a new quote is in flight: switch to buying ZEC and the sold amount
+  // is still the old swap's ZEC while the received symbol is already the new
+  // one's — ZEC on both sides of a BTC-to-ZEC route.
+  it("denominates the routes in the quote's own receive asset", () => {
+    show("0.0001 BTC", "ZEC");
+    expect(screen.getAllByText(/0.0001 BTC/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/ZEC/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/BTC →.*BTC/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to the form's symbol when there is no quote to read", () => {
+    show("0.05 ZEC", undefined);
+    expect(screen.getAllByText(/BTC/).length).toBeGreaterThan(0);
   });
 
   it("still lists the routes", () => {

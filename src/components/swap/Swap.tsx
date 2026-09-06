@@ -506,6 +506,16 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     return `${formatAmountForDisplay(input.sellAmountHumanDecimal)} ${symbol}`;
   }, [quoteContext]);
 
+  // The symbol the routes are denominated in, from the same quote as the
+  // amount above. Reading one side from the quote and the other from the form
+  // is a row that can contradict itself: switch direction and, until the next
+  // quote lands, the amount sold is the old swap's and the symbol received is
+  // the new one's — a BTC-to-ZEC route reading ZEC on both sides.
+  const quotedReceiveSymbol: string = useMemo(() => {
+    const asset = quoteContext?.quoteInput.receiveAsset;
+    return asset ? (asset.ticker ?? asset.chain) : "";
+  }, [quoteContext]);
+
   // Whether the routes on screen were quoted for the address on screen. They
   // are not, briefly, whenever the address is entered or edited after a quote
   // has already landed, and committing one of those asks the provider to
@@ -837,7 +847,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                       still what arrives. */}
                   {!!quotedSell && <span className={cstyles.sublight}>{quotedSell} → </span>}
                   {formatAmountForDisplay(chosenRoute.expectedReceiveAmount)}{" "}
-                  {isOutbound ? (selectedToken?.ticker ?? "") : "ZEC"}
+                  {quotedReceiveSymbol || (isOutbound ? (selectedToken?.ticker ?? "") : "ZEC")}
                 </div>
                 <div className={`${cstyles.sublight} ${cstyles.small}`}>
                   via {providerShortLabel(chosenRoute.provider)}
@@ -974,6 +984,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
           receiveSymbol={isOutbound ? (selectedToken?.ticker ?? "") : "ZEC"}
           sellSymbol={isOutbound ? "ZEC" : (selectedToken?.ticker ?? "")}
           quotedSell={quotedSell}
+          quotedReceiveSymbol={quotedReceiveSymbol}
           direction={direction}
           modalIsOpen={quotesOpen}
           closeModal={() => setQuotesOpen(false)}
