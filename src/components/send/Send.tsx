@@ -226,7 +226,15 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
           }
         }
       }
-      if (sendPageState.toaddr.amount >= 0 && sendPageState.toaddr.to && !_error) {
+      // Only once there is something to send. Quoting a fee for an amount of
+      // zero asks the wallet to price a zero-valued payment, and zip321 refuses
+      // one to a transparent recipient — "zero-valued transparent outputs are
+      // disallowed by consensus", raised by the field's own default of 0 the
+      // moment an address is pasted, with nothing sent. A shielded recipient
+      // hid it, because zip321 allows a zero-valued shielded output.
+      //
+      // There is no fee for sending nothing, so there is nothing to ask.
+      if (sendPageState.toaddr.amount > 0 && sendPageState.toaddr.to && !_error) {
         const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
         const result: string = await native.send(JSON.stringify(sendJson));
         if (!result) {
