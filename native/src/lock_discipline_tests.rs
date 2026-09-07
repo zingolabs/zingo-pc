@@ -399,3 +399,39 @@ fn mixnet_status_answers_beside_a_held_read_guard() {
         "the status snapshot is a value, not null: {answer}"
     );
 }
+
+/// The fixture wallet's own (only) transparent address.
+fn fixture_transparent_address() -> String {
+    let parsed = json::parse(&get_transparent_addresses_string().expect("initialized fixture"))
+        .expect("well-formed address list");
+    parsed[0]["encoded_address"]
+        .as_str()
+        .expect("the fixture derives one address")
+        .to_string()
+}
+
+#[test]
+fn nothing_shielded_answers_zero_rather_than_a_consensus_error() {
+    let _serial = serialized();
+    init_offline_wallet();
+
+    // `max_send_value` used to price a trial payment of the whole shielded
+    // spendable balance to the address. With nothing shielded that payment is
+    // zero-valued, and zip321 refuses a zero-valued output to a transparent
+    // recipient — so asking what could be sent answered "zero-valued
+    // transparent outputs are disallowed by consensus". The Send screen asks
+    // this on every address change, so the error arrived on the keystroke that
+    // finished pasting an address, with no send attempted.
+    //
+    // A shielded recipient hid it, because zip321 allows a zero-valued
+    // shielded output. That asymmetry is why it looked arbitrary.
+    let answer = get_spendable_balance_with_address_string(fixture_transparent_address(), "false".to_string())
+        .expect("a balance question is not a consensus question");
+
+    let parsed = json::parse(&answer).expect("well-formed JSON");
+    assert_eq!(
+        parsed["spendable_balance"].as_u64(),
+        Some(0),
+        "a wallet with nothing shielded can send nothing: {parsed}"
+    );
+}

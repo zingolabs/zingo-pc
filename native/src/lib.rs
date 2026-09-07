@@ -979,7 +979,16 @@ fn cause_chain(error: &dyn std::error::Error) -> String {
     let mut chain = vec![error.to_string()];
     let mut cause = error.source();
     while let Some(source) = cause {
-        chain.push(source.to_string());
+        let text = source.to_string();
+        // Some errors print their own cause and also expose it through
+        // `source()`. Walking both then says everything twice — "zero-valued
+        // transparent outputs are disallowed by consensus ← zero-valued
+        // transparent outputs are disallowed by consensus" — which reads as a
+        // fault in the reporting rather than the report. A layer that adds
+        // nothing to the one above it is not worth a segment.
+        if !chain.last().is_some_and(|last| last.contains(&text)) {
+            chain.push(text);
+        }
         cause = source.source();
     }
     chain.join(" ← ")
@@ -1015,6 +1024,20 @@ mod cause_chain_tests {
         assert_eq!(
             cause_chain(&error),
             "server error ← server request failed ← status: Unavailable, message: \"connection refused\"",
+        );
+    }
+
+    // A wrapper that prints its own cause and also exposes it. Walking both
+    // would say everything twice.
+    #[derive(Debug, thiserror::Error)]
+    #[error("outer: {0}")]
+    struct Echoing(#[from] Status);
+
+    #[test]
+    fn a_layer_that_repeats_its_cause_earns_no_segment() {
+        assert_eq!(
+            cause_chain(&Echoing(Status)),
+            "outer: status: Unavailable, message: \"connection refused\"",
         );
     }
 
@@ -2396,6 +2419,29 @@ fn get_spendable_balance_with_address_string(address: String, zennies: String) -
             return Err(ZingolibError::Read("failed to parse zennies setting.".to_string()));
         };
         RT.block_on(async move {
+            // `max_send_value` sizes the maximum by pricing a trial payment of the
+            // whole shielded spendable balance to this address. With nothing
+            // shielded to spend that trial payment is zero-valued, and zip321
+            // refuses a zero-valued output to a transparent recipient — so typing
+            // a transparent address on a wallet whose funds are all transparent,
+            // or still syncing, raised "zero-valued transparent outputs are
+            // disallowed by consensus" out of what is only a balance question.
+            //
+            // Nothing to spend means a maximum of zero. Answer that and ask
+            // nobody to price it.
+            //
+            // Scoped: `max_send_value` takes the wallet's write lock, and this
+            // read guard has to be gone before it does.
+            let spendable = {
+                let wallet = lightclient.wallet().read().await;
+                wallet
+                    .shielded_spendable_balance(AccountId::ZERO, false)
+                    .map_err(|e| ZingolibError::Read(cause_chain(&e)))?
+            };
+            if spendable == Zatoshis::ZERO {
+                return Ok(object! { "spendable_balance" => spendable.into_u64() }.pretty(2));
+            }
+
             match lightclient
                 .max_send_value(address, zennies, AccountId::ZERO)
                 .await
