@@ -2011,7 +2011,7 @@ dependencies = [
 [[package]]
 name = "pepper-sync"
 version = "0.5.0"
-source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#76a6b3e3b42b1ab271616af5fd6b7c5abfb22976"
+source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#e9a81e624b3940388b0ef4a14f635fd14dad8907"
 dependencies = [
  "bip32",
  "byteorder",
@@ -4198,7 +4198,7 @@ dependencies = [
 [[package]]
 name = "zingo-memo"
 version = "0.1.1"
-source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#76a6b3e3b42b1ab271616af5fd6b7c5abfb22976"
+source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#e9a81e624b3940388b0ef4a14f635fd14dad8907"
 dependencies = [
  "zcash_address",
  "zcash_encoding",
@@ -4209,7 +4209,7 @@ dependencies = [
 [[package]]
 name = "zingo-net-diag"
 version = "0.1.0"
-source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#76a6b3e3b42b1ab271616af5fd6b7c5abfb22976"
+source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#e9a81e624b3940388b0ef4a14f635fd14dad8907"
 dependencies = [
  "serde",
 ]
@@ -4217,7 +4217,7 @@ dependencies = [
 [[package]]
 name = "zingo-netutils"
 version = "5.0.1"
-source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#76a6b3e3b42b1ab271616af5fd6b7c5abfb22976"
+source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#e9a81e624b3940388b0ef4a14f635fd14dad8907"
 dependencies = [
  "http",
  "hyper-util",
@@ -4239,7 +4239,7 @@ dependencies = [
 [[package]]
 name = "zingo-price"
 version = "0.1.0"
-source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#76a6b3e3b42b1ab271616af5fd6b7c5abfb22976"
+source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#e9a81e624b3940388b0ef4a14f635fd14dad8907"
 dependencies = [
  "byteorder",
  "serde",
@@ -4253,7 +4253,7 @@ dependencies = [
 [[package]]
 name = "zingo-status"
 version = "0.2.1"
-source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#76a6b3e3b42b1ab271616af5fd6b7c5abfb22976"
+source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#e9a81e624b3940388b0ef4a14f635fd14dad8907"
 dependencies = [
  "byteorder",
  "zcash_protocol",
@@ -4271,7 +4271,7 @@ dependencies = [
 [[package]]
 name = "zingolib"
 version = "5.0.0"
-source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#76a6b3e3b42b1ab271616af5fd6b7c5abfb22976"
+source = "git+https://github.com/dorianvp/zingolib?branch=feat%2Fadd-opreturn#e9a81e624b3940388b0ef4a14f635fd14dad8907"
 dependencies = [
  "append-only-vec",
  "bech32",
