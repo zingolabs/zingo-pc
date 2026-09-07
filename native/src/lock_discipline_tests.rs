@@ -416,15 +416,20 @@ fn nothing_shielded_answers_zero_rather_than_a_consensus_error() {
     init_offline_wallet();
 
     // `max_send_value` used to price a trial payment of the whole shielded
-    // spendable balance to the address. With nothing shielded that payment is
+    // spendable balance to the address. With nothing shielded that payment was
     // zero-valued, and zip321 refuses a zero-valued output to a transparent
     // recipient — so asking what could be sent answered "zero-valued
     // transparent outputs are disallowed by consensus". The Send screen asks
-    // this on every address change, so the error arrived on the keystroke that
+    // this on every address change, so it arrived on the keystroke that
     // finished pasting an address, with no send attempted.
     //
     // A shielded recipient hid it, because zip321 allows a zero-valued
     // shielded output. That asymmetry is why it looked arbitrary.
+    //
+    // zingolib answers zero itself now, so this no longer guards a workaround
+    // of ours: it guards the pin. Should a future bump lose that answer, this
+    // is what says so, and it says it in the wallet we ship rather than in a
+    // test suite we do not run.
     let answer = get_spendable_balance_with_address_string(fixture_transparent_address(), "false".to_string())
         .expect("a balance question is not a consensus question");
 

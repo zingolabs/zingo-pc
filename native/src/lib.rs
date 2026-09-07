@@ -2419,29 +2419,6 @@ fn get_spendable_balance_with_address_string(address: String, zennies: String) -
             return Err(ZingolibError::Read("failed to parse zennies setting.".to_string()));
         };
         RT.block_on(async move {
-            // `max_send_value` sizes the maximum by pricing a trial payment of the
-            // whole shielded spendable balance to this address. With nothing
-            // shielded to spend that trial payment is zero-valued, and zip321
-            // refuses a zero-valued output to a transparent recipient — so typing
-            // a transparent address on a wallet whose funds are all transparent,
-            // or still syncing, raised "zero-valued transparent outputs are
-            // disallowed by consensus" out of what is only a balance question.
-            //
-            // Nothing to spend means a maximum of zero. Answer that and ask
-            // nobody to price it.
-            //
-            // Scoped: `max_send_value` takes the wallet's write lock, and this
-            // read guard has to be gone before it does.
-            let spendable = {
-                let wallet = lightclient.wallet().read().await;
-                wallet
-                    .shielded_spendable_balance(AccountId::ZERO, false)
-                    .map_err(|e| ZingolibError::Read(cause_chain(&e)))?
-            };
-            if spendable == Zatoshis::ZERO {
-                return Ok(object! { "spendable_balance" => spendable.into_u64() }.pretty(2));
-            }
-
             match lightclient
                 .max_send_value(address, zennies, AccountId::ZERO)
                 .await
