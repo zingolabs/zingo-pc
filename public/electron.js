@@ -307,7 +307,10 @@ class MenuBuilder {
       label: "Help",
       submenu: [
         {
+          // The App Store build updates through the App Store, and pointing at
+          // another channel is what guideline 2.4.5(vii) forbids.
           label: "Check github.com for updates",
+          visible: process.mas !== true,
           click() {
             shell.openExternal("https://github.com/zingolabs/zingo-pc");
           },
