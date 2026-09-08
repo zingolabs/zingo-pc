@@ -3,30 +3,74 @@ const fs = require("fs");
 const os = require("os");
 const { execSync, spawnSync } = require("child_process");
 
-// Returns true if the file is a Mach-O binary (checks magic bytes).
-function isMachO(filePath) {
+const MH_MAGIC = 0xfeedface;
+const MH_MAGIC_64 = 0xfeedfacf;
+const MH_CIGAM = 0xcefaedfe;
+const MH_CIGAM_64 = 0xcffaedfe;
+const FAT_MAGIC = 0xcafebabe;
+const FAT_MAGIC_64 = 0xcafebabf;
+const MH_EXECUTE = 2;
+
+function readU32(fd, offset, littleEndian) {
+  const buf = Buffer.alloc(4);
+  fs.readSync(fd, buf, 0, 4, offset);
+  return littleEndian ? buf.readUInt32LE(0) : buf.readUInt32BE(0);
+}
+
+function readU64(fd, offset) {
+  const buf = Buffer.alloc(8);
+  fs.readSync(fd, buf, 0, 8, offset);
+  return Number(buf.readBigUInt64BE(0));
+}
+
+// Returns the Mach-O filetype at a header offset, or 0 when no header is there.
+function fileTypeAt(fd, offset) {
+  const magic = readU32(fd, offset, false);
+  if (magic === MH_MAGIC || magic === MH_MAGIC_64) return readU32(fd, offset + 12, false);
+  if (magic === MH_CIGAM || magic === MH_CIGAM_64) return readU32(fd, offset + 12, true);
+  return 0;
+}
+
+// Returns "executable", "code" (dylib, bundle, native addon), or "none",
+// reading the first slice of a universal binary for the whole file's kind.
+function machOKind(filePath) {
+  let fd;
   try {
-    const buf = Buffer.alloc(4);
-    const fd = fs.openSync(filePath, "r");
-    fs.readSync(fd, buf, 0, 4, 0);
-    fs.closeSync(fd);
-    const magic = buf.readUInt32BE(0);
-    // 64-bit, 32-bit, or fat binary
-    return magic === 0xfeedfacf || magic === 0xfeedface || magic === 0xcafebabe;
+    fd = fs.openSync(filePath, "r");
   } catch {
-    return false;
+    return "none";
+  }
+  try {
+    const magic = readU32(fd, 0, false);
+    let type;
+    if (magic === FAT_MAGIC || magic === FAT_MAGIC_64) {
+      if (readU32(fd, 4, false) === 0) return "none";
+      // fat_arch and fat_arch_64 both carry the slice offset at byte 16, in
+      // four bytes and in eight.
+      const sliceOffset = magic === FAT_MAGIC_64 ? readU64(fd, 16) : readU32(fd, 16, false);
+      type = fileTypeAt(fd, sliceOffset);
+    } else {
+      type = fileTypeAt(fd, 0);
+    }
+    if (type === MH_EXECUTE) return "executable";
+    return type === 0 ? "none" : "code";
+  } catch {
+    return "none";
+  } finally {
+    fs.closeSync(fd);
   }
 }
 
-// Recursively collects Mach-O binaries inside a directory, skipping .app sub-bundles.
+// Recursively collects Mach-O files inside a directory, skipping .app sub-bundles.
 function collectBinaries(dir, results) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.isSymbolicLink()) continue;
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       if (!entry.name.endsWith(".app")) collectBinaries(fullPath, results);
-    } else if (entry.isFile() && isMachO(fullPath)) {
-      results.push(fullPath);
+    } else if (entry.isFile()) {
+      const kind = machOKind(fullPath);
+      if (kind !== "none") results.push({ path: fullPath, kind });
     }
   }
 }
@@ -85,14 +129,18 @@ module.exports = async function afterSign(context) {
   fs.writeFileSync(emptyEntitlementsPath, emptyPlist);
   console.log(`[afterMasSign] Empty entitlements plist: ${emptyEntitlementsPath}`);
 
-  const resignNoEntitlements = (filePath) => {
+  // Executables the app launches are a different case. MAS requires every one
+  // of them to carry app-sandbox + inherit so it runs inside the parent's
+  // sandbox, so they get the inherit plist while the dylibs get the empty one.
+  const inheritEntitlementsPath = path.join(__dirname, "configs", "entitlements.mas.inherit.plist");
+
+  const resign = (filePath, entitlementsPath, label) => {
     const rel = path.relative(appPath, filePath);
-    console.log(`[afterMasSign] Re-signing (no entitlements): ${rel}`);
+    console.log(`[afterMasSign] Re-signing (${label}): ${rel}`);
     try {
-      execSync(
-        `codesign --force --sign "${identity}" --entitlements "${emptyEntitlementsPath}" --timestamp "${filePath}"`,
-        { stdio: "pipe" },
-      );
+      execSync(`codesign --force --sign "${identity}" --entitlements "${entitlementsPath}" --timestamp "${filePath}"`, {
+        stdio: "pipe",
+      });
     } catch (err) {
       const out = err.stdout ? err.stdout.toString() : "";
       const errStr = err.stderr ? err.stderr.toString() : "";
@@ -100,7 +148,14 @@ module.exports = async function afterSign(context) {
     }
   };
 
-  // --- 1. Re-sign framework dylibs without entitlements (fixes warning 91166) ---
+  const resignByKind = ({ path: filePath, kind }) =>
+    kind === "executable"
+      ? resign(filePath, inheritEntitlementsPath, "inherit")
+      : resign(filePath, emptyEntitlementsPath, "no entitlements");
+
+  // --- 1. Re-sign the framework contents (fixes warning 91166) ---
+  // Dylibs lose their entitlements. The executables Electron ships inside its
+  // framework, chrome_crashpad_handler and Squirrel's ShipIt, keep inherit.
 
   const frameworksDir = path.join(appPath, "Contents", "Frameworks");
   const frameworkBundles = [];
@@ -118,8 +173,8 @@ module.exports = async function afterSign(context) {
 
   console.log(`[afterMasSign] Frameworks: ${frameworkBundles.length}, framework binaries: ${frameworkBinaries.length}`);
 
-  for (const bin of frameworkBinaries) resignNoEntitlements(bin);
-  for (const fw of frameworkBundles) resignNoEntitlements(fw);
+  for (const bin of frameworkBinaries) resignByKind(bin);
+  for (const fw of frameworkBundles) resign(fw, emptyEntitlementsPath, "no entitlements");
 
   // --- 2. Re-sign native addons in app.asar.unpacked (fixes warning 91166) ---
   // electron-builder signs all Mach-O files including native.node with inherit
@@ -130,31 +185,18 @@ module.exports = async function afterSign(context) {
     const unpacked = [];
     collectBinaries(asarUnpacked, unpacked);
     console.log(`[afterMasSign] Native addons in asar.unpacked: ${unpacked.length}`);
-    for (const bin of unpacked) resignNoEntitlements(bin);
+    for (const bin of unpacked) resignByKind(bin);
   } else {
     console.log("[afterMasSign] No app.asar.unpacked directory found.");
   }
 
   // --- 2.5. Sign the bundled nym-proxy with inherit entitlements ---
-  // The wallet spawns it as a child (ADR 0024); MAS requires an inherited
-  // helper to carry app-sandbox + inherit so it runs inside the parent's
-  // sandbox and uses the parent's network entitlements. It lives in
-  // Contents/Resources (extraResources), untouched by the passes above.
+  // The wallet spawns it as a child (ADR 0024). It lives in Contents/Resources
+  // (extraResources), untouched by the passes above.
 
-  const inheritEntitlementsPath = path.join(__dirname, "configs", "entitlements.mas.inherit.plist");
   const nymProxyPath = path.join(appPath, "Contents", "Resources", "nym-proxy");
   if (fs.existsSync(nymProxyPath)) {
-    console.log("[afterMasSign] Signing nym-proxy with inherit entitlements...");
-    try {
-      execSync(
-        `codesign --force --sign "${identity}" --entitlements "${inheritEntitlementsPath}" --timestamp "${nymProxyPath}"`,
-        { stdio: "pipe" },
-      );
-    } catch (err) {
-      const out = err.stdout ? err.stdout.toString() : "";
-      const errStr = err.stderr ? err.stderr.toString() : "";
-      throw new Error(`[afterMasSign] codesign failed for nym-proxy:\n${out}\n${errStr}`);
-    }
+    resign(nymProxyPath, inheritEntitlementsPath, "inherit");
   } else {
     console.log("[afterMasSign] No bundled nym-proxy in Resources (non-mixnet build?).");
   }
@@ -164,17 +206,8 @@ module.exports = async function afterSign(context) {
   // injects but was not in the provisioning profile (now it is, but we still want
   // to control exactly what entitlements end up in the final signature).
 
-  const entitlementsPath = path.join(__dirname, "configs", "entitlements.mas.plist");
-  console.log("[afterMasSign] Re-sealing app bundle with explicit MAS entitlements...");
-  try {
-    execSync(`codesign --force --sign "${identity}" --entitlements "${entitlementsPath}" --timestamp "${appPath}"`, {
-      stdio: "pipe",
-    });
-  } catch (err) {
-    const out = err.stdout ? err.stdout.toString() : "";
-    const errStr = err.stderr ? err.stderr.toString() : "";
-    throw new Error(`[afterMasSign] Failed to re-seal app bundle:\n${out}\n${errStr}`);
-  }
+  const appEntitlementsPath = path.join(__dirname, "configs", "entitlements.mas.plist");
+  resign(appPath, appEntitlementsPath, "app bundle");
 
   console.log("[afterMasSign] Done.");
 };
