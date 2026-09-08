@@ -484,10 +484,11 @@ fn store_client(lightclient: LightClient) -> Result<(), ZingolibError> {
     Ok(())
 }
 
+/// Sets the wallet base directory, answering false when one was already set.
 fn set_wallet_base_dir(mut cx: FunctionContext) -> JsResult<JsBoolean> {
     let path_str = cx.argument::<JsString>(0)?.value(&mut cx);
-    let _ = WALLET_BASE_DIR.set(std::path::PathBuf::from(path_str));
-    Ok(cx.boolean(true))
+    let stored = WALLET_BASE_DIR.set(std::path::PathBuf::from(path_str)).is_ok();
+    Ok(cx.boolean(stored))
 }
 
 fn neon_start_security_scoped_access(mut cx: FunctionContext) -> JsResult<JsObject> {
