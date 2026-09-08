@@ -1753,6 +1753,30 @@ function restartMixnet(reason) {
     });
 }
 
+// No crash reporter, deliberately — not an omission.
+//
+// A minidump carries process memory, and this app has no process that can be
+// dumped safely. The main process loads native.node, so it holds the opened
+// wallet — seed, spending keys, the lot — for the whole session. The renderer
+// holds the seed phrase as an ordinary string while one is being created,
+// restored or read back. The usual mitigation, collecting only from the
+// process without secrets, has nothing to point at here.
+//
+// Local-only collection is not the middle ground it looks like. It writes a
+// file that may contain a seed and then invites the user to send it: a crash
+// is exactly when someone attaches whatever the app produced to an issue
+// without reading it. The console silencing in src/index.tsx exists to stop a
+// careless log line reaching startup.log; a dump would be that leak without
+// needing anyone to be careless.
+//
+// `chrome_crashpad_handler` still ships and is signed to run — a sandboxed
+// app's helper has to carry app-sandbox and inherit whether or not we ask it
+// for anything, and signing it wrongly is its own bug (it was, until
+// a6050956). Shipped and idle is the intended state.
+//
+// If this is ever wanted, the order matters: stop holding the seed in plain
+// memory for longer than the moment it is needed, and only then turn
+// collection on. The other way round ships the hazard first.
 app.whenReady().then(() => {
   // Waking and unlocking are the two moments a laptop's tunnel is known to be
   // suspect. Not every OS emits both, so both are handled.

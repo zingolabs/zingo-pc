@@ -166,6 +166,11 @@ module.exports = async function afterSign(context) {
   // --- 1. Re-sign the framework contents (fixes warning 91166) ---
   // Dylibs lose their entitlements. The executables Electron ships inside its
   // framework, chrome_crashpad_handler and Squirrel's ShipIt, keep inherit.
+  //
+  // The crashpad handler is signed to run and is then asked for nothing: the
+  // app starts no crash reporter, and public/electron.js says why. Signing it
+  // correctly is not a step towards collecting dumps, it is what a sandboxed
+  // app owes any helper it ships.
 
   const frameworksDir = path.join(appPath, "Contents", "Frameworks");
   const frameworkBundles = [];
