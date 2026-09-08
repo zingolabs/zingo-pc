@@ -201,10 +201,10 @@ module.exports = async function afterSign(context) {
   }
 
   // --- 2.5. Sign the bundled nym-proxy with inherit entitlements ---
-  // The wallet spawns it as a child (ADR 0024). It lives in Contents/MacOS
-  // (extraFiles), untouched by the passes above.
+  // The wallet spawns it as a child (ADR 0024). It lives in Contents/Resources
+  // (extraResources), untouched by the passes above.
 
-  const nymProxyPath = path.join(appPath, "Contents", "MacOS", "nym-proxy");
+  const nymProxyPath = path.join(appPath, "Contents", "Resources", "nym-proxy");
   if (fs.existsSync(nymProxyPath)) {
     resign(nymProxyPath, inheritEntitlementsPath, "inherit");
   } else {

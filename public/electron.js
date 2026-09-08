@@ -1382,8 +1382,7 @@ const { spawn: spawnChild } = require("child_process");
 
 // The bundled nym-proxy path (only main knows the packaged layout).
 //
-// Packaged: beside the app executable on macOS, where Apple puts a nested
-// executable (extraFiles), and in process.resourcesPath on Windows and Linux
+// Packaged: electron-builder stages it into process.resourcesPath
 // (extraResources).
 //
 // Dev: `yarn mixnet` stages the same binary into the repo's resources/, which
@@ -1397,7 +1396,6 @@ function nymProxyPath() {
     const staged = path.join(__dirname, "..", "resources", exe);
     return fs.existsSync(staged) ? staged : "nym-proxy";
   }
-  if (process.platform === "darwin") return path.join(path.dirname(process.execPath), exe);
   return path.join(process.resourcesPath, exe);
 }
 
