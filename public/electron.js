@@ -1231,12 +1231,17 @@ function requireNative(method) {
 // Activates a security-scoped bookmark from the main process, which has
 // com.apple.security.files.bookmarks.app-scope explicitly. Apple docs say
 // app-scoped bookmark access applies to all processes in the app sandbox.
+// Returns { ok } and, when the bookmark had gone stale and macOS handed back a
+// replacement, { ok, refreshed } for the caller to store in its place.
 function activateBookmarkInMainProcess(bookmarkB64, wdLog) {
   const native = getNative();
-  if (native && typeof native.start_security_scoped_access === "function") {
-    const ok = native.start_security_scoped_access(bookmarkB64);
-    wdLog(`main-process start_security_scoped_access=${ok}`);
+  if (!native || typeof native.start_security_scoped_access !== "function") {
+    wdLog("main-process start_security_scoped_access unavailable");
+    return { ok: false };
   }
+  const access = native.start_security_scoped_access(bookmarkB64);
+  wdLog(`main-process start_security_scoped_access=${access.ok}${access.refreshed ? " refreshed" : ""}`);
+  return access;
 }
 
 // Sets the wallet base directory in the native (Rust) side directly from main.
@@ -1828,11 +1833,18 @@ ipcMain.handle("wallet-dir:request", async () => {
       `storedBookmark type=${typeof storedBookmark} hasValue=${typeof storedBookmark === "string" && storedBookmark.length > 0}`,
     );
     if (typeof storedBookmark === "string" && storedBookmark.length > 0) {
-      wdLog("returning stored bookmark");
-      activateBookmarkInMainProcess(storedBookmark, wdLog);
-      const storedPath = String(settings.getSync("all.walletDirPath") ?? "");
-      setWalletBaseDirInMainProcess(storedPath, wdLog);
-      return { path: storedPath };
+      const access = activateBookmarkInMainProcess(storedBookmark, wdLog);
+      if (access.ok) {
+        if (access.refreshed) settings.setSync("all.walletDirBookmark", access.refreshed);
+        const storedPath = String(settings.getSync("all.walletDirPath") ?? "");
+        setWalletBaseDirInMainProcess(storedPath, wdLog);
+        return { path: storedPath };
+      }
+      // The folder moved, was renamed, or the grant is gone. Every wallet read
+      // that follows would fail on a path the sandbox refuses, so drop the
+      // bookmark and ask for the folder again.
+      wdLog("stored bookmark grants no access, asking for the folder again");
+      settings.unsetSync("all.walletDirBookmark");
     }
 
     // First launch: info dialog → folder picker loop
@@ -1945,7 +1957,18 @@ ipcMain.handle("wallet-dir:request", async () => {
       }
 
       if (finalBookmark) {
-        activateBookmarkInMainProcess(finalBookmark, wdLog);
+        const access = activateBookmarkInMainProcess(finalBookmark, wdLog);
+        if (!access.ok) {
+          await dialog.showMessageBox(mainWindow, {
+            type: "error",
+            title: "Could not access the folder",
+            message: `Zingo could not get access to "${finalPath}".`,
+            detail: "Select the folder again, or pick a different one.",
+            buttons: ["Retry"],
+          });
+          continue;
+        }
+        if (access.refreshed) finalBookmark = access.refreshed;
       }
       settings.setSync("all.walletDirBookmark", finalBookmark);
       settings.setSync("all.walletDirPath", finalPath);

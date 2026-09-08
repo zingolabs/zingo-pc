@@ -31,10 +31,10 @@ int verify_mac_auth_sync(const char *reason_utf8) {
     }
 }
 
-// Resolves a security-scoped bookmark (base64) and starts accessing the resource.
-// Must be called in the process that needs file access (renderer/preload).
-// Returns 1 on success, 0 on error.
-int start_security_scoped_access(const char *bookmark_b64) {
+// Resolves a security-scoped bookmark (base64) and starts accessing the resource,
+// returning 0 when access was refused, 1 when it was granted, and 2 when it was
+// granted against a stale bookmark whose replacement is written to refreshed_out.
+int start_security_scoped_access(const char *bookmark_b64, char *refreshed_out, int refreshed_cap) {
     @autoreleasepool {
         if (!bookmark_b64) return 0;
         NSString *b64str = [NSString stringWithUTF8String:bookmark_b64];
@@ -48,6 +48,18 @@ int start_security_scoped_access(const char *bookmark_b64) {
                                    bookmarkDataIsStale:&isStale
                                                  error:&error];
         if (!url || error) return 0;
-        return [url startAccessingSecurityScopedResource] ? 1 : 0;
+        if (![url startAccessingSecurityScopedResource]) return 0;
+        if (!isStale || !refreshed_out || refreshed_cap <= 0) return 1;
+
+        NSError *remakeError = nil;
+        NSData *remade = [url bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope
+                       includingResourceValuesForKeys:nil
+                                        relativeToURL:nil
+                                                 error:&remakeError];
+        if (!remade || remakeError) return 1;
+        const char *encoded = [[remade base64EncodedStringWithOptions:0] UTF8String];
+        if (!encoded || strlen(encoded) + 1 > (size_t)refreshed_cap) return 1;
+        strlcpy(refreshed_out, encoded, (size_t)refreshed_cap);
+        return 2;
     }
 }

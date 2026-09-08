@@ -5,7 +5,11 @@ extern crate lazy_static;
 extern "C" {
     fn check_mac_auth_available() -> std::ffi::c_int;
     fn verify_mac_auth_sync(reason: *const std::ffi::c_char) -> std::ffi::c_int;
-    fn start_security_scoped_access(bookmark_b64: *const std::ffi::c_char) -> std::ffi::c_int;
+    fn start_security_scoped_access(
+        bookmark_b64: *const std::ffi::c_char,
+        refreshed_out: *mut std::ffi::c_char,
+        refreshed_cap: std::ffi::c_int,
+    ) -> std::ffi::c_int;
 }
 
 #[cfg(test)]
@@ -22,6 +26,10 @@ const INDEXER_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_s
 const SERVER_DIAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
 
 static WALLET_BASE_DIR: once_cell::sync::OnceCell<std::path::PathBuf> = once_cell::sync::OnceCell::new();
+
+/// How much room a refreshed security-scoped bookmark gets, base64 encoded.
+#[cfg(target_os = "macos")]
+const REFRESHED_BOOKMARK_CAP: usize = 16 * 1024;
 
 use neon::prelude::*;
 
@@ -482,19 +490,44 @@ fn set_wallet_base_dir(mut cx: FunctionContext) -> JsResult<JsBoolean> {
     Ok(cx.boolean(true))
 }
 
-fn neon_start_security_scoped_access(mut cx: FunctionContext) -> JsResult<JsBoolean> {
+fn neon_start_security_scoped_access(mut cx: FunctionContext) -> JsResult<JsObject> {
+    let out = cx.empty_object();
     #[cfg(target_os = "macos")]
     {
         let bookmark_b64 = cx.argument::<JsString>(0)?.value(&mut cx);
         let c_str = match std::ffi::CString::new(bookmark_b64) {
             Ok(s) => s,
-            Err(_) => return Ok(cx.boolean(false)),
+            Err(_) => {
+                let refused = cx.boolean(false);
+                out.set(&mut cx, "ok", refused)?;
+                return Ok(out);
+            }
         };
-        let result = unsafe { start_security_scoped_access(c_str.as_ptr()) };
-        return Ok(cx.boolean(result == 1));
+        let mut refreshed = vec![0u8; REFRESHED_BOOKMARK_CAP];
+        let status = unsafe {
+            start_security_scoped_access(
+                c_str.as_ptr(),
+                refreshed.as_mut_ptr() as *mut std::ffi::c_char,
+                REFRESHED_BOOKMARK_CAP as std::ffi::c_int,
+            )
+        };
+        let granted = cx.boolean(status != 0);
+        out.set(&mut cx, "ok", granted)?;
+        if status == 2 {
+            let end = refreshed.iter().position(|b| *b == 0).unwrap_or(refreshed.len());
+            if let Ok(text) = std::str::from_utf8(&refreshed[..end]) {
+                let text = cx.string(text);
+                out.set(&mut cx, "refreshed", text)?;
+            }
+        }
+        return Ok(out);
     }
     #[cfg(not(target_os = "macos"))]
-    Ok(cx.boolean(true))
+    {
+        let granted = cx.boolean(true);
+        out.set(&mut cx, "ok", granted)?;
+        Ok(out)
+    }
 }
 
 // Builds the pieces shared by every wallet-construction entry point: a
