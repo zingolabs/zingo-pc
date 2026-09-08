@@ -224,3 +224,14 @@
 .addressaction:hover {
   filter: brightness(1.3);
 }
+
+/* Beneath the address field, and quieter than `errortext`: nothing has gone
+   wrong yet. Loud enough to read before typing, not so loud it becomes part of
+   the furniture the eye stops seeing. */
+.addresswarning {
+  font-size: 0.75rem;
+  line-height: 1.3;
+  margin-top: 6px;
+  color: var(--color-warning);
+  opacity: 0.85;
+}

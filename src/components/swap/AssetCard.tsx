@@ -214,6 +214,20 @@ const AssetCard: React.FC<AssetCardProps> = ({
             )}
           </div>
           {address.invalid && address.errorText && <div className={styles.errortext}>{address.errorText}</div>}
+          {/* The chain check above catches an address for the wrong network.
+              Nothing catches a well-formed address on the right chain that
+              belongs to someone else, and that is the loss worth naming: the
+              provider does not decline to return those funds, it never
+              receives them. NEAR's own terms put it as no obligation to
+              recover assets sent in error, at any amount.
+
+              Stated without a figure and without naming a provider, because
+              it holds for all four and for every sum, and a threshold read
+              from a support policy would suggest cover above it that nobody
+              promises. */}
+          <div className={styles.addresswarning}>
+            Check this address character by character. A swap sent to the wrong one cannot be recovered by anyone.
+          </div>
         </div>
       )}
     </div>
