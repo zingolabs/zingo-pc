@@ -102,13 +102,23 @@ module.exports = async function afterSign(context) {
     console.log("[afterMasSign] find-identity stderr:", identityResult.stderr);
   }
 
-  const identityMatch = identityResult.stdout.match(/"(3rd Party Mac Developer Application:[^"]+)"/);
-  if (!identityMatch) {
+  const identities = [...identityResult.stdout.matchAll(/"(3rd Party Mac Developer Application:[^"]+)"/g)].map(
+    (m) => m[1],
+  );
+  if (identities.length === 0) {
     throw new Error(
       "[afterMasSign] FATAL: '3rd Party Mac Developer Application' certificate not found.\n" + identityResult.stdout,
     );
   }
-  const identity = identityMatch[1];
+
+  // electron-builder signed with CSC_NAME, and this pass re-signs what it
+  // produced, so a keychain holding two team certificates has to pick the same
+  // one rather than whichever came first.
+  const wanted = process.env.CSC_NAME;
+  const identity = wanted ? identities.find((name) => name.includes(wanted)) : identities[0];
+  if (!identity) {
+    throw new Error(`[afterMasSign] FATAL: no certificate matches CSC_NAME "${wanted}".\n${identities.join("\n")}`);
+  }
   console.log(`[afterMasSign] Signing identity: ${identity}`);
 
   const appName = packager.appInfo.productFilename;
