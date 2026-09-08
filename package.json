@@ -220,10 +220,10 @@
     "mac": {
       "category": "public.app-category.finance",
       "type": "distribution",
-      "extraResources": [
+      "extraFiles": [
         {
           "from": "resources/nym-proxy",
-          "to": "nym-proxy"
+          "to": "MacOS/nym-proxy"
         }
       ],
       "hardenedRuntime": true,
@@ -248,10 +248,10 @@
     },
     "mas": {
       "category": "public.app-category.finance",
-      "extraResources": [
+      "extraFiles": [
         {
           "from": "resources/nym-proxy",
-          "to": "nym-proxy"
+          "to": "MacOS/nym-proxy"
         }
       ],
       "entitlements": "./configs/entitlements.mas.plist",
