@@ -5,9 +5,8 @@ import { clipboard } from "../../electronBridge";
 // Exposes a `copied` flag that auto-resets after `timeoutMs` so callers can show
 // a transient "Copied!" indicator and disable the trigger while it's true.
 //
-// The timeout defaults to 3s. Pass 5000 (or longer) for explicit "Copy X"
-// buttons where the user is more likely to look away after clicking; 1500 is a
-// good fit for inline click-to-copy regions where the feedback should be quick.
+// The timeout defaults to 3s; every caller in the app currently passes 1500 so
+// copy feedback feels consistently quick.
 export function useCopy(timeoutMs: number = 3000): { copied: boolean; copy: (text: string) => void } {
   const [copied, setCopied] = useState<boolean>(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

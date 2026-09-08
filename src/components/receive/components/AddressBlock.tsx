@@ -54,7 +54,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   } = context;
   const address_address = address.encoded_address;
 
-  const { copied, copy } = useCopy(5000);
+  const { copied, copy } = useCopy(1500);
   const [creating, setCreating] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
 
