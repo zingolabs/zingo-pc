@@ -52,14 +52,22 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
   // How far the scan has got, to put a number on the map below it.
   //
-  // Floored rather than rounded, and green only on the real 100: a scan at
-  // 99.6% would round to a "100%" in the finished colour while the wallet is
-  // still working, which is the one reading this must never give. Null while
-  // the figure has not been fetched, which is also when the map has nothing
-  // to draw.
+  // Two decimals, and a bare "100" once it is done, which is what the sidebar
+  // makes of the same figure — the two are on screen together and would look
+  // like different readings if they disagreed.
+  //
+  // Truncated rather than rounded, and green keyed to the real value rather
+  // than the shown one. Rounding would turn 99.996 into a "100.00%" in the
+  // finished colour on a wallet that is still scanning, which is the one
+  // reading this must never give. Null while the figure has not been fetched,
+  // which is also when the map has nothing to draw.
   const scanIsComplete: boolean = verificationProgress !== null && verificationProgress >= 100;
-  const scanPercent: number | null =
-    verificationProgress === null ? null : scanIsComplete ? 100 : Math.floor(verificationProgress);
+  const scanPercent: string | null =
+    verificationProgress === null
+      ? null
+      : scanIsComplete
+        ? "100"
+        : (Math.floor(verificationProgress * 100) / 100).toFixed(2);
 
   // Ironwood / NU6.3 heads-up. The activation height comes from zingolib
   // (info.nu63ActivationHeight); 0 means unknown/not scheduled → banner hidden.

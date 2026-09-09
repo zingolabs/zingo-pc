@@ -284,20 +284,27 @@ describe("Dashboard", () => {
 
     it("is yellow while the scan is unfinished", () => {
       showMap(42.7);
-      expect(screen.getByText("42% synced")).toHaveClass("yellow");
+      expect(screen.getByText("42.70% synced")).toHaveClass("yellow");
     });
 
+    // A bare 100 rather than "100.00", which is what the sidebar shows for the
+    // same figure a few pixels away.
     it("is green once the scan is complete", () => {
       showMap(100);
       expect(screen.getByText("100% synced")).toHaveClass("green");
     });
 
-    // The trap this guards: rounding 99.6 up would show a finished figure in
-    // the finished colour on a wallet that is still scanning.
+    // The trap this guards: rounding would show a finished figure in the
+    // finished colour on a wallet that is still scanning.
     it("never reports a hundred the wallet has not reached", () => {
-      showMap(99.6);
-      expect(screen.getByText("99% synced")).toHaveClass("yellow");
-      expect(screen.queryByText("100% synced")).not.toBeInTheDocument();
+      showMap(99.996);
+      expect(screen.getByText("99.99% synced")).toHaveClass("yellow");
+      expect(screen.queryByText(/100/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the two decimals the sidebar shows", () => {
+      showMap(63.05);
+      expect(screen.getByText("63.05% synced")).toBeInTheDocument();
     });
 
     it("says nothing before the figure has been fetched", () => {
