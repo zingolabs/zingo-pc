@@ -263,4 +263,47 @@ describe("Dashboard", () => {
     });
     expect(screen.getByText("Nonlinear Scanning Map")).toBeInTheDocument();
   });
+
+  // The figure sits at the end of the map's legend and carries the same signal
+  // the map does: still working, or done.
+  describe("scan percentage beside the map", () => {
+    const showMap = (verificationProgress: number | null) =>
+      render(<Dashboard navigateToHistory={jest.fn()} />, {
+        contextOverrides: {
+          currentWallet: makeWallet(),
+          info: makeInfo(),
+          birthday: 100,
+          syncingStatus: {
+            scan_ranges: [
+              { start_block: 100, end_block: 110, priority: SyncStatusScanRangePriorityEnum.Scanning },
+            ] as any,
+          } as any,
+          verificationProgress,
+        },
+      });
+
+    it("is yellow while the scan is unfinished", () => {
+      showMap(42.7);
+      expect(screen.getByText("42% synced")).toHaveClass("yellow");
+    });
+
+    it("is green once the scan is complete", () => {
+      showMap(100);
+      expect(screen.getByText("100% synced")).toHaveClass("green");
+    });
+
+    // The trap this guards: rounding 99.6 up would show a finished figure in
+    // the finished colour on a wallet that is still scanning.
+    it("never reports a hundred the wallet has not reached", () => {
+      showMap(99.6);
+      expect(screen.getByText("99% synced")).toHaveClass("yellow");
+      expect(screen.queryByText("100% synced")).not.toBeInTheDocument();
+    });
+
+    it("says nothing before the figure has been fetched", () => {
+      showMap(null);
+      expect(screen.getByText("Nonlinear Scanning Map")).toBeInTheDocument();
+      expect(screen.queryByText(/% synced/)).not.toBeInTheDocument();
+    });
+  });
 });

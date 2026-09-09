@@ -47,7 +47,19 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     calculateShieldFee,
     zecPrice,
     reopenWallet,
+    verificationProgress,
   } = context;
+
+  // How far the scan has got, to put a number on the map below it.
+  //
+  // Floored rather than rounded, and green only on the real 100: a scan at
+  // 99.6% would round to a "100%" in the finished colour while the wallet is
+  // still working, which is the one reading this must never give. Null while
+  // the figure has not been fetched, which is also when the map has nothing
+  // to draw.
+  const scanIsComplete: boolean = verificationProgress !== null && verificationProgress >= 100;
+  const scanPercent: number | null =
+    verificationProgress === null ? null : scanIsComplete ? 100 : Math.floor(verificationProgress);
 
   // Ironwood / NU6.3 heads-up. The activation height comes from zingolib
   // (info.nu63ActivationHeight); 0 means unknown/not scheduled → banner hidden.
@@ -530,6 +542,18 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
               />
               High Priority
             </div>
+
+            {/* Pushed to the far end of the legend rather than given a row of
+                its own: it reads as the map's summary, and the colour is the
+                same signal the map uses — still working, or done. */}
+            {scanPercent !== null && (
+              <div
+                className={scanIsComplete ? cstyles.green : cstyles.yellow}
+                style={{ margin: 5, marginLeft: "auto", marginRight: 20, fontWeight: "bold" }}
+              >
+                {scanPercent}% synced
+              </div>
+            )}
           </div>
         )}
       </div>
