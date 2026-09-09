@@ -734,10 +734,15 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             </div>
           )}
 
-          <div className={cstyles.padtopsmall}>
-            <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.marginbottomsmall}`}>
-              Slippage tolerance
-            </div>
+          {/* One line: the label is short and the value is shorter, and two
+              rows for four words is height this screen does not have. The gap
+              is fixed rather than pushed apart, so the pair reads as one
+              control instead of two things at opposite edges. */}
+          <div
+            className={cstyles.padtopsmall}
+            style={{ display: "flex", alignItems: "center", gap: 50 }}
+          >
+            <div className={`${cstyles.sublight} ${cstyles.small}`}>Slippage tolerance</div>
             <button
               type="button"
               onClick={() => setSlippageOpen(true)}
