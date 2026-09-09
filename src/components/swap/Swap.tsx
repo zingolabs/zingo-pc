@@ -734,29 +734,45 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             </div>
           )}
 
-          {/* One line: the label is short and the value is shorter, and two
-              rows for four words is height this screen does not have. The gap
-              is fixed rather than pushed apart, so the pair reads as one
-              control instead of two things at opposite edges. */}
+          {/* Two columns rather than three stacked blocks. The label sits on
+              its own control, which is the pairing a user reads, and the
+              paragraph takes the width left over instead of a full row of its
+              own underneath — the same three things in the height of two.
+
+              The control does not stretch: it is as wide as the longest
+              percentage it will ever show, so the text gets everything else. */}
           <div
             className={cstyles.padtopsmall}
-            style={{ display: "flex", alignItems: "center", gap: 50 }}
+            style={{ display: "flex", alignItems: "center", gap: 24 }}
           >
-            <div className={`${cstyles.sublight} ${cstyles.small}`}>Slippage tolerance</div>
-            <button
-              type="button"
-              onClick={() => setSlippageOpen(true)}
-              style={{
-                background: "none",
-                border: "1px solid var(--color-primary)",
-                borderRadius: 4,
-                padding: "4px 10px",
-                color: "inherit",
-                cursor: "pointer",
-              }}
-            >
-              {formatSlippagePercent(slippageBps)}%
-            </button>
+            <div style={{ flexShrink: 0 }}>
+              <div className={`${cstyles.sublight} ${cstyles.small}`}>Slippage tolerance</div>
+              <button
+                type="button"
+                onClick={() => setSlippageOpen(true)}
+                style={{
+                  marginTop: 4,
+                  background: "none",
+                  border: "1px solid var(--color-primary)",
+                  borderRadius: 4,
+                  padding: "4px 10px",
+                  color: "inherit",
+                  cursor: "pointer",
+                }}
+              >
+                {formatSlippagePercent(slippageBps)}%
+              </button>
+            </div>
+
+            {/* Stated because the mixnet indicator does not cover this screen.
+                A user reading it as "my traffic is private" would be wrong
+                here, and the difference is worth knowing before asking for a
+                quote rather than after. Phrased as what the provider sees,
+                since that is the fact; the remedy is the user's to choose. */}
+            <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ flex: 1 }}>
+              Swaps reach the provider directly, not through the mixnet. Quoting and tracking a swap shows the provider
+              your IP address alongside the assets, the amount, and the addresses involved.
+            </div>
           </div>
 
           {/* No button to ask for a quote: it arrives on its own once there is
@@ -767,21 +783,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             </div>
           )}
 
-          {/* Stated because the mixnet indicator does not cover this screen.
-              A user reading it as "my traffic is private" would be wrong here,
-              and the difference is worth knowing before asking for a quote
-              rather than after. Phrased as what the provider sees, since that
-              is the fact; the remedy is the user's to choose. */}
-          <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.margintoplarge}`}>
-            Swaps reach the provider directly, not through the mixnet. Quoting and tracking a swap shows the provider
-            your IP address alongside the assets, the amount, and the addresses involved.
-          </div>
-
           {/* The deposit is an ordinary ZEC send, so it takes the route Mixnet
               Mode dictates and refuses in the states nobody consented to. Said
-              here, beside the sentence about the provider, because the two
-              halves of a swap travel differently and only one of them is
-              covered by the line above. */}
+              because the two halves of a swap travel differently, and the
+              sentence beside the slippage control covers only the half that
+              talks to the provider. */}
           {isOutbound && (
             <div
               className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}
