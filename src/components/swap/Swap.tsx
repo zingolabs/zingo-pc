@@ -29,6 +29,7 @@ import type {
   UnavailableProviderType,
 } from "../../swap";
 import { ZEC_ASSET, isQuotableToken, isZecWrapper, tokenToSwapAsset } from "./swapAssets";
+import { DESTINATION_ADDRESS_WARNING, REFUND_ADDRESS_WARNING } from "./addressWarnings";
 import { pickChainAsset } from "./pickChainAsset";
 import SwapExecute from "./SwapExecute";
 import AssetPair from "./AssetPair";
@@ -650,6 +651,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                 ? undefined
                 : {
                     label: "Your refund address on the source chain",
+                    warning: REFUND_ADDRESS_WARNING,
                     contactLabel: activeContactLabel,
                     value: activeAddress,
                     placeholder: "Enter address",
@@ -682,6 +684,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               address: isOutbound
                 ? {
                     label: `Your ${chainDisplayName(counterpartyChain) || counterpartyChain} address`,
+                    warning: DESTINATION_ADDRESS_WARNING,
                     contactLabel: activeContactLabel,
                     value: activeAddress,
                     placeholder: "Enter address",

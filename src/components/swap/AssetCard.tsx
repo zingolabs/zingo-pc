@@ -52,6 +52,15 @@ export type AssetCardProps = {
      */
     valid?: boolean;
     errorText?: string;
+    /**
+     * What getting this address wrong costs, in the caller's words.
+     *
+     * The card cannot write it: the two addresses it draws fail differently.
+     * A destination is used by every swap, so a wrong one loses the funds
+     * outright; a refund address is used only when a swap has to be returned,
+     * so a wrong one costs nothing until the day it does.
+     */
+    warning?: string;
     onChange: (value: string) => void;
     onBlur?: () => void;
     /** Opens the contact list for this chain. */
@@ -218,16 +227,8 @@ const AssetCard: React.FC<AssetCardProps> = ({
               Nothing catches a well-formed address on the right chain that
               belongs to someone else, and that is the loss worth naming: the
               provider does not decline to return those funds, it never
-              receives them. NEAR's own terms put it as no obligation to
-              recover assets sent in error, at any amount.
-
-              Stated without a figure and without naming a provider, because
-              it holds for all four and for every sum, and a threshold read
-              from a support policy would suggest cover above it that nobody
-              promises. */}
-          <div className={styles.addresswarning}>
-            Check this address character by character. A swap sent to the wrong one cannot be recovered by anyone.
-          </div>
+              receives them. */}
+          {!!address.warning && <div className={styles.addresswarning}>{address.warning}</div>}
         </div>
       )}
     </div>
