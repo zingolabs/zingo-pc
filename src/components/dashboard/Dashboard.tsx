@@ -434,7 +434,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
               justifyContent: "flex-start",
               alignItems: "flex-start",
               marginTop: 5,
-              marginLeft: 10,
             }}
           >
             <div
@@ -545,11 +544,16 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
             {/* Pushed to the far end of the legend rather than given a row of
                 its own: it reads as the map's summary, and the colour is the
-                same signal the map uses — still working, or done. */}
+                same signal the map uses — still working, or done.
+
+                Its inset is the margin every legend entry already carries, so
+                the two ends of the row match and both line up with the map
+                above. The row used to be full width AND pushed 10px right,
+                which hung it off the end of the very thing it labels. */}
             {scanPercent !== null && (
               <div
                 className={scanIsComplete ? cstyles.green : cstyles.yellow}
-                style={{ margin: 5, marginLeft: "auto", marginRight: 20, fontWeight: "bold" }}
+                style={{ margin: 5, marginLeft: "auto", fontWeight: "bold" }}
               >
                 {scanPercent}% synced
               </div>
