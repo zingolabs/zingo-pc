@@ -608,16 +608,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     <div>
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Swap</div>
 
-      {/* Not dismissible, because what it says does not stop being true when
-          it is closed. It names the amount rather than the feature: "beta"
-          reads as "might not work", and the thing to convey is "might cost
-          you". There is no test path to send anyone to either — SwapKit
-          routes none of these providers off mainnet, which is why the entry
-          is mainnet-only in the first place — so the advice is a small sum,
-          not a test network. */}
-      <div className={`${styles.warningbanner}`} style={{ margin: "0 16px 12px" }}>
-        Swapping is new here and still being proven. A deposit cannot be called back or claimed, so use an amount you
-        are willing to lose, and not the wallet holding your balance.
+      {/* Under the title rather than in a box of its own: a bordered paragraph
+          reads as terms to be got past, and it took room from the screen it is
+          warning about. Not dismissible, because what it says does not stop
+          being true when it is closed.
+
+          "Real" is the operative word and it is the strong reading on purpose:
+          there is no test path to send anyone to — SwapKit routes none of
+          these providers off mainnet, which is why the entry is mainnet-only
+          at all — so "not real funds" means "not yet", not "use the other
+          network". */}
+      <div className={`${cstyles.center} ${styles.experimentalnote}`}>
+        Still under testing — do not swap real funds yet.
       </div>
 
       <ScrollPaneTop offsetHeight={152}>

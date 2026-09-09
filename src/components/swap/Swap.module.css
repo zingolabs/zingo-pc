@@ -133,3 +133,13 @@
   background: var(--color-background);
   border: var(--color-primary) 4px solid;
 }
+
+/* Sits with the screen title, in the warning colour and none of the box. The
+   border and padding of `warningbanner` belong to notices that interrupt; this
+   one is a standing condition of the screen and reads better as part of its
+   heading. */
+.experimentalnote {
+  font-size: 12px;
+  margin: -4px 0 10px;
+  color: var(--color-warning);
+}
