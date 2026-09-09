@@ -546,14 +546,16 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 its own: it reads as the map's summary, and the colour is the
                 same signal the map uses — still working, or done.
 
-                Its inset is the margin every legend entry already carries, so
-                the two ends of the row match and both line up with the map
-                above. The row used to be full width AND pushed 10px right,
+                The row aligns to flex-start, and a legend entry has no
+                margin of its own — the 5px belongs to its swatch, so its words
+                start at the top of the row. This takes the same 5 on the right
+                only, matching that top and the inset the first swatch gives
+                the left. The row used to be full width AND pushed 10px right,
                 which hung it off the end of the very thing it labels. */}
             {scanPercent !== null && (
               <div
                 className={scanIsComplete ? cstyles.green : cstyles.yellow}
-                style={{ margin: 5, marginLeft: "auto", fontWeight: "bold" }}
+                style={{ marginLeft: "auto", marginRight: 5, fontWeight: "bold" }}
               >
                 {scanPercent}% synced
               </div>
