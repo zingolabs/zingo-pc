@@ -38,3 +38,16 @@
   width: 100%;
   max-height: calc(100vh - 400px);
 }
+
+/* Under the item's name, indented to clear the icon so it reads as belonging
+   to the label rather than starting a row of its own. Small and unemphatic:
+   the menu's job is to say this entry is different, not to make the argument,
+   which the screen and the review step do. */
+.sidebarmenuqualifier {
+  font-size: 11px;
+  line-height: 1;
+  margin-left: 34px;
+  margin-top: -6px;
+  color: var(--color-warning);
+  opacity: 0.8;
+}

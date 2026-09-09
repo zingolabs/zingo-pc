@@ -607,6 +607,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     <div>
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Swap</div>
 
+      {/* Not dismissible, because what it says does not stop being true when
+          it is closed. It names the amount rather than the feature: "beta"
+          reads as "might not work", and the thing to convey is "might cost
+          you". There is no test path to send anyone to either — SwapKit
+          routes none of these providers off mainnet, which is why the entry
+          is mainnet-only in the first place — so the advice is a small sum,
+          not a test network. */}
+      <div className={`${styles.warningbanner}`} style={{ margin: "0 16px 12px" }}>
+        Swapping is new here and still being proven. A deposit cannot be called back or claimed, so use an amount you
+        are willing to lose, and not the wallet holding your balance.
+      </div>
+
       <ScrollPaneTop offsetHeight={152}>
         <div className={`${cstyles.well} ${styles.panel}`} style={{ margin: "0 16px 16px" }}>
           {/* The two sides. The address belongs to whichever card is not ZEC:

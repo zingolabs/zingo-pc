@@ -30,4 +30,25 @@ describe("SidebarMenuItem", () => {
     render(<SidebarMenuItem {...baseProps} currentRoute="/dashboard" />);
     expect(screen.getByRole("link")).toHaveAttribute("aria-current", "page");
   });
+
+  // The menu is where a user decides whether to open a screen at all, which is
+  // earlier than any warning on the screen itself can reach them.
+  it("carries a qualifier under the name when given one", () => {
+    render(<SidebarMenuItem {...baseProps} name="Swap" qualifier="experimental" />);
+    expect(screen.getByText("Swap")).toBeInTheDocument();
+    expect(screen.getByText("experimental")).toBeInTheDocument();
+  });
+
+  // The name is what the user is looking for and it has to survive the
+  // qualifier: at 20px in a 220px column, a word on the same line would push
+  // the longest labels past the edge.
+  it("keeps the name and the qualifier apart", () => {
+    render(<SidebarMenuItem {...baseProps} name="Swap" qualifier="experimental" />);
+    expect(screen.getByText("Swap").textContent).not.toMatch(/experimental/);
+  });
+
+  it("says nothing extra without one", () => {
+    render(<SidebarMenuItem {...baseProps} />);
+    expect(screen.queryByText("experimental")).not.toBeInTheDocument();
+  });
 });

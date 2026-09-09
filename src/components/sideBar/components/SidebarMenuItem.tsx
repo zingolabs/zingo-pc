@@ -10,9 +10,19 @@ type SidebarMenuItemProps = {
   routeName: string;
   currentRoute: string;
   iconname: IconDefinition;
+  /**
+   * A word under the name, smaller than it.
+   *
+   * The sidebar is 220px and its items are set at 20px, so "Financial
+   * Insight" at seventeen characters is already near the edge — a qualifier
+   * on the same line would push the longest labels past it. Underneath, the
+   * item's own 40px of height has room and the name stays the thing being
+   * read.
+   */
+  qualifier?: string;
 };
 
-const SidebarMenuItem = ({ name, routeName, currentRoute, iconname }: SidebarMenuItemProps) => {
+const SidebarMenuItem = ({ name, routeName, currentRoute, iconname, qualifier }: SidebarMenuItemProps) => {
   let isActive: boolean = false;
 
   if ((currentRoute.endsWith("app.html") && routeName === routes.HOME) || currentRoute === routeName) {
@@ -32,6 +42,7 @@ const SidebarMenuItem = ({ name, routeName, currentRoute, iconname }: SidebarMen
           &nbsp; &nbsp;
           {name}
         </span>
+        {!!qualifier && <div className={styles.sidebarmenuqualifier}>{qualifier}</div>}
       </Link>
     </div>
   );

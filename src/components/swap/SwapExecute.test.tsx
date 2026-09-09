@@ -234,3 +234,14 @@ describe("SwapExecute backing out", () => {
     expect(onCancel).not.toHaveBeenCalled();
   });
 });
+
+describe("SwapExecute experimental notice", () => {
+  // Said on the review as well as on the screen behind it. The banner there
+  // was read once, on arrival; this is the press that spends the money.
+  it("says a sent deposit cannot be called back, beside the button that sends it", async () => {
+    renderExecute(SwapDirectionEnum.Outbound);
+
+    expect(await screen.findByText(/cannot be called back/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Swap and send deposit/ })).toBeInTheDocument();
+  });
+});
