@@ -1,6 +1,6 @@
 import { ChainNameEnum } from "./enums/ChainNameEnum";
-import { SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
-import { SwapKitHttpError, SwapKitNetworkError } from "./errors";
+import { SwapErrorCategoryEnum, SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
+import { SwapKitError, SwapKitHttpError, SwapKitNetworkError } from "./errors";
 import { swapHttpRequest } from "./swapHttp";
 import type { SwapHttpResponse } from "./swapHttp";
 import { QuoteResponseType } from "./types/QuoteResponseType";
@@ -45,6 +45,54 @@ const SWAP_TIMEOUT_MS = 15_000;
 const TRACK_TIMEOUT_MS = 10_000;
 // `/tokens` returns ~1 MB; allow a generous budget for slow mobile networks.
 const TOKENS_TIMEOUT_MS = 20_000;
+
+/**
+ * Which operations may be sent twice.
+ *
+ * A quote and a track only read: they reserve nothing and move nothing, so
+ * asking again costs a round trip and returns the same kind of answer. Both
+ * are POSTs, which is why this is keyed on the operation and not on the HTTP
+ * method.
+ *
+ * The commit is the opposite and is deliberately absent. A timeout there can
+ * mean the swap was created and only the answer was lost, so repeating it
+ * risks a second deposit address for funds the user is about to send once.
+ */
+const REPEATABLE_OPERATIONS: ReadonlySet<SwapOperationEnum> = new Set([
+  SwapOperationEnum.Quote,
+  SwapOperationEnum.Track,
+]);
+
+/** Attempts in total, not retries on top of the first. */
+const TRANSIENT_MAX_ATTEMPTS = 3;
+
+/**
+ * The wall clock all attempts share, set to the quote refresh interval so a
+ * quote can never outlive the one that replaces it.
+ *
+ * It is what stops a retry from making things worse. An attempt is only
+ * started when it could still finish inside the budget, so the cheap failures
+ * this exists for — an edge 504 comes back in well under a second — get their
+ * second and third try, while a request that burned its full timeout has no
+ * room left and is reported instead of being stacked.
+ */
+const TRANSIENT_RETRY_BUDGET_MS = 20_000;
+
+/** Pause before the second attempt, then before the third. */
+const TRANSIENT_RETRY_BACKOFF_MS = [300, 900];
+
+/**
+ * Whether the failure is the far side being briefly unable to answer, rather
+ * than an answer we would get again. 408/504 and 502/503 are already sorted
+ * into these two categories, as is a transport failure of our own.
+ */
+function isTransientFailure(error: unknown): boolean {
+  return (
+    error instanceof SwapKitError &&
+    (error.category === SwapErrorCategoryEnum.NetworkTimeout ||
+      error.category === SwapErrorCategoryEnum.ServiceUnavailable)
+  );
+}
 
 /**
  * Inputs to `/v3/quote`. Fields map 1:1 to the JSON body SwapKit accepts.
@@ -229,7 +277,41 @@ export class SwapKitClient {
     });
   }
 
+  /**
+   * Send a request, retrying a repeatable one that failed in transport.
+   *
+   * SwapKit's edge answers 504 often enough that a single one used to surface
+   * as a failed quote, and the screen behind it treats a failed quote as
+   * final: it drops the routes and stops re-firing, so one transient answer
+   * left the panel waiting for a keystroke. Absorbing it here keeps that
+   * handling for the failures it was written for.
+   */
   private async request<T>(args: {
+    operation: SwapOperationEnum;
+    method: "GET" | "POST";
+    path: string;
+    timeoutMs: number;
+    body?: unknown;
+  }): Promise<T> {
+    const startedAtMs = Date.now();
+    const maxAttempts = REPEATABLE_OPERATIONS.has(args.operation) ? TRANSIENT_MAX_ATTEMPTS : 1;
+
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        return await this.attempt<T>(args);
+      } catch (error) {
+        if (attempt >= maxAttempts || !isTransientFailure(error)) throw error;
+        const pauseMs = TRANSIENT_RETRY_BACKOFF_MS[attempt - 1] ?? 0;
+        // Only start an attempt that could still finish inside the budget.
+        const spentMs = Date.now() - startedAtMs + pauseMs;
+        if (spentMs + args.timeoutMs > TRANSIENT_RETRY_BUDGET_MS) throw error;
+        await new Promise((resolve) => setTimeout(resolve, pauseMs));
+      }
+    }
+  }
+
+  /** One round trip, with no view of whether another will follow. */
+  private async attempt<T>(args: {
     operation: SwapOperationEnum;
     method: "GET" | "POST";
     path: string;
