@@ -2,12 +2,25 @@ import React from "react";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import AddNewWallet from "./AddNewWallet";
-import { ipcRenderer } from "../../electronBridge";
+import { ipcRenderer, native } from "../../electronBridge";
 import fetchServerList from "../../utils/fetchServerList";
-import { ServerChainNameEnum, ServerClass } from "../appstate";
+import { CreationTypeEnum, ServerChainNameEnum, ServerClass } from "../appstate";
+import { SwapStore, readCurrentWalletFingerprint } from "../../swap";
+import { useSwapService } from "../../context/ContextSwapService";
 
 jest.mock("../../electronBridge");
 jest.mock("../../utils/fetchServerList");
+jest.mock("../../rpc/rpc", () => ({ __esModule: true, default: { deinitialize: jest.fn() } }));
+// Named rather than automocked: the delete flow only reaches `clearForWallet`
+// and the fingerprint read, and a factory keeps the real store — with its
+// module-level wallet binding — out of the test entirely.
+jest.mock("../../swap", () => ({
+  SwapStore: { clearForWallet: jest.fn() },
+  readCurrentWalletFingerprint: jest.fn(),
+  createSwapService: jest.fn(),
+  swapRecordToValueTransfer: jest.fn(),
+}));
+jest.mock("../../context/ContextSwapService", () => ({ useSwapService: jest.fn() }));
 
 const mockSettings = { serveruri: "", serverchain_name: "main", serverselection: "" };
 
@@ -24,7 +37,15 @@ const liveServer = (uri: string, chain = ServerChainNameEnum.mainChainName): Ser
 beforeEach(() => {
   (ipcRenderer.invoke as jest.Mock).mockResolvedValue(mockSettings);
   liveList.mockReset().mockResolvedValue([]);
+  (useSwapService as jest.Mock).mockReturnValue(null);
+  (SwapStore.clearForWallet as jest.Mock).mockResolvedValue(undefined);
+  (readCurrentWalletFingerprint as jest.Mock).mockResolvedValue(FINGERPRINT);
+  (native.wallet_exists as jest.Mock).mockResolvedValue(true);
+  (native.stop_sync as jest.Mock).mockResolvedValue("ok");
+  (native.delete_wallet as jest.Mock).mockResolvedValue("ok");
 });
+
+const FINGERPRINT = "ufvktail16charss";
 
 const baseProps = {
   closeModal: jest.fn(),
@@ -203,5 +224,87 @@ describe("AddNewWallet delete confirmation", () => {
 
     await waitFor(() => expect(openConfirmModal).toHaveBeenCalled());
     expect(baseProps.clearTimers).not.toHaveBeenCalled();
+  });
+});
+
+describe("AddNewWallet delete and swap records", () => {
+  const walletOfType = (creationType: CreationTypeEnum) =>
+    ({
+      id: 1,
+      alias: "Savings",
+      fileName: "zingo-wallet.dat",
+      uri: "https://mainnet.example:443",
+      chain_name: ServerChainNameEnum.mainChainName,
+      creationType,
+    }) as never;
+
+  /** Open the delete screen, click through, and accept the confirmation. */
+  const confirmDelete = async (creationType: CreationTypeEnum) => {
+    const openConfirmModal = jest.fn();
+    render(<AddNewWallet {...baseProps} />, {
+      initialRoute: { pathname: "/addnewwallet", state: { mode: "delete" } } as never,
+      contextOverrides: { currentWallet: walletOfType(creationType), openConfirmModal },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^delete wallet$/i }));
+    await waitFor(() => expect(openConfirmModal).toHaveBeenCalled());
+    // The modal's accept callback is what actually deletes.
+    openConfirmModal.mock.calls[0][2]();
+    return openConfirmModal;
+  };
+
+  // The wallet file goes, so the records that describe swaps made from it have
+  // nothing left to belong to.
+  it("clears the swap bucket when the wallet file is deleted with the wallet", async () => {
+    await confirmDelete(CreationTypeEnum.Seed);
+
+    await waitFor(() => expect(SwapStore.clearForWallet).toHaveBeenCalledWith(FINGERPRINT));
+    await waitFor(() => expect(native.delete_wallet).toHaveBeenCalled());
+  });
+
+  // A wallet opened from an existing .DAT is not destroyed by this flow — the
+  // file stays put and can be opened again. Clearing the bucket would leave
+  // that reopened wallet with an empty history for a delete that only ever
+  // removed a list entry, so the records stay with the file.
+  it("keeps the swap bucket when the wallet was opened from a file left on disk", async () => {
+    await confirmDelete(CreationTypeEnum.File);
+
+    await waitFor(() => expect(baseProps.setCurrentWallet).toHaveBeenCalledWith(null));
+    expect(SwapStore.clearForWallet).not.toHaveBeenCalled();
+    expect(native.delete_wallet).not.toHaveBeenCalled();
+  });
+
+  // The in-flight warning tells the user what they lose. For a file-backed
+  // wallet that is the tracking, not the record, and saying otherwise would
+  // send someone hunting for a seed phrase they do not need.
+  it("warns that a file-backed wallet keeps its in-flight swap record", async () => {
+    (useSwapService as jest.Mock).mockReturnValue({ hasInflightDeposits: jest.fn().mockResolvedValue(true) });
+    const openConfirmModal = jest.fn();
+    render(<AddNewWallet {...baseProps} />, {
+      initialRoute: { pathname: "/addnewwallet", state: { mode: "delete" } } as never,
+      contextOverrides: { currentWallet: walletOfType(CreationTypeEnum.File), openConfirmModal },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^delete wallet$/i }));
+
+    await waitFor(() => expect(openConfirmModal).toHaveBeenCalled());
+    const body: string = openConfirmModal.mock.calls[0][1];
+    expect(body).toContain("open the file again");
+    expect(body).not.toContain("seed phrase");
+  });
+
+  // The same warning for every other wallet keeps saying what it said.
+  it("warns that a seed-backed wallet loses its in-flight swap record", async () => {
+    (useSwapService as jest.Mock).mockReturnValue({ hasInflightDeposits: jest.fn().mockResolvedValue(true) });
+    const openConfirmModal = jest.fn();
+    render(<AddNewWallet {...baseProps} />, {
+      initialRoute: { pathname: "/addnewwallet", state: { mode: "delete" } } as never,
+      contextOverrides: { currentWallet: walletOfType(CreationTypeEnum.Seed), openConfirmModal },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /^delete wallet$/i }));
+
+    await waitFor(() => expect(openConfirmModal).toHaveBeenCalled());
+    expect(openConfirmModal.mock.calls[0][1]).toContain("removes the record that tracks it");
   });
 });
