@@ -10,7 +10,7 @@ import { ChainBadge } from "../common/ChainBadge";
 import Utils from "../../utils/utils";
 import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
-import { isZnsAlias, resolveZnsAlias } from "../../utils/zns";
+import { isSameZnsAlias, isZnsAlias, resolveZnsAlias } from "../../utils/zns";
 import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
 import { chainDisplayName } from "../swap/chainDisplayName";
 
@@ -186,9 +186,9 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                 : "Invalid ZNS alias";
         return { _addressError: error, _addressKind: undefined, _isZns: false };
       }
-      const dup = addressBook.find(
-        (i: AddressBookEntryClass) => i.address.toLowerCase() === _currentAddress.toLowerCase(),
-      );
+      // By the name, not the text: the same registration reached through the
+      // other suffix is the same contact.
+      const dup = addressBook.find((i: AddressBookEntryClass) => isSameZnsAlias(i.address, _currentAddress));
       return { _addressError: dup ? "Duplicate Address" : null, _addressKind: undefined, _isZns: true };
     }
 

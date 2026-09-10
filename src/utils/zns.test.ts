@@ -1,4 +1,4 @@
-import { isZnsAlias, extractZnsName, resolveZnsAlias, _clearZnsCacheForTests } from "./zns";
+import { isSameZnsAlias, isZnsAlias, extractZnsName, resolveZnsAlias, _clearZnsCacheForTests } from "./zns";
 import { ServerChainNameEnum } from "../components/appstate";
 
 jest.mock("../electronBridge");
@@ -47,6 +47,29 @@ describe("zns utility", () => {
       expect(extractZnsName("alice")).toBeNull();
       expect(extractZnsName("")).toBeNull();
       expect(extractZnsName("u1qq...fff")).toBeNull();
+    });
+  });
+
+  describe("isSameZnsAlias", () => {
+    // One registration, two ways of writing it. Filing them as separate
+    // contacts would show the user two entries resolving to one address.
+    it("sees through the suffix", () => {
+      expect(isSameZnsAlias("pepe.zcash", "pepe.zec")).toBe(true);
+    });
+
+    it("sees through the case", () => {
+      expect(isSameZnsAlias("Pepe.ZCASH", "pepe.zcash")).toBe(true);
+    });
+
+    it("keeps different names apart", () => {
+      expect(isSameZnsAlias("pepe.zcash", "juan.zec")).toBe(false);
+    });
+
+    // Two addresses are not "the same name" just because neither is one.
+    it("is false when either side is not an alias", () => {
+      expect(isSameZnsAlias("u1qq...fff", "u1qq...fff")).toBe(false);
+      expect(isSameZnsAlias("pepe.zcash", "")).toBe(false);
+      expect(isSameZnsAlias("", "")).toBe(false);
     });
   });
 

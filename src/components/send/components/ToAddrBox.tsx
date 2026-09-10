@@ -6,7 +6,7 @@ import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum, ToAddrClas
 import Utils from "../../../utils/utils";
 import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
 import { ContextApp } from "../../../context/ContextAppState";
-import { isZnsAlias, extractZnsName, resolveZnsAlias } from "../../../utils/zns";
+import { isSameZnsAlias, isZnsAlias, extractZnsName, resolveZnsAlias } from "../../../utils/zns";
 import { shell } from "../../../electronBridge";
 import ContactPicker from "../../common/ContactPicker";
 import SaveContact from "../../common/SaveContact";
@@ -271,8 +271,10 @@ const ToAddrBox = ({
     return entry ? entry.label : null;
   };
   const contactLabel = getContactLabel(toLocal);
+  // Matched by the name rather than the text typed, so a contact saved as
+  // "pepe.zcash" is still recognised when the user writes "pepe.zec".
   const znsIsContact = addressBook.some(
-    (ab: AddressBookEntryClass) => ab.address === znsAlias && ab.chain === serverChainName,
+    (ab: AddressBookEntryClass) => isSameZnsAlias(ab.address, znsAlias) && ab.chain === serverChainName,
   );
   // A ZNS alias is saved as the alias rather than the address it resolves to,
   // so the contact re-resolves every time it is used.

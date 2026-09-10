@@ -49,6 +49,19 @@ export function extractZnsName(s: string): string | null {
   return m ? m[1] : null;
 }
 
+/**
+ * True when two strings name the same ZNS registration.
+ *
+ * The registry stores a bare label, so "pepe.zcash" and "pepe.zec" are one
+ * name written two ways — and so are "Pepe.zcash" and "pepe.zcash". Comparing
+ * the text as typed would file them as separate contacts that resolve to the
+ * same address.
+ */
+export function isSameZnsAlias(a: string, b: string): boolean {
+  const name = extractZnsName(a);
+  return name !== null && name === extractZnsName(b);
+}
+
 /** Resolve a name (or a full alias like "alice.zcash") to a UA via the main-process IPC. */
 export async function resolveZnsAlias(aliasOrName: string, chain: ServerChainNameEnum | ""): Promise<ZnsResolveResult> {
   const bare = aliasOrName.includes(".") ? extractZnsName(aliasOrName) : aliasOrName.trim().toLowerCase();
