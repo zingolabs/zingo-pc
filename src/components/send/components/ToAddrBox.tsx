@@ -319,7 +319,7 @@ const ToAddrBox = ({
           <input
             type="text"
             aria-label="Recipient address"
-            placeholder="Unified | Sapling | Transparent | TEX address | name.zcash"
+            placeholder="Unified | Sapling | Transparent | TEX address | name.zcash/.zec"
             className={cstyles.fieldinput}
             value={toLocal}
             readOnly={!!znsAlias}
