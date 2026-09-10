@@ -38,6 +38,7 @@ import QuoteRefreshRing from "./QuoteRefreshRing";
 import AssetPicker from "./AssetPicker";
 import QuotesPicker from "./QuotesPicker";
 import SlippagePicker, { formatSlippagePercent } from "./SlippagePicker";
+import { optimalRouteId } from "../../swap/optimalRoute";
 import InsufficientFunds from "./InsufficientFunds";
 import ContactPicker from "../common/ContactPicker";
 import SaveContact from "../common/SaveContact";
@@ -136,11 +137,30 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // returned can reconstruct it.
   const [unavailable, setUnavailable] = useState<UnavailableProviderType[]>([]);
   const [chosenRouteId, setChosenRouteId] = useState<string>("");
+  // Whether the id above is the user's decision or ours. A refresh follows
+  // the optimum while nobody has said otherwise, and stops the moment someone
+  // does — overriding a deliberate pick would be worse than a stale one.
+  const [routePickedByUser, setRoutePickedByUser] = useState<boolean>(false);
   const [quoteContext, setQuoteContext] = useState<{
     quoteInput: QuoteInput;
     fiatValueBasis: FiatValueBasisType;
   } | null>(null);
-  const [reviewing, setReviewing] = useState<boolean>(false);
+  // What the user is reviewing, taken when they pressed Review.
+  //
+  // The review used to read `chosenRoute` and `quoteContext` live. Pressing
+  // Review does stop the next refresh, but not one already in flight: that
+  // answer lands afterwards and rewrites the routes, the quote context and
+  // even the selected id, so the figures being confirmed could change while
+  // being read, and the swap was built from whatever they became.
+  //
+  // A copy settles it. The panel behind is free to refresh; what the user
+  // agreed to, and what the deposit is built from, is this and only this.
+  const [reviewed, setReviewed] = useState<{
+    route: RouteOptionType;
+    quoteInput: QuoteInput;
+    fiatValueBasis: FiatValueBasisType;
+  } | null>(null);
+  const reviewing: boolean = reviewed !== null;
   const [refreshedAtMs, setRefreshedAtMs] = useState<number>(0);
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [quoting, setQuoting] = useState<boolean>(false);
@@ -235,8 +255,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     setRoutes(null);
     setUnavailable([]);
     setChosenRouteId("");
+    setRoutePickedByUser(false);
     setQuoteContext(null);
-    setReviewing(false);
+    setReviewed(null);
     setQuoteError("");
   }, [direction, selectedToken]);
 
@@ -372,6 +393,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       setRoutes(null);
       setUnavailable([]);
       setChosenRouteId("");
+      setRoutePickedByUser(false);
       setQuoteContext(null);
       setQuoteError("");
       setQuoteAttemptFailed(false);
@@ -428,14 +450,19 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       // again a second later gets the same answer, and the amount is the thing
       // the user has to change.
       setQuoteAttemptFailed(result.routes.length === 0);
-      // A refresh must not silently move the user's choice. Route ids are
-      // minted per quote, so the pick is carried across by provider, which is
-      // what the user actually chose. A provider that dropped out falls back
-      // to the best route rather than leaving nothing selected.
+      // A refresh must not silently move a choice the user made — route ids
+      // are minted per quote, so their pick is carried across by provider,
+      // which is what they actually chose.
+      //
+      // Where they made no choice, the selection was ours, and carrying it
+      // over left the panel showing a route that had since stopped being the
+      // best one. Follow the new optimum instead. Same fallback in both cases
+      // when the provider is gone, rather than leaving nothing selected.
       setChosenRouteId((previous) => {
+        if (!routePickedByUserRef.current) return optimalRouteId(result.routes);
         const chosenProvider = routesRef.current?.find((r) => r.routeId === previous)?.provider;
         const sameProvider = result.routes.find((r) => r.provider === chosenProvider);
-        return (sameProvider ?? result.routes[0])?.routeId ?? "";
+        return sameProvider?.routeId ?? optimalRouteId(result.routes);
       });
       setRoutes(result.routes);
       setUnavailable(result.unavailable);
@@ -569,6 +596,10 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   useEffect(() => {
     routesRef.current = routes;
   }, [routes]);
+  const routePickedByUserRef = useRef<boolean>(false);
+  useEffect(() => {
+    routePickedByUserRef.current = routePickedByUser;
+  }, [routePickedByUser]);
 
   // Re-quote on a fixed cadence rather than trusting the providers' own
   // expiries: they advertise tens of minutes (NEAR an hour, Maya around 75
@@ -917,8 +948,17 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                 <button
                   type="button"
                   className={cstyles.primarybutton}
-                  disabled={!chosenRoute || !routesBindAddress || (isOutbound && mixnetView.sendBlocked)}
-                  onClick={() => setReviewing(true)}
+                  disabled={
+                    !chosenRoute || !quoteContext || !routesBindAddress || (isOutbound && mixnetView.sendBlocked)
+                  }
+                  onClick={() => {
+                    if (!chosenRoute || !quoteContext) return;
+                    setReviewed({
+                      route: chosenRoute,
+                      quoteInput: quoteContext.quoteInput,
+                      fiatValueBasis: quoteContext.fiatValueBasis,
+                    });
+                  }}
                 >
                   Review
                 </button>
@@ -927,16 +967,20 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
           </div>
         )}
 
-        {reviewing && chosenRoute && quoteContext && (
+        {reviewed && (
           <SwapExecute
             swapService={swapService}
             // Exactly what was quoted, addresses included. Substituting them
             // here was what produced routes the provider would not commit:
             // the route it minted named a different destination from the one
             // the swap call then asked it to pay.
-            quoteInput={quoteContext.quoteInput}
-            route={chosenRoute}
-            fiatValueBasis={quoteContext.fiatValueBasis}
+            //
+            // Read from the copy taken at Review rather than from the live
+            // quote, so a refresh cannot move them between reading and
+            // signing.
+            quoteInput={reviewed.quoteInput}
+            route={reviewed.route}
+            fiatValueBasis={reviewed.fiatValueBasis}
             direction={direction}
             sendSwapDeposit={sendSwapDeposit}
             // A completed swap leaves the form empty rather than pre-filled
@@ -947,12 +991,13 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             // Nothing was reserved, so there is nothing to undo, and making
             // the user retype a swap they merely wanted a second look at is a
             // punishment for reading.
-            onCancel={() => setReviewing(false)}
+            onCancel={() => setReviewed(null)}
             onDone={() => {
-              setReviewing(false);
+              setReviewed(null);
               setRoutes(null);
               setUnavailable([]);
               setChosenRouteId("");
+              setRoutePickedByUser(false);
               setQuoteContext(null);
               setAmount("");
               setDestinationAddress("");
@@ -1021,7 +1066,10 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
           direction={direction}
           modalIsOpen={quotesOpen}
           closeModal={() => setQuotesOpen(false)}
-          onSelect={setChosenRouteId}
+          onSelect={(routeId: string) => {
+            setChosenRouteId(routeId);
+            setRoutePickedByUser(true);
+          }}
         />
       )}
 
