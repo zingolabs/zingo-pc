@@ -11,22 +11,37 @@ describe("zns utility", () => {
       ["alice.zcash", true],
       ["bob123.zcash", true],
       ["Alice.zcash", true],
+      // Edge hands out names in this form, against the same registry.
+      ["alice.zec", true],
+      ["bob123.zec", true],
+      ["ALICE.ZEC", true],
       ["alice", false],
-      ["alice.zec", false],
       ["alice.zcash.zcash", false],
       ["", false],
       ["u1qq...fff", false],
       ["alice space.zcash", false],
       ["alice@.zcash", false],
+      // The list is closed on purpose: a suffix nobody issues is a mistyped
+      // address, and resolving it would hand back someone else's.
+      ["alice.zzzzzzzzzzz", false],
+      ["alice.com", false],
+      ["alice.zcash.zec", false],
     ])("isZnsAlias(%j) === %s", (input, expected) => {
       expect(isZnsAlias(input)).toBe(expected);
     });
   });
 
   describe("extractZnsName", () => {
-    it("strips .zcash and lowercases", () => {
+    it("strips the suffix and lowercases", () => {
       expect(extractZnsName("Alice.zcash")).toBe("alice");
       expect(extractZnsName("BOB123.ZCASH")).toBe("bob123");
+    });
+
+    // Both suffixes name the same registration: the registry stores the bare
+    // label and never sees either one.
+    it("reaches the same name through either suffix", () => {
+      expect(extractZnsName("alice.zec")).toBe("alice");
+      expect(extractZnsName("Alice.ZEC")).toBe(extractZnsName("Alice.zcash"));
     });
     it("returns null for non-aliases", () => {
       expect(extractZnsName("alice")).toBeNull();

@@ -15,7 +15,20 @@ import { ipcRenderer } from "../electronBridge";
 
 // Names must be [a-z0-9]{1,62} per the ZNS protocol.
 const ZNS_NAME_RE = /^[a-z0-9]{1,62}$/;
-const ZNS_ALIAS_RE = /^([a-z0-9]{1,62})\.zcash$/i;
+
+// The suffix is ours, not the protocol's: a registration is the bare name
+// and the rules forbid a dot inside it, so the registry never sees
+// ".zcash" or ".zec" and cannot tell them apart. What the suffix decides
+// here is whether the user means a name at all, rather than a mistyped
+// address.
+//
+// Which is why this list stays closed. Accepting any suffix would turn a
+// fumbled address, a domain or half an email into a silent lookup of
+// whoever owns its first label, and hand back a real address to send to.
+// These two earn their place by being in circulation — .zcash from
+// zcashnames itself, .zec from Edge, which hands out names in that form —
+// so someone typing one is asking for a name. Nothing else is.
+const ZNS_ALIAS_RE = /^([a-z0-9]{1,62})\.(?:zcash|zec)$/i;
 
 const CACHE_TTL_MS = 5 * 60 * 1000;
 type CacheEntry = { address: string | null; expiresAt: number };
@@ -25,18 +38,18 @@ export type ZnsResolveResult =
   | { ok: true; address: string }
   | { ok: false; reason: "not-found" | "network" | "unsupported-chain" | "invalid-name" };
 
-/** True if `s` looks like a ZNS alias (e.g. "alice.zcash"). */
+/** True if `s` looks like a ZNS alias (e.g. "alice.zcash" or "alice.zec"). */
 export function isZnsAlias(s: string): boolean {
   return ZNS_ALIAS_RE.test(s.trim());
 }
 
-/** Strips the ".zcash" suffix; returns null if `s` is not a valid alias. */
+/** Strips the suffix; returns null if `s` is not a valid alias. */
 export function extractZnsName(s: string): string | null {
   const m = s.trim().toLowerCase().match(ZNS_ALIAS_RE);
   return m ? m[1] : null;
 }
 
-/** Resolve a name (or full "alice.zcash" alias) to a UA via the main-process IPC. */
+/** Resolve a name (or a full alias like "alice.zcash") to a UA via the main-process IPC. */
 export async function resolveZnsAlias(aliasOrName: string, chain: ServerChainNameEnum | ""): Promise<ZnsResolveResult> {
   const bare = aliasOrName.includes(".") ? extractZnsName(aliasOrName) : aliasOrName.trim().toLowerCase();
   if (!bare || !ZNS_NAME_RE.test(bare)) return { ok: false, reason: "invalid-name" };
