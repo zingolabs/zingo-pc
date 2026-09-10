@@ -202,7 +202,7 @@
   "build": {
     "productName": "Zingo PC",
     "appId": "co.zingo.pc",
-    "buildVersion": "183",
+    "buildVersion": "184",
     "artifactName": "${productName}-${version}-${buildVersion}-${arch}.${ext}",
     "afterSign": "./afterMasSign.js",
     "afterAllArtifactBuild": "./afterSignHook.js",
@@ -229,7 +229,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "183",
+      "bundleVersion": "184",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -257,7 +257,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "183",
+      "bundleVersion": "184",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false
       },
