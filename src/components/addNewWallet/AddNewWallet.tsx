@@ -600,8 +600,10 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
   };
 
   /**
-   * Deleting the wallet is the one flow that destroys its swap records, so it
-   * is the one flow that has to ask first.
+   * Deleting the wallet is the one flow that stops its swaps being tracked, so
+   * it is the one flow that has to ask first. For a wallet opened from an
+   * existing file the stop is temporary and the records survive; everywhere
+   * else the delete destroys them.
    *
    * The question is whether any swap still has a deposit the provider can see
    * and has not settled. Outbound, deleting loses the tracking record while
@@ -626,11 +628,21 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       }
     }
     if (inflight) {
+      // A wallet opened from an existing file keeps both halves: the file stays
+      // on disk and so does its swap bucket. Warning that the tracking record
+      // is about to be lost would be the wrong warning — what it loses is the
+      // tracking itself, until the file is opened again.
+      const keepsItsRecords: boolean = currentWallet.creationType === CreationTypeEnum.File;
       openConfirmModal(
         "Delete Wallet",
-        "A swap belonging to this wallet is still in flight: its deposit has been paid and the provider has not " +
-          "settled it yet. Deleting now removes the record that tracks it, and if the swap pays out to this wallet " +
-          "you will need its seed phrase to reach those funds. Delete anyway?",
+        keepsItsRecords
+          ? "A swap belonging to this wallet is still in flight: its deposit has been paid and the provider has not " +
+              "settled it yet. This wallet was opened from an existing wallet file, so both that file and the swap's " +
+              "record stay on this computer — open the file again to pick the swap back up. Nothing tracks it in the " +
+              "meantime. Delete anyway?"
+          : "A swap belonging to this wallet is still in flight: its deposit has been paid and the provider has not " +
+              "settled it yet. Deleting now removes the record that tracks it, and if the swap pays out to this " +
+              "wallet you will need its seed phrase to reach those funds. Delete anyway?",
         () => {
           performDelete();
         },
@@ -684,11 +696,22 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           // the only way to name this wallet's swap bucket — out of reach.
           // Skipped rather than guessed when the fingerprint comes back empty:
           // a wrong key would wipe a different wallet's records.
-          const fingerprint = await readCurrentWalletFingerprint();
-          if (fingerprint) {
-            await SwapStore.clearForWallet(fingerprint);
+          //
+          // A wallet opened from an existing .DAT is the exception, because the
+          // delete below leaves that file where it was. The wallet outlives the
+          // entry being removed here and can be opened again tomorrow, and it
+          // would come back to an empty history: same file, same UFVK, so the
+          // same bucket key, with the records cleared by a delete that never
+          // destroyed the wallet. The records stay with the file that stays.
+          if (currentWallet.creationType === CreationTypeEnum.File) {
+            console.log("Delete Wallet: opened from an existing file, keeping its swap records with it");
           } else {
-            console.log("Delete Wallet: no fingerprint, leaving the swap bucket alone");
+            const fingerprint = await readCurrentWalletFingerprint();
+            if (fingerprint) {
+              await SwapStore.clearForWallet(fingerprint);
+            } else {
+              console.log("Delete Wallet: no fingerprint, leaving the swap bucket alone");
+            }
           }
           await RPC.deinitialize();
 

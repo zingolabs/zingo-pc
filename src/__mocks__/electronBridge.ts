@@ -10,6 +10,9 @@ export const native = {
   set_wallet_base_dir: jest.fn(),
   start_security_scoped_access: jest.fn(),
   get_latest_block_server: jest.fn(),
+  // AddNewWallet (delete)
+  stop_sync: jest.fn(),
+  delete_wallet: jest.fn(),
   // Send
   send: jest.fn(),
   get_spendable_balance_with_address: jest.fn(),
