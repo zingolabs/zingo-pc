@@ -356,7 +356,10 @@ const ToAddrBox = ({
           {/* The verdict travels with the remove action at the end of the row.
               Loose among the other items it was spread out with them and came to
               rest mid-row, reading as though it belonged to nothing. */}
-          <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 20 }}>
+          {/* 8px, plus the 8px the remove button carries as its own padding:
+              16px between the two glyphs, which is what the address field below
+              puts between the icons inside it. */}
+          <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
             <div className={cstyles.validationerror}>
               {znsStatus === "resolving" && <span className={cstyles.sublight}>Resolving ZNS…</span>}
               {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
