@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
-import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
+import { parseZcashURITargets, ZcashURITarget } from "../../utils/uris";
 import PayURIModal from "./components/PayURIModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
 import { ContextApp } from "../../context/ContextAppState";
@@ -526,7 +526,12 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
       return;
     }
 
-    const parsedUri: string | ZcashURITarget = await parseZcashURI(uri, currentWallet ? currentWallet.chain_name : "");
+    // Every recipient the request names: a ZIP 321 URI may carry several, and
+    // the Send screen takes them as one batch.
+    const parsedUri: string | ZcashURITarget[] = await parseZcashURITargets(
+      uri,
+      currentWallet ? currentWallet.chain_name : "",
+    );
     if (typeof parsedUri === "string") {
       if (!parsedUri || parsedUri.toLowerCase().startsWith("error")) {
         openErrorModal(errTitle, getErrorBody(parsedUri));

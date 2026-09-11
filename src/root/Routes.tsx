@@ -503,14 +503,26 @@ const AppRoutes: React.FC = () => {
   }, []);
 
   // --- context actions ---
-  const setSendTo = useCallback((target: ZcashURITarget): void => {
-    const newState = new SendPageStateClass();
-    const to = new ToAddrClass();
-    if (target.address) to.to = target.address;
-    if (target.amount) to.amount = target.amount;
-    if (target.memoString) to.memo = target.memoString;
-    newState.toaddr = to;
-    setSendPageStateState(newState);
+  // Fills the Send screen from outside it: the Address Book, History, a payment
+  // URI. A form nobody has started is replaced; one that already holds
+  // recipients is added to, so a batch can be built by going back to the
+  // Address Book between rows without losing the rows already written. Nothing
+  // is dropped to respect the recipient cap: the screen asks for the extra ones
+  // to be removed.
+  const setSendTo = useCallback((target: ZcashURITarget | ZcashURITarget[]): void => {
+    const incoming: ToAddrClass[] = (Array.isArray(target) ? target : [target]).map((t: ZcashURITarget) => {
+      const to = new ToAddrClass();
+      if (t.address) to.to = t.address;
+      if (t.amount) to.amount = t.amount;
+      if (t.memoString) to.memo = t.memoString;
+      return to;
+    });
+    setSendPageStateState((previous: SendPageStateClass) => {
+      const newState = new SendPageStateClass();
+      const toaddrs: ToAddrClass[] = [...previous.toaddrs.filter(ToAddrClass.hasContent), ...incoming];
+      newState.toaddrs = toaddrs.length > 0 ? toaddrs : [new ToAddrClass()];
+      return newState;
+    });
   }, []);
 
   // Handed to the Swap screen by the Address Book. Cleared by the screen once

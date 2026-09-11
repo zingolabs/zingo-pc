@@ -90,7 +90,7 @@ export default class AppState {
     alternate?: { label: string; action: () => void },
   ) => void;
   closeConfirmModal: () => void;
-  setSendTo: (t: ZcashURITarget) => void;
+  setSendTo: (t: ZcashURITarget | ZcashURITarget[]) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
   setAddLabel: (a: AddressBookEntryClass) => void;

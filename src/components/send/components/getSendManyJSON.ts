@@ -2,8 +2,13 @@ import Utils from "../../../utils/utils";
 import { SendPageStateClass, ToAddrClass } from "../../appstate";
 import SendManyJsonType from "./SendManyJSONType";
 
-function getSendManyJSON(sendPageState: SendPageStateClass): SendManyJsonType[] {
-  const json: SendManyJsonType[] = [sendPageState.toaddr].flatMap((to: ToAddrClass) => {
+/**
+ * The outputs a list of recipients becomes, in order. One per recipient,
+ * except that a memo longer than a note can hold becomes several outputs to
+ * the same address.
+ */
+export function recipientsToSendManyJSON(toaddrs: ToAddrClass[]): SendManyJsonType[] {
+  return toaddrs.flatMap((to: ToAddrClass) => {
     const memo: string = (to.memo || "") + (to.memoReplyTo || "");
     const amount: number = parseInt((to.amount * 10 ** 8).toFixed(0));
 
@@ -28,8 +33,10 @@ function getSendManyJSON(sendPageState: SendPageStateClass): SendManyJsonType[] 
       return tos;
     }
   });
+}
 
-  return json;
+function getSendManyJSON(sendPageState: SendPageStateClass): SendManyJsonType[] {
+  return recipientsToSendManyJSON(sendPageState.toaddrs);
 }
 
 export default getSendManyJSON;

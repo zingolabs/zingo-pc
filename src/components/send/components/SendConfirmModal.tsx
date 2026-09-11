@@ -26,6 +26,176 @@ import { ContextApp } from "../../../context/ContextAppState";
 import { faArrowCircleUp, faExternalLinkSquareAlt } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
+const PRIVACY_RANK: { [level: string]: number } = { Private: 0, "Amount Revealed": 1, Deshielded: 2 };
+
+/**
+ * The privacy of the transaction as a whole: the weakest of its outputs. One
+ * deshielded recipient makes the transaction deshielded, whatever the others
+ * receive, and a verdict that could not be reached ("-") outranks them all.
+ */
+export const worstPrivacyLevel = (levels: string[]): string => {
+  if (levels.length === 0) {
+    return "-";
+  }
+  return levels.reduce((worst: string, level: string) =>
+    (PRIVACY_RANK[level] ?? 3) > (PRIVACY_RANK[worst] ?? 3) ? level : worst,
+  );
+};
+
+type FeeValueProps = {
+  sendFee: number;
+  currencyName: string;
+  zecPrice: number;
+};
+
+const FeeValue: React.FC<FeeValueProps> = ({ sendFee, currencyName, zecPrice }) => (
+  <>
+    {currencyName} {Utils.maxPrecisionTrimmed(sendFee)}
+    {currencyName === "ZEC" && <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, sendFee)}</div>}
+  </>
+);
+
+type RecipientSummaryProps = {
+  toaddr: ToAddrClass;
+  privacyLevel: string;
+  currencyName: string;
+  zecPrice: number;
+  // Stated beside the amount when this is the only recipient, where the
+  // screen always put it. A batch states it once, under all of them.
+  sendFee?: number;
+};
+
+const RecipientSummary: React.FC<RecipientSummaryProps> = ({
+  toaddr,
+  privacyLevel,
+  currencyName,
+  zecPrice,
+  sendFee,
+}) => {
+  const { addressBook } = useContext(ContextApp);
+
+  // The recipient, and the two things this screen does with it: reveal the
+  // whole of it, and put it on the clipboard. One press does both, which is
+  // the gesture the transfer detail and the address book already use.
+  const [expandAddress, setExpandAddress] = useState<boolean>(false);
+  const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
+
+  const toAddress: string = toaddr.znsAlias || toaddr.to;
+  const { bigPart: amountBigPart, smallPart: amountSmallPart } = Utils.splitZecAmountIntoBigSmall(toaddr.amount);
+  // The name this address is filed under, if any — the same thing the detail
+  // shows above the address itself.
+  const contactLabel: string | undefined = addressBook?.find(
+    (entry: AddressBookEntryClass) => entry.address === toAddress,
+  )?.label;
+  const memoText: string = `${toaddr.memo ?? ""}${toaddr.memoReplyTo ?? ""}`;
+
+  return (
+    <>
+      {/* Two rows rather than a block and two: the address beside what
+          sending to it costs in privacy, and then the figures. The address
+          block itself is the transfer detail's — the "Copied!" flash rides on
+          the label, the contact name it is filed under sits between label and
+          value, and the value abbreviates until the press that copies it also
+          opens it. */}
+      <FieldRow>
+        {!!toAddress && (
+          <div className={cstyles.padtopsmall} style={{ minWidth: 0 }}>
+            <div className={cstyles.sublight}>
+              Address
+              {addressCopied && (
+                <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
+                  Copied!
+                </span>
+              )}
+            </div>
+            {!!contactLabel && (
+              <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
+                {contactLabel}
+              </div>
+            )}
+            <div className={cstyles.verticalflex}>
+              <button
+                type="button"
+                aria-label="Copy address"
+                title="Copy address"
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  color: "inherit",
+                  font: "inherit",
+                  textAlign: "left",
+                  cursor: "pointer",
+                }}
+                onClick={() => {
+                  copyAddress(toAddress);
+                  setExpandAddress(true);
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
+                  {!expandAddress && Utils.trimToSmall(toAddress, 10)}
+                  {expandAddress && (
+                    <>
+                      {toAddress.length < 80
+                        ? toAddress
+                        : Utils.splitStringIntoChunks(toAddress, 3).map((item) => <div key={item}>{item}</div>)}
+                    </>
+                  )}
+                </div>
+              </button>
+            </div>
+          </div>
+        )}
+
+        <Field label="Privacy" value={privacyLevel} />
+      </FieldRow>
+
+      {/* Each figure carries its fiat value underneath, the way the detail
+          states them. The price is the one in context — this send has not
+          happened, so the rate that matters is the one now rather than a basis
+          captured alongside a past transfer. */}
+      <FieldRow>
+        <Field
+          label="Amount"
+          value={
+            <>
+              <div>
+                <span>
+                  {currencyName} {amountBigPart}
+                </span>
+                <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{amountSmallPart}</span>
+              </div>
+              {currencyName === "ZEC" && (
+                <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, toaddr.amount)}</div>
+              )}
+            </>
+          }
+        />
+
+        {sendFee !== undefined && (
+          <Field
+            label="Transaction Fee"
+            value={<FeeValue sendFee={sendFee} currencyName={currencyName} zecPrice={zecPrice} />}
+          />
+        )}
+      </FieldRow>
+
+      {!!memoText && (
+        <div className={cstyles.padtopsmall}>
+          <div className={cstyles.sublight}>Memo</div>
+          {/* Five rows, then it scrolls. A long memo used to grow the
+              modal until the buttons left the screen. */}
+          <div className={cstyles.fieldrowmulti} style={{ maxHeight: "7.5em", overflowY: "auto" }}>
+            <div className={`${cstyles.fieldtextarea} ${cstyles.breakword}`} style={{ whiteSpace: "pre-wrap" }}>
+              {memoText}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
 // Internal because we're using withRouter just below
 type SendConfirmModalProps = {
   sendPageState: SendPageStateClass;
@@ -63,32 +233,22 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
     blockExplorerMainnetTransactionCustom,
     blockExplorerTestnetTransactionCustom,
     zecPrice,
-    addressBook,
   } = context;
 
+  const recipients: ToAddrClass[] = sendPageState.toaddrs;
+  const single: boolean = recipients.length === 1;
+
   const [sendingTotal, setSendingTotal] = useState<number>(0);
-  const [privacyLevel, setPrivacyLevel] = useState<string>("");
-
-  // The recipient, and the two things this screen does with it: reveal the
-  // whole of it, and put it on the clipboard. One press does both, which is
-  // the gesture the transfer detail and the address book already use.
-  const [expandAddress, setExpandAddress] = useState<boolean>(false);
-  const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
-
-  const toAddress: string = sendPageState.toaddr.znsAlias || sendPageState.toaddr.to;
-  const toAmount: number = sendPageState.toaddr.amount;
-  const { bigPart: amountBigPart, smallPart: amountSmallPart } = Utils.splitZecAmountIntoBigSmall(toAmount);
-  // The name this address is filed under, if any — the same thing the detail
-  // shows above the address itself.
-  const contactLabel: string | undefined = addressBook?.find(
-    (entry: AddressBookEntryClass) => entry.address === toAddress,
-  )?.label;
-  const memoText: string = `${sendPageState.toaddr.memo ?? ""}${sendPageState.toaddr.memoReplyTo ?? ""}`;
+  const [privacyLevels, setPrivacyLevels] = useState<string[]>([]);
 
   const currentChainName = currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName;
 
+  // `totalOut` is what the whole transaction spends, every recipient plus the
+  // fee. The pool it is drawn from is decided by that total, not by this one
+  // recipient's amount: two small payments that each fit in Orchard can still
+  // need Sapling together, and that changes what each of them reveals.
   const getPrivacyLevel = useCallback(
-    async (toaddr: ToAddrClass) => {
+    async (toaddr: ToAddrClass, totalOut: number) => {
       if (!toaddr.to) {
         return "-";
       }
@@ -99,15 +259,11 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
       // orchard-equivalent private source and the privacy verdicts below stay
       // the same.
       const confirmedShielded = totalBalance.confirmedOrchardBalance + totalBalance.confirmedIronwoodBalance;
-      // amount + fee
-      if (Number(toaddr.amount) + sendFee <= confirmedShielded) {
+      if (totalOut <= confirmedShielded) {
         from = "orchard";
-      } else if (
-        confirmedShielded > 0 &&
-        Number(toaddr.amount) + sendFee <= confirmedShielded + totalBalance.confirmedSaplingBalance
-      ) {
+      } else if (confirmedShielded > 0 && totalOut <= confirmedShielded + totalBalance.confirmedSaplingBalance) {
         from = "orchard+sapling";
-      } else if (Number(toaddr.amount) + sendFee <= totalBalance.confirmedSaplingBalance) {
+      } else if (totalOut <= totalBalance.confirmedSaplingBalance) {
         from = "sapling";
       }
 
@@ -213,7 +369,6 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
       return "-";
     },
     [
-      sendFee,
       totalBalance.confirmedOrchardBalance,
       totalBalance.confirmedIronwoodBalance,
       totalBalance.confirmedSaplingBalance,
@@ -222,13 +377,26 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   );
 
   useEffect(() => {
-    const sendingTotal: number = sendPageState.toaddr.amount + sendFee;
-    setSendingTotal(sendingTotal);
+    // Summed in zatoshis so a batch of decimal amounts adds up exactly.
+    const amountZats: number = recipients.reduce(
+      (sum: number, toaddr: ToAddrClass) => sum + Math.round(Number(toaddr.amount) * 10 ** 8),
+      0,
+    );
+    const totalOut: number = amountZats / 10 ** 8 + sendFee;
+    setSendingTotal(totalOut);
+    let cancelled: boolean = false;
     (async () => {
-      const privacyLevel: string = await getPrivacyLevel(sendPageState.toaddr);
-      setPrivacyLevel(privacyLevel);
+      const levels: string[] = await Promise.all(
+        recipients.map((toaddr: ToAddrClass) => getPrivacyLevel(toaddr, totalOut)),
+      );
+      if (!cancelled) {
+        setPrivacyLevels(levels);
+      }
     })();
-  }, [getPrivacyLevel, sendFee, sendPageState.toaddr]);
+    return () => {
+      cancelled = true;
+    };
+  }, [getPrivacyLevel, sendFee, recipients]);
 
   const sendButton = async () => {
     const allSettings = await window.electronAPI.ipcRenderer.invoke("loadSettings");
@@ -398,113 +566,36 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
           ref={paneRef}
           style={{ marginTop: 8, maxHeight: `calc(100vh - ${paneOffset}px)`, overflowY: "auto", overflowX: "hidden" }}
         >
-          <hr style={{ width: "100%" }} />
-
-          {/* Two rows rather than a block and two: the address beside what
-                sending to it costs in privacy, and then the two figures. The
-                address block itself is the transfer detail's — the "Copied!"
-                flash rides on the label, the contact name it is filed under
-                sits between label and value, and the value abbreviates until
-                the press that copies it also opens it. */}
-          <FieldRow>
-            {!!toAddress && (
-              <div className={cstyles.padtopsmall} style={{ minWidth: 0 }}>
-                <div className={cstyles.sublight}>
-                  Address
-                  {addressCopied && (
-                    <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
-                      Copied!
-                    </span>
-                  )}
+          {recipients.map((toaddr: ToAddrClass, index: number) => (
+            <div key={toaddr.id}>
+              <hr style={{ width: "100%" }} />
+              {!single && (
+                <div className={`${cstyles.sublight} ${cstyles.small}`}>
+                  Recipient {index + 1} of {recipients.length}
                 </div>
-                {!!contactLabel && (
-                  <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
-                    {contactLabel}
-                  </div>
-                )}
-                <div className={cstyles.verticalflex}>
-                  <button
-                    type="button"
-                    aria-label="Copy address"
-                    title="Copy address"
-                    style={{
-                      background: "none",
-                      border: "none",
-                      padding: 0,
-                      color: "inherit",
-                      font: "inherit",
-                      textAlign: "left",
-                      cursor: "pointer",
-                    }}
-                    onClick={() => {
-                      copyAddress(toAddress);
-                      setExpandAddress(true);
-                    }}
-                  >
-                    <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                      {!expandAddress && Utils.trimToSmall(toAddress, 10)}
-                      {expandAddress && (
-                        <>
-                          {toAddress.length < 80
-                            ? toAddress
-                            : Utils.splitStringIntoChunks(toAddress, 3).map((item) => <div key={item}>{item}</div>)}
-                        </>
-                      )}
-                    </div>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <Field label="Privacy" value={privacyLevel} />
-          </FieldRow>
-
-          {/* Each figure carries its fiat value underneath, the way the
-                detail states them. The price is the one in context — this send
-                has not happened, so the rate that matters is the one now
-                rather than a basis captured alongside a past transfer. */}
-          <FieldRow>
-            <Field
-              label="Amount"
-              value={
-                <>
-                  <div>
-                    <span>
-                      {info.currencyName} {amountBigPart}
-                    </span>
-                    <span className={`${cstyles.small} ${styles.zecsmallpart}`}>{amountSmallPart}</span>
-                  </div>
-                  {info.currencyName === "ZEC" && (
-                    <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, toAmount)}</div>
-                  )}
-                </>
-              }
-            />
-
-            <Field
-              label="Transaction Fee"
-              value={
-                <>
-                  {info.currencyName} {Utils.maxPrecisionTrimmed(sendFee)}
-                  {info.currencyName === "ZEC" && (
-                    <div className={cstyles.sublight}>{Utils.getZecToUsdString(zecPrice, sendFee)}</div>
-                  )}
-                </>
-              }
-            />
-          </FieldRow>
-
-          {!!memoText && (
-            <div className={cstyles.padtopsmall}>
-              <div className={cstyles.sublight}>Memo</div>
-              {/* Five rows, then it scrolls. A long memo used to grow the
-                    modal until the buttons left the screen. */}
-              <div className={cstyles.fieldrowmulti} style={{ maxHeight: "7.5em", overflowY: "auto" }}>
-                <div className={`${cstyles.fieldtextarea} ${cstyles.breakword}`} style={{ whiteSpace: "pre-wrap" }}>
-                  {memoText}
-                </div>
-              </div>
+              )}
+              <RecipientSummary
+                toaddr={toaddr}
+                privacyLevel={privacyLevels[index] ?? ""}
+                currencyName={info.currencyName}
+                zecPrice={zecPrice}
+                sendFee={single ? sendFee : undefined}
+              />
             </div>
+          ))}
+
+          {/* A batch pays one fee and has one privacy: its weakest output's. */}
+          {!single && (
+            <>
+              <hr style={{ width: "100%" }} />
+              <FieldRow>
+                <Field
+                  label="Transaction Fee"
+                  value={<FeeValue sendFee={sendFee} currencyName={info.currencyName} zecPrice={zecPrice} />}
+                />
+                <Field label="Privacy" value={worstPrivacyLevel(privacyLevels)} />
+              </FieldRow>
+            </>
           )}
         </div>
 
