@@ -227,8 +227,15 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   const recipients: ToAddrClass[] = sendPageState.toaddrs;
   const single: boolean = recipients.length === 1;
 
-  const [sendingTotal, setSendingTotal] = useState<number>(0);
   const [privacyLevels, setPrivacyLevels] = useState<string[]>([]);
+
+  // Summed in zatoshis so a batch of decimal amounts adds up exactly, and
+  // computed in the render that first shows the modal so it opens with the
+  // figure instead of with a zero it replaces a frame later.
+  const sendingTotal: number =
+    recipients.reduce((sum: number, toaddr: ToAddrClass) => sum + Math.round(Number(toaddr.amount) * 10 ** 8), 0) /
+      10 ** 8 +
+    sendFee;
 
   const currentChainName = currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName;
 
@@ -366,17 +373,10 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   );
 
   useEffect(() => {
-    // Summed in zatoshis so a batch of decimal amounts adds up exactly.
-    const amountZats: number = recipients.reduce(
-      (sum: number, toaddr: ToAddrClass) => sum + Math.round(Number(toaddr.amount) * 10 ** 8),
-      0,
-    );
-    const totalOut: number = amountZats / 10 ** 8 + sendFee;
-    setSendingTotal(totalOut);
     let cancelled: boolean = false;
     (async () => {
       const levels: string[] = await Promise.all(
-        recipients.map((toaddr: ToAddrClass) => getPrivacyLevel(toaddr, totalOut)),
+        recipients.map((toaddr: ToAddrClass) => getPrivacyLevel(toaddr, sendingTotal)),
       );
       if (!cancelled) {
         setPrivacyLevels(levels);
@@ -385,7 +385,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [getPrivacyLevel, sendFee, recipients]);
+  }, [getPrivacyLevel, sendingTotal, recipients]);
 
   const sendButton = async () => {
     const allSettings = await window.electronAPI.ipcRenderer.invoke("loadSettings");
@@ -570,7 +570,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
               )}
               <RecipientSummary
                 toaddr={toaddr}
-                privacyLevel={privacyLevels[index] ?? ""}
+                privacyLevel={privacyLevels[index] ?? "…"}
                 currencyName={info.currencyName}
                 zecPrice={zecPrice}
               />
@@ -586,7 +586,12 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
               label="Transaction Fee"
               value={<FeeValue sendFee={sendFee} currencyName={info.currencyName} zecPrice={zecPrice} />}
             />
-            {!single && <Field label="Transaction Privacy" value={worstPrivacyLevel(privacyLevels)} />}
+            {!single && (
+              <Field
+                label="Transaction Privacy"
+                value={privacyLevels.length === recipients.length ? worstPrivacyLevel(privacyLevels) : "…"}
+              />
+            )}
           </FieldRow>
         </div>
 
