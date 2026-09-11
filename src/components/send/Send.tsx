@@ -586,7 +586,13 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
                   <span className={cstyles.sublight}> ({Utils.getZecToUsdString(zecPrice, totalAmount)})</span>
                 )}
               </div>
-              <div>Fee {sendFee > 0 ? `${info.currencyName} ${Utils.maxPrecisionTrimmed(sendFee)}` : "—"}</div>
+              {/* Only once there is one. A dash in its place reads as a fee of
+                  nothing rather than as a quote still to come. */}
+              {sendFee > 0 && (
+                <div>
+                  Fee {info.currencyName} {Utils.maxPrecisionTrimmed(sendFee)}
+                </div>
+              )}
             </div>
 
             <div className={styles.sendfooterbuttons}>

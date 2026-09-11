@@ -492,6 +492,15 @@ describe("Send", () => {
         JSON.stringify({ spendable_balance: zec * 10 ** 8 }),
       );
 
+    // A dash in its place read as a fee of nothing, rather than as a quote
+    // still to come.
+    it("states no fee until there is one", () => {
+      render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
+        contextOverrides: { sendPageState: stateWith({ to: "u1abc", amount: 0.5 }) },
+      });
+      expect(screen.queryByText(/^Fee /)).not.toBeInTheDocument();
+    });
+
     it("quotes one fee for the whole batch", async () => {
       spendable(2);
       (native.send as jest.Mock).mockResolvedValue(JSON.stringify({ fee: 15_000 }));
