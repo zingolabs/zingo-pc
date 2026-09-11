@@ -94,4 +94,43 @@ describe("usePaneOffset with a footer", () => {
     expect(screen.getByTestId("offset")).toHaveTextContent("400");
     jest.restoreAllMocks();
   });
+
+  it("rounds the measurement up to a whole pixel", () => {
+    jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ top: 400.2, height: 90.5 } as DOMRect);
+
+    render(<Footed footerHeight={90} />);
+
+    expect(screen.getByTestId("offset")).toHaveTextContent("491");
+    jest.restoreAllMocks();
+  });
+
+  // Text below a pane can wrap at one pane size and not at the next. Here the
+  // footer is 120 tall while the offset is 410 or less and 100 above it, so an
+  // offset of 420 measures as 400 and 400 measures as 420. Chasing that is the
+  // update loop Send hit when its footer went to three columns.
+  it("settles instead of chasing a footer that wraps differently at each size", () => {
+    jest.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      if (this.dataset.role === "footer") {
+        return { top: 0, height: Number(this.dataset.offset) <= 410 ? 120 : 100 } as DOMRect;
+      }
+      return { top: 300, height: 0 } as DOMRect;
+    });
+
+    function Wrapping() {
+      const { paneRef, footerRef, paneOffset } = usePaneOffset(203);
+      return (
+        <div>
+          <div ref={paneRef} />
+          <div ref={footerRef} data-role="footer" data-offset={paneOffset} />
+          <div data-testid="offset">{paneOffset}</div>
+        </div>
+      );
+    }
+
+    render(<Wrapping />);
+
+    // The larger of the two: the shorter pane, with room for the footer either way.
+    expect(screen.getByTestId("offset")).toHaveTextContent("420");
+    jest.restoreAllMocks();
+  });
 });

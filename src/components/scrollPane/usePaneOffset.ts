@@ -12,10 +12,18 @@ import { useLayoutEffect, useRef, useState } from "react";
  * row could not be scrolled to.
  *
  * The measurement runs after every render because everything that moves this
- * boundary moves it through a React render. That cannot loop: the update is
- * written as a bail-out, so an unchanged measurement re-renders nothing, and
- * the pane's top is decided by what sits above it rather than by its own
- * height, so it does not move in response to being resized.
+ * boundary moves it through a React render. An unchanged measurement re-renders
+ * nothing, and the pane's top is decided by what sits above it rather than by
+ * its own height.
+ *
+ * The footer is the one part that can answer back. Its height is text, and
+ * text below the pane can wrap at one pane size and not at the next, so each
+ * of two offsets measures as the other and the update never settles — Send
+ * reached React's nested-update limit that way when its footer went to three
+ * columns. A measurement that returns to the offset just left is taken as that
+ * exchange, and the larger of the two is kept: the shorter pane, which leaves
+ * the footer room whichever way it lays out. Measurements are rounded up to
+ * whole pixels for the same reason, so sub-pixel layout cannot drive one.
  *
  * The fallback is used for the first paint and wherever there is no layout to
  * measure. A top of zero counts as the latter: every screen using this draws a
@@ -35,21 +43,33 @@ export function usePaneOffset(fallback: number) {
   const paneRef = useRef<HTMLDivElement>(null);
   const footerRef = useRef<HTMLDivElement>(null);
   const [paneOffset, setPaneOffset] = useState<number>(fallback);
+  // The offset in place before the current one, to recognise a measurement
+  // that only swings back to it.
+  const previousOffset = useRef<number | null>(null);
 
   // Deliberately without a dependency list: the point is to run after every
   // render, and any list would name the state of a screen this hook knows
   // nothing about.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useLayoutEffect(() => {
-    const next = measure(paneRef.current, footerRef.current);
-    if (next === null) return;
-    setPaneOffset((previous) => (previous === next ? previous : next));
+    let next: number | null = measure(paneRef.current, footerRef.current);
+    if (next === null || next === paneOffset) return;
+    if (next === previousOffset.current) {
+      next = Math.max(next, paneOffset);
+      if (next === paneOffset) return;
+    }
+    previousOffset.current = paneOffset;
+    setPaneOffset(next);
   });
 
   useLayoutEffect(() => {
     const remeasure = () => {
       const next = measure(paneRef.current, footerRef.current);
-      if (next !== null) setPaneOffset(next);
+      if (next === null) return;
+      // A new window size is a new layout, so nothing measured before it says
+      // anything about an exchange after it.
+      previousOffset.current = null;
+      setPaneOffset(next);
     };
     window.addEventListener("resize", remeasure);
     return () => window.removeEventListener("resize", remeasure);
@@ -60,15 +80,15 @@ export function usePaneOffset(fallback: number) {
 
 /**
  * Everything the window height owes to something other than the pane: the
- * distance down to it, plus the height of whatever is drawn beneath it. Null
- * when there is no layout to read.
+ * distance down to it, plus the height of whatever is drawn beneath it, rounded
+ * up to a whole pixel. Null when there is no layout to read.
  *
  * Only the footer's height is taken, never its position. Its position moves
- * when the pane is resized and its height does not, which is what keeps this
- * from measuring its own effect.
+ * when the pane is resized; its height moves only if its text wraps
+ * differently, which the hook above guards against.
  */
 function measure(pane: HTMLDivElement | null, footer: HTMLDivElement | null): number | null {
   const top = pane?.getBoundingClientRect().top;
   if (top === undefined || top <= 0) return null;
-  return top + (footer?.getBoundingClientRect().height ?? 0);
+  return Math.ceil(top + (footer?.getBoundingClientRect().height ?? 0));
 }
