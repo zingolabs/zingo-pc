@@ -1063,9 +1063,7 @@ export default class RPC {
     memoBytes?: Uint8Array;
   }): Promise<string[]> {
     if (!args.memoBytes || args.memoBytes.length === 0) {
-      const sendJson: Array<SendJsonToTypeType> = [
-        { address: args.depositAddress, amount: args.amountAtomic },
-      ];
+      const sendJson: Array<SendJsonToTypeType> = [{ address: args.depositAddress, amount: args.amountAtomic }];
       const joined: string = await this.sendTransaction(sendJson);
       return joined
         .split(",")

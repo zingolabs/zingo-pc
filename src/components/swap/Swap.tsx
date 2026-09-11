@@ -772,10 +772,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
 
               The control does not stretch: it is as wide as the longest
               percentage it will ever show, so the text gets everything else. */}
-          <div
-            className={cstyles.padtopsmall}
-            style={{ display: "flex", alignItems: "center", gap: 24 }}
-          >
+          <div className={cstyles.padtopsmall} style={{ display: "flex", alignItems: "center", gap: 24 }}>
             <div style={{ flexShrink: 0 }}>
               <div className={`${cstyles.sublight} ${cstyles.small}`}>Slippage tolerance</div>
               <button

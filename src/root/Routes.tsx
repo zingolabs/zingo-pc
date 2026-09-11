@@ -594,11 +594,7 @@ const AppRoutes: React.FC = () => {
   }, []);
 
   const runRPCSendSwapDeposit = useCallback(
-    async (args: {
-      depositAddress: string;
-      amountAtomic: number;
-      memoBytes?: Uint8Array;
-    }): Promise<string[]> => {
+    async (args: { depositAddress: string; amountAtomic: number; memoBytes?: Uint8Array }): Promise<string[]> => {
       return rpcRef.current!.sendSwapDeposit(args);
     },
     [],
