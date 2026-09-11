@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import AddressBook from "./Addressbook";
 import { AddressBookEntryClass, ServerChainNameEnum } from "../appstate";
@@ -8,6 +8,20 @@ jest.mock("../../electronBridge");
 
 // Provide a controllable ZNS resolver — `mock` prefix avoids jest hoist restriction.
 let mockResolveImpl: (alias: string, chain: string) => Promise<any> = async () => ({ ok: false, reason: "not-found" });
+// The swap helpers reach the native address parser once per chain, which is far
+// more than these tests are about — stubbed so a case can state which chains it
+// wants considered.
+let mockPossibleChains: string[] = ["ZEC"];
+let mockChainValid = true;
+jest.mock("../../swap", () => {
+  const actual = jest.requireActual("../../swap");
+  return {
+    ...actual,
+    possibleChainsForAddress: async () => mockPossibleChains,
+    validateAddressForChain: async () => mockChainValid,
+  };
+});
+
 jest.mock("../../utils/zns", () => {
   const actual = jest.requireActual("../../utils/zns");
   return {
@@ -21,6 +35,8 @@ const { native } = require("../../electronBridge");
 
 beforeEach(() => {
   mockResolveImpl = async () => ({ ok: false, reason: "not-found" });
+  mockPossibleChains = ["ZEC"];
+  mockChainValid = true;
   (native.parse_address as jest.Mock).mockReset();
 });
 
@@ -149,7 +165,9 @@ describe("AddressBook", () => {
     fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "u1valid" } });
     await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
-    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "u1valid", ServerChainNameEnum.mainChainName);
+    // The fourth argument is the asset chain. A Zcash address saved here is a
+    // ZEC contact, which is what every entry was before the book held more.
+    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "u1valid", ServerChainNameEnum.mainChainName, "ZEC");
   });
 
   it("recognizes a ZNS alias as valid and shows the 'ZNS' tag", async () => {
@@ -199,5 +217,197 @@ describe("AddressBook", () => {
     expect(screen.queryByText("Tester")).not.toBeInTheDocument();
     fireEvent.click(screen.getByLabelText(/Show contacts from all networks/i));
     expect(screen.getByText("Tester")).toBeInTheDocument();
+  });
+
+  // The filter shares the column titles row, and those are drawn only when
+  // something is listed. It has to outlive them: a wallet whose current
+  // network has no contacts is exactly the one whose contacts are all on the
+  // other network, and this is the only way to reach them.
+  it("offers the network filter even when nothing is listed", () => {
+    const other = new AddressBookEntryClass("Tester", "u1test", ServerChainNameEnum.testChainName);
+    render(<AddressBook {...baseProps} />, {
+      contextOverrides: { addressBook: [other] },
+    });
+
+    expect(screen.queryByText("Tester")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText(/Show contacts from all networks/i));
+    expect(screen.getByText("Tester")).toBeInTheDocument();
+  });
+
+  // The address book held Zcash and nothing else until now. These cover the
+  // part that changed: an address on another chain, which the Zcash parser
+  // would refuse outright.
+  describe("non-Zcash contacts", () => {
+    // Adding a non-ZEC contact asks for confirmation first. Cases about what ends
+    // up saved take the confirmation as given; the one below is about the
+    // confirmation itself.
+    const autoConfirm = () => jest.fn((_title: string, _body: string | JSX.Element, action: () => void) => action());
+
+    // An address is evidence of its own chain, so typing one moves the
+    // selection off the Zcash default rather than leaving a contradiction.
+    it("moves the selection to the chain the address belongs to", async () => {
+      mockPossibleChains = ["BTC"];
+      render(<AddressBook {...baseProps} />);
+      expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Zcash");
+
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Bitcoin"));
+    });
+
+    // The field opens the same kind of list the swap screen picks assets from,
+    // rather than a native select that shows one line and no badge.
+    it("takes the chain from the picker it opens", async () => {
+      mockPossibleChains = ["BTC", "LTC"];
+      const addAddressBookEntry = jest.fn();
+      render(<AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />, {
+        contextOverrides: { openConfirmModal: autoConfirm() },
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qambiguous" } });
+
+      const chainField = await screen.findByRole("button", { name: /^chain$/i });
+      await waitFor(() => expect(chainField).not.toBeDisabled());
+      fireEvent.click(chainField);
+      fireEvent.click(await screen.findByRole("button", { name: /litecoin/i }));
+
+      await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+      expect(addAddressBookEntry).toHaveBeenCalledWith(
+        "Bob",
+        "bc1qambiguous",
+        ServerChainNameEnum.mainChainName,
+        "LTC",
+      );
+    });
+
+    it("saves the asset chain alongside the Zcash network", async () => {
+      mockPossibleChains = ["BTC"];
+      const addAddressBookEntry = jest.fn();
+      render(<AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />, {
+        contextOverrides: { openConfirmModal: autoConfirm() },
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+      expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+    });
+
+    it("refuses an address that is not valid for its chain", async () => {
+      mockPossibleChains = ["BTC"];
+      mockChainValid = false;
+      render(<AddressBook {...baseProps} />);
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "not-bitcoin" } });
+      expect(await screen.findByText(/not a valid bitcoin address/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^add$/i })).toBeDisabled();
+    });
+
+    // Shape-only recognition can name a plausible but wrong chain, and a contact
+    // filed under the wrong one becomes a swap sent to the wrong network.
+    it("saves nothing until the detected chain is confirmed", async () => {
+      mockPossibleChains = ["BTC"];
+      const addAddressBookEntry = jest.fn();
+      const openConfirmModal = jest.fn();
+      render(<AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />, {
+        contextOverrides: { openConfirmModal },
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+
+      expect(addAddressBookEntry).not.toHaveBeenCalled();
+      // The dialog names the chain it detected, which is the thing being checked.
+      expect(openConfirmModal).toHaveBeenCalledWith(
+        "Add contact",
+        expect.stringContaining("Bitcoin"),
+        expect.any(Function),
+      );
+
+      // Confirming is what commits it.
+      openConfirmModal.mock.calls[0][2]();
+      expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+    });
+
+    // The two chains answer different questions, and only one of them applies
+    // to a Bitcoin address. Filing it under the wallet's current network would
+    // tag it with a Zcash network it has nothing to do with.
+    it("files a non-Zcash contact under mainnet even from a testnet wallet", async () => {
+      mockPossibleChains = ["BTC"];
+      const addAddressBookEntry = jest.fn();
+      render(<AddressBook addAddressBookEntry={addAddressBookEntry} removeAddressBookEntry={jest.fn()} />, {
+        contextOverrides: {
+          currentWallet: { chain_name: ServerChainNameEnum.testChainName } as never,
+          openConfirmModal: autoConfirm(),
+        },
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Bob" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
+      await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+      expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+    });
+
+    // The network filter is about Zcash networks; a Bitcoin contact has none of
+    // ours to belong to, so hiding it on testnet would lose it for no reason.
+    it("keeps a non-Zcash contact visible whatever network the wallet is on", () => {
+      const btc = new AddressBookEntryClass("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+      const zecTest = new AddressBookEntryClass("Tester", "u1test", ServerChainNameEnum.testChainName);
+      render(<AddressBook {...baseProps} />, { contextOverrides: { addressBook: [btc, zecTest] } });
+      expect(screen.getByText("Bob")).toBeInTheDocument();
+      expect(screen.queryByText("Tester")).not.toBeInTheDocument();
+    });
+  });
+});
+
+describe("AddressBook chain field", () => {
+  // The badge answers "which chain" before the label is read, and the chevron
+  // is what says the field is a choice rather than something the form worked
+  // out and is telling you.
+  // The field is part of the form, not a conclusion the form reaches: it is
+  // there from the first paint, set to Zcash, and says it can be changed.
+  it("is present and changeable on an untouched form", () => {
+    render(<AddressBook {...baseProps} />);
+
+    const field = screen.getByRole("button", { name: /^chain$/i });
+    expect(field).toHaveTextContent("Zcash");
+    expect(field).not.toBeDisabled();
+    expect(within(field).getByTestId("chain-badge")).toBeInTheDocument();
+    expect(within(field).getByTestId("chain-caret")).toBeInTheDocument();
+  });
+});
+
+describe("AddressBook validation ticks", () => {
+  // An empty field has no error, which is not the same as being right. The
+  // tick used to greet an untouched form claiming both fields were good.
+  it("shows nothing on either field before anything is typed", () => {
+    render(<AddressBook {...baseProps} />);
+    expect(screen.queryByTestId("label-valid")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("address-valid")).not.toBeInTheDocument();
+  });
+
+  it("ticks each field once it holds something valid", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    render(<AddressBook {...baseProps} />);
+
+    fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Alice" } });
+    expect(await screen.findByTestId("label-valid")).toBeInTheDocument();
+    expect(screen.queryByTestId("address-valid")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "u1valid" } });
+    expect(await screen.findByTestId("address-valid")).toBeInTheDocument();
+  });
+
+  it("shows the error rather than a tick when the content is wrong", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue("");
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "garbage" } });
+
+    expect(await screen.findByText("Invalid Address")).toBeInTheDocument();
+    expect(screen.queryByTestId("address-valid")).not.toBeInTheDocument();
   });
 });

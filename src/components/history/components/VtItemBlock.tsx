@@ -4,6 +4,7 @@ import styles from "../History.module.css";
 import cstyles from "../../common/Common.module.css";
 import { ValueTransferClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../../appstate";
 import Utils from "../../../utils/utils";
+import { swapRowLabel } from "../../../swap";
 
 type VtItemBlockProps = {
   index: number;
@@ -45,7 +46,16 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
   // transfers from before zingolib recorded per-tx prices) renders `USD --`
   // rather than a wrong figure.
   const price: number = vt.zec_price || 0;
-  const priceString: string = currencyName === "ZEC" ? Utils.getZecToUsdString(price, amount) : "";
+  // A swap row is denominated in the counterparty asset, so it carries its own
+  // unit and its own price. Pricing a BTC amount at the ZEC rate would not be
+  // an empty column, it would be a wrong number.
+  const isSwapRow: boolean = vt.type === ValueTransferKindEnum.swap;
+  const amountUnit: string = isSwapRow ? (vt.swapAssetTicker ?? "") : currencyName;
+  const priceString: string = isSwapRow
+    ? Utils.getZecToUsdString(vt.swapUsdUnitPrice ?? 0, amount)
+    : currencyName === "ZEC"
+      ? Utils.getZecToUsdString(price, amount)
+      : "";
 
   //if (index === 0) {
   //  vt.status = ValueTransferStatusEnum.failed;
@@ -88,43 +98,54 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
             style={{
               color:
                 vt.confirmations === 0
-                  ? Utils.getCssVariable("--color-primary-disable")
+                  ? "var(--color-primary-disable)"
                   : vt.type === ValueTransferKindEnum.received ||
                       vt.type === ValueTransferKindEnum.shield ||
-                      vt.type === ValueTransferKindEnum.migration
-                    ? Utils.getCssVariable("--color-primary")
-                    : Utils.getCssVariable("--color-text"),
+                      vt.type === ValueTransferKindEnum.migration ||
+                      (vt.type === ValueTransferKindEnum.swap && vt.swapIsInbound)
+                    ? "var(--color-primary)"
+                    : "var(--color-text)",
             }}
           >
-            {Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
+            {vt.type === ValueTransferKindEnum.swap
+              ? swapRowLabel(vt.swapStatus)
+              : Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
           </div>
           <div className={`${cstyles.padtopsmall} ${cstyles.sublight}`}>{timePart}</div>
-          {(vt.status === ValueTransferStatusEnum.calculated ||
-            vt.status === ValueTransferStatusEnum.transmitted ||
-            vt.status === ValueTransferStatusEnum.mempool ||
-            vt.status === ValueTransferStatusEnum.failed) && (
-            <div
-              style={{
-                color:
-                  vt.status === ValueTransferStatusEnum.failed
-                    ? Utils.getCssVariable("--color-error")
-                    : vt.status === ValueTransferStatusEnum.calculated ||
-                        vt.status === ValueTransferStatusEnum.transmitted
-                      ? Utils.getCssVariable("--color-warning")
-                      : Utils.getCssVariable("--color-primary-disable"),
-              }}
-            >
-              {vt.status === ValueTransferStatusEnum.calculated
-                ? "Calculated"
-                : vt.status === ValueTransferStatusEnum.transmitted
-                  ? "Transmitted"
-                  : vt.status === ValueTransferStatusEnum.mempool
-                    ? "In Mempool"
-                    : vt.status === ValueTransferStatusEnum.failed
-                      ? "Failed"
-                      : ""}
-            </div>
-          )}
+          {/* Not on a swap row. Calculated, Transmitted and In Mempool describe
+              where a Zcash transaction sits on its way into a block, which a
+              swap is not doing: it is waiting on a deposit, or on a provider
+              moving funds across chains. Its own state is already the label
+              above, and `swapRowLabel` covers every one of them, so this line
+              could only restate it in the wrong vocabulary. The mapped status
+              still colours the amount, which is why the mapping stays. */}
+          {!isSwapRow &&
+            (vt.status === ValueTransferStatusEnum.calculated ||
+              vt.status === ValueTransferStatusEnum.transmitted ||
+              vt.status === ValueTransferStatusEnum.mempool ||
+              vt.status === ValueTransferStatusEnum.failed) && (
+              <div
+                style={{
+                  color:
+                    vt.status === ValueTransferStatusEnum.failed
+                      ? "var(--color-error)"
+                      : vt.status === ValueTransferStatusEnum.calculated ||
+                          vt.status === ValueTransferStatusEnum.transmitted
+                        ? "var(--color-warning)"
+                        : "var(--color-primary-disable)",
+                }}
+              >
+                {vt.status === ValueTransferStatusEnum.calculated
+                  ? "Calculated"
+                  : vt.status === ValueTransferStatusEnum.transmitted
+                    ? "Transmitted"
+                    : vt.status === ValueTransferStatusEnum.mempool
+                      ? "In Mempool"
+                      : vt.status === ValueTransferStatusEnum.failed
+                        ? "Failed"
+                        : ""}
+              </div>
+            )}
         </div>
         <div className={styles.txaddressmemofeeamount}>
           <div className={styles.txaddressmemo}>
@@ -151,7 +172,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
           </div>
           <div className={`${styles.txfeeamount} ${cstyles.right}`}>
             {fees > 0 && (
-              <div className={`${styles.txfee} ${cstyles.right}`}>
+              <div className={cstyles.right}>
                 <div>Transaction Fee</div>
                 <div className={`${cstyles.small} ${cstyles.padtopsmall}`}>
                   <div>ZEC {Utils.maxPrecisionTrimmed(fees)}</div>
@@ -161,20 +182,24 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                 </div>
               </div>
             )}
-            <div className={`${styles.txamount} ${cstyles.right} ${cstyles.padtopsmall}`}>
+            <div className={cstyles.right}>
+              {/* Labelled only when the fee stands beside it. Two figures on
+                  one line need saying which is which; one on its own is the
+                  amount by being the only thing there, and a label would cost
+                  every row without a fee a line to say what was never in
+                  doubt. */}
+              {fees > 0 && <div>Amount</div>}
               <div className={cstyles.padtopsmall}>
                 <span
                   style={{
-                    color:
-                      vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                    color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
                   }}
                 >
-                  {currencyName} {bigPart}
+                  {amountUnit} {bigPart}
                 </span>
                 <span
                   style={{
-                    color:
-                      vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                    color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
                   }}
                   className={`${cstyles.small} ${cstyles.zecsmallpart}`}
                 >
@@ -183,8 +208,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               </div>
               <div
                 style={{
-                  color:
-                    vt.status === ValueTransferStatusEnum.failed ? Utils.getCssVariable("--color-error") : undefined,
+                  color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
                 }}
                 className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}
               >

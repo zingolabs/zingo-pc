@@ -125,15 +125,6 @@ describe("Dashboard", () => {
 
   // The line renders off currentWallet.uri, so a wallet without one hides it —
   // which is why the rest of these fixtures never noticed it.
-  it("shows the active server line above the balances", () => {
-    render(<Dashboard navigateToHistory={jest.fn()} />, {
-      contextOverrides: {
-        currentWallet: { ...makeWallet(), uri: "https://zec.rocks:443", selection: "auto" } as any,
-        info: makeInfo(),
-      },
-    });
-    expect(screen.getByRole("button", { name: "Active server health" })).toBeInTheDocument();
-  });
 
   it("shows the server info block", () => {
     render(<Dashboard navigateToHistory={jest.fn()} />, {
@@ -271,5 +262,55 @@ describe("Dashboard", () => {
       },
     });
     expect(screen.getByText("Nonlinear Scanning Map")).toBeInTheDocument();
+  });
+
+  // The figure sits at the end of the map's legend and carries the same signal
+  // the map does: still working, or done.
+  describe("scan percentage beside the map", () => {
+    const showMap = (verificationProgress: number | null) =>
+      render(<Dashboard navigateToHistory={jest.fn()} />, {
+        contextOverrides: {
+          currentWallet: makeWallet(),
+          info: makeInfo(),
+          birthday: 100,
+          syncingStatus: {
+            scan_ranges: [
+              { start_block: 100, end_block: 110, priority: SyncStatusScanRangePriorityEnum.Scanning },
+            ] as any,
+          } as any,
+          verificationProgress,
+        },
+      });
+
+    it("is yellow while the scan is unfinished", () => {
+      showMap(42.7);
+      expect(screen.getByText("42.70% synced")).toHaveClass("yellow");
+    });
+
+    // A bare 100 rather than "100.00", which is what the sidebar shows for the
+    // same figure a few pixels away.
+    it("is green once the scan is complete", () => {
+      showMap(100);
+      expect(screen.getByText("100% synced")).toHaveClass("green");
+    });
+
+    // The trap this guards: rounding would show a finished figure in the
+    // finished colour on a wallet that is still scanning.
+    it("never reports a hundred the wallet has not reached", () => {
+      showMap(99.996);
+      expect(screen.getByText("99.99% synced")).toHaveClass("yellow");
+      expect(screen.queryByText(/100/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the two decimals the sidebar shows", () => {
+      showMap(63.05);
+      expect(screen.getByText("63.05% synced")).toBeInTheDocument();
+    });
+
+    it("says nothing before the figure has been fetched", () => {
+      showMap(null);
+      expect(screen.getByText("Nonlinear Scanning Map")).toBeInTheDocument();
+      expect(screen.queryByText(/% synced/)).not.toBeInTheDocument();
+    });
   });
 });

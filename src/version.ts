@@ -1,3 +1,3 @@
-const APP_VERSION = "2.0.25 (180)";
+const APP_VERSION = "2.0.26 (184)";
 
 export default APP_VERSION;

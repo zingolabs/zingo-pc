@@ -301,6 +301,26 @@ describe("Send", () => {
       expect(native.send).toHaveBeenCalled();
     });
 
+    // The amount field starts at zero, so pasting an address used to quote a
+    // fee for sending nothing. zip321 refuses a zero-valued output to a
+    // transparent recipient, and the consensus error arrived on the keystroke
+    // that finished the address, with nothing sent.
+    it("asks for no fee while there is nothing to send", async () => {
+      (native.get_spendable_balance_with_address as jest.Mock).mockResolvedValue(
+        JSON.stringify({ spendable_balance: 0 }),
+      );
+      const sendPageState = new SendPageStateClass();
+      sendPageState.toaddr = Object.assign(new ToAddrClass(), { to: "t1abc", amount: 0, memo: "" });
+      render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
+        contextOverrides: { sendPageState },
+      });
+      const props = lastToAddrBoxProps();
+      await act(async () => {
+        await props.fetchSendFeeAndErrorAndSpendable();
+      });
+      expect(native.send).not.toHaveBeenCalled();
+    });
+
     it("captures errors returned by native.get_spendable_balance_with_address", async () => {
       (native.get_spendable_balance_with_address as jest.Mock).mockResolvedValue("Error: bad addr");
       const sendPageState = new SendPageStateClass();
@@ -345,12 +365,4 @@ describe("Send", () => {
   });
 
   // The line rides the balance header, which every one of these pages carries.
-  it("carries the active server line in the balance header", () => {
-    render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
-      contextOverrides: {
-        currentWallet: { id: 0, uri: "https://zec.rocks:443", selection: "auto" } as never,
-      },
-    });
-    expect(screen.getByRole("button", { name: "Active server health" })).toBeInTheDocument();
-  });
 });

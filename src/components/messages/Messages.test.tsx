@@ -190,12 +190,4 @@ describe("Messages", () => {
   });
 
   // The line rides the balance header, which every one of these pages carries.
-  it("carries the active server line in the balance header", () => {
-    render(<Messages />, {
-      contextOverrides: {
-        currentWallet: { id: 0, uri: "https://zec.rocks:443", selection: "auto" } as never,
-      },
-    });
-    expect(screen.getByRole("button", { name: "Active server health" })).toBeInTheDocument();
-  });
 });

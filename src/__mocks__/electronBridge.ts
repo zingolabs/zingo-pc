@@ -10,11 +10,18 @@ export const native = {
   set_wallet_base_dir: jest.fn(),
   start_security_scoped_access: jest.fn(),
   get_latest_block_server: jest.fn(),
+  // AddNewWallet (delete)
+  stop_sync: jest.fn(),
+  delete_wallet: jest.fn(),
   // Send
   send: jest.fn(),
   get_spendable_balance_with_address: jest.fn(),
   // History
   remove_transaction: jest.fn(),
+  // Swap
+  send_swap_deposit: jest.fn(),
+  derive_refund_address: jest.fn(),
+  reserve_refund_address: jest.fn(),
   // Insight
   get_total_value_to_address: jest.fn(),
   get_total_number_of_sends: jest.fn(),
@@ -31,8 +38,11 @@ export const shell = {
 };
 
 export const ipcRenderer = {
-  on: jest.fn(),
-  off: jest.fn(),
+  // Returns a disposer, as the real bridge does: the preload owns the
+  // registration because contextBridge proxies anything named from this side.
+  // A mock that returned nothing would let a component forget to unsubscribe
+  // and still pass.
+  on: jest.fn(() => jest.fn()),
   invoke: jest.fn(),
   send: jest.fn(),
 };

@@ -1,0 +1,41 @@
+/*
+ * The ring fills clockwise from empty to full over the refresh interval.
+ *
+ * The circumference depends on the size the caller asks for, so it arrives as
+ * a custom property rather than being baked into the keyframes. `linear`
+ * matches the mobile wallet's `Easing.linear`: the ring is a clock, and any
+ * easing would make it lie about how much time is left.
+ */
+@keyframes fill {
+  from {
+    stroke-dashoffset: var(--circumference);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.arc {
+  animation: fill var(--duration) linear forwards;
+}
+
+.button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+}

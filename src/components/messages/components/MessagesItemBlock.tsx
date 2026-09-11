@@ -4,7 +4,7 @@ import styles from "../Messages.module.css";
 import cstyles from "../../common/Common.module.css";
 import { ValueTransferClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../../appstate";
 import Utils from "../../../utils/utils";
-import { clipboard } from "../../../electronBridge";
+import { useCopy } from "../../common/useCopy";
 
 type MessagesItemBlockProps = {
   index: number;
@@ -28,6 +28,8 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
   previousLineWithSameTxid,
 }) => {
   const [expandAddress, setExpandAddress] = useState(false);
+  // 1500ms, the cadence every other inline click-to-copy in the app uses.
+  const { copied, copy } = useCopy(1500);
 
   const txDate: Date = new Date(vt.time * 1000);
   const datePart: string = dateformat(txDate, "mmm dd, yyyy");
@@ -73,9 +75,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           borderBottomLeftRadius: vt.type === ValueTransferKindEnum.received ? 0 : 20,
           opacity: vt.status === ValueTransferStatusEnum.failed ? 0.2 : 1,
           backgroundColor:
-            vt.type === ValueTransferKindEnum.received
-              ? Utils.getCssVariable("--color-primary-disable")
-              : Utils.getCssVariable("--color-primary"),
+            vt.type === ValueTransferKindEnum.received ? "var(--color-primary-disable)" : "var(--color-primary)",
         }}
         role="button"
         tabIndex={0}
@@ -99,24 +99,23 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
             {!!label && <div style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }}>{label}</div>}
             {!!address && !label && (
               <div style={{ marginBottom: 10, marginLeft: 25, marginTop: -10 }} className={cstyles.verticalflex}>
-                <div
-                  role="button"
-                  tabIndex={0}
+                {copied && <span className={cstyles.highlight}>Copied!</span>}
+                <button
+                  type="button"
                   aria-label="Copy address"
-                  style={{ cursor: "pointer" }}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "inherit",
+                    font: "inherit",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
                   onClick={() => {
                     if (address) {
-                      clipboard.writeText(address);
+                      copy(address);
                       setExpandAddress(true);
-                    }
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      if (address) {
-                        clipboard.writeText(address);
-                        setExpandAddress(true);
-                      }
                     }
                   }}
                 >
@@ -131,7 +130,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
                       </>
                     )}
                   </div>
-                </div>
+                </button>
               </div>
             )}
           </div>
@@ -183,7 +182,7 @@ const MessagesItemBlock: React.FC<MessagesItemBlockProps> = ({
           </div>
         )}
         {vt.status === ValueTransferStatusEnum.failed && (
-          <div style={{ color: Utils.getCssVariable("--color-error"), marginLeft: 10, marginRight: 10 }}>Failed</div>
+          <div style={{ color: "var(--color-error)", marginLeft: 10, marginRight: 10 }}>Failed</div>
         )}
       </div>
     </div>

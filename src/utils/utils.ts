@@ -15,6 +15,22 @@ export const NO_CONNECTION: string = "Could not connect to the Server";
 
 export default class Utils {
   // recover the var from the Global CSS.
+  /**
+   * A palette colour as a string JavaScript can hold.
+   *
+   * Not the way to colour something. `var(--color-error)` written straight
+   * into a style is, because the browser resolves it and keeps resolving it;
+   * this reads the computed value once, at the moment it is called, so a
+   * colour taken this way is frozen until the component renders again. With
+   * one fixed palette that is the same colour either way, which is exactly why
+   * two idioms lived side by side for so long — and why the day a second
+   * palette arrives, whichever call sites still use this would keep painting
+   * the old one.
+   *
+   * It earns its place where the value cannot be a CSS function: a canvas the
+   * chart library paints on, or a component prop that may end up as an SVG
+   * presentation attribute. Six call sites, and they are the only ones.
+   */
   static getCssVariable(variableName: string): string {
     return getComputedStyle(document.documentElement).getPropertyValue(variableName).trim();
   }
@@ -58,15 +74,34 @@ export default class Utils {
                                     ? "...Migrating..."
                                     : type === ValueTransferKindEnum.migration && confirmations > 0
                                       ? "Migration"
-                                      : "";
+                                      : type === ValueTransferKindEnum.swap
+                                        ? "Swap"
+                                        : "";
   }
 
+  /**
+   * The head and tail of a long string with an ellipsis between them, and the
+   * string itself when it is not long enough for that to help.
+   *
+   * The two slices are taken from opposite ends, so a string shorter than
+   * twice `numChars` makes them overlap and the shared middle is printed
+   * twice — a short address came out reading as two copies of itself with
+   * dots in between. At exactly twice, nothing is repeated but the result is
+   * three characters longer than what it replaced.
+   *
+   * So the abbreviation only happens once it is actually an abbreviation:
+   * past both slices plus the ellipsis that joins them.
+   */
   static trimToSmall(addr?: string, numChars?: number): string {
     if (!addr) {
       return "";
     }
     const trimSize: number = numChars || 5;
-    return `${addr.slice(0, trimSize)}...${addr.slice(addr.length - trimSize)}`;
+    const ELLIPSIS = "...";
+    if (addr.length <= trimSize * 2 + ELLIPSIS.length) {
+      return addr;
+    }
+    return `${addr.slice(0, trimSize)}${ELLIPSIS}${addr.slice(addr.length - trimSize)}`;
   }
 
   static async getAddressChainName(addr: string): Promise<string | undefined> {
@@ -338,33 +373,75 @@ export default class Utils {
     return colorList;
   }
 
+  // Deterministic bright colour keyed by an arbitrary string (e.g. a token
+  // ticker). Same seed always yields the same colour, so a per-asset avatar
+  // keeps a stable identity across re-renders instead of flickering a new
+  // random colour each time. Mirrors `generateColorList`'s options; only the
+  // `seed` makes it reproducible.
+  static generateColorFromSeed(seed: string): string {
+    return randomColor({
+      seed,
+      luminosity: "bright",
+      format: "hex",
+    });
+  }
+
+  static getLabelColor(bgColor: string): string {
+    // Remove the '#' if present.
+    if (bgColor.startsWith("#")) {
+      bgColor = bgColor.slice(1);
+    }
+
+    // Convert the hexadecimal color to its red, green, and blue components.
+    const r: number = parseInt(bgColor.substring(0, 2), 16);
+    const g: number = parseInt(bgColor.substring(2, 4), 16);
+    const b: number = parseInt(bgColor.substring(4, 6), 16);
+
+    // Calculate the brightness using the standard luminance formula.
+    const brightness: number = (r * 299 + g * 587 + b * 114) / 1000;
+
+    // If the brightness is greater than 128, return dark text (black); otherwise, return light text (white).
+    return brightness > 128 ? "#000000" : "#FFFFFF";
+  }
+
+  /**
+   * The user's chosen block explorer's URL for a Zcash transaction, or an
+   * empty string when no explorer is configured. Returned rather than opened
+   * so callers that need the URL itself, such as the swap trackers list, read
+   * the same setting the History link obeys.
+   */
+  static zecExplorerTxUrl = (
+    txid: string,
+    chainName: ServerChainNameEnum | undefined,
+    blockExplorer: BlockExplorerEnum,
+    blockExplorerCustom: string,
+  ): string => {
+    const testnet = chainName === ServerChainNameEnum.testChainName;
+    if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
+      return testnet
+        ? `https://testnet.zcashexplorer.app/transactions/${txid}`
+        : `https://mainnet.zcashexplorer.app/transactions/${txid}`;
+    }
+    if (blockExplorer === BlockExplorerEnum.Cipherscan) {
+      return testnet ? `https://testnet.cipherscan.app/tx/${txid}` : `https://cipherscan.app/tx/${txid}`;
+    }
+    if (blockExplorer === BlockExplorerEnum.Zexplorer) {
+      return testnet ? `https://zexplorer.app/testnet/tx/${txid}` : `https://zexplorer.app/mainnet/tx/${txid}`;
+    }
+    if (blockExplorer === BlockExplorerEnum.Custom) {
+      return `${blockExplorerCustom}${txid}`;
+    }
+    return "";
+  };
+
   static openTxid = (
     txid: string,
     chainName: ServerChainNameEnum | undefined,
     blockExplorer: BlockExplorerEnum,
     blockExplorerCustom: string,
   ) => {
-    if (blockExplorer === BlockExplorerEnum.Zcashexplorer) {
-      if (chainName === ServerChainNameEnum.testChainName) {
-        shell.openExternal(`https://testnet.zcashexplorer.app/transactions/${txid}`);
-      } else {
-        shell.openExternal(`https://mainnet.zcashexplorer.app/transactions/${txid}`);
-      }
-    } else if (blockExplorer === BlockExplorerEnum.Cipherscan) {
-      if (chainName === ServerChainNameEnum.testChainName) {
-        shell.openExternal(`https://testnet.cipherscan.app/tx/${txid}`);
-      } else {
-        shell.openExternal(`https://cipherscan.app/tx/${txid}`);
-      }
-    } else if (blockExplorer === BlockExplorerEnum.Zexplorer) {
-      if (chainName === ServerChainNameEnum.testChainName) {
-        shell.openExternal(`https://zexplorer.app/testnet/tx/${txid}`);
-      } else {
-        shell.openExternal(`https://zexplorer.app/mainnet/tx/${txid}`);
-      }
-    } else if (blockExplorer === BlockExplorerEnum.Custom) {
-      shell.openExternal(`${blockExplorerCustom}${txid}`);
-    }
+    const url = Utils.zecExplorerTxUrl(txid, chainName, blockExplorer, blockExplorerCustom);
+    if (url) shell.openExternal(url);
   };
 
   static openAddress = (

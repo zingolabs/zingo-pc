@@ -16,7 +16,11 @@ export const RACE_CANDIDATES = 3;
 // answer. `get_latest_block_server` opens its own connection to the URI rather
 // than going through the open wallet, so this measures the server and nothing
 // else.
-const latencyOf = async (server: ServerClass): Promise<number | null> => {
+//
+// Exported so the server picker times its list with the same probe the race
+// uses. Two measurements of "how far away is this server" that disagreed about
+// what they were measuring would be worse than one of them not existing.
+export const latencyOf = async (server: ServerClass): Promise<number | null> => {
   const start: number = Date.now();
   try {
     const resp: string = await native.get_latest_block_server(server.uri);

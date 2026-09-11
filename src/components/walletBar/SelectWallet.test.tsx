@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "../../../test-utils";
+import { render, screen } from "../../test-utils";
 import SelectWallet from "./SelectWallet";
 import {
   WalletType,
@@ -7,9 +7,9 @@ import {
   CreationTypeEnum,
   PerformanceLevelEnum,
   ServerSelectionEnum,
-} from "../../appstate";
+} from "../appstate";
 
-jest.mock("../../../electronBridge");
+jest.mock("../../electronBridge");
 
 const makeWallet = (id: number, alias: string, chain_name: ServerChainNameEnum): WalletType => ({
   id,

@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import styles from "./Insight.module.css";
 import cstyles from "../common/Common.module.css";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -26,6 +27,8 @@ type Dataset = {
 const Insight: React.FC<InsightProps> = () => {
   const context = useContext(ContextApp);
   const { addressBook } = context;
+
+  const { paneRef, paneOffset } = usePaneOffset(162);
 
   const [dataSent, setDataSent] = useState<Data>({} as Data);
   const [dataSends, setDataSends] = useState<Data>({} as Data);
@@ -200,7 +203,7 @@ const Insight: React.FC<InsightProps> = () => {
             justifyContent: "space-between",
             marginTop: 5,
             marginBottom: 5,
-            borderBottomColor: Utils.getCssVariable("--color-zingo"),
+            borderBottomColor: "var(--color-zingo)",
             borderBottomWidth: address !== "fee" ? 1 : 0,
           }}
         >
@@ -221,7 +224,7 @@ const Insight: React.FC<InsightProps> = () => {
                 flexWrap: "wrap",
               }}
             >
-              <div>{address.length > 10 ? Utils.trimToSmall(address, 6) : address}</div>
+              <div>{Utils.trimToSmall(address, 6)}</div>
             </div>
           </div>
           <div
@@ -246,14 +249,14 @@ const Insight: React.FC<InsightProps> = () => {
             )}
           </div>
         </div>
-        <div style={{ height: 1, backgroundColor: Utils.getCssVariable("--color-zingo") }} />
+        <div style={{ height: 1, backgroundColor: "var(--color-zingo)" }} />
       </div>
     );
   };
 
   return (
     <div>
-      <div className={`${cstyles.xlarge} ${cstyles.margintopsmall} ${cstyles.center}`}>Financial Insight</div>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Financial Insight</div>
 
       <div className={styles.insightcontainer}>
         <div className={cstyles.well} style={{ display: "flex", flexDirection: "row", justifyContent: "stretch" }}>
@@ -276,173 +279,183 @@ const Insight: React.FC<InsightProps> = () => {
             </div>
           </div>
         </div>
-        <ScrollPaneTop offsetHeight={150}>
-          {!loading && (
-            <div className={cstyles.well} style={{ display: "flex", flexDirection: "row", justifyContent: "stretch" }}>
-              <div className={cstyles.balancebox} style={{ width: "30%", marginRight: 5 }}>
-                {dataSent && dataSent.datasets && dataSent.datasets[0].data.length === 0 && (
-                  <div
-                    style={{ alignSelf: "center", width: "100%" }}
-                    className={`${cstyles.center} ${cstyles.margintoplarge}`}
-                  >
-                    No Transactions Yet
-                  </div>
-                )}
-                {dataSent && dataSent.datasets && dataSent.datasets[0].data.length > 0 && (
-                  <div style={{ flexDirection: "column", alignItems: "center", width: "100%" }}>
-                    <Chart
-                      data={dataSent}
-                      type={"doughnut"}
-                      options={{
-                        radius: "90%",
-                        responsive: true,
-                        cutout: "30%",
-                        plugins: {
-                          legend: {
-                            display: false,
-                          },
-                          tooltip: {
-                            callbacks: {
-                              label: function (context) {
-                                return context.label + ": " + context.parsed.toString();
+        {/* Unlike the other screens using this, the block above is a fixed row
+            of three headings, so the constant it replaces was not wrong today.
+            Measured anyway: it would have to be re-tuned by hand the first time
+            a line is added above, and nothing would say so until a row fell off
+            the bottom. */}
+        <div ref={paneRef}>
+          <ScrollPaneTop offsetHeight={paneOffset}>
+            {!loading && (
+              <div
+                className={cstyles.well}
+                style={{ display: "flex", flexDirection: "row", justifyContent: "stretch" }}
+              >
+                <div className={cstyles.balancebox} style={{ width: "30%", marginRight: 5 }}>
+                  {dataSent && dataSent.datasets && dataSent.datasets[0].data.length === 0 && (
+                    <div
+                      style={{ alignSelf: "center", width: "100%" }}
+                      className={`${cstyles.center} ${cstyles.margintoplarge}`}
+                    >
+                      No Transactions Yet
+                    </div>
+                  )}
+                  {dataSent && dataSent.datasets && dataSent.datasets[0].data.length > 0 && (
+                    <div style={{ flexDirection: "column", alignItems: "center", width: "100%" }}>
+                      <Chart
+                        data={dataSent}
+                        type={"doughnut"}
+                        options={{
+                          radius: "90%",
+                          responsive: true,
+                          cutout: "30%",
+                          plugins: {
+                            legend: {
+                              display: false,
+                            },
+                            tooltip: {
+                              callbacks: {
+                                label: function (context) {
+                                  return context.label + ": " + context.parsed.toString();
+                                },
                               },
                             },
                           },
-                        },
-                      }}
-                    />
-                    <div style={{ display: "flex", marginLeft: 5, marginRight: 5, padding: 0, alignItems: "center" }}>
-                      <div style={{ width: "100%" }}>
-                        {dataSent.datasets[0].data.map((value: number, index: number) => {
-                          if (value > 0 && dataSent.labels[index] === "fee") {
-                            return line(
-                              value,
-                              dataSent.labels[index],
-                              index,
-                              dataSent.datasets[0].data,
-                              dataSent.datasets[0].backgroundColor[index],
-                              "sent",
-                            );
-                          } else {
-                            return null;
-                          }
-                        })}
-                        <div style={{ height: 1, backgroundColor: Utils.getCssVariable("--color-zingo") }} />
-                        {dataSent.datasets[0].data.map((value: number, index: number) => {
-                          if (value > 0 && dataSent.labels[index] !== "fee") {
-                            return line(
-                              value,
-                              dataSent.labels[index],
-                              index,
-                              dataSent.datasets[0].data,
-                              dataSent.datasets[0].backgroundColor[index],
-                              "sent",
-                            );
-                          } else {
-                            return null;
-                          }
-                        })}
+                        }}
+                      />
+                      <div style={{ display: "flex", marginLeft: 5, marginRight: 5, padding: 0, alignItems: "center" }}>
+                        <div style={{ width: "100%" }}>
+                          {dataSent.datasets[0].data.map((value: number, index: number) => {
+                            if (value > 0 && dataSent.labels[index] === "fee") {
+                              return line(
+                                value,
+                                dataSent.labels[index],
+                                index,
+                                dataSent.datasets[0].data,
+                                dataSent.datasets[0].backgroundColor[index],
+                                "sent",
+                              );
+                            } else {
+                              return null;
+                            }
+                          })}
+                          <div style={{ height: 1, backgroundColor: "var(--color-zingo)" }} />
+                          {dataSent.datasets[0].data.map((value: number, index: number) => {
+                            if (value > 0 && dataSent.labels[index] !== "fee") {
+                              return line(
+                                value,
+                                dataSent.labels[index],
+                                index,
+                                dataSent.datasets[0].data,
+                                dataSent.datasets[0].backgroundColor[index],
+                                "sent",
+                              );
+                            } else {
+                              return null;
+                            }
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-              <div className={cstyles.balancebox} style={{ width: "30%", marginRight: 5 }}>
-                {dataSends && dataSends.datasets && dataSends.datasets[0].data.length === 0 && (
-                  <div
-                    style={{ alignSelf: "center", width: "100%" }}
-                    className={`${cstyles.center} ${cstyles.margintoplarge}`}
-                  >
-                    No Transactions Yet
-                  </div>
-                )}
-                {dataSends && dataSends.datasets && dataSends.datasets[0].data.length > 0 && (
-                  <div style={{ flexDirection: "column", alignItems: "center", width: "100%" }}>
-                    <Chart
-                      data={dataSends}
-                      type={"doughnut"}
-                      options={{
-                        radius: "90%",
-                        responsive: true,
-                        cutout: "30%",
-                        plugins: {
-                          legend: {
-                            display: false,
+                  )}
+                </div>
+                <div className={cstyles.balancebox} style={{ width: "30%", marginRight: 5 }}>
+                  {dataSends && dataSends.datasets && dataSends.datasets[0].data.length === 0 && (
+                    <div
+                      style={{ alignSelf: "center", width: "100%" }}
+                      className={`${cstyles.center} ${cstyles.margintoplarge}`}
+                    >
+                      No Transactions Yet
+                    </div>
+                  )}
+                  {dataSends && dataSends.datasets && dataSends.datasets[0].data.length > 0 && (
+                    <div style={{ flexDirection: "column", alignItems: "center", width: "100%" }}>
+                      <Chart
+                        data={dataSends}
+                        type={"doughnut"}
+                        options={{
+                          radius: "90%",
+                          responsive: true,
+                          cutout: "30%",
+                          plugins: {
+                            legend: {
+                              display: false,
+                            },
                           },
-                        },
-                      }}
-                    />
-                    <div style={{ display: "flex", marginLeft: 5, marginRight: 5, padding: 0, alignItems: "center" }}>
-                      <div style={{ width: "100%" }}>
-                        {dataSends.datasets[0].data.map((value: number, index: number) => {
-                          if (value > 0 && dataSends.labels[index] !== "fee") {
-                            return line(
-                              value,
-                              dataSends.labels[index],
-                              index,
-                              dataSends.datasets[0].data,
-                              dataSends.datasets[0].backgroundColor[index],
-                              "sends",
-                            );
-                          } else {
-                            return null;
-                          }
-                        })}
+                        }}
+                      />
+                      <div style={{ display: "flex", marginLeft: 5, marginRight: 5, padding: 0, alignItems: "center" }}>
+                        <div style={{ width: "100%" }}>
+                          {dataSends.datasets[0].data.map((value: number, index: number) => {
+                            if (value > 0 && dataSends.labels[index] !== "fee") {
+                              return line(
+                                value,
+                                dataSends.labels[index],
+                                index,
+                                dataSends.datasets[0].data,
+                                dataSends.datasets[0].backgroundColor[index],
+                                "sends",
+                              );
+                            } else {
+                              return null;
+                            }
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-              <div className={cstyles.balancebox} style={{ width: "30%" }}>
-                {dataMemobytes && dataMemobytes.datasets && dataMemobytes.datasets[0].data.length === 0 && (
-                  <div
-                    style={{ alignSelf: "center", width: "100%" }}
-                    className={`${cstyles.center} ${cstyles.margintoplarge}`}
-                  >
-                    No Transactions Yet
-                  </div>
-                )}
-                {dataMemobytes && dataMemobytes.datasets && dataMemobytes.datasets[0].data.length > 0 && (
-                  <div style={{ flexDirection: "column", alignItems: "center", width: "100%" }}>
-                    <Chart
-                      data={dataMemobytes}
-                      type={"doughnut"}
-                      options={{
-                        radius: "90%",
-                        responsive: true,
-                        cutout: "30%",
-                        plugins: {
-                          legend: {
-                            display: false,
+                  )}
+                </div>
+                <div className={cstyles.balancebox} style={{ width: "30%" }}>
+                  {dataMemobytes && dataMemobytes.datasets && dataMemobytes.datasets[0].data.length === 0 && (
+                    <div
+                      style={{ alignSelf: "center", width: "100%" }}
+                      className={`${cstyles.center} ${cstyles.margintoplarge}`}
+                    >
+                      No Transactions Yet
+                    </div>
+                  )}
+                  {dataMemobytes && dataMemobytes.datasets && dataMemobytes.datasets[0].data.length > 0 && (
+                    <div style={{ flexDirection: "column", alignItems: "center", width: "100%" }}>
+                      <Chart
+                        data={dataMemobytes}
+                        type={"doughnut"}
+                        options={{
+                          radius: "90%",
+                          responsive: true,
+                          cutout: "30%",
+                          plugins: {
+                            legend: {
+                              display: false,
+                            },
                           },
-                        },
-                      }}
-                    />
-                    <div style={{ display: "flex", marginLeft: 5, marginRight: 5, padding: 0, alignItems: "center" }}>
-                      <div style={{ width: "100%" }}>
-                        {dataMemobytes.datasets[0].data.map((value: number, index: number) => {
-                          if (value > 0 && dataMemobytes.labels[index] !== "fee") {
-                            return line(
-                              value,
-                              dataMemobytes.labels[index],
-                              index,
-                              dataMemobytes.datasets[0].data,
-                              dataMemobytes.datasets[0].backgroundColor[index],
-                              "memobytes",
-                            );
-                          } else {
-                            return null;
-                          }
-                        })}
+                        }}
+                      />
+                      <div style={{ display: "flex", marginLeft: 5, marginRight: 5, padding: 0, alignItems: "center" }}>
+                        <div style={{ width: "100%" }}>
+                          {dataMemobytes.datasets[0].data.map((value: number, index: number) => {
+                            if (value > 0 && dataMemobytes.labels[index] !== "fee") {
+                              return line(
+                                value,
+                                dataMemobytes.labels[index],
+                                index,
+                                dataMemobytes.datasets[0].data,
+                                dataMemobytes.datasets[0].backgroundColor[index],
+                                "memobytes",
+                              );
+                            } else {
+                              return null;
+                            }
+                          })}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
-          {loading && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
-        </ScrollPaneTop>
+            )}
+            {loading && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
+          </ScrollPaneTop>
+        </div>
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import ServerPickerModal from "./ServerPickerModal";
 import { ContextApp } from "../../context/ContextAppState";
 import routes from "../../constants/routes.json";
 import { ServerSelectionEnum } from "../appstate";
+import Utils from "../../utils/utils";
 import { ServerHealthLevel, deriveServerHealth } from "../../rpc/components/serverHealth";
 import { rotationCandidates } from "../../utils/pickRotationTarget";
 
@@ -13,6 +14,10 @@ import { rotationCandidates } from "../../utils/pickRotationTarget";
 const DOT_COLOUR: Record<ServerHealthLevel, string> = {
   unknown: "var(--color-primary-disable)",
   ok: "var(--color-primary)",
+  // Amber with unstable: both are "answering, but not to be relied on", and a
+  // colour of its own would claim a distinction the user cannot act on
+  // differently. The tooltip is where they part.
+  slow: "var(--color-warning)",
   unstable: "var(--color-warning)",
   down: "var(--color-error)",
 };
@@ -22,12 +27,13 @@ const DOT_COLOUR: Record<ServerHealthLevel, string> = {
 const DOT_TOOLTIP: Record<ServerHealthLevel, string> = {
   unknown: "Waiting for the first check of this server.",
   ok: "This server is answering.",
+  slow: "This server is answering, but taking seconds to do it. The wallet will feel stuck.",
   unstable: "This server has failed some checks this session, but not three in a row.",
   down: "This server has not answered the last three checks.",
 };
 
 /**
- * The active server, its selection mode and a health dot, right-aligned above
+ * The active server, its network, its selection mode and a health dot, right-aligned above
  * the balances so a long URI grows leftwards and never moves anything.
  *
  * Clicking follows the mode, not the colour. The mode says who owns the choice
@@ -53,6 +59,11 @@ const ServerHealthLine: React.FC = () => {
   const uri: string = currentWallet.uri || info.serverUri || "";
   const level: ServerHealthLevel = deriveServerHealth(serverHealth);
   const mode: ServerSelectionEnum = currentWallet.selection;
+  // Which network this wallet is on. Nothing else on screen says: the
+  // selector's optgroups label it, but a closed select shows only the alias.
+  // Empty for a chain name that is none of the three, which renders nothing
+  // rather than an empty badge.
+  const network: string = Utils.chainDisplayName(currentWallet.chain_name);
 
   const onClick = async () => {
     if (mode === ServerSelectionEnum.auto) {
@@ -64,7 +75,18 @@ const ServerHealthLine: React.FC = () => {
         openErrorModal("Change Server", "This network publishes no other server to move to.");
         return;
       }
-      openConfirmModal("Change Server", `${DOT_TOOLTIP[level]} Move to another server?`, rotateServer);
+      // Rotating is the answer for "this one is misbehaving", and it is the
+      // one auto exists to give. But a user who opened this because they want
+      // a particular server had nowhere to say so: the picker only ever
+      // appeared for a wallet already on `list`, which is a mode they could
+      // only reach through the wallet settings screen.
+      //
+      // Choosing there switches them to `list`, because naming a server by
+      // hand is what that mode means.
+      openConfirmModal("Change Server", `${DOT_TOOLTIP[level]} Move to another server?`, rotateServer, {
+        label: "Servers List",
+        action: () => setPickerOpen(true),
+      });
     } else if (mode === ServerSelectionEnum.list) {
       setPickerOpen(true);
     } else {
@@ -76,6 +98,11 @@ const ServerHealthLine: React.FC = () => {
     <>
       <button type="button" className={styles.line} onClick={onClick} aria-label="Active server health">
         <span className={styles.uri}>{uri}</span>
+        {/* Network before selection mode: which chain you are on outranks who
+            chose the server on it. Both wear the same badge — they are two
+            facts about the same connection, and giving one its own colour
+            would make it a warning, which is a different claim. */}
+        {!!network && <span className={styles.badge}>{network}</span>}
         {mode && <span className={styles.badge}>{mode}</span>}
         {/* The dot carries the tooltip itself, so it is the thing you hover and
             the thing that explains itself. */}

@@ -1,0 +1,52 @@
+/*
+ * One line above every screen: which wallet you are in, and which server it
+ * is talking to.
+ *
+ * No ground of its own. It is not a panel, it is a caption over one — the
+ * screen's own well sits directly beneath it, and a second dark box above
+ * that one only read as a second panel.
+ *
+ * The horizontal margins match `.containermargin`, the 5px every screen's
+ * well already uses, so the two edges line up.
+ */
+.bar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 5px;
+}
+
+/*
+ * Sized to the longest wallet name rather than to the space available, which
+ * is what a native select does when nothing overrides it. The width is the
+ * widest option's, so it holds still as you switch between them instead of
+ * resizing under the cursor.
+ *
+ * It is still the half that gives way when the window narrows: an alias varies
+ * without bound, while the server's URI and dot are near-fixed and read as one
+ * unit. `0 1 auto` is exactly that — take what you need, yield it back first.
+ */
+.selector {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/*
+ * Never wider than the room it was given, however long the alias runs.
+ *
+ * The padding comes down from the 10px `.fieldselect` inherits, which is right
+ * for a form field standing on its own and too tall for a band whose whole
+ * purpose is to be thin. Trimmed here rather than there: that class dresses
+ * every field in the app and none of the others should move.
+ */
+.selector select {
+  max-width: 100%;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.server {
+  flex: 0 0 auto;
+}

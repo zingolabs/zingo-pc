@@ -10,10 +10,11 @@ import {
   TotalBalanceClass,
 } from "../appstate";
 import Utils from "../../utils/utils";
+import { userFacingError } from "../../utils/userFacingError";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import { BalanceBlockHighlight } from "../balanceBlock";
 import { describeSendRoute } from "../../rpc/components/mixnetPresenter";
-import { ServerHealthLine } from "../serverHealthLine";
 import { parseZcashURI, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
 import ToAddrBox from "./components/ToAddrBox";
@@ -21,14 +22,17 @@ import SendConfirmModal from "./components/SendConfirmModal";
 import { ContextApp } from "../../context/ContextAppState";
 
 import { native } from "../../electronBridge";
+import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 import getSendManyJSON from "./components/getSendManyJSON";
 
 type SendProps = {
   sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string>;
   setSendPageState: (sendPageState: SendPageStateClass) => void;
+  /** Files the recipient under a name, without leaving the screen. */
+  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
 };
 
-const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
+const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddressBookEntry }) => {
   const context = useContext(ContextApp);
   const {
     addressesUnified,
@@ -41,10 +45,14 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
     currentWallet,
     setSendTo,
     calculateShieldFee,
-    handleShieldButton,
     zecPrice,
     mixnetView,
   } = context;
+
+  // Both the route line and the button row sit under the pane, and the route
+  // line wraps or does not depending on which of four sentences it is showing.
+  // A constant could only be right for one of them.
+  const { paneRef, footerRef, paneOffset } = usePaneOffset(308);
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
   const [sendButtonEnabled, setSendButtonEnabled] = useState<boolean>(false);
@@ -218,7 +226,15 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
           }
         }
       }
-      if (sendPageState.toaddr.amount >= 0 && sendPageState.toaddr.to && !_error) {
+      // Only once there is something to send. Quoting a fee for an amount of
+      // zero asks the wallet to price a zero-valued payment, and zip321 refuses
+      // one to a transparent recipient — "zero-valued transparent outputs are
+      // disallowed by consensus", raised by the field's own default of 0 the
+      // moment an address is pasted, with nothing sent. A shielded recipient
+      // hid it, because zip321 allows a zero-valued shielded output.
+      //
+      // There is no fee for sending nothing, so there is nothing to ask.
+      if (sendPageState.toaddr.amount > 0 && sendPageState.toaddr.to && !_error) {
         const sendJson: SendManyJsonType[] = getSendManyJSON(sendPageState);
         const result: string = await native.send(JSON.stringify(sendJson));
         if (!result) {
@@ -237,9 +253,13 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
         _spendable = 0;
       }
     } catch (error: any) {
-      const err = `Error: Critical Error calculate send fee ${error}`;
-      console.log(err);
-      _error = err;
+      // Two audiences, two messages. The console keeps the context — which of
+      // this screen's calls failed — because that is what a bug report needs.
+      // The screen gets the wallet's own last clause, because the layers in
+      // front of it describe how the renderer reaches the wallet and say
+      // nothing about the user's money.
+      console.error(`Critical Error calculate send fee ${error}`);
+      _error = userFacingError(error);
       _spendable = 0;
     }
     return { fee: _fee, error: _error, spendable: _spendable };
@@ -275,7 +295,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
       />
 
       <div className={`${cstyles.well} ${styles.containermargin}`}>
-        <ServerHealthLine />
         <div className={cstyles.balancebox}>
           <BalanceBlockHighlight
             topLabel="All Funds"
@@ -291,35 +310,22 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
             tooltip={tooltip}
           />
         </div>
-        <div className={cstyles.balancebox}>
-          {totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending && (
-            <>
-              <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
-                Shield Transparent Balance (Fee: {shieldFee})
-              </button>
-            </>
-          )}
-          {!!anyPending && (
-            <div className={`${cstyles.red} ${cstyles.small} ${cstyles.padtopsmall}`}>
-              Some transactions are pending waiting for the minimum confirmations (3). Balances may change.
-            </div>
-          )}
-        </div>
+        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: Utils.getCssVariable("--color-error") }}>
+            <div className={cstyles.balancebox} style={{ color: "var(--color-error)" }}>
               {fetchError.command + ": " + fetchError.error}
             </div>
           </>
         )}
       </div>
 
-      <div className={`${cstyles.xlarge} ${cstyles.marginnegativetitle} ${cstyles.center}`}>Send</div>
+      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Send</div>
 
       <div className={styles.horizontalcontainer}>
-        <div className={cstyles.containermarginleft}>
-          <ScrollPaneTop offsetHeight={260}>
+        <div className={cstyles.containermarginleft} ref={paneRef}>
+          <ScrollPaneTop offsetHeight={paneOffset}>
             <ToAddrBox
               toaddr={sendPageState.toaddr}
               zecPrice={zecPrice}
@@ -338,31 +344,36 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState }) => {
               serverChainName={currentWallet ? currentWallet.chain_name : ServerChainNameEnum.mainChainName}
               block={info.latestBlock >= info.walletHeight ? info.latestBlock : info.walletHeight}
               currencyName={info.currencyName}
+              addAddressBookEntry={addAddressBookEntry}
             />
           </ScrollPaneTop>
         </div>
 
-        {/* Above the buttons, not beside them: .verticalbuttons is a flex row.
-            Always shown, and never in red — only two of the four states are a
-            problem, and the other two are just the route the send will take. */}
-        <div
-          className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}
-        >
-          {describeSendRoute(mixnetView)}
-        </div>
-
-        <div className={cstyles.verticalbuttons}>
-          <button
-            type="button"
-            disabled={!sendButtonEnabled || mixnetView.sendBlocked}
-            className={cstyles.primarybutton}
-            onClick={openModal}
+        {/* Everything below the pane, measured as one: the pane may have the
+            window less its own top and less all of this. */}
+        <div ref={footerRef} style={{ paddingBottom: 10 }}>
+          {/* Above the buttons, not beside them: .verticalbuttons is a flex row.
+              Always shown, and never in red — only two of the four states are a
+              problem, and the other two are just the route the send will take. */}
+          <div
+            className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}
           >
-            Send
-          </button>
-          <button type="button" className={cstyles.primarybutton} onClick={clearToAddrs}>
-            Clear
-          </button>
+            {describeSendRoute(mixnetView)}
+          </div>
+
+          <div className={cstyles.verticalbuttons}>
+            <button
+              type="button"
+              disabled={!sendButtonEnabled || mixnetView.sendBlocked}
+              className={cstyles.primarybutton}
+              onClick={openModal}
+            >
+              Send
+            </button>
+            <button type="button" className={cstyles.primarybutton} onClick={clearToAddrs}>
+              Clear
+            </button>
+          </div>
         </div>
       </div>
     </div>

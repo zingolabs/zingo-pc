@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import cstyles from "../common/Common.module.css";
 import APP_VERSION from "../../version";
+import { faLock } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 const { ipcRenderer } = window.electronAPI;
 
@@ -38,11 +40,11 @@ const LockScreen: React.FC<Props> = ({ onUnlock }) => {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        background: "var(--bg-color, #1a1a2e)",
+        background: "var(--color-background)",
         zIndex: 9999,
       }}
     >
-      <i className="fas fa-lock" style={{ fontSize: 48, marginBottom: 24, opacity: 0.7 }} />
+      <FontAwesomeIcon icon={faLock} style={{ fontSize: 48, marginBottom: 24, opacity: 0.7 }} />
       <div className={`${cstyles.large} ${cstyles.center} ${cstyles.margintopsmall}`}>Zingo PC is locked</div>
       <div className={`${cstyles.sublight} ${cstyles.center}`} style={{ opacity: 0.5, marginTop: 4 }}>
         v{APP_VERSION}

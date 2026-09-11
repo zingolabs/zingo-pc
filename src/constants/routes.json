@@ -8,7 +8,7 @@
   "HISTORY": "/history",
   "MESSAGES": "/messages",
   "ADDNEWWALLET": "/addnewwallet",
-  "SETTINGSWALLET": "/settingswallet",
   "INSIGHT": "/insight",
-  "MIGRATION": "/migration"
+  "MIGRATION": "/migration",
+  "SWAP": "/swap"
 }

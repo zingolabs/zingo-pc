@@ -100,12 +100,19 @@ describe("MessagesItemBlock", () => {
     expect(screen.getByLabelText("Copy address")).toBeInTheDocument();
   });
 
-  it("triggers address-copy via keyboard Enter", () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { clipboard } = require("../../../electronBridge");
+  it("offers the address as a button, so the keyboard reaches it", () => {
     render(<MessagesItemBlock {...baseProps} vt={makeVt()} />);
-    fireEvent.keyDown(screen.getByLabelText("Copy address"), { key: "Enter" });
-    expect(clipboard.writeText).toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Copy address" })).toBeInTheDocument();
+  });
+
+  // It called the clipboard directly before, so it was the one place in the
+  // app that copied and said nothing about having done it.
+  it("says it copied", () => {
+    render(<MessagesItemBlock {...baseProps} vt={makeVt()} />);
+
+    expect(screen.queryByText("Copied!")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Copy address" }));
+    expect(screen.getByText("Copied!")).toBeInTheDocument();
   });
 
   it("renders the 'sent' alignment when message is sent (right-side bubble)", () => {

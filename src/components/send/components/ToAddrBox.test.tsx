@@ -60,6 +60,7 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof ToAddrBox>> = 
     serverChainName: ServerChainNameEnum.mainChainName,
     block: 1_000_000,
     currencyName: "ZEC",
+    addAddressBookEntry: jest.fn(),
     ...overrides,
   };
 };
@@ -192,23 +193,29 @@ describe("ToAddrBox", () => {
     expect(shell.openExternal).toHaveBeenCalledWith("https://www.zcashnames.com/explorer?name=alice&env=testnet");
   });
 
-  it("clears the ZNS alias when the X button is clicked", async () => {
+  it("clears a ZNS alias through the same button that clears an address", async () => {
     const updateZnsAlias = jest.fn();
     const updateToField = jest.fn();
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
     render(<ToAddrBox {...makeProps({ toaddr, updateZnsAlias, updateToField })} />);
-    fireEvent.click(screen.getByLabelText(/Clear ZNS alias/i));
+    fireEvent.click(screen.getByLabelText(/Clear recipient/i));
     expect(updateZnsAlias).toHaveBeenCalledWith("");
     expect(updateToField).toHaveBeenCalledWith("", null, null);
   });
 
-  it("triggers Save Contact for a ZNS alias", async () => {
-    const setAddLabel = jest.fn();
+  // The alias is stored, not the address it resolves to, so the contact
+  // re-resolves every time it is used.
+  it("saves a ZNS alias under the name given, without leaving the screen", async () => {
+    const addAddressBookEntry = jest.fn();
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
-    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { setAddLabel } });
+    render(<ToAddrBox {...makeProps({ toaddr, addAddressBookEntry })} />);
+
     fireEvent.click(screen.getByLabelText(/Save as contact/i));
-    expect(setAddLabel).toHaveBeenCalledWith(new AddressBookEntryClass("", "alice.zcash"));
-    expect(mockNavigate).toHaveBeenCalled();
+    fireEvent.change(await screen.findByRole("textbox", { name: /name/i }), { target: { value: "Alice" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "alice.zcash", ServerChainNameEnum.mainChainName, "ZEC");
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it("renders 'Contact & ZNS: ...' when the alias already matches an existing contact", async () => {
@@ -311,5 +318,43 @@ describe("ToAddrBox", () => {
     await waitFor(() => {
       expect(screen.getByLabelText(/Save as contact/i)).toBeInTheDocument();
     });
+  });
+});
+
+describe("ToAddrBox recipient actions", () => {
+  // The three actions live inside the field now, the way the swap screen's
+  // address field carries them, rather than as loose buttons above it.
+  it("offers the contact list from inside the field", () => {
+    const entry = new AddressBookEntryClass("Alice", "u1saved", ServerChainNameEnum.mainChainName);
+    render(<ToAddrBox {...makeProps()} />, { contextOverrides: { addressBook: [entry] } });
+    expect(screen.getByRole("button", { name: /choose from contacts/i })).toBeInTheDocument();
+  });
+
+  // It used to appear only while the field was empty, which is the one moment
+  // a user who has just pasted the wrong address cannot reach for it.
+  it("keeps the contact list reachable once something is typed", () => {
+    const entry = new AddressBookEntryClass("Alice", "u1saved", ServerChainNameEnum.mainChainName);
+    render(<ToAddrBox {...makeProps()} />, { contextOverrides: { addressBook: [entry] } });
+    fireEvent.change(screen.getByRole("textbox", { name: /recipient address/i }), { target: { value: "u1typed" } });
+    expect(screen.getByRole("button", { name: /choose from contacts/i })).toBeInTheDocument();
+  });
+
+  it("offers no clear button while the field is empty", () => {
+    render(<ToAddrBox {...makeProps()} />);
+    expect(screen.queryByRole("button", { name: /clear recipient/i })).not.toBeInTheDocument();
+  });
+
+  // An address already filed under a name has nothing to save, and the name is
+  // shown beside the label instead.
+  it("does not offer to save an address that is already a contact", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    const entry = new AddressBookEntryClass("Alice", "u1saved", ServerChainNameEnum.mainChainName);
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1saved" });
+    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [entry] } });
+
+    expect(await screen.findByText(/Contact: Alice/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save as contact/i })).not.toBeInTheDocument();
   });
 });

@@ -20,6 +20,18 @@ export default class ValueTransferClass {
   // Replaces the old single `pool` (was `pool_received`).
   poolsSentFrom?: ValueTransferPoolEnum[];
   poolsReceived?: ValueTransferPoolEnum[];
+  // Set only on rows projected from a swap record. The detail view reads
+  // `swapRecordId` to find the record behind the row, and the list reads the
+  // other two to label direction and granular state, which the five-value
+  // `status` above cannot carry.
+  swapRecordId?: string;
+  swapIsInbound?: boolean;
+  swapStatus?: string;
+  // The counterparty asset the row's `amount` is denominated in, and its USD
+  // unit price at quote time. A swap row does not show ZEC, so it cannot use
+  // the wallet's currency name or the ZEC price the way every other row does.
+  swapAssetTicker?: string;
+  swapUsdUnitPrice?: number;
 
   constructor(
     type: ValueTransferKindEnum,
