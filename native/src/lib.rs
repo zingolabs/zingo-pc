@@ -2835,12 +2835,12 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Ok(proposal) => {
                         let fee = match zingolib::data::proposal::total_fee(&proposal) {
                             Ok(fee) => fee,
-                            Err(e) => return object! { "error" => e.to_string() }.pretty(2),
+                            Err(e) => return object! { "error" => cause_chain(&e) }.pretty(2),
                         };
                         object! { "fee" => fee.into_u64() }
                     }
                     Err(e) => {
-                        object! { "error" => e.to_string() }
+                        object! { "error" => cause_chain(&e) }
                     }
                 }
                 .pretty(2)
@@ -2952,8 +2952,11 @@ fn confirm(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Ok(txids) => {
                         object! { "txids" => txids.iter().map(|txid| txid.to_string()).collect::<Vec<_>>() }
                     }
+                    // The whole chain, the way every other entry point here
+                    // reports one. The outermost layer alone is "Send error.",
+                    // which names the call that failed and nothing about why.
                     Err(e) => {
-                        object! { "error" => e.to_string() }
+                        object! { "error" => cause_chain(&e) }
                     }
                 }
                 .pretty(2)

@@ -935,7 +935,7 @@ export default class RPC {
         vt.status = tx.status;
 
         if (tx.status === ValueTransferStatusEnum.failed) {
-          console.log("[RPC] failed value transfer (raw):", tx);
+          console.log("[RPC] failed value transfer (raw):", JSON.stringify(tx));
         }
         vt.address = !tx.recipient_address ? undefined : tx.recipient_address;
         vt.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
@@ -958,7 +958,7 @@ export default class RPC {
         }
 
         if (vt.status === ValueTransferStatusEnum.failed) {
-          console.log("[RPC] failed value transfer (transformed):", vt);
+          console.log("[RPC] failed value transfer (transformed):", JSON.stringify(vt));
         }
 
         return vt;
