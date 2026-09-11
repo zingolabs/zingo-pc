@@ -232,6 +232,11 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
   const rowCarriesSomething = (r: ToAddrClass): boolean => r.amount > 0 || !!(r.memo || r.memoReplyTo);
   const overCap: boolean = rows.length > MAX_RECIPIENTS;
   const batchOverSpendable: boolean = totalZats > toZats(totalAmountAvailable);
+  // Another row while one has no address would only add an empty recipient.
+  // Everything else a row can be missing — an amount, a memo, an amount that
+  // does not parse — belongs to that row, shows in red on it, and does not stop
+  // the batch from growing.
+  const everyRowAddressed: boolean = rows.every((r: ToAddrClass) => !!r.to.trim());
   const quotable: boolean =
     allRowsValid && rows.every(rowQuotable) && !overCap && !batchOverSpendable && !spendableError;
 
@@ -534,8 +539,14 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
               <button
                 type="button"
                 className={cstyles.primarybutton}
-                disabled={rows.length >= MAX_RECIPIENTS}
-                title={rows.length >= MAX_RECIPIENTS ? `Up to ${MAX_RECIPIENTS} recipients per send` : undefined}
+                disabled={rows.length >= MAX_RECIPIENTS || !everyRowAddressed}
+                title={
+                  rows.length >= MAX_RECIPIENTS
+                    ? `Up to ${MAX_RECIPIENTS} recipients per send`
+                    : everyRowAddressed
+                      ? undefined
+                      : "Give this recipient an address first"
+                }
                 onClick={addRecipient}
               >
                 <FontAwesomeIcon icon={faPlus} /> Add recipient

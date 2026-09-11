@@ -330,6 +330,25 @@ describe("Send", () => {
       expect(props.onRemove).toBeUndefined();
     });
 
+    // A row with no address would only add an empty recipient. Everything else
+    // it can be missing shows in red on the row and does not stop the batch
+    // from growing.
+    // With its own empty state rather than the context's: that one instance is
+    // shared by every test in the file, and the ones above write into it.
+    it("waits for an address before another recipient can be added", () => {
+      render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
+        contextOverrides: { sendPageState: stateWith({}) },
+      });
+      expect(screen.getByRole("button", { name: /add recipient/i })).toBeDisabled();
+    });
+
+    it("offers another recipient once this one has an address, whatever else is missing", () => {
+      render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
+        contextOverrides: { sendPageState: stateWith({ to: "u1abc", amount: NaN }) },
+      });
+      expect(screen.getByRole("button", { name: /add recipient/i })).toBeEnabled();
+    });
+
     // The new row is the one being edited; the one before it folds to a line.
     it("adds a recipient, which becomes the one being edited", async () => {
       render(<StatefulSend initial={stateWith({ to: "u1first", amount: 1 })} />);
