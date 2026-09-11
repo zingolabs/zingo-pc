@@ -353,16 +353,21 @@ const ToAddrBox = ({
             {addressKind !== undefined && addressKind === AddressKindEnum.sapling && "Sapling"}
             {addressKind !== undefined && addressKind === AddressKindEnum.unified && "Unified"}
           </div>
-          <div className={cstyles.validationerror}>
-            {znsStatus === "resolving" && <span className={cstyles.sublight}>Resolving ZNS…</span>}
-            {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
-            {znsStatus === "network" && <span className={cstyles.red}>ZNS lookup failed</span>}
-            {znsStatus === "idle" && addressIsValid === 1 && (
-              <FontAwesomeIcon icon={faCheck} className={cstyles.green} />
-            )}
-            {znsStatus === "idle" && addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
+          {/* The verdict travels with the remove action at the end of the row.
+              Loose among the other items it was spread out with them and came to
+              rest mid-row, reading as though it belonged to nothing. */}
+          <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 20 }}>
+            <div className={cstyles.validationerror}>
+              {znsStatus === "resolving" && <span className={cstyles.sublight}>Resolving ZNS…</span>}
+              {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
+              {znsStatus === "network" && <span className={cstyles.red}>ZNS lookup failed</span>}
+              {znsStatus === "idle" && addressIsValid === 1 && (
+                <FontAwesomeIcon icon={faCheck} className={cstyles.green} />
+              )}
+              {znsStatus === "idle" && addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
+            </div>
+            {removeButton}
           </div>
-          {removeButton}
         </div>
         {duplicateOfIndex !== undefined && (
           <div className={`${cstyles.yellow} ${cstyles.small}`} style={{ marginBottom: 5 }}>
