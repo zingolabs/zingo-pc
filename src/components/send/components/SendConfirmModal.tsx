@@ -586,7 +586,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
               label="Transaction Fee"
               value={<FeeValue sendFee={sendFee} currencyName={info.currencyName} zecPrice={zecPrice} />}
             />
-            {!single && <Field label="Privacy" value={worstPrivacyLevel(privacyLevels)} />}
+            {!single && <Field label="Transaction Privacy" value={worstPrivacyLevel(privacyLevels)} />}
           </FieldRow>
         </div>
 

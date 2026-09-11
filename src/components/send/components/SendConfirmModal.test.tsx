@@ -491,6 +491,14 @@ describe("SendConfirmModal with several recipients", () => {
     expect(screen.getAllByText("Transaction Fee")).toHaveLength(1);
   });
 
+  // The verdict on the batch is not one more recipient verdict, and it says
+  // so, beside the fee it shares the row with.
+  it("labels the batch verdict apart from the recipients", () => {
+    render(<SendConfirmModal {...makeProps({ recipients: [{ to: "u1one" }, { to: "u1two" }] })} />);
+    expect(screen.getAllByText("Privacy")).toHaveLength(2);
+    expect(screen.getAllByText("Transaction Privacy")).toHaveLength(1);
+  });
+
   // Each amount fits in Orchard on its own; together they need Sapling too,
   // which reveals the amounts. The verdict follows the whole transaction.
   it("judges privacy by what the whole batch spends, not by each amount alone", async () => {
