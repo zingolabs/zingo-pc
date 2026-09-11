@@ -26,6 +26,12 @@ import { ContextApp } from "../../../context/ContextAppState";
 import { faArrowCircleUp, faExternalLinkSquareAlt } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
+// The pane is measured against the window, and the modal ends below it: its
+// own padding and border fall past that line. Leaving this much of the window
+// unclaimed lifts the buttons back inside, so the modal closes with a bottom
+// edge the user can see.
+const MODAL_BOTTOM_GUTTER: number = 40;
+
 const PRIVACY_RANK: { [level: string]: number } = { Private: 0, "Amount Revealed": 1, Deshielded: 2 };
 
 /**
@@ -60,18 +66,9 @@ type RecipientSummaryProps = {
   privacyLevel: string;
   currencyName: string;
   zecPrice: number;
-  // Stated beside the amount when this is the only recipient, where the
-  // screen always put it. A batch states it once, under all of them.
-  sendFee?: number;
 };
 
-const RecipientSummary: React.FC<RecipientSummaryProps> = ({
-  toaddr,
-  privacyLevel,
-  currencyName,
-  zecPrice,
-  sendFee,
-}) => {
+const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLevel, currencyName, zecPrice }) => {
   const { addressBook } = useContext(ContextApp);
 
   // The recipient, and the two things this screen does with it: reveal the
@@ -90,13 +87,14 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({
   const memoText: string = `${toaddr.memo ?? ""}${toaddr.memoReplyTo ?? ""}`;
 
   return (
-    <>
-      {/* Two rows rather than a block and two: the address beside what
-          sending to it costs in privacy, and then the figures. The address
-          block itself is the transfer detail's — the "Copied!" flash rides on
-          the label, the contact name it is filed under sits between label and
-          value, and the value abbreviates until the press that copies it also
-          opens it. */}
+    // Inset from the edges of the modal, so a recipient reads as one block
+    // rather than as rows that happen to sit next to each other.
+    <div style={{ padding: "0 10px" }}>
+      {/* One row: who is paid, what paying them costs in privacy, and how
+          much. The address block is the transfer detail's — the "Copied!"
+          flash rides on the label, the contact name it is filed under sits
+          between label and value, and the value abbreviates until the press
+          that copies it also opens it. */}
       <FieldRow>
         {!!toAddress && (
           <div className={cstyles.padtopsmall} style={{ minWidth: 0 }}>
@@ -148,13 +146,11 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({
         )}
 
         <Field label="Privacy" value={privacyLevel} />
-      </FieldRow>
 
-      {/* Each figure carries its fiat value underneath, the way the detail
-          states them. The price is the one in context — this send has not
-          happened, so the rate that matters is the one now rather than a basis
-          captured alongside a past transfer. */}
-      <FieldRow>
+        {/* The amount carries its fiat value underneath, the way the detail
+            states it. The price is the one in context — this send has not
+            happened, so the rate that matters is the one now rather than a
+            basis captured alongside a past transfer. */}
         <Field
           label="Amount"
           value={
@@ -171,13 +167,6 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({
             </>
           }
         />
-
-        {sendFee !== undefined && (
-          <Field
-            label="Transaction Fee"
-            value={<FeeValue sendFee={sendFee} currencyName={currencyName} zecPrice={zecPrice} />}
-          />
-        )}
       </FieldRow>
 
       {!!memoText && (
@@ -192,7 +181,7 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 };
 
@@ -564,13 +553,18 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
         <div
           className={cstyles.verticalflex}
           ref={paneRef}
-          style={{ marginTop: 8, maxHeight: `calc(100vh - ${paneOffset}px)`, overflowY: "auto", overflowX: "hidden" }}
+          style={{
+            marginTop: 8,
+            maxHeight: `calc(100vh - ${paneOffset + MODAL_BOTTOM_GUTTER}px)`,
+            overflowY: "auto",
+            overflowX: "hidden",
+          }}
         >
           {recipients.map((toaddr: ToAddrClass, index: number) => (
             <div key={toaddr.id}>
               <hr style={{ width: "100%" }} />
               {!single && (
-                <div className={`${cstyles.sublight} ${cstyles.small}`}>
+                <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ padding: "0 10px" }}>
                   Recipient {index + 1} of {recipients.length}
                 </div>
               )}
@@ -579,24 +573,21 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                 privacyLevel={privacyLevels[index] ?? ""}
                 currencyName={info.currencyName}
                 zecPrice={zecPrice}
-                sendFee={single ? sendFee : undefined}
               />
             </div>
           ))}
 
-          {/* A batch pays one fee and has one privacy: its weakest output's. */}
-          {!single && (
-            <>
-              <hr style={{ width: "100%" }} />
-              <FieldRow>
-                <Field
-                  label="Transaction Fee"
-                  value={<FeeValue sendFee={sendFee} currencyName={info.currencyName} zecPrice={zecPrice} />}
-                />
-                <Field label="Privacy" value={worstPrivacyLevel(privacyLevels)} />
-              </FieldRow>
-            </>
-          )}
+          {/* The fee belongs to the transaction rather than to any one
+              recipient, so it is stated once under all of them. A batch has a
+              privacy of its own too: its weakest output's. */}
+          <hr style={{ width: "100%" }} />
+          <FieldRow style={{ padding: "0 10px" }}>
+            <Field
+              label="Transaction Fee"
+              value={<FeeValue sendFee={sendFee} currencyName={info.currencyName} zecPrice={zecPrice} />}
+            />
+            {!single && <Field label="Privacy" value={worstPrivacyLevel(privacyLevels)} />}
+          </FieldRow>
         </div>
 
         <div className={cstyles.buttoncontainer} ref={footerRef}>
