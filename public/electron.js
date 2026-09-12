@@ -1293,7 +1293,6 @@ const _NATIVE_NO_PARAM_METHODS = [
   "set_config_wallet_to_test",
   "get_config_wallet_performance",
   "get_wallet_version",
-  "send_swap_deposit",
   "shield",
   "confirm",
   "drain_orchard_to_ironwood",
@@ -1814,6 +1813,12 @@ ipcMain.handle("native:set_config_wallet_to_prod", (_e, perf, min_conf) =>
   requireNative("set_config_wallet_to_prod").set_config_wallet_to_prod(perf, min_conf),
 );
 ipcMain.handle("native:send", (_e, send_json) => requireNative("send").send(send_json));
+// A deposit the provider must be able to attribute: the memo rides in an
+// OP_RETURN, and an empty one still asks for the transparent hop, which is
+// what gives the deposit a sender to read.
+ipcMain.handle("native:send_swap_deposit", (_e, vault_address, amount, memo_hex) =>
+  requireNative("send_swap_deposit").send_swap_deposit(vault_address, amount, memo_hex),
+);
 ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
   return requireNative("delete_wallet").delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);
