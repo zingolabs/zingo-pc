@@ -10,6 +10,7 @@ import Utils from "../../utils/utils";
 import { describeSendRoute } from "../../rpc/components/mixnetPresenter";
 import { native } from "../../electronBridge";
 import {
+  DEFAULT_SLIPPAGE_BPS,
   SwapDirectionEnum,
   SwapKitHttpError,
   describeEmptyQuote,
@@ -18,6 +19,8 @@ import {
   providerShortLabel,
   quoteAddressPair,
   quoteBindsAddress,
+  recommendedSlippageBps,
+  repricesLateDeposits,
   validateAddressForChain,
   zecNetworkFeeReserve,
 } from "../../swap";
@@ -38,15 +41,13 @@ import QuoteRefreshRing from "./QuoteRefreshRing";
 import AssetPicker from "./AssetPicker";
 import QuotesPicker from "./QuotesPicker";
 import SlippagePicker, { formatSlippagePercent } from "./SlippagePicker";
+import { describeSlippageAsk } from "./slippageAsk";
 import { optimalRouteId } from "../../swap/optimalRoute";
 import InsufficientFunds from "./InsufficientFunds";
 import ContactPicker from "../common/ContactPicker";
 import SaveContact from "../common/SaveContact";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-
-/** SwapKit's default slippage tolerance, in basis points. */
-const DEFAULT_SLIPPAGE_BPS = 100;
 
 /**
  * How long a quote is shown before it is replaced. See the refresh effect for
@@ -87,8 +88,18 @@ type SwapProps = {
 };
 
 const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => {
-  const { totalBalance, currentWallet, info, readOnly, zecPrice, addressBook, swapToState, setSwapTo, mixnetView } =
-    useContext(ContextApp);
+  const {
+    totalBalance,
+    currentWallet,
+    info,
+    readOnly,
+    zecPrice,
+    addressBook,
+    swapToState,
+    setSwapTo,
+    mixnetView,
+    openConfirmModal,
+  } = useContext(ContextApp);
   const swapService = useSwapService();
 
   const [direction, setDirection] = useState<SwapDirectionEnum>(() =>
@@ -178,6 +189,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const [quotesOpen, setQuotesOpen] = useState<boolean>(false);
   const [slippageOpen, setSlippageOpen] = useState<boolean>(false);
   const [slippageBps, setSlippageBps] = useState<number>(DEFAULT_SLIPPAGE_BPS);
+
   const [insufficientOpen, setInsufficientOpen] = useState<boolean>(false);
   const [contactsOpen, setContactsOpen] = useState<boolean>(false);
   const [saveContactOpen, setSaveContactOpen] = useState<boolean>(false);
@@ -520,6 +532,41 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
 
   const chosenRoute = useMemo(() => routes?.find((r) => r.routeId === chosenRouteId) ?? null, [routes, chosenRouteId]);
 
+  // The tolerance this route needs, and whether the one on screen falls
+  // short. Only a repricing provider can fall short: everyone else honours
+  // the price it quoted, and the default covers it.
+  const neededSlippageBps: number = chosenRoute
+    ? recommendedSlippageBps(chosenRoute.provider, chosenRoute.totalSlippageBps)
+    : DEFAULT_SLIPPAGE_BPS;
+  const slippageFallsShort: boolean =
+    !!chosenRoute && repricesLateDeposits(chosenRoute.provider) && slippageBps < neededSlippageBps;
+
+  // Asked, never done quietly. Raising the tolerance widens what the user
+  // can lose to the market, so it is theirs to allow. Asking is also what
+  // keeps the change from chasing itself: SwapKit tags the optimal route,
+  // and a route set that moved because of a tolerance we changed on our own
+  // could re-select and re-change without settling.
+  //
+  // Once per shortfall. The quote refreshes on a timer, and the same
+  // question on every refresh would be unusable; declining is an answer
+  // too, and silences it for that route.
+  const slippageAskedFor = useRef<string>("");
+  useEffect(() => {
+    if (!slippageFallsShort || !chosenRoute || reviewing) return;
+    const question = `${chosenRoute.provider}:${neededSlippageBps}`;
+    if (slippageAskedFor.current === question) return;
+    slippageAskedFor.current = question;
+    openConfirmModal(
+      "Raise the slippage tolerance?",
+      describeSlippageAsk({
+        providerLabel: providerShortLabel(chosenRoute.provider),
+        currentBps: slippageBps,
+        neededBps: neededSlippageBps,
+      }),
+      () => setSlippageBps(neededSlippageBps),
+    );
+  }, [slippageFallsShort, chosenRoute, neededSlippageBps, slippageBps, reviewing, openConfirmModal]);
+
   // What the routes on screen were actually quoted for.
   //
   // Read from the pinned quote input rather than the form, because those two
@@ -790,6 +837,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               >
                 {formatSlippagePercent(slippageBps)}%
               </button>
+              {typeof chosenRoute?.totalSlippageBps === "number" && (
+                <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ marginTop: 4 }}>
+                  Route expects {formatSlippagePercent(chosenRoute.totalSlippageBps)}%
+                </div>
+              )}
             </div>
 
             {/* Stated because the mixnet indicator does not cover this screen.
@@ -802,6 +854,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               your IP address alongside the assets, the amount, and the addresses involved.
             </div>
           </div>
+
+          {!!chosenRoute && repricesLateDeposits(chosenRoute.provider) && (
+            <div className={`${styles.warningbanner} ${styles.warningbannercentred}`}>
+              {providerShortLabel(chosenRoute.provider)} does not hold this price. Its quote lasts two minutes, so the
+              deposit is repriced when it arrives and the slippage tolerance is what decides between the swap completing
+              and being refunded.
+              {slippageFallsShort &&
+                ` At ${formatSlippagePercent(slippageBps)}% that is below the ${formatSlippagePercent(
+                  neededSlippageBps,
+                )}% this route wants.`}
+            </div>
+          )}
 
           {/* No button to ask for a quote: it arrives on its own once there is
               an asset and an amount. This line is what the wait looks like. */}

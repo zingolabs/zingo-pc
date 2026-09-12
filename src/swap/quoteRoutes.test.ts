@@ -101,6 +101,25 @@ describe("route projection", () => {
     expect(routes[0].estimatedTimeText).toBe("~11 min");
   });
 
+  // The tolerance the user sets has to cover this, so a screen that cannot
+  // read it can only ever show the figure we asked for, never the one the
+  // route costs.
+  it("carries the slippage the route expects", async () => {
+    const { service } = serviceReturning({ routes: [route({ totalSlippageBps: 175 })] });
+
+    const { routes } = await askForQuote(service);
+
+    expect(routes[0].totalSlippageBps).toBe(175);
+  });
+
+  it("leaves the route slippage undefined when the provider reports none", async () => {
+    const { service } = serviceReturning({ routes: [route()] });
+
+    const { routes } = await askForQuote(service);
+
+    expect(routes[0].totalSlippageBps).toBeUndefined();
+  });
+
   it("falls back to the expected amount when no slippage floor is quoted", async () => {
     const { service } = serviceReturning({ routes: [route()] });
 

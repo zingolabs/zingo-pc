@@ -81,6 +81,7 @@ const renderExecute = (
   direction: SwapDirectionEnum,
   deposit?: jest.Mock,
   instructionOverrides: Record<string, unknown> = {},
+  routeOverrides: Partial<RouteOptionType> = {},
 ) => {
   const commitRoute = jest.fn(async () => ({
     record: record(direction),
@@ -102,7 +103,7 @@ const renderExecute = (
     <SwapExecute
       swapService={swapService}
       quoteInput={quoteInput(direction)}
-      route={route}
+      route={{ ...route, ...routeOverrides }}
       fiatValueBasis={{ sellUsdUnitPrice: 30, receiveUsdUnitPrice: 60000, capturedAt: 0 }}
       direction={direction}
       sendSwapDeposit={sendSwapDeposit}
@@ -116,6 +117,24 @@ const renderExecute = (
 beforeEach(() => {
   jest.clearAllMocks();
   native.reserve_refund_address.mockResolvedValue(JSON.stringify({ encoded_address: EPHEMERAL }));
+});
+
+describe("SwapExecute repricing note", () => {
+  // The minimum receive reads as a floor under what arrives. For a
+  // provider that reprices the deposit on arrival it is not one: falling
+  // through it refunds the swap hours later rather than delivering less,
+  // and this is the last screen before the money is spent.
+  it("says a repricing provider refunds rather than delivering less", () => {
+    renderExecute(SwapDirectionEnum.Outbound, undefined, {}, { provider: SwapKitProviderEnum.Flashnet });
+
+    expect(screen.getByText(/reprices the deposit when it arrives/i)).toBeInTheDocument();
+  });
+
+  it("stays quiet for a provider that honours its quote", () => {
+    renderExecute(SwapDirectionEnum.Outbound);
+
+    expect(screen.queryByText(/reprices the deposit/i)).not.toBeInTheDocument();
+  });
 });
 
 describe("SwapExecute deposit routing", () => {

@@ -543,6 +543,7 @@ function toRouteOption(
     provider,
     expectedReceiveAmount: route.expectedBuyAmount,
     minReceiveAmount: route.expectedBuyAmountMaxSlippage ?? route.expectedBuyAmount,
+    totalSlippageBps: typeof route.totalSlippageBps === "number" ? route.totalSlippageBps : undefined,
     totalFeesInReceiveAsset,
     bridgeFeesInReceiveAsset,
     totalFeesInSellAsset,

@@ -50,6 +50,12 @@ export { swapRowLabel } from "./swapRowLabel";
 export { extractFiatValueBasis } from "./quoteFiatBasis";
 export { describeEmptyQuote } from "./describeEmptyQuote";
 export { providerShortLabel, providerLongLabel } from "./providerLabels";
+export {
+  DEFAULT_SLIPPAGE_BPS,
+  MARKET_MOVE_HEADROOM_BPS,
+  recommendedSlippageBps,
+  repricesLateDeposits,
+} from "./recommendedSlippage";
 export { convertFeeToAsset, formatFeeAmount, assetShortLabel } from "./feeConversion";
 export type { FeeConversionType } from "./feeConversion";
 export {
