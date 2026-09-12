@@ -90,6 +90,18 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
     ? pickIntermediateLegs(response, [observedDepositTxHash, destinationTxHash, refundInfo?.refundTxHash])
     : record.intermediateLegs;
 
+  // Slippage as SwapKit reports it once the swap settles. A partially
+  // refunded swap measures against the full quoted amount, so its realised
+  // figure reads as a large shortfall that is not slippage at all; SwapKit
+  // says to check for that state, and the figure is not kept then.
+  const finiteOr = (value: unknown, previous: number | undefined): number | undefined =>
+    typeof value === "number" && Number.isFinite(value) ? value : previous;
+  const slippageToleranceBps = finiteOr(response.slippageTolerance, record.slippageToleranceBps);
+  const realizedSlippageBps =
+    response.trackingStatus === "partially_refunded"
+      ? record.realizedSlippageBps
+      : finiteOr(response.realizedSlippageBps, record.realizedSlippageBps);
+
   const reachedTerminalNow = !isTerminalStatus(record.status) && isTerminalStatus(nextStatus);
 
   return {
@@ -98,6 +110,8 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
     trackingStatus: nextTrackingStatus,
     observedDepositTxHash,
     destinationTxHash,
+    slippageToleranceBps,
+    realizedSlippageBps,
     intermediateLegs,
     actualReceiveAmount,
     providerExplorerUrl,

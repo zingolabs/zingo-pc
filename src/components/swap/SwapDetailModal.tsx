@@ -15,6 +15,8 @@ import {
   SwapDirectionEnum,
   buildTrackerEntries,
   canRemoveSwap,
+  describeRealizedSlippage,
+  describeSlippageTolerance,
   formatAmountForDisplay,
   isPrePaymentStatus,
   isRealLegHash,
@@ -122,6 +124,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // in `refundInfo`, a failure in `failureReason`; both reached the record and
   // neither reached the screen.
   const endedBadlyReason = record.refundInfo?.refundReason ?? record.failureReason;
+
+  const slippageTolerance = describeSlippageTolerance(record.requestedSlippageBps, record.slippageToleranceBps);
+  const realizedSlippage = describeRealizedSlippage(record.realizedSlippageBps);
 
   // The reason is optional and a refund without one is common — SwapKit omits
   // `refundReason` when the provider gave none. Gating the section on the text
@@ -310,6 +315,17 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               <Field label="Minimum" value={`${formatAmountForDisplay(record.minReceiveAmount)} ${receiveSymbol}`} />
             )}
           </FieldRow>
+
+          {/* Beside the amounts they qualify. The tolerance is what set the
+              minimum above; the actual figure is how the result compares
+              with the expected one. Records made before either was kept
+              show neither. */}
+          {(!!slippageTolerance || !!realizedSlippage) && (
+            <FieldRow>
+              {!!slippageTolerance && <Field label="Slippage tolerance" value={slippageTolerance} />}
+              {!!realizedSlippage && <Field label="Actual slippage" value={realizedSlippage} />}
+            </FieldRow>
+          )}
 
           {/* No rule above it: a fee is an amount, so it belongs with the ones
               it was taken from rather than in a section of its own. */}

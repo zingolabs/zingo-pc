@@ -260,6 +260,7 @@ export class SwapService {
       feesRaw: chosenRoute.feesRaw,
       destinationAddress: quoteInput.destinationAddress,
       sourceAddress: quoteInput.sourceAddress,
+      requestedSlippageBps: quoteInput.slippageBps,
       status: initialStatus,
       providerData: instructions.providerData,
       broadcast:

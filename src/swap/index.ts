@@ -51,6 +51,7 @@ export { extractFiatValueBasis } from "./quoteFiatBasis";
 export { describeEmptyQuote } from "./describeEmptyQuote";
 export { providerShortLabel, providerLongLabel } from "./providerLabels";
 export { describeCostVsMarket } from "./costVsMarket";
+export { describeRealizedSlippage, describeSlippageTolerance } from "./slippageReport";
 export { convertFeeToAsset, formatFeeAmount, assetShortLabel } from "./feeConversion";
 export type { FeeConversionType } from "./feeConversion";
 export {

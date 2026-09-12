@@ -409,3 +409,52 @@ describe("applyDefaultTrackUpdate on a refund", () => {
     expect(second.providerOrderId).toBe("ord_placeholder");
   });
 });
+
+// SwapKit reports these once a swap settles. The tolerance explains a refund
+// on price and was once recorded nowhere; the realised figure is how the
+// result compares with the quote.
+describe("applyDefaultTrackUpdate slippage", () => {
+  it("keeps the tolerance and the realised slippage the provider reports", () => {
+    const updated = applyDefaultTrackUpdate(record(), {
+      status: "completed",
+      slippageTolerance: 100,
+      realizedSlippageBps: -6,
+    });
+
+    expect(updated.slippageToleranceBps).toBe(100);
+    expect(updated.realizedSlippageBps).toBe(-6);
+  });
+
+  it("does not lose them to a later response that omits them", () => {
+    const first = applyDefaultTrackUpdate(record(), {
+      status: "completed",
+      slippageTolerance: 200,
+      realizedSlippageBps: 12,
+    });
+    const second = applyDefaultTrackUpdate(first, { status: "completed" });
+
+    expect(second.slippageToleranceBps).toBe(200);
+    expect(second.realizedSlippageBps).toBe(12);
+  });
+
+  // Measured against the full quoted amount, a partial refund reads as a
+  // large shortfall that is not slippage. SwapKit says to check the state.
+  it("ignores the realised figure on a partially refunded swap", () => {
+    const updated = applyDefaultTrackUpdate(record(), {
+      status: "refunded",
+      trackingStatus: "partially_refunded",
+      realizedSlippageBps: 4800,
+    });
+
+    expect(updated.realizedSlippageBps).toBeUndefined();
+  });
+
+  it("ignores a value that is not a finite number", () => {
+    const updated = applyDefaultTrackUpdate(record(), {
+      status: "completed",
+      slippageTolerance: NaN,
+    } as TrackResponseType);
+
+    expect(updated.slippageToleranceBps).toBeUndefined();
+  });
+});

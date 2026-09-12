@@ -74,6 +74,36 @@ const renderDetail = (overrides: Partial<SwapRecordType> = {}) =>
  * refund did on mainnet on 2026-09-12 — so the status, not
  * the text, is what decides that there is an ending to report.
  */
+// The tolerance a swap ran under once decided a refund investigation and was
+// recorded nowhere, so it could only be guessed.
+describe("SwapDetailModal slippage", () => {
+  it("shows the tolerance and what the swap came to", () => {
+    renderDetail({
+      status: SwapStatusEnum.Completed,
+      requestedSlippageBps: 100,
+      slippageToleranceBps: 100,
+      realizedSlippageBps: -6,
+    });
+
+    expect(screen.getByText("Slippage tolerance")).toBeInTheDocument();
+    expect(screen.getByText("1%")).toBeInTheDocument();
+    expect(screen.getByText("0.06% more than quoted")).toBeInTheDocument();
+  });
+
+  it("shows both tolerances when the provider applied another", () => {
+    renderDetail({ requestedSlippageBps: 100, slippageToleranceBps: 200 });
+
+    expect(screen.getByText("2% (1% requested)")).toBeInTheDocument();
+  });
+
+  it("shows nothing for a record made before either was kept", () => {
+    renderDetail();
+
+    expect(screen.queryByText("Slippage tolerance")).not.toBeInTheDocument();
+    expect(screen.queryByText("Actual slippage")).not.toBeInTheDocument();
+  });
+});
+
 describe("SwapDetailModal ending", () => {
   it("reports a refund the provider gave no reason for", () => {
     renderDetail({ status: SwapStatusEnum.Refunded });

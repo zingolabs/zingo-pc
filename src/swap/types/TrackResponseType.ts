@@ -65,6 +65,16 @@ export type TrackResponseType = {
   status?: string;
   /** Granular progress, mapped to `TrackingStatusEnum`. */
   trackingStatus?: string;
+  /**
+   * Tolerance of the quote the swap committed to, in basis points. Only on
+   * completed swaps, and not every provider reports it.
+   */
+  slippageTolerance?: number;
+  /**
+   * (expected - actual) / expected, in basis points: positive means the
+   * swap delivered less than quoted. Only on completed swaps.
+   */
+  realizedSlippageBps?: number;
   /** Per-leg progress (one inbound, one swap, one outbound). */
   legs?: TrackLegType[];
   /** Asset shorthand for the source side (e.g. `"ETH.ETH"`). */

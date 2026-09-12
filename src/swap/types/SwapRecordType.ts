@@ -131,6 +131,19 @@ export type SwapRecordType = {
   observedDepositTxHash?: string;
   /** Destination-chain tx hash the provider broadcast to deliver the swap. */
   destinationTxHash?: string;
+  /** Slippage tolerance the quote was requested with, in basis points. */
+  requestedSlippageBps?: number;
+  /**
+   * Tolerance SwapKit reports the committed quote carried, in basis points.
+   * Kept beside the requested one because they can differ, and the
+   * difference is what explains a refund on price.
+   */
+  slippageToleranceBps?: number;
+  /**
+   * What the swap came to against its quote, in basis points; positive
+   * means less than quoted. Absent until the provider reports it.
+   */
+  realizedSlippageBps?: number;
   /**
    * Transactions the swap made between the deposit and the delivery, on
    * whatever chain the provider routes through: for NEAR Intents, the
