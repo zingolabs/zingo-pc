@@ -3,7 +3,7 @@ import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
-import { SwapDirectionEnum, formatAmountForDisplay, providerShortLabel } from "../../swap";
+import { SwapDirectionEnum, describeCostVsMarket, formatAmountForDisplay, providerShortLabel } from "../../swap";
 import type { RouteOptionType, UnavailableProviderType } from "../../swap";
 
 type QuotesPickerProps = {
@@ -74,6 +74,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
             const recommended = route.tags?.includes("RECOMMENDED");
             const fee = isOutbound ? route.totalFeesInSellAsset : route.totalFeesInReceiveAsset;
             const feeSymbol = isOutbound ? sellSymbol : receiveSymbol;
+            const costVsMarket = describeCostVsMarket(route.costVsMarketBps);
 
             return (
               <button
@@ -123,6 +124,11 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                   {route.estimatedTimeText ? ` — ${route.estimatedTimeText}` : ""}
                   {fee ? ` — fee ${formatAmountForDisplay(fee)} ${feeSymbol}` : ""}
                 </div>
+
+                {/* The one figure that compares routes on price, fees and
+                    spread together. A line of its own rather than one more
+                    item after the fee, which it already contains. */}
+                {!!costVsMarket && <div className={`${cstyles.sublight} ${cstyles.small}`}>{costVsMarket}</div>}
 
                 {/* The provider's own warning, which is usually about volatile
                     conditions on the route. Shown rather than summarised: it

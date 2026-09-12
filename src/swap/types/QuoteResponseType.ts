@@ -39,6 +39,11 @@ export type QuoteRouteType = {
   expectedBuyAmount: string;
   /** Minimum guaranteed receive amount at the route's quoted slippage. */
   expectedBuyAmountMaxSlippage?: string;
+  /**
+   * All-in cost of the route against market value, in basis points, usually
+   * negative. Not a slippage tolerance despite the name: see `costVsMarket`.
+   */
+  totalSlippageBps?: number;
   /** Total fees as reported by the provider. */
   fees?: QuoteRouteFeeType[];
   /** ETA label, e.g. `"~5 min"`. */

@@ -16,6 +16,7 @@ import {
   extractFiatValueBasis,
   formatAmountForDisplay,
   providerShortLabel,
+  describeCostVsMarket,
   quoteAddressPair,
   quoteBindsAddress,
   validateAddressForChain,
@@ -909,6 +910,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                   via {providerShortLabel(chosenRoute.provider)}
                   {chosenRoute.estimatedTimeText ? ` — ${chosenRoute.estimatedTimeText}` : ""}
                 </div>
+                {!!describeCostVsMarket(chosenRoute.costVsMarketBps) && (
+                  <div className={`${cstyles.sublight} ${cstyles.small}`}>
+                    {describeCostVsMarket(chosenRoute.costVsMarketBps)}
+                  </div>
+                )}
                 {!!chosenRoute.warningsText && (
                   <div className={cstyles.small} style={{ color: "var(--color-warning)" }}>
                     {chosenRoute.warningsText}
