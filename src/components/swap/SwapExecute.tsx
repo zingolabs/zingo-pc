@@ -39,6 +39,7 @@ type SwapExecuteProps = {
     depositAddress: string;
     amountAtomic: number;
     memoBytes?: Uint8Array;
+    viaSourceAddress?: boolean;
   }) => Promise<string[]>;
   /** The swap ran and the user is finished with it. The screen behind is
    *  cleared, because the next swap is a new decision. */
@@ -89,6 +90,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           depositAddress: instructions.depositAddress,
           amountAtomic: zecToZatoshis(instructions.amountHumanDecimal),
           memoBytes: instructions.memoBytes,
+          viaSourceAddress: instructions.identifiesDepositBySender,
         });
         // The provider watches the transaction that pays the vault, which is
         // the last one: a two-hop send emits shielded → ephemeral first. Taking

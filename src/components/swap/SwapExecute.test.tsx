@@ -77,7 +77,11 @@ const quoteInput = (direction: SwapDirectionEnum): QuoteInput => ({
   destinationAddress: direction === SwapDirectionEnum.Outbound ? "bc1qdestination" : EPHEMERAL,
 });
 
-const renderExecute = (direction: SwapDirectionEnum, deposit?: jest.Mock) => {
+const renderExecute = (
+  direction: SwapDirectionEnum,
+  deposit?: jest.Mock,
+  instructionOverrides: Record<string, unknown> = {},
+) => {
   const commitRoute = jest.fn(async () => ({
     record: record(direction),
     instructions: {
@@ -85,6 +89,7 @@ const renderExecute = (direction: SwapDirectionEnum, deposit?: jest.Mock) => {
       depositAddress: direction === SwapDirectionEnum.Outbound ? "near1deposit" : "bc1qdeposit",
       amountHumanDecimal: "1.5",
       providerData: { kind: SwapKitProviderEnum.Near as const, depositAddress: "near1deposit" },
+      ...instructionOverrides,
     },
   }));
   const markBroadcasted = jest.fn(async () => record(direction));
@@ -111,6 +116,34 @@ const renderExecute = (direction: SwapDirectionEnum, deposit?: jest.Mock) => {
 beforeEach(() => {
   jest.clearAllMocks();
   native.reserve_refund_address.mockResolvedValue(JSON.stringify({ encoded_address: EPHEMERAL }));
+});
+
+describe("SwapExecute deposit routing", () => {
+  // Flashnet recognises a deposit by the address that paid it, so the deposit
+  // has to leave from the transparent one the quote named rather than from the
+  // shielded pool. This screen is what carries that from the executor to the
+  // send, and a deposit sent the other way comes back refunded.
+  it("asks for the transparent source when the provider reads the sender", async () => {
+    const deposit = jest.fn(async (_args: { viaSourceAddress?: boolean }) => ["a".repeat(64)]);
+    renderExecute(SwapDirectionEnum.Outbound, deposit, { identifiesDepositBySender: true });
+
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(deposit.mock.calls[0][0]).toMatchObject({ viaSourceAddress: true });
+  });
+
+  // The cheaper shape stays the default: one transaction, one fee, and the
+  // payment never leaves the shielded pool.
+  it("leaves a provider that reads the deposit address to the single send", async () => {
+    const deposit = jest.fn(async (_args: { viaSourceAddress?: boolean }) => ["a".repeat(64)]);
+    renderExecute(SwapDirectionEnum.Outbound, deposit);
+
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(deposit.mock.calls[0][0].viaSourceAddress).toBeUndefined();
+  });
 });
 
 describe("SwapExecute refund-address claiming", () => {

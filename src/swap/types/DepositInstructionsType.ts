@@ -43,4 +43,17 @@ export type DepositInstructionsType = {
   providerData: ProviderDataType;
   /** Unix-ms timestamp after which the provider considers the route stale. */
   expiresAtMs?: number;
+  /**
+   * Whether the provider recognises a deposit by who paid it rather than by
+   * where it landed. When it does, the deposit has to leave from the source
+   * address the quote was taken with, which for an outbound swap means the
+   * transparent ZIP 320 address rather than the shielded pool.
+   *
+   * Flashnet does. A mainnet deposit paid straight out of the shielded pool
+   * was refunded as `deposit_source_mismatch` (order ord_01a09310,
+   * 2026-09-11): a deshield carries no transparent sender for it to read.
+   * NEAR mints a deposit address per order and needs none of this, and Maya
+   * and THORChain read the memo instead.
+   */
+  identifiesDepositBySender?: boolean;
 };

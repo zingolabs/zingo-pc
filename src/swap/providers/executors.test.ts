@@ -180,6 +180,16 @@ describe("FlashnetExecutor deposit instructions", () => {
     expect(instructions.providerData).toMatchObject({ swapKitAssignedId: "sk-77" });
   });
 
+  // The first mainnet trace, 2026-09-11: a deposit paid straight out of the
+  // shielded pool carries no sender, and Flashnet refunded it as
+  // deposit_source_mismatch. Saying so here is what routes the deposit
+  // through the transparent address the quote named.
+  it("says its provider recognises a deposit by who paid it", () => {
+    const instructions = executor.extractDepositInstructions(context({ tx: { to: "sp1deposit" } }));
+
+    expect(instructions.identifiesDepositBySender).toBe(true);
+  });
+
   it("encodes a memo when one is offered", () => {
     const instructions = executor.extractDepositInstructions(context({ tx: { to: "sp1deposit", memo: "flash-memo" } }));
 
