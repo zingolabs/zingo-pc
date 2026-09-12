@@ -34,6 +34,24 @@ export function depositCarriesMemo(provider: SwapKitProviderEnum): boolean {
 }
 
 /**
+ * Whether an outbound deposit is paid through the transparent source address
+ * the quote named, a deshield to it and then that address paying the deposit,
+ * rather than as an ordinary send straight out of the shielded pool.
+ *
+ * It is the two-transaction shape for either of two reasons: a memo, which
+ * needs a transparent spend to ride in, or a provider that checks the deposit
+ * came from the declared address. Otherwise it is one ordinary send.
+ *
+ * The send path and the refund-address claim both turn on this, and they
+ * must agree: the two-transaction shape reserves the source address by
+ * applying its proposal, while the ordinary send never touches it and leaves
+ * the claim to the caller.
+ */
+export function depositSpendsSourceAddress(args: { memoBytes?: Uint8Array; viaSourceAddress?: boolean }): boolean {
+  return (!!args.memoBytes && args.memoBytes.length > 0) || !!args.viaSourceAddress;
+}
+
+/**
  * ZIP 317's marginal fee, in zatoshis. A transaction pays this per logical
  * action beyond the two-action grace.
  */

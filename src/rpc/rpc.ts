@@ -22,6 +22,7 @@ import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
 import { userFacingError } from "../utils/userFacingError";
+import { depositSpendsSourceAddress } from "../swap/depositRouting";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "./components/serverHealth";
 import {
   FfiBatchReport,
@@ -1077,7 +1078,7 @@ export default class RPC {
     viaSourceAddress?: boolean;
   }): Promise<string[]> {
     const carriesMemo: boolean = !!args.memoBytes && args.memoBytes.length > 0;
-    if (!carriesMemo && !args.viaSourceAddress) {
+    if (!depositSpendsSourceAddress(args)) {
       const sendJson: Array<SendJsonToTypeType> = [{ address: args.depositAddress, amount: args.amountAtomic }];
       const joined: string = await this.sendTransaction(sendJson);
       return joined

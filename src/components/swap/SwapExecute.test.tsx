@@ -159,11 +159,43 @@ describe("SwapExecute refund-address claiming", () => {
     expect(native.reserve_refund_address).toHaveBeenCalledTimes(1);
   });
 
-  // Outbound pays its own deposit, and applying that proposal reserves the
-  // address. Claiming here as well would consume two indices per swap and
-  // leave the one SwapKit was told about unused.
-  it("leaves the claim to the proposal on an outbound swap", async () => {
+  // An ordinary send never touches the refund address, so nothing else would
+  // claim it. Left unclaimed, the next swap names it again: a NEAR swap and a
+  // Flashnet swap nine days apart did exactly that on mainnet.
+  it("claims the refund address when an outbound deposit is an ordinary send", async () => {
     renderExecute(SwapDirectionEnum.Outbound);
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(native.reserve_refund_address).toHaveBeenCalledTimes(1);
+  });
+
+  // The address was named to SwapKit at the commit, so it is spoken for
+  // whether or not the payment ever goes out.
+  it("claims it even when that deposit fails to broadcast", async () => {
+    const deposit = jest.fn(async () => {
+      throw new Error("the Nym mixnet proxy died");
+    });
+    renderExecute(SwapDirectionEnum.Outbound, deposit);
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText(/did not broadcast/i);
+    expect(native.reserve_refund_address).toHaveBeenCalledTimes(1);
+  });
+
+  // Paying through the source address applies a proposal that reserves it.
+  // Claiming first would make that proposal derive the next index and pay
+  // from an address the provider was never told about.
+  it("leaves the claim to the proposal when the deposit spends the source address", async () => {
+    renderExecute(SwapDirectionEnum.Outbound, undefined, { requiresDepositFromSourceAddress: true });
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(native.reserve_refund_address).not.toHaveBeenCalled();
+  });
+
+  it("leaves the claim to the proposal when the deposit carries a memo", async () => {
+    renderExecute(SwapDirectionEnum.Outbound, undefined, { memoBytes: new TextEncoder().encode("=:b:bc1q") });
     fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
 
     await screen.findByText("Deposit sent");

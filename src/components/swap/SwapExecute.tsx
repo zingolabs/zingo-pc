@@ -8,7 +8,7 @@ import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
 import { Field, FieldRow } from "../common/DetailField";
 import { native } from "../../electronBridge";
-import { SwapDirectionEnum, providerLongLabel } from "../../swap";
+import { SwapDirectionEnum, depositSpendsSourceAddress, providerLongLabel } from "../../swap";
 import type {
   DepositInstructionsType,
   FiatValueBasisType,
@@ -25,6 +25,21 @@ import type {
  * on exactly the boundary values a currency field produces, and a deposit that
  * is one zatoshi short is a deposit the provider refunds.
  */
+/**
+ * The deposit call a set of instructions asks for. Built in one place because
+ * the send and the refund-address claim both read it, and a claim decided on
+ * different arguments from the send could reserve the address the deposit
+ * was about to spend from.
+ */
+function depositRequest(instructions: DepositInstructionsType) {
+  return {
+    depositAddress: instructions.depositAddress,
+    amountAtomic: zecToZatoshis(instructions.amountHumanDecimal),
+    memoBytes: instructions.memoBytes,
+    viaSourceAddress: instructions.requiresDepositFromSourceAddress,
+  };
+}
+
 function zecToZatoshis(amountHumanDecimal: string): number {
   return Math.round(parseFloat(amountHumanDecimal) * 1e8);
 }
@@ -86,12 +101,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   const broadcast = useCallback(
     async (record: SwapRecordType, instructions: DepositInstructionsType) => {
       try {
-        const txIds = await sendSwapDeposit({
-          depositAddress: instructions.depositAddress,
-          amountAtomic: zecToZatoshis(instructions.amountHumanDecimal),
-          memoBytes: instructions.memoBytes,
-          viaSourceAddress: instructions.requiresDepositFromSourceAddress,
-        });
+        const txIds = await sendSwapDeposit(depositRequest(instructions));
         // The provider watches the transaction that pays the vault, which is
         // the last one: a two-hop send emits shielded → ephemeral first. Taking
         // the last regardless of length also survives a future step being added
@@ -138,23 +148,33 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
       return;
     }
 
-    if (!isOutbound) {
-      // Claim the refund address this swap was quoted against, so the next
-      // inbound swap is handed the following one. Outbound needs no such call:
-      // paying its own deposit applies a proposal, and that reserves the
-      // address. Inbound is paid from another wallet, so without this every
-      // inbound swap would name the same address and a provider could tie them
-      // together.
-      //
-      // Failure is logged rather than surfaced. The swap is already live at the
-      // provider and the address is still one this wallet watches; what is lost
-      // is the freshness of the next one, which is not worth failing a swap the
-      // user has just committed to.
+    // The address the commit just named to SwapKit is spoken for from here,
+    // paid or not, and has to be claimed so the next swap is handed the
+    // following one. Two swaps naming one address can be tied together, and
+    // two were: a NEAR swap on 2026-09-02 and a Flashnet swap on 2026-09-11
+    // both named t1c6TxTmvrZVyFnnPUt37ug1Az5XxGqnQxs. Inbound is paid from
+    // another wallet and an ordinary outbound send never touches the address,
+    // so nothing else ever claimed it.
+    //
+    // Except a deposit paid through the source address, which applies a
+    // proposal that reserves the address itself. Claiming first would make
+    // that proposal derive the following index and pay from an address the
+    // provider was never told about, which is the check Flashnet refunds on.
+    //
+    // Failure is logged rather than surfaced. The swap is already live at the
+    // provider and the address is still one this wallet watches; what is lost
+    // is the freshness of the next one, which is not worth failing a swap the
+    // user has just committed to.
+    const claimedByDeposit: boolean = isOutbound && depositSpendsSourceAddress(depositRequest(committed.instructions));
+    if (!claimedByDeposit) {
       try {
         await native.reserve_refund_address();
       } catch (e) {
         console.error(`SwapExecute: could not reserve the refund address ${e}`);
       }
+    }
+
+    if (!isOutbound) {
       setPostCommit({ record: committed.record, instructions: committed.instructions });
       setCommitting(false);
       return;

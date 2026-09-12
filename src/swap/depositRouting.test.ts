@@ -1,4 +1,4 @@
-import { depositCarriesMemo, zecNetworkFeeReserve } from "./depositRouting";
+import { depositCarriesMemo, depositSpendsSourceAddress, zecNetworkFeeReserve } from "./depositRouting";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 
 describe("depositCarriesMemo", () => {
@@ -19,6 +19,24 @@ describe("depositCarriesMemo", () => {
 
   it("is false for NEAR Intents, which never sends one", () => {
     expect(depositCarriesMemo(SwapKitProviderEnum.Near)).toBe(false);
+  });
+});
+
+// The send path and the refund-address claim both decide on this, and a
+// disagreement between them either reuses an address across swaps or pays
+// from one the provider was never told about.
+describe("depositSpendsSourceAddress", () => {
+  it("is false for an ordinary send", () => {
+    expect(depositSpendsSourceAddress({})).toBe(false);
+    expect(depositSpendsSourceAddress({ memoBytes: new Uint8Array(), viaSourceAddress: false })).toBe(false);
+  });
+
+  it("is true when a memo has to ride in a transparent spend", () => {
+    expect(depositSpendsSourceAddress({ memoBytes: new Uint8Array([61]) })).toBe(true);
+  });
+
+  it("is true when the provider checks the deposit came from the declared address", () => {
+    expect(depositSpendsSourceAddress({ viaSourceAddress: true })).toBe(true);
   });
 });
 
