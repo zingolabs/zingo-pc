@@ -152,7 +152,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
     // paid or not, and has to be claimed so the next swap is handed the
     // following one. Two swaps naming one address can be tied together, and
     // two were: a NEAR swap on 2026-09-02 and a Flashnet swap on 2026-09-11
-    // both named t1c6TxTmvrZVyFnnPUt37ug1Az5XxGqnQxs. Inbound is paid from
+    // both named the same transparent address. Inbound is paid from
     // another wallet and an ordinary outbound send never touches the address,
     // so nothing else ever claimed it.
     //

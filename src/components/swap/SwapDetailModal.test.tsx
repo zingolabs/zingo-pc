@@ -35,7 +35,7 @@ const USDC: SwapAssetType = {
 
 const record = (overrides: Partial<SwapRecordType> = {}): SwapRecordType => ({
   recordId: "rec-1",
-  depositAddress: "t1UEoKhSn2JC94Tnm9AbEzHARZuEv9faSnj",
+  depositAddress: "t1FlashnetDepositPlaceholder",
   provider: SwapKitProviderEnum.Flashnet,
   direction: SwapDirectionEnum.Outbound,
   routeId: "route-1",
@@ -45,9 +45,9 @@ const record = (overrides: Partial<SwapRecordType> = {}): SwapRecordType => ({
   expectedReceiveAmount: "7.77",
   minReceiveAmount: "7.69",
   destinationAddress: "SoLdestination",
-  sourceAddress: "t1XujFnT7UevvKwgW7JV3Z1cTYEScH1CxyU",
+  sourceAddress: "t1EphemeralSourcePlaceholder",
   status: SwapStatusEnum.Pending,
-  providerData: { kind: SwapKitProviderEnum.Flashnet, vaultAddress: "t1UEoKhSn2JC94Tnm9AbEzHARZuEv9faSnj" },
+  providerData: { kind: SwapKitProviderEnum.Flashnet, vaultAddress: "t1FlashnetDepositPlaceholder" },
   fiatValueBasis: { sellUsdUnitPrice: 1150, receiveUsdUnitPrice: 1, capturedAt: 0 },
   createdAtMs: 1_700_000_000_000,
   updatedAtMs: 1_700_000_000_000,
@@ -71,7 +71,7 @@ const renderDetail = (overrides: Partial<SwapRecordType> = {}) =>
  * A swap that ended badly has to say so on the screen the user opens to find
  * out why. The reason is the provider's to give and often missing — SwapKit
  * omits `refundReason` when the provider gave none, which is what a Flashnet
- * refund did on mainnet (order ord_01a095f2, 2026-09-12) — so the status, not
+ * refund did on mainnet on 2026-09-12 — so the status, not
  * the text, is what decides that there is an ending to report.
  */
 describe("SwapDetailModal ending", () => {

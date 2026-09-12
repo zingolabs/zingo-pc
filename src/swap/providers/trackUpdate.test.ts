@@ -354,7 +354,7 @@ describe("applyDefaultTrackUpdate on a refund", () => {
         type: "swap",
         status: "refunded",
         hash: ZERO_HASH,
-        meta: { providerOrderId: "ord_01a09310", refundReason: REASON },
+        meta: { providerOrderId: "ord_placeholder", refundReason: REASON },
       },
       { chainId: "zcash", type: "native_send", status: "refunded", hash: REFUND_HASH },
     ],
@@ -380,7 +380,7 @@ describe("applyDefaultTrackUpdate on a refund", () => {
   it("keeps the provider order id", () => {
     const updated = applyDefaultTrackUpdate(record(), refunded);
 
-    expect(updated.providerOrderId).toBe("ord_01a09310");
+    expect(updated.providerOrderId).toBe("ord_placeholder");
   });
 
   // The real refund reported zero on both the swap leg and the returning
@@ -406,6 +406,6 @@ describe("applyDefaultTrackUpdate on a refund", () => {
 
     expect(second.refundInfo?.refundReason).toBe(REASON);
     expect(second.refundInfo?.refundTxHash).toBe(REFUND_HASH);
-    expect(second.providerOrderId).toBe("ord_01a09310");
+    expect(second.providerOrderId).toBe("ord_placeholder");
   });
 });

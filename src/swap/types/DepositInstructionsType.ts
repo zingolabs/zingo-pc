@@ -52,9 +52,9 @@ export type DepositInstructionsType = {
    * order, as NEAR does, so where a deposit lands already says which order
    * it is for. What Flashnet adds is a check that the money came from the
    * declared `sourceAddress`. A deshield names no transparent sender, so it
-   * fails that check: ord_01a09310 (2026-09-11), paid straight out of the
-   * shielded pool, carries `errorCode: deposit_source_mismatch` in the
-   * Flashnet order record, and ord_01a095f2, paid from the declared
+   * fails that check: a mainnet order on 2026-09-11, paid straight out of
+   * the shielded pool, carries `errorCode: deposit_source_mismatch` in the
+   * Flashnet order record, and one on 2026-09-12, paid from the declared
    * address, carries none.
    *
    * NEAR also mints per order but checks no sender, and a NEAR swap paid

@@ -15,7 +15,7 @@ import { applyDefaultTrackUpdate } from "./trackUpdateBase";
  * not say: the deposit must come from the declared `sourceAddress`. That
  * swap was paid straight out of the shielded pool, so the transaction
  * carried no transparent sender to check, and the order was refunded with
- * `errorCode: deposit_source_mismatch` (ord_01a09310). It is a check, not
+ * `errorCode: deposit_source_mismatch` in its order record. It is a check, not
  * how the order is found: Flashnet mints a deposit address per order.
  * Hence `requiresDepositFromSourceAddress` below, which routes an outbound
  * deposit through the ZIP 320 address the quote named. The extraction is
