@@ -8,7 +8,7 @@ import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
 import { Field, FieldRow } from "../common/DetailField";
 import { native } from "../../electronBridge";
-import { SwapDirectionEnum, providerLongLabel, providerShortLabel, repricesLateDeposits } from "../../swap";
+import { SwapDirectionEnum, providerLongLabel } from "../../swap";
 import type {
   DepositInstructionsType,
   FiatValueBasisType,
@@ -278,18 +278,6 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.margintoplarge}`}>
             Expected {route.expectedReceiveAmount}. The minimum is what the slippage tolerance guarantees.
           </div>
-
-          {/* The minimum above reads as a floor under what arrives, and for
-              a provider that reprices on arrival it is not one: falling
-              through it refunds the swap instead of delivering less. Worth
-              a line at the press that spends the money, because the sum on
-              screen is the one thing that does not say it. */}
-          {repricesLateDeposits(route.provider) && (
-            <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
-              {providerShortLabel(route.provider)} reprices the deposit when it arrives. Below the minimum it refunds
-              rather than delivering less.
-            </div>
-          )}
 
           {!!error && (
             <div className={`${cstyles.center} ${cstyles.margintoplarge}`} style={{ color: "var(--color-error)" }}>
