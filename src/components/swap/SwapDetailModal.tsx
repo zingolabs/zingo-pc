@@ -19,6 +19,7 @@ import {
   isPrePaymentStatus,
   isRealLegHash,
   isTerminalStatus,
+  SwapStatusEnum,
   providerLongLabel,
   swapRowLabel,
 } from "../../swap";
@@ -121,6 +122,17 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // in `refundInfo`, a failure in `failureReason`; both reached the record and
   // neither reached the screen.
   const endedBadlyReason = record.refundInfo?.refundReason ?? record.failureReason;
+
+  // The reason is optional and a refund without one is common — SwapKit omits
+  // `refundReason` when the provider gave none. Gating the section on the text
+  // hid the whole ending in exactly that case, leaving a refunded swap looking
+  // like one that had merely stopped. The status is what decides whether there
+  // was an ending to report; the reason only decides how much it can say.
+  const endedBadly: boolean =
+    record.status === SwapStatusEnum.Refunded ||
+    record.status === SwapStatusEnum.Failed ||
+    record.status === SwapStatusEnum.Expired ||
+    !!endedBadlyReason;
 
   const removable = canRemoveSwap(record.status);
 
@@ -321,10 +333,24 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             </FieldRow>
           )}
 
-          {!!endedBadlyReason && (
+          {endedBadly && (
             <>
-              <SectionHeader label={record.refundInfo?.refundReason ? "Refund" : "Failure"} />
-              <Field label="Reason" value={endedBadlyReason} />
+              <SectionHeader label={record.status === SwapStatusEnum.Refunded ? "Refund" : "Failure"} />
+              <Field
+                label="Reason"
+                value={
+                  endedBadlyReason ?? (
+                    // Said rather than left blank: the user needs to know the
+                    // silence is the provider's, not a value still loading, and
+                    // where to go next. The provider's own order page sits in
+                    // Trackers below and often carries more than /track does.
+                    <span className={cstyles.sublight}>
+                      Not given by {providerLongLabel(record.provider)}. Its order page, under Trackers below, may say
+                      more.
+                    </span>
+                  )
+                }
+              />
             </>
           )}
 
