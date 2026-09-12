@@ -19,7 +19,9 @@ import { mapSwapStatus, mapTrackingStatus } from "./statusMapping";
  *     first-leg / last-leg heuristic when no leg carries a chain hint.
  *   - Stamps `firstObservedAtMs` on the first non-pre-broadcast observation
  *     and `terminalAtMs` on the transition into a terminal status.
- *   - Captures `failureReason` only when the new status is `Failed`.
+ *   - Captures `failureReason` only when the new status is `Failed`, and the
+ *     refund reason and refund transaction only when it is `Refunded`.
+ *   - Keeps the provider order id whatever the outcome.
  */
 export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackResponseType): SwapRecordType {
   const nowMs = Date.now();
@@ -68,6 +70,17 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
   // polling.
   const providerExplorerUrl = pickProviderExplorerUrl(response) ?? record.providerExplorerUrl;
 
+  // Kept for every swap, not only a failed one: it is the name the provider
+  // answers to about this order, and the moment it is wanted is the moment
+  // the app can no longer reach the provider to ask.
+  const providerOrderId = pickProviderOrderId(response) ?? record.providerOrderId;
+
+  // A refund is the provider handing the deposit back and saying why. The
+  // reason rides in `meta`, and the transaction that returned the funds is a
+  // leg of its own on the chain the deposit came from — not the deposit leg,
+  // which sits on that same chain and completed.
+  const refundInfo = nextStatus === SwapStatusEnum.Refunded ? refundInfoFrom(record, response) : record.refundInfo;
+
   const reachedTerminalNow = !isTerminalStatus(record.status) && isTerminalStatus(nextStatus);
 
   return {
@@ -78,6 +91,8 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
     destinationTxHash,
     actualReceiveAmount,
     providerExplorerUrl,
+    providerOrderId,
+    refundInfo,
     failureReason:
       nextStatus === SwapStatusEnum.Failed ? (response.failureReason ?? record.failureReason) : record.failureReason,
     firstObservedAtMs: record.firstObservedAtMs ?? nowMs,
@@ -103,6 +118,77 @@ function pickProviderExplorerUrl(response: TrackResponseType): string | undefine
     }
   }
   return undefined;
+}
+
+/**
+ * The provider order id, wherever this provider puts it: top-level `meta`
+ * or the meta of whichever leg it runs. Flashnet ships it on the swap leg
+ * beside the explorer URL.
+ */
+function pickProviderOrderId(response: TrackResponseType): string | undefined {
+  const topLevel = (response.meta as { providerOrderId?: unknown })?.providerOrderId;
+  if (typeof topLevel === "string" && topLevel.length > 0) return topLevel;
+  if (response.legs) {
+    for (const leg of response.legs) {
+      const legId = (leg.meta as { providerOrderId?: unknown })?.providerOrderId;
+      if (typeof legId === "string" && legId.length > 0) return legId;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * What a refunded response adds to what the record already knew.
+ *
+ * Only the reason and the transaction: the amounts a refund reports are not
+ * to be trusted. A real Flashnet refund came back with `toAmount: "0"` on
+ * both the swap leg and the returning transfer while the deposit was in fact
+ * returned in full, so a figure taken from there would understate what the
+ * user got back. The record already holds what was deposited.
+ */
+function refundInfoFrom(record: SwapRecordType, response: TrackResponseType) {
+  const refundReason = pickRefundReason(response) ?? record.refundInfo?.refundReason;
+  const refundTxHash = pickRefundTxHash(response, record.sellAsset.chainId) ?? record.refundInfo?.refundTxHash;
+  if (refundReason === undefined && refundTxHash === undefined) return record.refundInfo;
+  return {
+    ...record.refundInfo,
+    ...(refundReason !== undefined && { refundReason }),
+    ...(refundTxHash !== undefined && { refundTxHash }),
+  };
+}
+
+/** The provider words for why it refunded, top level or on any leg. */
+function pickRefundReason(response: TrackResponseType): string | undefined {
+  const topLevel = (response.meta as { refundReason?: unknown })?.refundReason;
+  if (typeof topLevel === "string" && topLevel.length > 0) return topLevel;
+  if (response.legs) {
+    for (const leg of response.legs) {
+      const legReason = (leg.meta as { refundReason?: unknown })?.refundReason;
+      if (typeof legReason === "string" && legReason.length > 0) return legReason;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * The transaction that returned the funds: a refunded leg carrying a real
+ * hash. The deposit leg sits on the same chain and would match a naive
+ * chain-only search, so the refunded status is what selects it; the chain is
+ * then preferred among several, because the funds come back where they left
+ * from.
+ */
+function pickRefundTxHash(response: TrackResponseType, sellChainId: string): string | undefined {
+  if (!response.legs) return undefined;
+  const refunded = response.legs.filter((leg) => isRefundedLeg(leg.status) || isRefundedLeg(leg.trackingStatus));
+  const onSellChain = refunded.find(
+    (leg) => leg.chainId?.toLowerCase() === sellChainId.toLowerCase() && isRealLegHash(leg.hash),
+  );
+  if (onSellChain) return onSellChain.hash;
+  return refunded.find((leg) => isRealLegHash(leg.hash))?.hash;
+}
+
+function isRefundedLeg(status: string | undefined): boolean {
+  return status?.toLowerCase() === "refunded";
 }
 
 /**
