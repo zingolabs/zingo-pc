@@ -141,6 +141,14 @@ export type SwapRecordType = {
    * comes back to the app days later.
    */
   providerExplorerUrl?: string;
+
+  /**
+   * The provider name for this order, from `/track` (`meta.providerOrderId`,
+   * top level or on a leg). Support asks for it by that name — Flashnet
+   * refuses an order with "Contact support with this order ID" — so it is
+   * kept whatever the outcome, not only when one goes wrong.
+   */
+  providerOrderId?: string;
   /**
    * Destination-asset amount the provider actually paid out to the user,
    * in display units (string). Populated from `/track` once the outbound

@@ -60,6 +60,25 @@ describe("hashRowsForRecord", () => {
     expect(rows).toEqual([{ label: "Broadcast", value: HASH_A }]);
   });
 
+  // Last of the list, because it is the one that only exists when the swap
+  // did not happen.
+  it("lists the transaction that returned the deposit", () => {
+    const rows = hashRowsForRecord(record({ observedDepositTxHash: HASH_A, refundInfo: { refundTxHash: HASH_B } }));
+
+    expect(rows).toEqual([
+      { label: "Deposit", value: HASH_A },
+      { label: "Refund", value: HASH_B },
+    ]);
+  });
+
+  it("leaves out a placeholder refund hash", () => {
+    const rows = hashRowsForRecord(
+      record({ observedDepositTxHash: HASH_A, refundInfo: { refundTxHash: PLACEHOLDER } }),
+    );
+
+    expect(rows).toEqual([{ label: "Deposit", value: HASH_A }]);
+  });
+
   it("has nothing to show for a swap with no transactions yet", () => {
     expect(hashRowsForRecord(record())).toEqual([]);
   });

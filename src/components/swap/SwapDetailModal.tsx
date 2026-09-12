@@ -117,6 +117,11 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
 
   const uniqueHashRows = hashRowsForRecord(record);
 
+  // What the provider said about an ending nobody asked for. A refund says it
+  // in `refundInfo`, a failure in `failureReason`; both reached the record and
+  // neither reached the screen.
+  const endedBadlyReason = record.refundInfo?.refundReason ?? record.failureReason;
+
   const removable = canRemoveSwap(record.status);
 
   // A deposit the provider can see is what turns a reserved swap into a
@@ -271,6 +276,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             <Field label="Provider" value={providerLongLabel(record.provider)} />
             <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
             {!!record.routeId && <Field label="Route id" value={record.routeId} />}
+            {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} copy={copy} />}
           </FieldRow>
 
           <FieldRow>
@@ -313,6 +319,13 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 Fee breakdown
               </button>
             </FieldRow>
+          )}
+
+          {!!endedBadlyReason && (
+            <>
+              <SectionHeader label={record.refundInfo?.refundReason ? "Refund" : "Failure"} />
+              <Field label="Reason" value={endedBadlyReason} />
+            </>
           )}
 
           <SectionHeader label="Addresses" />

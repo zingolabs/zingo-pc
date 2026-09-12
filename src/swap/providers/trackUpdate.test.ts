@@ -331,3 +331,81 @@ describe("applyDefaultTrackUpdate", () => {
     expect(before.status).toBe(SwapStatusEnum.Pending);
   });
 });
+
+/**
+ * Shaped after a real Flashnet refund on mainnet: the deposit landed and
+ * completed on the sell chain, the provider leg refunded carrying the order
+ * id and the reason, and a second transfer on the sell chain brought the
+ * funds back. Everything the user needs to chase it was in this response and
+ * none of it reached the record.
+ */
+describe("applyDefaultTrackUpdate on a refund", () => {
+  const REFUND_HASH = "c".repeat(64);
+  const REASON = "Order processing failed. Contact support with this order ID.";
+
+  const refunded: TrackResponseType = {
+    status: "refunded",
+    trackingStatus: "refunded",
+    meta: { refundReason: REASON },
+    legs: [
+      { chainId: "zcash", type: "native_send", status: "completed", hash: DEPOSIT_HASH },
+      {
+        chainId: "spark",
+        type: "swap",
+        status: "refunded",
+        hash: ZERO_HASH,
+        meta: { providerOrderId: "ord_01a09310", refundReason: REASON },
+      },
+      { chainId: "zcash", type: "native_send", status: "refunded", hash: REFUND_HASH },
+    ],
+  };
+
+  it("keeps the reason the provider gave for handing the deposit back", () => {
+    const updated = applyDefaultTrackUpdate(record(), refunded);
+
+    expect(updated.status).toBe(SwapStatusEnum.Refunded);
+    expect(updated.refundInfo?.refundReason).toBe(REASON);
+  });
+
+  // The deposit leg sits on the same chain and carries a real hash, so the
+  // refunded status is what picks the right transaction out, not the chain.
+  it("takes the transaction that returned the funds, not the one that sent them", () => {
+    const updated = applyDefaultTrackUpdate(record(), refunded);
+
+    expect(updated.refundInfo?.refundTxHash).toBe(REFUND_HASH);
+  });
+
+  // The provider asks for this by name when refusing an order, and it was
+  // reaching the app and going nowhere.
+  it("keeps the provider order id", () => {
+    const updated = applyDefaultTrackUpdate(record(), refunded);
+
+    expect(updated.providerOrderId).toBe("ord_01a09310");
+  });
+
+  // The real refund reported zero on both the swap leg and the returning
+  // transfer while returning the deposit in full. A figure read from there
+  // would tell the user they got nothing back.
+  it("claims no refunded amount, because the ones reported are not to be trusted", () => {
+    const updated = applyDefaultTrackUpdate(record(), { ...refunded, toAmount: "0" });
+
+    expect(updated.refundInfo?.refundedAmountText).toBeUndefined();
+    expect(updated.refundInfo?.depositedAmountText).toBeUndefined();
+  });
+
+  it("leaves the refund untouched while the swap is still running", () => {
+    const updated = applyDefaultTrackUpdate(record(), { status: "PROCESSING", legs: refunded.legs });
+
+    expect(updated.refundInfo).toBeUndefined();
+  });
+
+  // A second tick of the poller must not lose what the first one learned.
+  it("keeps what it already knew when a later response says less", () => {
+    const first = applyDefaultTrackUpdate(record(), refunded);
+    const second = applyDefaultTrackUpdate(first, { status: "refunded" });
+
+    expect(second.refundInfo?.refundReason).toBe(REASON);
+    expect(second.refundInfo?.refundTxHash).toBe(REFUND_HASH);
+    expect(second.providerOrderId).toBe("ord_01a09310");
+  });
+});

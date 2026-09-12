@@ -85,7 +85,7 @@ use tokio::runtime::Runtime;
 use zcash_protocol::memo::MemoBytes;
 use zingolib::data::receivers::transaction_request_from_receivers;
 use zingolib::mixnet::ExitNodeId;
-use zingolib::wallet::op_return::OpReturnData;
+use zingolib::wallet::transparent::OpReturnData;
 use zingolib::ActivationHeights;
 use zingo_netutils::{GrpcIndexer, Indexer};
 
@@ -2888,15 +2888,24 @@ fn send_swap_deposit(mut cx: FunctionContext) -> JsResult<JsPromise> {
             };
 
             Ok(RT.block_on(async move {
-                match lightclient
-                    .propose_swap_deposit(&vault_address, amount, memo, AccountId::ZERO, true)
+                // Two calls rather than one: the proposal is stored, and
+                // sending it is what transmits. The pair stays behind this
+                // single entry point, so the swap flow still asks once and
+                // gets every txid back.
+                if let Err(e) = lightclient
+                    .propose_send_with_op_return(&vault_address, amount, memo, AccountId::ZERO)
                     .await
                 {
+                    return object! { "error" => cause_chain(&e) }.pretty(2);
+                }
+                // Resumes at the OP_RETURN step when the deshield already
+                // went out, which is the case this shape used to lose.
+                match lightclient.send_stored_proposal(true).await {
                     // Deshield first, carrier last — the order the swap
                     // flow reads, which takes the last as the deposit the
                     // provider watches.
-                    Ok(reports) => object! {
-                        "txids" => reports.iter().map(|report| report.txid.to_string()).collect::<Vec<_>>()
+                    Ok(txids) => object! {
+                        "txids" => txids.iter().map(|txid| txid.to_string()).collect::<Vec<_>>()
                     },
                     Err(e) => object! { "error" => cause_chain(&e) },
                 }
