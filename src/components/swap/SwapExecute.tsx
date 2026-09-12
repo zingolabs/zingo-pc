@@ -286,7 +286,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
         {/* Said again here, because the banner on the screen behind was read
             once and this is the press that spends the money. */}
-        <div className={swapStyles.warningbanner} style={{ marginTop: 12 }}>
+        <div className={`${swapStyles.warningbanner} ${swapStyles.warningbannercentred}`} style={{ marginTop: 12 }}>
           Swapping is experimental. Once this deposit is sent it cannot be called back.
         </div>
 
