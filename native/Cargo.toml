@@ -31,19 +31,23 @@ crate-type = ["cdylib"]
 # crates.io + 0.30 git coexist, orchard 0.15.4). See the [patch] note below on
 # the librustzcash rev pin zcash_pool_migration requires.
 #
-# Pinned to the OP_RETURN branch (zingolib PR #2469) until it lands on dev:
-# swaps need the null-data output and the ZIP 320 ephemeral route, neither of
-# which dev's zcash_client_backend path can express. That branch also carries
-# ~300 commits of dev the previous pin predated, which is why this bump moved
-# attach_mixnet, the SplitStep names, the transmit_* renames, and the editorial
-# layer below.
+# The OP_RETURN work (zingolib PR #2469) has landed on dev, so the fork pin is
+# gone and these follow zingolabs/zingolib. By rev rather than by branch, so a
+# build stays reproducible (ADR 0024 rule 7); bump it deliberately.
 #
-# `perspective` is that editorial layer (value transfers, messages, the
-# total_*_to_address reductions). dev moved it behind a default-off feature, so
-# the UI's read model has to opt in.
-zingolib = { git = "https://github.com/dorianvp/zingolib", branch = "feat/add-opreturn", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/dorianvp/zingolib", branch = "feat/add-opreturn" }
-zingo-netutils = { git = "https://github.com/dorianvp/zingolib", branch = "feat/add-opreturn" }
+# dev renamed the surface swaps depend on: OpReturnData moved to
+# wallet::transparent, and the one-step propose_swap_deposit became
+# propose_send_with_op_return, which stores a proposal that
+# send_stored_proposal then transmits, resuming at the OP_RETURN step when the
+# deshield already went out. The native layer was adapted to that shape
+# alongside this bump.
+#
+# `perspective` is the editorial layer (value transfers, messages, the
+# total_*_to_address reductions), behind a default-off feature, so the UI's
+# read model has to opt in.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "3035fe5d53d3a2bca76cfef221789f964ca7b388", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "3035fe5d53d3a2bca76cfef221789f964ca7b388" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "3035fe5d53d3a2bca76cfef221789f964ca7b388" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two

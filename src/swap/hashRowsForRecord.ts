@@ -49,6 +49,12 @@ export function hashRowsForRecord(record: SwapRecordType): HashRowType[] {
     rows.push({ label: "Destination", value: record.destinationTxHash as string });
   }
 
+  // Last, because it is the one that only exists when the swap did not
+  // happen: the transaction that brought the deposit back.
+  if (isRealLegHash(record.refundInfo?.refundTxHash)) {
+    rows.push({ label: "Refund", value: record.refundInfo?.refundTxHash as string });
+  }
+
   const seen = new Set<string>();
   return rows.filter((row) => {
     if (seen.has(row.value)) return false;

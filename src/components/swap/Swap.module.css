@@ -40,6 +40,21 @@
 }
 
 /*
+ * A banner that is one short sentence rather than something to act on. The
+ * box takes the width of the words instead of the width of the panel, which
+ * is what left a short line adrift at one edge of a full-width border, and
+ * the pair sits centred under what it qualifies. `max-width` keeps a longer
+ * sentence wrapping inside the panel rather than overflowing it.
+ */
+.warningbannercentred {
+  width: fit-content;
+  max-width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+
+/*
  * The QR block on the deposit slip. The code renders on a light plate because
  * a scanner needs the dark-on-light contrast the app's dark background cannot
  * give it, and the plate is what keeps that from reading as a rendering bug.
