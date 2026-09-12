@@ -31,6 +31,7 @@ const CHAIN_EXPLORER_TX_URL: Record<string, (hash: string) => string> = {
   DOGE: (h) => `https://blockchair.com/dogecoin/transaction/${h}`,
   DASH: (h) => `https://blockchair.com/dash/transaction/${h}`,
   NEAR: (h) => `https://nearblocks.io/txns/${h}`,
+  SOL: (h) => `https://solscan.io/tx/${h}`,
   MAYA: (h) => `https://www.mayascan.org/tx/${h}`,
   THOR: (h) => `https://viewblock.io/thorchain/tx/${h}`,
 };
