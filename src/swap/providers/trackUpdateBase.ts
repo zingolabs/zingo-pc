@@ -81,6 +81,15 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
   // which sits on that same chain and completed.
   const refundInfo = nextStatus === SwapStatusEnum.Refunded ? refundInfoFrom(record, response) : record.refundInfo;
 
+  // Every other leg that has landed. A response with legs is the whole
+  // current picture, so it replaces what the record held rather than adding
+  // to it: a hash first taken for something else, while a later leg had not
+  // yet appeared, must be able to move. Only a response with no legs at all
+  // leaves the stored ones alone.
+  const intermediateLegs = response.legs
+    ? pickIntermediateLegs(response, [observedDepositTxHash, destinationTxHash, refundInfo?.refundTxHash])
+    : record.intermediateLegs;
+
   const reachedTerminalNow = !isTerminalStatus(record.status) && isTerminalStatus(nextStatus);
 
   return {
@@ -89,6 +98,7 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
     trackingStatus: nextTrackingStatus,
     observedDepositTxHash,
     destinationTxHash,
+    intermediateLegs,
     actualReceiveAmount,
     providerExplorerUrl,
     providerOrderId,
@@ -99,6 +109,21 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
     terminalAtMs: reachedTerminalNow ? nowMs : record.terminalAtMs,
     updatedAtMs: nowMs,
   };
+}
+
+/**
+ * The landed legs that are neither the deposit, the delivery nor the refund.
+ * Undefined when there are none, so a record does not carry an empty list.
+ */
+function pickIntermediateLegs(
+  response: TrackResponseType,
+  shown: ReadonlyArray<string | undefined>,
+): ReadonlyArray<{ chainId: string; hash: string }> | undefined {
+  const elsewhere = new Set(shown.filter(isRealLegHash));
+  const legs = (response.legs ?? [])
+    .filter((leg) => !!leg.chainId && isRealLegHash(leg.hash) && !elsewhere.has(leg.hash as string))
+    .map((leg) => ({ chainId: leg.chainId as string, hash: leg.hash as string }));
+  return legs.length > 0 ? legs : undefined;
 }
 
 /**

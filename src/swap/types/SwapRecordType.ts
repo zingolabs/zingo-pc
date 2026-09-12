@@ -132,6 +132,14 @@ export type SwapRecordType = {
   /** Destination-chain tx hash the provider broadcast to deliver the swap. */
   destinationTxHash?: string;
   /**
+   * Transactions the swap made between the deposit and the delivery, on
+   * whatever chain the provider routes through: for NEAR Intents, the
+   * `execute_intents` call on NEAR, which is where the swap itself happens.
+   * Kept apart from the deposit, destination and refund, which have fields
+   * of their own and are never repeated here.
+   */
+  intermediateLegs?: ReadonlyArray<{ chainId: string; hash: string }>;
+  /**
    * Provider-supplied URL where the user can inspect the swap on the
    * provider's own dashboard (e.g. Flashnet's Orchestra explorer URL
    * pointing at the order id). Captured from `/track` when the response

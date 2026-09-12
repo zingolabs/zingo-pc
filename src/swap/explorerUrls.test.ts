@@ -3,6 +3,14 @@ import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { SwapStatusEnum } from "./enums/SwapStatusEnum";
 import { buildChainExplorerUrl, buildTrackerEntries } from "./explorerUrls";
+import { hashRowsForRecord } from "./hashRowsForRecord";
+import { applyDefaultTrackUpdate } from "./providers/trackUpdateBase";
+import {
+  DEPOSIT_HASH,
+  NEAR_EXECUTION_HASH,
+  SOLANA_DELIVERY_SIGNATURE,
+  nearZecToSolUsdcTrack,
+} from "./providers/fixtures/nearZecToSolUsdcTrack";
 import type { SwapAssetType } from "./types/SwapAssetType";
 import type { SwapRecordType } from "./types/SwapRecordType";
 
@@ -43,7 +51,7 @@ const record = (overrides: Partial<SwapRecordType> = {}): SwapRecordType => ({
   sellAmountHumanDecimal: "0.05",
   expectedReceiveAmount: "55.6",
   minReceiveAmount: "55.0",
-  destinationAddress: "7jAX2H5xwA3yD5hdestination",
+  destinationAddress: "SolanaDestinationPlaceholder",
   sourceAddress: "t1ephemeral",
   status: SwapStatusEnum.Completed,
   providerData: { kind: SwapKitProviderEnum.Near, depositAddress: "t1deposit" },
@@ -71,6 +79,48 @@ describe("buildChainExplorerUrl", () => {
 });
 
 describe("buildTrackerEntries", () => {
+  // The real response, end to end: what the poller stores from it and what
+  // the detail screen then links. NEAR Intents routes through a call on
+  // NEAR that was captured nowhere, so neither the NEAR link nor, with
+  // Solana missing from the table, the destination link ever appeared.
+  it("links every leg of a NEAR Intents swap into Solana", () => {
+    const tracked = applyDefaultTrackUpdate(record({ status: SwapStatusEnum.Processing }), nearZecToSolUsdcTrack);
+
+    const entries = buildTrackerEntries({ record: tracked, ...explorer });
+
+    expect(entries.map((e) => e.url)).toEqual(
+      expect.arrayContaining([
+        `https://nearblocks.io/txns/${NEAR_EXECUTION_HASH}`,
+        `https://solscan.io/tx/${SOLANA_DELIVERY_SIGNATURE}`,
+      ]),
+    );
+    expect(entries.find((e) => e.url.includes("nearblocks"))?.label).toBe("NEAR explorer");
+  });
+
+  it("lists each leg once, under the name of what it is", () => {
+    const tracked = applyDefaultTrackUpdate(record({ status: SwapStatusEnum.Processing }), nearZecToSolUsdcTrack);
+
+    expect(hashRowsForRecord(tracked)).toEqual([
+      { label: "Deposit", value: DEPOSIT_HASH },
+      { label: "Via NEAR", value: NEAR_EXECUTION_HASH },
+      { label: "Destination", value: SOLANA_DELIVERY_SIGNATURE },
+    ]);
+  });
+
+  // A leg that has not landed carries a placeholder hash, and a link to it
+  // would open nothing.
+  it("skips a leg that has not landed yet", () => {
+    const inFlight = {
+      ...nearZecToSolUsdcTrack,
+      legs: nearZecToSolUsdcTrack.legs?.map((leg) =>
+        leg.chainId === "near" ? { ...leg, hash: "0x" + "0".repeat(64) } : leg,
+      ),
+    };
+    const tracked = applyDefaultTrackUpdate(record({ status: SwapStatusEnum.Processing }), inFlight);
+
+    expect(tracked.intermediateLegs).toBeUndefined();
+  });
+
   it("offers the destination chain explorer for a swap into Solana", () => {
     const entries = buildTrackerEntries({ record: record({ destinationTxHash: "5solanasignature" }), ...explorer });
 
