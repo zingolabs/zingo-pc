@@ -1053,9 +1053,9 @@ export default class RPC {
    * entry point, which sends rather than proposing.
    *
    * That same pair is used, carrying nothing in the OP_RETURN, when the
-   * provider recognises a deposit by its sender rather than by where it
-   * landed: the transparent hop is then the whole point, because a deshield
-   * names no sender at all. Otherwise a deposit with no memo stays a single
+   * provider checks that the deposit came from the declared source address:
+   * the transparent hop is then the whole point, because a deshield names
+   * no sender to check. Otherwise a deposit with no memo stays a single
    * ordinary send, which costs one fee instead of two and keeps the payment
    * inside the shielded pool.
    *
@@ -1069,10 +1069,10 @@ export default class RPC {
     memoBytes?: Uint8Array;
     /**
      * Send through the wallet transparent source address rather than
-     * straight out of the shielded pool, because the provider recognises
-     * the deposit by who paid it. Costs a second transaction and puts that
-     * address on chain; a provider that reads the deposit address instead
-     * needs neither.
+     * straight out of the shielded pool, because the provider checks the
+     * deposit came from the address it was declared. Costs a second
+     * transaction and puts that address on chain; a provider that checks
+     * no sender needs neither.
      */
     viaSourceAddress?: boolean;
   }): Promise<string[]> {

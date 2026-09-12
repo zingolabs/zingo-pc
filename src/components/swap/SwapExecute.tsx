@@ -90,7 +90,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           depositAddress: instructions.depositAddress,
           amountAtomic: zecToZatoshis(instructions.amountHumanDecimal),
           memoBytes: instructions.memoBytes,
-          viaSourceAddress: instructions.identifiesDepositBySender,
+          viaSourceAddress: instructions.requiresDepositFromSourceAddress,
         });
         // The provider watches the transaction that pays the vault, which is
         // the last one: a two-hop send emits shielded → ephemeral first. Taking

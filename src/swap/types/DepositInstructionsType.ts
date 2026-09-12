@@ -44,16 +44,22 @@ export type DepositInstructionsType = {
   /** Unix-ms timestamp after which the provider considers the route stale. */
   expiresAtMs?: number;
   /**
-   * Whether the provider recognises a deposit by who paid it rather than by
-   * where it landed. When it does, the deposit has to leave from the source
-   * address the quote was taken with, which for an outbound swap means the
-   * transparent ZIP 320 address rather than the shielded pool.
+   * Whether the deposit has to leave from the source address the quote was
+   * taken with, which for an outbound swap means the transparent ZIP 320
+   * address rather than the shielded pool.
    *
-   * Flashnet does. A mainnet deposit paid straight out of the shielded pool
-   * was refunded as `deposit_source_mismatch` (order ord_01a09310,
-   * 2026-09-11): a deshield carries no transparent sender for it to read.
-   * NEAR mints a deposit address per order and needs none of this, and Maya
-   * and THORChain read the memo instead.
+   * Not a question of attribution. Flashnet mints a deposit address per
+   * order, as NEAR does, so where a deposit lands already says which order
+   * it is for. What Flashnet adds is a check that the money came from the
+   * declared `sourceAddress`. A deshield names no transparent sender, so it
+   * fails that check: ord_01a09310 (2026-09-11), paid straight out of the
+   * shielded pool, carries `errorCode: deposit_source_mismatch` in the
+   * Flashnet order record, and ord_01a095f2, paid from the declared
+   * address, carries none.
+   *
+   * NEAR also mints per order but checks no sender, and a NEAR swap paid
+   * from the shielded pool completed, so the addressing scheme is not what
+   * sets the two apart. Maya and THORChain share a vault and read a memo.
    */
-  identifiesDepositBySender?: boolean;
+  requiresDepositFromSourceAddress?: boolean;
 };

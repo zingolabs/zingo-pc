@@ -119,13 +119,13 @@ beforeEach(() => {
 });
 
 describe("SwapExecute deposit routing", () => {
-  // Flashnet recognises a deposit by the address that paid it, so the deposit
-  // has to leave from the transparent one the quote named rather than from the
-  // shielded pool. This screen is what carries that from the executor to the
-  // send, and a deposit sent the other way comes back refunded.
-  it("asks for the transparent source when the provider reads the sender", async () => {
+  // Flashnet checks that a deposit came from the declared source address, so
+  // the deposit has to leave from the transparent one the quote named rather
+  // than from the shielded pool. This screen is what carries that from the
+  // executor to the send, and a deposit sent the other way comes back refunded.
+  it("asks for the transparent source when the provider checks the sender", async () => {
     const deposit = jest.fn(async (_args: { viaSourceAddress?: boolean }) => ["a".repeat(64)]);
-    renderExecute(SwapDirectionEnum.Outbound, deposit, { identifiesDepositBySender: true });
+    renderExecute(SwapDirectionEnum.Outbound, deposit, { requiresDepositFromSourceAddress: true });
 
     fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
 
@@ -135,7 +135,7 @@ describe("SwapExecute deposit routing", () => {
 
   // The cheaper shape stays the default: one transaction, one fee, and the
   // payment never leaves the shielded pool.
-  it("leaves a provider that reads the deposit address to the single send", async () => {
+  it("leaves a provider that checks no sender to the single send", async () => {
     const deposit = jest.fn(async (_args: { viaSourceAddress?: boolean }) => ["a".repeat(64)]);
     renderExecute(SwapDirectionEnum.Outbound, deposit);
 
