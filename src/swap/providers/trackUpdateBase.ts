@@ -38,8 +38,10 @@ import { mapSwapStatus, mapTrackingStatus } from "./statusMapping";
  *   1. Intermediate legs, and the slippage SwapKit reports.
  *   2. A refund's return leg is no longer taken for the delivery. Records
  *      stamped 1 may hold that refund hash as their destination.
+ *   3. The deposit hash of an inbound Flashnet swap, from Flashnet's explorer
+ *      when `/track` leaves it empty (see `fillFlashnetDepositHash`).
  */
-export const TRACK_CAPTURE_VERSION = 2;
+export const TRACK_CAPTURE_VERSION = 3;
 
 export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackResponseType): SwapRecordType {
   const nowMs = Date.now();

@@ -36,6 +36,13 @@ wallet's ZIP-320 address and the counterparty address in front of those
 services. The mixnet would not change that; only not sending the addresses
 would.
 
+Flashnet is asked directly in one case. SwapKit's `/track` does not report
+the deposit transaction of an inbound Flashnet swap, so once Flashnet has
+taken the order the wallet reads that hash from Flashnet's explorer API, by
+order id, over clearnet. Flashnet already holds the order; what it learns
+is the IP asking about it. The request is made at most once a minute per
+order until the hash is found, and never again after.
+
 Token logos are a separate leak with a different shape. Their hosts arrive
 inside SwapKit's catalog rather than being ours to know, and the asset picker
 renders up to 60 at a time, so opening it contacts whatever CDNs the catalog

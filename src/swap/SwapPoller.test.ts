@@ -5,6 +5,7 @@ import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { SwapStatusEnum } from "./enums/SwapStatusEnum";
 import { ProviderRegistry } from "./providers/ProviderRegistry";
 import type { MidgardClient } from "./MidgardClient";
+import { FlashnetExecutor } from "./providers/FlashnetExecutor";
 import type { SwapKitClient } from "./SwapKitClient";
 import type { SwapStore } from "./SwapStore";
 import type { ProviderExecutor } from "./providers/ProviderExecutor";
@@ -89,6 +90,69 @@ const harnessFor = (records: SwapRecordType[]): Harness => {
   });
   return { poller, track, readAll };
 };
+
+// A completed inbound Flashnet swap as `/track` reports it when queried by
+// deposit address: the source leg is there, with an empty hash.
+const inboundFlashnetTrack: TrackResponseType = {
+  status: "completed",
+  trackingStatus: "completed",
+  meta: { provider: "FLASHNET", providerOrderId: "ord_00000000-aaaa-bbbb-cccc-000000000001" },
+  legs: [
+    { chainId: "solana", hash: "", type: "native_send", status: "completed" },
+    { chainId: "spark", hash: "0x" + "0".repeat(64), type: "swap", status: "completed" },
+    { chainId: "zcash", hash: "ee55".repeat(16), type: "native_send", status: "completed" },
+  ],
+} as TrackResponseType;
+
+// SwapKit leaves the deposit hash of an inbound Flashnet swap empty, and the
+// poller fills it from Flashnet's explorer once the order exists.
+describe("SwapPoller on an inbound Flashnet swap", () => {
+  const record = () =>
+    makeRecord({
+      recordId: "rec-flashnet-in",
+      provider: SwapKitProviderEnum.Flashnet,
+      direction: SwapDirectionEnum.Inbound,
+      sellAsset: { swapKitId: "SOL.SOL", chain: "SOL", symbol: "SOL", ticker: "SOL", chainId: "solana", decimals: 9 },
+      receiveAsset: ZEC,
+      depositAddress: "SolanaDepositPlaceholder",
+      providerData: { kind: SwapKitProviderEnum.Flashnet },
+      broadcast: undefined,
+      observedDepositTxHash: undefined,
+      status: SwapStatusEnum.Processing,
+    });
+
+  const pollOnce = async (explorerHash: string | null) => {
+    const upsert = jest.fn(async (_record: SwapRecordType) => undefined);
+    const getOrderSourceTxHash = jest.fn(async () => explorerHash);
+    const poller = new SwapPoller({
+      client: { track: jest.fn(async () => inboundFlashnetTrack) } as unknown as SwapKitClient,
+      registry: new ProviderRegistry([new FlashnetExecutor()]),
+      store: { readAll: jest.fn(async () => [record()]), upsert } as unknown as typeof SwapStore,
+      midgardClient: { findInboundActionByMemo: jest.fn(async () => null) } as unknown as MidgardClient,
+      flashnetExplorerClient: { getOrderSourceTxHash },
+      config: { tickIntervalMs: 10_000, activePollIntervalMs: 0, idlePollIntervalMs: 0 },
+    });
+    await poller.tickOnce();
+    poller.stop();
+    return { stored: upsert.mock.calls.at(-1)?.[0], getOrderSourceTxHash };
+  };
+
+  it("fills the deposit hash from Flashnet's explorer", async () => {
+    const { stored, getOrderSourceTxHash } = await pollOnce("SourceSignaturePlaceholder".padEnd(88, "x"));
+
+    expect(getOrderSourceTxHash).toHaveBeenCalledWith("ord_00000000-aaaa-bbbb-cccc-000000000001");
+    expect(stored?.observedDepositTxHash).toBe("SourceSignaturePlaceholder".padEnd(88, "x"));
+  });
+
+  // Without the hash the record is not yet up to date, so a finished swap is
+  // asked about again when its detail is opened.
+  it("does not stamp the current capture version while the hash is still missing", async () => {
+    const { stored } = await pollOnce(null);
+
+    expect(stored?.observedDepositTxHash).toBeUndefined();
+    expect(stored?.trackCaptureVersion).toBeUndefined();
+  });
+});
 
 afterEach(() => {
   jest.useRealTimers();
