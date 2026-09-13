@@ -123,6 +123,19 @@ describe("Dashboard", () => {
     expect(navigateToHistory).toHaveBeenCalled();
   });
 
+  // The dashboard is a glance: a red figure there alarms more than it informs.
+  // A failed transfer stays red in History, where it can be opened and read.
+  it("never shows a transfer amount in red, not even a failed one", () => {
+    const failed = Object.assign(makeVT(0, 7), { status: ValueTransferStatusEnum.failed });
+    render(<Dashboard navigateToHistory={jest.fn()} />, {
+      contextOverrides: { currentWallet: makeWallet(), valueTransfers: [failed], info: makeInfo() },
+    });
+
+    for (const figure of [screen.getByText(/^ZEC 7/), ...screen.getAllByText(/^USD /)]) {
+      expect(figure).not.toHaveAttribute("style", expect.stringContaining("color-error"));
+    }
+  });
+
   // The line renders off currentWallet.uri, so a wallet without one hides it —
   // which is why the rest of these fixtures never noticed it.
 
