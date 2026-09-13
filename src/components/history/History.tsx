@@ -293,10 +293,14 @@ const History: React.FC<HistoryProps> = () => {
                   addressBookMap={addressBookMap}
                   // Joined to the row above when both are one transaction, which is
                   // all the time order ever joins, or, while grouping, when both
-                  // belong to the same swap.
+                  // belong to the same swap. A swap row is not a transaction: it
+                  // borrows its deposit's txid as a key, and matching on that
+                  // joined a one-send swap to its deposit even in time order.
                   joinedWithPrevious={
                     index > 0 &&
-                    (valueTransfersSorted[index - 1].txid === vt.txid ||
+                    ((vt.type !== ValueTransferKindEnum.swap &&
+                      valueTransfersSorted[index - 1].type !== ValueTransferKindEnum.swap &&
+                      valueTransfersSorted[index - 1].txid === vt.txid) ||
                       (!!groupOf(vt) && groupOf(vt) === groupOf(valueTransfersSorted[index - 1])))
                   }
                 />

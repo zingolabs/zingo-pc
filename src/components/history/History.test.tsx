@@ -1,5 +1,6 @@
 import React from "react";
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import dateformat from "dateformat";
 import { render } from "../../test-utils";
 import {
   AddressBookEntryClass,
@@ -263,5 +264,40 @@ describe("History grouped by swap", () => {
     fireEvent.click(screen.getByRole("checkbox", { name: "Group by swap" }));
 
     expect(order()).toEqual(["Refund", "Unrelated", "Deposit", "Hop", "Swap"]);
+  });
+
+  // A one-send swap: its row borrows the deposit's txid as a key and sits right
+  // next to it. A row that is not joined to the one above carries a date
+  // header, so counting headers tells joined rows apart.
+  describe("a one-send swap beside its deposit", () => {
+    const oneSend = {
+      ...swapRecord,
+      broadcast: { txId: hash("b2"), allTxIds: [hash("b2")] },
+      refundInfo: undefined,
+    };
+    const render1 = () =>
+      render(<History />, {
+        contextOverrides: {
+          valueTransfers: [makeVt({ txid: hash("b2"), time: 1001, address: "t1depositaddr" })],
+          addressBook: context().addressBook,
+        },
+      });
+    const dateHeaders = () => screen.queryAllByText(dateformat(new Date(1001 * 1000), "mmm dd, yyyy"));
+
+    it("does not join them in time order through the borrowed txid", () => {
+      mockSwapRecords = [oneSend];
+      render1();
+
+      fireEvent.click(screen.getByRole("checkbox", { name: "Group by swap" }));
+
+      expect(dateHeaders()).toHaveLength(2);
+    });
+
+    it("joins them while grouping", () => {
+      mockSwapRecords = [oneSend];
+      render1();
+
+      expect(dateHeaders()).toHaveLength(1);
+    });
   });
 });
