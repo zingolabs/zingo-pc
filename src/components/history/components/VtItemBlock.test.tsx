@@ -27,7 +27,7 @@ const baseProps = {
   setModalIsOpen: jest.fn(),
   currencyName: "ZEC",
   addressBookMap: new Map<string, string>(),
-  previousLineWithSameTxid: false,
+  joinedWithPrevious: false,
 };
 
 describe("VtItemBlock", () => {
@@ -37,14 +37,14 @@ describe("VtItemBlock", () => {
     render(<VtItemBlock {...baseProps} vt={makeVt()} />);
   });
 
-  it("shows the date when previousLineWithSameTxid is false", () => {
-    render(<VtItemBlock {...baseProps} vt={makeVt()} previousLineWithSameTxid={false} />);
+  it("shows the date when the row is not joined to the one above", () => {
+    render(<VtItemBlock {...baseProps} vt={makeVt()} joinedWithPrevious={false} />);
     // dateformat produces something like "Nov 14, 2023"
     expect(screen.getByText(/\w{3} \d{2}, \d{4}/)).toBeInTheDocument();
   });
 
-  it("does not show the date when previousLineWithSameTxid is true", () => {
-    render(<VtItemBlock {...baseProps} vt={makeVt()} previousLineWithSameTxid={true} />);
+  it("does not show the date when the row is joined to the one above", () => {
+    render(<VtItemBlock {...baseProps} vt={makeVt()} joinedWithPrevious={true} />);
     expect(screen.queryByText(/\w{3} \d{2}, \d{4}/)).not.toBeInTheDocument();
   });
 

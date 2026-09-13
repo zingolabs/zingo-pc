@@ -10,7 +10,7 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapRecords, useValueTransfersWithSwaps } from "../../context/ContextSwapService";
-import { SwapStore } from "../../swap";
+import { SwapStore, groupHistoryBySwap, sliceKeepingGroups, swapGroupOf, swapTxidIndex } from "../../swap";
 import { ValueTransferKindEnum } from "../appstate";
 import SwapDetailModal from "../swap/SwapDetailModal";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
@@ -37,8 +37,10 @@ const History: React.FC<HistoryProps> = () => {
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
   const [numVtnsToShow, setNumVtnsToShow] = useState<number>(100);
-  const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
-  const [valueTransfersSorted, setValueTransfersSorted] = useState<ValueTransferClass[]>([]);
+  // Grouped by default: a swap's deposit, hop, refund or delivery read as one
+  // story under it rather than scattered by time. Only offered while the
+  // wallet has swaps, since without one there is nothing to group.
+  const [groupBySwap, setGroupBySwap] = useState<boolean>(true);
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
@@ -74,13 +76,38 @@ const History: React.FC<HistoryProps> = () => {
     }
   }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
-  useEffect(() => {
-    setIsLoadMoreEnabled(mergedValueTransfers && numVtnsToShow < mergedValueTransfers.length);
-  }, [numVtnsToShow, mergedValueTransfers]);
+  // Derived rather than copied into state by an effect: the list is the same
+  // either way, and an effect paid a second render for every change.
+  const hasSwaps = swapRecords.length > 0;
+  const grouping = hasSwaps && groupBySwap;
+  const swapIndex = useMemo(() => swapTxidIndex(swapRecords), [swapRecords]);
+  const orderedValueTransfers = useMemo(
+    () => (grouping ? groupHistoryBySwap(mergedValueTransfers, swapIndex) : mergedValueTransfers),
+    [grouping, mergedValueTransfers, swapIndex],
+  );
+  const groupOf = useCallback(
+    (vt: ValueTransferClass) => (grouping ? swapGroupOf(vt, swapIndex) : undefined),
+    [grouping, swapIndex],
+  );
+  const valueTransfersSorted = useMemo(
+    () => sliceKeepingGroups(orderedValueTransfers, numVtnsToShow, groupOf),
+    [orderedValueTransfers, numVtnsToShow, groupOf],
+  );
+  const isLoadMoreEnabled = valueTransfersSorted.length < orderedValueTransfers.length;
 
-  useEffect(() => {
-    setValueTransfersSorted(mergedValueTransfers.slice(0, numVtnsToShow));
-  }, [numVtnsToShow, mergedValueTransfers]);
+  // Keyed by what a row is, not where it sits. The index in the key made every
+  // row below a new transaction a different element, so one arrival remounted
+  // the whole page and the memoised row component never got to skip a render.
+  // Rows alike in every part of the key are numbered in order.
+  const rowKeys = useMemo(() => {
+    const seen = new Map<string, number>();
+    return valueTransfersSorted.map((vt) => {
+      const base = `${vt.type}-${vt.txid}-${vt.address ?? ""}-${vt.swapRecordId ?? ""}`;
+      const repeat = seen.get(base) ?? 0;
+      seen.set(base, repeat + 1);
+      return repeat === 0 ? base : `${base}-${repeat}`;
+    });
+  }, [valueTransfersSorted]);
 
   useEffect(() => {
     setAddressBookMap(
@@ -214,7 +241,33 @@ const History: React.FC<HistoryProps> = () => {
         )}
       </div>
 
-      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>History</div>
+      {/* The toggle sits at the right edge of the title line without pushing
+          the title off centre. */}
+      <div style={{ position: "relative" }}>
+        <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>History</div>
+        {hasSwaps && (
+          <label
+            style={{
+              position: "absolute",
+              right: 16,
+              top: "50%",
+              transform: "translateY(-50%)",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              cursor: "pointer",
+            }}
+          >
+            <input
+              type="checkbox"
+              checked={groupBySwap}
+              onChange={(e) => setGroupBySwap(e.target.checked)}
+              style={{ width: 18, height: 18, cursor: "pointer", accentColor: "var(--color-primary)" }}
+            />
+            <span className={cstyles.small}>Group by swap</span>
+          </label>
+        )}
+      </div>
 
       <div ref={paneRef}>
         <ScrollPaneTop offsetHeight={paneOffset}>
@@ -230,14 +283,21 @@ const History: React.FC<HistoryProps> = () => {
               return (
                 <VtItemBlock
                   index={index}
-                  key={`${index}-${vt.type}-${vt.txid}`}
+                  key={rowKeys[index]}
                   vt={vt}
                   setValueTransferDetail={handleSetValueTransferDetail}
                   setValueTransferDetailIndex={handleSetValueTransferDetailIndex}
                   setModalIsOpen={handleSetModalIsOpen}
                   currencyName={info.currencyName}
                   addressBookMap={addressBookMap}
-                  previousLineWithSameTxid={index === 0 ? false : valueTransfersSorted[index - 1].txid === vt.txid}
+                  // Joined to the row above when both are one transaction, which is
+                  // all the time order ever joins, or, while grouping, when both
+                  // belong to the same swap.
+                  joinedWithPrevious={
+                    index > 0 &&
+                    (valueTransfersSorted[index - 1].txid === vt.txid ||
+                      (!!groupOf(vt) && groupOf(vt) === groupOf(valueTransfersSorted[index - 1])))
+                  }
                 />
               );
             })}
@@ -276,7 +336,7 @@ const History: React.FC<HistoryProps> = () => {
           index={valueTransferDetailIndex}
           moveDetail={moveDetail}
           length={valueTransfersSorted.length}
-          totalLength={mergedValueTransfers.length}
+          totalLength={orderedValueTransfers.length}
           vt={valueTransferDetail}
           modalIsOpen={modalIsOpen}
           closeModal={closeModal}

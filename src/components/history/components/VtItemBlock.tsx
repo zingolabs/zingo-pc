@@ -14,7 +14,8 @@ type VtItemBlockProps = {
   setModalIsOpen: (b: boolean) => void;
   currencyName: string;
   addressBookMap: Map<string, string>;
-  previousLineWithSameTxid: boolean;
+  /** Drawn as a continuation of the row above: same transaction, or same swap while grouping. */
+  joinedWithPrevious: boolean;
 };
 
 const VtItemBlock: React.FC<VtItemBlockProps> = ({
@@ -25,7 +26,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
   setModalIsOpen,
   currencyName,
   addressBookMap,
-  previousLineWithSameTxid,
+  joinedWithPrevious,
 }) => {
   const txDate: Date = new Date(vt.time * 1000);
   const datePart: string = dateformat(txDate, "mmm dd, yyyy");
@@ -70,7 +71,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
 
   return (
     <div>
-      {!previousLineWithSameTxid ? (
+      {!joinedWithPrevious ? (
         <div className={`${cstyles.small} ${cstyles.sublight} ${styles.txdate}`}>{datePart}</div>
       ) : (
         <div style={{ marginLeft: 25, marginRight: 25, height: 1, background: "white", opacity: 0.4 }}></div>

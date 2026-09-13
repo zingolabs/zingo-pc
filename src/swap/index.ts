@@ -41,6 +41,7 @@ export { SwapKitClient } from "./SwapKitClient";
 export type { SwapKitQuoteParams, SwapKitSwapParams, SwapKitTrackParams } from "./SwapKitClient";
 
 export { SwapStore } from "./SwapStore";
+export { groupHistoryBySwap, sliceKeepingGroups, swapGroupOf, swapTxidIndex } from "./groupHistoryBySwap";
 export type { SwapStoreChangeListener } from "./SwapStore";
 export { deriveWalletFingerprint } from "./walletFingerprint";
 export { readCurrentWalletFingerprint } from "./currentWalletFingerprint";

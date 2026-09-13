@@ -12,6 +12,33 @@ import {
 
 jest.mock("../../electronBridge");
 
+// The swap store is read through these hooks. Empty unless a test sets it,
+// which is what every test written before swaps expects.
+let mockSwapRecords: unknown[] = [];
+jest.mock("../../context/ContextSwapService", () => {
+  const actual = jest.requireActual("../../context/ContextSwapService");
+  const React = jest.requireActual("react");
+  const { swapRecordToValueTransfer } = jest.requireActual("../../swap/swapRecordToValueTransfer");
+  return {
+    ...actual,
+    useSwapRecords: () => mockSwapRecords,
+    // Memoised like the real hook: a new array every render would feed any
+    // effect keyed on the list a change it never had.
+    useValueTransfersWithSwaps: (vts: Array<{ time: number }>) =>
+      React.useMemo(
+        () =>
+          ([...vts, ...mockSwapRecords.map(swapRecordToValueTransfer)] as Array<{ time: number }>).sort(
+            (x: { time: number }, y: { time: number }) => y.time - x.time,
+          ),
+        [vts],
+      ),
+  };
+});
+
+afterEach(() => {
+  mockSwapRecords = [];
+});
+
 jest.mock("./components/VtModal", () => ({
   __esModule: true,
   default: jest.fn(({ modalIsOpen }: { modalIsOpen: boolean }) =>
@@ -167,4 +194,74 @@ describe("History", () => {
   });
 
   // The line rides the balance header, which every one of these pages carries.
+});
+
+// A two-transaction outbound deposit refunded hours later, with an unrelated
+// transaction in between. Every row is told apart by its address book label.
+describe("History grouped by swap", () => {
+  const hash = (seed: string) => seed.repeat(32);
+  const swapRecord = {
+    recordId: "rec-out",
+    depositAddress: "t1deposit",
+    provider: "FLASHNET",
+    direction: "OUTBOUND",
+    routeId: "route",
+    sellAsset: { swapKitId: "ZEC.ZEC", chain: "ZEC", symbol: "ZEC", ticker: "ZEC", chainId: "zcash", decimals: 8 },
+    receiveAsset: { swapKitId: "BTC.BTC", chain: "BTC", symbol: "BTC", ticker: "BTC", chainId: "bitcoin", decimals: 8 },
+    sellAmountHumanDecimal: "0.01",
+    expectedReceiveAmount: "0.0001",
+    minReceiveAmount: "0.00009",
+    destinationAddress: "bc1qswap",
+    sourceAddress: "t1ephemeral",
+    status: "REFUNDED",
+    providerData: { kind: "FLASHNET" },
+    broadcast: { txId: hash("b2"), allTxIds: [hash("a1"), hash("b2")] },
+    observedDepositTxHash: hash("b2"),
+    refundInfo: { refundTxHash: hash("c3") },
+    fiatValueBasis: { sellUsdUnitPrice: 1, receiveUsdUnitPrice: 1, capturedAt: 0 },
+    createdAtMs: 1_000_000,
+    updatedAtMs: 1_000_000,
+  };
+  const labelled = (label: string, address: string) =>
+    new AddressBookEntryClass(label, address, ServerChainNameEnum.mainChainName);
+  const context = () => ({
+    valueTransfers: [
+      makeVt({ txid: hash("a1"), time: 1001, address: "t1hop" }),
+      makeVt({ txid: hash("b2"), time: 1100, address: "t1depositaddr" }),
+      makeVt({ txid: hash("e5"), time: 5000, address: "u1unrelated" }),
+      makeVt({ txid: hash("c3"), time: 9000, address: "t1refund", type: ValueTransferKindEnum.received }),
+    ],
+    addressBook: [
+      labelled("Swap", "bc1qswap"),
+      labelled("Hop", "t1hop"),
+      labelled("Deposit", "t1depositaddr"),
+      labelled("Unrelated", "u1unrelated"),
+      labelled("Refund", "t1refund"),
+    ],
+  });
+  const order = () => screen.getAllByText(/^(Swap|Hop|Deposit|Unrelated|Refund)$/).map((el) => el.textContent);
+
+  it("offers no toggle to a wallet without swaps", () => {
+    render(<History />, { contextOverrides: context() });
+
+    expect(screen.queryByRole("checkbox", { name: "Group by swap" })).not.toBeInTheDocument();
+    expect(order()).toEqual(["Refund", "Unrelated", "Deposit", "Hop"]);
+  });
+
+  it("groups by swap by default, the swap first and its transactions oldest first", () => {
+    mockSwapRecords = [swapRecord];
+    render(<History />, { contextOverrides: context() });
+
+    expect(screen.getByRole("checkbox", { name: "Group by swap" })).toBeChecked();
+    expect(order()).toEqual(["Unrelated", "Swap", "Hop", "Deposit", "Refund"]);
+  });
+
+  it("goes back to time order when the toggle is cleared", () => {
+    mockSwapRecords = [swapRecord];
+    render(<History />, { contextOverrides: context() });
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Group by swap" }));
+
+    expect(order()).toEqual(["Refund", "Unrelated", "Deposit", "Hop", "Swap"]);
+  });
 });
