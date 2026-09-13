@@ -121,6 +121,42 @@ describe("buildTrackerEntries", () => {
     expect(tracked.intermediateLegs).toBeUndefined();
   });
 
+  // The detail view rows entries by chain: trackers and other chains first,
+  // Zcash below. The flag follows the chain a link opens, not its role.
+  it("marks only the Zcash transactions of an outbound swap as on Zcash", () => {
+    const tracked = applyDefaultTrackUpdate(
+      record({ status: SwapStatusEnum.Processing, broadcast: { txId: DEPOSIT_HASH } as SwapRecordType["broadcast"] }),
+      nearZecToSolUsdcTrack,
+    );
+
+    const onZcash = Object.fromEntries(
+      buildTrackerEntries({ record: tracked, ...explorer }).map((e) => [e.key, e.onZcash]),
+    );
+
+    expect(onZcash).toEqual({
+      swapkit: false,
+      "source-explorer": true,
+      "leg-0": false,
+      "dest-explorer": false,
+    });
+  });
+
+  it("puts the Zcash delivery of an inbound swap on Zcash", () => {
+    const entries = buildTrackerEntries({
+      record: record({
+        direction: SwapDirectionEnum.Inbound,
+        sellAsset: SOL_USDC,
+        receiveAsset: ZEC,
+        observedDepositTxHash: "5solanadeposit",
+        destinationTxHash: "bb22".repeat(16),
+      }),
+      ...explorer,
+    });
+
+    expect(entries.find((e) => e.key === "source-explorer")?.onZcash).toBe(false);
+    expect(entries.find((e) => e.key === "dest-explorer")?.onZcash).toBe(true);
+  });
+
   it("offers the destination chain explorer for a swap into Solana", () => {
     const entries = buildTrackerEntries({ record: record({ destinationTxHash: "5solanasignature" }), ...explorer });
 
@@ -128,6 +164,7 @@ describe("buildTrackerEntries", () => {
       key: "dest-explorer",
       label: "Destination chain explorer",
       url: "https://solscan.io/tx/5solanasignature",
+      onZcash: false,
     });
   });
 });

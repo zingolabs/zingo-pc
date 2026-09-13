@@ -95,7 +95,17 @@ export type TrackerEntryType = {
   key: string;
   label: string;
   url: string;
+  /**
+   * Whether the entry opens a Zcash transaction. The detail view gives the
+   * wallet's own chain a row of its own, below the trackers and the other
+   * chains. Decided by the chain the link opens rather than by its role, so
+   * an inbound swap puts its Zcash delivery there just as an outbound one
+   * puts its Zcash deposit. Trackers are on no chain and never count.
+   */
+  onZcash: boolean;
 };
+
+const isZcash = (chain: string): boolean => chain.toUpperCase() === "ZEC";
 
 /**
  * The tracker URLs a record can offer, ordered by how much they help:
@@ -116,7 +126,7 @@ export function buildTrackerEntries(args: {
 
   const swapKitUrl = buildSwapKitTrackerUrl(record);
   if (swapKitUrl) {
-    entries.push({ key: "swapkit", label: "SwapKit Explorer", url: swapKitUrl });
+    entries.push({ key: "swapkit", label: "SwapKit Explorer", url: swapKitUrl, onZcash: false });
   }
 
   // Prefer the URL the provider itself sent through `/track`: Flashnet's
@@ -129,12 +139,18 @@ export function buildTrackerEntries(args: {
   const providerUrl =
     record.providerExplorerUrl ?? (sourceHash ? buildProviderExplorerUrl(record.provider, sourceHash) : null);
   if (providerUrl) {
-    entries.push({ key: "provider", label: providerLongLabel(record.provider), url: providerUrl });
+    entries.push({ key: "provider", label: providerLongLabel(record.provider), url: providerUrl, onZcash: false });
   }
 
   if (sourceHash) {
     const url = buildChainExplorerUrl({ chain: record.sellAsset.chain, hash: sourceHash, ...explorerArgs });
-    if (url) entries.push({ key: "source-explorer", label: "Source chain explorer", url });
+    if (url)
+      entries.push({
+        key: "source-explorer",
+        label: "Source chain explorer",
+        url,
+        onZcash: isZcash(record.sellAsset.chain),
+      });
   }
 
   // The intermediate hops of an outbound ZIP-320 pair. The last is the hash
@@ -143,7 +159,13 @@ export function buildTrackerEntries(args: {
     record.broadcast.allTxIds.slice(0, -1).forEach((hop, index) => {
       if (!isRealLegHash(hop)) return;
       const url = buildChainExplorerUrl({ chain: record.sellAsset.chain, hash: hop, ...explorerArgs });
-      if (url) entries.push({ key: `source-hop-${index}`, label: `Source chain hop ${index + 1}`, url });
+      if (url)
+        entries.push({
+          key: `source-hop-${index}`,
+          label: `Source chain hop ${index + 1}`,
+          url,
+          onZcash: isZcash(record.sellAsset.chain),
+        });
     });
   }
 
@@ -154,7 +176,8 @@ export function buildTrackerEntries(args: {
     if (!isRealLegHash(leg.hash)) return;
     const chain = legChain(leg.chainId);
     const url = buildChainExplorerUrl({ chain: chain.symbol, hash: leg.hash, ...explorerArgs });
-    if (url) entries.push({ key: `leg-${index}`, label: `${chain.name} explorer`, url });
+    if (url)
+      entries.push({ key: `leg-${index}`, label: `${chain.name} explorer`, url, onZcash: isZcash(chain.symbol) });
   });
 
   if (isRealLegHash(record.destinationTxHash)) {
@@ -163,7 +186,13 @@ export function buildTrackerEntries(args: {
       hash: record.destinationTxHash as string,
       ...explorerArgs,
     });
-    if (url) entries.push({ key: "dest-explorer", label: "Destination chain explorer", url });
+    if (url)
+      entries.push({
+        key: "dest-explorer",
+        label: "Destination chain explorer",
+        url,
+        onZcash: isZcash(record.receiveAsset.chain),
+      });
   }
 
   return entries;

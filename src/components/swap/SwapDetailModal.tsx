@@ -404,28 +404,37 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           {/* No heading and no rule: three buttons that open a tracker say what
               they are, and a rule under them was the last thing on the screen
               rather than a separator between two things. */}
-          {trackers.length > 0 && (
-            // A swap with an intermediate leg carries enough trackers to wrap,
-            // and the buttons carry side margins but none vertical, so the
-            // two rows touched. The row gap matches the 16px the side margins
-            // leave between neighbours.
-            <div
-              className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`}
-              style={{ justifyContent: "center", flexWrap: "wrap", rowGap: 16 }}
-            >
-              {trackers.map((tracker) => (
-                <button
-                  key={tracker.key}
-                  type="button"
-                  className={cstyles.primarybutton}
-                  onClick={() => shell.openExternal(tracker.url)}
-                >
-                  {tracker.label} &nbsp;
-                  <FontAwesomeIcon icon={faExternalLinkAlt} />
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Two rows rather than one that wraps wherever the width runs out:
+              the trackers and the other chains first, then the wallet's own
+              chain, so a swap with an intermediate leg stays narrow and each
+              row reads as one kind of thing. Each row still wraps, with a row
+              gap matching the 16px the side margins leave between buttons. */}
+          {[trackers.filter((tracker) => !tracker.onZcash), trackers.filter((tracker) => tracker.onZcash)]
+            .filter((row) => row.length > 0)
+            .map((row, index) => (
+              <div
+                key={row[0].key}
+                className={`${cstyles.horizontalflex} ${index === 0 ? cstyles.margintoplarge : ""}`}
+                style={{
+                  justifyContent: "center",
+                  flexWrap: "wrap",
+                  rowGap: 16,
+                  marginTop: index === 0 ? undefined : 16,
+                }}
+              >
+                {row.map((tracker) => (
+                  <button
+                    key={tracker.key}
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => shell.openExternal(tracker.url)}
+                  >
+                    {tracker.label} &nbsp;
+                    <FontAwesomeIcon icon={faExternalLinkAlt} />
+                  </button>
+                ))}
+              </div>
+            ))}
         </div>
 
         {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}

@@ -140,3 +140,36 @@ describe("SwapDetailModal ending", () => {
     expect(screen.queryByText("Reason")).not.toBeInTheDocument();
   });
 });
+
+// A swap with an intermediate leg carries five trackers, and in one wrapping
+// row they made the screen wide. The trackers and the other chains take the
+// first row and the Zcash transactions the second.
+describe("SwapDetailModal trackers", () => {
+  it("puts the Zcash transactions on a row of their own", () => {
+    render(
+      <SwapDetailModal
+        record={record({
+          status: SwapStatusEnum.Completed,
+          broadcast: {
+            txId: "aa11".repeat(16),
+            allTxIds: ["cc33".repeat(16), "aa11".repeat(16)],
+          } as SwapRecordType["broadcast"],
+          destinationTxHash: "SolanaDeliverySignaturePlaceholder",
+        })}
+        index={0}
+        length={1}
+        moveDetail={jest.fn()}
+        modalIsOpen
+        closeModal={jest.fn()}
+        onRemove={jest.fn()}
+      />,
+      { contextOverrides: { currentWallet: { chain_name: "main" } as never } },
+    );
+
+    const rowOf = (name: RegExp) => screen.getByRole("button", { name }).parentElement;
+
+    expect(rowOf(/SwapKit Explorer/)).toBe(rowOf(/Destination chain explorer/));
+    expect(rowOf(/Source chain explorer/)).toBe(rowOf(/Source chain hop 1/));
+    expect(rowOf(/Source chain explorer/)).not.toBe(rowOf(/SwapKit Explorer/));
+  });
+});
