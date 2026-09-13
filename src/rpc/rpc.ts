@@ -22,6 +22,7 @@ import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
 import { userFacingError } from "../utils/userFacingError";
+import { depositSpendsSourceAddress } from "../swap/depositRouting";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "./components/serverHealth";
 import {
   FfiBatchReport,
@@ -935,7 +936,7 @@ export default class RPC {
         vt.status = tx.status;
 
         if (tx.status === ValueTransferStatusEnum.failed) {
-          console.log("[RPC] failed value transfer (raw):", tx);
+          console.log("[RPC] failed value transfer (raw):", JSON.stringify(tx));
         }
         vt.address = !tx.recipient_address ? undefined : tx.recipient_address;
         vt.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
@@ -958,7 +959,7 @@ export default class RPC {
         }
 
         if (vt.status === ValueTransferStatusEnum.failed) {
-          console.log("[RPC] failed value transfer (transformed):", vt);
+          console.log("[RPC] failed value transfer (transformed):", JSON.stringify(vt));
         }
 
         return vt;
@@ -1050,8 +1051,14 @@ export default class RPC {
    * shielded spend, so a memo-bearing deposit is two transactions — a
    * deshield to a transparent address the wallet owns, then that address
    * paying the vault with the memo — and it goes through its own native
-   * entry point, which sends rather than proposing. A deposit with no memo
-   * is an ordinary send.
+   * entry point, which sends rather than proposing.
+   *
+   * That same pair is used, carrying nothing in the OP_RETURN, when the
+   * provider checks that the deposit came from the declared source address:
+   * the transparent hop is then the whole point, because a deshield names
+   * no sender to check. Otherwise a deposit with no memo stays a single
+   * ordinary send, which costs one fee instead of two and keeps the payment
+   * inside the shielded pool.
    *
    * The array shape matters to the caller: for the two-transaction shape the
    * provider observes the LAST transaction, the one paying the vault, not the
@@ -1061,8 +1068,17 @@ export default class RPC {
     depositAddress: string;
     amountAtomic: number;
     memoBytes?: Uint8Array;
+    /**
+     * Send through the wallet transparent source address rather than
+     * straight out of the shielded pool, because the provider checks the
+     * deposit came from the address it was declared. Costs a second
+     * transaction and puts that address on chain; a provider that checks
+     * no sender needs neither.
+     */
+    viaSourceAddress?: boolean;
   }): Promise<string[]> {
-    if (!args.memoBytes || args.memoBytes.length === 0) {
+    const carriesMemo: boolean = !!args.memoBytes && args.memoBytes.length > 0;
+    if (!depositSpendsSourceAddress(args)) {
       const sendJson: Array<SendJsonToTypeType> = [{ address: args.depositAddress, amount: args.amountAtomic }];
       const joined: string = await this.sendTransaction(sendJson);
       return joined
@@ -1078,7 +1094,10 @@ export default class RPC {
       const answer: string = await native.send_swap_deposit(
         args.depositAddress,
         args.amountAtomic,
-        bytesToHex(args.memoBytes),
+        // Empty when the shape is wanted for the sender alone: the
+        // OP_RETURN output carries nothing, and the deshield to the
+        // transparent address is the point.
+        args.memoBytes && carriesMemo ? bytesToHex(args.memoBytes) : "",
       );
       // Structured JSON on the data channel, never error prose — `{ txids }`
       // or `{ error }`, the same contract the send path keeps.

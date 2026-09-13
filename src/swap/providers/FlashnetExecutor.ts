@@ -10,11 +10,16 @@ import { applyDefaultTrackUpdate } from "./trackUpdateBase";
  * Provider executor for Flashnet swaps.
  *
  * Flashnet is one of the three providers SwapKit currently routes ZEC through
- * (verified via `/providers`.supportedChainIds). The response shape has not
- * been validated end-to-end against a real mainnet swap yet (unlike Maya and
- * NEAR Intents, which have empirical traces from 2026-06-21). The extraction
- * below is implemented from SwapKit's documented schema and may need
- * adjustment after the first real Flashnet swap:
+ * (verified via `/providers`.supportedChainIds). The first mainnet trace
+ * arrived on 2026-09-11 and taught the one thing the documented schema does
+ * not say: the deposit must come from the declared `sourceAddress`. That
+ * swap was paid straight out of the shielded pool, so the transaction
+ * carried no transparent sender to check, and the order was refunded with
+ * `errorCode: deposit_source_mismatch` in its order record. It is a check, not
+ * how the order is found: Flashnet mints a deposit address per order.
+ * Hence `requiresDepositFromSourceAddress` below, which routes an outbound
+ * deposit through the ZIP 320 address the quote named. The extraction is
+ * from SwapKit's documented schema:
  *
  *   - `tx.to` / `inboundAddress` — deposit address the user funds.
  *   - `transient.swapId` — SwapKit-assigned identifier (prefixed `sk-`).
@@ -54,6 +59,9 @@ export class FlashnetExecutor implements ProviderExecutor {
       memoBytes: memoText ? new TextEncoder().encode(memoText) : undefined,
       memoText,
       providerData,
+      // Even with no memo to carry: the two-transaction shape is what gives
+      // the deposit a transparent sender for Flashnet to match.
+      requiresDepositFromSourceAddress: true,
     };
   }
 

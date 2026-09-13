@@ -2620,12 +2620,13 @@ fn derive_refund_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
 /// Claims the address `derive_refund_address` has been answering with, so the
 /// next call moves on to the following index.
 ///
-/// An outbound swap needs none of this: it pays its own deposit, and applying
-/// that proposal reserves the address. An inbound swap is paid from another
-/// wallet, so nothing in this one ever builds a transaction bearing the
-/// address, and without a claim here every inbound swap would be handed the
-/// same address. A provider seeing two deposits arrive at one t-address can
-/// tie the swaps together, which is what the refund scope exists to prevent.
+/// A deposit paid through the source address needs none of this: applying
+/// its proposal reserves the address. Every other swap does. An inbound swap
+/// is paid from another wallet, and an ordinary outbound send never touches
+/// the address, so nothing builds a transaction bearing it, and without a
+/// claim here the next swap would be handed the same address. A provider
+/// seeing one refund address on two swaps can tie them together, which is
+/// what the refund scope exists to prevent.
 ///
 /// Called once the user commits a route, so browsing quotes leaves the index
 /// where it was. The address returned is the one the commit already named to
@@ -2835,12 +2836,12 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Ok(proposal) => {
                         let fee = match zingolib::data::proposal::total_fee(&proposal) {
                             Ok(fee) => fee,
-                            Err(e) => return object! { "error" => e.to_string() }.pretty(2),
+                            Err(e) => return object! { "error" => cause_chain(&e) }.pretty(2),
                         };
                         object! { "fee" => fee.into_u64() }
                     }
                     Err(e) => {
-                        object! { "error" => e.to_string() }
+                        object! { "error" => cause_chain(&e) }
                     }
                 }
                 .pretty(2)
@@ -2961,8 +2962,11 @@ fn confirm(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Ok(txids) => {
                         object! { "txids" => txids.iter().map(|txid| txid.to_string()).collect::<Vec<_>>() }
                     }
+                    // The whole chain, the way every other entry point here
+                    // reports one. The outermost layer alone is "Send error.",
+                    // which names the call that failed and nothing about why.
                     Err(e) => {
-                        object! { "error" => e.to_string() }
+                        object! { "error" => cause_chain(&e) }
                     }
                 }
                 .pretty(2)

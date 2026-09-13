@@ -1,4 +1,4 @@
-import { parseZcashURI } from "./uris";
+import { parseZcashURI, parseZcashURITargets } from "./uris";
 import native from "../native.node";
 
 import serverUrisList from "./serverUrisList";
@@ -51,7 +51,7 @@ test("ZIP321 case 2", async () => {
     "test",
   );
 
-  // this version of the App only reads the first item of the URI
+  // parseZcashURI reads only the first item; parseZcashURITargets reads them all
   expect(typeof targets).toBe("object");
   expect(targets.address).toBe("tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU");
   expect(targets.message).toBeUndefined();
@@ -59,6 +59,23 @@ test("ZIP321 case 2", async () => {
   expect(targets.amount).toBe(123.456);
   expect(targets.memoString).toBeUndefined();
   expect(targets.memoBase64).toBeUndefined();
+});
+
+test("ZIP321 case 2, every recipient", async () => {
+  const targets = await parseZcashURITargets(
+    "zcash:?address=tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU&amount=123.456&address.1=ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez&amount.1=0.789&memo.1=VGhpcyBpcyBhIHVuaWNvZGUgbWVtbyDinKjwn6aE8J-PhvCfjok",
+    "test",
+  );
+
+  expect(Array.isArray(targets)).toBe(true);
+  expect(targets).toHaveLength(2);
+  expect(targets[0].address).toBe("tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU");
+  expect(targets[0].amount).toBe(123.456);
+  expect(targets[1].address).toBe(
+    "ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez",
+  );
+  expect(targets[1].amount).toBe(0.789);
+  expect(targets[1].memoString).toContain("This is a unicode memo");
 });
 
 test("coinbase URI", async () => {

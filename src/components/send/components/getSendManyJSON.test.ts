@@ -1,4 +1,4 @@
-import getSendManyJSON from "./getSendManyJSON";
+import getSendManyJSON, { recipientsToSendManyJSON } from "./getSendManyJSON";
 import { SendPageStateClass, ToAddrClass } from "../../appstate";
 
 // utils.ts (imported by getSendManyJSON) reads electronBridge at module load time
@@ -6,13 +6,20 @@ jest.mock("../../../electronBridge");
 
 const makePageState = (overrides: Partial<ToAddrClass> = {}) =>
   ({
-    toaddr: {
-      to: "u1fakeaddress0000000000000000000000000000000000000000",
-      amount: 1,
-      memo: "",
-      memoReplyTo: "",
-      ...overrides,
-    } as ToAddrClass,
+    toaddrs: [
+      {
+        to: "u1fakeaddress0000000000000000000000000000000000000000",
+        amount: 1,
+        memo: "",
+        memoReplyTo: "",
+        ...overrides,
+      } as ToAddrClass,
+    ],
+  }) as SendPageStateClass;
+
+const pageStateOf = (...rows: Partial<ToAddrClass>[]) =>
+  ({
+    toaddrs: rows.map((row: Partial<ToAddrClass>) => ({ to: "", amount: 0, memo: "", memoReplyTo: "", ...row })),
   }) as SendPageStateClass;
 
 // ---------------------------------------------------------------------------
@@ -119,5 +126,34 @@ describe("transaction with long memo", () => {
     const result = getSendManyJSON(makePageState({ memo: longMemo }));
     const reassembled = result.map((tx) => tx.memo!.replace(/^\(\d+\/\d+\)/, "")).join("");
     expect(reassembled).toBe(longMemo);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Several recipients — one transaction, their outputs in order
+// ---------------------------------------------------------------------------
+describe("several recipients", () => {
+  it("produces one output per recipient, in the order they were written", () => {
+    const result = getSendManyJSON(pageStateOf({ to: "u1one", amount: 1 }, { to: "u1two", amount: 0.5, memo: "hi" }));
+    expect(result).toEqual([
+      { address: "u1one", amount: 100_000_000, memo: undefined },
+      { address: "u1two", amount: 50_000_000, memo: "hi" },
+    ]);
+  });
+
+  it("splits only the recipient whose memo is too long for one note", () => {
+    const result = getSendManyJSON(
+      pageStateOf({ to: "u1long", amount: 1, memo: "x".repeat(600) }, { to: "u1short", amount: 2 }),
+    );
+    expect(result.filter((tx) => tx.address === "u1long").length).toBeGreaterThan(1);
+    expect(result.filter((tx) => tx.address === "u1short")).toEqual([
+      { address: "u1short", amount: 200_000_000, memo: undefined },
+    ]);
+    expect(result[result.length - 1].address).toBe("u1short");
+  });
+
+  it("gives the same outputs from the rows alone as from the page state", () => {
+    const state = pageStateOf({ to: "u1one", amount: 1 }, { to: "u1two", amount: 2 });
+    expect(recipientsToSendManyJSON(state.toaddrs)).toEqual(getSendManyJSON(state));
   });
 });

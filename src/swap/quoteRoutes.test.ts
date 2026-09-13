@@ -101,6 +101,24 @@ describe("route projection", () => {
     expect(routes[0].estimatedTimeText).toBe("~11 min");
   });
 
+  // Named for what it is on the way in: SwapKit calls it totalSlippageBps,
+  // and it is the route's all-in cost against market value, not a tolerance.
+  it("carries the route cost against market value", async () => {
+    const { service } = serviceReturning({ routes: [route({ totalSlippageBps: -142.077722 })] });
+
+    const { routes } = await askForQuote(service);
+
+    expect(routes[0].costVsMarketBps).toBe(-142.077722);
+  });
+
+  it("leaves the cost undefined when the provider reports none", async () => {
+    const { service } = serviceReturning({ routes: [route()] });
+
+    const { routes } = await askForQuote(service);
+
+    expect(routes[0].costVsMarketBps).toBeUndefined();
+  });
+
   it("falls back to the expected amount when no slippage floor is quoted", async () => {
     const { service } = serviceReturning({ routes: [route()] });
 

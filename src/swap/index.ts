@@ -50,6 +50,8 @@ export { swapRowLabel } from "./swapRowLabel";
 export { extractFiatValueBasis } from "./quoteFiatBasis";
 export { describeEmptyQuote } from "./describeEmptyQuote";
 export { providerShortLabel, providerLongLabel } from "./providerLabels";
+export { describeCostVsMarket } from "./costVsMarket";
+export { describeRealizedSlippage, describeSlippageTolerance } from "./slippageReport";
 export { convertFeeToAsset, formatFeeAmount, assetShortLabel } from "./feeConversion";
 export type { FeeConversionType } from "./feeConversion";
 export {
@@ -87,7 +89,7 @@ export {
   isUtxoSourceChain,
   memoToHexCalldata,
 } from "./chainMemoEncoding";
-export { depositCarriesMemo, zecNetworkFeeReserve } from "./depositRouting";
+export { depositCarriesMemo, depositSpendsSourceAddress, zecNetworkFeeReserve } from "./depositRouting";
 export { quoteAddressPair, quoteBindsAddress } from "./quoteAddressBinding";
 export { unavailableProviders } from "./unavailableProviders";
 export type { UnavailableProviderType } from "./unavailableProviders";

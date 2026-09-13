@@ -260,6 +260,7 @@ export class SwapService {
       feesRaw: chosenRoute.feesRaw,
       destinationAddress: quoteInput.destinationAddress,
       sourceAddress: quoteInput.sourceAddress,
+      requestedSlippageBps: quoteInput.slippageBps,
       status: initialStatus,
       providerData: instructions.providerData,
       broadcast:
@@ -543,6 +544,10 @@ function toRouteOption(
     provider,
     expectedReceiveAmount: route.expectedBuyAmount,
     minReceiveAmount: route.expectedBuyAmountMaxSlippage ?? route.expectedBuyAmount,
+    costVsMarketBps:
+      typeof route.totalSlippageBps === "number" && Number.isFinite(route.totalSlippageBps)
+        ? route.totalSlippageBps
+        : undefined,
     totalFeesInReceiveAsset,
     bridgeFeesInReceiveAsset,
     totalFeesInSellAsset,

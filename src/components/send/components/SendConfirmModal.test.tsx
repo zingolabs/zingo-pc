@@ -1,7 +1,7 @@
 import React from "react";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { render } from "../../../test-utils";
-import SendConfirmModal from "./SendConfirmModal";
+import SendConfirmModal, { worstPrivacyLevel } from "./SendConfirmModal";
 import { SendPageStateClass, ToAddrClass, InfoClass, TotalBalanceClass, ServerChainNameEnum } from "../../appstate";
 
 jest.mock("../../../electronBridge");
@@ -47,18 +47,22 @@ const makeProps = (
     clearToAddrs: () => void;
     modalIsOpen: boolean;
     toaddr: Partial<ToAddrClass>;
+    // Several recipients; overrides `toaddr` when given.
+    recipients: Partial<ToAddrClass>[];
     balance: Partial<TotalBalanceClass>;
     sendFee: number;
   }> = {},
 ) => {
-  const sendPageState = new SendPageStateClass();
-  sendPageState.toaddr = Object.assign(new ToAddrClass(), {
+  const base: Partial<ToAddrClass> = {
     to: "u1fakeaddress0000000000000000000000000000000000000000",
     amount: 1,
     memo: "",
     memoReplyTo: "",
-    ...(overrides.toaddr ?? {}),
-  });
+  };
+  const sendPageState = new SendPageStateClass();
+  sendPageState.toaddrs = (overrides.recipients ?? [overrides.toaddr ?? {}]).map((recipient: Partial<ToAddrClass>) =>
+    Object.assign(new ToAddrClass(), { ...base, ...recipient }),
+  );
 
   const totalBalance = new TotalBalanceClass();
   Object.assign(totalBalance, {
@@ -380,6 +384,27 @@ describe("SendConfirmModal", () => {
         expect(openErrorModal).toHaveBeenCalledWith("Error Sending Transaction", "plain string error"),
       );
     });
+
+    // Every recipient goes into the one send, in the order they were written.
+    it("sends every recipient of a batch together", async () => {
+      installElectronAPI();
+      const sendTransaction = jest.fn().mockResolvedValue("txid-one");
+      render(
+        <SendConfirmModal
+          {...makeProps({
+            sendTransaction,
+            recipients: [
+              { to: "u1one", amount: 1 },
+              { to: "u1two", amount: 2 },
+            ],
+          })}
+        />,
+        { contextOverrides: { currentWallet: mainnetWallet } },
+      );
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+      await waitFor(() => expect(sendTransaction).toHaveBeenCalled());
+      expect(sendTransaction.mock.calls[0][0].map((output: any) => output.address)).toEqual(["u1one", "u1two"]);
+    });
   });
 });
 
@@ -438,5 +463,107 @@ describe("SendConfirmModal layout", () => {
     render(<SendConfirmModal {...makeProps({ toaddr: { memo: "for the coffee" } })} />);
     expect(screen.getByText("Memo")).toBeInTheDocument();
     expect(screen.getByText("for the coffee")).toBeInTheDocument();
+  });
+
+  it("numbers nothing when there is one recipient", () => {
+    render(<SendConfirmModal {...makeProps()} />);
+    expect(screen.queryByText(/Recipient 1 of/)).not.toBeInTheDocument();
+  });
+});
+
+describe("SendConfirmModal with several recipients", () => {
+  beforeEach(() => {
+    (native.parse_address as jest.Mock).mockReset();
+    installElectronAPI();
+  });
+
+  it("lists every recipient, numbered", () => {
+    render(<SendConfirmModal {...makeProps({ recipients: [{ to: "u1one" }, { to: "u1two" }] })} />);
+    expect(screen.getByText("Recipient 1 of 2")).toBeInTheDocument();
+    expect(screen.getByText("Recipient 2 of 2")).toBeInTheDocument();
+  });
+
+  // One transaction, one fee: stated once under the recipients rather than
+  // beside each amount.
+  it("states the fee once, under all of them", () => {
+    render(<SendConfirmModal {...makeProps({ recipients: [{ to: "u1one" }, { to: "u1two" }] })} />);
+    expect(screen.getAllByText("Amount")).toHaveLength(2);
+    expect(screen.getAllByText("Transaction Fee")).toHaveLength(1);
+  });
+
+  // The verdict on the batch is not one more recipient verdict, and it says
+  // so, beside the fee it shares the row with.
+  it("labels the batch verdict apart from the recipients", () => {
+    render(<SendConfirmModal {...makeProps({ recipients: [{ to: "u1one" }, { to: "u1two" }] })} />);
+    expect(screen.getAllByText("Privacy")).toHaveLength(2);
+    expect(screen.getAllByText("Transaction Privacy")).toHaveLength(1);
+  });
+
+  // Each amount fits in Orchard on its own; together they need Sapling too,
+  // which reveals the amounts. The verdict follows the whole transaction.
+  it("judges privacy by what the whole batch spends, not by each amount alone", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({
+        status: "success",
+        chain_name: ServerChainNameEnum.mainChainName,
+        address_kind: "unified",
+        receivers_available: ["orchard"],
+      }),
+    );
+    render(
+      <SendConfirmModal
+        {...makeProps({
+          recipients: [
+            { to: "u1one", amount: 4 },
+            { to: "u1two", amount: 4 },
+          ],
+          balance: { confirmedOrchardBalance: 5, confirmedSaplingBalance: 5 },
+        })}
+      />,
+      { contextOverrides: { currentWallet: mainnetWallet } },
+    );
+    // Both recipients, and the batch as a whole.
+    await waitFor(() => expect(screen.getAllByText("Amount Revealed")).toHaveLength(3));
+  });
+
+  it("gives the batch the privacy of its weakest recipient", async () => {
+    (native.parse_address as jest.Mock).mockImplementation(async (address: string) =>
+      JSON.stringify({
+        status: "success",
+        chain_name: ServerChainNameEnum.mainChainName,
+        address_kind: address.startsWith("t") ? "transparent" : "unified",
+        receivers_available: address.startsWith("t") ? [] : ["orchard"],
+      }),
+    );
+    render(
+      <SendConfirmModal
+        {...makeProps({
+          recipients: [
+            { to: "u1one", amount: 1 },
+            { to: "t1two", amount: 1 },
+          ],
+          balance: { confirmedOrchardBalance: 10 },
+        })}
+      />,
+      { contextOverrides: { currentWallet: mainnetWallet } },
+    );
+    // The transparent recipient, and the batch it drags down with it.
+    await waitFor(() => expect(screen.getAllByText("Deshielded")).toHaveLength(2));
+    expect(screen.getByText("Private")).toBeInTheDocument();
+  });
+});
+
+describe("worstPrivacyLevel", () => {
+  it("is the weakest level present", () => {
+    expect(worstPrivacyLevel(["Private", "Deshielded", "Amount Revealed"])).toBe("Deshielded");
+    expect(worstPrivacyLevel(["Private", "Amount Revealed"])).toBe("Amount Revealed");
+    expect(worstPrivacyLevel(["Private"])).toBe("Private");
+  });
+
+  // A batch with a recipient whose verdict could not be reached cannot be
+  // vouched for as a whole.
+  it("is unknown when any verdict is unknown, or there are none", () => {
+    expect(worstPrivacyLevel(["Private", "-"])).toBe("-");
+    expect(worstPrivacyLevel([])).toBe("-");
   });
 });

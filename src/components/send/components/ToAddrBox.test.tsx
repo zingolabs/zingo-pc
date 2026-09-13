@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../../test-utils";
 import ToAddrBox from "./ToAddrBox";
-import { ToAddrClass, ServerChainNameEnum, AddressBookEntryClass } from "../../appstate";
+import { ToAddrClass, ServerChainNameEnum, AddressBookEntryClass, AddressKindEnum } from "../../appstate";
 
 jest.mock("../../../electronBridge");
 
@@ -48,15 +48,9 @@ const makeProps = (overrides: Partial<React.ComponentProps<typeof ToAddrBox>> = 
     updateToField: jest.fn(),
     updateZnsAlias: jest.fn(),
     fromAmount: 10,
-    fromAmountDefault: 10,
-    setSendButtonEnabled: jest.fn(),
+    maxAmount: 10,
     setMaxAmount: jest.fn(),
-    sendFee: 0.0001,
-    sendFeeError: "",
-    fetchSendFeeAndErrorAndSpendable: jest.fn().mockResolvedValue(undefined),
-    setSendFee: jest.fn(),
-    setSendFeeError: jest.fn(),
-    setTotalAmountAvailable: jest.fn(),
+    onStatusChange: jest.fn(),
     serverChainName: ServerChainNameEnum.mainChainName,
     block: 1_000_000,
     currencyName: "ZEC",
@@ -70,11 +64,13 @@ describe("ToAddrBox", () => {
     render(<ToAddrBox {...makeProps()} />);
   });
 
-  it("renders the recipient address, amount, fee and memo inputs", () => {
+  // The fee is the transaction's, so it is stated under the recipients rather
+  // than inside any one of them.
+  it("renders the recipient address and amount inputs, and no fee", () => {
     render(<ToAddrBox {...makeProps()} />);
     expect(screen.getByRole("textbox", { name: /recipient address/i })).toBeInTheDocument();
     expect(screen.getByRole("spinbutton", { name: /amount/i })).toBeInTheDocument();
-    expect(screen.getByRole("spinbutton", { name: /transaction fee/i })).toBeInTheDocument();
+    expect(screen.queryByRole("spinbutton", { name: /transaction fee/i })).not.toBeInTheDocument();
   });
 
   it("calls updateToField when the recipient address is typed", () => {
@@ -93,16 +89,11 @@ describe("ToAddrBox", () => {
     expect(updateToField).toHaveBeenCalledWith(null, "1.5", null);
   });
 
-  it("calls setMaxAmount with fromAmount when the max button is clicked", () => {
+  it("calls setMaxAmount with what is left for this row when the max button is clicked", () => {
     const setMaxAmount = jest.fn();
-    render(<ToAddrBox {...makeProps({ setMaxAmount, fromAmount: 7.25 })} />);
+    render(<ToAddrBox {...makeProps({ setMaxAmount, maxAmount: 7.25 })} />);
     fireEvent.click(screen.getByRole("button", { name: /set maximum amount/i }));
     expect(setMaxAmount).toHaveBeenCalledWith(7.25);
-  });
-
-  it("renders the fee input as disabled (fee is computed, not user-entered)", () => {
-    render(<ToAddrBox {...makeProps()} />);
-    expect(screen.getByRole("spinbutton", { name: /transaction fee/i })).toBeDisabled();
   });
 
   it("shows memo when the address is sapling or unified", async () => {
@@ -356,5 +347,104 @@ describe("ToAddrBox recipient actions", () => {
 
     expect(await screen.findByText(/Contact: Alice/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /save as contact/i })).not.toBeInTheDocument();
+  });
+});
+
+describe("ToAddrBox in a batch", () => {
+  // The row validates itself and says so, with the address kind the screen
+  // needs to warn about linked transparent recipients.
+  it("reports a ready recipient with its address kind", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    const onStatusChange = jest.fn();
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 1 });
+    render(<ToAddrBox {...makeProps({ toaddr, onStatusChange })} />);
+    await waitFor(() =>
+      expect(onStatusChange).toHaveBeenLastCalledWith({ valid: true, addressKind: AddressKindEnum.unified }),
+    );
+  });
+
+  it("reports a recipient that is not ready", async () => {
+    (native.parse_address as jest.Mock).mockResolvedValue("");
+    const onStatusChange = jest.fn();
+    const toaddr = Object.assign(new ToAddrClass(), { to: "garbage", amount: 1 });
+    render(<ToAddrBox {...makeProps({ toaddr, onStatusChange })} />);
+    await waitFor(() => expect(onStatusChange).toHaveBeenCalledWith(expect.objectContaining({ valid: false })));
+  });
+
+  // Folded, the row is one line that unfolds when pressed, and the editing
+  // fields are gone until it does.
+  it("folds to one line that unfolds when pressed", () => {
+    const onExpand = jest.fn();
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1abcdefghijklmnopqrstuvwxyz", amount: 0.5, memo: "hi" });
+    render(<ToAddrBox {...makeProps({ toaddr, index: 1, total: 2, collapsed: true, onExpand })} />);
+    expect(screen.queryByRole("textbox", { name: /recipient address/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /edit recipient 2/i }));
+    expect(onExpand).toHaveBeenCalledTimes(1);
+  });
+
+  it("says so when a folded row has no address yet", () => {
+    render(<ToAddrBox {...makeProps({ index: 1, total: 2, collapsed: true })} />);
+    expect(screen.getByText("No address yet")).toBeInTheDocument();
+  });
+
+  it("offers a remove action numbered after the row", () => {
+    const onRemove = jest.fn();
+    render(<ToAddrBox {...makeProps({ index: 2, total: 3, onRemove })} />);
+    fireEvent.click(screen.getByRole("button", { name: /remove recipient 3/i }));
+    expect(onRemove).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers no remove action to a lone recipient", () => {
+    render(<ToAddrBox {...makeProps()} />);
+    expect(screen.queryByRole("button", { name: /remove recipient/i })).not.toBeInTheDocument();
+  });
+
+  it("points out an address an earlier row already pays", () => {
+    render(<ToAddrBox {...makeProps({ index: 2, total: 3, duplicateOfIndex: 0 })} />);
+    expect(screen.getByText("Same address as recipient 1")).toBeInTheDocument();
+  });
+
+  // Consensus refuses a zero-valued transparent output. Open, the row says so
+  // in yellow beside the amount; folded, it is red like any row stopping the batch.
+  describe("a transparent recipient at zero", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const cstyles = require("../../common/Common.module.css");
+    const parsesAs = (addressKind: string) =>
+      (native.parse_address as jest.Mock).mockResolvedValue(
+        JSON.stringify({ status: "success", address_kind: addressKind, chain_name: "main" }),
+      );
+
+    it("asks for an amount, in yellow, while the row is open", async () => {
+      parsesAs("transparent");
+      const toaddr = Object.assign(new ToAddrClass(), { to: "t1abc", amount: 0 });
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+      expect(await screen.findByText("Transparent addresses need an amount")).toHaveClass(cstyles.yellow);
+    });
+
+    it("stops asking once there is an amount", async () => {
+      parsesAs("transparent");
+      const toaddr = Object.assign(new ToAddrClass(), { to: "t1abc", amount: 1 });
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+      await screen.findByText("Transparent");
+      expect(screen.queryByText("Transparent addresses need an amount")).not.toBeInTheDocument();
+    });
+
+    // A shielded recipient may be sent nothing: a memo with no money is a message.
+    it("does not ask a shielded recipient", async () => {
+      parsesAs("unified");
+      const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 0 });
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+      await screen.findByText("Unified");
+      expect(screen.queryByText("Transparent addresses need an amount")).not.toBeInTheDocument();
+    });
+
+    it("shows the row in red once it is folded", async () => {
+      parsesAs("transparent");
+      const toaddr = Object.assign(new ToAddrClass(), { to: "t1abc", amount: 0 });
+      render(<ToAddrBox {...makeProps({ toaddr, index: 1, total: 2, collapsed: true })} />);
+      await waitFor(() => expect(screen.getByText(/^ZEC /)).toHaveClass(cstyles.red));
+    });
   });
 });

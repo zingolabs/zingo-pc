@@ -15,10 +15,13 @@ import {
   SwapDirectionEnum,
   buildTrackerEntries,
   canRemoveSwap,
+  describeRealizedSlippage,
+  describeSlippageTolerance,
   formatAmountForDisplay,
   isPrePaymentStatus,
   isRealLegHash,
   isTerminalStatus,
+  SwapStatusEnum,
   providerLongLabel,
   swapRowLabel,
 } from "../../swap";
@@ -121,6 +124,20 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // in `refundInfo`, a failure in `failureReason`; both reached the record and
   // neither reached the screen.
   const endedBadlyReason = record.refundInfo?.refundReason ?? record.failureReason;
+
+  const slippageTolerance = describeSlippageTolerance(record.requestedSlippageBps, record.slippageToleranceBps);
+  const realizedSlippage = describeRealizedSlippage(record.realizedSlippageBps);
+
+  // The reason is optional and a refund without one is common — SwapKit omits
+  // `refundReason` when the provider gave none. Gating the section on the text
+  // hid the whole ending in exactly that case, leaving a refunded swap looking
+  // like one that had merely stopped. The status is what decides whether there
+  // was an ending to report; the reason only decides how much it can say.
+  const endedBadly: boolean =
+    record.status === SwapStatusEnum.Refunded ||
+    record.status === SwapStatusEnum.Failed ||
+    record.status === SwapStatusEnum.Expired ||
+    !!endedBadlyReason;
 
   const removable = canRemoveSwap(record.status);
 
@@ -299,6 +316,17 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             )}
           </FieldRow>
 
+          {/* Beside the amounts they qualify. The tolerance is what set the
+              minimum above; the actual figure is how the result compares
+              with the expected one. Records made before either was kept
+              show neither. */}
+          {(!!slippageTolerance || !!realizedSlippage) && (
+            <FieldRow>
+              {!!slippageTolerance && <Field label="Slippage tolerance" value={slippageTolerance} />}
+              {!!realizedSlippage && <Field label="Actual slippage" value={realizedSlippage} />}
+            </FieldRow>
+          )}
+
           {/* No rule above it: a fee is an amount, so it belongs with the ones
               it was taken from rather than in a section of its own. */}
           {!!record.feesRaw?.length && (
@@ -321,10 +349,24 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             </FieldRow>
           )}
 
-          {!!endedBadlyReason && (
+          {endedBadly && (
             <>
-              <SectionHeader label={record.refundInfo?.refundReason ? "Refund" : "Failure"} />
-              <Field label="Reason" value={endedBadlyReason} />
+              <SectionHeader label={record.status === SwapStatusEnum.Refunded ? "Refund" : "Failure"} />
+              <Field
+                label="Reason"
+                value={
+                  endedBadlyReason ?? (
+                    // Said rather than left blank: the user needs to know the
+                    // silence is the provider's, not a value still loading, and
+                    // where to go next. The provider's own order page sits in
+                    // Trackers below and often carries more than /track does.
+                    <span className={cstyles.sublight}>
+                      Not given by {providerLongLabel(record.provider)}. Its order page, under Trackers below, may say
+                      more.
+                    </span>
+                  )
+                }
+              />
             </>
           )}
 

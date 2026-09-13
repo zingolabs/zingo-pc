@@ -43,4 +43,23 @@ export type DepositInstructionsType = {
   providerData: ProviderDataType;
   /** Unix-ms timestamp after which the provider considers the route stale. */
   expiresAtMs?: number;
+  /**
+   * Whether the deposit has to leave from the source address the quote was
+   * taken with, which for an outbound swap means the transparent ZIP 320
+   * address rather than the shielded pool.
+   *
+   * Not a question of attribution. Flashnet mints a deposit address per
+   * order, as NEAR does, so where a deposit lands already says which order
+   * it is for. What Flashnet adds is a check that the money came from the
+   * declared `sourceAddress`. A deshield names no transparent sender, so it
+   * fails that check: a mainnet order on 2026-09-11, paid straight out of
+   * the shielded pool, carries `errorCode: deposit_source_mismatch` in the
+   * Flashnet order record, and one on 2026-09-12, paid from the declared
+   * address, carries none.
+   *
+   * NEAR also mints per order but checks no sender, and a NEAR swap paid
+   * from the shielded pool completed, so the addressing scheme is not what
+   * sets the two apart. Maya and THORChain share a vault and read a memo.
+   */
+  requiresDepositFromSourceAddress?: boolean;
 };

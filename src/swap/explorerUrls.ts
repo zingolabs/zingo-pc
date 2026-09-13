@@ -3,6 +3,7 @@ import Utils from "../utils/utils";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { isRealLegHash } from "./providers/trackUpdateBase";
 import { providerLongLabel } from "./providerLabels";
+import { legChain } from "./legChains";
 import type { SwapRecordType } from "./types/SwapRecordType";
 
 /**
@@ -31,6 +32,7 @@ const CHAIN_EXPLORER_TX_URL: Record<string, (hash: string) => string> = {
   DOGE: (h) => `https://blockchair.com/dogecoin/transaction/${h}`,
   DASH: (h) => `https://blockchair.com/dash/transaction/${h}`,
   NEAR: (h) => `https://nearblocks.io/txns/${h}`,
+  SOL: (h) => `https://solscan.io/tx/${h}`,
   MAYA: (h) => `https://www.mayascan.org/tx/${h}`,
   THOR: (h) => `https://viewblock.io/thorchain/tx/${h}`,
 };
@@ -144,6 +146,16 @@ export function buildTrackerEntries(args: {
       if (url) entries.push({ key: `source-hop-${index}`, label: `Source chain hop ${index + 1}`, url });
     });
   }
+
+  // The legs between, on whichever chain the provider routes through. For
+  // NEAR Intents that is the execute_intents call on NEAR: where the swap
+  // itself happens, and the link SwapKit's own explorer gives for it.
+  record.intermediateLegs?.forEach((leg, index) => {
+    if (!isRealLegHash(leg.hash)) return;
+    const chain = legChain(leg.chainId);
+    const url = buildChainExplorerUrl({ chain: chain.symbol, hash: leg.hash, ...explorerArgs });
+    if (url) entries.push({ key: `leg-${index}`, label: `${chain.name} explorer`, url });
+  });
 
   if (isRealLegHash(record.destinationTxHash)) {
     const url = buildChainExplorerUrl({

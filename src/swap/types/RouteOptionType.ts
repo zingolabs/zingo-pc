@@ -27,6 +27,13 @@ export type RouteOptionType = {
   expectedReceiveAmount: string;
   /** Minimum guaranteed receive amount at the route's quoted slippage. */
   minReceiveAmount: string;
+  /**
+   * What the route delivers against what it is sent, both at market value,
+   * in basis points: negative when it delivers less. Fees included. Carried
+   * from SwapKit's `totalSlippageBps`, renamed because it is not a slippage
+   * tolerance; see `costVsMarket`.
+   */
+  costVsMarketBps?: number;
   /** Every fee SwapKit reports, re-expressed in the destination (buy) asset
    *  via the route's implied rate. Used by the swap-screen summary card on
    *  inbound swaps, where the buy asset is ZEC and ZEC is the user's frame

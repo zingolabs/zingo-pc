@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import styles from "../Send.module.css";
 import cstyles from "../../common/Common.module.css";
@@ -11,12 +11,14 @@ import { shell } from "../../../electronBridge";
 import ContactPicker from "../../common/ContactPicker";
 import SaveContact from "../../common/SaveContact";
 import { ZEC_SWAP_CHAIN } from "../../appstate/classes/AddressBookEntryClass";
+import RecipientStatusType from "./RecipientStatusType";
 import {
   faAddressBook,
   faCheck,
+  faEnvelope,
   faExternalLinkSquareAlt,
-  faInfoCircle,
   faTimesCircle,
+  faTrashAlt,
   faUserPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -27,19 +29,26 @@ const Spacer = () => {
 
 type ToAddrBoxProps = {
   toaddr: ToAddrClass;
+  // Position in the batch, and the batch's size. A lone recipient shows no
+  // number and no remove action, so a one-recipient send reads as it always did.
+  index?: number;
+  total?: number;
+  // Every row but the one being edited folds to a single line.
+  collapsed?: boolean;
+  onExpand?: () => void;
+  onRemove?: () => void;
+  // The earlier row paying this same address, if any. Allowed, but more often
+  // a slip than a second payment, so it is pointed out.
+  duplicateOfIndex?: number;
   zecPrice: number;
   updateToField: (address: string | null, amount: string | null, memo: string | null) => void;
   updateZnsAlias: (znsAlias: string) => void;
   fromAmount: number;
-  fromAmountDefault: number;
-  setSendButtonEnabled: (sendButtonEnabled: boolean) => void;
+  // What is left for this row once the other rows, and the outputs they add to
+  // the fee, are paid for.
+  maxAmount: number;
   setMaxAmount: (total: number) => void;
-  sendFee: number;
-  sendFeeError: string;
-  fetchSendFeeAndErrorAndSpendable: () => Promise<void>;
-  setSendFee: (fee: number) => void;
-  setSendFeeError: (error: string) => void;
-  setTotalAmountAvailable: (amount: number) => void;
+  onStatusChange: (status: RecipientStatusType) => void;
   serverChainName: "" | ServerChainNameEnum;
   block: number;
   currencyName: string;
@@ -48,19 +57,19 @@ type ToAddrBoxProps = {
 
 const ToAddrBox = ({
   toaddr,
+  index = 0,
+  total = 1,
+  collapsed = false,
+  onExpand,
+  onRemove,
+  duplicateOfIndex,
   zecPrice,
   updateToField,
   updateZnsAlias,
   fromAmount,
-  fromAmountDefault,
+  maxAmount,
   setMaxAmount,
-  setSendButtonEnabled,
-  sendFee,
-  sendFeeError,
-  fetchSendFeeAndErrorAndSpendable,
-  setSendFee,
-  setSendFeeError,
-  setTotalAmountAvailable,
+  onStatusChange,
   serverChainName,
   block,
   currencyName,
@@ -107,6 +116,14 @@ const ToAddrBox = ({
     setZnsAliasLocal(alias);
     updateZnsAlias(alias);
   };
+
+  // The verdict goes up through this rather than through the prop itself: the
+  // screen hands over a fresh closure on every render, and the validation below
+  // should rerun when what it checks changes, not when that closure does.
+  const onStatusChangeRef = useRef<(status: RecipientStatusType) => void>(onStatusChange);
+  useEffect(() => {
+    onStatusChangeRef.current = onStatusChange;
+  });
 
   useEffect(() => {
     setToLocal(toaddr.to);
@@ -157,9 +174,13 @@ const ToAddrBox = ({
   };
 
   useEffect(() => {
-    let buttonTimerId: ReturnType<typeof setTimeout> | undefined;
+    // A later run supersedes this one. Without the flag, a slow address check
+    // for an earlier keystroke could land after a faster one and report a
+    // verdict for text no longer in the field.
+    let cancelled: boolean = false;
     (async () => {
       const _addressKind: AddressKindEnum | undefined = await Utils.getAddressKind(toLocal, serverChainName);
+      if (cancelled) return;
       setAddressKind(_addressKind);
       const _isMemoDisabled: boolean = !(
         _addressKind === AddressKindEnum.sapling || _addressKind === AddressKindEnum.unified
@@ -205,58 +226,21 @@ const ToAddrBox = ({
       }
       setMemoError(_memoError);
 
-      if (_amountError === null && _addressIsValid === 1 && _memoError === null) {
-        fetchSendFeeAndErrorAndSpendable();
-      } else {
-        if (sendFee) {
-          setSendFee(0);
-          setSendFeeError("");
-          setTotalAmountAvailable(fromAmountDefault);
-        }
-      }
-
-      let buttonstate: boolean = true;
-      if (
-        _addressIsValid === -1 ||
-        _amountError ||
-        _memoError ||
-        toLocal === "" ||
-        fromAmount < 0 ||
-        sendFee <= 0 ||
-        sendFeeError
-      ) {
-        buttonstate = false;
-      }
-
-      buttonTimerId = setTimeout(() => {
-        setSendButtonEnabled(buttonstate);
-      }, 10);
+      // The fee belongs to the transaction, not to this row, so the row no
+      // longer quotes it. It says whether it is ready and what kind of address
+      // it pays; the screen quotes the batch once every row is ready.
+      onStatusChangeRef.current({
+        valid: _addressIsValid === 1 && _amountError === null && _memoError === null && fromAmount >= 0,
+        addressKind: _addressKind,
+      });
 
       const usdValue: string = Utils.getZecToUsdString(zecPrice, amountLocal);
       setUsdValue(usdValue);
     })();
-    return () => clearTimeout(buttonTimerId);
-  }, [
-    fetchSendFeeAndErrorAndSpendable,
-    fromAmount,
-    fromAmountDefault,
-    sendFee,
-    sendFeeError,
-    setSendButtonEnabled,
-    setSendFee,
-    setSendFeeError,
-    setTotalAmountAvailable,
-    zecPrice,
-    serverChainName,
-    block,
-    toLocal,
-    amountLocal,
-    memoLocal,
-    toaddr.to,
-    toaddr.amount,
-    toaddr.memo,
-    toaddr.memoReplyTo,
-  ]);
+    return () => {
+      cancelled = true;
+    };
+  }, [fromAmount, zecPrice, serverChainName, block, toLocal, amountLocal, memoLocal, toaddr.memoReplyTo]);
 
   // Returns the contact label for `addr` if it matches an address-book entry
   // ON THE CURRENT NETWORK. Cross-network matches are filtered out so the user
@@ -281,11 +265,76 @@ const ToAddrBox = ({
   const saveTarget = znsAlias || (addressIsValid === 1 ? toLocal : "");
   const canSave = !!saveTarget && !(znsAlias ? znsIsContact : !!contactLabel);
 
+  // Consensus refuses a zero-valued transparent output, so a transparent or TEX
+  // recipient left at zero cannot be paid. Not an error while the amount is
+  // still to be typed, only something the row cannot do yet: said in yellow
+  // while the row is open, and in red once folded, where it is a row stopping
+  // the batch like any other.
+  const needsAmount: boolean =
+    addressIsValid === 1 &&
+    (addressKind === AddressKindEnum.transparent || addressKind === AddressKindEnum.tex) &&
+    amountLocal === 0;
+
+  const numbered: boolean = total > 1;
+
+  const removeButton = !!onRemove && (
+    <button
+      type="button"
+      className={cstyles.fieldaction}
+      aria-label={`Remove recipient ${index + 1}`}
+      title="Remove recipient"
+      onClick={onRemove}
+    >
+      <FontAwesomeIcon icon={faTrashAlt} size="lg" />
+    </button>
+  );
+
+  if (collapsed) {
+    // One line: who, how much, whether a memo rides along. The whole line is
+    // the button that unfolds it, and the remove action sits outside it so a
+    // press meant for one cannot trigger the other. Red when the row would stop
+    // the batch, so a problem is not hidden by being folded away.
+    const rowHasProblem: boolean = addressIsValid !== 1 || !!amountError || !!memoError || needsAmount;
+    const name: string = znsAlias || contactLabel || "";
+    return (
+      <div className={`${cstyles.well} ${styles.recipientcompact}`}>
+        <button
+          type="button"
+          className={styles.recipientcompactbutton}
+          aria-label={`Edit recipient ${index + 1}`}
+          onClick={onExpand}
+        >
+          <span className={cstyles.sublight}>{index + 1}</span>
+          <span className={`${styles.recipientcompactaddress} ${rowHasProblem ? cstyles.red : ""}`}>
+            {toLocal ? (
+              <>
+                {!!name && <span className={cstyles.highlight}>{name} · </span>}
+                {Utils.trimToSmall(toLocal, 5)}
+              </>
+            ) : (
+              "No address yet"
+            )}
+          </span>
+          <span className={amountError || needsAmount ? cstyles.red : undefined}>
+            {currencyName} {isNaN(amountLocal) ? 0 : Utils.maxPrecisionTrimmed(amountLocal)}
+          </span>
+          {!!memoLocal && <FontAwesomeIcon icon={faEnvelope} title="Carries a memo" />}
+        </button>
+        {removeButton}
+      </div>
+    );
+  }
+
   return (
-    <div>
+    <div style={numbered ? { marginBottom: 8 } : undefined}>
       <div className={`${cstyles.well} ${cstyles.verticalflex}`}>
         <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
           <div className={cstyles.horizontalflex}>
+            {numbered && (
+              <div className={cstyles.sublight} style={{ marginRight: 10 }}>
+                {index + 1}
+              </div>
+            )}
             <div className={cstyles.sublight}>To </div>
             {/* What the recipient is stays here beside the label. What can be
                 done about it moved into the field below, which is where the
@@ -304,16 +353,30 @@ const ToAddrBox = ({
             {addressKind !== undefined && addressKind === AddressKindEnum.sapling && "Sapling"}
             {addressKind !== undefined && addressKind === AddressKindEnum.unified && "Unified"}
           </div>
-          <div className={cstyles.validationerror}>
-            {znsStatus === "resolving" && <span className={cstyles.sublight}>Resolving ZNS…</span>}
-            {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
-            {znsStatus === "network" && <span className={cstyles.red}>ZNS lookup failed</span>}
-            {znsStatus === "idle" && addressIsValid === 1 && (
-              <FontAwesomeIcon icon={faCheck} className={cstyles.green} />
-            )}
-            {znsStatus === "idle" && addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
+          {/* The verdict travels with the remove action at the end of the row.
+              Loose among the other items it was spread out with them and came to
+              rest mid-row, reading as though it belonged to nothing. */}
+          {/* 8px, plus the 8px the remove button carries as its own padding:
+              16px between the two glyphs, which is what the address field below
+              puts between the icons inside it. */}
+          <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
+            <div className={cstyles.validationerror}>
+              {znsStatus === "resolving" && <span className={cstyles.sublight}>Resolving ZNS…</span>}
+              {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
+              {znsStatus === "network" && <span className={cstyles.red}>ZNS lookup failed</span>}
+              {znsStatus === "idle" && addressIsValid === 1 && (
+                <FontAwesomeIcon icon={faCheck} className={cstyles.green} />
+              )}
+              {znsStatus === "idle" && addressIsValid === -1 && <span className={cstyles.red}>Invalid Address</span>}
+            </div>
+            {removeButton}
           </div>
         </div>
+        {duplicateOfIndex !== undefined && (
+          <div className={`${cstyles.yellow} ${cstyles.small}`} style={{ marginBottom: 5 }}>
+            Same address as recipient {duplicateOfIndex + 1}
+          </div>
+        )}
         {/* Field and its actions share a border, so they read as one control
             rather than a box with loose buttons above it. Same glyphs, same
             order and same colour as the swap screen's address field. */}
@@ -418,76 +481,41 @@ const ToAddrBox = ({
 
         <Spacer />
 
-        {/* No well of its own. The whole box is already one, and a second
-            inset these two fields by another 16px a side while the address
-            above and the memo below sat flush against the outer edge. Its dark
-            background was the same colour the fields carry, so only the
-            misalignment ever showed. */}
-        <div className={cstyles.flexspacebetween}>
-          <div style={{ width: "60%" }} className={cstyles.verticalflex}>
-            <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
-              <div className={cstyles.sublight}>Amount</div>
-              <div className={cstyles.validationerror}>
-                {amountError ? (
-                  <span className={cstyles.red}>{amountError}</span>
-                ) : currencyName === "ZEC" ? (
-                  <span>{usdValue}</span>
-                ) : null}
-              </div>
-            </div>
-            <div className={cstyles.fieldrow}>
-              <input
-                type="number"
-                aria-label="Amount"
-                step="any"
-                className={cstyles.fieldamount}
-                value={isNaN(amountLocal) ? "" : amountLocal}
-                onChange={(e) => {
-                  setAmountLocal(Number(e.target.value));
-                  updateToField(null, e.target.value, null);
-                }}
-              />
-              <button
-                type="button"
-                aria-label="Set maximum amount"
-                style={{ background: "none", border: "none", padding: "0 10px 0 0", cursor: "pointer" }}
-                onClick={() => setMaxAmount(fromAmount)}
-              >
-                <img className={styles.toaddrbutton} src={ArrowUpLight} alt="" />
-              </button>
+        {/* The fee used to sit beside the amount. It is the transaction's, not
+            this recipient's, so it moved under the recipients with the total. */}
+        <div className={cstyles.verticalflex}>
+          <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
+            <div className={cstyles.sublight}>Amount</div>
+            <div className={cstyles.validationerror}>
+              {amountError ? (
+                <span className={cstyles.red}>{amountError}</span>
+              ) : needsAmount ? (
+                <span className={cstyles.yellow}>Transparent addresses need an amount</span>
+              ) : currencyName === "ZEC" ? (
+                <span>{usdValue}</span>
+              ) : null}
             </div>
           </div>
-          <div style={{ width: "30%" }} className={cstyles.verticalflex}>
-            <div style={{ marginBottom: 5 }} className={cstyles.horizontalflex}>
-              <div
-                style={{
-                  color: sendFeeError && !amountError && addressIsValid ? "var(--color-error)" : "var(--color-text)",
-                }}
-                className={cstyles.sublight}
-              >
-                Fee
-              </div>
-              <div style={{ paddingTop: 3, paddingLeft: 10 }} title={sendFeeError}>
-                <div className={cstyles.small}>
-                  {sendFeeError && !amountError && addressIsValid !== -1 && (
-                    <span>
-                      &nbsp;
-                      <FontAwesomeIcon icon={faInfoCircle} className={cstyles.red} />
-                    </span>
-                  )}
-                </div>
-              </div>
-            </div>
-            <div className={cstyles.fieldrow}>
-              <input
-                type="number"
-                aria-label="Transaction fee"
-                step="any"
-                className={cstyles.fieldamount}
-                value={isNaN(sendFee) ? "" : sendFee}
-                disabled={true}
-              />
-            </div>
+          <div className={cstyles.fieldrow}>
+            <input
+              type="number"
+              aria-label="Amount"
+              step="any"
+              className={cstyles.fieldamount}
+              value={isNaN(amountLocal) ? "" : amountLocal}
+              onChange={(e) => {
+                setAmountLocal(Number(e.target.value));
+                updateToField(null, e.target.value, null);
+              }}
+            />
+            <button
+              type="button"
+              aria-label="Set maximum amount"
+              style={{ background: "none", border: "none", padding: "0 10px 0 0", cursor: "pointer" }}
+              onClick={() => setMaxAmount(maxAmount)}
+            >
+              <img className={styles.toaddrbutton} src={ArrowUpLight} alt="" />
+            </button>
           </div>
         </div>
 

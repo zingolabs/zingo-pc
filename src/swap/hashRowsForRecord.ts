@@ -1,4 +1,5 @@
 import { isRealLegHash } from "./providers/trackUpdateBase";
+import { legChain } from "./legChains";
 import type { SwapRecordType } from "./types/SwapRecordType";
 
 /** One transaction the detail view offers, under the name that swap gives it. */
@@ -44,6 +45,11 @@ export function hashRowsForRecord(record: SwapRecordType): HashRowType[] {
   } else if (isRealLegHash(record.broadcast?.txId)) {
     rows.push({ label: "Broadcast", value: record.broadcast?.txId as string });
   }
+
+  // Between the deposit and the delivery, named by the chain it ran on.
+  record.intermediateLegs?.forEach((leg) => {
+    if (isRealLegHash(leg.hash)) rows.push({ label: `Via ${legChain(leg.chainId).name}`, value: leg.hash });
+  });
 
   if (isRealLegHash(record.destinationTxHash)) {
     rows.push({ label: "Destination", value: record.destinationTxHash as string });

@@ -21,10 +21,15 @@ export class ZcashURITarget {
   }
 }
 
-export const parseZcashURI = async (
+/**
+ * Every recipient a zcash: URI names, in index order. ZIP 321 lets one request
+ * carry several, paid together in one transaction. A plain address comes back
+ * as the address itself, and anything malformed as a string starting "Error".
+ */
+export const parseZcashURITargets = async (
   uri: string,
   serverChainName: "" | ServerChainNameEnum,
-): Promise<ZcashURITarget | string> => {
+): Promise<ZcashURITarget[] | string> => {
   if (!uri || uri === "") {
     return "Error: Bad URI";
   }
@@ -167,6 +172,16 @@ export const parseZcashURI = async (
     return "Error: Some indexes were missing";
   }
 
-  // only the first item.
-  return ans[0] as ZcashURITarget;
+  return ans as ZcashURITarget[];
+};
+
+/**
+ * Only the first recipient a URI names, for a caller that pays one address.
+ */
+export const parseZcashURI = async (
+  uri: string,
+  serverChainName: "" | ServerChainNameEnum,
+): Promise<ZcashURITarget | string> => {
+  const parsed: ZcashURITarget[] | string = await parseZcashURITargets(uri, serverChainName);
+  return typeof parsed === "string" ? parsed : parsed[0];
 };

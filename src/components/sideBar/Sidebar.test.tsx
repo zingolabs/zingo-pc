@@ -20,10 +20,10 @@ jest.mock("../../electronBridge", () => ({
   isSandboxed: false,
 }));
 
-// Override parseZcashURI without referencing out-of-scope vars (using the `mock*` prefix exemption).
+// Override parseZcashURITargets without referencing out-of-scope vars (using the `mock*` prefix exemption).
 let mockParseZcashURIImpl: (uri: string, chain?: string) => Promise<any> = async (uri: string) => uri;
 jest.mock("../../utils/uris", () => ({
-  parseZcashURI: (uri: string, chain?: string) => mockParseZcashURIImpl(uri, chain),
+  parseZcashURITargets: (uri: string, chain?: string) => mockParseZcashURIImpl(uri, chain),
   ZcashURITarget: class {},
 }));
 
@@ -208,12 +208,31 @@ describe("Sidebar", () => {
     it("'payuri' calls setSendTo when parser returns an object", async () => {
       const setSendTo = jest.fn();
       renderSidebar({ setSendTo });
-      mockParseZcashURIImpl = async () => ({ address: "u1foo", amount: 2 });
+      mockParseZcashURIImpl = async () => [{ address: "u1foo", amount: 2 }];
       await act(async () => {
         getListener("payuri")?.({}, "zcash:u1foo?amount=2");
         await Promise.resolve();
       });
-      expect(setSendTo).toHaveBeenCalledWith({ address: "u1foo", amount: 2 });
+      expect(setSendTo).toHaveBeenCalledWith([{ address: "u1foo", amount: 2 }]);
+    });
+
+    // A ZIP 321 request can name several recipients, and all of them reach
+    // the Send screen as one batch rather than only the first.
+    it("'payuri' hands every recipient of a multi-recipient request to setSendTo", async () => {
+      const setSendTo = jest.fn();
+      renderSidebar({ setSendTo });
+      mockParseZcashURIImpl = async () => [
+        { address: "u1one", amount: 1 },
+        { address: "u1two", amount: 2 },
+      ];
+      await act(async () => {
+        getListener("payuri")?.({}, "zcash:?address=u1one&amount=1&address.1=u1two&amount.1=2");
+        await Promise.resolve();
+      });
+      expect(setSendTo).toHaveBeenCalledWith([
+        { address: "u1one", amount: 1 },
+        { address: "u1two", amount: 2 },
+      ]);
     });
 
     it("'blockexplorer' opens the block explorer modal", () => {

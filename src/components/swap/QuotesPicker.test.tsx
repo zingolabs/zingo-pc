@@ -6,18 +6,28 @@ import type { RouteOptionType } from "../../swap";
 
 jest.mock("../../electronBridge");
 
-const route = (routeId: string, expectedReceiveAmount: string, minReceiveAmount: string): RouteOptionType =>
+const route = (
+  routeId: string,
+  expectedReceiveAmount: string,
+  minReceiveAmount: string,
+  costVsMarketBps?: number,
+): RouteOptionType =>
   ({
     routeId,
     provider: SwapKitProviderEnum.Near,
     expectedReceiveAmount,
     minReceiveAmount,
+    costVsMarketBps,
   }) as RouteOptionType;
 
-const show = (quotedSell?: string, quotedReceiveSymbol?: string) =>
+const show = (
+  quotedSell?: string,
+  quotedReceiveSymbol?: string,
+  routes: RouteOptionType[] = [route("a", "0.00011", "0.00009"), route("b", "0.00012", "0.00008")],
+) =>
   render(
     <QuotesPicker
-      routes={[route("a", "0.00011", "0.00009"), route("b", "0.00012", "0.00008")]}
+      routes={routes}
       unavailable={[]}
       selectedRouteId="a"
       receiveSymbol="BTC"
@@ -32,6 +42,21 @@ const show = (quotedSell?: string, quotedReceiveSymbol?: string) =>
   );
 
 describe("QuotesPicker", () => {
+  // The figure that compares routes on price. Each row carries its own, so
+  // two routes can be read against each other.
+  it("states each route cost against market value", () => {
+    show("0.05 ZEC", "USDC", [route("a", "55.63", "55.07", -92.16), route("b", "55.35", "54.80", -142.08)]);
+
+    expect(screen.getByText("0.92% below market value, fees included")).toBeInTheDocument();
+    expect(screen.getByText("1.42% below market value, fees included")).toBeInTheDocument();
+  });
+
+  it("says nothing about cost for a route that reports none", () => {
+    show("0.05 ZEC");
+
+    expect(screen.queryByText(/market value/)).not.toBeInTheDocument();
+  });
+
   // The amount is what a user editing the field cannot otherwise check: the
   // routes answer whatever the last quote asked for, which is not necessarily
   // what the form holds by the time they read them.

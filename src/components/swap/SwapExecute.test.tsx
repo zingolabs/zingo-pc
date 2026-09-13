@@ -77,7 +77,11 @@ const quoteInput = (direction: SwapDirectionEnum): QuoteInput => ({
   destinationAddress: direction === SwapDirectionEnum.Outbound ? "bc1qdestination" : EPHEMERAL,
 });
 
-const renderExecute = (direction: SwapDirectionEnum, deposit?: jest.Mock) => {
+const renderExecute = (
+  direction: SwapDirectionEnum,
+  deposit?: jest.Mock,
+  instructionOverrides: Record<string, unknown> = {},
+) => {
   const commitRoute = jest.fn(async () => ({
     record: record(direction),
     instructions: {
@@ -85,6 +89,7 @@ const renderExecute = (direction: SwapDirectionEnum, deposit?: jest.Mock) => {
       depositAddress: direction === SwapDirectionEnum.Outbound ? "near1deposit" : "bc1qdeposit",
       amountHumanDecimal: "1.5",
       providerData: { kind: SwapKitProviderEnum.Near as const, depositAddress: "near1deposit" },
+      ...instructionOverrides,
     },
   }));
   const markBroadcasted = jest.fn(async () => record(direction));
@@ -113,6 +118,34 @@ beforeEach(() => {
   native.reserve_refund_address.mockResolvedValue(JSON.stringify({ encoded_address: EPHEMERAL }));
 });
 
+describe("SwapExecute deposit routing", () => {
+  // Flashnet checks that a deposit came from the declared source address, so
+  // the deposit has to leave from the transparent one the quote named rather
+  // than from the shielded pool. This screen is what carries that from the
+  // executor to the send, and a deposit sent the other way comes back refunded.
+  it("asks for the transparent source when the provider checks the sender", async () => {
+    const deposit = jest.fn(async (_args: { viaSourceAddress?: boolean }) => ["a".repeat(64)]);
+    renderExecute(SwapDirectionEnum.Outbound, deposit, { requiresDepositFromSourceAddress: true });
+
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(deposit.mock.calls[0][0]).toMatchObject({ viaSourceAddress: true });
+  });
+
+  // The cheaper shape stays the default: one transaction, one fee, and the
+  // payment never leaves the shielded pool.
+  it("leaves a provider that checks no sender to the single send", async () => {
+    const deposit = jest.fn(async (_args: { viaSourceAddress?: boolean }) => ["a".repeat(64)]);
+    renderExecute(SwapDirectionEnum.Outbound, deposit);
+
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(deposit.mock.calls[0][0].viaSourceAddress).toBeUndefined();
+  });
+});
+
 describe("SwapExecute refund-address claiming", () => {
   // An inbound swap is paid from another wallet, so this one never builds a
   // transaction bearing the address and nothing else would claim it. Without
@@ -126,11 +159,43 @@ describe("SwapExecute refund-address claiming", () => {
     expect(native.reserve_refund_address).toHaveBeenCalledTimes(1);
   });
 
-  // Outbound pays its own deposit, and applying that proposal reserves the
-  // address. Claiming here as well would consume two indices per swap and
-  // leave the one SwapKit was told about unused.
-  it("leaves the claim to the proposal on an outbound swap", async () => {
+  // An ordinary send never touches the refund address, so nothing else would
+  // claim it. Left unclaimed, the next swap names it again: a NEAR swap and a
+  // Flashnet swap nine days apart did exactly that on mainnet.
+  it("claims the refund address when an outbound deposit is an ordinary send", async () => {
     renderExecute(SwapDirectionEnum.Outbound);
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(native.reserve_refund_address).toHaveBeenCalledTimes(1);
+  });
+
+  // The address was named to SwapKit at the commit, so it is spoken for
+  // whether or not the payment ever goes out.
+  it("claims it even when that deposit fails to broadcast", async () => {
+    const deposit = jest.fn(async () => {
+      throw new Error("the Nym mixnet proxy died");
+    });
+    renderExecute(SwapDirectionEnum.Outbound, deposit);
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText(/did not broadcast/i);
+    expect(native.reserve_refund_address).toHaveBeenCalledTimes(1);
+  });
+
+  // Paying through the source address applies a proposal that reserves it.
+  // Claiming first would make that proposal derive the next index and pay
+  // from an address the provider was never told about.
+  it("leaves the claim to the proposal when the deposit spends the source address", async () => {
+    renderExecute(SwapDirectionEnum.Outbound, undefined, { requiresDepositFromSourceAddress: true });
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(native.reserve_refund_address).not.toHaveBeenCalled();
+  });
+
+  it("leaves the claim to the proposal when the deposit carries a memo", async () => {
+    renderExecute(SwapDirectionEnum.Outbound, undefined, { memoBytes: new TextEncoder().encode("=:b:bc1q") });
     fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
 
     await screen.findByText("Deposit sent");
