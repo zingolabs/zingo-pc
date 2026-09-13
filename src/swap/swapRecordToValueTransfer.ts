@@ -79,6 +79,7 @@ export function swapRecordToValueTransfer(record: SwapRecordType): ValueTransfer
     swapStatus: record.status,
     swapAssetTicker: counterpartyAsset.ticker ?? counterpartyAsset.symbol,
     swapUsdUnitPrice: counterpartyUsdUnitPrice,
+    swapProvider: record.provider,
   };
 }
 

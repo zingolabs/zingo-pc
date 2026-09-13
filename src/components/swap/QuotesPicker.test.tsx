@@ -95,6 +95,18 @@ describe("QuotesPicker", () => {
     expect(screen.getAllByText(/BTC/).length).toBeGreaterThan(0);
   });
 
+  // The name does not say who can hold the deposit once it is sent, and it is
+  // the one difference between routes no figure on the row shows.
+  it("says beside each provider who holds the deposit", () => {
+    show("0.05 ZEC", "BTC", [
+      route("a", "0.00011", "0.00009"),
+      { ...route("b", "0.00012", "0.00008"), provider: SwapKitProviderEnum.ThorchainStreaming },
+    ]);
+
+    expect(screen.getByText("operator")).toBeInTheDocument();
+    expect(screen.getByText("vault")).toBeInTheDocument();
+  });
+
   it("still lists the routes", () => {
     show("0.05 ZEC");
     expect(screen.getByText(/0\.00011/)).toBeInTheDocument();

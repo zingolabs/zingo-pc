@@ -41,6 +41,7 @@ export { SwapKitClient } from "./SwapKitClient";
 export type { SwapKitQuoteParams, SwapKitSwapParams, SwapKitTrackParams } from "./SwapKitClient";
 
 export { SwapStore } from "./SwapStore";
+export { groupHistoryBySwap, sliceKeepingGroups, swapGroupOf, swapTxidIndex } from "./groupHistoryBySwap";
 export type { SwapStoreChangeListener } from "./SwapStore";
 export { deriveWalletFingerprint } from "./walletFingerprint";
 export { readCurrentWalletFingerprint } from "./currentWalletFingerprint";
@@ -49,7 +50,8 @@ export { formatAmountForDisplay } from "./formatAmountForDisplay";
 export { swapRowLabel } from "./swapRowLabel";
 export { extractFiatValueBasis } from "./quoteFiatBasis";
 export { describeEmptyQuote } from "./describeEmptyQuote";
-export { providerShortLabel, providerLongLabel } from "./providerLabels";
+export { providerShortLabel, providerLongLabel, providerCustody } from "./providerLabels";
+export type { ProviderCustodyType } from "./providerLabels";
 export { describeCostVsMarket } from "./costVsMarket";
 export { describeRealizedSlippage, describeSlippageTolerance } from "./slippageReport";
 export { convertFeeToAsset, formatFeeAmount, assetShortLabel } from "./feeConversion";

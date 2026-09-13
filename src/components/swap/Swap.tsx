@@ -15,6 +15,7 @@ import {
   describeEmptyQuote,
   extractFiatValueBasis,
   formatAmountForDisplay,
+  providerCustody,
   providerShortLabel,
   describeCostVsMarket,
   quoteAddressPair,
@@ -98,6 +99,10 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
 
   const [tokens, setTokens] = useState<TokenEntryType[] | null>(null);
+  // The direction the catalog above was loaded for. The catalog differs by
+  // direction and reloads when it changes, so a catalog still on screen after
+  // a flip belongs to the direction just left.
+  const [tokensDirection, setTokensDirection] = useState<SwapDirectionEnum | null>(null);
   const [catalogError, setCatalogError] = useState<string>("");
   // SwapKit's edge refusing the request outright — a region or ISP block, not
   // a server having a bad day. Told apart from any other failure because the
@@ -206,6 +211,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       );
       if (token.cancelled) return;
       setTokens(catalog);
+      setTokensDirection(isOutbound ? SwapDirectionEnum.Outbound : SwapDirectionEnum.Inbound);
       setCatalogError("");
       setCatalogEdgeBlocked(false);
       setSelectedToken(catalog.find((t) => t.identifier === DEFAULT_TOKEN_IDENTIFIER) ?? catalog[0] ?? null);
@@ -289,8 +295,21 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // counterparty chain, and the effect below that clears an address whenever
   // the chain changes runs in that same commit and wiped it — which is why
   // arriving from the Address Book used to land on an empty field.
+  //
+  // The direction first, and the asset only from the catalog of that
+  // direction. The catalog reloads on a flip and selects its default when it
+  // lands, so an asset picked from the catalog still on screen was replaced
+  // moments later, after the address had gone in and the handoff had been
+  // consumed: Swap From arrived on the default asset and an empty field.
   useEffect(() => {
     if (!swapToState || !tokens || tokens.length === 0) return;
+    // The contact is the far side of the swap, on either direction: outbound
+    // it is where the bought asset goes, inbound where a refund returns.
+    if (direction !== swapToState.direction) {
+      setDirection(swapToState.direction);
+      return;
+    }
+    if (tokensDirection !== swapToState.direction) return;
     const match = pickChainAsset(tokens, swapToState.swapChain);
     if (!match) {
       // Nothing in the catalog sits on that chain, so there is no swap to set
@@ -298,11 +317,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       setSwapTo(null);
       return;
     }
-    // The contact is the far side of the swap, so this only makes sense
-    // outbound: that is the direction whose destination the user types.
-    setDirection(SwapDirectionEnum.Outbound);
     setSelectedToken(match);
-  }, [swapToState, tokens, setSwapTo]);
+  }, [swapToState, tokens, tokensDirection, direction, setSwapTo]);
 
   const counterpartyChain = selectedToken?.chain ?? "";
 
@@ -323,12 +339,20 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // Consumed once, so coming back to this screen later does not refill a field
   // the user deliberately emptied.
   useEffect(() => {
-    if (!swapToState || !isOutbound) return;
+    if (!swapToState || direction !== swapToState.direction) return;
+    // Only once the catalog of this direction is the one on screen, or the
+    // reload still on its way would replace the asset and clear the field.
+    if (tokensDirection !== swapToState.direction) return;
     if (counterpartyChain.toUpperCase() !== swapToState.swapChain.toUpperCase()) return;
-    setDestinationAddress(swapToState.address);
-    setDestinationAddressTouched(true);
+    if (swapToState.direction === SwapDirectionEnum.Outbound) {
+      setDestinationAddress(swapToState.address);
+      setDestinationAddressTouched(true);
+    } else {
+      setRefundAddress(swapToState.address);
+      setRefundAddressTouched(true);
+    }
     setSwapTo(null);
-  }, [swapToState, isOutbound, counterpartyChain, setSwapTo]);
+  }, [swapToState, direction, tokensDirection, counterpartyChain, setSwapTo]);
 
   // Whichever field is live for the current direction. Both sit on the non-ZEC
   // chain: outbound the bought asset lands there, inbound the sold asset
@@ -520,6 +544,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   }, [amount, slippageBps, selectedToken, direction, boundAddress]);
 
   const chosenRoute = useMemo(() => routes?.find((r) => r.routeId === chosenRouteId) ?? null, [routes, chosenRouteId]);
+  const chosenCustody = chosenRoute ? providerCustody(chosenRoute.provider) : undefined;
 
   // What the routes on screen were actually quoted for.
   //
@@ -908,6 +933,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                 </div>
                 <div className={`${cstyles.sublight} ${cstyles.small}`}>
                   via {providerShortLabel(chosenRoute.provider)}
+                  {!!chosenCustody && <span title={chosenCustody.title}> ({chosenCustody.label})</span>}
                   {chosenRoute.estimatedTimeText ? ` — ${chosenRoute.estimatedTimeText}` : ""}
                 </div>
                 {!!describeCostVsMarket(chosenRoute.costVsMarketBps) && (

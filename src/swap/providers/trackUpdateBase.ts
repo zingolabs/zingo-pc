@@ -23,6 +23,26 @@ import { mapSwapStatus, mapTrackingStatus } from "./statusMapping";
  *     refund reason and refund transaction only when it is `Refunded`.
  *   - Keeps the provider order id whatever the outcome.
  */
+/**
+ * What a `/track` update captures, as a number to compare against.
+ *
+ * A finished swap is never polled again, so a record that finished before
+ * the tracker started keeping some detail never receives it: a NEAR swap
+ * completed half an hour before intermediate legs were kept and showed no
+ * NEAR link for good. Every update stamps this version, and the detail view
+ * asks `/track` once more about a finished record stamped with an older one.
+ *
+ * Bump it whenever this function starts keeping something new that a
+ * finished swap would still have to show, or stops keeping something wrong.
+ *
+ *   1. Intermediate legs, and the slippage SwapKit reports.
+ *   2. A refund's return leg is no longer taken for the delivery. Records
+ *      stamped 1 may hold that refund hash as their destination.
+ *   3. The deposit hash of an inbound Flashnet swap, from Flashnet's explorer
+ *      when `/track` leaves it empty (see `fillFlashnetDepositHash`).
+ */
+export const TRACK_CAPTURE_VERSION = 3;
+
 export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackResponseType): SwapRecordType {
   const nowMs = Date.now();
   // mapSwapStatus returns undefined for unrecognised inputs — preserve
@@ -81,13 +101,25 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
   // which sits on that same chain and completed.
   const refundInfo = nextStatus === SwapStatusEnum.Refunded ? refundInfoFrom(record, response) : record.refundInfo;
 
+  // A delivery is never the deposit or the refund. An older build could
+  // store either as the destination through the positional fallback, and a
+  // stored destination is carried forward whenever a response has none, so
+  // without this the wrong hash would stay for good.
+  const deliveredTxHash =
+    destinationTxHash &&
+    destinationTxHash !== observedDepositTxHash &&
+    destinationTxHash !== record.broadcast?.txId &&
+    destinationTxHash !== refundInfo?.refundTxHash
+      ? destinationTxHash
+      : undefined;
+
   // Every other leg that has landed. A response with legs is the whole
   // current picture, so it replaces what the record held rather than adding
   // to it: a hash first taken for something else, while a later leg had not
   // yet appeared, must be able to move. Only a response with no legs at all
   // leaves the stored ones alone.
   const intermediateLegs = response.legs
-    ? pickIntermediateLegs(response, [observedDepositTxHash, destinationTxHash, refundInfo?.refundTxHash])
+    ? pickIntermediateLegs(response, [observedDepositTxHash, deliveredTxHash, refundInfo?.refundTxHash])
     : record.intermediateLegs;
 
   // Slippage as SwapKit reports it once the swap settles. A partially
@@ -109,7 +141,8 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
     status: nextStatus,
     trackingStatus: nextTrackingStatus,
     observedDepositTxHash,
-    destinationTxHash,
+    destinationTxHash: deliveredTxHash,
+    trackCaptureVersion: TRACK_CAPTURE_VERSION,
     slippageToleranceBps,
     realizedSlippageBps,
     intermediateLegs,
@@ -238,9 +271,12 @@ function isRefundedLeg(status: string | undefined): boolean {
  *   1. If any leg carries a `chain` field that matches `targetChainId`
  *      (case-insensitive), use that leg's hash. This is the semantically
  *      correct path when SwapKit normalises `chain` consistently.
- *   2. Otherwise fall back to the positional heuristic — first leg for
- *      inbound, last leg for outbound — which has held empirically across the
- *      providers we have observed.
+ *   2. Otherwise fall back to position — first leg for inbound, last leg
+ *      for outbound — but only for a leg that names no chain and was not
+ *      refunded. A leg that names another chain is not the leg asked for
+ *      wherever it sits, and a refunded leg is money going back, not out:
+ *      a Flashnet refund ends with its Zcash return leg, and taking the
+ *      last leg as the delivery linked that refund on a Solana explorer.
  *
  * Returns `undefined` when no legs are present.
  */
@@ -263,8 +299,8 @@ export function pickLegHash(
   if (isRealLegHash(matched?.hash)) return matched!.hash;
 
   const fallback = role === "inbound" ? response.legs[0] : response.legs[response.legs.length - 1];
-  if (isRealLegHash(fallback?.hash)) return fallback!.hash;
-  return undefined;
+  if (!fallback || !!fallback.chainId || isRefundedLeg(fallback.status)) return undefined;
+  return isRealLegHash(fallback.hash) ? fallback.hash : undefined;
 }
 
 /**

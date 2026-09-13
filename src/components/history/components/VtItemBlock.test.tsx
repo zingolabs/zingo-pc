@@ -27,8 +27,40 @@ const baseProps = {
   setModalIsOpen: jest.fn(),
   currencyName: "ZEC",
   addressBookMap: new Map<string, string>(),
-  previousLineWithSameTxid: false,
+  joinedWithPrevious: false,
 };
+
+// A swap row names who ran it with the provider's logo, the one thing on the
+// row that tells two swaps of the same assets apart at a glance.
+describe("VtItemBlock swap row", () => {
+  it("shows the logo of the provider that ran the swap", () => {
+    render(
+      <VtItemBlock
+        {...baseProps}
+        vt={makeVt({ type: ValueTransferKindEnum.swap, swapStatus: "COMPLETED", swapProvider: "FLASHNET" })}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "Flashnet" })).toBeInTheDocument();
+  });
+
+  it("shows no logo for a provider without one", () => {
+    render(
+      <VtItemBlock
+        {...baseProps}
+        vt={makeVt({ type: ValueTransferKindEnum.swap, swapStatus: "COMPLETED", swapProvider: "JUPITER" })}
+      />,
+    );
+
+    expect(screen.queryByTestId("provider-icon")).not.toBeInTheDocument();
+  });
+
+  it("shows no logo on a row that is not a swap", () => {
+    render(<VtItemBlock {...baseProps} vt={makeVt()} />);
+
+    expect(screen.queryByTestId("provider-icon")).not.toBeInTheDocument();
+  });
+});
 
 describe("VtItemBlock", () => {
   beforeEach(() => jest.clearAllMocks());
@@ -37,14 +69,14 @@ describe("VtItemBlock", () => {
     render(<VtItemBlock {...baseProps} vt={makeVt()} />);
   });
 
-  it("shows the date when previousLineWithSameTxid is false", () => {
-    render(<VtItemBlock {...baseProps} vt={makeVt()} previousLineWithSameTxid={false} />);
+  it("shows the date when the row is not joined to the one above", () => {
+    render(<VtItemBlock {...baseProps} vt={makeVt()} joinedWithPrevious={false} />);
     // dateformat produces something like "Nov 14, 2023"
     expect(screen.getByText(/\w{3} \d{2}, \d{4}/)).toBeInTheDocument();
   });
 
-  it("does not show the date when previousLineWithSameTxid is true", () => {
-    render(<VtItemBlock {...baseProps} vt={makeVt()} previousLineWithSameTxid={true} />);
+  it("does not show the date when the row is joined to the one above", () => {
+    render(<VtItemBlock {...baseProps} vt={makeVt()} joinedWithPrevious={true} />);
     expect(screen.queryByText(/\w{3} \d{2}, \d{4}/)).not.toBeInTheDocument();
   });
 

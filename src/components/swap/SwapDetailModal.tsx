@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -32,6 +32,7 @@ import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
 import { CopyField, Field, FieldRow } from "../common/DetailField";
+import ProviderIcon from "./ProviderIcon";
 
 type SwapDetailModalProps = {
   record: SwapRecordType;
@@ -74,6 +75,19 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const swapService = useSwapService();
   const { copied, copy } = useCopy(1500);
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
+
+  // A finished swap is no longer polled, so one that finished before the
+  // tracker kept some detail never gets it. Ask once when it is shown. Keyed
+  // on the record id rather than on opening: the arrows step to another swap
+  // without remounting this view. What comes back reaches the screen through
+  // the store, which History reads on every render.
+  const shownRecordId = record.recordId;
+  useEffect(() => {
+    if (!modalIsOpen || !swapService) return;
+    swapService
+      .backfillFinishedRecord(shownRecordId)
+      .catch((err) => console.log(`SwapDetailModal: backfill failed for ${shownRecordId}:`, err));
+  }, [modalIsOpen, swapService, shownRecordId]);
   const [attachHash, setAttachHash] = useState<string>("");
   const [attaching, setAttaching] = useState<boolean>(false);
   const [attachError, setAttachError] = useState<string>("");
@@ -290,7 +304,15 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           <hr style={{ width: "100%" }} />
 
           <FieldRow>
-            <Field label="Provider" value={providerLongLabel(record.provider)} />
+            <Field
+              label="Provider"
+              value={
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <ProviderIcon provider={record.provider} size={16} decorative />
+                  {providerLongLabel(record.provider)}
+                </span>
+              }
+            />
             <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
             {!!record.routeId && <Field label="Route id" value={record.routeId} />}
             {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} copy={copy} />}
@@ -404,24 +426,43 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           {/* No heading and no rule: three buttons that open a tracker say what
               they are, and a rule under them was the last thing on the screen
               rather than a separator between two things. */}
-          {trackers.length > 0 && (
-            <div
-              className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`}
-              style={{ justifyContent: "center", flexWrap: "wrap" }}
-            >
-              {trackers.map((tracker) => (
-                <button
-                  key={tracker.key}
-                  type="button"
-                  className={cstyles.primarybutton}
-                  onClick={() => shell.openExternal(tracker.url)}
-                >
-                  {tracker.label} &nbsp;
-                  <FontAwesomeIcon icon={faExternalLinkAlt} />
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Two rows rather than one that wraps wherever the width runs out:
+              the trackers and the other chains first, then the wallet's own
+              chain, so a swap with an intermediate leg stays narrow and each
+              row reads as one kind of thing. Each row still wraps, with a row
+              gap matching the 16px the side margins leave between buttons. */}
+          {/* Named groups, so the split is announced as well as seen. */}
+          {[
+            { label: "Trackers", entries: trackers.filter((tracker) => !tracker.onZcash) },
+            { label: "Zcash transactions", entries: trackers.filter((tracker) => tracker.onZcash) },
+          ]
+            .filter((row) => row.entries.length > 0)
+            .map(({ label, entries: row }, index) => (
+              <div
+                key={label}
+                role="group"
+                aria-label={label}
+                className={`${cstyles.horizontalflex} ${index === 0 ? cstyles.margintoplarge : ""}`}
+                style={{
+                  justifyContent: "center",
+                  flexWrap: "wrap",
+                  rowGap: 16,
+                  marginTop: index === 0 ? undefined : 16,
+                }}
+              >
+                {row.map((tracker) => (
+                  <button
+                    key={tracker.key}
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => shell.openExternal(tracker.url)}
+                  >
+                    {tracker.label} &nbsp;
+                    <FontAwesomeIcon icon={faExternalLinkAlt} />
+                  </button>
+                ))}
+              </div>
+            ))}
         </div>
 
         {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}

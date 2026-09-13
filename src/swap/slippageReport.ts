@@ -43,9 +43,14 @@ const AS_QUOTED_BPS = 0.5;
  * positive figure means the swap delivered LESS than quoted. The sign is the
  * opposite of the route cost figure, which is one more reason to say it in
  * words instead of printing a signed number.
+ *
+ * Phrased as what the user received against "expected", the amount the
+ * detail view shows right above it. "1.95% more than quoted" left a user
+ * asking what it meant; the figure only reads once it names both what
+ * moved and what it moved against.
  */
 export function describeRealizedSlippage(bps: number | undefined): string | undefined {
   if (!usable(bps)) return undefined;
-  if (Math.abs(bps) < AS_QUOTED_BPS) return "As quoted";
-  return `${(Math.abs(bps) / 100).toFixed(2)}% ${bps > 0 ? "less" : "more"} than quoted`;
+  if (Math.abs(bps) < AS_QUOTED_BPS) return "Received as expected";
+  return `Received ${(Math.abs(bps) / 100).toFixed(2)}% ${bps > 0 ? "less" : "more"} than expected`;
 }

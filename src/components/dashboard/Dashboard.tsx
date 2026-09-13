@@ -609,8 +609,10 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                   const isSwapRow: boolean = vt.type === ValueTransferKindEnum.swap;
                                   const amountUnit: string = isSwapRow ? (vt.swapAssetTicker ?? "") : info.currencyName;
                                   const rowPrice: number = isSwapRow ? (vt.swapUsdUnitPrice ?? 0) : price;
-                                  const failed: boolean = vt.status === ValueTransferStatusEnum.failed;
-                                  const failedColor: string | undefined = failed ? "var(--color-error)" : undefined;
+                                  // No red here, not even for a failed transfer. The dashboard
+                                  // is a glance, and a red figure on it alarms more than it
+                                  // informs; History, where the transfer can be opened and
+                                  // read, still shows it in red.
                                   // Three grid columns (see .txgrid): transfer type on the
                                   // left, ZEC amount left-aligned, smaller USD right-aligned.
                                   return (
@@ -626,14 +628,11 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                           : Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}{" "}
                                         :
                                       </div>
-                                      <div className={styles.txzec} style={{ color: failedColor }}>
+                                      <div className={styles.txzec}>
                                         {amountUnit} {Utils.maxPrecisionTrimmed(vt.amount)}
                                       </div>
                                       {info.currencyName === "ZEC" && (
-                                        <div
-                                          className={styles.txusd}
-                                          style={{ color: failedColor ?? "var(--color-primary)" }}
-                                        >
+                                        <div className={styles.txusd} style={{ color: "var(--color-primary)" }}>
                                           {Utils.getZecToUsdString(rowPrice, vt.amount)}
                                         </div>
                                       )}

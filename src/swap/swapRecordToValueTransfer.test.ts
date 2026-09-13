@@ -121,6 +121,12 @@ describe("the price on the row", () => {
   });
 });
 
+describe("the provider on the row", () => {
+  it("carries the provider for the logo the row shows", () => {
+    expect(swapRecordToValueTransfer(outbound()).swapProvider).toBe(outbound().provider);
+  });
+});
+
 describe("the identifier the list keys on", () => {
   it("uses the broadcast txid once this wallet has paid", () => {
     const vt = swapRecordToValueTransfer(

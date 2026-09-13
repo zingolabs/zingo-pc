@@ -131,6 +131,12 @@ export type SwapRecordType = {
   observedDepositTxHash?: string;
   /** Destination-chain tx hash the provider broadcast to deliver the swap. */
   destinationTxHash?: string;
+  /**
+   * The `TRACK_CAPTURE_VERSION` of the last `/track` update applied. A
+   * finished record stamped with an older one, or none, predates something
+   * the tracker now keeps, and is asked about once more when it is shown.
+   */
+  trackCaptureVersion?: number;
   /** Slippage tolerance the quote was requested with, in basis points. */
   requestedSlippageBps?: number;
   /**
