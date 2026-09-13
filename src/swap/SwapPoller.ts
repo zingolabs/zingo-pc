@@ -423,7 +423,7 @@ function pickTier(record: SwapRecordType): PollerTier {
  * missing (pre-broadcast outbound, or any provider without an observed
  * inbound), which preserves the previous behaviour for the bootstrap window.
  */
-function buildTrackParams(record: SwapRecordType): {
+export function buildTrackParams(record: SwapRecordType): {
   chainId: string;
   hash?: string;
   depositAddress?: string;

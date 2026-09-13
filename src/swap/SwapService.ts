@@ -1,7 +1,8 @@
 import { ChainNameEnum } from "./enums/ChainNameEnum";
 import { MidgardClient } from "./MidgardClient";
 import { SwapKitClient } from "./SwapKitClient";
-import { SwapPoller } from "./SwapPoller";
+import { SwapPoller, buildTrackParams } from "./SwapPoller";
+import type { TrackResponseType } from "./types/TrackResponseType";
 import { SwapStore } from "./SwapStore";
 import { TokenCatalog } from "./TokenCatalog";
 import { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
@@ -11,7 +12,7 @@ import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
 import { SwapKitError } from "./errors";
 import { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
-import { isRealLegHash } from "./providers/trackUpdateBase";
+import { TRACK_CAPTURE_VERSION, isRealLegHash } from "./providers/trackUpdateBase";
 import { DepositInstructionsType } from "./types/DepositInstructionsType";
 import { FiatValueBasisType } from "./types/FiatValueBasisType";
 import { QuoteResponseType, QuoteRouteType } from "./types/QuoteResponseType";
@@ -121,6 +122,9 @@ export class SwapService {
   private readonly store: typeof SwapStore;
   private readonly poller: SwapPoller;
   private readonly tokenCatalog: TokenCatalog;
+
+  /** Finished swaps already asked about this session. */
+  private readonly backfillAttempted = new Set<string>();
 
   constructor(args: SwapServiceArgs) {
     this.client = args.client;
@@ -362,6 +366,44 @@ export class SwapService {
 
   async listRecords(): Promise<SwapRecordType[]> {
     return this.store.readAll();
+  }
+
+  /**
+   * Asks `/track` once more about a finished swap whose record predates
+   * something the tracker now keeps, and stores what comes back.
+   *
+   * The poller drops a swap once it finishes, so without this a swap that
+   * finished before a detail was kept never shows it. Called when a swap is
+   * shown rather than across the whole history: only what the user looks at
+   * is asked about, and each swap at most once a session, whatever the
+   * outcome, so stepping back and forth does not repeat a failing request.
+   *
+   * A finished swap stays finished. `/track` has been seen to answer an old
+   * swap in a way that maps to no terminal state, and the history must not
+   * reopen a swap on that account, so the status is kept.
+   *
+   * Resolves to the stored record, or undefined when there was nothing to ask.
+   */
+  async backfillFinishedRecord(recordId: string): Promise<SwapRecordType | undefined> {
+    if (this.backfillAttempted.has(recordId)) return undefined;
+    const record = await this.store.getByRecordId(recordId);
+    if (!record || !needsBackfill(record) || !this.registry.has(record.provider)) return undefined;
+    this.backfillAttempted.add(recordId);
+
+    let response: TrackResponseType;
+    try {
+      response = await this.client.track(buildTrackParams(record));
+    } catch (err) {
+      console.log(`SwapService: backfill /track failed for ${record.recordId}:`, err);
+      return undefined;
+    }
+
+    const tracked = this.registry.get(record.provider).applyTrackUpdate(record, response);
+    const updated: SwapRecordType = isTerminalStatus(tracked.status)
+      ? tracked
+      : { ...tracked, status: record.status, trackingStatus: record.trackingStatus, terminalAtMs: record.terminalAtMs };
+    await this.store.upsert(updated);
+    return updated;
   }
 
   async getRecord(recordId: string): Promise<SwapRecordType | undefined> {
@@ -622,6 +664,18 @@ export function createSwapService(args: {
  * anything plausible — so a bug that breaks the collision check throws
  * loudly instead of looping forever.
  */
+/**
+ * A finished swap with something left to learn: stamped by an older tracker,
+ * and paid, so `/track` has a transaction to answer about. An abandoned or
+ * expired swap that never saw a deposit has none, and asking would only log
+ * a failure.
+ */
+function needsBackfill(record: SwapRecordType): boolean {
+  if (!isTerminalStatus(record.status)) return false;
+  if ((record.trackCaptureVersion ?? 0) >= TRACK_CAPTURE_VERSION) return false;
+  return !!(record.broadcast?.txId || record.observedDepositTxHash);
+}
+
 async function mintUniqueRecordId(store: typeof SwapStore): Promise<string> {
   for (let attempt = 0; attempt < 50; attempt++) {
     const candidate = Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10).padStart(8, "0");

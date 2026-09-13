@@ -1,4 +1,4 @@
-import React, { useContext, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import Modal from "react-modal";
 import dateformat from "dateformat";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -74,6 +74,19 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const swapService = useSwapService();
   const { copied, copy } = useCopy(1500);
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
+
+  // A finished swap is no longer polled, so one that finished before the
+  // tracker kept some detail never gets it. Ask once when it is shown. Keyed
+  // on the record id rather than on opening: the arrows step to another swap
+  // without remounting this view. What comes back reaches the screen through
+  // the store, which History reads on every render.
+  const shownRecordId = record.recordId;
+  useEffect(() => {
+    if (!modalIsOpen || !swapService) return;
+    swapService
+      .backfillFinishedRecord(shownRecordId)
+      .catch((err) => console.log(`SwapDetailModal: backfill failed for ${shownRecordId}:`, err));
+  }, [modalIsOpen, swapService, shownRecordId]);
   const [attachHash, setAttachHash] = useState<string>("");
   const [attaching, setAttaching] = useState<boolean>(false);
   const [attachError, setAttachError] = useState<string>("");

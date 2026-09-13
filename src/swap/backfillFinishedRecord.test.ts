@@ -1,0 +1,144 @@
+import { SwapService } from "./SwapService";
+import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
+import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
+import { SwapStatusEnum } from "./enums/SwapStatusEnum";
+import { createDefaultProviderRegistry } from "./providers/ProviderRegistry";
+import { TRACK_CAPTURE_VERSION } from "./providers/trackUpdateBase";
+import { REFUND_HASH, REFUNDED_DEPOSIT_HASH, flashnetRefundedTrack } from "./providers/fixtures/flashnetRefundedTrack";
+import type { SwapKitClient } from "./SwapKitClient";
+import type { SwapPoller } from "./SwapPoller";
+import type { SwapStore } from "./SwapStore";
+import type { TokenCatalog } from "./TokenCatalog";
+import type { SwapAssetType } from "./types/SwapAssetType";
+import type { SwapRecordType } from "./types/SwapRecordType";
+import type { TrackResponseType } from "./types/TrackResponseType";
+
+jest.mock("../electronBridge");
+
+const ZEC: SwapAssetType = {
+  swapKitId: "ZEC.ZEC",
+  chain: "ZEC",
+  symbol: "ZEC",
+  ticker: "ZEC",
+  chainId: "zcash",
+  decimals: 8,
+};
+
+const SOL_USDC: SwapAssetType = {
+  swapKitId: "SOL.USDC-EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+  chain: "SOL",
+  symbol: "USDC",
+  ticker: "USDC",
+  chainId: "solana",
+  decimals: 6,
+};
+
+/** A refunded Flashnet swap as an older build left it: no capture version. */
+const finished = (overrides: Partial<SwapRecordType> = {}): SwapRecordType => ({
+  recordId: "rec-1",
+  depositAddress: "t1FlashnetDepositPlaceholder",
+  provider: SwapKitProviderEnum.Flashnet,
+  direction: SwapDirectionEnum.Outbound,
+  routeId: "route-1",
+  sellAsset: ZEC,
+  receiveAsset: SOL_USDC,
+  sellAmountHumanDecimal: "0.007",
+  expectedReceiveAmount: "7.7",
+  minReceiveAmount: "7.6",
+  destinationAddress: "SolanaDestinationPlaceholder",
+  sourceAddress: "t1EphemeralSourcePlaceholder",
+  status: SwapStatusEnum.Refunded,
+  providerData: { kind: SwapKitProviderEnum.Flashnet },
+  broadcast: { txId: REFUNDED_DEPOSIT_HASH } as SwapRecordType["broadcast"],
+  observedDepositTxHash: REFUNDED_DEPOSIT_HASH,
+  destinationTxHash: REFUND_HASH,
+  fiatValueBasis: { sellUsdUnitPrice: 1100, receiveUsdUnitPrice: 1, capturedAt: 0 },
+  createdAtMs: 1_700_000_000_000,
+  updatedAtMs: 1_700_000_000_000,
+  ...overrides,
+});
+
+const serviceOver = (stored: SwapRecordType, track: () => Promise<TrackResponseType>) => {
+  const upsert = jest.fn(async (_record: SwapRecordType) => undefined);
+  const trackMock = jest.fn(track);
+  const service = new SwapService({
+    client: { track: trackMock } as unknown as SwapKitClient,
+    registry: createDefaultProviderRegistry(),
+    store: { getByRecordId: async () => stored, upsert } as unknown as typeof SwapStore,
+    poller: null as unknown as SwapPoller,
+    tokenCatalog: null as unknown as TokenCatalog,
+  });
+  return { service, upsert, track: trackMock };
+};
+
+/**
+ * The poller drops a swap once it finishes, so a record that finished before
+ * the tracker kept some detail, or while it kept something wrong, never gets
+ * corrected. The detail view asks about such a record once when it is shown.
+ */
+describe("SwapService.backfillFinishedRecord", () => {
+  it("asks /track about a finished swap an older tracker left behind, and stores the answer", async () => {
+    const { service, upsert, track } = serviceOver(finished(), async () => flashnetRefundedTrack);
+
+    const updated = await service.backfillFinishedRecord("rec-1");
+
+    // Flashnet keys its tracker on the deposit address, as the poller does.
+    expect(track).toHaveBeenCalledWith({ chainId: "zcash", depositAddress: "t1FlashnetDepositPlaceholder" });
+    expect(upsert).toHaveBeenCalledTimes(1);
+    expect(updated?.trackCaptureVersion).toBe(TRACK_CAPTURE_VERSION);
+    expect(updated?.destinationTxHash).toBeUndefined();
+    expect(updated?.refundInfo?.refundTxHash).toBe(REFUND_HASH);
+  });
+
+  it("leaves a record stamped by the current tracker alone", async () => {
+    const { service, track } = serviceOver(
+      finished({ trackCaptureVersion: TRACK_CAPTURE_VERSION }),
+      async () => flashnetRefundedTrack,
+    );
+
+    expect(await service.backfillFinishedRecord("rec-1")).toBeUndefined();
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  // The poller still owns a swap in progress.
+  it("leaves a swap that has not finished to the poller", async () => {
+    const { service, track } = serviceOver(
+      finished({ status: SwapStatusEnum.Processing }),
+      async () => flashnetRefundedTrack,
+    );
+
+    expect(await service.backfillFinishedRecord("rec-1")).toBeUndefined();
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  // An abandoned or expired swap that never saw a deposit gives /track
+  // nothing to answer about.
+  it("does not ask about a finished swap that was never paid", async () => {
+    const { service, track } = serviceOver(
+      finished({ status: SwapStatusEnum.Expired, broadcast: undefined, observedDepositTxHash: undefined }),
+      async () => flashnetRefundedTrack,
+    );
+
+    expect(await service.backfillFinishedRecord("rec-1")).toBeUndefined();
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  // Stepping back and forth with the arrows must not repeat a failing request.
+  it("asks at most once a session, even when the request fails", async () => {
+    const { service, track } = serviceOver(finished(), async () => {
+      throw new Error("tracker unavailable");
+    });
+
+    expect(await service.backfillFinishedRecord("rec-1")).toBeUndefined();
+    expect(await service.backfillFinishedRecord("rec-1")).toBeUndefined();
+    expect(track).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a finished swap finished whatever the old answer maps to", async () => {
+    const { service } = serviceOver(finished(), async () => ({ ...flashnetRefundedTrack, status: "pending" }));
+
+    const updated = await service.backfillFinishedRecord("rec-1");
+
+    expect(updated?.status).toBe(SwapStatusEnum.Refunded);
+  });
+});

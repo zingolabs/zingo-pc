@@ -7,6 +7,17 @@ import type { SwapAssetType, SwapRecordType } from "../../swap";
 
 jest.mock("../../electronBridge");
 
+// Null unless a test sets it: the view reads the service off mainnet as null,
+// which is what every other test here wants.
+let mockSwapService: unknown = null;
+jest.mock("../../context/ContextSwapService", () => ({
+  useSwapService: () => mockSwapService,
+}));
+
+afterEach(() => {
+  mockSwapService = null;
+});
+
 beforeAll(() => {
   const div = document.createElement("div");
   div.setAttribute("id", "root");
@@ -76,6 +87,55 @@ const renderDetail = (overrides: Partial<SwapRecordType> = {}) =>
  */
 // The tolerance a swap ran under once decided a refund investigation and was
 // recorded nowhere, so it could only be guessed.
+// A finished swap is no longer polled, so the view asks about it once when
+// it is shown. The arrows step to another swap without remounting the view,
+// which is why asking on opening alone would miss every swap but the first.
+describe("SwapDetailModal backfill", () => {
+  it("asks about the swap it shows, and about each one the arrows step to", () => {
+    const backfillFinishedRecord = jest.fn(async () => undefined);
+    mockSwapService = { backfillFinishedRecord };
+
+    const view = (recordId: string) => (
+      <SwapDetailModal
+        record={record({ recordId })}
+        index={0}
+        length={2}
+        moveDetail={jest.fn()}
+        modalIsOpen
+        closeModal={jest.fn()}
+        onRemove={jest.fn()}
+      />
+    );
+    const { rerender } = render(view("rec-1"));
+    rerender(view("rec-2"));
+
+    expect(backfillFinishedRecord.mock.calls).toEqual([["rec-1"], ["rec-2"]]);
+  });
+
+  it("does not ask again while the same swap stays shown", () => {
+    const backfillFinishedRecord = jest.fn(async () => undefined);
+    mockSwapService = { backfillFinishedRecord };
+
+    const view = (updatedAtMs: number) => (
+      <SwapDetailModal
+        record={record({ recordId: "rec-1", updatedAtMs })}
+        index={0}
+        length={1}
+        moveDetail={jest.fn()}
+        modalIsOpen
+        closeModal={jest.fn()}
+        onRemove={jest.fn()}
+      />
+    );
+    // A store update re-renders the view with a new record object for the
+    // same swap, as the backfill itself does when it lands.
+    const { rerender } = render(view(1));
+    rerender(view(2));
+
+    expect(backfillFinishedRecord).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("SwapDetailModal slippage", () => {
   it("shows the tolerance and what the swap came to", () => {
     renderDetail({

@@ -167,15 +167,34 @@ describe("pickLegHash", () => {
     expect(pickLegHash(response, "inbound", "zcash")).toBeUndefined();
   });
 
-  // A sharp edge worth having visible rather than discovering later. When the
-  // leg for the target chain is present but empty, the positional fallback can
-  // answer with a leg on a different chain. Real responses order the legs so
-  // the outbound one is last, which is what keeps this unreachable, so the
-  // behaviour is pinned rather than changed.
-  it("can cross chains through the positional fallback when the legs arrive out of order", () => {
+  // Once pinned as unreachable, because real responses put the delivery last.
+  // A refund does not: its last leg is the return on the source chain, and
+  // position alone took that for the delivery. A leg that names a chain is
+  // only ever matched by it.
+  it("never crosses chains through the positional fallback", () => {
     const response = legs({ chainId: "zcash", hash: ZERO_HASH }, { chainId: "bitcoin", hash: PAYOUT_HASH });
 
-    expect(pickLegHash(response, "outbound", "zcash")).toBe(PAYOUT_HASH);
+    expect(pickLegHash(response, "outbound", "zcash")).toBeUndefined();
+  });
+
+  it("does not take a refund's return leg for the delivery", () => {
+    const response: TrackResponseType = {
+      legs: [
+        { chainId: "zcash", hash: DEPOSIT_HASH, status: "completed" },
+        { chainId: "spark", hash: ZERO_HASH, status: "refunded" },
+        { chainId: "zcash", hash: PAYOUT_HASH, status: "refunded" },
+      ],
+    };
+
+    expect(pickLegHash(response, "outbound", "solana")).toBeUndefined();
+  });
+
+  it("does not take a refunded leg that names no chain either", () => {
+    const response: TrackResponseType = {
+      legs: [{ hash: DEPOSIT_HASH }, { hash: PAYOUT_HASH, status: "refunded" }],
+    };
+
+    expect(pickLegHash(response, "outbound", "solana")).toBeUndefined();
   });
 
   it("has nothing to answer with when there are no legs", () => {

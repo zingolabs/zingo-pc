@@ -195,5 +195,21 @@ export function buildTrackerEntries(args: {
       });
   }
 
+  // A refund returns the deposit on the chain it left from.
+  if (isRealLegHash(record.refundInfo?.refundTxHash)) {
+    const url = buildChainExplorerUrl({
+      chain: record.sellAsset.chain,
+      hash: record.refundInfo?.refundTxHash as string,
+      ...explorerArgs,
+    });
+    if (url)
+      entries.push({
+        key: "refund-explorer",
+        label: "Refund explorer",
+        url,
+        onZcash: isZcash(record.sellAsset.chain),
+      });
+  }
+
   return entries;
 }
