@@ -250,6 +250,7 @@ const History: React.FC<HistoryProps> = () => {
             style={{
               position: "absolute",
               right: 16,
+              marginRight: 20,
               top: "50%",
               transform: "translateY(-50%)",
               display: "flex",
@@ -264,7 +265,7 @@ const History: React.FC<HistoryProps> = () => {
               onChange={(e) => setGroupBySwap(e.target.checked)}
               style={{ width: 18, height: 18, cursor: "pointer", accentColor: "var(--color-primary)" }}
             />
-            <span className={cstyles.small}>Group by swap</span>
+            <span className={cstyles.normal}>Group by swap</span>
           </label>
         )}
       </div>
