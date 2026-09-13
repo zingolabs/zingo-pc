@@ -39,6 +39,7 @@ import { Sidebar } from "../components/sideBar";
 import { WalletBar } from "../components/walletBar";
 import { History } from "../components/history";
 import { Swap } from "../components/swap";
+import type { SwapDirectionEnum } from "../swap/enums/SwapDirectionEnum";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 import { SwapServiceProvider } from "../context/ContextSwapService";
 
@@ -527,10 +528,17 @@ const AppRoutes: React.FC = () => {
 
   // Handed to the Swap screen by the Address Book. Cleared by the screen once
   // read, so it prefills the field on arrival and never again.
-  const [swapToState, setSwapToState] = useState<{ address: string; swapChain: string } | null>(null);
-  const setSwapTo = useCallback((t: { address: string; swapChain: string } | null): void => {
-    setSwapToState(t);
-  }, []);
+  const [swapToState, setSwapToState] = useState<{
+    address: string;
+    swapChain: string;
+    direction: SwapDirectionEnum;
+  } | null>(null);
+  const setSwapTo = useCallback(
+    (t: { address: string; swapChain: string; direction: SwapDirectionEnum } | null): void => {
+      setSwapToState(t);
+    },
+    [],
+  );
 
   const setAddLabel = useCallback((ab: AddressBookEntryClass): void => {
     setAddLabelStateState(ab);

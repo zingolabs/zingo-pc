@@ -3,6 +3,7 @@ import { Accordion } from "react-accessible-accordion";
 import { render, screen, fireEvent } from "../../../test-utils";
 import AddressBookItem from "./AddressbookItem";
 import { AddressBookEntryClass, ServerChainNameEnum } from "../../appstate";
+import { SwapDirectionEnum } from "../../../swap/enums/SwapDirectionEnum";
 
 jest.mock("../../../electronBridge");
 
@@ -129,6 +130,54 @@ describe("AddressbookItem", () => {
     fireEvent.click(screen.getByText("Alice"));
     fireEvent.click(screen.getByRole("button", { name: /send to/i }));
     expect(setSendTo).toHaveBeenCalled();
+  });
+});
+
+// A contact on another chain can take either side of a swap: where the
+// bought asset goes, or where the sold asset comes back on a refund.
+describe("AddressbookItem swaps", () => {
+  const btcContact = new AddressBookEntryClass("Bob", "bc1qbob", ServerChainNameEnum.mainChainName, "BTC");
+
+  const open = (setSwapTo: jest.Mock) => {
+    renderInAccordion(<AddressBookItem item={btcContact} removeAddressBookEntry={jest.fn()} />, {
+      contextOverrides: { currentWallet: mainnetWallet, setSwapTo },
+    });
+    fireEvent.click(screen.getByText("Bob"));
+  };
+
+  it("hands the contact to the swap as its destination with Swap To", () => {
+    const setSwapTo = jest.fn();
+    open(setSwapTo);
+
+    fireEvent.click(screen.getByRole("button", { name: /swap to/i }));
+
+    expect(setSwapTo).toHaveBeenCalledWith({
+      address: "bc1qbob",
+      swapChain: "BTC",
+      direction: SwapDirectionEnum.Outbound,
+    });
+  });
+
+  it("hands the contact to the swap as its refund address with Swap From", () => {
+    const setSwapTo = jest.fn();
+    open(setSwapTo);
+
+    fireEvent.click(screen.getByRole("button", { name: /swap from/i }));
+
+    expect(setSwapTo).toHaveBeenCalledWith({
+      address: "bc1qbob",
+      swapChain: "BTC",
+      direction: SwapDirectionEnum.Inbound,
+    });
+  });
+
+  // ZEC is the fixed side of every swap, so a Zcash contact is neither.
+  it("offers neither on a Zcash contact", () => {
+    renderInAccordion(<AddressBookItem {...baseProps} />, { contextOverrides: { currentWallet: mainnetWallet } });
+    fireEvent.click(screen.getByText("Alice"));
+
+    expect(screen.queryByRole("button", { name: /swap from/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /swap to/i })).not.toBeInTheDocument();
   });
 });
 

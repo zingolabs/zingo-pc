@@ -16,6 +16,7 @@ import { ContextApp } from "../../../context/ContextAppState";
 import { isZnsAlias } from "../../../utils/zns";
 import { useCopy } from "../../common/useCopy";
 import { chainDisplayName } from "../../swap/chainDisplayName";
+import { SwapDirectionEnum } from "../../../swap/enums/SwapDirectionEnum";
 import { ChainBadge } from "../../common/ChainBadge";
 
 type AddressBookItemProps = {
@@ -150,11 +151,25 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
               type="button"
               className={cstyles.primarybutton}
               onClick={() => {
-                setSwapTo({ address: item.address, swapChain });
+                setSwapTo({ address: item.address, swapChain, direction: SwapDirectionEnum.Outbound });
                 navigate(routes.SWAP);
               }}
             >
               Swap To
+            </button>
+          )}
+          {/* The other way round: the contact's asset sold for ZEC, with the
+              contact as the address a refund returns to. */}
+          {swapIsAvailable && (
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                setSwapTo({ address: item.address, swapChain, direction: SwapDirectionEnum.Inbound });
+                navigate(routes.SWAP);
+              }}
+            >
+              Swap From
             </button>
           )}
           <button type="button" className={cstyles.primarybutton} onClick={() => removeAddressBookEntry(item.label)}>

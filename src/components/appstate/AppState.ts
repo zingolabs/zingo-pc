@@ -1,4 +1,5 @@
 import TotalBalanceClass from "./classes/TotalBalanceClass";
+import type { SwapDirectionEnum } from "../../swap/enums/SwapDirectionEnum";
 import ValueTransferClass from "./classes/ValueTransferClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
 import FetchErrorClass from "./classes/FetchErrorClass";
@@ -78,7 +79,10 @@ export default class AppState {
   // A contact the user chose to swap to, handed from the Address Book to the
   // Swap screen. Null once the screen has consumed it, so returning to Swap
   // later does not silently refill a field the user cleared.
-  swapToState: { address: string; swapChain: string } | null;
+  // A contact handed to the Swap screen, and which side of the swap it takes:
+  // outbound it is where the bought asset goes, inbound where the sold asset
+  // comes back to on a refund.
+  swapToState: { address: string; swapChain: string; direction: SwapDirectionEnum } | null;
 
   // props to context
   openErrorModal: (t: string, b: string | JSX.Element) => void;
@@ -94,7 +98,7 @@ export default class AppState {
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
   setAddLabel: (a: AddressBookEntryClass) => void;
-  setSwapTo: (t: { address: string; swapChain: string } | null) => void;
+  setSwapTo: (t: { address: string; swapChain: string; direction: SwapDirectionEnum } | null) => void;
 
   // Current USD price per ZEC. Fetched by RPC.getZecPrice on the 5s
   // scheduler, over the mixnet only (ADR 0024 arc 6): the fetch refuses

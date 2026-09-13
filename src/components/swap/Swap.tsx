@@ -299,9 +299,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       setSwapTo(null);
       return;
     }
-    // The contact is the far side of the swap, so this only makes sense
-    // outbound: that is the direction whose destination the user types.
-    setDirection(SwapDirectionEnum.Outbound);
+    // The contact is the far side of the swap, on either direction: outbound
+    // it is where the bought asset goes, inbound where a refund returns.
+    setDirection(swapToState.direction);
     setSelectedToken(match);
   }, [swapToState, tokens, setSwapTo]);
 
@@ -324,12 +324,17 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // Consumed once, so coming back to this screen later does not refill a field
   // the user deliberately emptied.
   useEffect(() => {
-    if (!swapToState || !isOutbound) return;
+    if (!swapToState || direction !== swapToState.direction) return;
     if (counterpartyChain.toUpperCase() !== swapToState.swapChain.toUpperCase()) return;
-    setDestinationAddress(swapToState.address);
-    setDestinationAddressTouched(true);
+    if (swapToState.direction === SwapDirectionEnum.Outbound) {
+      setDestinationAddress(swapToState.address);
+      setDestinationAddressTouched(true);
+    } else {
+      setRefundAddress(swapToState.address);
+      setRefundAddressTouched(true);
+    }
     setSwapTo(null);
-  }, [swapToState, isOutbound, counterpartyChain, setSwapTo]);
+  }, [swapToState, direction, counterpartyChain, setSwapTo]);
 
   // Whichever field is live for the current direction. Both sit on the non-ZEC
   // chain: outbound the bought asset lands there, inbound the sold asset
