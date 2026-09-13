@@ -5,6 +5,7 @@ import cstyles from "../../common/Common.module.css";
 import { ValueTransferClass, ValueTransferKindEnum, ValueTransferStatusEnum } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { swapRowLabel } from "../../../swap";
+import ProviderIcon from "../../swap/ProviderIcon";
 
 type VtItemBlockProps = {
   index: number;
@@ -108,9 +109,16 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                     : "var(--color-text)",
             }}
           >
-            {vt.type === ValueTransferKindEnum.swap
-              ? swapRowLabel(vt.swapStatus)
-              : Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}
+            {vt.type === ValueTransferKindEnum.swap ? (
+              // The provider's logo before the swap's state: telling swaps apart
+              // by who ran them is the first thing a list of them is read for.
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <ProviderIcon provider={vt.swapProvider} size={16} />
+                {swapRowLabel(vt.swapStatus)}
+              </span>
+            ) : (
+              Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)
+            )}
           </div>
           <div className={`${cstyles.padtopsmall} ${cstyles.sublight}`}>{timePart}</div>
           {/* Not on a swap row. Calculated, Transmitted and In Mempool describe

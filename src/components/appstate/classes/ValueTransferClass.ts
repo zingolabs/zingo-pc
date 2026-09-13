@@ -32,6 +32,8 @@ export default class ValueTransferClass {
   // the wallet's currency name or the ZEC price the way every other row does.
   swapAssetTicker?: string;
   swapUsdUnitPrice?: number;
+  // The provider the swap ran through, for the logo the row shows.
+  swapProvider?: string;
 
   constructor(
     type: ValueTransferKindEnum,

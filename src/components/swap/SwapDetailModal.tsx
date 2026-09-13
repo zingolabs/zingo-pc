@@ -32,6 +32,7 @@ import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
 import { CopyField, Field, FieldRow } from "../common/DetailField";
+import ProviderIcon from "./ProviderIcon";
 
 type SwapDetailModalProps = {
   record: SwapRecordType;
@@ -303,7 +304,15 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           <hr style={{ width: "100%" }} />
 
           <FieldRow>
-            <Field label="Provider" value={providerLongLabel(record.provider)} />
+            <Field
+              label="Provider"
+              value={
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <ProviderIcon provider={record.provider} size={16} decorative />
+                  {providerLongLabel(record.provider)}
+                </span>
+              }
+            />
             <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
             {!!record.routeId && <Field label="Route id" value={record.routeId} />}
             {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} copy={copy} />}

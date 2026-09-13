@@ -136,6 +136,16 @@ describe("SwapDetailModal backfill", () => {
   });
 });
 
+describe("SwapDetailModal provider", () => {
+  // Beside the name, the logo repeats it, so it is not read out a second time.
+  it("puts the provider logo beside its name", () => {
+    renderDetail();
+
+    expect(screen.getByText("Flashnet")).toBeInTheDocument();
+    expect(screen.getByTestId("provider-icon")).toHaveAttribute("aria-hidden", "true");
+  });
+});
+
 describe("SwapDetailModal slippage", () => {
   it("shows the tolerance and what the swap came to", () => {
     renderDetail({
