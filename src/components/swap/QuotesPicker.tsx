@@ -3,7 +3,13 @@ import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
-import { SwapDirectionEnum, describeCostVsMarket, formatAmountForDisplay, providerShortLabel } from "../../swap";
+import {
+  SwapDirectionEnum,
+  describeCostVsMarket,
+  formatAmountForDisplay,
+  providerCustody,
+  providerShortLabel,
+} from "../../swap";
 import type { RouteOptionType, UnavailableProviderType } from "../../swap";
 
 type QuotesPickerProps = {
@@ -75,6 +81,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
             const fee = isOutbound ? route.totalFeesInSellAsset : route.totalFeesInReceiveAsset;
             const feeSymbol = isOutbound ? sellSymbol : receiveSymbol;
             const costVsMarket = describeCostVsMarket(route.costVsMarketBps);
+            const custody = providerCustody(route.provider);
 
             return (
               <button
@@ -103,6 +110,18 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                 >
                   <div>
                     {providerShortLabel(route.provider)}
+                    {/* Beside the name because the name does not say it, and
+                        it is the one difference between routes that no figure
+                        on the row shows. */}
+                    {!!custody && (
+                      <span
+                        className={`${cstyles.sublight} ${cstyles.small}`}
+                        style={{ marginLeft: 8 }}
+                        title={custody.title}
+                      >
+                        {custody.label}
+                      </span>
+                    )}
                     {recommended && (
                       <span className={cstyles.small} style={{ marginLeft: 8, color: "var(--color-primary)" }}>
                         Optimal

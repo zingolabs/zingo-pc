@@ -15,6 +15,7 @@ import {
   describeEmptyQuote,
   extractFiatValueBasis,
   formatAmountForDisplay,
+  providerCustody,
   providerShortLabel,
   describeCostVsMarket,
   quoteAddressPair,
@@ -520,6 +521,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   }, [amount, slippageBps, selectedToken, direction, boundAddress]);
 
   const chosenRoute = useMemo(() => routes?.find((r) => r.routeId === chosenRouteId) ?? null, [routes, chosenRouteId]);
+  const chosenCustody = chosenRoute ? providerCustody(chosenRoute.provider) : undefined;
 
   // What the routes on screen were actually quoted for.
   //
@@ -908,6 +910,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                 </div>
                 <div className={`${cstyles.sublight} ${cstyles.small}`}>
                   via {providerShortLabel(chosenRoute.provider)}
+                  {!!chosenCustody && <span title={chosenCustody.title}> ({chosenCustody.label})</span>}
                   {chosenRoute.estimatedTimeText ? ` — ${chosenRoute.estimatedTimeText}` : ""}
                 </div>
                 {!!describeCostVsMarket(chosenRoute.costVsMarketBps) && (

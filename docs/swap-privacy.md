@@ -28,6 +28,14 @@ Keeping those two apart is what a shielded wallet is for, and here they are
 not. That is the whole of the concern, and it is why the decision above is a
 deferral rather than a dismissal.
 
+The addresses also travel further than the provider. NEAR Intents screens the
+addresses in its quote flows against outside AML sources — its own portal,
+Binance AML, AMLBot and PureFi, with TRM Labs added for non-dry quotes, per its
+Risk & Compliance docs — so a quote the user never commits can still put the
+wallet's ZIP-320 address and the counterparty address in front of those
+services. The mixnet would not change that; only not sending the addresses
+would.
+
 Token logos are a separate leak with a different shape. Their hosts arrive
 inside SwapKit's catalog rather than being ours to know, and the asset picker
 renders up to 60 at a time, so opening it contacts whatever CDNs the catalog
