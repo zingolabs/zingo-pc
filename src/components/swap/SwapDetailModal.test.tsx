@@ -1,5 +1,5 @@
 import React from "react";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import SwapDetailModal from "./SwapDetailModal";
 import { SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
@@ -166,10 +166,13 @@ describe("SwapDetailModal trackers", () => {
       { contextOverrides: { currentWallet: { chain_name: "main" } as never } },
     );
 
-    const rowOf = (name: RegExp) => screen.getByRole("button", { name }).parentElement;
+    const trackersRow = within(screen.getByRole("group", { name: "Trackers" }));
+    const zcashRow = within(screen.getByRole("group", { name: "Zcash transactions" }));
 
-    expect(rowOf(/SwapKit Explorer/)).toBe(rowOf(/Destination chain explorer/));
-    expect(rowOf(/Source chain explorer/)).toBe(rowOf(/Source chain hop 1/));
-    expect(rowOf(/Source chain explorer/)).not.toBe(rowOf(/SwapKit Explorer/));
+    expect(trackersRow.getByRole("button", { name: /SwapKit Explorer/ })).toBeInTheDocument();
+    expect(trackersRow.getByRole("button", { name: /Destination chain explorer/ })).toBeInTheDocument();
+    expect(zcashRow.getByRole("button", { name: /Source chain explorer/ })).toBeInTheDocument();
+    expect(zcashRow.getByRole("button", { name: /Source chain hop 1/ })).toBeInTheDocument();
+    expect(zcashRow.queryByRole("button", { name: /SwapKit Explorer/ })).not.toBeInTheDocument();
   });
 });

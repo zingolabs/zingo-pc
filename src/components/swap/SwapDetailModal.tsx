@@ -409,11 +409,17 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               chain, so a swap with an intermediate leg stays narrow and each
               row reads as one kind of thing. Each row still wraps, with a row
               gap matching the 16px the side margins leave between buttons. */}
-          {[trackers.filter((tracker) => !tracker.onZcash), trackers.filter((tracker) => tracker.onZcash)]
-            .filter((row) => row.length > 0)
-            .map((row, index) => (
+          {/* Named groups, so the split is announced as well as seen. */}
+          {[
+            { label: "Trackers", entries: trackers.filter((tracker) => !tracker.onZcash) },
+            { label: "Zcash transactions", entries: trackers.filter((tracker) => tracker.onZcash) },
+          ]
+            .filter((row) => row.entries.length > 0)
+            .map(({ label, entries: row }, index) => (
               <div
-                key={row[0].key}
+                key={label}
+                role="group"
+                aria-label={label}
                 className={`${cstyles.horizontalflex} ${index === 0 ? cstyles.margintoplarge : ""}`}
                 style={{
                   justifyContent: "center",
