@@ -87,7 +87,7 @@ describe("SwapDetailModal slippage", () => {
 
     expect(screen.getByText("Slippage tolerance")).toBeInTheDocument();
     expect(screen.getByText("1%")).toBeInTheDocument();
-    expect(screen.getByText("0.06% more than quoted")).toBeInTheDocument();
+    expect(screen.getByText("Received 0.06% more than expected")).toBeInTheDocument();
   });
 
   it("shows both tolerances when the provider applied another", () => {

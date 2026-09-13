@@ -405,9 +405,13 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               they are, and a rule under them was the last thing on the screen
               rather than a separator between two things. */}
           {trackers.length > 0 && (
+            // A swap with an intermediate leg carries enough trackers to wrap,
+            // and the buttons carry side margins but none vertical, so the
+            // two rows touched. The row gap matches the 16px the side margins
+            // leave between neighbours.
             <div
               className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`}
-              style={{ justifyContent: "center", flexWrap: "wrap" }}
+              style={{ justifyContent: "center", flexWrap: "wrap", rowGap: 16 }}
             >
               {trackers.map((tracker) => (
                 <button

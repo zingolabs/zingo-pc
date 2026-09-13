@@ -29,17 +29,23 @@ describe("describeSlippageTolerance", () => {
 describe("describeRealizedSlippage", () => {
   // SwapKit defines it as (expected - actual) / expected: positive is less.
   // A NEAR swap on mainnet reported -6, which delivered slightly more.
-  it("reads a negative figure as more than quoted", () => {
-    expect(describeRealizedSlippage(-6)).toBe("0.06% more than quoted");
+  it("reads a negative figure as more than expected", () => {
+    expect(describeRealizedSlippage(-6)).toBe("Received 0.06% more than expected");
   });
 
-  it("reads a positive figure as less than quoted", () => {
-    expect(describeRealizedSlippage(42)).toBe("0.42% less than quoted");
+  // A Flashnet swap held up for twelve hours delivered 7.752256 USDC against
+  // 7.603717 expected: -195 bps, the market having moved in the user's favour.
+  it("reads a delayed swap that gained as more than expected", () => {
+    expect(describeRealizedSlippage(-195)).toBe("Received 1.95% more than expected");
   });
 
-  it("calls a negligible difference as quoted", () => {
-    expect(describeRealizedSlippage(0)).toBe("As quoted");
-    expect(describeRealizedSlippage(0.4)).toBe("As quoted");
+  it("reads a positive figure as less than expected", () => {
+    expect(describeRealizedSlippage(42)).toBe("Received 0.42% less than expected");
+  });
+
+  it("calls a negligible difference as expected", () => {
+    expect(describeRealizedSlippage(0)).toBe("Received as expected");
+    expect(describeRealizedSlippage(0.4)).toBe("Received as expected");
   });
 
   it("says nothing when the provider reported nothing", () => {
