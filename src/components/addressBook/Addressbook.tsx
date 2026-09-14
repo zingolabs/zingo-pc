@@ -21,10 +21,10 @@ type AddressBookProps = {
 
 const AddressBook: React.FC<AddressBookProps> = (props) => {
   const context = useContext(ContextApp);
-  const { addressBook, currentWallet, addLabelState, setAddLabel, openConfirmModal } = context;
+  const { addressBook, currentWallet, openConfirmModal } = context;
 
-  const [currentLabel, setCurrentLabel] = useState<string>(addLabelState.label);
-  const [currentAddress, setCurrentAddress] = useState<string>(addLabelState.address);
+  const [currentLabel, setCurrentLabel] = useState<string>("");
+  const [currentAddress, setCurrentAddress] = useState<string>("");
   const [addButtonEnabled, setAddButtonEnabled] = useState<boolean>(false);
   const [labelError, setLabelError] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
@@ -241,7 +241,6 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     setIsZns(false);
     setSwapChain(ZEC_SWAP_CHAIN);
     setPossibleChains([ZEC_SWAP_CHAIN]);
-    setAddLabel(new AddressBookEntryClass("", ""));
   };
 
   return (

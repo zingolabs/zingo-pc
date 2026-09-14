@@ -130,15 +130,20 @@ describe("VtModal", () => {
     expect(screen.getByText(/View TXID/)).toBeInTheDocument();
   });
 
-  it("triggers Add Label flow when label is empty", () => {
+  // Named in place, as every other screen saves a contact, not on the Address
+  // Book screen.
+  it("saves a contact from Add Label without leaving the detail", async () => {
     const vt = makeVt({ address: "u1noLabel" });
-    const setAddLabel = jest.fn();
+    const addAddressBookEntry = jest.fn();
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
-      contextOverrides: { valueTransfers: [vt], setAddLabel },
+      contextOverrides: { valueTransfers: [vt], addAddressBookEntry, currentWallet: mainnetWallet },
     });
     fireEvent.click(screen.getByRole("button", { name: /Add Label/i }));
-    expect(setAddLabel).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith(routes.ADDRESSBOOK);
+    fireEvent.change(await screen.findByRole("textbox", { name: /name/i }), { target: { value: "Bob" } });
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "u1noLabel", ServerChainNameEnum.mainChainName, "ZEC");
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it("hides 'Add Label' when an address-book label exists", () => {

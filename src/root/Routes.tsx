@@ -16,7 +16,6 @@ import {
   SendPageStateClass,
   ToAddrClass,
   InfoClass,
-  AddressBookEntryClass,
   FetchErrorTypeClass,
   UnifiedAddressClass,
   TransparentAddressClass,
@@ -86,7 +85,6 @@ const AppRoutes: React.FC = () => {
   const [orchardPool, setOrchardPoolState] = useState(defaultAppState.orchardPool);
   const [saplingPool, setSaplingPoolState] = useState(defaultAppState.saplingPool);
   const [transparentPool, setTransparentPoolState] = useState(defaultAppState.transparentPool);
-  const [addLabelState, setAddLabelStateState] = useState(defaultAppState.addLabelState);
   const [errorModal, setErrorModalState] = useState(defaultAppState.errorModal);
   const [confirmModal, setConfirmModalState] = useState(defaultAppState.confirmModal);
   const [locked, setLocked] = useState(false);
@@ -559,10 +557,6 @@ const AppRoutes: React.FC = () => {
     [],
   );
 
-  const setAddLabel = useCallback((ab: AddressBookEntryClass): void => {
-    setAddLabelStateState(ab);
-  }, []);
-
   const calculateShieldFee = useCallback(async (): Promise<number> => {
     try {
       const result: string = await native.shield();
@@ -673,7 +667,6 @@ const AppRoutes: React.FC = () => {
       orchardPool,
       saplingPool,
       transparentPool,
-      addLabelState,
       swapToState,
       errorModal,
       confirmModal,
@@ -685,7 +678,7 @@ const AppRoutes: React.FC = () => {
       setSwapTo,
       calculateShieldFee,
       handleShieldButton,
-      setAddLabel,
+      addAddressBookEntry,
       zecPrice,
       mixnetView,
       serverHealth,
@@ -724,7 +717,6 @@ const AppRoutes: React.FC = () => {
       orchardPool,
       saplingPool,
       transparentPool,
-      addLabelState,
       swapToState,
       errorModal,
       confirmModal,
@@ -736,7 +728,7 @@ const AppRoutes: React.FC = () => {
       setSwapTo,
       calculateShieldFee,
       handleShieldButton,
-      setAddLabel,
+      addAddressBookEntry,
       zecPrice,
       mixnetView,
       serverHealth,

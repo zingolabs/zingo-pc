@@ -16,6 +16,7 @@ import { ZcashURITarget } from "../../utils/uris";
 import { WalletType } from "./types/WalletType";
 import { BlockExplorerEnum } from "./enums/BlockExplorerEnum";
 import { ServerSelectionEnum } from "./enums/ServerSelectionEnum";
+import type { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
 
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
@@ -74,8 +75,6 @@ export default class AppState {
   saplingPool: boolean;
   transparentPool: boolean;
 
-  // The state of the Address Book Screen, as the user create a new label
-  addLabelState: AddressBookEntryClass;
   // A contact the user chose to swap to, handed from the Address Book to the
   // Swap screen. Null once the screen has consumed it, so returning to Swap
   // later does not silently refill a field the user cleared.
@@ -97,7 +96,10 @@ export default class AppState {
   setSendTo: (t: ZcashURITarget | ZcashURITarget[]) => void;
   calculateShieldFee: () => Promise<number>;
   handleShieldButton: () => void;
-  setAddLabel: (a: AddressBookEntryClass) => void;
+  // Files a contact. Every screen that saves one asks for its name in place,
+  // with the Save contact dialog, rather than sending the user to the Address
+  // Book.
+  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
   setSwapTo: (t: { address: string; swapChain: string; direction: SwapDirectionEnum } | null) => void;
 
   // Current USD price per ZEC. Fetched by RPC.getZecPrice on the 5s
@@ -155,7 +157,6 @@ export default class AppState {
     this.orchardPool = true;
     this.saplingPool = true;
     this.transparentPool = true;
-    this.addLabelState = new AddressBookEntryClass("", "");
     this.swapToState = null;
     this.openErrorModal = () => {};
     this.closeErrorModal = () => {};
@@ -164,7 +165,7 @@ export default class AppState {
     this.setSendTo = () => {};
     this.calculateShieldFee = async () => 0;
     this.handleShieldButton = () => {};
-    this.setAddLabel = () => {};
+    this.addAddressBookEntry = () => {};
     this.setSwapTo = () => {};
     this.zecPrice = 0;
     this.mixnetView = UNKNOWN_MIXNET_VIEW;

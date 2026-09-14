@@ -147,11 +147,9 @@ describe("AddressBook", () => {
   });
 
   it("clears the form when Clear is clicked", async () => {
-    const setAddLabel = jest.fn();
-    render(<AddressBook {...baseProps} />, { contextOverrides: { setAddLabel } });
+    render(<AddressBook {...baseProps} />);
     fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "X" } });
     fireEvent.click(screen.getByRole("button", { name: /clear/i }));
-    expect(setAddLabel).toHaveBeenCalled();
     expect((screen.getByRole("textbox", { name: /label/i }) as HTMLInputElement).value).toBe("");
   });
 
