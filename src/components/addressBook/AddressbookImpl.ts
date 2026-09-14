@@ -1,9 +1,15 @@
 import path from "path";
 import { AddressBookEntryClass, ServerChainNameEnum, ZEC_SWAP_CHAIN } from "../appstate";
 import Utils from "../../utils/utils";
-import { isZnsAlias } from "../../utils/zns";
-
+import { extractZnsName, isZnsAlias, labelWithZnsAlias, resolveZnsAlias } from "../../utils/zns";
+import type { ZnsResolveResult } from "../../utils/zns";
 import { ipcRenderer, fs } from "../../electronBridge";
+
+/** How long one ZNS lookup may take during the startup migration. */
+const ZNS_MIGRATION_TIMEOUT_MS = 8000;
+
+/** A resolution keyed by network and bare name, so `.zcash` and `.zec` meet. */
+const znsKey = (chain: string | undefined, alias: string): string => `${chain ?? ""}:${extractZnsName(alias) ?? ""}`;
 
 // Utility class to save / read the address book.
 export default class AddressbookImpl {
@@ -87,6 +93,119 @@ export default class AddressbookImpl {
   }
 
   // Read the address book
+  /**
+   * Resolve the ZNS aliases still stored as contact addresses.
+   *
+   * Contacts used to store the alias itself, and every screen that labels a
+   * transaction looks the label up by address, so a transaction to the
+   * address a contact's alias resolves to showed no name. This is the lookup
+   * half of moving those contacts to the address; `migrateZnsAliases` is the
+   * other.
+   *
+   * Each name is asked once, however many contacts use it, and all of them at
+   * the same time, each bounded, so a slow or unreachable resolver costs the
+   * migration a few seconds at most. A name that does not resolve is simply
+   * absent from the result: its contact stays as it is and is tried again at
+   * the next start.
+   */
+  static async resolveStoredZnsAliases(
+    entries: AddressBookEntryClass[],
+    resolve: (alias: string, chain: ServerChainNameEnum) => Promise<ZnsResolveResult> = resolveZnsAlias,
+    timeoutMs: number = ZNS_MIGRATION_TIMEOUT_MS,
+  ): Promise<Map<string, string>> {
+    const pending = new Map<string, { alias: string; chain: ServerChainNameEnum }>();
+    for (const entry of entries) {
+      if (!entry.chain || (entry.swapChain ?? ZEC_SWAP_CHAIN) !== ZEC_SWAP_CHAIN || !isZnsAlias(entry.address)) {
+        continue;
+      }
+      const key = znsKey(entry.chain, entry.address);
+      if (!pending.has(key)) pending.set(key, { alias: entry.address, chain: entry.chain });
+    }
+
+    const resolved = new Map<string, string>();
+    await Promise.all(
+      [...pending].map(async ([key, { alias, chain }]) => {
+        const timeout = new Promise<null>((done) => setTimeout(() => done(null), timeoutMs));
+        try {
+          const result = await Promise.race([resolve(alias, chain), timeout]);
+          if (result && result.ok) resolved.set(key, result.address);
+        } catch (err) {
+          console.log(`address book: resolving ${alias} failed`, err);
+        }
+      }),
+    );
+    return resolved;
+  }
+
+  /**
+   * Contacts stored as a ZNS alias, rewritten to the address the alias
+   * resolved to, with the alias kept at the end of the label.
+   *
+   * A contact whose alias is missing from `resolved` is left as it is. When
+   * the address is already another contact on the same network, the alias
+   * contact is folded into that one, which takes the alias into its label,
+   * rather than leaving two contacts with one address: labels are looked up
+   * by address, and the book removes a contact by label.
+   *
+   * Pure, and idempotent: a second run finds no aliases and changes nothing.
+   */
+  static migrateZnsAliases(
+    entries: AddressBookEntryClass[],
+    resolved: Map<string, string>,
+  ): { migrated: AddressBookEntryClass[]; changed: boolean } {
+    const addressKey = (chain: string | undefined, address: string) => `${chain ?? ""}|${address}`;
+    const target = (entry: AddressBookEntryClass): string | undefined =>
+      (entry.swapChain ?? ZEC_SWAP_CHAIN) === ZEC_SWAP_CHAIN && isZnsAlias(entry.address)
+        ? resolved.get(znsKey(entry.chain, entry.address))
+        : undefined;
+
+    // Aliases waiting for a contact that already holds their address, by that
+    // contact's network and address.
+    const existing = new Set(entries.filter((e) => !isZnsAlias(e.address)).map((e) => addressKey(e.chain, e.address)));
+    const folded = new Map<string, string[]>();
+    for (const entry of entries) {
+      const address = target(entry);
+      if (!address) continue;
+      const key = addressKey(entry.chain, address);
+      if (existing.has(key)) folded.set(key, [...(folded.get(key) ?? []), entry.address]);
+    }
+
+    let changed = false;
+    const migrated: AddressBookEntryClass[] = [];
+    const placed = new Map<string, AddressBookEntryClass>();
+    for (const entry of entries) {
+      const address = target(entry);
+      if (!address) {
+        const aliases = isZnsAlias(entry.address) ? [] : (folded.get(addressKey(entry.chain, entry.address)) ?? []);
+        const label = aliases.reduce((acc, alias) => labelWithZnsAlias(acc, alias), entry.label);
+        if (label !== entry.label) changed = true;
+        const kept = new AddressBookEntryClass(label, entry.address, entry.chain, entry.swapChain);
+        if (!isZnsAlias(entry.address)) placed.set(addressKey(entry.chain, entry.address), kept);
+        migrated.push(kept);
+        continue;
+      }
+
+      changed = true;
+      const key = addressKey(entry.chain, address);
+      if (existing.has(key)) continue; // folded into the contact that holds it
+      const earlier = placed.get(key);
+      if (earlier) {
+        // Two aliases for one address: the first became the contact.
+        earlier.label = labelWithZnsAlias(earlier.label, entry.address);
+        continue;
+      }
+      const moved = new AddressBookEntryClass(
+        labelWithZnsAlias(entry.label, entry.address),
+        address,
+        entry.chain,
+        entry.swapChain,
+      );
+      placed.set(key, moved);
+      migrated.push(moved);
+    }
+    return { migrated, changed };
+  }
+
   static async readAddressBook(): Promise<AddressBookEntryClass[]> {
     const fileName: string = await this.getFileName();
 

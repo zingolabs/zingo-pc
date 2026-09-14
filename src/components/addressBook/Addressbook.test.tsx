@@ -177,6 +177,33 @@ describe("AddressBook", () => {
     expect(await screen.findByText("ZNS")).toBeInTheDocument();
   });
 
+  // History labels a transaction by address, and an alias never matched one.
+  it("saves a ZNS alias as the address it resolves to, with the alias in the label", async () => {
+    mockResolveImpl = async () => ({ ok: true, address: "u1resolved" });
+    const addAddressBookEntry = jest.fn();
+    render(<AddressBook {...baseProps} addAddressBookEntry={addAddressBookEntry} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Pepe" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "pepe.zec" } });
+    await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+    fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+    await waitFor(() =>
+      expect(addAddressBookEntry).toHaveBeenCalledWith(
+        "Pepe (pepe.zec)",
+        "u1resolved",
+        ServerChainNameEnum.mainChainName,
+        "ZEC",
+      ),
+    );
+  });
+
+  it("refuses a ZNS alias whose address is already a contact", async () => {
+    mockResolveImpl = async () => ({ ok: true, address: "u1resolved" });
+    const existing = new AddressBookEntryClass("Pepe", "u1resolved", ServerChainNameEnum.mainChainName, "ZEC");
+    render(<AddressBook {...baseProps} />, { contextOverrides: { addressBook: [existing] } });
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "pepe.zec" } });
+    expect(await screen.findByText(/Duplicate Address/i)).toBeInTheDocument();
+  });
+
   it("shows 'ZNS name not found' when alias does not resolve", async () => {
     mockResolveImpl = async () => ({ ok: false, reason: "not-found" });
     render(<AddressBook {...baseProps} />);

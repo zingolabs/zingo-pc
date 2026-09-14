@@ -249,6 +249,25 @@ const AppRoutes: React.FC = () => {
       const book = await AddressbookImpl.readAddressBook();
       if (book && book.length > 0) setAddressBookState(book);
 
+      // Contacts saved as a ZNS alias move to the address it resolves to, so
+      // the screens that label transactions by address recognise them. Not
+      // awaited: startup must not wait on a resolver over the network. The
+      // result is applied to the book as it is by then, so a contact added in
+      // the meantime is kept; a name that does not resolve is tried next start.
+      AddressbookImpl.resolveStoredZnsAliases(book)
+        .then((resolved) => {
+          if (resolved.size === 0) return;
+          setAddressBookState((prev) => {
+            const { migrated, changed } = AddressbookImpl.migrateZnsAliases(prev, resolved);
+            if (!changed) return prev;
+            AddressbookImpl.writeAddressBook(migrated).catch((err) =>
+              console.error("address book ZNS migration write failed", err),
+            );
+            return migrated;
+          });
+        })
+        .catch((err) => console.log("address book ZNS migration failed", err));
+
       const [allSettings, authAvailability] = await Promise.all([
         ipcRenderer.invoke("loadSettings"),
         ipcRenderer.invoke("auth:check"),

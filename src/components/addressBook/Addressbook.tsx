@@ -10,7 +10,7 @@ import { ChainBadge } from "../common/ChainBadge";
 import Utils from "../../utils/utils";
 import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
-import { isSameZnsAlias, isZnsAlias, resolveZnsAlias } from "../../utils/zns";
+import { isSameZnsAlias, isZnsAlias, labelWithZnsAlias, resolveZnsAlias } from "../../utils/zns";
 import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
 import { chainDisplayName } from "../swap/chainDisplayName";
 
@@ -119,6 +119,25 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       clearFields();
     };
 
+    // A ZNS alias is saved as the address it resolves to, with the alias kept
+    // in the label. The screens that label a transaction look it up by
+    // address, and an alias never matched one. Validation has just resolved
+    // it, so this reads the cache rather than the network.
+    if (isZns) {
+      void (async () => {
+        const result = await resolveZnsAlias(currentAddress, currentChain);
+        if (!result.ok) return;
+        addAddressBookEntry(
+          labelWithZnsAlias(currentLabel, currentAddress),
+          result.address,
+          currentChain,
+          ZEC_SWAP_CHAIN,
+        );
+        clearFields();
+      })();
+      return;
+    }
+
     // A Zcash address was parsed, so its chain is known rather than guessed.
     if (swapChain === ZEC_SWAP_CHAIN) {
       commit();
@@ -171,8 +190,8 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     }
 
     // Branch A: ZNS alias like "alice.zcash" — accept iff it resolves on the
-    // current network. We store the alias itself (not the resolved UA) so the
-    // contact re-resolves every time it's used.
+    // current network. Saving stores the address it resolves to, with the alias
+    // in the label, so it is a duplicate of a contact holding that address too.
     if (isZnsAlias(_currentAddress)) {
       const result = await resolveZnsAlias(_currentAddress, chain);
       if (!result.ok) {
@@ -188,7 +207,10 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       }
       // By the name, not the text: the same registration reached through the
       // other suffix is the same contact.
-      const dup = addressBook.find((i: AddressBookEntryClass) => isSameZnsAlias(i.address, _currentAddress));
+      const dup = addressBook.find(
+        (i: AddressBookEntryClass) =>
+          isSameZnsAlias(i.address, _currentAddress) || (i.address === result.address && i.chain === chain),
+      );
       return { _addressError: dup ? "Duplicate Address" : null, _addressKind: undefined, _isZns: true };
     }
 

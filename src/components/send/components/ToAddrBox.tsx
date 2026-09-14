@@ -6,7 +6,7 @@ import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum, ToAddrClas
 import Utils from "../../../utils/utils";
 import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
 import { ContextApp } from "../../../context/ContextAppState";
-import { isSameZnsAlias, isZnsAlias, extractZnsName, resolveZnsAlias } from "../../../utils/zns";
+import { isSameZnsAlias, isZnsAlias, extractZnsName, labelWithZnsAlias, resolveZnsAlias } from "../../../utils/zns";
 import { shell } from "../../../electronBridge";
 import ContactPicker from "../../common/ContactPicker";
 import SaveContact from "../../common/SaveContact";
@@ -257,11 +257,14 @@ const ToAddrBox = ({
   const contactLabel = getContactLabel(toLocal);
   // Matched by the name rather than the text typed, so a contact saved as
   // "pepe.zcash" is still recognised when the user writes "pepe.zec".
+  // A contact now holds the address the alias resolved to, so that is matched
+  // too; an older contact that still holds the alias matches by name.
   const znsIsContact = addressBook.some(
-    (ab: AddressBookEntryClass) => isSameZnsAlias(ab.address, znsAlias) && ab.chain === serverChainName,
+    (ab: AddressBookEntryClass) =>
+      ab.chain === serverChainName && (isSameZnsAlias(ab.address, znsAlias) || (!!toLocal && ab.address === toLocal)),
   );
-  // A ZNS alias is saved as the alias rather than the address it resolves to,
-  // so the contact re-resolves every time it is used.
+  // Shown as the alias the user typed; saved as the address it resolved to,
+  // with the alias in the label (see `onSave` below).
   const saveTarget = znsAlias || (addressIsValid === 1 ? toLocal : "");
   const canSave = !!saveTarget && !(znsAlias ? znsIsContact : !!contactLabel);
 
@@ -455,8 +458,8 @@ const ToAddrBox = ({
             // Address Book screen files a Zcash contact under.
             onSave={(label) =>
               addAddressBookEntry(
-                label,
-                saveTarget,
+                znsAlias ? labelWithZnsAlias(label, znsAlias) : label,
+                znsAlias ? toLocal : saveTarget,
                 serverChainName || ServerChainNameEnum.mainChainName,
                 ZEC_SWAP_CHAIN,
               )

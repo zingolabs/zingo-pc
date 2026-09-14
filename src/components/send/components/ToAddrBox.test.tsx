@@ -196,7 +196,9 @@ describe("ToAddrBox", () => {
 
   // The alias is stored, not the address it resolves to, so the contact
   // re-resolves every time it is used.
-  it("saves a ZNS alias under the name given, without leaving the screen", async () => {
+  // Saved as the address the alias resolved to, so History recognises the
+  // transactions to it; the alias goes at the end of the name.
+  it("saves a ZNS alias as its address, with the alias in the name, without leaving the screen", async () => {
     const addAddressBookEntry = jest.fn();
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
     render(<ToAddrBox {...makeProps({ toaddr, addAddressBookEntry })} />);
@@ -205,13 +207,26 @@ describe("ToAddrBox", () => {
     fireEvent.change(await screen.findByRole("textbox", { name: /name/i }), { target: { value: "Alice" } });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
-    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "alice.zcash", ServerChainNameEnum.mainChainName, "ZEC");
+    expect(addAddressBookEntry).toHaveBeenCalledWith(
+      "Alice (alice.zcash)",
+      "u1resolved",
+      ServerChainNameEnum.mainChainName,
+      "ZEC",
+    );
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it("renders 'Contact & ZNS: ...' when the alias already matches an existing contact", async () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
     const ab = new AddressBookEntryClass("Alice ZNS", "alice.zcash");
+    ab.chain = ServerChainNameEnum.mainChainName;
+    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
+    expect(screen.getByText(/Contact & ZNS: alice\.zcash/)).toBeInTheDocument();
+  });
+
+  it("renders 'Contact & ZNS: ...' when a contact holds the address the alias resolved to", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    const ab = new AddressBookEntryClass("Alice (alice.zcash)", "u1resolved");
     ab.chain = ServerChainNameEnum.mainChainName;
     render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
     expect(screen.getByText(/Contact & ZNS: alice\.zcash/)).toBeInTheDocument();
