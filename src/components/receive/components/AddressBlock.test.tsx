@@ -3,6 +3,7 @@ import { Accordion } from "react-accessible-accordion";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../../test-utils";
 import AddressBlock from "./AddressBlock";
+import Utils from "../../../utils/utils";
 import {
   UnifiedAddressClass,
   TransparentAddressClass,
@@ -59,7 +60,7 @@ beforeEach(() => {
 describe("AddressBlock — Unified", () => {
   it("renders the address in the accordion header", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />);
-    expect(screen.getByText("u1shortaddr000000000000000")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "u1shortaddr000000000000000" })).toBeInTheDocument();
   });
 
   it("splits long unified addresses into multiple chunks in the header", () => {
@@ -69,9 +70,22 @@ describe("AddressBlock — Unified", () => {
     expect(screen.getByText("Address type: Orchard (Ironwood) + Sapling + Transparent")).toBeInTheDocument();
   });
 
+  // Open, the whole address sits in the column beside the QR code and the
+  // header keeps one line, so the code is not pushed down by it.
+  it("moves the whole address beside the QR code when open, shortening the header", () => {
+    renderInAccordion(<AddressBlock {...baseProps} address={longUAddr} type="u" />);
+    const header = screen.getAllByRole("button")[0];
+    expect(header.textContent).toBe(longUAddr.encoded_address);
+
+    fireEvent.click(header);
+
+    expect(header.textContent).toBe(Utils.trimToSmall(longUAddr.encoded_address, 10));
+    expect(screen.getByText("Address")).toBeInTheDocument();
+  });
+
   it("copies the address to the clipboard and shows 'Copied!'", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />);
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
     fireEvent.click(screen.getByRole("button", { name: /copy address/i }));
     expect(clipboard.writeText).toHaveBeenCalledWith("u1shortaddr000000000000000");
     expect(screen.getByRole("button", { name: /copied/i })).toBeInTheDocument();
@@ -79,14 +93,14 @@ describe("AddressBlock — Unified", () => {
 
   it("creates a new unified address via RPC", async () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />);
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
     fireEvent.click(screen.getByRole("button", { name: /new address/i }));
     expect(RPC.createNewAddressUnified).toHaveBeenCalledWith("o");
   });
 
   it("respects unified create type selector (z option)", async () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />);
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
     fireEvent.change(screen.getByRole("combobox", { name: /new address type/i }), { target: { value: "z" } });
     fireEvent.click(screen.getByRole("button", { name: /new address/i }));
     expect(RPC.createNewAddressUnified).toHaveBeenCalledWith("z");
@@ -98,7 +112,7 @@ describe("AddressBlock — Unified", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />, {
       contextOverrides: { openErrorModal },
     });
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
     fireEvent.click(screen.getByRole("button", { name: /new address/i }));
     await waitFor(() => expect(openErrorModal).toHaveBeenCalledWith("New Address", "Error: rate limit"));
   });
@@ -107,7 +121,7 @@ describe("AddressBlock — Unified", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />, {
       contextOverrides: { currentWallet: regtestWallet },
     });
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
     expect(screen.queryByRole("button", { name: /view on explorer/i })).not.toBeInTheDocument();
   });
 
@@ -115,7 +129,7 @@ describe("AddressBlock — Unified", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />, {
       contextOverrides: { currentWallet: mainnetWallet },
     });
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
     expect(screen.getByRole("button", { name: /view on explorer/i })).toBeInTheDocument();
   });
 
@@ -123,13 +137,13 @@ describe("AddressBlock — Unified", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />, {
       contextOverrides: { currentWallet: testnetWallet },
     });
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
     expect(screen.getByRole("button", { name: /view on explorer/i })).toBeInTheDocument();
   });
 
   it("shows the optional label when provided", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" label="My savings" />);
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
     expect(screen.getByText("My savings")).toBeInTheDocument();
   });
 
@@ -138,7 +152,7 @@ describe("AddressBlock — Unified", () => {
     HTMLCanvasElement.prototype.toDataURL = jest.fn(() => "data:image/png;base64,abc");
     const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
     renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />);
-    fireEvent.click(screen.getByText("u1shortaddr000000000000000"));
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
     fireEvent.click(screen.getByRole("button", { name: /download qr code/i }));
     expect(clickSpy).toHaveBeenCalled();
     clickSpy.mockRestore();
@@ -148,18 +162,18 @@ describe("AddressBlock — Unified", () => {
 describe("AddressBlock — Transparent", () => {
   it("renders the transparent address in the header", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />);
-    expect(screen.getByText("t1shortaddr")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "t1shortaddr" })).toBeInTheDocument();
   });
 
   it("shows 'Address type: Transparent' when expanded", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />);
-    fireEvent.click(screen.getByText("t1shortaddr"));
+    fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
     expect(screen.getByText("Address type: Transparent")).toBeInTheDocument();
   });
 
   it("creates a new transparent address via RPC", async () => {
     renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />);
-    fireEvent.click(screen.getByText("t1shortaddr"));
+    fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
     fireEvent.click(screen.getByRole("button", { name: /new address/i }));
     expect(RPC.createNewAddressTransparent).toHaveBeenCalled();
   });
@@ -178,7 +192,7 @@ describe("AddressBlock — Transparent", () => {
       />,
       { contextOverrides: { totalBalance, currentWallet: mainnetWallet } },
     );
-    fireEvent.click(screen.getByText("t1shortaddr"));
+    fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
     await waitFor(() => expect(calculateShieldFee).toHaveBeenCalled());
     const btn = await screen.findByRole("button", { name: /shield balance/i });
     fireEvent.click(btn);
@@ -190,7 +204,7 @@ describe("AddressBlock — Transparent", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />, {
       contextOverrides: { totalBalance, readOnly: true, currentWallet: mainnetWallet },
     });
-    fireEvent.click(screen.getByText("t1shortaddr"));
+    fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
     // Wait briefly to allow any effects to flush.
     await new Promise((r) => setTimeout(r, 30));
     expect(screen.queryByRole("button", { name: /shield balance/i })).not.toBeInTheDocument();
@@ -211,7 +225,7 @@ describe("AddressBlock — Transparent", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />, {
       contextOverrides: { totalBalance, valueTransfers: [pending], currentWallet: mainnetWallet },
     });
-    fireEvent.click(screen.getByText("t1shortaddr"));
+    fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
     expect(screen.queryByRole("button", { name: /shield balance/i })).not.toBeInTheDocument();
   });
 });

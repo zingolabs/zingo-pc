@@ -5,6 +5,7 @@ import {
   AccordionItemHeading,
   AccordionItemButton,
   AccordionItemPanel,
+  AccordionItemState,
 } from "react-accessible-accordion";
 import { QRCodeCanvas } from "qrcode.react";
 import styles from "../Receive.module.css";
@@ -122,21 +123,36 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     document.body.removeChild(downloadLink);
   };
 
+  const fullAddress: React.ReactNode =
+    !!address_address && address_address.length < 80
+      ? address_address
+      : Utils.splitStringIntoChunks(address_address, 3).map((item) => <div key={item}>{item}</div>);
+
   return (
     <div>
       <AccordionItem key={copied ? 1 : 0} className={styles.receiveblock} uuid={address_address}>
         <AccordionItemHeading>
           <AccordionItemButton className={cstyles.accordionHeader}>
-            <div className={cstyles.verticalflex}>
-              {!!address_address && address_address.length < 80
-                ? address_address
-                : Utils.splitStringIntoChunks(address_address, 3).map((item) => <div key={item}>{item}</div>)}
-            </div>
+            {/* Whole while folded, to tell the addresses apart. Open, the whole
+                address moves into the column beside the QR code, and the header
+                keeps one line: three lines of it here pushed the code down. */}
+            <AccordionItemState>
+              {({ expanded }) => (
+                <div className={cstyles.verticalflex}>
+                  {expanded ? Utils.trimToSmall(address_address, 10) : fullAddress}
+                </div>
+              )}
+            </AccordionItemState>
           </AccordionItemButton>
         </AccordionItemHeading>
         <AccordionItemPanel className={styles.receiveDetail}>
           <div className={cstyles.flexspacebetween}>
             <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`}>
+              <div>
+                <div className={cstyles.sublight}>Address</div>
+                <div className={`${cstyles.padtopsmall} ${cstyles.fixedfont}`}>{fullAddress}</div>
+              </div>
+
               {label && (
                 <div style={{ marginTop: 12 }}>
                   <div className={cstyles.sublight}>Label</div>
@@ -267,7 +283,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 </button>
               </div>
             </div>
-            <div style={{ marginRight: 10 }}>
+            <div style={{ marginRight: 10, alignSelf: "center" }}>
               <button
                 type="button"
                 aria-label="Download QR code"
