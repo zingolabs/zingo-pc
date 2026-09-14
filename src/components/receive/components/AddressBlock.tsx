@@ -133,15 +133,11 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
       <AccordionItem key={copied ? 1 : 0} className={styles.receiveblock} uuid={address_address}>
         <AccordionItemHeading>
           <AccordionItemButton className={cstyles.accordionHeader}>
-            {/* Whole while folded, to tell the addresses apart. Open, the whole
-                address moves into the column beside the QR code, and the header
-                keeps one line: three lines of it here pushed the code down. */}
+            {/* The address while folded, to tell the addresses apart. Open, it is
+                shown once, heading the column beside the QR code; opening
+                another address folds this one. */}
             <AccordionItemState>
-              {({ expanded }) => (
-                <div className={cstyles.verticalflex}>
-                  {expanded ? Utils.trimToSmall(address_address, 10) : fullAddress}
-                </div>
-              )}
+              {({ expanded }) => (expanded ? null : <div className={cstyles.verticalflex}>{fullAddress}</div>)}
             </AccordionItemState>
           </AccordionItemButton>
         </AccordionItemHeading>

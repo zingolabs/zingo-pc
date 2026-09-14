@@ -3,7 +3,6 @@ import { Accordion } from "react-accessible-accordion";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../../test-utils";
 import AddressBlock from "./AddressBlock";
-import Utils from "../../../utils/utils";
 import {
   UnifiedAddressClass,
   TransparentAddressClass,
@@ -70,16 +69,16 @@ describe("AddressBlock — Unified", () => {
     expect(screen.getByText("Address type: Orchard (Ironwood) + Sapling + Transparent")).toBeInTheDocument();
   });
 
-  // Open, the whole address sits in the column beside the QR code and the
-  // header keeps one line, so the code is not pushed down by it.
-  it("moves the whole address beside the QR code when open, shortening the header", () => {
+  // Open, the address sits in the column beside the QR code, once, and the
+  // header no longer pushes the code down.
+  it("moves the address beside the QR code when open, out of the header", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={longUAddr} type="u" />);
     const header = screen.getAllByRole("button")[0];
     expect(header.textContent).toBe(longUAddr.encoded_address);
 
     fireEvent.click(header);
 
-    expect(header.textContent).toBe(Utils.trimToSmall(longUAddr.encoded_address, 10));
+    expect(header.textContent).toBe("");
     expect(screen.getByText("Address")).toBeInTheDocument();
   });
 

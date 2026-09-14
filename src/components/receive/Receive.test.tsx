@@ -65,7 +65,7 @@ describe("Receive", () => {
       contextOverrides: { addressesTransparent: [ext, int] },
     });
     fireEvent.click(screen.getByRole("tab", { name: /transparent/i }));
-    expect(screen.getByRole("button", { name: "t1ext0000000" })).toBeInTheDocument();
+    expect(screen.getByText("t1ext0000000")).toBeInTheDocument();
     expect(screen.queryByText("t1int0000000")).not.toBeInTheDocument();
   });
 
@@ -125,8 +125,7 @@ describe("Receive", () => {
     render(<Receive />, {
       contextOverrides: { addressesUnified: [u1], addressBook: [ab] },
     });
-    // Expand the accordion entry
-    fireEvent.click(screen.getByRole("button", { name: "u1known" }));
+    // The first address opens by default.
     expect(screen.getByText("Dave")).toBeInTheDocument();
   });
 
