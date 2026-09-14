@@ -10,6 +10,8 @@ type SaveContactProps = {
   address: string;
   /** The chain it belongs to, in words. */
   chainLabel: string;
+  /** A name to propose, which the user can keep or change. */
+  initialLabel?: string;
   modalIsOpen: boolean;
   closeModal: () => void;
   onSave: (label: string) => void;
@@ -28,8 +30,15 @@ type SaveContactProps = {
  * question is a detour either way, and a contact should be saved the same way
  * wherever it is saved from.
  */
-const SaveContact: React.FC<SaveContactProps> = ({ address, chainLabel, modalIsOpen, closeModal, onSave }) => {
-  const [label, setLabel] = useState<string>("");
+const SaveContact: React.FC<SaveContactProps> = ({
+  address,
+  chainLabel,
+  initialLabel,
+  modalIsOpen,
+  closeModal,
+  onSave,
+}) => {
+  const [label, setLabel] = useState<string>(initialLabel ?? "");
   const trimmed = label.trim();
 
   const save = () => {

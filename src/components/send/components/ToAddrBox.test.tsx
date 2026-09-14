@@ -196,7 +196,27 @@ describe("ToAddrBox", () => {
 
   // The alias is stored, not the address it resolves to, so the contact
   // re-resolves every time it is used.
-  it("saves a ZNS alias under the name given, without leaving the screen", async () => {
+  // Saved as the address the alias resolved to, so History recognises the
+  // transactions to it; the alias is only proposed as the name.
+  it("offers the address a ZNS alias resolved to, with the alias as the proposed name", async () => {
+    const addAddressBookEntry = jest.fn();
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    render(<ToAddrBox {...makeProps({ toaddr, addAddressBookEntry })} />);
+
+    fireEvent.click(screen.getByLabelText(/Save as contact/i));
+    expect(await screen.findByRole("textbox", { name: /name/i })).toHaveValue("alice.zcash");
+    expect(screen.getByRole("dialog")).toHaveTextContent("u1resolved");
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(addAddressBookEntry).toHaveBeenCalledWith(
+      "alice.zcash",
+      "u1resolved",
+      ServerChainNameEnum.mainChainName,
+      "ZEC",
+    );
+  });
+
+  it("saves a ZNS contact under the name given instead, without leaving the screen", async () => {
     const addAddressBookEntry = jest.fn();
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
     render(<ToAddrBox {...makeProps({ toaddr, addAddressBookEntry })} />);
@@ -205,16 +225,33 @@ describe("ToAddrBox", () => {
     fireEvent.change(await screen.findByRole("textbox", { name: /name/i }), { target: { value: "Alice" } });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
-    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "alice.zcash", ServerChainNameEnum.mainChainName, "ZEC");
+    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "u1resolved", ServerChainNameEnum.mainChainName, "ZEC");
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it("renders 'Contact & ZNS: ...' when the alias already matches an existing contact", async () => {
+  it("shows only the contact when the address the alias resolved to is a contact", async () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
-    const ab = new AddressBookEntryClass("Alice ZNS", "alice.zcash");
+    const ab = new AddressBookEntryClass("Alice", "u1resolved");
     ab.chain = ServerChainNameEnum.mainChainName;
     render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
-    expect(screen.getByText(/Contact & ZNS: alice\.zcash/)).toBeInTheDocument();
+    expect(screen.getByText("Contact: Alice")).toBeInTheDocument();
+    expect(screen.queryByText(/alice\.zcash/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /zcashnames/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save as contact/i })).not.toBeInTheDocument();
+  });
+
+  it("shows only the contact when an older contact still holds the alias", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    const ab = new AddressBookEntryClass("Alice ZNS", "alice.zec");
+    ab.chain = ServerChainNameEnum.mainChainName;
+    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
+    expect(screen.getByText("Contact: Alice ZNS")).toBeInTheDocument();
+  });
+
+  it("shows the alias when the address it resolved to is not a contact", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
+    expect(screen.getByText("ZNS: alice.zcash")).toBeInTheDocument();
   });
 
   it("shows 'Contact: <label>' when address matches an address-book entry", async () => {

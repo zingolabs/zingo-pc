@@ -21,10 +21,10 @@ type AddressBookProps = {
 
 const AddressBook: React.FC<AddressBookProps> = (props) => {
   const context = useContext(ContextApp);
-  const { addressBook, currentWallet, addLabelState, setAddLabel, openConfirmModal } = context;
+  const { addressBook, currentWallet, openConfirmModal } = context;
 
-  const [currentLabel, setCurrentLabel] = useState<string>(addLabelState.label);
-  const [currentAddress, setCurrentAddress] = useState<string>(addLabelState.address);
+  const [currentLabel, setCurrentLabel] = useState<string>("");
+  const [currentAddress, setCurrentAddress] = useState<string>("");
   const [addButtonEnabled, setAddButtonEnabled] = useState<boolean>(false);
   const [labelError, setLabelError] = useState<string | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
@@ -44,15 +44,28 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     : ServerChainNameEnum.mainChainName;
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const { _labelError } = validateLabel(currentLabel);
-      const { _addressError, _addressKind, _isZns } = await validateAddress(currentAddress);
+      const { _addressError, _addressKind, _isZns, _resolvedAddress } = await validateAddress(currentAddress);
+      if (cancelled) return;
+      // A ZNS alias is filed under the address it resolves to, which is what
+      // History matches a transaction against, so that address replaces it
+      // in the field; the alias is proposed as the label, to keep or change.
+      if (_isZns && !_addressError && _resolvedAddress) {
+        if (currentLabel === "") setCurrentLabel(currentAddress.trim().toLowerCase());
+        setCurrentAddress(_resolvedAddress);
+        return;
+      }
       setLabelError(_labelError);
       setAddressError(_addressError);
       setAddressKind(_addressKind);
       setIsZns(_isZns);
       setAddButtonEnabled(!_labelError && !_addressError && currentLabel !== "" && currentAddress !== "");
     })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLabel, currentAddress, swapChain]);
 
@@ -171,8 +184,8 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     }
 
     // Branch A: ZNS alias like "alice.zcash" — accept iff it resolves on the
-    // current network. We store the alias itself (not the resolved UA) so the
-    // contact re-resolves every time it's used.
+    // current network. The field then takes the address it resolves to (see
+    // the effect above), so a contact holding that address is a duplicate too.
     if (isZnsAlias(_currentAddress)) {
       const result = await resolveZnsAlias(_currentAddress, chain);
       if (!result.ok) {
@@ -188,8 +201,16 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       }
       // By the name, not the text: the same registration reached through the
       // other suffix is the same contact.
-      const dup = addressBook.find((i: AddressBookEntryClass) => isSameZnsAlias(i.address, _currentAddress));
-      return { _addressError: dup ? "Duplicate Address" : null, _addressKind: undefined, _isZns: true };
+      const dup = addressBook.find(
+        (i: AddressBookEntryClass) =>
+          isSameZnsAlias(i.address, _currentAddress) || (i.address === result.address && i.chain === chain),
+      );
+      return {
+        _addressError: dup ? "Duplicate Address" : null,
+        _addressKind: undefined,
+        _isZns: true,
+        _resolvedAddress: result.address,
+      };
     }
 
     // Branch B: plain Zcash address — validate format against current network.
@@ -220,7 +241,6 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     setIsZns(false);
     setSwapChain(ZEC_SWAP_CHAIN);
     setPossibleChains([ZEC_SWAP_CHAIN]);
-    setAddLabel(new AddressBookEntryClass("", ""));
   };
 
   return (

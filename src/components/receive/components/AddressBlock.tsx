@@ -5,6 +5,7 @@ import {
   AccordionItemHeading,
   AccordionItemButton,
   AccordionItemPanel,
+  AccordionItemState,
 } from "react-accessible-accordion";
 import { QRCodeCanvas } from "qrcode.react";
 import styles from "../Receive.module.css";
@@ -122,21 +123,32 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     document.body.removeChild(downloadLink);
   };
 
+  const fullAddress: React.ReactNode =
+    !!address_address && address_address.length < 80
+      ? address_address
+      : Utils.splitStringIntoChunks(address_address, 3).map((item) => <div key={item}>{item}</div>);
+
   return (
     <div>
       <AccordionItem key={copied ? 1 : 0} className={styles.receiveblock} uuid={address_address}>
         <AccordionItemHeading>
           <AccordionItemButton className={cstyles.accordionHeader}>
-            <div className={cstyles.verticalflex}>
-              {!!address_address && address_address.length < 80
-                ? address_address
-                : Utils.splitStringIntoChunks(address_address, 3).map((item) => <div key={item}>{item}</div>)}
-            </div>
+            {/* The address while folded, to tell the addresses apart. Open, it is
+                shown once, heading the column beside the QR code; opening
+                another address folds this one. */}
+            <AccordionItemState>
+              {({ expanded }) => (expanded ? null : <div className={cstyles.verticalflex}>{fullAddress}</div>)}
+            </AccordionItemState>
           </AccordionItemButton>
         </AccordionItemHeading>
         <AccordionItemPanel className={styles.receiveDetail}>
           <div className={cstyles.flexspacebetween}>
             <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`}>
+              <div>
+                <div className={cstyles.sublight}>Address</div>
+                <div className={`${cstyles.padtopsmall} ${cstyles.fixedfont}`}>{fullAddress}</div>
+              </div>
+
               {label && (
                 <div style={{ marginTop: 12 }}>
                   <div className={cstyles.sublight}>Label</div>
@@ -213,21 +225,18 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     </>
                   )}
               </div>
+              {/* The same row for both kinds of address; a unified one adds the
+                  choice of receivers in front of the button. */}
               <div
-                className={type === "u" ? cstyles.margintoplarge : undefined}
-                style={{
-                  borderWidth: type === "u" ? 1 : 0,
-                  borderStyle: "solid",
-                  borderColor: "var(--color-primary)",
-                  paddingTop: 10,
-                  paddingBottom: 10,
-                }}
+                className={cstyles.margintoplarge}
+                style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
               >
                 {type === "u" && (
                   <select
                     aria-label="New address type"
                     className={cstyles.fieldselect}
-                    style={{ marginLeft: 10 }}
+                    // In line with the buttons above, which carry 8px each side.
+                    style={{ marginLeft: 8 }}
                     value={unifiedCreateType}
                     onChange={(e) => {
                       setUnifiedCreateType(e.target.value as "o" | "z" | "oz");
@@ -246,7 +255,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 )}
                 <button
                   disabled={creating}
-                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
+                  className={cstyles.primarybutton}
                   type="button"
                   onClick={async () => {
                     setCreating(true);
@@ -267,7 +276,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 </button>
               </div>
             </div>
-            <div style={{ marginRight: 10 }}>
+            <div style={{ marginRight: 10, alignSelf: "center" }}>
               <button
                 type="button"
                 aria-label="Download QR code"

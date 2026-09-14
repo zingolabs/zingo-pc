@@ -1,4 +1,11 @@
-import { isSameZnsAlias, isZnsAlias, extractZnsName, resolveZnsAlias, _clearZnsCacheForTests } from "./zns";
+import {
+  isSameZnsAlias,
+  isZnsAlias,
+  extractZnsName,
+  labelWithZnsAlias,
+  resolveZnsAlias,
+  _clearZnsCacheForTests,
+} from "./zns";
 import { ServerChainNameEnum } from "../components/appstate";
 
 jest.mock("../electronBridge");
@@ -47,6 +54,21 @@ describe("zns utility", () => {
       expect(extractZnsName("alice")).toBeNull();
       expect(extractZnsName("")).toBeNull();
       expect(extractZnsName("u1qq...fff")).toBeNull();
+    });
+  });
+
+  describe("labelWithZnsAlias", () => {
+    it("puts the alias at the end of the label, in parentheses", () => {
+      expect(labelWithZnsAlias("Pepe", "pepe.zec")).toBe("Pepe (pepe.zec)");
+    });
+
+    it("writes the alias in lower case, and trims both", () => {
+      expect(labelWithZnsAlias(" Pepe ", " Pepe.ZEC ")).toBe("Pepe (pepe.zec)");
+    });
+
+    // The migration runs at every start until it succeeds.
+    it("adds nothing when the label already ends with the alias", () => {
+      expect(labelWithZnsAlias("Pepe (pepe.zec)", "pepe.zec")).toBe("Pepe (pepe.zec)");
     });
   });
 

@@ -62,6 +62,21 @@ export function isSameZnsAlias(a: string, b: string): boolean {
   return name !== null && name === extractZnsName(b);
 }
 
+/**
+ * The label of a contact saved from a ZNS alias: the name the user gave it,
+ * then the alias in parentheses, as in "Pepe (pepe.zec)".
+ *
+ * A contact stores the address the alias resolved to, not the alias, so that
+ * History, Messages and Receive, which look a label up by address, recognise
+ * the transactions to it. The alias moves into the label so it is not lost.
+ * Adding one that is already there changes nothing.
+ */
+export function labelWithZnsAlias(label: string, alias: string): string {
+  const trimmed = label.trim();
+  const suffix = ` (${alias.trim().toLowerCase()})`;
+  return trimmed.toLowerCase().endsWith(suffix.toLowerCase()) ? trimmed : `${trimmed}${suffix}`;
+}
+
 /** Resolve a name (or a full alias like "alice.zcash") to a UA via the main-process IPC. */
 export async function resolveZnsAlias(aliasOrName: string, chain: ServerChainNameEnum | ""): Promise<ZnsResolveResult> {
   const bare = aliasOrName.includes(".") ? extractZnsName(aliasOrName) : aliasOrName.trim().toLowerCase();

@@ -125,8 +125,7 @@ describe("Receive", () => {
     render(<Receive />, {
       contextOverrides: { addressesUnified: [u1], addressBook: [ab] },
     });
-    // Expand the accordion entry
-    fireEvent.click(screen.getByText("u1known"));
+    // The first address opens by default.
     expect(screen.getByText("Dave")).toBeInTheDocument();
   });
 

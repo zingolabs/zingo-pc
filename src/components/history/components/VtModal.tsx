@@ -13,6 +13,7 @@ import {
   ValueTransferClass,
   ValueTransferKindEnum,
   ValueTransferStatusEnum,
+  ZEC_SWAP_CHAIN,
 } from "../../appstate";
 import Utils from "../../../utils/utils";
 import { ZcashURITarget } from "../../../utils/uris";
@@ -30,6 +31,7 @@ import { native } from "../../../electronBridge";
 import { useCopy } from "../../common/useCopy";
 import { Field, FieldRow } from "../../common/DetailField";
 import DetailNavigator from "./DetailNavigator";
+import SaveContact from "../../common/SaveContact";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
 // zingolib PR #2466 split a VT's single pool into two lists. A VT's identity
@@ -85,7 +87,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     setSendTo,
     openErrorModal,
     openConfirmModal,
-    setAddLabel,
+    addAddressBookEntry,
     currentWallet,
     blockExplorerMainnetTransaction,
     blockExplorerTestnetTransaction,
@@ -264,13 +266,9 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     navigate(routes.SEND);
   };
 
-  const addLabel = () => {
-    // first close the current modal
-    localCloseModal();
-
-    setAddLabel(new AddressBookEntryClass("", address ?? ""));
-    navigate(routes.ADDRESSBOOK);
-  };
+  // Named here, in the Save contact dialog, like everywhere else a contact is
+  // saved; the detail stays open and shows the name once it is filed.
+  const [saveContactOpen, setSaveContactOpen] = useState<boolean>(false);
 
   return (
     <Modal
@@ -557,7 +555,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
 
             {!label && (
               <div>
-                <button type="button" className={cstyles.primarybutton} onClick={() => addLabel()}>
+                <button type="button" className={cstyles.primarybutton} onClick={() => setSaveContactOpen(true)}>
                   Add Label
                 </button>
               </div>
@@ -619,6 +617,23 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
           </button>
         </div>
       </div>
+
+      {saveContactOpen && !!address && (
+        <SaveContact
+          address={address}
+          chainLabel={currencyName === "TAZ" ? "Testnet Zcash" : "Zcash"}
+          modalIsOpen={saveContactOpen}
+          closeModal={() => setSaveContactOpen(false)}
+          onSave={(name) =>
+            addAddressBookEntry(
+              name,
+              address,
+              currentWallet?.chain_name || ServerChainNameEnum.mainChainName,
+              ZEC_SWAP_CHAIN,
+            )
+          }
+        />
+      )}
     </Modal>
   );
 };
