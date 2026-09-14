@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../test-utils";
 import DepositSlip from "./DepositSlip";
 import { SwapDirectionEnum, SwapKitProviderEnum } from "../../swap";
@@ -91,14 +91,40 @@ describe("DepositSlip", () => {
     expect(screen.queryByText(/Send EXACTLY this amount/)).not.toBeInTheDocument();
   });
 
-  // The slip used to offer to hand the URI to the OS. The bridge only ever
-  // let `https://` through, so the button did nothing at all in a packaged
-  // build — and this test passed anyway, because it mocks the bridge above the
-  // allowlist that rejected it.
-  it("offers no button beside the QR", () => {
-    renderSlip({ provider: SwapKitProviderEnum.Near });
-    expect(screen.queryByText(/Open in a wallet/)).not.toBeInTheDocument();
-    expect(shell.openExternal).not.toHaveBeenCalled();
+  // On a desktop the other wallet is usually on the same computer, where the
+  // QR cannot be scanned.
+  describe("the payment link inside the QR", () => {
+    const LINK = "ethereum:0x1111111111111111111111111111111111111111@1?value=1000000000000000";
+
+    it("is copied whole", () => {
+      const { copy } = renderSlip({ provider: SwapKitProviderEnum.Near });
+      fireEvent.click(screen.getByRole("button", { name: "Copy payment link" }));
+      expect(copy).toHaveBeenCalledWith(LINK);
+    });
+
+    // Through its own channel, which main validates: the https-only one
+    // refused every payment link, so the button this replaces did nothing.
+    it("is opened through the payment-link channel, never openExternal", async () => {
+      renderSlip({ provider: SwapKitProviderEnum.Near });
+      fireEvent.click(screen.getByRole("button", { name: "Open in wallet" }));
+      await waitFor(() => expect(shell.openPaymentUri).toHaveBeenCalledWith(LINK));
+      expect(shell.openExternal).not.toHaveBeenCalled();
+    });
+
+    it("says so when no app on the computer opens it", async () => {
+      (shell.openPaymentUri as jest.Mock).mockResolvedValueOnce({ ok: false, reason: "no-handler" });
+      renderSlip({ provider: SwapKitProviderEnum.Near });
+      fireEvent.click(screen.getByRole("button", { name: "Open in wallet" }));
+      expect(await screen.findByText(/No app on this computer opens ethereum: links/)).toBeInTheDocument();
+    });
+
+    // A QR of the address alone adds nothing the address row does not.
+    it("is not offered when the QR holds only the address", () => {
+      renderSlip({ sellAsset: { ...BTC, swapKitId: "BTC.USDT-XYZ" }, depositAddress: "bc1qexample" });
+      expect(screen.getByText(/Scan to fill the deposit address/)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Copy payment link" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Open in wallet" })).not.toBeInTheDocument();
+    });
   });
 
   // A UTXO memo cannot ride in a BIP-21 URI, so there is deliberately no QR

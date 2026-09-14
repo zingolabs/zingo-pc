@@ -130,6 +130,7 @@ const ALLOWED_INVOKE = new Set([
   "fs:writeFile",
   "fs:readFile",
   "shell:openExternal",
+  "shell:openPaymentUri",
   "clipboard:writeText",
   "wallet-dir:change",
   "import:scan",
@@ -168,6 +169,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
         return ipcRenderer.invoke("shell:openExternal", url);
       }
     },
+    // A payment link for another wallet. Main validates the scheme and shape.
+    openPaymentUri: (uri) => ipcRenderer.invoke("shell:openPaymentUri", uri),
   },
 
   ipcRenderer: {
