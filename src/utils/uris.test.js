@@ -1,4 +1,5 @@
 import { parseZcashURI, parseZcashURITargets } from "./uris";
+import { buildPaymentRequestUri } from "./paymentRequest";
 import native from "../native.node";
 
 import serverUrisList from "./serverUrisList";
@@ -138,4 +139,26 @@ test("bad uris", async () => {
     "test",
   );
   expect(typeof error).toBe("string");
+});
+
+// A request this wallet builds has to read back as the same request, or the
+// other wallet fills in something other than what was asked for.
+test("a payment request reads back as the address, amount and memo it was built from", async () => {
+  const address = "ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez";
+  const memo = "Invoice 42 · café ✨";
+  const uri = buildPaymentRequestUri({ address, amount: "001.50000", memo });
+
+  expect(uri.startsWith(`zcash:${address}?amount=1.5&memo=`)).toBe(true);
+  const target = await parseZcashURI(uri, "test");
+  expect(target.address).toBe(address);
+  expect(target.amount).toBe(1.5);
+  expect(target.memoString).toBe(memo);
+});
+
+test("a payment request without a memo carries none", async () => {
+  const uri = buildPaymentRequestUri({ address: "tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU", amount: "0.25" });
+  expect(uri).toBe("zcash:tmEZhbWHTpdKMw5it8YDspUXSMGQyFwovpU?amount=0.25");
+  const target = await parseZcashURI(uri, "test");
+  expect(target.amount).toBe(0.25);
+  expect(target.memoString).toBeUndefined();
 });

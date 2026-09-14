@@ -158,6 +158,15 @@ describe("AddressBlock — Unified", () => {
   });
 });
 
+describe("AddressBlock — payment request", () => {
+  it("opens a payment request for the address", () => {
+    renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" />);
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
+    fireEvent.click(screen.getByRole("button", { name: "Payment request" }));
+    expect(screen.getByText("Amount (ZEC)")).toBeInTheDocument();
+  });
+});
+
 describe("AddressBlock — Transparent", () => {
   it("renders the transparent address in the header", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />);

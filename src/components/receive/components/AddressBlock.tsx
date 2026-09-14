@@ -21,8 +21,9 @@ import {
 } from "../../appstate";
 import RPC from "../../../rpc/rpc";
 
-import { ipcRenderer, isSandboxed } from "../../../electronBridge";
 import { useCopy } from "../../common/useCopy";
+import { downloadQrCanvas, qrFileName } from "../../common/downloadQr";
+import PaymentRequestModal from "./PaymentRequestModal";
 import { faExternalLinkSquareAlt, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -92,36 +93,12 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     }
   }, [calculateShieldFee, address, anyPending, readOnly, totalBalance.confirmedTransparentBalance, type]);
 
-  const handleQRCodeClick = async () => {
-    const canvas: HTMLCanvasElement | null = document.querySelector("canvas");
-    if (!canvas) return;
-    // Append the wallet alias so users with multiple wallets can tell the QR
-    // files apart at a glance. Strip filesystem-unfriendly characters.
-    const walletSuffix = currentWallet?.alias ? "_" + currentWallet.alias.replace(/[\\/:*?"<>|]/g, "_") : "";
-    const suggestedName = "QR_" + type + "_Zingo_PC" + walletSuffix + ".png";
+  // This block's own canvas. Looked up in the document, the first canvas on
+  // the screen was saved whichever address was clicked.
+  const qrCanvasRef = useRef<HTMLCanvasElement>(null);
+  const handleQRCodeClick = () => downloadQrCanvas(qrCanvasRef.current, qrFileName(type, currentWallet?.alias));
 
-    // MAS sandbox can't write to the Downloads folder without the
-    // `files.downloads.read-write` entitlement (which Apple flagged as unused
-    // under 2.4.5(i)). Route through the main-process save dialog instead —
-    // that uses the `files.user-selected.read-write` entitlement we already
-    // declare and lets the user pick any location.
-    if (isSandboxed) {
-      const dataUrl = canvas.toDataURL("image/png");
-      await ipcRenderer.invoke("save-png", { dataUrl, suggestedName });
-      return;
-    }
-
-    // Non-MAS builds (DMG / Linux / Windows) still use the native browser
-    // download flow — it lands in ~/Downloads (or the OS default) without a
-    // prompt, which is the long-standing UX.
-    const pngUrl = canvas.toDataURL("image/png").replace("image/png", "image/octet-stream");
-    let downloadLink = document.createElement("a");
-    downloadLink.href = pngUrl;
-    downloadLink.download = suggestedName;
-    document.body.appendChild(downloadLink);
-    downloadLink.click();
-    document.body.removeChild(downloadLink);
-  };
+  const [paymentRequestOpen, setPaymentRequestOpen] = useState<boolean>(false);
 
   const fullAddress: React.ReactNode =
     !!address_address && address_address.length < 80
@@ -187,6 +164,14 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   onClick={() => copy(address_address)}
                 >
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
+                </button>
+
+                <button
+                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
+                  type="button"
+                  onClick={() => setPaymentRequestOpen(true)}
+                >
+                  Payment request
                 </button>
 
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
@@ -286,6 +271,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 {/*
                 // @ts-ignore */}
                 <QRCodeCanvas
+                  ref={qrCanvasRef}
                   includeMargin={true}
                   size={300}
                   value={address_address}
@@ -306,6 +292,15 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
           </div>
         </AccordionItemPanel>
       </AccordionItem>
+      {paymentRequestOpen && (
+        <PaymentRequestModal
+          address={address_address}
+          allowsMemo={type === "u"}
+          currencyName={currencyName}
+          modalIsOpen={paymentRequestOpen}
+          closeModal={() => setPaymentRequestOpen(false)}
+        />
+      )}
       <div
         style={{
           height: 1,
