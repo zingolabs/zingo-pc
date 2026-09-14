@@ -10,7 +10,7 @@ import { ChainBadge } from "../common/ChainBadge";
 import Utils from "../../utils/utils";
 import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
-import { isSameZnsAlias, isZnsAlias, labelWithZnsAlias, resolveZnsAlias } from "../../utils/zns";
+import { isSameZnsAlias, isZnsAlias, resolveZnsAlias } from "../../utils/zns";
 import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
 import { chainDisplayName } from "../swap/chainDisplayName";
 
@@ -44,15 +44,28 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     : ServerChainNameEnum.mainChainName;
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const { _labelError } = validateLabel(currentLabel);
-      const { _addressError, _addressKind, _isZns } = await validateAddress(currentAddress);
+      const { _addressError, _addressKind, _isZns, _resolvedAddress } = await validateAddress(currentAddress);
+      if (cancelled) return;
+      // A ZNS alias is filed under the address it resolves to, which is what
+      // History matches a transaction against, so that address replaces it
+      // in the field; the alias is proposed as the label, to keep or change.
+      if (_isZns && !_addressError && _resolvedAddress) {
+        if (currentLabel === "") setCurrentLabel(currentAddress.trim().toLowerCase());
+        setCurrentAddress(_resolvedAddress);
+        return;
+      }
       setLabelError(_labelError);
       setAddressError(_addressError);
       setAddressKind(_addressKind);
       setIsZns(_isZns);
       setAddButtonEnabled(!_labelError && !_addressError && currentLabel !== "" && currentAddress !== "");
     })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentLabel, currentAddress, swapChain]);
 
@@ -119,25 +132,6 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       clearFields();
     };
 
-    // A ZNS alias is saved as the address it resolves to, with the alias kept
-    // in the label. The screens that label a transaction look it up by
-    // address, and an alias never matched one. Validation has just resolved
-    // it, so this reads the cache rather than the network.
-    if (isZns) {
-      void (async () => {
-        const result = await resolveZnsAlias(currentAddress, currentChain);
-        if (!result.ok) return;
-        addAddressBookEntry(
-          labelWithZnsAlias(currentLabel, currentAddress),
-          result.address,
-          currentChain,
-          ZEC_SWAP_CHAIN,
-        );
-        clearFields();
-      })();
-      return;
-    }
-
     // A Zcash address was parsed, so its chain is known rather than guessed.
     if (swapChain === ZEC_SWAP_CHAIN) {
       commit();
@@ -190,8 +184,8 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     }
 
     // Branch A: ZNS alias like "alice.zcash" — accept iff it resolves on the
-    // current network. Saving stores the address it resolves to, with the alias
-    // in the label, so it is a duplicate of a contact holding that address too.
+    // current network. The field then takes the address it resolves to (see
+    // the effect above), so a contact holding that address is a duplicate too.
     if (isZnsAlias(_currentAddress)) {
       const result = await resolveZnsAlias(_currentAddress, chain);
       if (!result.ok) {
@@ -211,7 +205,12 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
         (i: AddressBookEntryClass) =>
           isSameZnsAlias(i.address, _currentAddress) || (i.address === result.address && i.chain === chain),
       );
-      return { _addressError: dup ? "Duplicate Address" : null, _addressKind: undefined, _isZns: true };
+      return {
+        _addressError: dup ? "Duplicate Address" : null,
+        _addressKind: undefined,
+        _isZns: true,
+        _resolvedAddress: result.address,
+      };
     }
 
     // Branch B: plain Zcash address — validate format against current network.

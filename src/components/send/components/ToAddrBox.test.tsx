@@ -197,8 +197,26 @@ describe("ToAddrBox", () => {
   // The alias is stored, not the address it resolves to, so the contact
   // re-resolves every time it is used.
   // Saved as the address the alias resolved to, so History recognises the
-  // transactions to it; the alias goes at the end of the name.
-  it("saves a ZNS alias as its address, with the alias in the name, without leaving the screen", async () => {
+  // transactions to it; the alias is only proposed as the name.
+  it("offers the address a ZNS alias resolved to, with the alias as the proposed name", async () => {
+    const addAddressBookEntry = jest.fn();
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    render(<ToAddrBox {...makeProps({ toaddr, addAddressBookEntry })} />);
+
+    fireEvent.click(screen.getByLabelText(/Save as contact/i));
+    expect(await screen.findByRole("textbox", { name: /name/i })).toHaveValue("alice.zcash");
+    expect(screen.getByRole("dialog")).toHaveTextContent("u1resolved");
+    fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
+
+    expect(addAddressBookEntry).toHaveBeenCalledWith(
+      "alice.zcash",
+      "u1resolved",
+      ServerChainNameEnum.mainChainName,
+      "ZEC",
+    );
+  });
+
+  it("saves a ZNS contact under the name given instead, without leaving the screen", async () => {
     const addAddressBookEntry = jest.fn();
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
     render(<ToAddrBox {...makeProps({ toaddr, addAddressBookEntry })} />);
@@ -207,12 +225,7 @@ describe("ToAddrBox", () => {
     fireEvent.change(await screen.findByRole("textbox", { name: /name/i }), { target: { value: "Alice" } });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
-    expect(addAddressBookEntry).toHaveBeenCalledWith(
-      "Alice (alice.zcash)",
-      "u1resolved",
-      ServerChainNameEnum.mainChainName,
-      "ZEC",
-    );
+    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "u1resolved", ServerChainNameEnum.mainChainName, "ZEC");
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 

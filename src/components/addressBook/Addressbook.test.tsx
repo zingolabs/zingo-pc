@@ -170,30 +170,39 @@ describe("AddressBook", () => {
     expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "u1valid", ServerChainNameEnum.mainChainName, "ZEC");
   });
 
-  it("recognizes a ZNS alias as valid and shows the 'ZNS' tag", async () => {
-    mockResolveImpl = async () => ({ ok: true, address: "u1resolved" });
-    render(<AddressBook {...baseProps} />);
-    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "alice.zcash" } });
-    expect(await screen.findByText("ZNS")).toBeInTheDocument();
-  });
-
   // History labels a transaction by address, and an alias never matched one.
-  it("saves a ZNS alias as the address it resolves to, with the alias in the label", async () => {
+  it("replaces a ZNS alias with the address it resolves to, and proposes the alias as the label", async () => {
     mockResolveImpl = async () => ({ ok: true, address: "u1resolved" });
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
     const addAddressBookEntry = jest.fn();
     render(<AddressBook {...baseProps} addAddressBookEntry={addAddressBookEntry} />);
-    fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Pepe" } });
-    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "pepe.zec" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "Pepe.zec" } });
+
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("u1resolved"));
+    expect(screen.getByRole("textbox", { name: /label/i })).toHaveValue("pepe.zec");
     await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
-    await waitFor(() =>
-      expect(addAddressBookEntry).toHaveBeenCalledWith(
-        "Pepe (pepe.zec)",
-        "u1resolved",
-        ServerChainNameEnum.mainChainName,
-        "ZEC",
-      ),
+    expect(addAddressBookEntry).toHaveBeenCalledWith(
+      "pepe.zec",
+      "u1resolved",
+      ServerChainNameEnum.mainChainName,
+      "ZEC",
     );
+  });
+
+  it("keeps a label already typed when a ZNS alias resolves", async () => {
+    mockResolveImpl = async () => ({ ok: true, address: "u1resolved" });
+    (native.parse_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
+    );
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Pepe" } });
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "pepe.zec" } });
+
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("u1resolved"));
+    expect(screen.getByRole("textbox", { name: /label/i })).toHaveValue("Pepe");
   });
 
   it("refuses a ZNS alias whose address is already a contact", async () => {

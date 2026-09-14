@@ -6,7 +6,7 @@ import { AddressBookEntryClass, AddressKindEnum, ServerChainNameEnum, ToAddrClas
 import Utils from "../../../utils/utils";
 import ArrowUpLight from "../../../assets/img/arrow_up_dark.png";
 import { ContextApp } from "../../../context/ContextAppState";
-import { isSameZnsAlias, isZnsAlias, extractZnsName, labelWithZnsAlias, resolveZnsAlias } from "../../../utils/zns";
+import { isSameZnsAlias, isZnsAlias, extractZnsName, resolveZnsAlias } from "../../../utils/zns";
 import { shell } from "../../../electronBridge";
 import ContactPicker from "../../common/ContactPicker";
 import SaveContact from "../../common/SaveContact";
@@ -263,8 +263,8 @@ const ToAddrBox = ({
     (ab: AddressBookEntryClass) =>
       ab.chain === serverChainName && (isSameZnsAlias(ab.address, znsAlias) || (!!toLocal && ab.address === toLocal)),
   );
-  // Shown as the alias the user typed; saved as the address it resolved to,
-  // with the alias in the label (see `onSave` below).
+  // Saved as the address the alias resolved to, which History can match a
+  // transaction against; the alias is proposed as the name (see below).
   const saveTarget = znsAlias || (addressIsValid === 1 ? toLocal : "");
   const canSave = !!saveTarget && !(znsAlias ? znsIsContact : !!contactLabel);
 
@@ -450,7 +450,8 @@ const ToAddrBox = ({
 
         {saveContactOpen && (
           <SaveContact
-            address={saveTarget}
+            address={znsAlias ? toLocal : saveTarget}
+            initialLabel={znsAlias || undefined}
             chainLabel={zcashChainLabel}
             modalIsOpen={saveContactOpen}
             closeModal={() => setSaveContactOpen(false)}
@@ -458,7 +459,7 @@ const ToAddrBox = ({
             // Address Book screen files a Zcash contact under.
             onSave={(label) =>
               addAddressBookEntry(
-                znsAlias ? labelWithZnsAlias(label, znsAlias) : label,
+                label,
                 znsAlias ? toLocal : saveTarget,
                 serverChainName || ServerChainNameEnum.mainChainName,
                 ZEC_SWAP_CHAIN,
