@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "../../test-utils";
+import { fireEvent, render, screen } from "../../test-utils";
 import ScrollPaneTop from "./ScrollPane";
 
 describe("ScrollPane", () => {
@@ -35,5 +35,55 @@ describe("ScrollPane", () => {
     } finally {
       Object.defineProperty(window, "innerHeight", { configurable: true, value: original });
     }
+  });
+
+  describe("anchored to the bottom", () => {
+    // jsdom lays nothing out, so the element's scroll geometry is stated.
+    const geometry = (el: HTMLElement, g: { scrollHeight: number; clientHeight: number }) => {
+      let top = 0;
+      Object.defineProperty(el, "scrollHeight", { configurable: true, get: () => g.scrollHeight });
+      Object.defineProperty(el, "clientHeight", { configurable: true, get: () => g.clientHeight });
+      Object.defineProperty(el, "scrollTop", { configurable: true, get: () => top, set: (v: number) => (top = v) });
+    };
+
+    // The screen measures what sits above the pane after the first paint, and
+    // the pane shrinks: its end must not slide out of view.
+    it("stays at its end when it shrinks", () => {
+      const { rerender } = render(
+        <ScrollPaneTop offsetHeight={100} initialScrollType="bottom">
+          <span>last message</span>
+        </ScrollPaneTop>,
+      );
+      const pane = screen.getByText("last message").parentElement as HTMLDivElement;
+      geometry(pane, { scrollHeight: 2000, clientHeight: 500 });
+
+      rerender(
+        <ScrollPaneTop offsetHeight={180} initialScrollType="bottom">
+          <span>last message</span>
+        </ScrollPaneTop>,
+      );
+
+      expect(pane.scrollTop).toBe(2000);
+    });
+
+    it("leaves the position alone once the user has scrolled up", () => {
+      const { rerender } = render(
+        <ScrollPaneTop offsetHeight={100} initialScrollType="bottom">
+          <span>last message</span>
+        </ScrollPaneTop>,
+      );
+      const pane = screen.getByText("last message").parentElement as HTMLDivElement;
+      geometry(pane, { scrollHeight: 2000, clientHeight: 500 });
+      pane.scrollTop = 300;
+      fireEvent.scroll(pane);
+
+      rerender(
+        <ScrollPaneTop offsetHeight={180} initialScrollType="bottom">
+          <span>last message</span>
+        </ScrollPaneTop>,
+      );
+
+      expect(pane.scrollTop).toBe(300);
+    });
   });
 });

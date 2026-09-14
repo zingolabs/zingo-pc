@@ -3,6 +3,7 @@ import cstyles from "../common/Common.module.css";
 import styles from "./Messages.module.css";
 import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum, TotalBalanceClass } from "../appstate";
 import ScrollPaneBottom from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import MessagesItemBlock from "./components/MessagesItemBlock";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
@@ -28,6 +29,11 @@ const Messages: React.FC<MessagesProps> = () => {
     calculateShieldFee,
     zecPrice,
   } = context;
+
+  // Measured, as History measures its own: the fixed offset this pane had was
+  // shorter than what now sits above it, and the last message ran below the
+  // window.
+  const { paneRef, paneOffset } = usePaneOffset(203);
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
   const [valueTransferDetailIndex, setValueTransferDetailIndex] = useState<number>(-1);
@@ -168,42 +174,44 @@ const Messages: React.FC<MessagesProps> = () => {
 
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Messages</div>
 
-      <ScrollPaneBottom offsetHeight={203} initialScrollType="bottom">
-        {!messagesSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
+      <div ref={paneRef}>
+        <ScrollPaneBottom offsetHeight={paneOffset} initialScrollType="bottom">
+          {!messagesSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
-        {messagesSorted && messagesSorted.length === 0 && (
-          <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
-        )}
+          {messagesSorted && messagesSorted.length === 0 && (
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
+          )}
 
-        {messagesSorted && messagesSorted.length > 0 && isLoadMoreEnabled && (
-          <button
-            type="button"
-            style={{ marginLeft: "45%", width: "100px", marginTop: 15, marginBottom: 15 }}
-            className={cstyles.primarybutton}
-            onClick={show100MoreVtns}
-          >
-            Load more
-          </button>
-        )}
+          {messagesSorted && messagesSorted.length > 0 && isLoadMoreEnabled && (
+            <button
+              type="button"
+              style={{ marginLeft: "45%", width: "100px", marginTop: 15, marginBottom: 15 }}
+              className={cstyles.primarybutton}
+              onClick={show100MoreVtns}
+            >
+              Load more
+            </button>
+          )}
 
-        {messagesSorted &&
-          messagesSorted.length > 0 &&
-          messagesSorted.map((vt: ValueTransferClass, index: number) => {
-            return (
-              <MessagesItemBlock
-                index={index}
-                key={`${index}-${vt.type}-${vt.txid}`}
-                vt={vt}
-                setValueTransferDetail={(ttt: ValueTransferClass) => setValueTransferDetail(ttt)}
-                setValueTransferDetailIndex={(iii: number) => setValueTransferDetailIndex(iii)}
-                setModalIsOpen={(bbb: boolean) => setModalIsOpen(bbb)}
-                currencyName={info.currencyName}
-                addressBookMap={addressBookMap}
-                previousLineWithSameTxid={index === 0 ? false : messagesSorted[index - 1].txid === vt.txid}
-              />
-            );
-          })}
-      </ScrollPaneBottom>
+          {messagesSorted &&
+            messagesSorted.length > 0 &&
+            messagesSorted.map((vt: ValueTransferClass, index: number) => {
+              return (
+                <MessagesItemBlock
+                  index={index}
+                  key={`${index}-${vt.type}-${vt.txid}`}
+                  vt={vt}
+                  setValueTransferDetail={(ttt: ValueTransferClass) => setValueTransferDetail(ttt)}
+                  setValueTransferDetailIndex={(iii: number) => setValueTransferDetailIndex(iii)}
+                  setModalIsOpen={(bbb: boolean) => setModalIsOpen(bbb)}
+                  currencyName={info.currencyName}
+                  addressBookMap={addressBookMap}
+                  previousLineWithSameTxid={index === 0 ? false : messagesSorted[index - 1].txid === vt.txid}
+                />
+              );
+            })}
+        </ScrollPaneBottom>
+      </div>
 
       {modalIsOpen && (
         <VtModal
