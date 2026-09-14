@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Swap.module.css";
@@ -13,6 +13,10 @@ import {
 } from "../../swap";
 import type { SwapAssetType, SwapDirectionEnum, SwapKitProviderEnum } from "../../swap";
 import { CopyField, Field, FieldRow } from "../common/DetailField";
+import { shell } from "../../electronBridge";
+
+/** The scheme of a payment link, as the user would recognise it. */
+const schemeOf = (uri: string): string => uri.slice(0, uri.indexOf(":"));
 
 /**
  * Everything a user needs in order to pay a swap's deposit from outside this
@@ -64,6 +68,23 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
   copy,
 }) => {
   const qr = paid ? null : buildDepositQr({ sellAsset, depositAddress, amountHumanDecimal, memoText });
+  // A QR that carries a payment link, rather than only the address the row
+  // below already offers. On a desktop the other wallet is usually on the
+  // same computer, where a code cannot be scanned: the link is copied into
+  // it, or opened with it.
+  const paymentLink: string | null = qr && qr.value !== depositAddress ? qr.value : null;
+  const [openError, setOpenError] = useState<string | null>(null);
+
+  const openPaymentLink = async () => {
+    if (!paymentLink) return;
+    setOpenError(null);
+    const result = await shell.openPaymentUri(paymentLink);
+    if (!result?.ok) {
+      setOpenError(
+        `No app on this computer opens ${schemeOf(paymentLink)}: links. Copy the link into your wallet instead.`,
+      );
+    }
+  };
   const showMemoHint = !!memoText && providerRequiresMemo(provider);
   const showExactAmount = requiresExactAmountWarning({ direction, provider });
   const amountTicker = sellAsset.ticker ?? sellAsset.symbol;
@@ -79,6 +100,24 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
             <QRCodeSVG value={qr.value} size={180} level="M" marginSize={0} />
           </div>
           <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.center}`}>{qr.hint}</div>
+          {!!paymentLink && (
+            <>
+              <div className={cstyles.horizontalflex} style={{ justifyContent: "center", flexWrap: "wrap" }}>
+                <button type="button" className={cstyles.primarybutton} onClick={() => copy(paymentLink)}>
+                  Copy payment link
+                </button>
+                <button type="button" className={cstyles.primarybutton} onClick={openPaymentLink}>
+                  Open in wallet
+                </button>
+              </div>
+              {!!openError && <div className={`${cstyles.red} ${cstyles.small} ${cstyles.center}`}>{openError}</div>}
+              {/* What is copied or opened, for a user who wants to check it. */}
+              <details className={`${cstyles.sublight} ${cstyles.small}`} style={{ maxWidth: "100%" }}>
+                <summary style={{ cursor: "pointer", textAlign: "center" }}>Show payment link</summary>
+                <div className={cstyles.breakword}>{paymentLink}</div>
+              </details>
+            </>
+          )}
         </div>
       )}
 

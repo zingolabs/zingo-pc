@@ -20,6 +20,7 @@ declare global {
       };
       shell: {
         openExternal: (url: string) => void;
+        openPaymentUri: (uri: string) => Promise<{ ok: true } | { ok: false; reason: "refused" | "no-handler" }>;
       };
       ipcRenderer: {
         /**

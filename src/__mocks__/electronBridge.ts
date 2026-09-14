@@ -35,6 +35,7 @@ export const clipboard = {
 
 export const shell = {
   openExternal: jest.fn(),
+  openPaymentUri: jest.fn(async () => ({ ok: true })),
 };
 
 export const ipcRenderer = {

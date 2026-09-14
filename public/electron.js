@@ -43,6 +43,7 @@ const fs = require("fs");
 const settings = require("electron-settings");
 const storage = require("electron-json-storage");
 const { createServerRegistry } = require("./serverRegistry");
+const { isOpenablePaymentUri } = require("./paymentUri");
 
 const STORAGE_KEY = "wallets";
 const isDev = !app.isPackaged;
@@ -812,6 +813,20 @@ async function setRequireAuth(value) {
 ipcMain.handle("shell:openExternal", (_e, url) => {
   if (typeof url === "string" && url.startsWith("https://")) {
     return shell.openExternal(url);
+  }
+});
+
+// A swap deposit's payment link, handed to whichever wallet the OS has for
+// its scheme. Only the shapes the deposit QR builds get through (see
+// paymentUri.js); the answer says whether anything opened it, so the screen
+// can say so rather than leave a button that did nothing.
+ipcMain.handle("shell:openPaymentUri", async (_e, uri) => {
+  if (!isOpenablePaymentUri(uri)) return { ok: false, reason: "refused" };
+  try {
+    await shell.openExternal(uri);
+    return { ok: true };
+  } catch {
+    return { ok: false, reason: "no-handler" };
   }
 });
 
