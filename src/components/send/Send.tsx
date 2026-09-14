@@ -12,6 +12,7 @@ import {
 } from "../appstate";
 import { MAX_RECIPIENTS } from "../appstate/classes/SendPageStateClass";
 import Utils from "../../utils/utils";
+import { isSameZnsAlias } from "../../utils/zns";
 import { userFacingError } from "../../utils/userFacingError";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
@@ -117,6 +118,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
     fetchError,
     valueTransfers,
     currentWallet,
+    addressBook,
     openConfirmModal,
     calculateShieldFee,
     zecPrice,
@@ -353,7 +355,14 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
       removeRecipient(toaddr.id);
       return;
     }
-    const who: string = toaddr.to ? ` (${toaddr.znsAlias || Utils.trimToSmall(toaddr.to, 5)})` : "";
+    // The contact's name when the address is one, as the row shows it; the
+    // alias only for an address the book does not know.
+    const contact = addressBook.find(
+      (ab) =>
+        ab.chain === serverChainName &&
+        (ab.address === toaddr.to || (!!toaddr.znsAlias && isSameZnsAlias(ab.address, toaddr.znsAlias))),
+    );
+    const who: string = toaddr.to ? ` (${contact?.label || toaddr.znsAlias || Utils.trimToSmall(toaddr.to, 5)})` : "";
     openConfirmModal("Remove Recipient", `Remove recipient ${index + 1}${who} from this send?`, () =>
       removeRecipient(toaddr.id),
     );

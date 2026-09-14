@@ -255,18 +255,24 @@ const ToAddrBox = ({
     return entry ? entry.label : null;
   };
   const contactLabel = getContactLabel(toLocal);
-  // Matched by the name rather than the text typed, so a contact saved as
-  // "pepe.zcash" is still recognised when the user writes "pepe.zec".
-  // A contact now holds the address the alias resolved to, so that is matched
-  // too; an older contact that still holds the alias matches by name.
-  const znsIsContact = addressBook.some(
-    (ab: AddressBookEntryClass) =>
-      ab.chain === serverChainName && (isSameZnsAlias(ab.address, znsAlias) || (!!toLocal && ab.address === toLocal)),
-  );
+  // A contact saved before contacts stored the address still holds the alias,
+  // matched by the name rather than the text typed, so "pepe.zcash" is still
+  // recognised when the user writes "pepe.zec".
+  const aliasContactLabel: string | null =
+    (znsAlias &&
+      addressBook.find(
+        (ab: AddressBookEntryClass) => ab.chain === serverChainName && isSameZnsAlias(ab.address, znsAlias),
+      )?.label) ||
+    null;
+  // Once the alias became an address that is a contact, the contact is who
+  // this is: its name is shown and the alias no longer is. The alias shows
+  // only for an address the book does not know.
+  const shownContactLabel: string | null = contactLabel || aliasContactLabel;
+  const showZns: boolean = !!znsAlias && !shownContactLabel;
   // Saved as the address the alias resolved to, which History can match a
   // transaction against; the alias is proposed as the name (see below).
   const saveTarget = znsAlias || (addressIsValid === 1 ? toLocal : "");
-  const canSave = !!saveTarget && !(znsAlias ? znsIsContact : !!contactLabel);
+  const canSave = !!saveTarget && !shownContactLabel;
 
   // Consensus refuses a zero-valued transparent output, so a transparent or TEX
   // recipient left at zero cannot be paid. Not an error while the amount is
@@ -298,7 +304,7 @@ const ToAddrBox = ({
     // press meant for one cannot trigger the other. Red when the row would stop
     // the batch, so a problem is not hidden by being folded away.
     const rowHasProblem: boolean = addressIsValid !== 1 || !!amountError || !!memoError || needsAmount;
-    const name: string = znsAlias || contactLabel || "";
+    const name: string = (showZns ? znsAlias : shownContactLabel) || "";
     return (
       <div className={`${cstyles.well} ${styles.recipientcompact}`}>
         <button
@@ -343,11 +349,7 @@ const ToAddrBox = ({
                 done about it moved into the field below, which is where the
                 swap screen keeps the same three actions. */}
             <div style={{ fontWeight: 900, marginLeft: 20 }} className={cstyles.green}>
-              {znsAlias
-                ? `${znsIsContact ? "Contact & ZNS" : "ZNS"}: ${znsAlias}`
-                : contactLabel
-                  ? `Contact: ${contactLabel}`
-                  : ""}
+              {showZns ? `ZNS: ${znsAlias}` : shownContactLabel ? `Contact: ${shownContactLabel}` : ""}
             </div>
           </div>
           <div className={`${cstyles.sublight} ${cstyles.green}`}>
@@ -396,7 +398,7 @@ const ToAddrBox = ({
               updateToField(e.target.value, null, null);
             }}
           />
-          {!!znsAlias && (
+          {showZns && (
             <button
               type="button"
               className={cstyles.fieldaction}

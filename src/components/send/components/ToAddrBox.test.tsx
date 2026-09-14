@@ -229,20 +229,29 @@ describe("ToAddrBox", () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it("renders 'Contact & ZNS: ...' when the alias already matches an existing contact", async () => {
+  it("shows only the contact when the address the alias resolved to is a contact", async () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
-    const ab = new AddressBookEntryClass("Alice ZNS", "alice.zcash");
+    const ab = new AddressBookEntryClass("Alice", "u1resolved");
     ab.chain = ServerChainNameEnum.mainChainName;
     render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
-    expect(screen.getByText(/Contact & ZNS: alice\.zcash/)).toBeInTheDocument();
+    expect(screen.getByText("Contact: Alice")).toBeInTheDocument();
+    expect(screen.queryByText(/alice\.zcash/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /zcashnames/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /save as contact/i })).not.toBeInTheDocument();
   });
 
-  it("renders 'Contact & ZNS: ...' when a contact holds the address the alias resolved to", async () => {
+  it("shows only the contact when an older contact still holds the alias", async () => {
     const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
-    const ab = new AddressBookEntryClass("Alice (alice.zcash)", "u1resolved");
+    const ab = new AddressBookEntryClass("Alice ZNS", "alice.zec");
     ab.chain = ServerChainNameEnum.mainChainName;
     render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
-    expect(screen.getByText(/Contact & ZNS: alice\.zcash/)).toBeInTheDocument();
+    expect(screen.getByText("Contact: Alice ZNS")).toBeInTheDocument();
+  });
+
+  it("shows the alias when the address it resolved to is not a contact", async () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1resolved", znsAlias: "alice.zcash" });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
+    expect(screen.getByText("ZNS: alice.zcash")).toBeInTheDocument();
   });
 
   it("shows 'Contact: <label>' when address matches an address-book entry", async () => {
