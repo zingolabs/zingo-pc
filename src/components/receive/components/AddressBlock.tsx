@@ -229,21 +229,18 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     </>
                   )}
               </div>
+              {/* The same row for both kinds of address; a unified one adds the
+                  choice of receivers in front of the button. */}
               <div
-                className={type === "u" ? cstyles.margintoplarge : undefined}
-                style={{
-                  borderWidth: type === "u" ? 1 : 0,
-                  borderStyle: "solid",
-                  borderColor: "var(--color-primary)",
-                  paddingTop: 10,
-                  paddingBottom: 10,
-                }}
+                className={cstyles.margintoplarge}
+                style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
               >
                 {type === "u" && (
                   <select
                     aria-label="New address type"
                     className={cstyles.fieldselect}
-                    style={{ marginLeft: 10 }}
+                    // In line with the buttons above, which carry 8px each side.
+                    style={{ marginLeft: 8 }}
                     value={unifiedCreateType}
                     onChange={(e) => {
                       setUnifiedCreateType(e.target.value as "o" | "z" | "oz");
@@ -262,7 +259,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 )}
                 <button
                   disabled={creating}
-                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
+                  className={cstyles.primarybutton}
                   type="button"
                   onClick={async () => {
                     setCreating(true);
