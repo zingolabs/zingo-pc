@@ -15,6 +15,7 @@ import {
 import Utils from "../../../utils/utils";
 import { usePaneOffset } from "../../scrollPane/usePaneOffset";
 import { useCopy } from "../../common/useCopy";
+import { isSameZnsAlias } from "../../../utils/zns";
 import { Field, FieldRow } from "../../common/DetailField";
 import { BalanceBlockHighlight } from "../../balanceBlock";
 import routes from "../../../constants/routes.json";
@@ -77,13 +78,19 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLeve
   const [expandAddress, setExpandAddress] = useState<boolean>(false);
   const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
 
-  const toAddress: string = toaddr.znsAlias || toaddr.to;
+  // The address itself, even when it was reached through a ZNS alias: it is
+  // what the funds go to, and what gets copied.
+  const toAddress: string = toaddr.to;
   const { bigPart: amountBigPart, smallPart: amountSmallPart } = Utils.splitZecAmountIntoBigSmall(toaddr.amount);
   // The name this address is filed under, if any — the same thing the detail
-  // shows above the address itself.
+  // shows above the address itself. A contact saved before contacts stored
+  // the address still holds the alias, and is matched by it.
   const contactLabel: string | undefined = addressBook?.find(
-    (entry: AddressBookEntryClass) => entry.address === toAddress,
+    (entry: AddressBookEntryClass) =>
+      entry.address === toAddress || (!!toaddr.znsAlias && isSameZnsAlias(entry.address, toaddr.znsAlias)),
   )?.label;
+  // Not a contact: the alias the address was reached through, over it.
+  const nameAbove: string | undefined = contactLabel || (toaddr.znsAlias ? `ZNS: ${toaddr.znsAlias}` : undefined);
   const memoText: string = `${toaddr.memo ?? ""}${toaddr.memoReplyTo ?? ""}`;
 
   return (
@@ -106,9 +113,9 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLeve
                 </span>
               )}
             </div>
-            {!!contactLabel && (
+            {!!nameAbove && (
               <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
-                {contactLabel}
+                {nameAbove}
               </div>
             )}
             <div className={cstyles.verticalflex}>

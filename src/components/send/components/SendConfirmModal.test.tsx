@@ -2,7 +2,14 @@ import React from "react";
 import { screen, fireEvent, waitFor } from "@testing-library/react";
 import { render } from "../../../test-utils";
 import SendConfirmModal, { worstPrivacyLevel } from "./SendConfirmModal";
-import { SendPageStateClass, ToAddrClass, InfoClass, TotalBalanceClass, ServerChainNameEnum } from "../../appstate";
+import {
+  AddressBookEntryClass,
+  SendPageStateClass,
+  ToAddrClass,
+  InfoClass,
+  TotalBalanceClass,
+  ServerChainNameEnum,
+} from "../../appstate";
 
 jest.mock("../../../electronBridge");
 
@@ -430,6 +437,37 @@ describe("SendConfirmModal layout", () => {
 
     expect(clipboard.writeText).toHaveBeenCalledWith(to);
     expect(screen.getByText(to)).toBeInTheDocument();
+  });
+
+  describe("a recipient reached through a ZNS alias", () => {
+    const to = "u1resolvedaddress000000000000000000000000000000000000";
+
+    it("shows the alias over the address it resolved to", () => {
+      render(<SendConfirmModal {...makeProps({ toaddr: { to, znsAlias: "pepe.zec" } })} />);
+
+      expect(screen.getByText("ZNS: pepe.zec")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /copy address/i }));
+      expect(screen.getByText(to)).toBeInTheDocument();
+    });
+
+    it("shows only the contact name when the address is a contact", () => {
+      const contact = new AddressBookEntryClass("Pepe (pepe.zec)", to, ServerChainNameEnum.mainChainName, "ZEC");
+      render(<SendConfirmModal {...makeProps({ toaddr: { to, znsAlias: "pepe.zec" } })} />, {
+        contextOverrides: { addressBook: [contact] },
+      });
+
+      expect(screen.getByText("Pepe (pepe.zec)")).toBeInTheDocument();
+      expect(screen.queryByText("ZNS: pepe.zec")).not.toBeInTheDocument();
+    });
+
+    it("recognises a contact that still holds the alias", () => {
+      const contact = new AddressBookEntryClass("Pepe", "pepe.zcash", ServerChainNameEnum.mainChainName, "ZEC");
+      render(<SendConfirmModal {...makeProps({ toaddr: { to, znsAlias: "pepe.zec" } })} />, {
+        contextOverrides: { addressBook: [contact] },
+      });
+
+      expect(screen.getByText("Pepe")).toBeInTheDocument();
+    });
   });
 
   it("states the amount, the fee and the privacy as labelled fields", async () => {
