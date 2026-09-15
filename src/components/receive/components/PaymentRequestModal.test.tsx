@@ -71,6 +71,30 @@ describe("PaymentRequestModal", () => {
     expect(screen.queryByRole("button", { name: /download qr code/i })).not.toBeInTheDocument();
   });
 
+  it("shows the title over the code and puts it in the link as the message", () => {
+    renderModal();
+    type(/title/i, "Invoice 34");
+    type(/amount/i, "2");
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+
+    expect(screen.getByText("Invoice 34")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Copy request link" }));
+    expect(clipboard.writeText).toHaveBeenCalledWith(`zcash:${UA}?amount=2&message=Invoice%2034`);
+  });
+
+  // Squeezed under the code the link read as a ribbon of broken text.
+  it("opens the request link under both columns", () => {
+    renderModal();
+    type(/amount/i, "2");
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+    expect(screen.queryByText(`zcash:${UA}?amount=2`)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show request link" }));
+    expect(screen.getByText(`zcash:${UA}?amount=2`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Hide request link" }));
+    expect(screen.queryByText(`zcash:${UA}?amount=2`)).not.toBeInTheDocument();
+  });
+
   // ZIP 321 forbids a memo on a transparent address.
   it("offers no memo for a transparent address", () => {
     renderModal({ address: "t1requestaddress", allowsMemo: false });

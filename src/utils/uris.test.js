@@ -146,13 +146,14 @@ test("bad uris", async () => {
 test("a payment request reads back as the address, amount and memo it was built from", async () => {
   const address = "ztestsapling10yy2ex5dcqkclhc7z7yrnjq2z6feyjad56ptwlfgmy77dmaqqrl9gyhprdx59qgmsnyfska2kez";
   const memo = "Invoice 42 · café ✨";
-  const uri = buildPaymentRequestUri({ address, amount: "001.50000", memo });
+  const uri = buildPaymentRequestUri({ address, amount: "001.50000", memo, message: "Donación para salvar el mundo" });
 
   expect(uri.startsWith(`zcash:${address}?amount=1.5&memo=`)).toBe(true);
   const target = await parseZcashURI(uri, "test");
   expect(target.address).toBe(address);
   expect(target.amount).toBe(1.5);
   expect(target.memoString).toBe(memo);
+  expect(target.message).toBe("Donación para salvar el mundo");
 });
 
 test("a payment request without a memo carries none", async () => {

@@ -34,3 +34,52 @@ export function qrFileName(kind: string, walletAlias?: string): string {
   const walletSuffix = walletAlias ? "_" + walletAlias.replace(/[\\/:*?"<>|]/g, "_") : "";
   return `QR_${kind}_Zingo_PC${walletSuffix}.png`;
 }
+
+/**
+ * The QR image with `title` written over it, for a request saved to share: the
+ * picture has to say what it is for without the screen it came from. The code
+ * keeps its quiet zone and its pixels; the title goes on a white band above,
+ * wrapped to the code's width. Without a title, or where no 2D context can be
+ * had, the code's own canvas comes back unchanged.
+ */
+export function composeQrWithTitle(qr: HTMLCanvasElement, title: string): HTMLCanvasElement {
+  const text = title.trim();
+  if (!text) return qr;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return qr;
+
+  const width = qr.width;
+  const fontSize = Math.max(12, Math.round(width / 16));
+  const padding = Math.round(fontSize * 0.75);
+  const font = `bold ${fontSize}px Roboto, Arial, Helvetica, sans-serif`;
+  ctx.font = font;
+
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/s+/)) {
+    const candidate = line ? `${line} ${word}` : word;
+    if (line && ctx.measureText(candidate).width > width - 2 * padding) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = candidate;
+    }
+  }
+  if (line) lines.push(line);
+
+  const lineHeight = Math.round(fontSize * 1.3);
+  const band = padding + lines.length * lineHeight;
+  canvas.width = width;
+  canvas.height = qr.height + band;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#000000";
+  ctx.font = font;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "top";
+  lines.forEach((l, i) => ctx.fillText(l, width / 2, padding + i * lineHeight, width - 2 * padding));
+  ctx.drawImage(qr, 0, band);
+  return canvas;
+}

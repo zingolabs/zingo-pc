@@ -1,4 +1,9 @@
-import { buildPaymentRequestUri, validatePaymentRequest, PAYMENT_REQUEST_MEMO_MAX_BYTES } from "./paymentRequest";
+import {
+  buildPaymentRequestUri,
+  validatePaymentRequest,
+  PAYMENT_REQUEST_MEMO_MAX_BYTES,
+  PAYMENT_REQUEST_TITLE_MAX_CHARS,
+} from "./paymentRequest";
 
 const valid = { amount: "1", memo: "", allowsMemo: true };
 
@@ -30,6 +35,26 @@ describe("validatePaymentRequest", () => {
   it("refuses a memo over 512 bytes", () => {
     expect(validatePaymentRequest({ ...valid, memo: "a".repeat(PAYMENT_REQUEST_MEMO_MAX_BYTES) }).memoError).toBeNull();
     expect(validatePaymentRequest({ ...valid, memo: "✨".repeat(171) }).memoError).toMatch(/512 bytes/);
+  });
+});
+
+describe("the title", () => {
+  it("is optional, and refused past its limit", () => {
+    expect(validatePaymentRequest({ ...valid }).titleError).toBeNull();
+    expect(
+      validatePaymentRequest({ ...valid, title: "x".repeat(PAYMENT_REQUEST_TITLE_MAX_CHARS) }).titleError,
+    ).toBeNull();
+    expect(
+      validatePaymentRequest({ ...valid, title: "x".repeat(PAYMENT_REQUEST_TITLE_MAX_CHARS + 1) }).titleError,
+    ).toMatch(/longer than/);
+  });
+
+  // ZIP 321's message: text the payer's wallet shows.
+  it("rides in the link as the message, percent-encoded, and is left out when blank", () => {
+    expect(buildPaymentRequestUri({ address: "u1abc", amount: "1", message: "Invoice 34 & more" })).toBe(
+      "zcash:u1abc?amount=1&message=Invoice%2034%20%26%20more",
+    );
+    expect(buildPaymentRequestUri({ address: "u1abc", amount: "1", message: "   " })).toBe("zcash:u1abc?amount=1");
   });
 });
 

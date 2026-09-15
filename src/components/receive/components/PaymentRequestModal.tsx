@@ -9,7 +9,7 @@ import styles from "../Receive.module.css";
 import { ContextApp } from "../../../context/ContextAppState";
 import Utils from "../../../utils/utils";
 import { useCopy } from "../../common/useCopy";
-import { downloadQrCanvas, qrFileName } from "../../common/downloadQr";
+import { composeQrWithTitle, downloadQrCanvas, qrFileName } from "../../common/downloadQr";
 import { buildPaymentRequestUri, validatePaymentRequest } from "../../../utils/paymentRequest";
 
 type PaymentRequestModalProps = {
@@ -38,23 +38,30 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
   closeModal,
 }) => {
   const { currentWallet } = useContext(ContextApp);
+  const [title, setTitle] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [memo, setMemo] = useState<string>("");
-  // The link as it was generated. Editing a field drops it, so the code on the
-  // right never shows a request the fields no longer say.
-  const [uri, setUri] = useState<string | null>(null);
+  // The request as it was generated. Editing a field drops it, so the code on
+  // the right never shows a request the fields no longer say.
+  const [generated, setGenerated] = useState<{ uri: string; title: string } | null>(null);
+  const [showLink, setShowLink] = useState<boolean>(false);
   const [touched, setTouched] = useState<boolean>(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { copied, copy } = useCopy(1500);
 
-  const { amountError, memoError } = validatePaymentRequest({ amount, memo, allowsMemo });
-  const valid = !amountError && !memoError;
+  const { titleError, amountError, memoError } = validatePaymentRequest({ title, amount, memo, allowsMemo });
+  const valid = !titleError && !amountError && !memoError;
   const memoBytesUsed = new TextEncoder().encode(memo).length;
+
+  const edited = () => {
+    setGenerated(null);
+    setShowLink(false);
+  };
 
   const generate = () => {
     setTouched(true);
     if (!valid) return;
-    setUri(buildPaymentRequestUri({ address, amount, memo }));
+    setGenerated({ uri: buildPaymentRequestUri({ address, amount, memo, message: title }), title: title.trim() });
   };
 
   return (
@@ -81,6 +88,37 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
               </div>
             </div>
 
+            {/* Optional words to go with the code: over it here, in the saved
+                image, and as the request's message, which the payer's wallet
+                shows. */}
+            <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
+              <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
+                <div className={cstyles.sublight}>Title (optional)</div>
+                <div className={cstyles.validationerror}>
+                  {titleError ? (
+                    <span className={cstyles.red}>{titleError + ". " + title.trim().length}</span>
+                  ) : (
+                    <span>{title.trim().length}</span>
+                  )}
+                </div>
+              </div>
+              <div className={cstyles.fieldrow}>
+                <input
+                  aria-label="Title"
+                  className={cstyles.fieldinput}
+                  placeholder="Invoice 34, a donation…"
+                  value={title}
+                  onChange={(e) => {
+                    setTitle(e.target.value);
+                    edited();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") generate();
+                  }}
+                />
+              </div>
+            </div>
+
             {/* The amount and memo fields are Send's: a request is the other half
                 of the same payment. */}
             <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
@@ -102,7 +140,7 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
                   value={amount}
                   onChange={(e) => {
                     setAmount(e.target.value.replace(",", "."));
-                    setUri(null);
+                    edited();
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") generate();
@@ -131,7 +169,7 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
                       value={memo}
                       onChange={(e) => {
                         setMemo(e.target.value);
-                        setUri(null);
+                        edited();
                       }}
                       minRows={2}
                       maxRows={5}
@@ -148,19 +186,32 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
             className={cstyles.verticalflex}
             style={{ flex: "0 0 auto", alignItems: "center", justifyContent: "center", margin: "0 auto" }}
           >
-            {uri ? (
+            {generated ? (
               <>
+                {!!generated.title && (
+                  <div
+                    className={`${cstyles.large} ${cstyles.center} ${cstyles.breakword}`}
+                    style={{ maxWidth: 260, marginBottom: 8 }}
+                  >
+                    {generated.title}
+                  </div>
+                )}
                 <button
                   type="button"
                   aria-label="Download QR code"
                   style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "block" }}
-                  onClick={() => downloadQrCanvas(canvasRef.current, qrFileName("request", currentWallet?.alias))}
+                  onClick={() =>
+                    downloadQrCanvas(
+                      canvasRef.current && composeQrWithTitle(canvasRef.current, generated.title),
+                      qrFileName("request", currentWallet?.alias),
+                    )
+                  }
                 >
                   <QRCodeCanvas
                     ref={canvasRef}
                     includeMargin={true}
                     size={260}
-                    value={uri}
+                    value={generated.uri}
                     className={styles.receiveQrcode}
                   />
                   <div style={{ color: "var(--color-zingo)", textAlign: "center" }}>Click to download</div>
@@ -169,15 +220,22 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
                   type="button"
                   className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
                   disabled={copied}
-                  onClick={() => copy(uri)}
+                  onClick={() => copy(generated.uri)}
                 >
                   {copied ? "Copied!" : "Copy request link"}
                 </button>
-                {/* What the link says, for a user who wants to check it. */}
-                <details className={`${cstyles.sublight} ${cstyles.small}`} style={{ maxWidth: 280, marginTop: 8 }}>
-                  <summary style={{ cursor: "pointer", textAlign: "center" }}>Show request link</summary>
-                  <div className={cstyles.breakword}>{uri}</div>
-                </details>
+                {/* What the link says, for a user who wants to check it. It opens
+                    under both columns: squeezed under the code it read as a
+                    ribbon of broken text. */}
+                <button
+                  type="button"
+                  className={`${cstyles.sublight} ${cstyles.small}`}
+                  style={{ background: "none", border: "none", cursor: "pointer", marginTop: 8, color: "inherit" }}
+                  aria-expanded={showLink}
+                  onClick={() => setShowLink((shown) => !shown)}
+                >
+                  {showLink ? "Hide request link" : "Show request link"}
+                </button>
               </>
             ) : (
               <div
@@ -199,6 +257,12 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
             )}
           </div>
         </div>
+
+        {!!generated && showLink && (
+          <div className={`${cstyles.well} ${cstyles.fixedfont} ${cstyles.breakword} ${cstyles.margintoplarge}`}>
+            {generated.uri}
+          </div>
+        )}
 
         <div className={cstyles.buttoncontainer}>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
