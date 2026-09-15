@@ -1,18 +1,16 @@
 import React, { useContext, useRef, useState } from "react";
 import Modal from "react-modal";
 import { QRCodeCanvas } from "qrcode.react";
+import TextareaAutosize from "react-textarea-autosize";
 
 import cstyles from "../../common/Common.module.css";
 import swapStyles from "../../swap/Swap.module.css";
 import styles from "../Receive.module.css";
 import { ContextApp } from "../../../context/ContextAppState";
+import Utils from "../../../utils/utils";
 import { useCopy } from "../../common/useCopy";
 import { downloadQrCanvas, qrFileName } from "../../common/downloadQr";
-import {
-  PAYMENT_REQUEST_MEMO_MAX_BYTES,
-  buildPaymentRequestUri,
-  validatePaymentRequest,
-} from "../../../utils/paymentRequest";
+import { buildPaymentRequestUri, validatePaymentRequest } from "../../../utils/paymentRequest";
 
 type PaymentRequestModalProps = {
   /** The address being asked to be paid. */
@@ -72,20 +70,35 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
 
         <div className={cstyles.flexspacebetween} style={{ gap: 16, flexWrap: "wrap", marginTop: 12 }}>
           <div className={cstyles.verticalflex} style={{ flex: "1 1 300px", minWidth: 0 }}>
+            {/* As the address reads in Receive: a unified address in three
+                lines, a shorter one in one. */}
             <div>
               <div className={cstyles.sublight}>Address</div>
-              <div className={`${cstyles.padtopsmall} ${cstyles.fixedfont} ${cstyles.breakword}`}>{address}</div>
+              <div className={`${cstyles.padtopsmall} ${cstyles.fixedfont}`}>
+                {address.length < 80
+                  ? address
+                  : Utils.splitStringIntoChunks(address, 3).map((item) => <div key={item}>{item}</div>)}
+              </div>
             </div>
 
-            <div className={cstyles.padtopsmall}>
-              <div className={cstyles.sublight}>Amount ({currencyName})</div>
+            {/* The amount and memo fields are Send's: a request is the other half
+                of the same payment. */}
+            <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
+              <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
+                <div className={cstyles.sublight}>Amount ({currencyName})</div>
+                <div className={cstyles.validationerror}>
+                  {touched && !!amountError && <span className={cstyles.red}>{amountError}</span>}
+                </div>
+              </div>
               <div className={cstyles.fieldrow}>
                 <input
                   autoFocus
                   aria-label="Amount"
-                  className={cstyles.fieldinput}
+                  className={cstyles.fieldamount}
                   inputMode="decimal"
-                  placeholder="0.00"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder="0"
                   value={amount}
                   onChange={(e) => {
                     setAmount(e.target.value.replace(",", "."));
@@ -96,43 +109,38 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
                   }}
                 />
               </div>
-              {touched && !!amountError && <div className={`${cstyles.red} ${cstyles.small}`}>{amountError}</div>}
             </div>
 
-            <div className={cstyles.padtopsmall}>
-              <div className={cstyles.sublight}>Memo</div>
+            <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
               {allowsMemo ? (
                 <>
-                  <textarea
-                    aria-label="Memo"
-                    className={cstyles.fieldinput}
-                    rows={4}
-                    placeholder="Invoice or order number, a note for the payer"
-                    style={{ width: "100%", boxSizing: "border-box", resize: "vertical" }}
-                    value={memo}
-                    onChange={(e) => {
-                      setMemo(e.target.value);
-                      setUri(null);
-                    }}
-                  />
-                  <div
-                    className={`${cstyles.small} ${memoError ? cstyles.red : cstyles.sublight}`}
-                    style={{ textAlign: "right" }}
-                  >
-                    {memoError ?? `${memoBytesUsed} / ${PAYMENT_REQUEST_MEMO_MAX_BYTES} bytes`}
+                  <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
+                    <div className={cstyles.sublight}>Memo</div>
+                    <div className={cstyles.validationerror}>
+                      {memoError ? (
+                        <span className={cstyles.red}>{memoError + ". " + memoBytesUsed}</span>
+                      ) : (
+                        <span>{memoBytesUsed}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className={cstyles.fieldrowmulti}>
+                    <TextareaAutosize
+                      aria-label="Memo"
+                      className={cstyles.fieldtextarea}
+                      value={memo}
+                      onChange={(e) => {
+                        setMemo(e.target.value);
+                        setUri(null);
+                      }}
+                      minRows={2}
+                      maxRows={5}
+                    />
                   </div>
                 </>
               ) : (
-                <div className={`${cstyles.sublight} ${cstyles.small}`}>
-                  A transparent address cannot receive a memo.
-                </div>
+                <div className={cstyles.sublight}>Memos only for Unified or Sapling addresses</div>
               )}
-            </div>
-
-            <div className={cstyles.margintoplarge}>
-              <button type="button" className={cstyles.primarybutton} onClick={generate}>
-                Generate
-              </button>
             </div>
           </div>
 
@@ -192,9 +200,12 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
           </div>
         </div>
 
-        <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
+        <div className={cstyles.buttoncontainer}>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-            Close
+            Cancel
+          </button>
+          <button type="button" className={cstyles.primarybutton} onClick={generate}>
+            Generate
           </button>
         </div>
       </div>

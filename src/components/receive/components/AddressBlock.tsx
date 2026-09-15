@@ -194,24 +194,10 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                     View on explorer <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                   </button>
                 )}
-                {type === "t" &&
-                  totalBalance.confirmedTransparentBalance >= shieldFee &&
-                  shieldFee > 0 &&
-                  !readOnly &&
-                  !anyPending && (
-                    <>
-                      <button
-                        className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
-                        type="button"
-                        onClick={handleShieldButton}
-                      >
-                        Shield Balance (Fee: {shieldFee})
-                      </button>
-                    </>
-                  )}
               </div>
               {/* The same row for both kinds of address; a unified one adds the
-                  choice of receivers in front of the button. */}
+                  choice of receivers in front of the button, a transparent one
+                  the shield action after it. */}
               <div
                 className={cstyles.margintoplarge}
                 style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
@@ -259,6 +245,17 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 >
                   {creating ? <span>Creating...</span> : <span>New Address</span>}
                 </button>
+                {/* Beside New Address rather than wrapping on to a row of its own
+                    under the address actions. */}
+                {type === "t" &&
+                  totalBalance.confirmedTransparentBalance >= shieldFee &&
+                  shieldFee > 0 &&
+                  !readOnly &&
+                  !anyPending && (
+                    <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
+                      Shield Balance (Fee: {shieldFee})
+                    </button>
+                  )}
               </div>
             </div>
             <div style={{ marginRight: 10, alignSelf: "center" }}>

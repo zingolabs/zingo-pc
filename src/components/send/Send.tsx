@@ -245,13 +245,21 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
   // One quote for the whole batch, because the fee belongs to the transaction
   // rather than to any recipient. Cleared before the wait, so the Send button
   // never offers a fee quoted for a batch that has changed since.
+  //
+  // Only what the fee depends on asks again: who is paid and how much. ZIP 317
+  // counts inputs and outputs, and every shielded output carries a memo field
+  // whether it is filled or not, so typing a memo changes nothing. Keyed on the
+  // whole batch it did, and the fee blinked out and back on every keystroke.
+  const feeQuoteKey: string = JSON.stringify(rows.map((r: ToAddrClass) => [r.to, r.amount]));
+  const latestToaddrs = useRef<ToAddrClass[]>(sendPageState.toaddrs);
+  latestToaddrs.current = sendPageState.toaddrs;
   useEffect(() => {
     setSendFee(0);
     setSendFeeError("");
     if (!quotable) return;
     let cancelled: boolean = false;
     const timer = setTimeout(async () => {
-      const { fee, error } = await calculateSendFee(sendPageState.toaddrs);
+      const { fee, error } = await calculateSendFee(latestToaddrs.current);
       if (cancelled) return;
       setSendFee(fee);
       setSendFeeError(error);
@@ -260,7 +268,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [sendPageState, quotable]);
+  }, [feeQuoteKey, quotable]);
 
   // A row that appears takes the focus: the one just added, or the last of the
   // several a payment request brought in.
@@ -340,9 +348,19 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
     openConfirmModal("Clear Recipients", `Remove all ${filled} recipients from this send?`, clearToAddrs);
   };
 
+  // Set when a recipient is added, so the list scrolls down to it once drawn.
+  const scrollToNewRow = useRef<boolean>(false);
   const addRecipient = () => {
+    scrollToNewRow.current = true;
     replaceRows([...sendPageState.toaddrs, new ToAddrClass()]);
   };
+  useEffect(() => {
+    if (!scrollToNewRow.current) return;
+    scrollToNewRow.current = false;
+    // The pane's scroll container is the one element inside paneRef.
+    const pane = paneRef.current?.firstElementChild as HTMLElement | null | undefined;
+    if (pane) pane.scrollTop = pane.scrollHeight;
+  }, [rows.length, paneRef]);
 
   const removeRecipient = (id: number) => {
     replaceRows(sendPageState.toaddrs.filter((t: ToAddrClass) => t.id !== id));
@@ -459,6 +477,24 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
 
   const canSend: boolean = quotable && sendFee > 0 && !sendFeeError && rows.every(rowCarriesSomething);
 
+  // The recipients carrying nothing, numbered as the rows are. Once everything
+  // else is ready they are the only reason Send stays disabled, and a folded
+  // row does not say it, so the footer names them.
+  const emptyRecipients: number[] = rows
+    .map((r: ToAddrClass, i: number) => (rowCarriesSomething(r) ? 0 : i + 1))
+    .filter((n: number) => n > 0);
+  let emptyRecipientsHint: string = "";
+  if (quotable && emptyRecipients.length > 0) {
+    if (rows.length === 1) {
+      emptyRecipientsHint = "Add an amount or a memo to send.";
+    } else if (emptyRecipients.length === 1) {
+      emptyRecipientsHint = `Recipient ${emptyRecipients[0]} has no amount or memo.`;
+    } else {
+      const last = emptyRecipients[emptyRecipients.length - 1];
+      emptyRecipientsHint = `Recipients ${emptyRecipients.slice(0, -1).join(", ")} and ${last} have no amount or memo.`;
+    }
+  }
+
   const openModal = () => {
     setModalIsOpen(true);
   };
@@ -544,23 +580,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
                 addAddressBookEntry={addAddressBookEntry}
               />
             ))}
-            <div className={styles.addrecipient}>
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                disabled={rows.length >= MAX_RECIPIENTS || !everyRowAddressed}
-                title={
-                  rows.length >= MAX_RECIPIENTS
-                    ? `Up to ${MAX_RECIPIENTS} recipients per send`
-                    : everyRowAddressed
-                      ? undefined
-                      : "Give this recipient an address first"
-                }
-                onClick={addRecipient}
-              >
-                <FontAwesomeIcon icon={faPlus} /> Add recipient
-              </button>
-            </div>
           </ScrollPaneTop>
         </div>
 
@@ -572,6 +591,12 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
           {!!batchError && (
             <div className={`${cstyles.red} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}>
               {batchError}
+            </div>
+          )}
+
+          {!!emptyRecipientsHint && (
+            <div className={`${cstyles.yellow} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}>
+              {emptyRecipientsHint}
             </div>
           )}
 
@@ -605,6 +630,24 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
             </div>
 
             <div className={styles.sendfooterbuttons}>
+              {/* First of the three, on the footer's own row: under the list it
+                  took a row of the pane's height, and at the end of the list a
+                  shielded recipient's memo box pushed it out of view. */}
+              <button
+                type="button"
+                className={cstyles.primarybutton}
+                disabled={rows.length >= MAX_RECIPIENTS || !everyRowAddressed}
+                title={
+                  rows.length >= MAX_RECIPIENTS
+                    ? `Up to ${MAX_RECIPIENTS} recipients per send`
+                    : everyRowAddressed
+                      ? undefined
+                      : "Give this recipient an address first"
+                }
+                onClick={addRecipient}
+              >
+                <FontAwesomeIcon icon={faPlus} /> Add recipient
+              </button>
               <button
                 type="button"
                 disabled={!canSend || mixnetView.sendBlocked}

@@ -207,6 +207,22 @@ describe("AddressBlock — Transparent", () => {
     expect(handleShieldButton).toHaveBeenCalled();
   });
 
+  // One row: New Address, then Shield, rather than Shield wrapping on to a row
+  // of its own above New Address.
+  it("puts Shield right after New Address", async () => {
+    const totalBalance = Object.assign(new TotalBalanceClass(), { confirmedTransparentBalance: 1 });
+    const calculateShieldFee = jest.fn().mockResolvedValue(0.001);
+    renderInAccordion(
+      <AddressBlock {...baseProps} address={tAddr} type="t" calculateShieldFee={calculateShieldFee} />,
+      { contextOverrides: { totalBalance, currentWallet: mainnetWallet } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
+    await screen.findByRole("button", { name: /shield balance/i });
+    const names = screen.getAllByRole("button").map((b) => b.textContent ?? "");
+    const newAddress = names.findIndex((n) => n === "New Address");
+    expect(names[newAddress + 1]).toMatch(/^Shield Balance/);
+  });
+
   it("hides Shield button when readOnly is true", async () => {
     const totalBalance = Object.assign(new TotalBalanceClass(), { confirmedTransparentBalance: 1 });
     renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />, {

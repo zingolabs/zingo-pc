@@ -284,6 +284,17 @@ const ToAddrBox = ({
     (addressKind === AddressKindEnum.transparent || addressKind === AddressKindEnum.tex) &&
     amountLocal === 0;
 
+  // A shielded recipient may be sent nothing but a memo, which is a message.
+  // With neither, the send would pay a fee to deliver nothing, so Send waits:
+  // said here, or the disabled button gives no reason. Yellow while open, red
+  // once folded, as for a transparent recipient at zero.
+  const needsAmountOrMemo: boolean =
+    addressIsValid === 1 &&
+    (addressKind === AddressKindEnum.sapling || addressKind === AddressKindEnum.unified) &&
+    amountLocal === 0 &&
+    !memoLocal &&
+    !toaddr.memoReplyTo;
+
   const numbered: boolean = total > 1;
 
   const removeButton = !!onRemove && (
@@ -303,7 +314,8 @@ const ToAddrBox = ({
     // the button that unfolds it, and the remove action sits outside it so a
     // press meant for one cannot trigger the other. Red when the row would stop
     // the batch, so a problem is not hidden by being folded away.
-    const rowHasProblem: boolean = addressIsValid !== 1 || !!amountError || !!memoError || needsAmount;
+    const rowHasProblem: boolean =
+      addressIsValid !== 1 || !!amountError || !!memoError || needsAmount || needsAmountOrMemo;
     const name: string = (showZns ? znsAlias : shownContactLabel) || "";
     return (
       <div className={`${cstyles.well} ${styles.recipientcompact}`}>
@@ -324,7 +336,7 @@ const ToAddrBox = ({
               "No address yet"
             )}
           </span>
-          <span className={amountError || needsAmount ? cstyles.red : undefined}>
+          <span className={amountError || needsAmount || needsAmountOrMemo ? cstyles.red : undefined}>
             {currencyName} {isNaN(amountLocal) ? 0 : Utils.maxPrecisionTrimmed(amountLocal)}
           </span>
           {!!memoLocal && <FontAwesomeIcon icon={faEnvelope} title="Carries a memo" />}
@@ -497,6 +509,8 @@ const ToAddrBox = ({
                 <span className={cstyles.red}>{amountError}</span>
               ) : needsAmount ? (
                 <span className={cstyles.yellow}>Transparent addresses need an amount</span>
+              ) : needsAmountOrMemo ? (
+                <span className={cstyles.yellow}>Add an amount or a memo</span>
               ) : currencyName === "ZEC" ? (
                 <span>{usdValue}</span>
               ) : null}
