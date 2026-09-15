@@ -492,6 +492,41 @@ describe("Send", () => {
         JSON.stringify({ spendable_balance: zec * 10 ** 8 }),
       );
 
+    // A memo does not change the fee, so typing one must not clear the quote
+    // and ask again: the fee blinked out and back on every keystroke.
+    it("keeps the fee while a memo is typed", async () => {
+      spendable(2);
+      (native.send as jest.Mock).mockResolvedValue(JSON.stringify({ fee: 10_000 }));
+      render(<StatefulSend initial={stateWith({ to: "u1abc", amount: 0.5 })} />);
+      reportRow(0, { valid: true, addressKind: AddressKindEnum.unified });
+      expect(await screen.findByText(/^Fee /)).toBeInTheDocument();
+      const quotes = (native.send as jest.Mock).mock.calls.length;
+
+      act(() => {
+        rowProps(0).updateToField(null, null, "hello");
+      });
+      expect(screen.getByText(/^Fee /)).toBeInTheDocument();
+      await wait(600);
+
+      expect(screen.getByText(/^Fee /)).toBeInTheDocument();
+      expect((native.send as jest.Mock).mock.calls.length).toBe(quotes);
+    });
+
+    it("asks again when an amount changes", async () => {
+      spendable(2);
+      (native.send as jest.Mock).mockResolvedValue(JSON.stringify({ fee: 10_000 }));
+      render(<StatefulSend initial={stateWith({ to: "u1abc", amount: 0.5 })} />);
+      reportRow(0, { valid: true, addressKind: AddressKindEnum.unified });
+      await screen.findByText(/^Fee /);
+      const quotes = (native.send as jest.Mock).mock.calls.length;
+
+      act(() => {
+        rowProps(0).updateToField(null, "0.6", null);
+      });
+
+      await waitFor(() => expect((native.send as jest.Mock).mock.calls.length).toBeGreaterThan(quotes));
+    });
+
     // A dash in its place read as a fee of nothing, rather than as a quote
     // still to come.
     it("states no fee until there is one", () => {

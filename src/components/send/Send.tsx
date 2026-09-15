@@ -245,13 +245,21 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
   // One quote for the whole batch, because the fee belongs to the transaction
   // rather than to any recipient. Cleared before the wait, so the Send button
   // never offers a fee quoted for a batch that has changed since.
+  //
+  // Only what the fee depends on asks again: who is paid and how much. ZIP 317
+  // counts inputs and outputs, and every shielded output carries a memo field
+  // whether it is filled or not, so typing a memo changes nothing. Keyed on the
+  // whole batch it did, and the fee blinked out and back on every keystroke.
+  const feeQuoteKey: string = JSON.stringify(rows.map((r: ToAddrClass) => [r.to, r.amount]));
+  const latestToaddrs = useRef<ToAddrClass[]>(sendPageState.toaddrs);
+  latestToaddrs.current = sendPageState.toaddrs;
   useEffect(() => {
     setSendFee(0);
     setSendFeeError("");
     if (!quotable) return;
     let cancelled: boolean = false;
     const timer = setTimeout(async () => {
-      const { fee, error } = await calculateSendFee(sendPageState.toaddrs);
+      const { fee, error } = await calculateSendFee(latestToaddrs.current);
       if (cancelled) return;
       setSendFee(fee);
       setSendFeeError(error);
@@ -260,7 +268,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [sendPageState, quotable]);
+  }, [feeQuoteKey, quotable]);
 
   // A row that appears takes the focus: the one just added, or the last of the
   // several a payment request brought in.
