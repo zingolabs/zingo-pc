@@ -13,12 +13,12 @@
       Zingo PC is a fully shielded light client wallet for the Zcash blockchain.
       It connects to a lightwalletd server so you never need to download the full
       chain, while keeping your transaction history and addresses private through
-      Zcash's shielded (Sapling and Orchard) protocol.
+      Zcash's shielded (Ironwood and Sapling) protocol.
     </p>
     <p>Features:</p>
     <ul>
       <li>Send and receive shielded (private) Zcash transactions</li>
-      <li>Full Orchard and Sapling shielded pool support</li>
+      <li>Full Ironwood and Sapling shielded pool support</li>
       <li>Unified addresses (UA) support</li>
       <li>Transparent address support</li>
       <li>BIP-39 seed phrase backup and restore</li>

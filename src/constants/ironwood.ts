@@ -7,15 +7,14 @@
 export const ironwoodReady = (activationHeight: number, walletHeight: number): boolean =>
   activationHeight > 0 && walletHeight >= activationHeight;
 
-// A unified address still carries an Orchard receiver — that is what the address
-// encodes, and calling it an Ironwood receiver would be false. What changed is
-// where the money ends up: Orchard is frozen and the protocol carries anything
-// landing there through to Ironwood. So the label names the receiver and glosses
-// the destination, and this line carries the mechanism wherever there is room
-// for it.
+// A unified address still encodes an Orchard receiver, and the protocol carries
+// what lands there through to Ironwood, since Orchard is frozen. The app calls
+// that receiver Ironwood all the same (decided 2026-09-15): not strictly what the
+// address encodes, but Ironwood is where the money ends up, and it is the
+// shielded pool users should come to think of as theirs. The tooltip keeps the
+// one sentence that makes the name true.
 //
-// Not to be confused with the "Orchard (legacy)" balance, which is what arrived
-// before the freeze and still needs the migration to move.
-export const IRONWOOD_RECEIVER_LABEL = "Orchard (Ironwood)";
-export const IRONWOOD_RECEIVER_TOOLTIP =
-  "Funds sent to the Orchard receiver are moved to Ironwood by the protocol. Orchard itself is frozen.";
+// "Orchard" stays only where it names funds that still have to move: the
+// "Orchard (legacy)" balance and the migration screens.
+export const IRONWOOD_RECEIVER_LABEL = "Ironwood";
+export const IRONWOOD_RECEIVER_TOOLTIP = "Ironwood is the shielded pool. Funds sent to this receiver land in Ironwood.";

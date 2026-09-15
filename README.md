@@ -111,7 +111,7 @@ yarn release:prep 2.0.15 142
 **Transactions**
 
 - Full Zcash address support — Unified, Sapling, Transparent and TEX
-- Shielded transactions by default (Orchard / Sapling)
+- Shielded transactions by default (Ironwood / Sapling)
 - Encrypted memos
 - "Shield Transparent → Orchard" one-click action
 - `zcash:` URI scheme handler (ZIP-321 payment requests)

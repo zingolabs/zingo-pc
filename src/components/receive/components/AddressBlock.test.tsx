@@ -66,7 +66,7 @@ describe("AddressBlock — Unified", () => {
     renderInAccordion(<AddressBlock {...baseProps} address={longUAddr} type="u" />);
     // We don't assert text exactly (chunks vary), but the address should be present in chunks.
     // Just verify the accordion can be expanded.
-    expect(screen.getByText("Address type: Orchard (Ironwood) + Sapling + Transparent")).toBeInTheDocument();
+    expect(screen.getByText("Address type: Ironwood + Sapling + Transparent")).toBeInTheDocument();
   });
 
   // Open, the address sits in the column beside the QR code, once, and the
