@@ -340,9 +340,19 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
     openConfirmModal("Clear Recipients", `Remove all ${filled} recipients from this send?`, clearToAddrs);
   };
 
+  // Set when a recipient is added, so the list scrolls down to it once drawn.
+  const scrollToNewRow = useRef<boolean>(false);
   const addRecipient = () => {
+    scrollToNewRow.current = true;
     replaceRows([...sendPageState.toaddrs, new ToAddrClass()]);
   };
+  useEffect(() => {
+    if (!scrollToNewRow.current) return;
+    scrollToNewRow.current = false;
+    // The pane's scroll container is the one element inside paneRef.
+    const pane = paneRef.current?.firstElementChild as HTMLElement | null | undefined;
+    if (pane) pane.scrollTop = pane.scrollHeight;
+  }, [rows.length, paneRef]);
 
   const removeRecipient = (id: number) => {
     replaceRows(sendPageState.toaddrs.filter((t: ToAddrClass) => t.id !== id));
@@ -562,29 +572,32 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
                 addAddressBookEntry={addAddressBookEntry}
               />
             ))}
-            <div className={styles.addrecipient}>
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                disabled={rows.length >= MAX_RECIPIENTS || !everyRowAddressed}
-                title={
-                  rows.length >= MAX_RECIPIENTS
-                    ? `Up to ${MAX_RECIPIENTS} recipients per send`
-                    : everyRowAddressed
-                      ? undefined
-                      : "Give this recipient an address first"
-                }
-                onClick={addRecipient}
-              >
-                <FontAwesomeIcon icon={faPlus} /> Add recipient
-              </button>
-            </div>
           </ScrollPaneTop>
         </div>
 
         {/* Everything below the pane, measured as one: the pane may have the
             window less its own top and less all of this. */}
         <div ref={footerRef} style={{ paddingBottom: 10 }}>
+          {/* Under the list rather than at the end of it. Inside the pane, a
+              shielded recipient's memo box grew the open row and pushed the
+              button out of view after a few recipients. */}
+          <div className={styles.addrecipient}>
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              disabled={rows.length >= MAX_RECIPIENTS || !everyRowAddressed}
+              title={
+                rows.length >= MAX_RECIPIENTS
+                  ? `Up to ${MAX_RECIPIENTS} recipients per send`
+                  : everyRowAddressed
+                    ? undefined
+                    : "Give this recipient an address first"
+              }
+              onClick={addRecipient}
+            >
+              <FontAwesomeIcon icon={faPlus} /> Add recipient
+            </button>
+          </div>
           {/* Only there when something is wrong, so they cost no height the
               rest of the time. Full width, because a reason is a sentence. */}
           {!!batchError && (
