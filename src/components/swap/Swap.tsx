@@ -6,6 +6,7 @@ import { ContextApp } from "../../context/ContextAppState";
 import { ServerChainNameEnum } from "../appstate";
 import { useSwapService } from "../../context/ContextSwapService";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import Utils from "../../utils/utils";
 import { describeSendRoute } from "../../rpc/components/mixnetPresenter";
 import { native } from "../../electronBridge";
@@ -187,6 +188,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const [insufficientOpen, setInsufficientOpen] = useState<boolean>(false);
   const [contactsOpen, setContactsOpen] = useState<boolean>(false);
   const [saveContactOpen, setSaveContactOpen] = useState<boolean>(false);
+  // Measured, as the other screens do: the fixed 152px it had left the bottom
+  // of the routes below the window once the wallet bar sat above every screen.
+  const { paneRef, paneOffset } = usePaneOffset(152);
 
   const spendable = totalBalance?.totalSpendableBalance ?? 0;
 
@@ -679,7 +683,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         Still under testing — do not swap real funds yet.
       </div>
 
-      <ScrollPaneTop offsetHeight={152}>
+      <ScrollPaneTop offsetHeight={paneOffset} measureRef={paneRef}>
         {/* 8px under the pair rather than 16: the screen needs the height. */}
         <div className={`${cstyles.well} ${styles.panel}`} style={{ margin: "0 16px 8px" }}>
           {/* The two sides. The address belongs to whichever card is not ZEC:

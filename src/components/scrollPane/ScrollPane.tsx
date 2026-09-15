@@ -5,6 +5,11 @@ type ScrollPaneTopProps = {
   className?: string;
   offsetHeight: number;
   initialScrollType?: "top" | "bottom";
+  /**
+   * Also attached to the scrolling element, for a screen that measures where
+   * the pane starts (see usePaneOffset) without wrapping it in another div.
+   */
+  measureRef?: React.RefObject<HTMLDivElement | null>;
 };
 
 const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
@@ -12,9 +17,10 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
   className,
   offsetHeight,
   initialScrollType = "top",
+  measureRef,
 }) => {
   const [height, setHeight] = useState<number>(0);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const isInitialLoad = useRef<boolean>(true);
   // Whether a bottom-anchored pane is showing its end. It starts there, and
   // stays there until the user scrolls up.
@@ -71,7 +77,10 @@ const ScrollPaneTop: React.FC<ScrollPaneTopProps> = ({
 
   return (
     <div
-      ref={containerRef}
+      ref={(el) => {
+        containerRef.current = el;
+        if (measureRef) (measureRef as React.MutableRefObject<HTMLDivElement | null>).current = el;
+      }}
       className={className}
       style={{ overflowY: "auto", overflowX: "hidden", height }}
       onScroll={onScroll}

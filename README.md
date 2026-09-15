@@ -31,7 +31,7 @@ Zingo PC is written in Electron/JavaScript and can be built from source. It will
 - [Node.js >= 18.0.0 (recommended: v22.18.0)](https://nodejs.org/en/blog/release/v22.18.0)
 - [Yarn](https://yarnpkg.com)
 - [Rust (stable)](https://www.rust-lang.org/tools/install)
-- [OpenSSL](https://docs.openssl.org/3.2/man7/ossl-guide-introduction/#getting-and-installing-openssl)
+- [CMake](https://cmake.org/download/)
 - [Protobuf compiler](https://grpc.io/docs/protoc-installation/)
 
 #### Node.js version manager (recommended)
@@ -113,8 +113,10 @@ yarn release:prep 2.0.15 142
 - Full Zcash address support — Unified, Sapling, Transparent and TEX
 - Shielded transactions by default (Ironwood / Sapling)
 - Encrypted memos
-- "Shield Transparent → Orchard" one-click action
-- `zcash:` URI scheme handler (ZIP-321 payment requests)
+- One-click shielding of the transparent balance
+- Multi-send — several recipients in one transaction
+- Payment requests — a `zcash:` link and QR for an amount, a memo and an optional title, from Receive
+- `zcash:` URI scheme handler (ZIP-321 payment requests, including several recipients)
 - Transaction history, and a separate Messages view for transfers carrying memos
 - Financial Insight — amounts sent, number of sends and memo bytes, charted per destination address
 
@@ -141,6 +143,14 @@ yarn release:prep 2.0.15 142
 - ZEC price is fetched over the mixnet only; while the transport is not ready the USD figures read
   `USD --` rather than falling back to clearnet
 
+**Swaps** _(experimental, still under testing)_
+
+- Swap ZEC to and from assets on other chains through SwapKit (NEAR Intents, Flashnet and other providers)
+- Routes compared by cost against the market rate, with the slippage tolerance chosen and the slippage realised
+- Swap status and history, with links to each chain's explorer and refund tracking
+- Deposit QR and payment link for paying an inbound swap from another wallet
+- Swap traffic goes over clearnet, not the mixnet: see [docs/swap-privacy.md](docs/swap-privacy.md)
+
 **Ironwood migration**
 
 - Guided migration of Orchard funds to Ironwood, with progress on the dashboard
@@ -151,13 +161,16 @@ yarn release:prep 2.0.15 142
 
 - Save contacts per network (Mainnet / Testnet / Regtest) — the list filters by the active wallet's network
 - "Show contacts from all networks" toggle to see everything at once
-- Stores ZNS aliases verbatim so the address always re-resolves at send time
+- Contacts on other chains too, with Swap To / Swap From
+- Save a contact from Send, Swap or a transaction's detail without leaving the screen
+- A ZNS alias is saved as the address it resolves to, with the alias kept in the label
 
 **Zcash Names (ZNS)** _(experimental)_
 
 - Type `alice.zcash` in the recipient field — auto-resolves to the unified address via the public ZNS indexer
 - Network-aware (`Mainnet` / `Testnet`), with a one-click link to the public ZNS explorer page
-- Save the alias as a contact (the resolution stays current as the owner updates it on-chain)
+- Save the alias as a contact: it stores the address the alias resolves to at that moment, so a later
+  change by the owner is not picked up
 
 **Block explorers**
 
@@ -260,7 +273,7 @@ In order of preference:
 
 A: Expected, and it comes from **Mixnet Mode**. Zingo PC bundles the `nym-proxy` binary, which starts with the app. So that its own lookups cannot be intercepted or redirected by whatever DNS your network hands out, the Nym client resolves the hostnames it needs (its API and gateways) through a fixed group of encrypted resolvers instead of the system one: Quad9 and Cloudflare over DNS-over-TLS (port 853) and DNS-over-HTTPS (port 443). This happens once per launch, as the mixnet goes from "Connecting" to "Ready" — which is why the warning is tied to opening the wallet.
 
-Antivirus products that inspect HTTPS traffic cannot decrypt those connections, so they report that the site "may not be displayed correctly". Only hostname lookups travel over them; no wallet data is involved. To confirm, open the **Nym Mixnet** panel in the sidebar and pick "Disable (use clearnet)" — the connections stop for that session. Note the choice is deliberately not saved: the mixnet re-enables on the next launch, and so does the warning.
+Antivirus products that inspect HTTPS traffic cannot decrypt those connections, so they report that the site "may not be displayed correctly". Only hostname lookups travel over them; no wallet data is involved. To confirm, open the **Nym Mixnet** panel in the sidebar and press "Disable" — the connections stop for that session. Note the choice is deliberately not saved: the mixnet re-enables on the next launch, and so does the warning.
 
 The fix is to allowlist those two hosts in your antivirus. Do not turn off Mixnet Mode just to silence it — that is what hides your IP from the indexer when you send.
 

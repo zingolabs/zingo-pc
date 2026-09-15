@@ -18,6 +18,7 @@ import Utils from "../../utils/utils";
 import { native, ipcRenderer } from "../../electronBridge";
 import { useLocation } from "react-router-dom";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import RPC from "../../rpc/rpc";
 import { useSwapService } from "../../context/ContextSwapService";
 import { SwapStore, readCurrentWalletFingerprint } from "../../swap";
@@ -893,12 +894,17 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     setBirthday(isNaN(parseInt(e.target.value)) ? "" : e.target.value);
   };
 
+  // Measured, not the fixed 20px it had: that predates the wallet bar above every
+  // screen, so the pane ran below the window by the bar's height, and opening
+  // the server section pushed Cancel and Save out of reach.
+  const { paneRef, paneOffset } = usePaneOffset(80);
+
   const updateAlias = (e: React.ChangeEvent<HTMLInputElement>) => {
     setAlias(e.target.value);
   };
 
   return (
-    <ScrollPaneTop offsetHeight={20}>
+    <ScrollPaneTop offsetHeight={paneOffset} measureRef={paneRef}>
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>
         {mode === "addnew" ? "Add a New Wallet" : mode === "settings" ? "Wallet Settings" : "Delete Wallet"}
       </div>
