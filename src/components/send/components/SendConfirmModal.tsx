@@ -90,8 +90,9 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLeve
       entry.address === toAddress || (!!toaddr.znsAlias && isSameZnsAlias(entry.address, toaddr.znsAlias)),
   )?.label;
   // Not a contact: the alias the address was reached through, over it.
-  const nameAbove: string | undefined =
-    contactLabel || (toaddr.znsAlias ? `ZNS: ${toaddr.znsAlias}` : undefined) || toaddr.label || undefined;
+  const nameAbove: string | undefined = contactLabel || (toaddr.znsAlias ? `ZNS: ${toaddr.znsAlias}` : undefined);
+  // What a payment request named and said the payment is for.
+  const requestLine: string = [toaddr.label, toaddr.message].filter(Boolean).join(" / ");
   const memoText: string = `${toaddr.memo ?? ""}${toaddr.memoReplyTo ?? ""}`;
 
   return (
@@ -119,8 +120,7 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLeve
                 {nameAbove}
               </div>
             )}
-            {/* What the payment request said it is for. */}
-            {!!toaddr.message && <div className={cstyles.sublight}>{toaddr.message}</div>}
+            {!!requestLine && <div className={cstyles.sublight}>{requestLine}</div>}
             <div className={cstyles.verticalflex}>
               <button
                 type="button"

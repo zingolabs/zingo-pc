@@ -443,8 +443,7 @@ describe("SendConfirmModal layout", () => {
     render(
       <SendConfirmModal {...makeProps({ toaddr: { to: "u1shop", label: "Coffee Shop", message: "Invoice 34" } })} />,
     );
-    expect(screen.getByText("Coffee Shop")).toBeInTheDocument();
-    expect(screen.getByText("Invoice 34")).toBeInTheDocument();
+    expect(screen.getByText("Coffee Shop / Invoice 34")).toBeInTheDocument();
   });
 
   describe("a recipient reached through a ZNS alias", () => {

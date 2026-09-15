@@ -295,6 +295,8 @@ const ToAddrBox = ({
     !memoLocal &&
     !toaddr.memoReplyTo;
 
+  const requestLine: string = [toaddr.label, toaddr.message].filter(Boolean).join(" / ");
+
   const numbered: boolean = total > 1;
 
   const removeButton = !!onRemove && (
@@ -361,13 +363,7 @@ const ToAddrBox = ({
                 done about it moved into the field below, which is where the
                 swap screen keeps the same three actions. */}
             <div style={{ fontWeight: 900, marginLeft: 20 }} className={cstyles.green}>
-              {showZns
-                ? `ZNS: ${znsAlias}`
-                : shownContactLabel
-                  ? `Contact: ${shownContactLabel}`
-                  : toaddr.label
-                    ? `Request: ${toaddr.label}`
-                    : ""}
+              {showZns ? `ZNS: ${znsAlias}` : shownContactLabel ? `Contact: ${shownContactLabel}` : ""}
             </div>
           </div>
           <div className={`${cstyles.sublight} ${cstyles.green}`}>
@@ -395,10 +391,11 @@ const ToAddrBox = ({
             {removeButton}
           </div>
         </div>
-        {/* What a payment request says the payment is for. */}
-        {!!toaddr.message && (
+        {/* What a payment request names and says the payment is for, on a line
+            of their own so a contact's name above never hides them. */}
+        {!!requestLine && (
           <div className={cstyles.highlight} style={{ marginBottom: 5 }}>
-            {toaddr.message}
+            {requestLine}
           </div>
         )}
         {duplicateOfIndex !== undefined && (
