@@ -98,12 +98,6 @@
   white-space: nowrap;
 }
 
-.addrecipient {
-  display: flex;
-  justify-content: center;
-  margin-top: 8px;
-}
-
 /*
  * The row under the recipients: the total and fee on the left, the buttons in
  * the middle, the route on the right. Equal side columns keep the buttons
