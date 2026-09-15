@@ -380,6 +380,12 @@ const ToAddrBox = ({
               puts between the icons inside it. */}
           <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
             <div className={cstyles.validationerror}>
+              {/* With the row's other verdicts, rather than on a line of its own. */}
+              {duplicateOfIndex !== undefined && (
+                <span className={cstyles.yellow} style={{ marginRight: 8 }}>
+                  Same address as recipient {duplicateOfIndex + 1}
+                </span>
+              )}
               {znsStatus === "resolving" && <span className={cstyles.sublight}>Resolving ZNS…</span>}
               {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
               {znsStatus === "network" && <span className={cstyles.red}>ZNS lookup failed</span>}
@@ -396,11 +402,6 @@ const ToAddrBox = ({
         {!!requestLine && (
           <div className={cstyles.highlight} style={{ marginBottom: 5 }}>
             {requestLine}
-          </div>
-        )}
-        {duplicateOfIndex !== undefined && (
-          <div className={`${cstyles.yellow} ${cstyles.small}`} style={{ marginBottom: 5 }}>
-            Same address as recipient {duplicateOfIndex + 1}
           </div>
         )}
         {/* Field and its actions share a border, so they read as one control
