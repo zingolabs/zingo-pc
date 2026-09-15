@@ -52,6 +52,17 @@ describe("PaymentRequestModal", () => {
     expect(clipboard.writeText).toHaveBeenCalledWith(`zcash:${UA}?amount=1.5&memo=SW52b2ljZSA0Mg`);
   });
 
+  // Any edit drops the request, so with one on screen there is nothing to generate.
+  it("hides Generate while a request is shown, and brings it back on an edit", () => {
+    renderModal();
+    type(/amount/i, "1");
+    fireEvent.click(screen.getByRole("button", { name: "Generate" }));
+    expect(screen.queryByRole("button", { name: "Generate" })).not.toBeInTheDocument();
+
+    type(/amount/i, "2");
+    expect(screen.getByRole("button", { name: "Generate" })).toBeInTheDocument();
+  });
+
   it("generates nothing for an amount it cannot use, and says why", () => {
     renderModal();
     type(/amount/i, "0");

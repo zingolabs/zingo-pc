@@ -272,9 +272,13 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
             Cancel
           </button>
-          <button type="button" className={cstyles.primarybutton} onClick={generate}>
-            Generate
-          </button>
+          {/* Only while there is nothing generated: any edit drops the request,
+              so with one on screen there is nothing new to generate. */}
+          {!generated && (
+            <button type="button" className={cstyles.primarybutton} onClick={generate}>
+              Generate
+            </button>
+          )}
         </div>
       </div>
     </Modal>
