@@ -616,9 +616,9 @@ describe("Send", () => {
       expect(screen.queryByText(/amount or a memo|no amount or memo/)).not.toBeInTheDocument();
     });
 
-    // A folded row cannot say it, so the footer names those; the open one
-    // (the last, here) says it itself.
-    it("names the folded recipients that carry nothing in a batch", async () => {
+    // A folded row cannot say it and the open one can scroll out of view, so
+    // the footer names every one, the open one (the last, here) included.
+    it("names every recipient that carries nothing in a batch", async () => {
       spendable(2);
       (native.send as jest.Mock).mockResolvedValue(JSON.stringify({ fee: 10_000 }));
       render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
@@ -635,7 +635,7 @@ describe("Send", () => {
       reportRow(1, { valid: true, addressKind: AddressKindEnum.unified });
       reportRow(2, { valid: true, addressKind: AddressKindEnum.unified });
       reportRow(3, { valid: true, addressKind: AddressKindEnum.unified });
-      expect(await screen.findByText("Recipients 1 and 3 have no amount or memo.")).toBeInTheDocument();
+      expect(await screen.findByText("Recipients 1, 3 and 4 have no amount or memo.")).toBeInTheDocument();
     });
 
     // Only once nothing else stops the send: while a row is not ready its own

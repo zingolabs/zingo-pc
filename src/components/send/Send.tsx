@@ -477,11 +477,13 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
 
   const canSend: boolean = quotable && sendFee > 0 && !sendFeeError && rows.every(rowCarriesSomething);
 
-  // The folded recipients carrying nothing, numbered as the rows are. The open
-  // row says it beside its own amount, so the footer names only the ones that
-  // cannot: once everything else is ready they are why Send stays disabled.
+  // The recipients carrying nothing, numbered as the rows are: once everything
+  // else is ready they are why Send stays disabled. Only in a batch, where a
+  // folded row cannot say it and the open one can scroll out of view; a single
+  // recipient says it beside its own amount, and the footer repeating it was
+  // one warning shown twice.
   const emptyRecipients: number[] = rows
-    .map((r: ToAddrClass, i: number) => (rowCarriesSomething(r) || r.id === activeRowId ? 0 : i + 1))
+    .map((r: ToAddrClass, i: number) => (rowCarriesSomething(r) ? 0 : i + 1))
     .filter((n: number) => n > 0);
   let emptyRecipientsHint: string = "";
   if (quotable && rows.length > 1 && emptyRecipients.length > 0) {
