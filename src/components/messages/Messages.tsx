@@ -165,7 +165,7 @@ const Messages: React.FC<MessagesProps> = () => {
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
-            <div className={cstyles.balancebox} style={{ color: "var(--color-error)" }}>
+            <div className={`${cstyles.balancebox} ${cstyles.fetcherrorbox}`} style={{ color: "var(--color-error)" }}>
               {fetchError.command + ": " + fetchError.error}
             </div>
           </>

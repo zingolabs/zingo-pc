@@ -285,10 +285,10 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
     setError("");
     setHeadline("Splitting your notes…");
     setStep("splitting");
-    const ok = await RPC.startIronwoodMigration(plan.plan_hash, perBucket);
+    const startError = await RPC.startIronwoodMigration(plan.plan_hash, perBucket);
     if (cancelledRef.current) return;
-    if (!ok) {
-      setError("Could not start the migration. Please try again.");
+    if (startError) {
+      setError(`Could not start the migration. ${startError}`);
       return;
     }
     cancelledRef.current = false;

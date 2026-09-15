@@ -43,6 +43,7 @@ import { ContextAppProvider, defaultAppState } from "../context/ContextAppState"
 import { SwapServiceProvider } from "../context/ContextSwapService";
 
 import { native } from "../electronBridge";
+import { userFacingError } from "../utils/userFacingError";
 import { Messages } from "../components/messages";
 import { OrchardMigration } from "../components/orchardMigration";
 import { RPCIronwoodDrainType } from "../rpc/components/RPCIronwoodDrainType";
@@ -137,12 +138,17 @@ const AppRoutes: React.FC = () => {
   }, []);
 
   const setFetchError = useCallback((command: string, error: string) => {
-    setFetchErrorState({ command, error });
+    // Same failure as the one already showing: keep the state object, so a
+    // failure republished every poll does not re-render the screen beneath it.
+    // The timer still restarts, which is what holds the banner up.
+    setFetchErrorState((prev) => (prev.command === command && prev.error === error ? prev : { command, error }));
     if (fetchErrorTimer.current) clearTimeout(fetchErrorTimer.current);
+    // Longer than the 5s task cycle that republishes it. At exactly 5s a
+    // persistent failure raced its own refresh and blinked.
     fetchErrorTimer.current = setTimeout(() => {
       fetchErrorTimer.current = null;
       setFetchErrorState({} as FetchErrorTypeClass);
-    }, 5000);
+    }, 12000);
   }, []);
 
   // ZEC price. Lives at the top level (NOT inside InfoClass) because the
@@ -559,18 +565,30 @@ const AppRoutes: React.FC = () => {
     [],
   );
 
+  // A zero fee hides the Shield button (`ShieldBalance` requires one above
+  // zero), so every failure here used to remove the button with no reason
+  // given — transparent funds the wallet could not shield and a wallet that
+  // simply refused to quote looked identical. The reason goes to the banner;
+  // the number still says "no button".
   const calculateShieldFee = useCallback(async (): Promise<number> => {
     try {
       const result: string = await native.shield();
-      if (!result) return 0;
+      if (!result) {
+        setFetchError("Shield", "the wallet returned no shielding quote");
+        return 0;
+      }
       const resultJSON = JSON.parse(result);
-      if (resultJSON.error) return 0;
+      if (resultJSON.error) {
+        setFetchError("Shield", userFacingError(resultJSON.error));
+        return 0;
+      }
       return resultJSON.fee ? resultJSON.fee / 10 ** 8 : 0;
     } catch (error) {
       console.error(`Critical Error calculate shield fee ${error}`);
+      setFetchError("Shield", userFacingError(error));
       return 0;
     }
-  }, []);
+  }, [setFetchError]);
 
   const runRPCShieldTransparentBalanceToOrchard = useCallback(async (): Promise<string> => {
     return rpcRef.current!.shieldTransparentBalanceToIronwood();

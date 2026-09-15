@@ -44,9 +44,15 @@ const parseValueTransferPools = (raw?: string[]): ValueTransferPoolEnum[] | unde
 
 // A mixnet-only broadcast refuses fail-closed while the transport is not ready
 // (bootstrapping, unattached, died). On the poll cycle that is a benign skip,
-// not a failure — it succeeds once the mixnet reaches ready. All three refusals
-// name "the Nym mixnet".
-const isMixnetNotReady = (error: unknown): boolean => String(error).includes("the Nym mixnet");
+// not a failure — it succeeds once the mixnet reaches ready.
+//
+// Matched on the three refusals' own opening clauses rather than on the words
+// "the Nym mixnet" anywhere in the text. Failures now cross carrying their
+// whole cause chain, so a broadcast that genuinely failed can mention the
+// mixnet several layers down and would be silently reclassified as "not ready
+// yet" — a lost migration part that looks exactly like a skipped one.
+const MIXNET_NOT_READY = /the Nym mixnet (is not enabled|is bootstrapping|proxy died)/;
+const isMixnetNotReady = (error: unknown): boolean => MIXNET_NOT_READY.test(String(error));
 
 // The health probe rides the 5s task loop but answers on its own clock. 15s is
 // slow enough that the probe is not a beacon and fast enough to notice a server
@@ -221,13 +227,22 @@ export default class RPC {
       this.once("balance", () => this.fetchTotalBalance()),
       this.once("mixnetView", () => this.getMixnetView()),
       this.once("serverHealth", () => this.probeServerHealth()),
-      this.once("save", () => RPC.doSave()),
+      this.once("save", () => this.checkSave()),
       this.once("valueTransfers", () => this.fetchTandZandOValueTransfers()),
       this.once("messages", () => this.fetchTandZandOMessages()),
       // Foreground driver: send the current window's due parts and fold in any
       // windows missed while the app was closed. No-op when none in progress.
       this.once("migration", () => RPC.driveMigration()),
     ]);
+  }
+
+  // The save check on the task cycle, with its failure put on screen rather
+  // than left in the console. Silence here reads as "saved".
+  async checkSave(): Promise<void> {
+    const reason = await RPC.doSave();
+    if (reason) {
+      this.fnSetFetchError("Save", reason);
+    }
   }
 
   async configure(): Promise<void> {
@@ -311,14 +326,18 @@ export default class RPC {
     });
   }
 
-  static async doSave() {
+  // Answers with the failure text, "" when the save is healthy. The caller on
+  // the task cycle publishes it: a wallet that cannot write its file is the
+  // one failure in this app that loses money, and it used to reach the
+  // console and nothing else.
+  static async doSave(): Promise<string> {
     try {
       const syncstr: string = await native.check_save_error();
       console.log(`wallet check saved: ${syncstr}`);
-      return syncstr;
+      return "";
     } catch (error: any) {
       console.error(`Critical Error check save wallet ${error}`);
-      return error;
+      return userFacingError(error);
     }
   }
 
@@ -599,10 +618,14 @@ export default class RPC {
       // than 100 blocks ahead of best chain height 3470916" tells someone what
       // is wrong with their wallet; the four wrappers around it do not.
       const reason = userFacingError(error);
+      // The console is deduplicated; the banner is not. It clears itself a few
+      // seconds after the last failure, so a wallet that cannot sync at all
+      // used to say so once and then look healthy forever — publishing every
+      // poll is what keeps it on screen while the failure lasts.
       if (reason !== this.lastPollSyncError) {
         console.error(`Critical Error sync poll ${error}`);
-        this.fnSetFetchError("Sync", reason);
       }
+      this.fnSetFetchError("Sync", reason);
       this.lastPollSyncError = reason;
     }
   }
@@ -655,6 +678,10 @@ export default class RPC {
       }
     } catch (error) {
       console.error(`Critical Error run sync/rescan ${error}`);
+      // A rescan is something the user asked for and then watches. Failing it
+      // in the console alone left them watching a progress bar that was never
+      // going to move.
+      this.fnSetFetchError(fullRescan ? "Rescan" : "Sync", userFacingError(error));
     }
   }
 
@@ -750,18 +777,23 @@ export default class RPC {
   // This method will get the total balances
   async fetchTotalBalance() {
     try {
+      // Both guards return. Falling through left `JSON.parse("")` to throw a
+      // `SyntaxError: Unexpected end of JSON input`, and the catch below then
+      // overwrote the message just published with that — the wallet's own
+      // reason replaced by a complaint about parsing nothing.
       const spendableStr: string = await native.get_spendable_balance_total();
-      let spendableJSON;
       if (!spendableStr) {
         console.error("Internal Error spendable balance");
-      } else {
-        spendableJSON = JSON.parse(spendableStr);
+        this.fnSetFetchError("balance", "the wallet returned no spendable balance");
+        return;
       }
+      const spendableJSON = JSON.parse(spendableStr);
 
       const balanceStr: string = await native.get_balance();
       if (!balanceStr) {
         console.error("Internal Error balance");
-        this.fnSetFetchError("balance", "Internal RPC Error");
+        this.fnSetFetchError("balance", "the wallet returned no balance");
+        return;
       }
       const balanceJSON = JSON.parse(balanceStr);
 
@@ -782,7 +814,7 @@ export default class RPC {
 
       this.fnSetTotalBalance(balance);
     } catch (error) {
-      this.fnSetFetchError("balance", `Critical Error balance ${error}`);
+      this.fnSetFetchError("balance", userFacingError(error));
       console.error(`Critical Error balance ${error}`);
     }
   }
@@ -809,7 +841,9 @@ export default class RPC {
       this.fnSetAddressesTransparent(transparentAddressesJSON);
     } catch (error) {
       console.error(`Critical Error addresses ${error}`);
-      // relaunch the interval tasks just in case they are aborted.
+      // An empty Receive screen with no explanation is the failure this
+      // produced; the reason belongs where the addresses should have been.
+      this.fnSetFetchError("Addresses", userFacingError(error));
       return;
     }
   }
@@ -1215,13 +1249,17 @@ export default class RPC {
   }
 
   // Begin the migration with the consented plan hash. per_bucket <= 0 = default.
-  static async startIronwoodMigration(consentedPlanHash: string, perBucket: number): Promise<boolean> {
+  //
+  // Answers with the refusal rather than a boolean: a stale consent hash, an
+  // inactive NU6.3 and an empty note set are different problems with different
+  // remedies, and "Please try again" is the right advice for none of them.
+  static async startIronwoodMigration(consentedPlanHash: string, perBucket: number): Promise<string> {
     try {
       await native.start_ironwood_migration(consentedPlanHash, perBucket);
-      return true;
+      return "";
     } catch (error) {
       console.error(`Error start ironwood migration ${error}`);
-      return false;
+      return userFacingError(error);
     }
   }
 
