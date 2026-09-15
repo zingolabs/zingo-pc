@@ -80,11 +80,11 @@ const SaveContact: React.FC<SaveContactProps> = ({
         </div>
 
         <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
-          <button type="button" className={cstyles.primarybutton} disabled={!trimmed} onClick={save}>
-            Save
-          </button>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
             Cancel
+          </button>
+          <button type="button" className={cstyles.primarybutton} disabled={!trimmed} onClick={save}>
+            Save
           </button>
         </div>
       </div>

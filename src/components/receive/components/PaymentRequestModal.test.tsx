@@ -34,6 +34,13 @@ describe("PaymentRequestModal", () => {
     expect(screen.getByRole("textbox", { name: /memo/i })).toBeInTheDocument();
   });
 
+  // Cancel where every dialog keeps it, with the action beside it.
+  it("puts Cancel and Generate side by side at the bottom, Cancel first", () => {
+    renderModal();
+    const names = screen.getAllByRole("button").map((b) => b.textContent);
+    expect(names.slice(-2)).toEqual(["Cancel", "Generate"]);
+  });
+
   it("shows the QR and copies the whole request link once generated", () => {
     renderModal();
     type(/amount/i, "1.50");
@@ -68,7 +75,7 @@ describe("PaymentRequestModal", () => {
   it("offers no memo for a transparent address", () => {
     renderModal({ address: "t1requestaddress", allowsMemo: false });
     expect(screen.queryByRole("textbox", { name: /memo/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/transparent address cannot receive a memo/i)).toBeInTheDocument();
+    expect(screen.getByText("Memos only for Unified or Sapling addresses")).toBeInTheDocument();
 
     type(/amount/i, "3");
     fireEvent.click(screen.getByRole("button", { name: "Generate" }));
