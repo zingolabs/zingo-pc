@@ -30,6 +30,9 @@ type PaymentRequestModalProps = {
  *
  * Nothing leaves the wallet. The link is built here and handed to the user.
  */
+/** Between one field and the next: close enough that the form fits without scrolling. */
+const FIELD_GAP: React.CSSProperties = { marginTop: 10 };
+
 const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
   address,
   allowsMemo,
@@ -75,7 +78,7 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
       <div className={cstyles.verticalflex}>
         <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Payment request</div>
 
-        <div className={cstyles.flexspacebetween} style={{ gap: 16, flexWrap: "wrap", marginTop: 12 }}>
+        <div className={cstyles.flexspacebetween} style={{ gap: 16, flexWrap: "wrap", marginTop: 8 }}>
           <div className={cstyles.verticalflex} style={{ flex: "1 1 300px", minWidth: 0 }}>
             {/* As the address reads in Receive: a unified address in three
                 lines, a shorter one in one. */}
@@ -91,8 +94,8 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
             {/* Optional words to go with the code: over it here, in the saved
                 image, and as the request's message, which the payer's wallet
                 shows. */}
-            <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
-              <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
+            <div className={cstyles.verticalflex} style={FIELD_GAP}>
+              <div style={{ marginBottom: 3 }} className={cstyles.flexspacebetween}>
                 <div className={cstyles.sublight}>Title (optional)</div>
                 <div className={cstyles.validationerror}>
                   {titleError ? (
@@ -121,8 +124,8 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
 
             {/* The amount and memo fields are Send's: a request is the other half
                 of the same payment. */}
-            <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
-              <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
+            <div className={cstyles.verticalflex} style={FIELD_GAP}>
+              <div style={{ marginBottom: 3 }} className={cstyles.flexspacebetween}>
                 <div className={cstyles.sublight}>Amount ({currencyName})</div>
                 <div className={cstyles.validationerror}>
                   {touched && !!amountError && <span className={cstyles.red}>{amountError}</span>}
@@ -149,10 +152,10 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
               </div>
             </div>
 
-            <div className={`${cstyles.verticalflex} ${cstyles.margintoplarge}`}>
+            <div className={cstyles.verticalflex} style={FIELD_GAP}>
               {allowsMemo ? (
                 <>
-                  <div style={{ marginBottom: 5 }} className={cstyles.flexspacebetween}>
+                  <div style={{ marginBottom: 3 }} className={cstyles.flexspacebetween}>
                     <div className={cstyles.sublight}>Memo</div>
                     <div className={cstyles.validationerror}>
                       {memoError ? (
@@ -218,7 +221,8 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
+                  className={cstyles.primarybutton}
+                  style={{ marginTop: 10 }}
                   disabled={copied}
                   onClick={() => copy(generated.uri)}
                 >
@@ -259,12 +263,12 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
         </div>
 
         {!!generated && showLink && (
-          <div className={`${cstyles.well} ${cstyles.fixedfont} ${cstyles.breakword} ${cstyles.margintoplarge}`}>
+          <div className={`${cstyles.well} ${cstyles.fixedfont} ${cstyles.breakword}`} style={{ marginTop: 12 }}>
             {generated.uri}
           </div>
         )}
 
-        <div className={cstyles.buttoncontainer}>
+        <div className={cstyles.buttoncontainer} style={{ paddingTop: 16 }}>
           <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
             Cancel
           </button>
