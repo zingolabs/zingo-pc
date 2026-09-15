@@ -477,17 +477,15 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
 
   const canSend: boolean = quotable && sendFee > 0 && !sendFeeError && rows.every(rowCarriesSomething);
 
-  // The recipients carrying nothing, numbered as the rows are. Once everything
-  // else is ready they are the only reason Send stays disabled, and a folded
-  // row does not say it, so the footer names them.
+  // The folded recipients carrying nothing, numbered as the rows are. The open
+  // row says it beside its own amount, so the footer names only the ones that
+  // cannot: once everything else is ready they are why Send stays disabled.
   const emptyRecipients: number[] = rows
-    .map((r: ToAddrClass, i: number) => (rowCarriesSomething(r) ? 0 : i + 1))
+    .map((r: ToAddrClass, i: number) => (rowCarriesSomething(r) || r.id === activeRowId ? 0 : i + 1))
     .filter((n: number) => n > 0);
   let emptyRecipientsHint: string = "";
-  if (quotable && emptyRecipients.length > 0) {
-    if (rows.length === 1) {
-      emptyRecipientsHint = "Add an amount or a memo to send.";
-    } else if (emptyRecipients.length === 1) {
+  if (quotable && rows.length > 1 && emptyRecipients.length > 0) {
+    if (emptyRecipients.length === 1) {
       emptyRecipientsHint = `Recipient ${emptyRecipients[0]} has no amount or memo.`;
     } else {
       const last = emptyRecipients[emptyRecipients.length - 1];
