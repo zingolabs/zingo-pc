@@ -295,6 +295,8 @@ const ToAddrBox = ({
     !memoLocal &&
     !toaddr.memoReplyTo;
 
+  const requestLine: string = [toaddr.label, toaddr.message].filter(Boolean).join(" / ");
+
   const numbered: boolean = total > 1;
 
   const removeButton = !!onRemove && (
@@ -316,7 +318,7 @@ const ToAddrBox = ({
     // the batch, so a problem is not hidden by being folded away.
     const rowHasProblem: boolean =
       addressIsValid !== 1 || !!amountError || !!memoError || needsAmount || needsAmountOrMemo;
-    const name: string = (showZns ? znsAlias : shownContactLabel) || "";
+    const name: string = (showZns ? znsAlias : shownContactLabel) || toaddr.label || "";
     return (
       <div className={`${cstyles.well} ${styles.recipientcompact}`}>
         <button
@@ -378,6 +380,12 @@ const ToAddrBox = ({
               puts between the icons inside it. */}
           <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
             <div className={cstyles.validationerror}>
+              {/* With the row's other verdicts, rather than on a line of its own. */}
+              {duplicateOfIndex !== undefined && (
+                <span className={cstyles.yellow} style={{ marginRight: 8 }}>
+                  Same address as recipient {duplicateOfIndex + 1}
+                </span>
+              )}
               {znsStatus === "resolving" && <span className={cstyles.sublight}>Resolving ZNS…</span>}
               {znsStatus === "not-found" && <span className={cstyles.red}>ZNS name not found</span>}
               {znsStatus === "network" && <span className={cstyles.red}>ZNS lookup failed</span>}
@@ -389,9 +397,11 @@ const ToAddrBox = ({
             {removeButton}
           </div>
         </div>
-        {duplicateOfIndex !== undefined && (
-          <div className={`${cstyles.yellow} ${cstyles.small}`} style={{ marginBottom: 5 }}>
-            Same address as recipient {duplicateOfIndex + 1}
+        {/* What a payment request names and says the payment is for, on a line
+            of their own so a contact's name above never hides them. */}
+        {!!requestLine && (
+          <div className={cstyles.highlight} style={{ marginBottom: 5 }}>
+            {requestLine}
           </div>
         )}
         {/* Field and its actions share a border, so they read as one control

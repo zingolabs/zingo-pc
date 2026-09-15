@@ -680,7 +680,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       </div>
 
       <ScrollPaneTop offsetHeight={152}>
-        <div className={`${cstyles.well} ${styles.panel}`} style={{ margin: "0 16px 16px" }}>
+        {/* 8px under the pair rather than 16: the screen needs the height. */}
+        <div className={`${cstyles.well} ${styles.panel}`} style={{ margin: "0 16px 8px" }}>
           {/* The two sides. The address belongs to whichever card is not ZEC:
               outbound it is where the bought asset lands, inbound it is the
               refund address on the source chain — the same field either way,
@@ -886,7 +887,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         )}
 
         {!!routes?.length && (
-          <div className={`${cstyles.well} ${styles.panel}`} style={{ margin: "0 16px 16px" }}>
+          <div className={`${cstyles.well} ${styles.panel}`} style={{ margin: "0 16px 16px", paddingTop: 10 }}>
             <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", alignItems: "center" }}>
               <div className={cstyles.large}>Routes</div>
               {/* The ring is the honest reading of how old the rate is, and the

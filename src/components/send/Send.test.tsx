@@ -251,6 +251,36 @@ describe("Send", () => {
       expect(newState.toaddrs[1].memo).toBe("second");
     });
 
+    // A request's name and message go with the row, to be shown with it.
+    it("keeps the name and message a payment request carries", async () => {
+      mockParseZcashURITargetsImpl = async () => [
+        { address: "u1shop", amount: 1, label: "Coffee Shop", message: "Invoice 34" },
+      ];
+      const setSendPageState = jest.fn();
+      render(<Send sendTransaction={jest.fn()} setSendPageState={setSendPageState} />);
+      await act(async () => {
+        await rowProps().updateToField("zcash:u1shop?amount=1", null, null);
+      });
+      const newState = setSendPageState.mock.calls.at(-1)![0];
+      expect(newState.toaddrs[0]).toEqual(expect.objectContaining({ label: "Coffee Shop", message: "Invoice 34" }));
+    });
+
+    // They described the request's address, not whatever is typed in its place.
+    it("drops a request's name and message when the address is changed by hand", async () => {
+      mockParseZcashURITargetsImpl = async (input: string) => input;
+      const setSendPageState = jest.fn();
+      render(<Send sendTransaction={jest.fn()} setSendPageState={setSendPageState} />, {
+        contextOverrides: {
+          sendPageState: stateWith({ to: "u1shop", amount: 1, label: "Coffee Shop", message: "Invoice 34" }),
+        },
+      });
+      await act(async () => {
+        await rowProps().updateToField("u1other", null, null);
+      });
+      const newState = setSendPageState.mock.calls.at(-1)![0];
+      expect(newState.toaddrs[0]).toEqual(expect.objectContaining({ to: "u1other", label: "", message: "" }));
+    });
+
     it("keeps the typed address when URI returns an error string", async () => {
       const setSendPageState = jest.fn();
       render(<Send sendTransaction={jest.fn()} setSendPageState={setSendPageState} />);
@@ -602,19 +632,23 @@ describe("Send", () => {
       await waitFor(() => expect(screen.getByRole("button", { name: /^Send$/ })).toBeEnabled());
     });
 
-    // Otherwise the disabled button gives no reason, and a folded row says
-    // nothing at all.
-    it("says why Send waits when a recipient carries nothing", async () => {
+    // The open row says it beside its amount; the footer repeating it was one
+    // warning shown twice.
+    it("leaves a single recipient's warning to the row", async () => {
       spendable(2);
       (native.send as jest.Mock).mockResolvedValue(JSON.stringify({ fee: 10_000 }));
       render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
         contextOverrides: { sendPageState: stateWith({ to: "u1abc", amount: 0 }) },
       });
       reportRow(0, { valid: true, addressKind: AddressKindEnum.unified });
-      expect(await screen.findByText("Add an amount or a memo to send.")).toBeInTheDocument();
+      await waitFor(() => expect(native.send).toHaveBeenCalled());
+      await wait(50);
+      expect(screen.queryByText(/amount or a memo|no amount or memo/)).not.toBeInTheDocument();
     });
 
-    it("names the recipients that carry nothing in a batch", async () => {
+    // A folded row cannot say it and the open one can scroll out of view, so
+    // the footer names every one, the open one (the last, here) included.
+    it("names every recipient that carries nothing in a batch", async () => {
       spendable(2);
       (native.send as jest.Mock).mockResolvedValue(JSON.stringify({ fee: 10_000 }));
       render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
@@ -623,13 +657,15 @@ describe("Send", () => {
             { to: "u1one", amount: 0 },
             { to: "u1two", amount: 1 },
             { to: "u1three", amount: 0 },
+            { to: "u1four", amount: 0 },
           ),
         },
       });
       reportRow(0, { valid: true, addressKind: AddressKindEnum.unified });
       reportRow(1, { valid: true, addressKind: AddressKindEnum.unified });
       reportRow(2, { valid: true, addressKind: AddressKindEnum.unified });
-      expect(await screen.findByText("Recipients 1 and 3 have no amount or memo.")).toBeInTheDocument();
+      reportRow(3, { valid: true, addressKind: AddressKindEnum.unified });
+      expect(await screen.findByText("Recipients 1, 3 and 4 have no amount or memo.")).toBeInTheDocument();
     });
 
     // Only once nothing else stops the send: while a row is not ready its own

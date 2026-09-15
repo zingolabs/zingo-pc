@@ -323,6 +323,8 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
         row.to = target.address ?? "";
         row.amount = target.amount ?? 0;
         row.memo = target.memoString ?? "";
+        row.label = target.label ?? "";
+        row.message = target.message ?? "";
         row.znsAlias = "";
         toaddrs.push(row);
       });
@@ -396,12 +398,18 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
         serverChainName,
       );
       if (typeof parsedUri === "string") {
+        const previous: string = toAddr.to;
         if (!parsedUri || parsedUri.toLowerCase().startsWith("error")) {
           // with error leave the same value
           toAddr.to = address.replace(/ /g, ""); // Remove spaces
         } else {
           // if it is string with no error, it is an address
           toAddr.to = parsedUri;
+        }
+        // A request's name and message described the address it came with.
+        if (toAddr.to !== previous) {
+          toAddr.label = "";
+          toAddr.message = "";
         }
       } else {
         fillFromTargets(id, parsedUri);
@@ -477,17 +485,17 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
 
   const canSend: boolean = quotable && sendFee > 0 && !sendFeeError && rows.every(rowCarriesSomething);
 
-  // The recipients carrying nothing, numbered as the rows are. Once everything
-  // else is ready they are the only reason Send stays disabled, and a folded
-  // row does not say it, so the footer names them.
+  // The recipients carrying nothing, numbered as the rows are: once everything
+  // else is ready they are why Send stays disabled. Only in a batch, where a
+  // folded row cannot say it and the open one can scroll out of view; a single
+  // recipient says it beside its own amount, and the footer repeating it was
+  // one warning shown twice.
   const emptyRecipients: number[] = rows
     .map((r: ToAddrClass, i: number) => (rowCarriesSomething(r) ? 0 : i + 1))
     .filter((n: number) => n > 0);
   let emptyRecipientsHint: string = "";
-  if (quotable && emptyRecipients.length > 0) {
-    if (rows.length === 1) {
-      emptyRecipientsHint = "Add an amount or a memo to send.";
-    } else if (emptyRecipients.length === 1) {
+  if (quotable && rows.length > 1 && emptyRecipients.length > 0) {
+    if (emptyRecipients.length === 1) {
       emptyRecipientsHint = `Recipient ${emptyRecipients[0]} has no amount or memo.`;
     } else {
       const last = emptyRecipients[emptyRecipients.length - 1];

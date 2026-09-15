@@ -254,6 +254,23 @@ describe("ToAddrBox", () => {
     expect(screen.getByText("ZNS: alice.zcash")).toBeInTheDocument();
   });
 
+  // From a payment request: who it names and what it is for, on one line.
+  it("shows a payment request's name and message on one line", () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1shop", label: "Coffee Shop", message: "Invoice 34" });
+    render(<ToAddrBox {...makeProps({ toaddr })} />);
+    expect(screen.getByText("Coffee Shop / Invoice 34")).toBeInTheDocument();
+  });
+
+  // A contact's name above must not hide what the request says.
+  it("keeps the request's line under a contact's name", () => {
+    const toaddr = Object.assign(new ToAddrClass(), { to: "u1shop", label: "Coffee Shop" });
+    const ab = new AddressBookEntryClass("Juan's café", "u1shop");
+    ab.chain = ServerChainNameEnum.mainChainName;
+    render(<ToAddrBox {...makeProps({ toaddr })} />, { contextOverrides: { addressBook: [ab] } });
+    expect(screen.getByText("Contact: Juan's café")).toBeInTheDocument();
+    expect(screen.getByText("Coffee Shop")).toBeInTheDocument();
+  });
+
   it("shows 'Contact: <label>' when address matches an address-book entry", async () => {
     (native.parse_address as jest.Mock).mockResolvedValue(
       JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),

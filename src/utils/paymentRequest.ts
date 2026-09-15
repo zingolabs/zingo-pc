@@ -9,10 +9,20 @@ import { Base64 } from "js-base64";
 /** A Zcash memo holds 512 bytes. */
 export const PAYMENT_REQUEST_MEMO_MAX_BYTES = 512;
 
+/**
+ * A title is a line of text over the code, not a letter: longer ones wrap into
+ * a block and make the code denser to scan, since it rides in the link.
+ */
+export const PAYMENT_REQUEST_TITLE_MAX_CHARS = 80;
+
 const MAX_ZEC = 21_000_000;
 const AMOUNT_PATTERN = /^\d+(\.\d{1,8})?$/;
 
-export type PaymentRequestErrors = { amountError: string | null; memoError: string | null };
+export type PaymentRequestErrors = {
+  titleError: string | null;
+  amountError: string | null;
+  memoError: string | null;
+};
 
 const memoBytes = (memo: string): number => new TextEncoder().encode(memo).length;
 
@@ -22,6 +32,7 @@ const memoBytes = (memo: string): number => new TextEncoder().encode(memo).lengt
  * rides to a shielded address; ZIP 321 forbids one on a transparent address.
  */
 export function validatePaymentRequest(args: {
+  title?: string;
   amount: string;
   memo: string;
   allowsMemo: boolean;
@@ -45,7 +56,12 @@ export function validatePaymentRequest(args: {
     memoError = `The memo is longer than ${PAYMENT_REQUEST_MEMO_MAX_BYTES} bytes`;
   }
 
-  return { amountError, memoError };
+  const titleError: string | null =
+    (args.title ?? "").trim().length > PAYMENT_REQUEST_TITLE_MAX_CHARS
+      ? `The title is longer than ${PAYMENT_REQUEST_TITLE_MAX_CHARS} characters`
+      : null;
+
+  return { titleError, amountError, memoError };
 }
 
 /**
@@ -61,10 +77,18 @@ function normaliseAmount(amount: string): string {
 
 /**
  * The `zcash:` link for a request the fields above accept. The memo is
- * base64url without padding, as ZIP 321 requires; an empty memo is left out.
+ * base64url without padding, as ZIP 321 requires. The message is ZIP 321's
+ * text for the payer's wallet to show, percent-encoded. Empty ones are left out.
  */
-export function buildPaymentRequestUri(args: { address: string; amount: string; memo?: string }): string {
+export function buildPaymentRequestUri(args: {
+  address: string;
+  amount: string;
+  memo?: string;
+  message?: string;
+}): string {
   const params = [`amount=${normaliseAmount(args.amount)}`];
   if (args.memo) params.push(`memo=${Base64.encodeURI(args.memo)}`);
+  const message = args.message?.trim();
+  if (message) params.push(`message=${encodeURIComponent(message)}`);
   return `zcash:${args.address}?${params.join("&")}`;
 }

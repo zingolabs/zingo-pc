@@ -12,6 +12,11 @@ export default class ToAddrClass {
   // `to` holds the resolved UA and `znsAlias` keeps the original alias so the
   // UI badge can survive page navigation (Send ↔ AddressBook).
   znsAlias: string;
+  // From a ZIP 321 payment request: `label` names the recipient, `message`
+  // says what the payment is for. Shown with the row, never sent; dropped
+  // when the address is changed by hand, since they described that request.
+  label: string;
+  message: string;
 
   constructor() {
     this.id = nextToAddrId++;
@@ -20,6 +25,8 @@ export default class ToAddrClass {
     this.memo = "";
     this.memoReplyTo = "";
     this.znsAlias = "";
+    this.label = "";
+    this.message = "";
   }
 
   /**

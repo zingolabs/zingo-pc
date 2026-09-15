@@ -91,6 +91,8 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLeve
   )?.label;
   // Not a contact: the alias the address was reached through, over it.
   const nameAbove: string | undefined = contactLabel || (toaddr.znsAlias ? `ZNS: ${toaddr.znsAlias}` : undefined);
+  // What a payment request named and said the payment is for.
+  const requestLine: string = [toaddr.label, toaddr.message].filter(Boolean).join(" / ");
   const memoText: string = `${toaddr.memo ?? ""}${toaddr.memoReplyTo ?? ""}`;
 
   return (
@@ -118,6 +120,7 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLeve
                 {nameAbove}
               </div>
             )}
+            {!!requestLine && <div className={cstyles.sublight}>{requestLine}</div>}
             <div className={cstyles.verticalflex}>
               <button
                 type="button"
