@@ -648,14 +648,18 @@ fn init_new(mut cx: FunctionContext) -> JsResult<JsString> {
         // Fetch the current chain tip from the server; the NewSeed wallet
         // derives its birthday from this height (chain_height - 100).
         let chain_height = RT.block_on(async move {
+            // `GetClientError::Transport` is `transparent` over tonic's
+            // `transport::Error`, whose Display is the bare words "transport
+            // error" — the DNS/TLS/refused-connection cause that names what
+            // actually failed lives in `source()`.
             let mut indexer = GrpcIndexer::new(lightwalletd_uri)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| cause_chain(&e))?;
             indexer
                 .get_latest_block(INDEXER_REQUEST_TIMEOUT)
                 .await
                 .map(|block_id| block_id.height as u32)
-                .map_err(|e| e.to_string())
+                .map_err(|e| cause_chain(&e))
         })
         .map_err(ZingolibError::Init)?;
         let config = builder
@@ -1191,13 +1195,15 @@ fn get_latest_block_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 }
             };
             match RT.block_on(async move {
+                // "transport error" alone says nothing about which server
+                // the user typed is unreachable, or why. Walk the chain.
                 let mut indexer = GrpcIndexer::new(lightwalletd_uri)
                     .await
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| cause_chain(&e))?;
                 indexer
                     .get_latest_block(INDEXER_REQUEST_TIMEOUT)
                     .await
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| cause_chain(&e))
             }) {
                 Ok(block_id) => Ok(block_id.height.to_string()),
                 Err(e) => Err(ZingolibError::Read(e)),
@@ -1426,7 +1432,7 @@ fn change_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         "status" => if is_default { "server set (default)" } else { "server set" }
                     }
                     .pretty(2),
-                    Ok(Err(e)) => object! { "error" => e.to_string() }.pretty(2),
+                    Ok(Err(e)) => object! { "error" => cause_chain(&e) }.pretty(2),
                     Err(_) => object! { "error" => "server stopped answering" }.pretty(2),
                 }
             }))
@@ -1748,8 +1754,11 @@ fn plan_orchard_drain(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     }
                     .pretty(2),
                     // Failures cross as `{ "error": .. }` JSON, never as
-                    // error prose, matching the success shape.
-                    Err(e) => object! { "error" => e.to_string() }.pretty(2),
+                    // error prose, matching the success shape. The whole
+                    // chain: `LightClientError` alone is "Ironwood migration
+                    // error." / "Wallet error.", which hides the typed
+                    // `MigrationError` that says what the user must do.
+                    Err(e) => object! { "error" => cause_chain(&e) }.pretty(2),
                 }
             }))
         })
@@ -1795,8 +1804,9 @@ fn drain_orchard_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     }
                     .pretty(2),
                     // Failures cross as `{ "error": .. }` JSON, never as
-                    // error prose, matching the success shape.
-                    Err(e) => object! { "error" => e.to_string() }.pretty(2),
+                    // error prose, matching the success shape — and with
+                    // every layer, since the outermost one names none of them.
+                    Err(e) => object! { "error" => cause_chain(&e) }.pretty(2),
                 }
             }))
         })
@@ -2229,8 +2239,9 @@ fn migrate_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         "stranded" => summary.residual,
                     }
                     .pretty(2),
-                    // Failures cross as `{ error }` JSON, matching the drain.
-                    Err(e) => object! { "error" => e.to_string() }.pretty(2),
+                    // Failures cross as `{ error }` JSON, matching the drain,
+                    // with the cause chain the outermost label hides.
+                    Err(e) => object! { "error" => cause_chain(&e) }.pretty(2),
                 }
             }))
         })
