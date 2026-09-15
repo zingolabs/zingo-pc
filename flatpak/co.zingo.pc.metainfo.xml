@@ -23,7 +23,7 @@
       <li>Transparent address support</li>
       <li>BIP-39 seed phrase backup and restore</li>
       <li>zcash: URI scheme handler for payment requests</li>
-      <li>Optional Tor support for enhanced network privacy</li>
+      <li>Nym mixnet transport for network privacy</li>
     </ul>
   </description>
 
