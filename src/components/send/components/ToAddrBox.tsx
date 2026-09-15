@@ -316,7 +316,7 @@ const ToAddrBox = ({
     // the batch, so a problem is not hidden by being folded away.
     const rowHasProblem: boolean =
       addressIsValid !== 1 || !!amountError || !!memoError || needsAmount || needsAmountOrMemo;
-    const name: string = (showZns ? znsAlias : shownContactLabel) || "";
+    const name: string = (showZns ? znsAlias : shownContactLabel) || toaddr.label || "";
     return (
       <div className={`${cstyles.well} ${styles.recipientcompact}`}>
         <button
@@ -361,7 +361,13 @@ const ToAddrBox = ({
                 done about it moved into the field below, which is where the
                 swap screen keeps the same three actions. */}
             <div style={{ fontWeight: 900, marginLeft: 20 }} className={cstyles.green}>
-              {showZns ? `ZNS: ${znsAlias}` : shownContactLabel ? `Contact: ${shownContactLabel}` : ""}
+              {showZns
+                ? `ZNS: ${znsAlias}`
+                : shownContactLabel
+                  ? `Contact: ${shownContactLabel}`
+                  : toaddr.label
+                    ? `Request: ${toaddr.label}`
+                    : ""}
             </div>
           </div>
           <div className={`${cstyles.sublight} ${cstyles.green}`}>
@@ -389,6 +395,12 @@ const ToAddrBox = ({
             {removeButton}
           </div>
         </div>
+        {/* What a payment request says the payment is for. */}
+        {!!toaddr.message && (
+          <div className={cstyles.highlight} style={{ marginBottom: 5 }}>
+            {toaddr.message}
+          </div>
+        )}
         {duplicateOfIndex !== undefined && (
           <div className={`${cstyles.yellow} ${cstyles.small}`} style={{ marginBottom: 5 }}>
             Same address as recipient {duplicateOfIndex + 1}

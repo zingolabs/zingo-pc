@@ -251,6 +251,36 @@ describe("Send", () => {
       expect(newState.toaddrs[1].memo).toBe("second");
     });
 
+    // A request's name and message go with the row, to be shown with it.
+    it("keeps the name and message a payment request carries", async () => {
+      mockParseZcashURITargetsImpl = async () => [
+        { address: "u1shop", amount: 1, label: "Coffee Shop", message: "Invoice 34" },
+      ];
+      const setSendPageState = jest.fn();
+      render(<Send sendTransaction={jest.fn()} setSendPageState={setSendPageState} />);
+      await act(async () => {
+        await rowProps().updateToField("zcash:u1shop?amount=1", null, null);
+      });
+      const newState = setSendPageState.mock.calls.at(-1)![0];
+      expect(newState.toaddrs[0]).toEqual(expect.objectContaining({ label: "Coffee Shop", message: "Invoice 34" }));
+    });
+
+    // They described the request's address, not whatever is typed in its place.
+    it("drops a request's name and message when the address is changed by hand", async () => {
+      mockParseZcashURITargetsImpl = async (input: string) => input;
+      const setSendPageState = jest.fn();
+      render(<Send sendTransaction={jest.fn()} setSendPageState={setSendPageState} />, {
+        contextOverrides: {
+          sendPageState: stateWith({ to: "u1shop", amount: 1, label: "Coffee Shop", message: "Invoice 34" }),
+        },
+      });
+      await act(async () => {
+        await rowProps().updateToField("u1other", null, null);
+      });
+      const newState = setSendPageState.mock.calls.at(-1)![0];
+      expect(newState.toaddrs[0]).toEqual(expect.objectContaining({ to: "u1other", label: "", message: "" }));
+    });
+
     it("keeps the typed address when URI returns an error string", async () => {
       const setSendPageState = jest.fn();
       render(<Send sendTransaction={jest.fn()} setSendPageState={setSendPageState} />);

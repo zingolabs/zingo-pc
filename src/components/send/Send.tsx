@@ -323,6 +323,8 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
         row.to = target.address ?? "";
         row.amount = target.amount ?? 0;
         row.memo = target.memoString ?? "";
+        row.label = target.label ?? "";
+        row.message = target.message ?? "";
         row.znsAlias = "";
         toaddrs.push(row);
       });
@@ -396,12 +398,18 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
         serverChainName,
       );
       if (typeof parsedUri === "string") {
+        const previous: string = toAddr.to;
         if (!parsedUri || parsedUri.toLowerCase().startsWith("error")) {
           // with error leave the same value
           toAddr.to = address.replace(/ /g, ""); // Remove spaces
         } else {
           // if it is string with no error, it is an address
           toAddr.to = parsedUri;
+        }
+        // A request's name and message described the address it came with.
+        if (toAddr.to !== previous) {
+          toAddr.label = "";
+          toAddr.message = "";
         }
       } else {
         fillFromTargets(id, parsedUri);

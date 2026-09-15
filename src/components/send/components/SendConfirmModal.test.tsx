@@ -439,6 +439,14 @@ describe("SendConfirmModal layout", () => {
     expect(screen.getByText(to)).toBeInTheDocument();
   });
 
+  it("shows a payment request's name and message with the recipient", () => {
+    render(
+      <SendConfirmModal {...makeProps({ toaddr: { to: "u1shop", label: "Coffee Shop", message: "Invoice 34" } })} />,
+    );
+    expect(screen.getByText("Coffee Shop")).toBeInTheDocument();
+    expect(screen.getByText("Invoice 34")).toBeInTheDocument();
+  });
+
   describe("a recipient reached through a ZNS alias", () => {
     const to = "u1resolvedaddress000000000000000000000000000000000000";
 

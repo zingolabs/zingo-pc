@@ -533,6 +533,8 @@ const AppRoutes: React.FC = () => {
       if (t.address) to.to = t.address;
       if (t.amount) to.amount = t.amount;
       if (t.memoString) to.memo = t.memoString;
+      if (t.label) to.label = t.label;
+      if (t.message) to.message = t.message;
       return to;
     });
     setSendPageStateState((previous: SendPageStateClass) => {
