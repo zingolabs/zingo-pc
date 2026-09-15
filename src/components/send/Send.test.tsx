@@ -567,6 +567,48 @@ describe("Send", () => {
       await waitFor(() => expect(screen.getByRole("button", { name: /^Send$/ })).toBeEnabled());
     });
 
+    // Otherwise the disabled button gives no reason, and a folded row says
+    // nothing at all.
+    it("says why Send waits when a recipient carries nothing", async () => {
+      spendable(2);
+      (native.send as jest.Mock).mockResolvedValue(JSON.stringify({ fee: 10_000 }));
+      render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
+        contextOverrides: { sendPageState: stateWith({ to: "u1abc", amount: 0 }) },
+      });
+      reportRow(0, { valid: true, addressKind: AddressKindEnum.unified });
+      expect(await screen.findByText("Add an amount or a memo to send.")).toBeInTheDocument();
+    });
+
+    it("names the recipients that carry nothing in a batch", async () => {
+      spendable(2);
+      (native.send as jest.Mock).mockResolvedValue(JSON.stringify({ fee: 10_000 }));
+      render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
+        contextOverrides: {
+          sendPageState: stateWith(
+            { to: "u1one", amount: 0 },
+            { to: "u1two", amount: 1 },
+            { to: "u1three", amount: 0 },
+          ),
+        },
+      });
+      reportRow(0, { valid: true, addressKind: AddressKindEnum.unified });
+      reportRow(1, { valid: true, addressKind: AddressKindEnum.unified });
+      reportRow(2, { valid: true, addressKind: AddressKindEnum.unified });
+      expect(await screen.findByText("Recipients 1 and 3 have no amount or memo.")).toBeInTheDocument();
+    });
+
+    // Only once nothing else stops the send: while a row is not ready its own
+    // error is the reason.
+    it("says nothing about it while a recipient is not ready", async () => {
+      spendable(2);
+      render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {
+        contextOverrides: { sendPageState: stateWith({ to: "u1abc", amount: 0 }) },
+      });
+      reportRow(0, { valid: false });
+      await wait(50);
+      expect(screen.queryByText(/amount or a memo|no amount or memo/)).not.toBeInTheDocument();
+    });
+
     it("asks for no fee while any recipient is not ready", async () => {
       spendable(2);
       render(<Send sendTransaction={jest.fn()} setSendPageState={jest.fn()} />, {

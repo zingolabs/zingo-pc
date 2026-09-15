@@ -459,6 +459,24 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
 
   const canSend: boolean = quotable && sendFee > 0 && !sendFeeError && rows.every(rowCarriesSomething);
 
+  // The recipients carrying nothing, numbered as the rows are. Once everything
+  // else is ready they are the only reason Send stays disabled, and a folded
+  // row does not say it, so the footer names them.
+  const emptyRecipients: number[] = rows
+    .map((r: ToAddrClass, i: number) => (rowCarriesSomething(r) ? 0 : i + 1))
+    .filter((n: number) => n > 0);
+  let emptyRecipientsHint: string = "";
+  if (quotable && emptyRecipients.length > 0) {
+    if (rows.length === 1) {
+      emptyRecipientsHint = "Add an amount or a memo to send.";
+    } else if (emptyRecipients.length === 1) {
+      emptyRecipientsHint = `Recipient ${emptyRecipients[0]} has no amount or memo.`;
+    } else {
+      const last = emptyRecipients[emptyRecipients.length - 1];
+      emptyRecipientsHint = `Recipients ${emptyRecipients.slice(0, -1).join(", ")} and ${last} have no amount or memo.`;
+    }
+  }
+
   const openModal = () => {
     setModalIsOpen(true);
   };
@@ -572,6 +590,12 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
           {!!batchError && (
             <div className={`${cstyles.red} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}>
               {batchError}
+            </div>
+          )}
+
+          {!!emptyRecipientsHint && (
+            <div className={`${cstyles.yellow} ${cstyles.small} ${cstyles.center} ${cstyles.padtopsmall}`}>
+              {emptyRecipientsHint}
             </div>
           )}
 

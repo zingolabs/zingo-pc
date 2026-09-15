@@ -484,4 +484,44 @@ describe("ToAddrBox in a batch", () => {
       await waitFor(() => expect(screen.getByText(/^ZEC /)).toHaveClass(cstyles.red));
     });
   });
+
+  // Nothing to deliver: Send stays disabled, and the row says why.
+  describe("a shielded recipient with no amount and no memo", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const cstyles = require("../../common/Common.module.css");
+    const parsesAs = (addressKind: string) =>
+      (native.parse_address as jest.Mock).mockResolvedValue(
+        JSON.stringify({ status: "success", address_kind: addressKind, chain_name: "main" }),
+      );
+
+    it("asks for an amount or a memo, in yellow, while the row is open", async () => {
+      parsesAs("unified");
+      const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 0 });
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+      expect(await screen.findByText("Add an amount or a memo")).toHaveClass(cstyles.yellow);
+    });
+
+    it("stops asking once there is a memo", async () => {
+      parsesAs("unified");
+      const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 0, memo: "hello" });
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+      await screen.findByText("Unified");
+      expect(screen.queryByText("Add an amount or a memo")).not.toBeInTheDocument();
+    });
+
+    it("stops asking once there is an amount", async () => {
+      parsesAs("unified");
+      const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 1 });
+      render(<ToAddrBox {...makeProps({ toaddr })} />);
+      await screen.findByText("Unified");
+      expect(screen.queryByText("Add an amount or a memo")).not.toBeInTheDocument();
+    });
+
+    it("shows the row in red once it is folded", async () => {
+      parsesAs("unified");
+      const toaddr = Object.assign(new ToAddrClass(), { to: "u1abc", amount: 0 });
+      render(<ToAddrBox {...makeProps({ toaddr, index: 1, total: 2, collapsed: true })} />);
+      await waitFor(() => expect(screen.getByText(/^ZEC /)).toHaveClass(cstyles.red));
+    });
+  });
 });
