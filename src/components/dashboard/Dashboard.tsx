@@ -48,7 +48,22 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     zecPrice,
     reopenWallet,
     verificationProgress,
+    mixnetView,
   } = context;
+
+  // The ZEC price is fetched over the mixnet and nowhere else (zingolib 6.x:
+  // the price route is mixnet-only, and the transmit policy does not apply to
+  // it). With Mixnet Mode off there is no price to show and never will be, so
+  // the dashes are explained rather than left to look like a stuck fetch.
+  //
+  // Only once the transport has settled. `bootstrapping` is a tunnel on its
+  // way up and the price arrives when it lands, so warning there would be
+  // wrong within seconds; `unknown` is the state before the first status read
+  // answers, which every launch passes through. Neither is an answer yet.
+  const priceNeedsMixnet =
+    mixnetView.statusKey === "mixnet.status.off" ||
+    mixnetView.statusKey === "mixnet.status.unattached" ||
+    mixnetView.statusKey === "mixnet.status.died";
 
   // How far the scan has got, to put a number on the map below it.
   //
@@ -368,11 +383,17 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
               />
             )}
           </div>
+          {priceNeedsMixnet && (
+            <div className={styles.pricenotice}>
+              The ZEC price travels over the Nym mixnet only, so USD values stay blank while the mixnet is not running.
+              Enable Mixnet Mode to see them.
+            </div>
+          )}
           <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
           {!!fetchError && !!fetchError.error && (
             <>
               <hr />
-              <div className={cstyles.balancebox} style={{ color: "var(--color-error)" }}>
+              <div className={`${cstyles.balancebox} ${cstyles.fetcherrorbox}`} style={{ color: "var(--color-error)" }}>
                 {fetchError.command + ": " + fetchError.error}
               </div>
             </>

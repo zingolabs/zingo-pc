@@ -11,6 +11,7 @@ import {
   SyncStatusScanRangePriorityEnum,
 } from "../appstate";
 import routes from "../../constants/routes.json";
+import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "../../rpc/components/mixnetPresenter";
 
 jest.mock("../../electronBridge");
 
@@ -324,6 +325,43 @@ describe("Dashboard", () => {
       showMap(null);
       expect(screen.getByText("Nonlinear Scanning Map")).toBeInTheDocument();
       expect(screen.queryByText(/% synced/)).not.toBeInTheDocument();
+    });
+  });
+
+  // The ZEC price is a mixnet-only fetch: with Mixnet Mode off there is no
+  // price and never will be, so the blank USD column gets a reason. The states
+  // on the way to an answer get nothing — the answer may be seconds away, and
+  // a warning that retracts itself reads worse than a pause.
+  describe("the mixnet-only price notice", () => {
+    const NOTICE = /ZEC price travels over the Nym mixnet only/;
+
+    const showWith = (view: MixnetView) =>
+      render(<Dashboard navigateToHistory={jest.fn()} />, {
+        contextOverrides: { currentWallet: makeWallet(), info: makeInfo(), mixnetView: view },
+      });
+
+    it.each(["switched_off", "unattached", "died"] as const)(
+      "explains the blank price once the mixnet has settled on %s",
+      (mode) => {
+        showWith(deriveMixnetView({ mode }));
+        expect(screen.getByText(NOTICE)).toBeInTheDocument();
+      },
+    );
+
+    it("says nothing while the tunnel is still coming up", () => {
+      showWith(deriveMixnetView({ mode: "bootstrapping" }));
+      expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
+    });
+
+    // Every launch passes through this before the first status read answers.
+    it("says nothing before the first status read", () => {
+      showWith(UNKNOWN_MIXNET_VIEW);
+      expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
+    });
+
+    it("says nothing when the mixnet is ready and a price can be fetched", () => {
+      showWith(deriveMixnetView({ mode: "ready" }));
+      expect(screen.queryByText(NOTICE)).not.toBeInTheDocument();
     });
   });
 });

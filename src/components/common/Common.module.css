@@ -480,6 +480,21 @@
   justify-content: space-between;
 }
 
+/*
+ * The wallet's failures arrive as a full cause chain joined with " ← ", which
+ * is long on purpose and the only place the actual reason is written. The page
+ * itself cannot scroll (html { overflow: hidden }), so the box scrolls: a
+ * chain longer than a few lines had nowhere to go and was simply cut off.
+ * break-word rather than break-all so addresses and txids stay selectable in
+ * whole runs.
+ */
+.fetcherrorbox {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
 .containermargin {
   margin: 16px;
 }

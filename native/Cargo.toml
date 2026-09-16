@@ -45,9 +45,24 @@ crate-type = ["cdylib"]
 # `perspective` is the editorial layer (value transfers, messages, the
 # total_*_to_address reductions), behind a default-off feature, so the UI's
 # read model has to opt in.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "3fdd4e6624efea32aa8920150aa945c7629afc11", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "3fdd4e6624efea32aa8920150aa945c7629afc11" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "3fdd4e6624efea32aa8920150aa945c7629afc11" }
+#
+# This bump (3fdd4e66 -> ec4547c8) splits the send route from the price route.
+# Transmissions now follow a per-session `mixnet::TransmitPolicy` instead of
+# the transport's own switched-off state, and `disable_mixnet` deliberately
+# leaves that policy alone. Since a session starts under `Mixnet`, the native
+# `stop_mixnet` sets the policy to `Clearnet` itself — without it, switching
+# Mixnet Mode off would leave every send refusing as "the Nym mixnet is not
+# enabled", which is the opposite of what this app's off switch means.
+#
+# The price fetch went the other way: it is mixnet-only in every state now,
+# switched-off included, so with Mixnet Mode off there is no ZEC price at all.
+# The dashboard says so rather than showing dashes that look like a hung fetch.
+#
+# Also gone: `PriceFetchRoute::Clearnet` and `LightClientError::ProbeRequiresMixnet`,
+# neither of which this crate named.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "ec4547c8760dd7ced37626ee7a9a57f07a595ae2", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "ec4547c8760dd7ced37626ee7a9a57f07a595ae2" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "ec4547c8760dd7ced37626ee7a9a57f07a595ae2" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two

@@ -28,6 +28,7 @@ import {
 import routes from "../../../constants/routes.json";
 
 import { native } from "../../../electronBridge";
+import { userFacingError } from "../../../utils/userFacingError";
 import { useCopy } from "../../common/useCopy";
 import { Field, FieldRow } from "../../common/DetailField";
 import DetailNavigator from "./DetailNavigator";
@@ -254,7 +255,10 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
       }
     } catch (error: any) {
       console.error(`Critical Error Remove ${error}`);
-      openErrorModal("Remove", error);
+      // The message, not the Error itself: `ErrorModalClass.body` is rendered
+      // straight into JSX, and an object there throws "Objects are not valid
+      // as a React child" — a blank screen in place of the reason.
+      openErrorModal("Remove", "Remove " + userFacingError(error));
     }
   };
 

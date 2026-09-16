@@ -37,6 +37,15 @@
 }
 
 /* Ironwood migration entry banner (shown when there is Orchard balance). */
+/* Why the USD column is blank, under the balances it refers to. A line rather
+   than a banner: it explains a setting the user chose, it is not a failure. */
+.pricenotice {
+  margin-top: 8px;
+  color: var(--color-warning);
+  font-size: 0.9em;
+  overflow-wrap: break-word;
+}
+
 .migratebanner {
   margin: 16px;
   display: flex;

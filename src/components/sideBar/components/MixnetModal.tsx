@@ -101,7 +101,8 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
       <div className={cstyles.well} style={{ marginTop: 16 }}>
         <div className={cstyles.small} style={{ opacity: 0.6 }}>
           The mixnet hides your IP from the indexer when you send. Disabling it routes this session over clearnet:
-          faster, but the indexer sees your IP. The choice is never saved; the mixnet re-enables on the next launch.
+          faster, but the indexer sees your IP. The choice is never saved; the mixnet re-enables on the next launch. The
+          ZEC price is fetched over the mixnet only and never over clearnet, so USD values stay blank while this is off.
         </div>
       </div>
 

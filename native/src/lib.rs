@@ -648,14 +648,18 @@ fn init_new(mut cx: FunctionContext) -> JsResult<JsString> {
         // Fetch the current chain tip from the server; the NewSeed wallet
         // derives its birthday from this height (chain_height - 100).
         let chain_height = RT.block_on(async move {
+            // `GetClientError::Transport` is `transparent` over tonic's
+            // `transport::Error`, whose Display is the bare words "transport
+            // error" — the DNS/TLS/refused-connection cause that names what
+            // actually failed lives in `source()`.
             let mut indexer = GrpcIndexer::new(lightwalletd_uri)
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| cause_chain(&e))?;
             indexer
                 .get_latest_block(INDEXER_REQUEST_TIMEOUT)
                 .await
                 .map(|block_id| block_id.height as u32)
-                .map_err(|e| e.to_string())
+                .map_err(|e| cause_chain(&e))
         })
         .map_err(ZingolibError::Init)?;
         let config = builder
@@ -889,7 +893,8 @@ fn check_save_error(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 match lightclient.check_save_error().await {
                     Ok(()) => Ok(String::new()),
                     Err(e) => Err(ZingolibError::Save(format!(
-                        "save failed. {e}\nRestarting save task..."
+                        "save failed. {}\nRestarting save task...",
+                        cause_chain(&e)
                     ))),
                 }
             })
@@ -951,8 +956,9 @@ fn get_seed_string() -> Result<String, ZingolibError> {
         RT.block_on(async move {
             let wallet = lightclient.wallet().read().await;
             match wallet.recovery_info() {
-                Some(recovery_info) => serde_json::to_string_pretty(&recovery_info)
-                    .map_err(|_| ZingolibError::Read("get seed: failed to serialize".to_string())),
+                Some(recovery_info) => serde_json::to_string_pretty(&recovery_info).map_err(|e| {
+                    ZingolibError::Read(format!("get seed: failed to serialize. {e}"))
+                }),
                 None => Err(ZingolibError::Read(
                     "get seed: no mnemonic found. wallet loaded from key.".to_string(),
                 )),
@@ -978,7 +984,9 @@ fn get_ufvk_string() -> Result<String, ZingolibError> {
                 .get(&AccountId::ZERO)
                 .expect("account 0 must always exist")
                 .try_into()
-                .map_err(|e| ZingolibError::Read(format!("{e}")))?;
+                .map_err(|e: zingolib::wallet::error::KeyError| {
+                    ZingolibError::Read(cause_chain(&e))
+                })?;
             Ok(object! {
                 "ufvk" => ufvk.encode(&wallet.chain_type()),
                 "birthday" => u32::from(wallet.birthday())
@@ -1191,13 +1199,15 @@ fn get_latest_block_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 }
             };
             match RT.block_on(async move {
+                // "transport error" alone says nothing about which server
+                // the user typed is unreachable, or why. Walk the chain.
                 let mut indexer = GrpcIndexer::new(lightwalletd_uri)
                     .await
-                    .map_err(|e| e.to_string())?;
+                    .map_err(|e| cause_chain(&e))?;
                 indexer
                     .get_latest_block(INDEXER_REQUEST_TIMEOUT)
                     .await
-                    .map_err(|e| e.to_string())
+                    .map_err(|e| cause_chain(&e))
             }) {
                 Ok(block_id) => Ok(block_id.height.to_string()),
                 Err(e) => Err(ZingolibError::Read(e)),
@@ -1385,7 +1395,14 @@ fn change_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
         } else {
             match http::Uri::from_str(&server_uri) {
                 Ok(uri) => uri,
-                Err(_) => return Ok(object! { "error" => "invalid server uri" }.pretty(2)),
+                // Which part of what the user typed is invalid — a missing
+                // scheme reads nothing like a bad port.
+                Err(e) => {
+                    return Ok(
+                        object! { "error" => format!("invalid server uri. {}", cause_chain(&e)) }
+                            .pretty(2),
+                    );
+                }
             }
         };
 
@@ -1426,7 +1443,7 @@ fn change_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         "status" => if is_default { "server set (default)" } else { "server set" }
                     }
                     .pretty(2),
-                    Ok(Err(e)) => object! { "error" => e.to_string() }.pretty(2),
+                    Ok(Err(e)) => object! { "error" => cause_chain(&e) }.pretty(2),
                     Err(_) => object! { "error" => "server stopped answering" }.pretty(2),
                 }
             }))
@@ -1748,8 +1765,11 @@ fn plan_orchard_drain(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     }
                     .pretty(2),
                     // Failures cross as `{ "error": .. }` JSON, never as
-                    // error prose, matching the success shape.
-                    Err(e) => object! { "error" => e.to_string() }.pretty(2),
+                    // error prose, matching the success shape. The whole
+                    // chain: `LightClientError` alone is "Ironwood migration
+                    // error." / "Wallet error.", which hides the typed
+                    // `MigrationError` that says what the user must do.
+                    Err(e) => object! { "error" => cause_chain(&e) }.pretty(2),
                 }
             }))
         })
@@ -1795,8 +1815,9 @@ fn drain_orchard_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     }
                     .pretty(2),
                     // Failures cross as `{ "error": .. }` JSON, never as
-                    // error prose, matching the success shape.
-                    Err(e) => object! { "error" => e.to_string() }.pretty(2),
+                    // error prose, matching the success shape — and with
+                    // every layer, since the outermost one names none of them.
+                    Err(e) => object! { "error" => cause_chain(&e) }.pretty(2),
                 }
             }))
         })
@@ -2229,8 +2250,9 @@ fn migrate_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         "stranded" => summary.residual,
                     }
                     .pretty(2),
-                    // Failures cross as `{ error }` JSON, matching the drain.
-                    Err(e) => object! { "error" => e.to_string() }.pretty(2),
+                    // Failures cross as `{ error }` JSON, matching the drain,
+                    // with the cause chain the outermost label hides.
+                    Err(e) => object! { "error" => cause_chain(&e) }.pretty(2),
                 }
             }))
         })
@@ -2408,13 +2430,28 @@ fn attach_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     })
 }
 
-// The user's deliberate per-session clearnet consent: tear the transport down
-// and reach SwitchedOff, the one mode a mixnet-only surface routes over
-// clearnet in. Not a death; the supervisor cancels its liveness watch first.
+// The user's deliberate per-session clearnet consent: send over clearnet from
+// here on, and tear the transport down. Not a death; the supervisor cancels
+// its liveness watch first.
+//
+// Both halves, because zingolib now separates them. Transmissions follow the
+// session's `TransmitPolicy`, which `disable_mixnet` deliberately does not
+// touch — it only vacates the slot. A session starts under `Mixnet`, so
+// switching Mixnet Mode off without this would leave every send refusing with
+// "the Nym mixnet is not enabled", which is not what turning it off means
+// here. The policy goes first: after the slot is vacated there is no
+// transport, and a send racing between the two must find clearnet already
+// consented rather than a refusal.
+//
+// The price fetch does not follow the policy — it is mixnet-only, and refuses
+// while Mixnet Mode is off by design (zingolib 6.x, ADR 0011).
 fn stop_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
         with_initialized_lightclient(|lightclient| {
-            RT.block_on(async move { lightclient.disable_mixnet().await });
+            RT.block_on(async move {
+                lightclient.set_transmit_policy(zingolib::mixnet::TransmitPolicy::Clearnet);
+                lightclient.disable_mixnet().await;
+            });
             Ok(object! { "status" => "ok" }.pretty(2))
         })
     })
@@ -2427,7 +2464,7 @@ fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
         with_initialized_lightclient(|lightclient| {
             let txid = match txid_from_hex_encoded_str(&txid) {
                 Ok(txid) => txid,
-                Err(e) => return Ok(object! { "error" => e.to_string() }.pretty(2)),
+                Err(e) => return Ok(object! { "error" => cause_chain(&e) }.pretty(2)),
             };
             Ok(RT.block_on(async move {
                 match lightclient
@@ -2437,7 +2474,7 @@ fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     .remove_failed_transaction(txid)
                 {
                     Ok(_) => object! { "status" => "Successfully removed transaction." }.pretty(2),
-                    Err(e) => object! { "error" => e.to_string() }.pretty(2),
+                    Err(e) => object! { "error" => cause_chain(&e) }.pretty(2),
                 }
             }))
         })
@@ -2446,12 +2483,12 @@ fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
 
 fn get_spendable_balance_with_address_string(address: String, zennies: String) -> Result<String, ZingolibError> {
     with_initialized_lightclient_read(|lightclient| {
-        let Ok(address) = address_from_str(&address) else {
-            return Err(ZingolibError::Read("unknown address format".to_string()));
-        };
-        let Ok(zennies) = zennies.parse() else {
-            return Err(ZingolibError::Read("failed to parse zennies setting.".to_string()));
-        };
+        let address = address_from_str(&address).map_err(|e| {
+            ZingolibError::Read(format!("unknown address format. {}", cause_chain(&e)))
+        })?;
+        let zennies = zennies.parse().map_err(|e| {
+            ZingolibError::Read(format!("failed to parse zennies setting. {e}"))
+        })?;
         RT.block_on(async move {
             match lightclient
                 .max_send_value(address, zennies, AccountId::ZERO)
@@ -2789,14 +2826,20 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 // so no success can resemble a failure.
                 let json_args = match json::parse(&send_json) {
                     Ok(parsed) => parsed,
-                    Err(_) => return object! { "error" => "it is not a valid JSON" }.pretty(2),
+                    // With the position and the character that broke it: a
+                    // malformed send payload is a bug to locate, not a fact
+                    // to state.
+                    Err(e) => {
+                        return object! { "error" => format!("it is not a valid JSON. {e}") }
+                            .pretty(2);
+                    }
                 };
                 let mut receivers = Receivers::new();
                 for j in json_args.members() {
                     let recipient_address = match j["address"].as_str() {
                         Some(addr) => match ZcashAddress::try_from_encoded(addr) {
                             Ok(a) => a,
-                            Err(e) => return object! { "error" => format!("Invalid address: {e}") }.pretty(2),
+                            Err(e) => return object! { "error" => format!("Invalid address: {}", cause_chain(&e)) }.pretty(2),
                         },
                         None => return object! { "error" => "Missing address" }.pretty(2),
                     };
@@ -2824,7 +2867,7 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 let request = match transaction_request_from_receivers(receivers)
                 {
                     Ok(request) => request,
-                    Err(e) => return object! { "error" => format!("Request Error: {e}") }.pretty(2),
+                    Err(e) => return object! { "error" => format!("Request Error: {}", cause_chain(&e)) }.pretty(2),
                 };
                 // A memo-bearing deposit is not proposed here. It has its
                 // own shape and its own entry point, `send_swap_deposit`,
@@ -2942,8 +2985,12 @@ fn shield(mut cx: FunctionContext) -> JsResult<JsPromise> {
                             "fee" => fee.into_u64(),
                         }
                     }
+                    // `ProposeShieldError::Component` wraps a
+                    // `zcash_client_backend` error several layers deep; the
+                    // selector failure that says why nothing could be
+                    // shielded is at the bottom of them.
                     Err(e) => {
-                        object! { "error" => e.to_string() }
+                        object! { "error" => cause_chain(&e) }
                     }
                 }
                 .pretty(2)
@@ -2984,13 +3031,16 @@ fn delete_wallet(mut cx: FunctionContext) -> JsResult<JsPromise> {
 
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
         with_panic_guard(|| {
+            // Naming the config that is wrong: "Config issue" alone left a
+            // wallet that would not delete with no way to tell a bad server
+            // uri from a bad chain hint.
             let (builder, _wallet_settings, _lightwalletd_uri) = match construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name.clone()) {
                 Ok(v) => v,
-                Err(_) => return Ok(object! { "error" => "Config issue, delete failed." }.pretty(2)),
+                Err(e) => return Ok(object! { "error" => format!("Config issue, delete failed. {}", cause_chain(&e)) }.pretty(2)),
             };
             let config = match builder.set_wallet_config(WalletConfig::Read).build() {
                 Ok(c) => c,
-                Err(_) => return Ok(object! { "error" => "Config issue, delete failed." }.pretty(2)),
+                Err(e) => return Ok(object! { "error" => format!("Config issue, delete failed. {}", cause_chain(&e)) }.pretty(2)),
             };
             let wallet_path = config.get_wallet_path();
             // Success and failure both cross as structured JSON — never error
