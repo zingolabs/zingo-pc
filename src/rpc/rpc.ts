@@ -1474,8 +1474,14 @@ export default class RPC {
     }
 
     // Mixnet-only, fail-closed (ADR 0024 arc 6): the fetch refuses in every
-    // state but ready and the deliberate switched-off, and never falls back to
-    // clearnet without consent.
+    // state but ready, and never falls back to clearnet without consent.
+    //
+    // Switched-off refuses too. It once routed the price over clearnet, on the
+    // reading that switching Mixnet Mode off consented to it; zingolib now
+    // separates the two, and the send route is the only one the consent moves.
+    // A user with Mixnet Mode off therefore has no price at all — which the
+    // dashboard says in as many words rather than leaving the dashes to look
+    // like a fetch that never finished.
     //
     // A refusal used to be swallowed on the reasoning that Mixnet Mode was not
     // wired here yet, so refusing was the steady state and logging it on a 5s

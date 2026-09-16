@@ -2430,13 +2430,28 @@ fn attach_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     })
 }
 
-// The user's deliberate per-session clearnet consent: tear the transport down
-// and reach SwitchedOff, the one mode a mixnet-only surface routes over
-// clearnet in. Not a death; the supervisor cancels its liveness watch first.
+// The user's deliberate per-session clearnet consent: send over clearnet from
+// here on, and tear the transport down. Not a death; the supervisor cancels
+// its liveness watch first.
+//
+// Both halves, because zingolib now separates them. Transmissions follow the
+// session's `TransmitPolicy`, which `disable_mixnet` deliberately does not
+// touch — it only vacates the slot. A session starts under `Mixnet`, so
+// switching Mixnet Mode off without this would leave every send refusing with
+// "the Nym mixnet is not enabled", which is not what turning it off means
+// here. The policy goes first: after the slot is vacated there is no
+// transport, and a send racing between the two must find clearnet already
+// consented rather than a refusal.
+//
+// The price fetch does not follow the policy — it is mixnet-only, and refuses
+// while Mixnet Mode is off by design (zingolib 6.x, ADR 0011).
 fn stop_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
         with_initialized_lightclient(|lightclient| {
-            RT.block_on(async move { lightclient.disable_mixnet().await });
+            RT.block_on(async move {
+                lightclient.set_transmit_policy(zingolib::mixnet::TransmitPolicy::Clearnet);
+                lightclient.disable_mixnet().await;
+            });
             Ok(object! { "status" => "ok" }.pretty(2))
         })
     })
