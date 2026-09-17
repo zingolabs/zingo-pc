@@ -25,6 +25,7 @@
     "electron-settings": "^4.0.4",
     "fs-extra": "^9.0.1",
     "js-base64": "^3.7.7",
+    "jsqr": "^1.4.0",
     "keytar": "^7.9.0",
     "minimatch": "^10.0.3",
     "qrcode.react": "^4.2.0",

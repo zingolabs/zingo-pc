@@ -271,6 +271,15 @@ describe("ToAddrBox", () => {
     expect(screen.getByText("Coffee Shop")).toBeInTheDocument();
   });
 
+  // An image with a code is read in the dialog and goes through the same door
+  // a typed address does.
+  it("offers scanning a QR code beside the address", () => {
+    render(<ToAddrBox {...makeProps()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Scan a QR code" }));
+    expect(screen.getByText("Scan a QR code", { selector: "div" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Image with a QR code")).toBeInTheDocument();
+  });
+
   it("shows 'Contact: <label>' when address matches an address-book entry", async () => {
     (native.parse_address as jest.Mock).mockResolvedValue(
       JSON.stringify({ status: "success", address_kind: "unified", chain_name: "main" }),
