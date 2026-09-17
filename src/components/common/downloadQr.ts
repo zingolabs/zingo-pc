@@ -36,42 +36,74 @@ export function qrFileName(kind: string, walletAlias?: string): string {
 }
 
 /**
+ * `text` in lines no wider than `maxWidth`, as `measure` reports widths.
+ *
+ * Broken at whitespace, and a word too wide for a line on its own is broken
+ * between characters: drawn whole, the canvas squeezes it until it cannot be
+ * read. Characters are taken as code points, so an accent or an emoji is
+ * never split in half.
+ */
+export function wrapTitle(text: string, measure: (s: string) => number, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  const push = (piece: string, separator: string) => {
+    const candidate = line ? `${line}${separator}${piece}` : piece;
+    if (!line || measure(candidate) <= maxWidth) {
+      line = candidate;
+    } else {
+      lines.push(line);
+      line = piece;
+    }
+  };
+
+  for (const word of text.trim().split(/\s+/)) {
+    if (measure(word) <= maxWidth) {
+      push(word, " ");
+      continue;
+    }
+    // Too wide alone: start it on a line of its own and fill character by character.
+    if (line) {
+      lines.push(line);
+      line = "";
+    }
+    for (const char of Array.from(word)) push(char, "");
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/** The width a saved request's QR is drawn at, whatever its size on screen. */
+export const EXPORTED_QR_SIZE = 1024;
+
+/**
  * The QR image with `title` written over it, for a request saved to share: the
- * picture has to say what it is for without the screen it came from. The code
- * keeps its quiet zone and its pixels; the title goes on a white band above,
- * wrapped to the code's width. Without a title, or where no 2D context can be
+ * picture has to say what it is for without the screen it came from.
+ *
+ * The code is scaled up to EXPORTED_QR_SIZE with its modules kept sharp, and
+ * the title is added as a band above it rather than taken out of it: the code
+ * stays the same size however long the title is, and a longer title only makes
+ * the image taller; without one there is no band. Where no 2D context can be
  * had, the code's own canvas comes back unchanged.
  */
 export function composeQrWithTitle(qr: HTMLCanvasElement, title: string): HTMLCanvasElement {
   const text = title.trim();
-  if (!text) return qr;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) return qr;
 
-  const width = qr.width;
-  const fontSize = Math.max(12, Math.round(width / 16));
+  const width = Math.max(qr.width, EXPORTED_QR_SIZE);
+  const qrHeight = Math.round((qr.height * width) / qr.width);
+  const fontSize = Math.round(width / 22);
   const padding = Math.round(fontSize * 0.75);
   const font = `bold ${fontSize}px Roboto, Arial, Helvetica, sans-serif`;
   ctx.font = font;
 
-  const lines: string[] = [];
-  let line = "";
-  for (const word of text.split(/s+/)) {
-    const candidate = line ? `${line} ${word}` : word;
-    if (line && ctx.measureText(candidate).width > width - 2 * padding) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = candidate;
-    }
-  }
-  if (line) lines.push(line);
+  const lines = text ? wrapTitle(text, (s) => ctx.measureText(s).width, width - 2 * padding) : [];
 
   const lineHeight = Math.round(fontSize * 1.3);
-  const band = padding + lines.length * lineHeight;
+  const band = lines.length > 0 ? padding + lines.length * lineHeight : 0;
   canvas.width = width;
-  canvas.height = qr.height + band;
+  canvas.height = qrHeight + band;
 
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -80,6 +112,8 @@ export function composeQrWithTitle(qr: HTMLCanvasElement, title: string): HTMLCa
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
   lines.forEach((l, i) => ctx.fillText(l, width / 2, padding + i * lineHeight, width - 2 * padding));
-  ctx.drawImage(qr, 0, band);
+  // Nearest-neighbour, so the scaled modules keep hard edges and still scan.
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(qr, 0, band, width, qrHeight);
   return canvas;
 }
