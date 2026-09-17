@@ -1,4 +1,4 @@
-import { wrapTitle } from "./downloadQr";
+import { qrFileName, wrapTitle } from "./downloadQr";
 
 jest.mock("../../electronBridge");
 
@@ -27,5 +27,25 @@ describe("wrapTitle", () => {
 
   it("never splits an accented letter or an emoji", () => {
     expect(wrapTitle("ñañaña✨✨", measure, 3)).toEqual(["ñañ", "aña", "✨✨"]);
+  });
+});
+
+describe("qrFileName", () => {
+  it("names the kind and the wallet", () => {
+    expect(qrFileName("u", "My wallet")).toBe("QR_u_Zingo_PC_My_wallet.png");
+    expect(qrFileName("t")).toBe("QR_t_Zingo_PC.png");
+  });
+
+  // The file should say what the request asks for.
+  it("adds a payment request's title after the wallet", () => {
+    expect(qrFileName("request", "New tm", "Pago de factura 34")).toBe(
+      "QR_request_Zingo_PC_New_tm_Pago_de_factura_34.png",
+    );
+    expect(qrFileName("request", "New tm", "")).toBe("QR_request_Zingo_PC_New_tm.png");
+  });
+
+  it("makes both safe for a file name, and cuts a long title", () => {
+    expect(qrFileName("request", "a/b", "x:y?")).toBe("QR_request_Zingo_PC_a_b_x_y.png");
+    expect(qrFileName("request", "w", "ñ".repeat(60))).toBe("QR_request_Zingo_PC_w_" + "ñ".repeat(40) + ".png");
   });
 });

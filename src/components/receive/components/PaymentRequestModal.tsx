@@ -12,6 +12,9 @@ import { useCopy } from "../../common/useCopy";
 import { composeQrWithTitle, downloadQrCanvas, qrFileName } from "../../common/downloadQr";
 import { buildPaymentRequestUri, validatePaymentRequest } from "../../../utils/paymentRequest";
 
+/** Between one field and the next: close enough that the form fits without scrolling. */
+const FIELD_GAP: React.CSSProperties = { marginTop: 10 };
+
 type PaymentRequestModalProps = {
   /** The address being asked to be paid. */
   address: string;
@@ -30,9 +33,6 @@ type PaymentRequestModalProps = {
  *
  * Nothing leaves the wallet. The link is built here and handed to the user.
  */
-/** Between one field and the next: close enough that the form fits without scrolling. */
-const FIELD_GAP: React.CSSProperties = { marginTop: 10 };
-
 const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
   address,
   allowsMemo,
@@ -206,7 +206,7 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
                   onClick={() =>
                     downloadQrCanvas(
                       canvasRef.current && composeQrWithTitle(canvasRef.current, generated.title),
-                      qrFileName("request", currentWallet?.alias),
+                      qrFileName("request", currentWallet?.alias, generated.title),
                     )
                   }
                 >
