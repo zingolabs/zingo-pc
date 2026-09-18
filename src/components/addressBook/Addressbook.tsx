@@ -14,6 +14,7 @@ import { isSameZnsAlias, isZnsAlias, resolveZnsAlias } from "../../utils/zns";
 import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
 import { chainDisplayName } from "../swap/chainDisplayName";
 import ScanQrModal from "../common/ScanQrModal";
+import { filterContacts } from "../../utils/contactSearch";
 import { parseZcashURITargets } from "../../utils/uris";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faQrcode } from "@fortawesome/free-solid-svg-icons";
@@ -107,6 +108,10 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   // Whether the list under the titles has anything in it. The titles are
   // drawn only when it does; the filter above them always is.
   const hasVisibleContacts: boolean = !!addressBookSorted && addressBookSorted.length > 0;
+
+  // A long book is searched by any part of a name or an address.
+  const [contactQuery, setContactQuery] = useState<string>("");
+  const contactsShown: AddressBookEntryClass[] = filterContacts(addressBookSorted, contactQuery);
 
   const updateLabel = (_currentLabel: string) => {
     setCurrentLabel(_currentLabel);
@@ -452,6 +457,19 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
         >
           {hasVisibleContacts && <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 15 }}>
+            {hasVisibleContacts && (
+              <div className={cstyles.fieldrow} style={{ width: 240 }}>
+                <input
+                  type="search"
+                  aria-label="Search contacts"
+                  className={cstyles.fieldinput}
+                  style={{ fontSize: 14 }}
+                  value={contactQuery}
+                  onChange={(e) => setContactQuery(e.target.value)}
+                  placeholder="Search by name or address"
+                />
+              </div>
+            )}
             <input
               type="checkbox"
               aria-label="Show contacts from all networks"
@@ -476,9 +494,14 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
         <div ref={paneRef}>
           <ScrollPaneTop offsetHeight={paneOffset}>
             <div className={styles.addressbooklist}>
-              {addressBookSorted && addressBookSorted.length > 0 && (
+              {hasVisibleContacts && contactsShown.length === 0 && (
+                <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.margintoplarge}`}>
+                  No contacts match that.
+                </div>
+              )}
+              {contactsShown.length > 0 && (
                 <Accordion>
-                  {addressBookSorted.map((item: AddressBookEntryClass) => (
+                  {contactsShown.map((item: AddressBookEntryClass) => (
                     <AddressBookItem
                       key={item.label}
                       item={item}

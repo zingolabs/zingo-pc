@@ -500,3 +500,27 @@ describe("AddressBook — scanning a QR code", () => {
     expect(screen.queryByText(/only the first address was taken/)).not.toBeInTheDocument();
   });
 });
+
+describe("AddressBook — search", () => {
+  const entries = [
+    new AddressBookEntryClass("Alice", "u1alice0000000000000000", ServerChainNameEnum.mainChainName),
+    new AddressBookEntryClass("Bob", "u1bob000000000000000000", ServerChainNameEnum.mainChainName),
+  ];
+
+  it("narrows the list by any part of a name or an address", () => {
+    render(<AddressBook {...baseProps} />, { contextOverrides: { addressBook: entries } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search contacts" }), { target: { value: "ali" } });
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search contacts" }), { target: { value: "u1bob" } });
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument();
+  });
+
+  it("says so when nothing matches", () => {
+    render(<AddressBook {...baseProps} />, { contextOverrides: { addressBook: entries } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search contacts" }), { target: { value: "zzz" } });
+    expect(screen.getByText("No contacts match that.")).toBeInTheDocument();
+  });
+});
