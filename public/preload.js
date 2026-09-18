@@ -123,6 +123,8 @@ const ALLOWED_INVOKE = new Set([
   "apprestart",
   "appquitdone",
   "auth:check",
+  // Reading a payment QR with the camera, in Send.
+  "camera:request-access",
   "auth:verify",
   "wallet-dir:request",
   "fs:existsSync",

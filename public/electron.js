@@ -36,6 +36,7 @@ const {
   clipboard,
   powerMonitor,
   safeStorage,
+  systemPreferences,
 } = require("electron");
 const os = require("os");
 const path = require("path");
@@ -828,6 +829,18 @@ ipcMain.handle("shell:openPaymentUri", async (_e, uri) => {
   } catch {
     return { ok: false, reason: "no-handler" };
   }
+});
+
+// Whether the OS lets this app use the camera, asking the user the first time.
+// Only macOS keeps a per-app camera permission the app can ask for; on
+// Windows and Linux the answer comes from getUserMedia itself, so this says
+// yes and lets that report a refusal.
+ipcMain.handle("camera:request-access", async () => {
+  if (process.platform !== "darwin") return true;
+  const status = systemPreferences.getMediaAccessStatus("camera");
+  if (status === "granted") return true;
+  if (status === "not-determined") return systemPreferences.askForMediaAccess("camera");
+  return false;
 });
 
 ipcMain.handle("clipboard:writeText", (_e, text) => {
@@ -2919,15 +2932,26 @@ app.whenReady().then(async () => {
     });
   });
 
-  // Deny all renderer permission requests by default. Zingo PC does not use
-  // camera, microphone, geolocation, notifications, MIDI, USB, clipboard-read,
-  // or any other web-platform permission. Explicit deny-all is defense in depth
-  // on top of MAS sandbox entitlements (which already restrict these at the OS
-  // level on the App Store build).
-  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
-    callback(false);
+  // Deny every renderer permission but one. Zingo PC uses no microphone,
+  // geolocation, notifications, MIDI, USB, clipboard-read or any other
+  // web-platform permission; the exception is the camera, video only, asked by
+  // the app's own page, for reading a payment QR code in Send. The frames are
+  // decoded in the renderer and never stored or sent. On macOS the OS asks the
+  // user as well (camera:request-access below), and the MAS entitlement is
+  // camera only.
+  const fromAppPage = (url) =>
+    typeof url === "string" && (isDev ? url.startsWith("http://localhost:3000") : url.startsWith("file://"));
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback, details) => {
+    const mediaTypes = (details && details.mediaTypes) || [];
+    const cameraOnly = permission === "media" && mediaTypes.length > 0 && mediaTypes.every((type) => type === "video");
+    callback(cameraOnly && details.isMainFrame !== false && fromAppPage(details.requestingUrl));
   });
-  session.defaultSession.setPermissionCheckHandler(() => false);
+  session.defaultSession.setPermissionCheckHandler(
+    (_webContents, permission, requestingOrigin, details) =>
+      permission === "media" &&
+      (details && details.mediaType) === "video" &&
+      fromAppPage(requestingOrigin || (details && details.requestingUrl)),
+  );
 
   await maybeRunDmgToMasMigration();
   await maybeRunDebAppImageToFlatpakMigration();

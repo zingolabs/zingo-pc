@@ -232,7 +232,8 @@
       "entitlements": "./configs/entitlements.mac.inherit.plist",
       "bundleVersion": "187",
       "extendInfo": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Zingo PC uses the camera only to read payment QR codes. Images are processed on this device and never stored or sent."
       },
       "protocols": [
         {
@@ -260,7 +261,8 @@
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
       "bundleVersion": "187",
       "extendInfo": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "Zingo PC uses the camera only to read payment QR codes. Images are processed on this device and never stored or sent."
       },
       "protocols": [
         {
@@ -323,6 +325,10 @@
       "showNameOnTiles": true,
       "languages": [
         "en-US"
+      ],
+      "capabilities": [
+        "runFullTrust",
+        "webcam"
       ]
     },
     "deb": {
