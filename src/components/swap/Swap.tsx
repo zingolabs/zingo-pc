@@ -747,7 +747,13 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               role: "source",
               isZec: isOutbound,
               token: isOutbound ? null : selectedToken,
-              balanceLabel: isOutbound ? `Spendable: ${spendable} ${info.currencyName}` : undefined,
+              // In the currency the amount is being typed in, so the two can be
+              // compared at a glance.
+              balanceLabel: !isOutbound
+                ? undefined
+                : usdAmount.usdMode
+                  ? `Spendable: ${spendable > 0 ? Utils.getZecToUsdString(zecPrice, spendable) : "USD 0.00"}`
+                  : `Spendable: ${spendable} ${info.currencyName}`,
               amount: isOutbound ? usdAmount.inputValue : amount,
               editable: true,
               invalid: overBalance,
