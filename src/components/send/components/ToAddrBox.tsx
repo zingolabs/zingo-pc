@@ -9,11 +9,14 @@ import { ContextApp } from "../../../context/ContextAppState";
 import { isSameZnsAlias, isZnsAlias, extractZnsName, resolveZnsAlias } from "../../../utils/zns";
 import { shell } from "../../../electronBridge";
 import ContactPicker from "../../common/ContactPicker";
+import ScanQrModal from "../../common/ScanQrModal";
+import { parseZcashURITargets } from "../../../utils/uris";
 import SaveContact from "../../common/SaveContact";
 import { ZEC_SWAP_CHAIN } from "../../appstate/classes/AddressBookEntryClass";
 import RecipientStatusType from "./RecipientStatusType";
 import {
   faAddressBook,
+  faQrcode,
   faCheck,
   faEnvelope,
   faExternalLinkSquareAlt,
@@ -95,6 +98,7 @@ const ToAddrBox = ({
   const [znsStatus, setZnsStatus] = useState<"idle" | "resolving" | "not-found" | "network">("idle");
   const [contactsOpen, setContactsOpen] = useState<boolean>(false);
   const [saveContactOpen, setSaveContactOpen] = useState<boolean>(false);
+  const [scanOpen, setScanOpen] = useState<boolean>(false);
   // Named once: the contact list and the save prompt should call the chain the
   // same thing on the same screen.
   const zcashChainLabel = currencyName === "TAZ" ? "Testnet Zcash" : "Zcash";
@@ -446,6 +450,15 @@ const ToAddrBox = ({
               <FontAwesomeIcon icon={faTimesCircle} size="lg" />
             </button>
           )}
+          <button
+            type="button"
+            className={cstyles.fieldaction}
+            aria-label="Scan a QR code"
+            title="Scan a QR code"
+            onClick={() => setScanOpen(true)}
+          >
+            <FontAwesomeIcon icon={faQrcode} size="lg" />
+          </button>
           {zcashContacts.length > 0 && (
             <button
               type="button"
@@ -471,6 +484,24 @@ const ToAddrBox = ({
             </button>
           )}
         </div>
+
+        {scanOpen && (
+          <ScanQrModal
+            modalIsOpen={scanOpen}
+            closeModal={() => setScanOpen(false)}
+            // The same door a typed or pasted address goes through, so a code
+            // carrying a request with several recipients fills them all.
+            onScanned={(text) => updateToField(text, null, null)}
+            // Judged before it lands in the field: a code from another wallet's
+            // world would otherwise sit there as an invalid address.
+            validate={async (text) => {
+              const parsed = await parseZcashURITargets(text, serverChainName);
+              return typeof parsed === "string" && parsed.toLowerCase().startsWith("error")
+                ? "That QR code does not carry a Zcash address or payment request."
+                : null;
+            }}
+          />
+        )}
 
         {saveContactOpen && (
           <SaveContact
