@@ -48,6 +48,8 @@ import { optimalRouteId } from "../../swap/optimalRoute";
 import InsufficientFunds from "./InsufficientFunds";
 import ContactPicker from "../common/ContactPicker";
 import SaveContact from "../common/SaveContact";
+import AmountCurrencyToggle from "../common/AmountCurrencyToggle";
+import { useUsdAmount } from "../common/useUsdAmount";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
@@ -418,6 +420,16 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // nobody asked.
   const overBalance = isOutbound && amountValid && amountNumber > spendable;
 
+  // Selling ZEC, the amount can be typed in USD; the swap is always quoted and
+  // sent in ZEC. It follows the price until the review opens.
+  const usdAmount = useUsdAmount({
+    zecText: amount,
+    setZecText: setAmount,
+    zecPrice,
+    available: isOutbound && info.currencyName === "ZEC",
+    frozen: reviewing,
+  });
+
   // Emptying the amount means there is nothing to quote, but the panel must not
   // blank the instant the number hits zero: erasing the last digit of `0.02` to
   // retype `0.03` passes through an empty field, and clearing there would make
@@ -736,15 +748,22 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               isZec: isOutbound,
               token: isOutbound ? null : selectedToken,
               balanceLabel: isOutbound ? `Spendable: ${spendable} ${info.currencyName}` : undefined,
-              amount,
+              amount: isOutbound ? usdAmount.inputValue : amount,
               editable: true,
               invalid: overBalance,
-              onChangeAmount: setAmount,
+              onChangeAmount: isOutbound ? usdAmount.onInputChange : setAmount,
+              amountAdornment:
+                isOutbound && info.currencyName === "ZEC" ? (
+                  <AmountCurrencyToggle amount={usdAmount} currencyName={info.currencyName} />
+                ) : undefined,
               // The refusal takes the slot when there is one; otherwise the
               // fiat value, which mobile shows on the ZEC side only — it is
               // the one asset this wallet holds a price for.
               amountSub: overBalance ? (
                 <span style={{ color: "var(--color-error)" }}>That is more than the spendable balance.</span>
+              ) : isOutbound && amountValid && usdAmount.usdMode ? (
+                // Typed in dollars: the ZEC the swap will sell.
+                `≈ ${info.currencyName} ${Utils.maxPrecisionTrimmed(amountNumber)}`
               ) : isOutbound && amountValid && zecPrice > 0 ? (
                 Utils.getZecToUsdString(zecPrice, amountNumber)
               ) : undefined,

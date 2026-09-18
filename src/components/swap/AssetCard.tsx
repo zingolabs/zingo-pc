@@ -35,6 +35,8 @@ export type AssetCardProps = {
   onChangeAmount?: (value: string) => void;
   /** Line under the amount — fiat value, or why the amount is refused. */
   amountSub?: React.ReactNode;
+  /** Shown inside the amount box, after the figure: the ZEC ⇄ USD switch. */
+  amountAdornment?: React.ReactNode;
   onSelectAsset?: () => void;
   selectDisabled?: boolean;
   address?: {
@@ -80,6 +82,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
   invalid,
   onChangeAmount,
   amountSub,
+  amountAdornment,
   onSelectAsset,
   selectDisabled,
   address,
@@ -140,6 +143,7 @@ const AssetCard: React.FC<AssetCardProps> = ({
             ) : (
               <div className={styles.amounttext}>{amount || "0"}</div>
             )}
+            {editable && amountAdornment}
           </div>
           {amountSub && <div className={`${cstyles.sublight} ${styles.amountsub}`}>{amountSub}</div>}
         </div>

@@ -9,6 +9,8 @@ import styles from "../Receive.module.css";
 import { ContextApp } from "../../../context/ContextAppState";
 import Utils from "../../../utils/utils";
 import { useCopy } from "../../common/useCopy";
+import AmountCurrencyToggle from "../../common/AmountCurrencyToggle";
+import { useUsdAmount } from "../../common/useUsdAmount";
 import { composeQrWithTitle, downloadQrCanvas, qrFileName } from "../../common/downloadQr";
 import { buildPaymentRequestUri, validatePaymentRequest } from "../../../utils/paymentRequest";
 
@@ -40,7 +42,7 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
   modalIsOpen,
   closeModal,
 }) => {
-  const { currentWallet } = useContext(ContextApp);
+  const { currentWallet, zecPrice } = useContext(ContextApp);
   const [title, setTitle] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
   const [memo, setMemo] = useState<string>("");
@@ -60,6 +62,20 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
     setGenerated(null);
     setShowLink(false);
   };
+
+  // The amount can be typed in USD. The request asks for ZEC, and once it is
+  // generated the price no longer moves it: the code shows a fixed amount.
+  const usdAmount = useUsdAmount({
+    zecText: amount,
+    setZecText: (zecText) => {
+      setAmount(zecText.replace(",", "."));
+      edited();
+    },
+    zecPrice,
+    available: currencyName === "ZEC",
+    frozen: !!generated,
+  });
+  const amountZec = parseFloat(amount);
 
   const generate = () => {
     setTouched(true);
@@ -126,9 +142,18 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
                 of the same payment. */}
             <div className={cstyles.verticalflex} style={FIELD_GAP}>
               <div style={{ marginBottom: 3 }} className={cstyles.flexspacebetween}>
-                <div className={cstyles.sublight}>Amount ({currencyName})</div>
+                <div className={cstyles.sublight}>Amount ({usdAmount.usdMode ? "USD" : currencyName})</div>
                 <div className={cstyles.validationerror}>
-                  {touched && !!amountError && <span className={cstyles.red}>{amountError}</span>}
+                  {touched && !!amountError ? (
+                    <span className={cstyles.red}>{amountError}</span>
+                  ) : !Number.isFinite(amountZec) || amountZec <= 0 ? null : usdAmount.usdMode ? (
+                    // Typed in dollars: what the request will ask for, in ZEC.
+                    <span>
+                      ≈ {currencyName} {Utils.maxPrecisionTrimmed(amountZec)}
+                    </span>
+                  ) : currencyName === "ZEC" && zecPrice > 0 ? (
+                    <span>{Utils.getZecToUsdString(zecPrice, amountZec)}</span>
+                  ) : null}
                 </div>
               </div>
               <div className={cstyles.fieldrow}>
@@ -140,15 +165,13 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
                   autoComplete="off"
                   spellCheck={false}
                   placeholder="0"
-                  value={amount}
-                  onChange={(e) => {
-                    setAmount(e.target.value.replace(",", "."));
-                    edited();
-                  }}
+                  value={usdAmount.inputValue}
+                  onChange={(e) => usdAmount.onInputChange(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") generate();
                   }}
                 />
+                {currencyName === "ZEC" && <AmountCurrencyToggle amount={usdAmount} currencyName={currencyName} />}
               </div>
             </div>
 
