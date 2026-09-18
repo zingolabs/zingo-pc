@@ -13,6 +13,10 @@ import { ContextApp } from "../../context/ContextAppState";
 import { isSameZnsAlias, isZnsAlias, resolveZnsAlias } from "../../utils/zns";
 import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
 import { chainDisplayName } from "../swap/chainDisplayName";
+import ScanQrModal from "../common/ScanQrModal";
+import { parseZcashURITargets } from "../../utils/uris";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faQrcode } from "@fortawesome/free-solid-svg-icons";
 
 type AddressBookProps = {
   addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
@@ -112,7 +116,27 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   // unwrapped down to the bare address; anything else passes through. Without
   // this a perfectly good pasted URI would fail validation for the scheme
   // wrapped around it.
+  // Scanning fills only the address: a contact is an address and a name, and
+  // nothing a payment request carries (amount, memo, its own label) belongs to
+  // either. A request naming several recipients gives its first, and says so.
+  const [scanOpen, setScanOpen] = useState<boolean>(false);
+  const [scanNotice, setScanNotice] = useState<string>("");
+  const takeScannedAddress = async (text: string) => {
+    const parsed = await parseZcashURITargets(text, currentChain);
+    if (typeof parsed === "string") {
+      setCurrentAddress(parsed);
+      setScanNotice("");
+      return;
+    }
+    const first = parsed.find((target) => !!target.address)?.address ?? "";
+    setCurrentAddress(first);
+    setScanNotice(
+      parsed.length > 1 ? `That request names ${parsed.length} recipients; only the first address was taken.` : "",
+    );
+  };
+
   const updateAddress = (_currentAddress: string) => {
+    setScanNotice("");
     setCurrentAddress(extractPlainAddress(_currentAddress).replace(/\s+/g, ""));
   };
 
@@ -293,7 +317,36 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               value={currentAddress}
               onChange={(e) => updateAddress(e.target.value)}
             />
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="Scan a QR code"
+              title="Scan a QR code"
+              onClick={() => setScanOpen(true)}
+            >
+              <FontAwesomeIcon icon={faQrcode} size="lg" />
+            </button>
           </div>
+          {!!scanNotice && (
+            <div className={`${cstyles.yellow} ${cstyles.small} ${cstyles.padtopsmall}`} style={{ textAlign: "left" }}>
+              {scanNotice}
+            </div>
+          )}
+          {scanOpen && (
+            <ScanQrModal
+              modalIsOpen={scanOpen}
+              closeModal={() => setScanOpen(false)}
+              onScanned={(text) => void takeScannedAddress(text)}
+              // Zcash only, as in Send: a code carrying anything else is refused
+              // in the dialog rather than left in the field.
+              validate={async (text) => {
+                const parsed = await parseZcashURITargets(text, currentChain);
+                return typeof parsed === "string" && parsed.toLowerCase().startsWith("error")
+                  ? "That QR code does not carry a Zcash address or payment request."
+                  : null;
+              }}
+            />
+          )}
 
           <div className={cstyles.horizontalflex} style={{ gap: 16, marginTop: 12, alignItems: "flex-start" }}>
             <div style={{ flex: 2, minWidth: 0 }}>

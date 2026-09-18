@@ -30,6 +30,21 @@ jest.mock("../../utils/zns", () => {
   };
 });
 
+// The scan dialog stands in as a button that "scans" whatever the test sets.
+let mockScanned = "";
+jest.mock("../common/ScanQrModal", () => ({
+  __esModule: true,
+  default: (props: { onScanned: (text: string) => void }) => (
+    <button type="button" onClick={() => props.onScanned(mockScanned)}>
+      fake scan
+    </button>
+  ),
+}));
+let mockParseTargets: (text: string) => Promise<any> = async (text) => text;
+jest.mock("../../utils/uris", () => ({
+  parseZcashURITargets: (text: string) => mockParseTargets(text),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { native } = require("../../electronBridge");
 
@@ -443,5 +458,45 @@ describe("AddressBook validation ticks", () => {
 
     expect(await screen.findByText("Invalid Address")).toBeInTheDocument();
     expect(screen.queryByTestId("address-valid")).not.toBeInTheDocument();
+  });
+});
+
+describe("AddressBook — scanning a QR code", () => {
+  const scan = async (text: string) => {
+    mockScanned = text;
+    fireEvent.click(screen.getByRole("button", { name: "Scan a QR code" }));
+    fireEvent.click(screen.getByRole("button", { name: "fake scan" }));
+    await waitFor(() => expect(mockParseTargets).toBeDefined());
+  };
+
+  it("fills the address from a code carrying a plain address", async () => {
+    mockParseTargets = async (text) => text;
+    render(<AddressBook {...baseProps} />);
+    await scan("u1scanned");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("u1scanned"));
+  });
+
+  // A contact is an address and a name; nothing else a request carries fits.
+  it("takes only the address from a payment request, not its label", async () => {
+    mockParseTargets = async () => [{ address: "u1shop", amount: 1, label: "Coffee Shop", memoString: "hi" }];
+    render(<AddressBook {...baseProps} />);
+    await scan("zcash:u1shop?amount=1&label=Coffee%20Shop");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("u1shop"));
+    expect(screen.getByRole("textbox", { name: /label/i })).toHaveValue("");
+  });
+
+  it("takes the first address of a request naming several, and says so", async () => {
+    mockParseTargets = async () => [
+      { address: "u1first", amount: 1 },
+      { address: "u1second", amount: 2 },
+      { address: "u1third", amount: 3 },
+    ];
+    render(<AddressBook {...baseProps} />);
+    await scan("zcash:?address=u1first&amount=1&address.1=u1second&amount.1=2&address.2=u1third&amount.2=3");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("u1first"));
+    expect(screen.getByText("That request names 3 recipients; only the first address was taken.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "u1typed" } });
+    expect(screen.queryByText(/only the first address was taken/)).not.toBeInTheDocument();
   });
 });
