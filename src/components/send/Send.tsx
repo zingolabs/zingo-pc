@@ -576,6 +576,8 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
                 onRemove={rows.length > 1 ? () => requestRemove(toaddr, index) : undefined}
                 duplicateOfIndex={duplicateOfIndex(index)}
                 zecPrice={zecPrice}
+                // An amount typed in USD follows the price only until the send is being confirmed.
+                amountFrozen={modalIsOpen}
                 updateToField={(address, amount, memo) => updateToField(toaddr.id, address, amount, memo)}
                 updateZnsAlias={(znsAlias) => updateZnsAlias(toaddr.id, znsAlias)}
                 fromAmount={totalAmountAvailable}

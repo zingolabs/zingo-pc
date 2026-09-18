@@ -10,6 +10,8 @@ import { isSameZnsAlias, isZnsAlias, extractZnsName, resolveZnsAlias } from "../
 import { shell } from "../../../electronBridge";
 import ContactPicker from "../../common/ContactPicker";
 import ScanQrModal from "../../common/ScanQrModal";
+import AmountCurrencyToggle from "../../common/AmountCurrencyToggle";
+import { useUsdAmount } from "../../common/useUsdAmount";
 import { parseZcashURITargets } from "../../../utils/uris";
 import SaveContact from "../../common/SaveContact";
 import { ZEC_SWAP_CHAIN } from "../../appstate/classes/AddressBookEntryClass";
@@ -44,6 +46,8 @@ type ToAddrBoxProps = {
   // a slip than a second payment, so it is pointed out.
   duplicateOfIndex?: number;
   zecPrice: number;
+  /** True while the send is being confirmed: an amount typed in USD stops following the price. */
+  amountFrozen?: boolean;
   updateToField: (address: string | null, amount: string | null, memo: string | null) => void;
   updateZnsAlias: (znsAlias: string) => void;
   fromAmount: number;
@@ -67,6 +71,7 @@ const ToAddrBox = ({
   onRemove,
   duplicateOfIndex,
   zecPrice,
+  amountFrozen,
   updateToField,
   updateZnsAlias,
   fromAmount,
@@ -90,6 +95,17 @@ const ToAddrBox = ({
   const [addressIsValid, setAddressIsValid] = useState<number>(0);
   const [amountError, setAmountError] = useState<string | null>(null);
   const [usdValue, setUsdValue] = useState<string>("");
+  // The amount can be typed in USD; what the row holds and sends is always ZEC.
+  const usdAmount = useUsdAmount({
+    zecText: isNaN(amountLocal) ? "" : String(amountLocal),
+    setZecText: (zecText) => {
+      setAmountLocal(Number(zecText));
+      updateToField(null, zecText, null);
+    },
+    zecPrice,
+    available: currencyName === "ZEC",
+    frozen: !!amountFrozen,
+  });
   const [memoError, setMemoError] = useState<string | null>(null);
 
   // ZNS resolution state. `znsAlias` is persisted via `toaddr.znsAlias` so the
@@ -552,6 +568,12 @@ const ToAddrBox = ({
                 <span className={cstyles.yellow}>Transparent addresses need an amount</span>
               ) : needsAmountOrMemo ? (
                 <span className={cstyles.yellow}>Add an amount or a memo</span>
+              ) : usdAmount.usdMode ? (
+                // Typed in dollars: the line that showed the dollars shows the
+                // ZEC they come to, which is what is sent.
+                <span>
+                  ≈ {currencyName} {isNaN(amountLocal) ? 0 : Utils.maxPrecisionTrimmed(amountLocal)}
+                </span>
               ) : currencyName === "ZEC" ? (
                 <span>{usdValue}</span>
               ) : null}
@@ -563,12 +585,10 @@ const ToAddrBox = ({
               aria-label="Amount"
               step="any"
               className={cstyles.fieldamount}
-              value={isNaN(amountLocal) ? "" : amountLocal}
-              onChange={(e) => {
-                setAmountLocal(Number(e.target.value));
-                updateToField(null, e.target.value, null);
-              }}
+              value={usdAmount.inputValue}
+              onChange={(e) => usdAmount.onInputChange(e.target.value)}
             />
+            {currencyName === "ZEC" && <AmountCurrencyToggle amount={usdAmount} currencyName={currencyName} />}
             <button
               type="button"
               aria-label="Set maximum amount"

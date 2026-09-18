@@ -271,6 +271,20 @@ describe("ToAddrBox", () => {
     expect(screen.getByText("Coffee Shop")).toBeInTheDocument();
   });
 
+  // Typed in dollars, the row still holds and sends ZEC.
+  it("takes the amount in USD and hands on the ZEC it comes to", () => {
+    const updateToField = jest.fn();
+    render(<ToAddrBox {...makeProps({ updateToField })} />);
+    fireEvent.click(screen.getByRole("button", { name: "Type the amount in USD" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Amount" }), { target: { value: "250" } });
+    expect(updateToField).toHaveBeenLastCalledWith(null, "2.5", null);
+  });
+
+  it("offers no USD without a price", () => {
+    render(<ToAddrBox {...makeProps({ zecPrice: 0 })} />);
+    expect(screen.getByRole("button", { name: /needs the current price/ })).toBeDisabled();
+  });
+
   // An image with a code is read in the dialog and goes through the same door
   // a typed address does.
   it("offers scanning a QR code beside the address", () => {
