@@ -199,3 +199,51 @@ describe("unavailableProviders and routes this app cannot take", () => {
     expect(result).toEqual([{ provider: SwapKitProviderEnum.Flashnet, reason: "Needs at least 1 ZEC." }]);
   });
 });
+
+// The refusals a probe of ZEC -> USDT/USDC across 34 network/token pairs
+// brought back (2026-09-18), as SwapKit wrote them.
+describe("unavailableProviders — observed refusals", () => {
+  const reasonFor = (error: NonNullable<QuoteResponseType["providerErrors"]>[number]) =>
+    unavailableProviders({
+      response: response([error]),
+      supported: [SwapKitProviderEnum.Near, SwapKitProviderEnum.Flashnet],
+      routes: [],
+    }).find((row) => row.provider.toUpperCase() === (error.provider ?? "").toUpperCase())?.reason;
+
+  // Under a generic code, in prose, with the endpoint in front: read as
+  // anything else it became "no route", and nobody learnt a larger amount works.
+  it("reads NEAR's dollar minimum", () => {
+    expect(
+      reasonFor({
+        provider: "NEAR",
+        errorCode: "quoteError",
+        message: "1click.chaindefuser.com/v0/quote: Temporary swap limits: minimum swap amount is $1,000",
+      }),
+    ).toBe("Needs at least $1,000 for this swap right now.");
+  });
+
+  it("says Flashnet could not price the pair, and that it may come back", () => {
+    expect(reasonFor({ provider: "FLASHNET", errorCode: "quoteError", message: "estimate_unavailable" })).toMatch(
+      /Could not price this swap right now/,
+    );
+  });
+
+  it("names a lack of liquidity and an asset the provider rejects", () => {
+    expect(
+      reasonFor({ provider: "NEAR", errorCode: "insufficientLiquidity", message: "Insufficient liquidity for trade" }),
+    ).toBe("Not enough liquidity for this swap right now.");
+    expect(
+      reasonFor({ provider: "NEAR", errorCode: "invalidBuyAssetAddress", message: 'Invalid buyAssetAddress {"a":1}' }),
+    ).toBe("Does not support this asset.");
+  });
+
+  it("drops the endpoint in front of other prose", () => {
+    expect(
+      reasonFor({
+        provider: "NEAR",
+        errorCode: "quoteError",
+        message: "1click.chaindefuser.com/v0/quote: Pair paused",
+      }),
+    ).toBe("Pair paused");
+  });
+});

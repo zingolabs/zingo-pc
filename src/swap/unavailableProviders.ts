@@ -85,6 +85,13 @@ const KNOWN_REFUSALS: Readonly<Record<string, string>> = {
   // Not about this swap at all: the provider is turning requests away for the
   // moment, and the quote refreshes on its own.
   ratelimited: "The provider is refusing requests for the moment. The next quote may reach it.",
+  // Flashnet's answer whenever it cannot price the pair at that moment. Seen
+  // coming and going on the same pair from one quote to the next.
+  estimateunavailable: "Could not price this swap right now. It may be back on the next quote.",
+  insufficientliquidity: "Not enough liquidity for this swap right now.",
+  // The asset is listed but the provider rejects it; nothing the user can change.
+  invalidbuyassetaddress: "Does not support this asset.",
+  invalidsellassetaddress: "Does not support this asset.",
 };
 
 /**
@@ -107,10 +114,21 @@ function describeRefusal(error: QuoteProviderErrorType | undefined, sellAssetTic
     return minimum === "0" ? "The amount is below this provider's minimum." : `Needs at least ${minimum}${unit}.`;
   }
 
-  const known = KNOWN_REFUSALS[code];
+  // NEAR states some minimums in dollars, in prose, under a generic code
+  // ("Temporary swap limits: minimum swap amount is $1,000", seen on BSC and
+  // Polygon). Read as anything else it becomes "no route", and the user
+  // never learns that a larger amount would go through.
+  const usdMinimum = error.message?.match(/minimum swap amount is \$\s?([\d.,]+)/i)?.[1];
+  if (usdMinimum) return `Needs at least $${usdMinimum} for this swap right now.`;
+
+  // The code first, then the message: Flashnet sends its reason
+  // (`estimate_unavailable`) as the message under a generic `quoteError` code.
+  const known = KNOWN_REFUSALS[code] ?? KNOWN_REFUSALS[normaliseCode(error.message)];
   if (known) return known;
 
-  const message = error.message?.trim();
+  // Prose often arrives prefixed with the endpoint that produced it
+  // ("1click.chaindefuser.com/v0/quote: …"), which means nothing to the user.
+  const message = error.message?.trim().replace(/^[a-z0-9-]+(\.[a-z0-9-]+)+\/\S*:\s*/i, "");
   // A message with a space in it is prose the provider wrote, and a specific
   // sentence beats a vague one even when it reads like a developer wrote it.
   // A single run-together token is not prose, it is an identifier: printing
