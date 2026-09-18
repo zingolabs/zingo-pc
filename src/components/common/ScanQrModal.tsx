@@ -63,6 +63,12 @@ const ScanQrModal: React.FC<ScanQrModalProps> = ({ modalIsOpen, closeModal, onSc
     [closeModal, onScanned, validate],
   );
 
+  // The camera reads the latest accept through this ref. As an effect
+  // dependency it restarted the camera whenever the caller re-rendered — Send
+  // does every few seconds — which showed as the preview blinking to black.
+  const acceptRef = useRef(accept);
+  acceptRef.current = accept;
+
   const handleImage = useCallback(
     async (file: Blob | null | undefined) => {
       if (!file) return;
@@ -157,7 +163,7 @@ const ScanQrModal: React.FC<ScanQrModalProps> = ({ modalIsOpen, closeModal, onSc
         // The same refused code stays in view for many frames; judge it once.
         if (!text || text === lastRejected) return;
         busy = true;
-        const taken = await accept(text);
+        const taken = await acceptRef.current(text);
         busy = false;
         if (taken) stop();
         else lastRejected = text;
@@ -168,7 +174,7 @@ const ScanQrModal: React.FC<ScanQrModalProps> = ({ modalIsOpen, closeModal, onSc
       cancelled = true;
       stop();
     };
-  }, [modalIsOpen, cameraOn, cameraId, accept]);
+  }, [modalIsOpen, cameraOn, cameraId]);
 
   return (
     <Modal

@@ -133,6 +133,21 @@ describe("ScanQrModal — camera", () => {
     expect(await screen.findByText("No camera was found.")).toBeInTheDocument();
   });
 
+  // Send re-renders every few seconds with new callbacks; the camera must not
+  // restart for it, which showed as the preview blinking to black.
+  it("keeps the camera open when the caller re-renders", async () => {
+    const view = render(<ScanQrModal modalIsOpen={true} closeModal={jest.fn()} onScanned={jest.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(1));
+
+    view.rerender(<ScanQrModal modalIsOpen={true} closeModal={jest.fn()} onScanned={jest.fn()} validate={jest.fn()} />);
+    view.rerender(<ScanQrModal modalIsOpen={true} closeModal={jest.fn()} onScanned={jest.fn()} />);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(getUserMedia).toHaveBeenCalledTimes(1);
+    expect(track.stop).not.toHaveBeenCalled();
+  });
+
   // The camera light must go off the moment the user leaves the camera view.
   it("releases the camera when going back to an image", async () => {
     renderModal();
