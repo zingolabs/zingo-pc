@@ -1,4 +1,5 @@
 import { describeEmptyQuote } from "./describeEmptyQuote";
+import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import type { QuoteResponseType } from "./types/QuoteResponseType";
 
 const GENERIC = "No route is available for this swap right now.";
@@ -80,5 +81,31 @@ describe("describeEmptyQuote without a ticker", () => {
     const message = describeEmptyQuote(response, undefined);
     expect(message).toBe("That amount is too small. The smallest amount that routes right now is about 0.01068069.");
     expect(message).not.toContain("undefined");
+  });
+});
+
+describe("describeEmptyQuote — with each provider's reason", () => {
+  // ZEC -> USDT on BSC at 0.05 ZEC: NEAR's dollar minimum and a Flashnet that
+  // could not price it, which used to read as a bare "no route".
+  it("follows the sentence with one line per provider", () => {
+    const response = withErrors([
+      { provider: "FLASHNET", errorCode: "quoteError", message: "estimate_unavailable" },
+      { provider: "NEAR", errorCode: "quoteError", message: "Temporary swap limits: minimum swap amount is $1,000" },
+    ]);
+    const unavailable = [
+      { provider: SwapKitProviderEnum.Near, reason: "Needs at least $1,000 for this swap right now." },
+      { provider: SwapKitProviderEnum.Flashnet, reason: "Could not price this swap right now." },
+    ];
+    expect(describeEmptyQuote(response, "ZEC", unavailable)).toBe(
+      [
+        GENERIC,
+        "NEAR: Needs at least $1,000 for this swap right now.",
+        "Flashnet: Could not price this swap right now.",
+      ].join("\n"),
+    );
+  });
+
+  it("keeps the bare sentence when no provider is named", () => {
+    expect(describeEmptyQuote(withErrors([{ provider: "NEAR", errorCode: "x" }]), "ZEC", [])).toBe(GENERIC);
   });
 });

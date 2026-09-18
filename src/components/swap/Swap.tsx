@@ -14,6 +14,9 @@ import {
   SwapDirectionEnum,
   SwapKitHttpError,
   describeEmptyQuote,
+  FAILED_REFRESH_RETRY_MS,
+  quoteQuestionKey,
+  shouldKeepLastQuote,
   extractFiatValueBasis,
   formatAmountForDisplay,
   providerCustody,
@@ -172,6 +175,10 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const [nowMs, setNowMs] = useState<number>(() => Date.now());
   const [quoting, setQuoting] = useState<boolean>(false);
   const [quoteError, setQuoteError] = useState<string>("");
+  // Set while the routes on screen are the last good answer, kept through a
+  // refresh that brought none (see shouldKeepLastQuote).
+  const [quoteNotice, setQuoteNotice] = useState<string>("");
+  const lastGoodQuoteRef = useRef<{ questionKey: string; atMs: number } | null>(null);
   // "The last quote attempt for the current inputs failed" — kept as a separate
   // flag so the auto-fire debounce does not retry the same failing combination
   // forever (amount below provider minimum, no route, network transient…).
@@ -425,6 +432,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       setRoutePickedByUser(false);
       setQuoteContext(null);
       setQuoteError("");
+      setQuoteNotice("");
       setQuoteAttemptFailed(false);
     }, QUOTE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -455,6 +463,28 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     if (!swapService || !selectedToken) return;
     setQuoting(true);
     setQuoteError("");
+    // Set once the question is built, so a refresh that fails outright can
+    // still be matched against the last good answer.
+    let questionKey: string | null = null;
+    // A refresh that brought no route, for the question the routes on screen
+    // answered a moment ago: keep them and try again soon, rather than trading
+    // a working route for an error on one provider's blink.
+    const keptLastQuote = (): boolean => {
+      if (
+        !questionKey ||
+        !shouldKeepLastQuote({
+          questionKey,
+          lastGood: lastGoodQuoteRef.current,
+          shownRoutes: routesRef.current,
+          nowMs: Date.now(),
+        })
+      ) {
+        return false;
+      }
+      setQuoteNotice("The last refresh got no route. Showing the previous quote while it is still valid.");
+      setRefreshedAtMs(Date.now() - QUOTE_REFRESH_MS + FAILED_REFRESH_RETRY_MS);
+      return true;
+    };
     try {
       const ephemeral = await deriveEphemeral();
       const other = tokenToSwapAsset(selectedToken);
@@ -466,14 +496,20 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         ...quoteAddressPair({ isOutbound, ephemeralAddress: ephemeral, boundAddress }),
         slippageBps,
       };
+      questionKey = quoteQuestionKey(quoteInput);
       const result = await swapService.quote(quoteInput);
+      if (result.routes.length === 0 && keptLastQuote()) return;
+      if (result.routes.length > 0) lastGoodQuoteRef.current = { questionKey, atMs: Date.now() };
+      setQuoteNotice("");
       // No route is a real answer about the market right now, not a glitch:
       // the amount sits below every provider's minimum, or the liquidity is
       // gone. SwapKit says which in `providerErrors`, so quote the minimum
       // when that is the reason — "no route" sends the user hunting for a
       // fault when all they need is a slightly larger amount.
       setQuoteError(
-        result.routes.length === 0 ? describeEmptyQuote(result.rawResponse, quoteInput.sellAsset.ticker) : "",
+        result.routes.length === 0
+          ? describeEmptyQuote(result.rawResponse, quoteInput.sellAsset.ticker, result.unavailable)
+          : "",
       );
       // An empty answer counts as a failed attempt: asking the same question
       // again a second later gets the same answer, and the amount is the thing
@@ -509,6 +545,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         }),
       });
     } catch (error) {
+      if (keptLastQuote()) return;
+      setQuoteNotice("");
       setQuoteError(`${error}`);
       setRoutes(null);
       setUnavailable([]);
@@ -545,6 +583,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // flicker it away before the replacement lands.
   useEffect(() => {
     setQuoteAttemptFailed(false);
+    setQuoteNotice("");
   }, [amount, slippageBps, selectedToken, direction, boundAddress]);
 
   const chosenRoute = useMemo(() => routes?.find((r) => r.routeId === chosenRouteId) ?? null, [routes, chosenRouteId]);
@@ -858,7 +897,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
 
         {quoteError && (
           <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
-            <div style={{ color: "var(--color-error)" }}>{quoteError}</div>
+            <div style={{ color: "var(--color-error)", whiteSpace: "pre-line" }}>{quoteError}</div>
             {/* The countdown ring is the hand-refresh for a quote that worked,
                 and it lives in the Routes panel — which is not rendered when
                 there are no routes. So the one manual retry the screen had
@@ -927,6 +966,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                 />
               </div>
             </div>
+            {!!quoteNotice && (
+              <div className={`${cstyles.yellow} ${cstyles.small} ${cstyles.padtopsmall}`}>{quoteNotice}</div>
+            )}
             {!!chosenRoute && (
               <div className={cstyles.padtopsmall}>
                 <div className={cstyles.large}>
