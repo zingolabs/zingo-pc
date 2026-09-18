@@ -159,6 +159,11 @@ export class SwapService {
     return this.tokenCatalog.listRoutableTokens(direction);
   }
 
+  /** The chains that swap with ZEC either way (see TokenCatalog.routableChains). */
+  async routableChains(): Promise<Set<string> | null> {
+    return this.tokenCatalog.routableChains();
+  }
+
   /** Drop the cached token list. Next `listTokens()` will refetch. */
   invalidateTokenCatalog() {
     this.tokenCatalog.invalidate();

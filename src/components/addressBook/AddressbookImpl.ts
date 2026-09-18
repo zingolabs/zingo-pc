@@ -61,6 +61,17 @@ export default class AddressbookImpl {
   //
   // `swapChain` is always 'ZEC' here: every entry that predates the field was
   // written when the address book held nothing but Zcash addresses.
+  /**
+   * Chain codes the address book used to save that SwapKit spells otherwise.
+   * A contact saved under the old code matched no asset in the catalog, so
+   * Swap To from it did nothing.
+   */
+  static readonly LEGACY_SWAP_CHAINS: Readonly<Record<string, string>> = {
+    TRX: "TRON",
+    GNOSIS: "GNO",
+    MATIC: "POL",
+  };
+
   static async migrateChainIfMissing(
     entries: AddressBookEntryClass[],
   ): Promise<{ migrated: AddressBookEntryClass[]; changed: boolean }> {
@@ -68,7 +79,13 @@ export default class AddressbookImpl {
     const migrated: AddressBookEntryClass[] = [];
     for (const entry of entries) {
       if (entry.chain && entry.swapChain) {
-        migrated.push(entry);
+        const renamed = AddressbookImpl.LEGACY_SWAP_CHAINS[entry.swapChain.toUpperCase()];
+        if (renamed) {
+          changed = true;
+          migrated.push(new AddressBookEntryClass(entry.label, entry.address, entry.chain, renamed));
+        } else {
+          migrated.push(entry);
+        }
         continue;
       }
       changed = true;

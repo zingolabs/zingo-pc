@@ -30,6 +30,13 @@ jest.mock("../../utils/zns", () => {
   };
 });
 
+// The chains that swap with ZEC; null (the default) judges none, as before a
+// swap service is up.
+let mockRoutableChains: Set<string> | null = null;
+jest.mock("../../context/ContextSwapService", () => ({
+  useSwapService: () => (mockRoutableChains ? { routableChains: async () => mockRoutableChains } : null),
+}));
+
 // The scan dialog stands in as a button that "scans" whatever the test sets.
 let mockScanned = "";
 jest.mock("../common/ScanQrModal", () => ({
@@ -545,5 +552,44 @@ describe("AddressBook — search", () => {
     render(<AddressBook {...baseProps} />, { contextOverrides: { addressBook: entries } });
     fireEvent.change(screen.getByRole("searchbox", { name: "Search contacts" }), { target: { value: "zzz" } });
     expect(screen.getByText("No contacts match that.")).toBeInTheDocument();
+  });
+});
+
+describe("AddressBook — chains that do not swap with ZEC", () => {
+  afterEach(() => {
+    mockRoutableChains = null;
+  });
+
+  // A contact is for sending ZEC or swapping with it; Polkadot routes neither.
+  it("refuses a typed address only such a chain accepts, naming it", async () => {
+    mockRoutableChains = new Set(["ZEC", "BTC", "ETH"]);
+    mockPossibleChains = ["DOT"];
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "1polkadotaddr" } });
+    expect(
+      await screen.findByText(
+        "That is a Polkadot address. Zingo cannot swap it with ZEC, so it cannot be saved as a contact.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  // An EVM address fits many chains; only the ones that route ZEC are offered.
+  it("offers only the chains that swap with ZEC", async () => {
+    mockRoutableChains = new Set(["ZEC", "BASE"]);
+    mockPossibleChains = ["ETH", "BASE", "CRO"];
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), {
+      target: { value: "0x1111111111111111111111111111111111111111" },
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Base"));
+  });
+
+  it("refuses a scanned Monero code, naming the chain", async () => {
+    mockRoutableChains = new Set(["ZEC", "BTC"]);
+    mockPossibleChains = ["XMR"];
+    mockParseTargets = async () => "Error: Invalid URI or protocol";
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "4monero" } });
+    expect(await screen.findByText(/That is a Monero address/)).toBeInTheDocument();
   });
 });

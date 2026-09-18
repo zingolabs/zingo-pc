@@ -18,7 +18,11 @@ const SCHEME_CHAINS: Readonly<Record<string, string>> = {
   dash: "DASH",
   solana: "SOL",
   ton: "TON",
-  tron: "TRX",
+  tron: "TRON",
+  monero: "XMR",
+  thorchain: "THOR",
+  mayachain: "MAYA",
+  cacao: "MAYA",
   zcash: "ZEC",
 };
 
@@ -28,7 +32,9 @@ const EVM_CHAIN_IDS: Readonly<Record<string, string>> = {
   "10": "OP",
   "25": "CRO",
   "56": "BSC",
-  "100": "GNOSIS",
+  "100": "GNO",
+  "143": "MONAD",
+  "999": "HYPEREVM",
   "137": "POL",
   "196": "XLAYER",
   "250": "FTM",

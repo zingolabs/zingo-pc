@@ -15,15 +15,21 @@ import {
   chainFromPaymentUri,
   extractPlainAddress,
   possibleChainsForAddress,
-  unswappableAddressChain,
   validateAddressForChain,
 } from "../../swap";
+import { useSwapService } from "../../context/ContextSwapService";
 import { chainDisplayName } from "../swap/chainDisplayName";
 import ScanQrModal from "../common/ScanQrModal";
 import { filterContacts } from "../../utils/contactSearch";
 import { parseZcashURITargets } from "../../utils/uris";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faQrcode } from "@fortawesome/free-solid-svg-icons";
+
+/** The refusal for an address on chains that do not swap with ZEC, naming them. */
+const unswappableMessage = (chains: string[]): string => {
+  const names = Array.from(new Set(chains.map((chain) => chainDisplayName(chain) || chain)));
+  return `That is a ${names.join(" / ")} address. Zingo cannot swap it with ZEC, so it cannot be saved as a contact.`;
+};
 
 type AddressBookProps = {
   addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
@@ -53,6 +59,28 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   const currentChain: ServerChainNameEnum = currentWallet
     ? currentWallet.chain_name
     : ServerChainNameEnum.mainChainName;
+
+  // The chains that swap with ZEC in either direction, from SwapKit's live
+  // lists. Null until they arrive or if they cannot be fetched, and then no
+  // chain is judged: better than refusing every one.
+  const swapService = useSwapService();
+  const [routableChains, setRoutableChains] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    swapService
+      ?.routableChains()
+      .then((chains) => {
+        if (!cancelled) setRoutableChains(chains);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [swapService]);
+  const swappableWithZec = (chains: string[]): string[] =>
+    routableChains ? chains.filter((chain) => chain === ZEC_SWAP_CHAIN || routableChains.has(chain)) : chains;
+  // Chains the typed or scanned address belongs to, when none swaps with ZEC.
+  const [unswappableChains, setUnswappableChains] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,17 +116,22 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     const timer = setTimeout(async () => {
       const chains = await possibleChainsForAddress(currentAddress, currentChain);
       if (cancelled) return;
-      setPossibleChains(chains.length > 0 ? chains : [ZEC_SWAP_CHAIN]);
+      // A contact is for sending ZEC or swapping with it: a chain SwapKit does
+      // not route against ZEC is not offered, and an address only such chains
+      // accept is refused by name rather than as an unreadable one.
+      const routable = swappableWithZec(chains);
+      setUnswappableChains(chains.length > 0 && routable.length === 0 ? chains : []);
+      setPossibleChains(routable.length > 0 ? routable : [ZEC_SWAP_CHAIN]);
       // An address that cannot be the chain currently selected moves the
       // selection rather than leaving a contradiction on screen.
-      if (chains.length > 0 && !chains.includes(swapChain)) setSwapChain(chains[0]);
+      if (routable.length > 0 && !routable.includes(swapChain)) setSwapChain(routable[0]);
     }, 350);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentAddress, currentChain]);
+  }, [currentAddress, currentChain, routableChains]);
 
   // The network filter is about Zcash networks, so it only has authority over
   // Zcash contacts. A Bitcoin address has no mainnet/testnet of ours to belong
@@ -153,7 +186,13 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     }
     const address = extractPlainAddress(text);
     const named = chainFromPaymentUri(text);
-    if (named && (await validateAddressForChain(named, address, currentChain))) setSwapChain(named);
+    if (
+      named &&
+      swappableWithZec([named]).length > 0 &&
+      (await validateAddressForChain(named, address, currentChain))
+    ) {
+      setSwapChain(named);
+    }
     setCurrentAddress(address);
   };
 
@@ -324,8 +363,12 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                   right — the tick used to greet an untouched form claiming
                   both fields were good before anything was typed. Nothing is
                   shown until there is something to judge. */}
-              {!!addressError && <span className={cstyles.red}>{addressError}</span>}
-              {!addressError && currentAddress !== "" && (
+              {unswappableChains.length > 0 ? (
+                <span className={cstyles.red}>{unswappableMessage(unswappableChains)}</span>
+              ) : (
+                !!addressError && <span className={cstyles.red}>{addressError}</span>
+              )}
+              {!addressError && unswappableChains.length === 0 && currentAddress !== "" && (
                 <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} data-testid="address-valid" />
               )}
             </div>
@@ -366,10 +409,9 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                 const parsed = await parseZcashURITargets(text, currentChain);
                 if (typeof parsed !== "string" || !parsed.toLowerCase().startsWith("error")) return null;
                 const chains = await possibleChainsForAddress(extractPlainAddress(text), currentChain);
-                if (chains.length > 0) return null;
-                const unswappable = unswappableAddressChain(text);
-                return unswappable
-                  ? `That is a ${unswappable} address. Zingo cannot swap with ${unswappable}, so it cannot be saved as a contact.`
+                if (swappableWithZec(chains).length > 0) return null;
+                return chains.length > 0
+                  ? unswappableMessage(chains)
                   : "That QR code does not carry an address this wallet can save.";
               }}
             />
