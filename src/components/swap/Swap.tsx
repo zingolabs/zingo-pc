@@ -16,7 +16,7 @@ import {
   describeEmptyQuote,
   FAILED_REFRESH_RETRY_MS,
   quoteQuestionKey,
-  shouldKeepLastQuote,
+  carryOverRoutes,
   extractFiatValueBasis,
   formatAmountForDisplay,
   providerCustody,
@@ -178,9 +178,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   const [quoting, setQuoting] = useState<boolean>(false);
   const [quoteError, setQuoteError] = useState<string>("");
   // Set while the routes on screen are the last good answer, kept through a
-  // refresh that brought none (see shouldKeepLastQuote).
+  // refresh that did not bring them back (see carryOverRoutes).
   const [quoteNotice, setQuoteNotice] = useState<string>("");
-  const lastGoodQuoteRef = useRef<{ questionKey: string; atMs: number } | null>(null);
+  // The question the routes on screen answer, and when a quote last brought
+  // fresh routes for it.
+  const shownQuoteRef = useRef<{ questionKey: string; lastFreshAtMs: number } | null>(null);
   // "The last quote attempt for the current inputs failed" — kept as a separate
   // flag so the auto-fire debounce does not retry the same failing combination
   // forever (amount below provider minimum, no route, network transient…).
@@ -476,26 +478,31 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     setQuoting(true);
     setQuoteError("");
     // Set once the question is built, so a refresh that fails outright can
-    // still be matched against the last good answer.
+    // still be matched against the routes on screen.
     let questionKey: string | null = null;
-    // A refresh that brought no route, for the question the routes on screen
-    // answered a moment ago: keep them and try again soon, rather than trading
-    // a working route for an error on one provider's blink.
-    const keptLastQuote = (): boolean => {
-      if (
-        !questionKey ||
-        !shouldKeepLastQuote({
-          questionKey,
-          lastGood: lastGoodQuoteRef.current,
-          shownRoutes: routesRef.current,
-          nowMs: Date.now(),
-        })
-      ) {
-        return false;
-      }
-      setQuoteNotice("The last refresh got no route. Showing the previous quote while it is still valid.");
-      setRefreshedAtMs(Date.now() - QUOTE_REFRESH_MS + FAILED_REFRESH_RETRY_MS);
-      return true;
+    // The routes on screen that this refresh did not bring back but that still
+    // stand: a price the provider committed to until its expiry is not taken
+    // away because the provider missed one refresh.
+    const carriedFrom = (freshRoutes: readonly RouteOptionType[]): RouteOptionType[] =>
+      questionKey
+        ? carryOverRoutes({
+            questionKey,
+            shownQuestionKey: shownQuoteRef.current?.questionKey ?? null,
+            shownRoutes: routesRef.current ?? [],
+            freshRoutes,
+            lastFreshAtMs: shownQuoteRef.current?.lastFreshAtMs ?? null,
+            nowMs: Date.now(),
+          })
+        : [];
+    // Says which routes are from an earlier quote, and until when they hold.
+    const noticeFor = (carried: readonly RouteOptionType[]): string => {
+      if (!carried.length) return "";
+      const names = carried.map((r) => providerShortLabel(r.provider)).join(", ");
+      const expiries = carried.map((r) => r.expiresAtMs).filter((ms): ms is number => !!ms);
+      const until = expiries.length
+        ? ` It is valid until ${new Date(Math.min(...expiries)).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`
+        : "";
+      return `${names}: from an earlier quote, not in the last refresh.${until}`;
     };
     try {
       const ephemeral = await deriveEphemeral();
@@ -510,23 +517,30 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       };
       questionKey = quoteQuestionKey(quoteInput);
       const result = await swapService.quote(quoteInput);
-      if (result.routes.length === 0 && keptLastQuote()) return;
-      if (result.routes.length > 0) lastGoodQuoteRef.current = { questionKey, atMs: Date.now() };
-      setQuoteNotice("");
+      const carried = carriedFrom(result.routes);
+      const routesNow = [...result.routes, ...carried];
+      const carriedProviders = new Set(carried.map((r) => r.provider));
+      setQuoteNotice(noticeFor(carried));
+      if (routesNow.length > 0) {
+        shownQuoteRef.current = {
+          questionKey,
+          lastFreshAtMs: result.routes.length > 0 ? Date.now() : (shownQuoteRef.current?.lastFreshAtMs ?? Date.now()),
+        };
+      }
       // No route is a real answer about the market right now, not a glitch:
       // the amount sits below every provider's minimum, or the liquidity is
       // gone. SwapKit says which in `providerErrors`, so quote the minimum
       // when that is the reason — "no route" sends the user hunting for a
       // fault when all they need is a slightly larger amount.
       setQuoteError(
-        result.routes.length === 0
+        routesNow.length === 0
           ? describeEmptyQuote(result.rawResponse, quoteInput.sellAsset.ticker, result.unavailable)
           : "",
       );
       // An empty answer counts as a failed attempt: asking the same question
       // again a second later gets the same answer, and the amount is the thing
       // the user has to change.
-      setQuoteAttemptFailed(result.routes.length === 0);
+      setQuoteAttemptFailed(routesNow.length === 0);
       // A refresh must not silently move a choice the user made — route ids
       // are minted per quote, so their pick is carried across by provider,
       // which is what they actually chose.
@@ -536,14 +550,23 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       // best one. Follow the new optimum instead. Same fallback in both cases
       // when the provider is gone, rather than leaving nothing selected.
       setChosenRouteId((previous) => {
-        if (!routePickedByUserRef.current) return optimalRouteId(result.routes);
+        if (!routePickedByUserRef.current) return optimalRouteId(routesNow);
         const chosenProvider = routesRef.current?.find((r) => r.routeId === previous)?.provider;
-        const sameProvider = result.routes.find((r) => r.provider === chosenProvider);
-        return sameProvider?.routeId ?? optimalRouteId(result.routes);
+        const sameProvider = routesNow.find((r) => r.provider === chosenProvider);
+        return sameProvider?.routeId ?? optimalRouteId(routesNow);
       });
-      setRoutes(result.routes);
-      setUnavailable(result.unavailable);
-      setRefreshedAtMs(Date.now());
+      setRoutes(routesNow);
+      // A carried route is on offer, so its provider is not listed as missing.
+      setUnavailable(result.unavailable.filter((row) => !carriedProviders.has(row.provider)));
+      // Nothing fresh at all: ask again soon rather than after the full cycle.
+      setRefreshedAtMs(
+        result.routes.length === 0 && carried.length > 0
+          ? Date.now() - QUOTE_REFRESH_MS + FAILED_REFRESH_RETRY_MS
+          : Date.now(),
+      );
+      // The prices of an answer with no routes say nothing; the context the
+      // carried routes were quoted in still describes them.
+      if (result.routes.length === 0) return;
       // Pinned alongside the routes because they describe the request that
       // produced them, and the commit has to use the same inputs the user was
       // shown rather than whatever the form holds by then.
@@ -557,7 +580,15 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         }),
       });
     } catch (error) {
-      if (keptLastQuote()) return;
+      // A refresh that failed outright brought nothing back: the routes on
+      // screen that still stand stay, and it is asked again soon.
+      const carried = carriedFrom([]);
+      if (carried.length > 0) {
+        setQuoteNotice(noticeFor(carried));
+        setRoutes(carried);
+        setRefreshedAtMs(Date.now() - QUOTE_REFRESH_MS + FAILED_REFRESH_RETRY_MS);
+        return;
+      }
       setQuoteNotice("");
       setQuoteError(`${error}`);
       setRoutes(null);
