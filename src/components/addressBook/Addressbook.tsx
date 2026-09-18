@@ -11,7 +11,12 @@ import Utils from "../../utils/utils";
 import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { isSameZnsAlias, isZnsAlias, resolveZnsAlias } from "../../utils/zns";
-import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
+import {
+  chainFromPaymentUri,
+  extractPlainAddress,
+  possibleChainsForAddress,
+  validateAddressForChain,
+} from "../../swap";
 import { chainDisplayName } from "../swap/chainDisplayName";
 import ScanQrModal from "../common/ScanQrModal";
 import { filterContacts } from "../../utils/contactSearch";
@@ -123,21 +128,32 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   // wrapped around it.
   // Scanning fills only the address: a contact is an address and a name, and
   // nothing a payment request carries (amount, memo, its own label) belongs to
-  // either. A request naming several recipients gives its first, and says so.
+  // either. A Zcash request naming several recipients gives its first, and
+  // says so. A code for any other asset gives its address, and when its URI
+  // names the chain for certain (`bitcoin:`, EIP-681's chain id) that chain is
+  // chosen; a bare address leaves the choice to the detection as typed.
   const [scanOpen, setScanOpen] = useState<boolean>(false);
   const [scanNotice, setScanNotice] = useState<string>("");
   const takeScannedAddress = async (text: string) => {
+    setScanNotice("");
     const parsed = await parseZcashURITargets(text, currentChain);
-    if (typeof parsed === "string") {
-      setCurrentAddress(parsed);
-      setScanNotice("");
+    if (Array.isArray(parsed)) {
+      setSwapChain(ZEC_SWAP_CHAIN);
+      setCurrentAddress(parsed.find((target) => !!target.address)?.address ?? "");
+      if (parsed.length > 1) {
+        setScanNotice(`That request names ${parsed.length} recipients; only the first address was taken.`);
+      }
       return;
     }
-    const first = parsed.find((target) => !!target.address)?.address ?? "";
-    setCurrentAddress(first);
-    setScanNotice(
-      parsed.length > 1 ? `That request names ${parsed.length} recipients; only the first address was taken.` : "",
-    );
+    if (!parsed.toLowerCase().startsWith("error")) {
+      setSwapChain(ZEC_SWAP_CHAIN);
+      setCurrentAddress(parsed);
+      return;
+    }
+    const address = extractPlainAddress(text);
+    const named = chainFromPaymentUri(text);
+    if (named && (await validateAddressForChain(named, address, currentChain))) setSwapChain(named);
+    setCurrentAddress(address);
   };
 
   const updateAddress = (_currentAddress: string) => {
@@ -342,13 +358,14 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               modalIsOpen={scanOpen}
               closeModal={() => setScanOpen(false)}
               onScanned={(text) => void takeScannedAddress(text)}
-              // Zcash only, as in Send: a code carrying anything else is refused
-              // in the dialog rather than left in the field.
+              // Any asset a contact can hold: a Zcash address or request, or an
+              // address (bare or in its chain's payment URI) that one of the
+              // other chains accepts. Anything else is refused in the dialog.
               validate={async (text) => {
                 const parsed = await parseZcashURITargets(text, currentChain);
-                return typeof parsed === "string" && parsed.toLowerCase().startsWith("error")
-                  ? "That QR code does not carry a Zcash address or payment request."
-                  : null;
+                if (typeof parsed !== "string" || !parsed.toLowerCase().startsWith("error")) return null;
+                const chains = await possibleChainsForAddress(extractPlainAddress(text), currentChain);
+                return chains.length > 0 ? null : "That QR code does not carry an address this wallet can save.";
               }}
             />
           )}

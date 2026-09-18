@@ -485,6 +485,29 @@ describe("AddressBook — scanning a QR code", () => {
     expect(screen.getByRole("textbox", { name: /label/i })).toHaveValue("");
   });
 
+  // Every EVM chain shares one address format: the URI's chain id settles it.
+  it("reads another asset's code and picks the chain its URI names", async () => {
+    mockParseTargets = async () => "Error: Invalid URI or protocol";
+    mockPossibleChains = ["ETH", "BASE", "ARB"];
+    render(<AddressBook {...baseProps} />);
+    await scan("ethereum:0x1111111111111111111111111111111111111111@8453?value=1");
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue(
+        "0x1111111111111111111111111111111111111111",
+      ),
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Base"));
+  });
+
+  it("reads a bare address of another asset and leaves the chain to detection", async () => {
+    mockParseTargets = async () => "Error: Invalid URI or protocol";
+    mockPossibleChains = ["BTC"];
+    render(<AddressBook {...baseProps} />);
+    await scan("bc1qscanned");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("bc1qscanned"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Bitcoin"));
+  });
+
   it("takes the first address of a request naming several, and says so", async () => {
     mockParseTargets = async () => [
       { address: "u1first", amount: 1 },
