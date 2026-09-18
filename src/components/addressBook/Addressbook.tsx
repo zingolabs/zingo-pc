@@ -15,6 +15,7 @@ import {
   chainFromPaymentUri,
   extractPlainAddress,
   possibleChainsForAddress,
+  unswappableAddressChain,
   validateAddressForChain,
 } from "../../swap";
 import { chainDisplayName } from "../swap/chainDisplayName";
@@ -365,7 +366,11 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                 const parsed = await parseZcashURITargets(text, currentChain);
                 if (typeof parsed !== "string" || !parsed.toLowerCase().startsWith("error")) return null;
                 const chains = await possibleChainsForAddress(extractPlainAddress(text), currentChain);
-                return chains.length > 0 ? null : "That QR code does not carry an address this wallet can save.";
+                if (chains.length > 0) return null;
+                const unswappable = unswappableAddressChain(text);
+                return unswappable
+                  ? `That is a ${unswappable} address. Zingo cannot swap with ${unswappable}, so it cannot be saved as a contact.`
+                  : "That QR code does not carry an address this wallet can save.";
               }}
             />
           )}
