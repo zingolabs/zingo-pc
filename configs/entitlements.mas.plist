@@ -17,5 +17,9 @@
     <true/>
     <key>com.apple.security.files.bookmarks.app-scope</key>
     <true/>
+    <!-- Reading a payment QR code with the camera, in Send. Frames are decoded
+         in the app and never stored or sent. -->
+    <key>com.apple.security.device.camera</key>
+    <true/>
   </dict>
 </plist>

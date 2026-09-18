@@ -6,9 +6,14 @@ import ScanQrModal from "./ScanQrModal";
 jest.mock("../../electronBridge");
 
 let mockRead: (file: Blob) => Promise<any> = async () => ({ ok: true, text: "u1scanned" });
+let mockFrame: () => string | null = () => null;
 jest.mock("../../utils/qrImage", () => ({
   readQrFromImageFile: (file: Blob) => mockRead(file),
+  decodeQrFromVideo: () => mockFrame(),
 }));
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { ipcRenderer } = require("../../electronBridge");
 
 const image = () => new File(["fake"], "code.png", { type: "image/png" });
 
@@ -22,9 +27,27 @@ const renderModal = (props: Partial<React.ComponentProps<typeof ScanQrModal>> = 
 const chooseFile = (file: File) =>
   fireEvent.change(screen.getByLabelText("Image with a QR code"), { target: { files: [file] } });
 
+// A camera the test controls: getUserMedia hands back a stream whose track
+// records being stopped.
+const track = { stop: jest.fn() };
+const getUserMedia = jest.fn();
+const enumerateDevices = jest.fn();
+
 beforeEach(() => {
   mockRead = async () => ({ ok: true, text: "u1scanned" });
+  mockFrame = () => null;
+  track.stop.mockReset();
+  getUserMedia.mockReset().mockResolvedValue({ getTracks: () => [track] });
+  enumerateDevices.mockReset().mockResolvedValue([]);
+  Object.defineProperty(navigator, "mediaDevices", {
+    configurable: true,
+    value: { getUserMedia, enumerateDevices },
+  });
+  jest.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+  (ipcRenderer.invoke as jest.Mock).mockReset().mockResolvedValue(true);
 });
+
+afterEach(() => jest.restoreAllMocks());
 
 describe("ScanQrModal", () => {
   it("hands over what a chosen image carried, and closes", async () => {
@@ -76,5 +99,64 @@ describe("ScanQrModal", () => {
     chooseFile(image());
     expect(await screen.findByText(/does not carry a Zcash address/)).toBeInTheDocument();
     expect(onScanned).not.toHaveBeenCalled();
+  });
+});
+
+describe("ScanQrModal — camera", () => {
+  it("opens the camera, reads a code from it and releases it", async () => {
+    mockFrame = () => "u1fromcamera";
+    const { onScanned, closeModal } = renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
+
+    expect(await screen.findByLabelText("Camera preview")).toBeInTheDocument();
+    await waitFor(() => expect(onScanned).toHaveBeenCalledWith("u1fromcamera"));
+    expect(closeModal).toHaveBeenCalled();
+    expect(getUserMedia).toHaveBeenCalledWith({ video: true, audio: false });
+    await waitFor(() => expect(track.stop).toHaveBeenCalled());
+  });
+
+  // macOS asks once; after a refusal there, getUserMedia is never reached.
+  it("says where to allow the camera when the OS refuses it", async () => {
+    (ipcRenderer.invoke as jest.Mock).mockResolvedValue(false);
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
+
+    expect(await screen.findByText(/Camera access is not allowed/)).toBeInTheDocument();
+    expect(getUserMedia).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Camera" })).toBeInTheDocument();
+  });
+
+  it("says so when there is no camera", async () => {
+    getUserMedia.mockRejectedValue(Object.assign(new Error("none"), { name: "NotFoundError" }));
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
+    expect(await screen.findByText("No camera was found.")).toBeInTheDocument();
+  });
+
+  // The camera light must go off the moment the user leaves the camera view.
+  it("releases the camera when going back to an image", async () => {
+    renderModal();
+    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
+    await screen.findByLabelText("Camera preview");
+    await waitFor(() => expect(getUserMedia).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole("button", { name: "Use an image" }));
+    await waitFor(() => expect(track.stop).toHaveBeenCalled());
+    expect(screen.getByRole("region", { name: /drop an image/i })).toBeInTheDocument();
+  });
+
+  // A code from another wallet's world stays in view for many frames; it is
+  // refused once and the camera keeps looking.
+  it("refuses a foreign code once and keeps scanning", async () => {
+    mockFrame = () => "https://example.com";
+    const validate = jest.fn(async () => "That QR code does not carry a Zcash address or payment request.");
+    const { onScanned } = renderModal({ validate });
+    fireEvent.click(screen.getByRole("button", { name: "Camera" }));
+
+    expect(await screen.findByText(/does not carry a Zcash address/)).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(validate).toHaveBeenCalledTimes(1);
+    expect(onScanned).not.toHaveBeenCalled();
+    expect(track.stop).not.toHaveBeenCalled();
   });
 });

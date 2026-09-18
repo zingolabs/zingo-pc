@@ -116,6 +116,8 @@ yarn release:prep 2.0.15 142
 - One-click shielding of the transparent balance
 - Multi-send — several recipients in one transaction
 - Payment requests — a `zcash:` link and QR for an amount, a memo and an optional title, from Receive
+- Scan a payment QR in Send — from an image (file, drag and drop, or a pasted screenshot) or the camera;
+  decoded on the device, never stored or sent
 - `zcash:` URI scheme handler (ZIP-321 payment requests, including several recipients)
 - Transaction history, and a separate Messages view for transfers carrying memos
 - Financial Insight — amounts sent, number of sends and memo bytes, charted per destination address

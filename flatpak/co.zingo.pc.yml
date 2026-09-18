@@ -14,6 +14,9 @@ finish-args:
   - --socket=pulseaudio
   - --share=network
   - --device=dri
+  # The camera, for reading a payment QR code in Send. Flatpak has no narrower
+  # device permission that Chromium's V4L2 capture can use.
+  - --device=all
   - --filesystem=home
   - --talk-name=org.freedesktop.secrets
   - --talk-name=org.kde.kwalletd5

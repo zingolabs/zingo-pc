@@ -85,3 +85,20 @@ export async function readQrFromImageFile(file: Blob): Promise<QrImageResult> {
 
   return { ok: false, reason: "no-code" };
 }
+
+/**
+ * The code in the frame a video element is showing, or null. The frame is
+ * drawn at most SECOND_PASS_WIDTH wide: a camera frame is noisy at full size
+ * and a live scan runs several times a second.
+ */
+export function decodeQrFromVideo(video: HTMLVideoElement, canvas: HTMLCanvasElement): string | null {
+  if (!video.videoWidth || !video.videoHeight) return null;
+  const width = Math.min(video.videoWidth, SECOND_PASS_WIDTH);
+  const height = Math.max(1, Math.round((video.videoHeight * width) / video.videoWidth));
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(video, 0, 0, width, height);
+  return decodeQr(ctx.getImageData(0, 0, width, height));
+}
