@@ -190,3 +190,19 @@ describe("Receive — finding your place in a long list", () => {
     expect(screen.queryByText(/of 3/)).not.toBeInTheDocument();
   });
 });
+
+describe("Receive — the open address after a search", () => {
+  const three = [makeUAddr("u1alpha"), makeUAddr("u1beta"), makeUAddr("u1gamma")];
+
+  // Otherwise a search leaves a list of folded addresses and one more click.
+  it("opens the first address the search left", () => {
+    render(<Receive />, { contextOverrides: { addressesUnified: three } });
+    // The list is shown newest first, so it opens on u1gamma.
+    expect(screen.getAllByRole("button", { expanded: true })[0]).toHaveTextContent("");
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search addresses" }), { target: { value: "beta" } });
+    const folded = screen.queryAllByRole("button", { expanded: false, name: /u1/ });
+    expect(folded).toHaveLength(0);
+    expect(screen.getAllByText("u1beta").length).toBeGreaterThan(0);
+  });
+});

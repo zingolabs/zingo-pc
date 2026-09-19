@@ -54,9 +54,7 @@ const Receive: React.FC<ReceiveProps> = () => {
   const transparent = usePaneOffset(180);
 
   const [uaddrs, setUaddrs] = useState<UnifiedAddressClass[]>([]);
-  const [defaultUaddr, setDefaultUaddr] = useState<string>("");
   const [taddrs, setTaddrs] = useState<TransparentAddressClass[]>([]);
-  const [defaultTaddr, setDefaultTaddr] = useState<string>("");
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
   // One search for both tabs, beside them: it runs over the unified and the
   // transparent addresses at once, so switching tab with a search in place
@@ -69,6 +67,13 @@ const Receive: React.FC<ReceiveProps> = () => {
     );
   const shownUaddrs = matching(uaddrs, query);
   const shownTaddrs = matching(taddrs, query);
+  // The first address of the list on screen is the open one, whether the list
+  // is the whole book or what a search left. `preExpanded` is read once, when
+  // the accordion mounts, so keying it by that address is what reopens the
+  // first of a new list; a list whose first address did not change keeps
+  // whatever the user has open.
+  const firstUaddr = shownUaddrs.length > 0 ? shownUaddrs[0].encoded_address : "";
+  const firstTaddr = shownTaddrs.length > 0 ? shownTaddrs[0].encoded_address : "";
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -94,19 +99,13 @@ const Receive: React.FC<ReceiveProps> = () => {
   }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   useEffect(() => {
-    const _uaddrs: UnifiedAddressClass[] = [...addressesUnified].reverse();
-    let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[0].encoded_address : "";
-    setUaddrs(_uaddrs);
-    setDefaultUaddr(_defaultUaddr);
+    setUaddrs([...addressesUnified].reverse());
   }, [addressesUnified]);
 
   useEffect(() => {
-    const _taddrs: TransparentAddressClass[] = [
-      ...addressesTransparent.filter((t: TransparentAddressClass) => t.scope === AddressScopeEnum.external),
-    ].reverse();
-    let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[0].encoded_address : "";
-    setTaddrs(_taddrs);
-    setDefaultTaddr(_defaultTaddr);
+    setTaddrs(
+      [...addressesTransparent.filter((t: TransparentAddressClass) => t.scope === AddressScopeEnum.external)].reverse(),
+    );
   }, [addressesTransparent]);
 
   useEffect(() => {
@@ -208,7 +207,7 @@ const Receive: React.FC<ReceiveProps> = () => {
             {(orchardPool || saplingPool) && !!uaddrs && uaddrs.length > 0 && (
               <div ref={unified.paneRef}>
                 <ScrollPaneTop offsetHeight={unified.paneOffset}>
-                  <Accordion preExpanded={[defaultUaddr]}>
+                  <Accordion key={firstUaddr} preExpanded={[firstUaddr]}>
                     {shownUaddrs.length === 0 && (
                       <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.margintoplarge}`}>
                         No addresses match that.
@@ -235,7 +234,7 @@ const Receive: React.FC<ReceiveProps> = () => {
             {transparentPool && !!taddrs && taddrs.length > 0 && (
               <div ref={transparent.paneRef}>
                 <ScrollPaneTop offsetHeight={transparent.paneOffset}>
-                  <Accordion preExpanded={[defaultTaddr]}>
+                  <Accordion key={firstTaddr} preExpanded={[firstTaddr]}>
                     {shownTaddrs.length === 0 && (
                       <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.margintoplarge}`}>
                         No addresses match that.
