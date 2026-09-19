@@ -58,16 +58,17 @@ const Receive: React.FC<ReceiveProps> = () => {
   const [taddrs, setTaddrs] = useState<TransparentAddressClass[]>([]);
   const [defaultTaddr, setDefaultTaddr] = useState<string>("");
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
-  // One search per tab, offered only where there is more than one address of
-  // that kind: with a single address there is nothing to narrow.
-  const [unifiedQuery, setUnifiedQuery] = useState<string>("");
-  const [transparentQuery, setTransparentQuery] = useState<string>("");
+  // One search for both tabs, beside them: it runs over the unified and the
+  // transparent addresses at once, so switching tab with a search in place
+  // shows what that tab has to show for it. Offered only when some tab has
+  // more than one address; with a single one there is nothing to narrow.
+  const [query, setQuery] = useState<string>("");
   const matching = <T extends { encoded_address: string }>(addresses: T[], query: string): T[] =>
     addresses.filter((a) =>
       matchesAllWords(`${a.encoded_address} ${addressBookMap.get(a.encoded_address) ?? ""}`, query),
     );
-  const shownUaddrs = matching(uaddrs, unifiedQuery);
-  const shownTaddrs = matching(taddrs, transparentQuery);
+  const shownUaddrs = matching(uaddrs, query);
+  const shownTaddrs = matching(taddrs, query);
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -179,7 +180,22 @@ const Receive: React.FC<ReceiveProps> = () => {
           </>
         )}
       </div>
-      <div className={styles.containermargin} style={{ marginLeft: 20 }}>
+      <div className={styles.containermargin} style={{ marginLeft: 20, position: "relative" }}>
+        {/* Beside the tabs rather than inside one of them: the search runs over
+            both, so a tab switched with a search in place answers for itself. */}
+        {(uaddrs.length > 1 || taddrs.length > 1) && (
+          <div className={cstyles.fieldrow} style={{ position: "absolute", top: 0, right: 16, width: 240, zIndex: 1 }}>
+            <input
+              type="search"
+              aria-label="Search addresses"
+              className={cstyles.fieldinput}
+              style={{ fontSize: 14 }}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by address or name"
+            />
+          </div>
+        )}
         <Tabs>
           <TabList>
             {(orchardPool || saplingPool) && <Tab>Unified</Tab>}
@@ -187,19 +203,6 @@ const Receive: React.FC<ReceiveProps> = () => {
           </TabList>
 
           <TabPanel>
-            {(orchardPool || saplingPool) && !!uaddrs && uaddrs.length > 1 && (
-              <div className={cstyles.fieldrow} style={{ margin: "0 16px 8px" }}>
-                <input
-                  type="search"
-                  aria-label="Search unified addresses"
-                  className={cstyles.fieldinput}
-                  style={{ fontSize: 14 }}
-                  value={unifiedQuery}
-                  onChange={(e) => setUnifiedQuery(e.target.value)}
-                  placeholder="Search by address or name"
-                />
-              </div>
-            )}
             {(orchardPool || saplingPool) && !!uaddrs && uaddrs.length > 0 && (
               <div ref={unified.paneRef}>
                 <ScrollPaneTop offsetHeight={unified.paneOffset}>
@@ -225,19 +228,6 @@ const Receive: React.FC<ReceiveProps> = () => {
           </TabPanel>
 
           <TabPanel>
-            {transparentPool && !!taddrs && taddrs.length > 1 && (
-              <div className={cstyles.fieldrow} style={{ margin: "0 16px 8px" }}>
-                <input
-                  type="search"
-                  aria-label="Search transparent addresses"
-                  className={cstyles.fieldinput}
-                  style={{ fontSize: 14 }}
-                  value={transparentQuery}
-                  onChange={(e) => setTransparentQuery(e.target.value)}
-                  placeholder="Search by address or name"
-                />
-              </div>
-            )}
             {transparentPool && !!taddrs && taddrs.length > 0 && (
               <div ref={transparent.paneRef}>
                 <ScrollPaneTop offsetHeight={transparent.paneOffset}>

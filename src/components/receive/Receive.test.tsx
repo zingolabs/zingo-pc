@@ -133,23 +133,34 @@ describe("Receive", () => {
 });
 
 describe("Receive — search", () => {
-  // Nothing to narrow with a single address of that kind.
+  // Nothing to narrow with a single address.
   it("offers no search for one address, and one for several", () => {
-    const one = [makeUAddr("u1only")];
-    const { unmount } = render(<Receive />, { contextOverrides: { addressesUnified: one } });
-    expect(screen.queryByRole("searchbox", { name: "Search unified addresses" })).not.toBeInTheDocument();
+    const { unmount } = render(<Receive />, { contextOverrides: { addressesUnified: [makeUAddr("u1only")] } });
+    expect(screen.queryByRole("searchbox", { name: "Search addresses" })).not.toBeInTheDocument();
     unmount();
 
     render(<Receive />, { contextOverrides: { addressesUnified: [makeUAddr("u1first"), makeUAddr("u1second")] } });
-    expect(screen.getByRole("searchbox", { name: "Search unified addresses" })).toBeInTheDocument();
+    expect(screen.getByRole("searchbox", { name: "Search addresses" })).toBeInTheDocument();
   });
 
-  it("narrows the addresses of the tab it belongs to", () => {
+  it("narrows the addresses", () => {
     render(<Receive />, { contextOverrides: { addressesUnified: [makeUAddr("u1first"), makeUAddr("u1second")] } });
-    fireEvent.change(screen.getByRole("searchbox", { name: "Search unified addresses" }), {
-      target: { value: "second" },
-    });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search addresses" }), { target: { value: "second" } });
     expect(screen.getByText("u1second")).toBeInTheDocument();
     expect(screen.queryByText("u1first")).not.toBeInTheDocument();
+  });
+
+  // One search over both tabs: the transparent tab answers for the same query.
+  it("runs over both tabs at once", () => {
+    render(<Receive />, {
+      contextOverrides: {
+        addressesUnified: [makeUAddr("u1first"), makeUAddr("u1second")],
+        addressesTransparent: [makeTAddr("t1second"), makeTAddr("t1other")],
+      },
+    });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search addresses" }), { target: { value: "second" } });
+    fireEvent.click(screen.getByRole("tab", { name: /transparent/i }));
+    expect(screen.getAllByText("t1second").length).toBeGreaterThan(0);
+    expect(screen.queryByText("t1other")).not.toBeInTheDocument();
   });
 });
