@@ -191,3 +191,36 @@ describe("Messages", () => {
 
   // The line rides the balance header, which every one of these pages carries.
 });
+
+describe("Messages — search", () => {
+  const vts = [
+    makeVt({ txid: "tx1", memos: ["Factura número 34"] }),
+    makeVt({ txid: "tx2", memos: ["See you tomorrow"] }),
+  ];
+
+  it("narrows the messages by their text, ignoring accents", () => {
+    render(<Messages />, { contextOverrides: { messages: vts } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search messages" }), { target: { value: "numero" } });
+    expect(screen.getByText("Factura número 34")).toBeInTheDocument();
+    expect(screen.queryByText("See you tomorrow")).not.toBeInTheDocument();
+  });
+
+  it("says so when nothing matches", () => {
+    render(<Messages />, { contextOverrides: { messages: vts } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search messages" }), { target: { value: "zzz" } });
+    expect(screen.getByText("No messages match that.")).toBeInTheDocument();
+  });
+
+  // A search looks through every message, not only the loaded hundred.
+  it("searches beyond the messages loaded so far", () => {
+    const many = [
+      makeVt({ txid: "old", memos: ["the oldest one"] }),
+      ...Array.from({ length: 150 }, (_, i) => makeVt({ txid: `tx${i}` })),
+    ];
+    render(<Messages />, { contextOverrides: { messages: many } });
+    expect(screen.queryByText("the oldest one")).not.toBeInTheDocument();
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search messages" }), { target: { value: "oldest" } });
+    expect(screen.getByText("the oldest one")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /load more/i })).not.toBeInTheDocument();
+  });
+});
