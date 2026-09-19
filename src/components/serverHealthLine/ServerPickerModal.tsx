@@ -8,6 +8,7 @@ import fetchServerList from "../../utils/fetchServerList";
 import selectFastestServer, { RACE_CANDIDATES, latencyOf } from "../../utils/selectFastestServer";
 import serverUrisList from "../../utils/serverUrisList";
 import Utils from "../../utils/utils";
+import { matchesAllWords } from "../../utils/textSearch";
 
 type ServerPickerModalProps = {
   modalIsOpen: boolean;
@@ -36,6 +37,8 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
   // being asked.
   const [timed, setTimed] = useState<Map<string, number | null>>(new Map());
   const [sweeping, setSweeping] = useState(false);
+  // The registry publishes more servers than fit on a screen.
+  const [query, setQuery] = useState<string>("");
 
   // Fetched when the modal opens rather than on mount, so a line that is never
   // clicked never asks the registry anything.
@@ -122,6 +125,8 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
     }
   };
 
+  const shownServers = servers.filter((s: ServerClass) => matchesAllWords(s.uri, query));
+
   return (
     <Modal
       isOpen={modalIsOpen}
@@ -140,11 +145,28 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
         </div>
       )}
 
+      {servers.length > 1 && (
+        <div className={cstyles.fieldrow} style={{ marginBottom: 8 }}>
+          <input
+            type="search"
+            aria-label="Search servers"
+            className={cstyles.fieldinput}
+            style={{ fontSize: 14 }}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by address"
+          />
+        </div>
+      )}
+
       {/* The list is the only part allowed to grow, so however many servers the
           registry returns, Cancel stays on screen. */}
       <div className={`${cstyles.well} ${styles.serverlist}`}>
         {servers.length === 0 && <div className={cstyles.sublight}>No servers available for this network.</div>}
-        {servers.map((s: ServerClass) => (
+        {servers.length > 0 && shownServers.length === 0 && (
+          <div className={cstyles.sublight}>No servers match that.</div>
+        )}
+        {shownServers.map((s: ServerClass) => (
           <button
             key={s.uri}
             type="button"

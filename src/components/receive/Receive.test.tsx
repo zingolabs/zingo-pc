@@ -131,3 +131,25 @@ describe("Receive", () => {
 
   // The line rides the balance header, which every one of these pages carries.
 });
+
+describe("Receive — search", () => {
+  // Nothing to narrow with a single address of that kind.
+  it("offers no search for one address, and one for several", () => {
+    const one = [makeUAddr("u1only")];
+    const { unmount } = render(<Receive />, { contextOverrides: { addressesUnified: one } });
+    expect(screen.queryByRole("searchbox", { name: "Search unified addresses" })).not.toBeInTheDocument();
+    unmount();
+
+    render(<Receive />, { contextOverrides: { addressesUnified: [makeUAddr("u1first"), makeUAddr("u1second")] } });
+    expect(screen.getByRole("searchbox", { name: "Search unified addresses" })).toBeInTheDocument();
+  });
+
+  it("narrows the addresses of the tab it belongs to", () => {
+    render(<Receive />, { contextOverrides: { addressesUnified: [makeUAddr("u1first"), makeUAddr("u1second")] } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search unified addresses" }), {
+      target: { value: "second" },
+    });
+    expect(screen.getByText("u1second")).toBeInTheDocument();
+    expect(screen.queryByText("u1first")).not.toBeInTheDocument();
+  });
+});
