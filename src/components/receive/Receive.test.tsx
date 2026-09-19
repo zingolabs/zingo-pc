@@ -164,3 +164,29 @@ describe("Receive — search", () => {
     expect(screen.queryByText("t1other")).not.toBeInTheDocument();
   });
 });
+
+describe("Receive — finding your place in a long list", () => {
+  const three = [makeUAddr("u1one"), makeUAddr("u1two"), makeUAddr("u1three")];
+
+  it("counts the addresses beside each tab's name", () => {
+    render(<Receive />, {
+      contextOverrides: { addressesUnified: three, addressesTransparent: [makeTAddr("t1one")] },
+    });
+    expect(screen.getByRole("tab", { name: "Unified (3)" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Transparent (1)" })).toBeInTheDocument();
+  });
+
+  // Scrolling a long list, the position says where you are.
+  it("numbers each address in the list on screen", () => {
+    render(<Receive />, { contextOverrides: { addressesUnified: three } });
+    expect(screen.getAllByText(/2 of 3/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3 of 3/).length).toBeGreaterThan(0);
+  });
+
+  it("numbers what the search left, not the whole list", () => {
+    render(<Receive />, { contextOverrides: { addressesUnified: three } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search addresses" }), { target: { value: "u1t" } });
+    expect(screen.getAllByText(/2 of 2/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/of 3/)).not.toBeInTheDocument();
+  });
+});

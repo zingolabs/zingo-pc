@@ -198,8 +198,10 @@ const Receive: React.FC<ReceiveProps> = () => {
         )}
         <Tabs>
           <TabList>
-            {(orchardPool || saplingPool) && <Tab>Unified</Tab>}
-            {transparentPool && <Tab>Transparent</Tab>}
+            {/* The count beside the name, so the size of each list is known
+                before opening it. */}
+            {(orchardPool || saplingPool) && <Tab>{`Unified (${uaddrs.length})`}</Tab>}
+            {transparentPool && <Tab>{`Transparent (${taddrs.length})`}</Tab>}
           </TabList>
 
           <TabPanel>
@@ -212,13 +214,15 @@ const Receive: React.FC<ReceiveProps> = () => {
                         No addresses match that.
                       </div>
                     )}
-                    {shownUaddrs.map((a: UnifiedAddressClass) => (
+                    {shownUaddrs.map((a: UnifiedAddressClass, i: number) => (
                       <AddressBlock
                         key={`u-${a.encoded_address}`}
                         address={a}
                         currencyName={info.currencyName}
                         label={addressBookMap.get(a.encoded_address)}
                         type={"u"}
+                        position={i + 1}
+                        total={shownUaddrs.length}
                       />
                     ))}
                   </Accordion>
@@ -237,13 +241,15 @@ const Receive: React.FC<ReceiveProps> = () => {
                         No addresses match that.
                       </div>
                     )}
-                    {shownTaddrs.map((a: TransparentAddressClass) => (
+                    {shownTaddrs.map((a: TransparentAddressClass, i: number) => (
                       <AddressBlock
                         key={`t-${a.encoded_address}`}
                         address={a}
                         currencyName={info.currencyName}
                         label={addressBookMap.get(a.encoded_address)}
                         type={"t"}
+                        position={i + 1}
+                        total={shownTaddrs.length}
                         calculateShieldFee={calculateShieldFee}
                         handleShieldButton={handleShieldButton}
                       />
