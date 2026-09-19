@@ -10,6 +10,7 @@ import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
 import VtModal from "../history/components/VtModal";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
+import { messageMatches } from "../../utils/messageSearch";
 
 type MessagesProps = {};
 
@@ -41,6 +42,8 @@ const Messages: React.FC<MessagesProps> = () => {
   const [numVtnsToShow, setNumVtnsToShow] = useState<number>(100);
   const [isLoadMoreEnabled, setIsLoadMoreEnabled] = useState<boolean>(false);
   const [messagesSorted, setMessagesSorted] = useState<ValueTransferClass[]>([]);
+  // Searching a long list of memos by their text, or by who they are with.
+  const [messageQuery, setMessageQuery] = useState<string>("");
 
   // Its own list, stepped the same way History steps its own. The modal no
   // longer resolves a step itself, so each screen showing it says what its
@@ -77,17 +80,23 @@ const Messages: React.FC<MessagesProps> = () => {
     }
   }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
-  useEffect(() => {
-    setIsLoadMoreEnabled(messages && numVtnsToShow < messages.length);
-  }, [numVtnsToShow, messages]);
+  const searching: boolean = messageQuery.trim() !== "";
 
   useEffect(() => {
+    // A search looks through every message, not just the ones loaded so far.
+    setIsLoadMoreEnabled(!searching && messages && numVtnsToShow < messages.length);
+  }, [numVtnsToShow, messages, searching]);
+
+  useEffect(() => {
+    const withMemos = messages.filter((a: ValueTransferClass) => a.memos && a.memos.length > 0 && a.memos.join(""));
     setMessagesSorted(
-      messages
-        .filter((a: ValueTransferClass) => a.memos && a.memos.length > 0 && a.memos.join(""))
-        .slice(-numVtnsToShow),
+      searching
+        ? withMemos.filter((m: ValueTransferClass) =>
+            messageMatches(m, messageQuery, m.address ? addressBookMap.get(m.address) : undefined),
+          )
+        : withMemos.slice(-numVtnsToShow),
     );
-  }, [numVtnsToShow, messages]);
+  }, [numVtnsToShow, messages, searching, messageQuery, addressBookMap]);
 
   useEffect(() => {
     setAddressBookMap(
@@ -172,14 +181,40 @@ const Messages: React.FC<MessagesProps> = () => {
         )}
       </div>
 
-      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Messages</div>
+      <div style={{ position: "relative" }}>
+        <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Messages</div>
+        {/* Right of the title, where History keeps its own list control. */}
+        <div
+          className={cstyles.fieldrow}
+          style={{
+            position: "absolute",
+            right: 16,
+            marginRight: 20,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 240,
+          }}
+        >
+          <input
+            type="search"
+            aria-label="Search messages"
+            className={cstyles.fieldinput}
+            style={{ fontSize: 14 }}
+            value={messageQuery}
+            onChange={(e) => setMessageQuery(e.target.value)}
+            placeholder="Search messages"
+          />
+        </div>
+      </div>
 
       <div ref={paneRef}>
         <ScrollPaneBottom offsetHeight={paneOffset} initialScrollType="bottom">
           {!messagesSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
           {messagesSorted && messagesSorted.length === 0 && (
-            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
+              {searching ? "No messages match that." : "No Transactions Yet"}
+            </div>
           )}
 
           {messagesSorted && messagesSorted.length > 0 && isLoadMoreEnabled && (
