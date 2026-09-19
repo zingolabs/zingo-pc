@@ -322,7 +322,9 @@ const History: React.FC<HistoryProps> = () => {
           {!valueTransfersSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
           {valueTransfersSorted && valueTransfersSorted.length === 0 && (
-            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
+              {searching ? "No transactions match that." : "No Transactions Yet"}
+            </div>
           )}
 
           {valueTransfersSorted &&

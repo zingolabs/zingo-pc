@@ -322,6 +322,14 @@ describe("History — search", () => {
     expect(screen.queryByText(/Factura número 34/)).not.toBeInTheDocument();
   });
 
+  // An empty history and a search that found nothing are different facts.
+  it("says a search found nothing, not that there are no transactions", () => {
+    render(<History />, { contextOverrides: { valueTransfers: [makeVt({ txid: "tx1" })] } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search history" }), { target: { value: "zzz" } });
+    expect(screen.getByText("No transactions match that.")).toBeInTheDocument();
+    expect(screen.queryByText("No Transactions Yet")).not.toBeInTheDocument();
+  });
+
   it("searches past the rows already loaded", () => {
     const vts = [
       makeVt({ txid: "tx-oldest", address: "u1oldest", memos: ["the oldest one"] }),
