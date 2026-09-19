@@ -124,8 +124,13 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               {({ expanded }) =>
                 expanded ? null : (
                   <div className={cstyles.verticalflex}>
-                    {/* Which of how many, so a long list says where you are in it. */}
-                    {!!position && !!total && <span className={cstyles.sublight}>{`${position} of ${total} `}</span>}
+                    {/* Which of how many, so a long list says where you are in
+                        it. On its own line, where the open address keeps it
+                        beside the "Address" label, so both addresses start at
+                        the same place. */}
+                    {!!position && !!total && (
+                      <div className={`${cstyles.sublight} ${cstyles.small}`}>{`${position} of ${total}`}</div>
+                    )}
                     {fullAddress}
                   </div>
                 )
