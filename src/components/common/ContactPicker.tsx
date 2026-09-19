@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import Modal from "react-modal";
 
 import styles from "../history/History.module.css";
 import cstyles from "./Common.module.css";
 import { AddressBookEntryClass } from "../appstate";
+import { filterContacts } from "../../utils/contactSearch";
 
 type ContactPickerProps = {
   /** Already filtered to the chain being asked for. */
@@ -23,54 +24,77 @@ type ContactPickerProps = {
  * came up empty: a user with a full address book of Zcash contacts opening
  * this for Bitcoin would otherwise read the blank list as a fault.
  */
-const ContactPicker: React.FC<ContactPickerProps> = ({ contacts, chainLabel, modalIsOpen, closeModal, onSelect }) => (
-  <Modal
-    isOpen={modalIsOpen}
-    onRequestClose={closeModal}
-    className={styles.txmodal}
-    overlayClassName={cstyles.modalOverlay}
-  >
-    <div className={cstyles.verticalflex} style={{ height: "100%" }}>
-      <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>{chainLabel} contacts</div>
+const ContactPicker: React.FC<ContactPickerProps> = ({ contacts, chainLabel, modalIsOpen, closeModal, onSelect }) => {
+  // With many contacts the list alone is unusable: search any part of a name
+  // or an address, as in the Address Book.
+  const [query, setQuery] = useState<string>("");
+  const shown = filterContacts(contacts, query);
+  return (
+    <Modal
+      isOpen={modalIsOpen}
+      onRequestClose={closeModal}
+      className={styles.txmodal}
+      overlayClassName={cstyles.modalOverlay}
+    >
+      <div className={cstyles.verticalflex} style={{ height: "100%" }}>
+        <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>{chainLabel} contacts</div>
 
-      <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 12 }}>
-        {contacts.length === 0 && (
-          <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
-            No {chainLabel} addresses saved yet. Save one from this screen and it will appear here.
+        {contacts.length > 0 && (
+          <div className={cstyles.fieldrow} style={{ marginTop: 12 }}>
+            <input
+              autoFocus
+              type="search"
+              aria-label="Search contacts"
+              className={cstyles.fieldinput}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by name or address"
+            />
           </div>
         )}
-        {contacts.map((contact) => (
-          <button
-            key={`${contact.label}-${contact.address}`}
-            type="button"
-            onClick={() => {
-              onSelect(contact.address);
-              closeModal();
-            }}
-            style={{
-              display: "block",
-              width: "100%",
-              padding: "8px 4px",
-              background: "none",
-              border: "none",
-              color: "inherit",
-              cursor: "pointer",
-              textAlign: "left",
-            }}
-          >
-            <div>{contact.label}</div>
-            <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.breakword}`}>{contact.address}</div>
-          </button>
-        ))}
-      </div>
 
-      <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
-        <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
-          Cancel
-        </button>
+        <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 12 }}>
+          {contacts.length === 0 && (
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
+              No {chainLabel} addresses saved yet. Save one from this screen and it will appear here.
+            </div>
+          )}
+          {contacts.length > 0 && shown.length === 0 && (
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No contacts match that.</div>
+          )}
+          {shown.map((contact) => (
+            <button
+              key={`${contact.label}-${contact.address}`}
+              type="button"
+              onClick={() => {
+                onSelect(contact.address);
+                closeModal();
+              }}
+              style={{
+                display: "block",
+                width: "100%",
+                padding: "8px 4px",
+                background: "none",
+                border: "none",
+                color: "inherit",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <div>{contact.label}</div>
+              <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.breakword}`}>{contact.address}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
+          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+            Cancel
+          </button>
+        </div>
       </div>
-    </div>
-  </Modal>
-);
+    </Modal>
+  );
+};
 
 export default ContactPicker;

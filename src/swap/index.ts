@@ -50,7 +50,7 @@ export { formatAmountForDisplay } from "./formatAmountForDisplay";
 export { swapRowLabel } from "./swapRowLabel";
 export { extractFiatValueBasis } from "./quoteFiatBasis";
 export { describeEmptyQuote } from "./describeEmptyQuote";
-export { FAILED_REFRESH_RETRY_MS, quoteQuestionKey, shouldKeepLastQuote } from "./keepLastQuote";
+export { FAILED_REFRESH_RETRY_MS, carryOverRoutes, quoteQuestionKey } from "./keepLastQuote";
 export { providerShortLabel, providerLongLabel, providerCustody } from "./providerLabels";
 export type { ProviderCustodyType } from "./providerLabels";
 export { describeCostVsMarket } from "./costVsMarket";
@@ -109,6 +109,7 @@ export { isValidChainAddress, SWAP_ADDRESS_CHAINS } from "./addressValidators";
 export { validateAddressForChain } from "./validateAddressForChain";
 export { possibleChainsForAddress } from "./possibleChainsForAddress";
 export { extractPlainAddress } from "./extractPlainAddress";
+export { chainFromPaymentUri } from "./chainFromPaymentUri";
 
 export type { ExtractDepositInstructionsContext, ProviderExecutor } from "./providers/ProviderExecutor";
 export { FlashnetExecutor } from "./providers/FlashnetExecutor";

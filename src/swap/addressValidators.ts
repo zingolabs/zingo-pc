@@ -76,6 +76,20 @@ const DOT_RE = /^1[1-9A-HJ-NP-Za-km-z]{46,47}$/;
 // Sui: 0x + 64 hex (32-byte object id).
 const SUI_RE = /^0x[a-fA-F0-9]{64}$/;
 
+// Starknet: 0x + a felt, written with 60–64 hex digits. Fewer would also
+// read as an EVM address, and wallets pad Starknet's to 63–64.
+const STRK_RE = /^0x[a-fA-F0-9]{60,64}$/;
+
+// Aleo: bech32 `aleo1…`, 58 chars after the separator.
+const ALEO_RE = /^aleo1[ac-hj-np-z02-9]{58}$/;
+
+// Chains recognised only to be named when refused: SwapKit routes none of
+// them against ZEC. THORChain and Maya are bech32 `thor1…` / `maya1…`;
+// Monero is base58, 95 chars (106 integrated) starting with 4 or 8.
+const THOR_RE = /^thor1[ac-hj-np-z02-9]{38,}$/;
+const MAYA_RE = /^maya1[ac-hj-np-z02-9]{38,}$/;
+const XMR_RE = /^[48][1-9A-HJ-NP-Za-km-z]{94}(?:[1-9A-HJ-NP-Za-km-z]{11})?$/;
+
 // TON: user-friendly base64url (`EQ…`/`UQ…`/`kf…` + 46 chars) or raw
 // `workchain:hex` (workchain is signed integer, hash is 64 hex chars).
 const TON_USER_RE = /^(?:[EU]Q|kf)[A-Za-z0-9_-]{46}$/;
@@ -97,11 +111,23 @@ const isAda: Validator = (a) => ADA_SHELLEY_RE.test(a) || ADA_BYRON_RE.test(a);
 const isDot: Validator = (a) => DOT_RE.test(a);
 const isSui: Validator = (a) => SUI_RE.test(a);
 const isTon: Validator = (a) => TON_USER_RE.test(a) || TON_RAW_RE.test(a);
+const isStrk: Validator = (a) => STRK_RE.test(a);
+const isAleo: Validator = (a) => ALEO_RE.test(a);
+const isThor: Validator = (a) => THOR_RE.test(a);
+const isMaya: Validator = (a) => MAYA_RE.test(a);
+const isXmr: Validator = (a) => XMR_RE.test(a);
 
+// Keyed by SwapKit's chain code (`token.chain`), so a contact's chain meets
+// the catalog's. Tron was `TRX` and Gnosis `GNOSIS` here while SwapKit says
+// `TRON` and `GNO`: a Tron contact's Swap To found no asset, and the swap
+// screen validated no Tron address at all. Saved contacts are migrated
+// (AddressbookImpl.LEGACY_SWAP_CHAINS).
 const VALIDATORS: Readonly<Record<string, Validator>> = {
-  // EVM family — every chain SwapKit currently routes ZEC against that has
-  // a smart-contract layer maps to the same address format.
+  // EVM family — every chain with a smart-contract layer maps to the same
+  // address format.
+  ADI: isEvm,
   ARB: isEvm,
+  ARC: isEvm,
   AVAX: isEvm,
   BASE: isEvm,
   BERA: isEvm,
@@ -109,11 +135,14 @@ const VALIDATORS: Readonly<Record<string, Validator>> = {
   CRO: isEvm,
   ETH: isEvm,
   FTM: isEvm,
-  GNOSIS: isEvm,
+  GNO: isEvm,
+  HOOD: isEvm,
+  HYPE: isEvm,
+  HYPEREVM: isEvm,
   KAVA: isEvm,
   LINEA: isEvm,
-  MATIC: isEvm,
   MNT: isEvm,
+  MONAD: isEvm,
   OP: isEvm,
   POL: isEvm,
   XLAYER: isEvm,
@@ -125,7 +154,7 @@ const VALIDATORS: Readonly<Record<string, Validator>> = {
   DASH: isDash,
   // Account-model and account-prefix chains.
   NEAR: isNear,
-  TRX: isTrx,
+  TRON: isTrx,
   ATOM: isAtom,
   XRP: isXrp,
   XLM: isXlm,
@@ -133,6 +162,12 @@ const VALIDATORS: Readonly<Record<string, Validator>> = {
   DOT: isDot,
   SUI: isSui,
   TON: isTon,
+  STRK: isStrk,
+  ALEO: isAleo,
+  // Recognised only to be named: nothing routes them against ZEC.
+  THOR: isThor,
+  MAYA: isMaya,
+  XMR: isXmr,
   // SOL is intentionally LAST. Its format ("any base58, 32–44 chars") is a
   // superset of several prefix-specific chains — a TRON `T…` (34 chars), an XRP
   // `r…`, a Byron `Ae2…`, etc. all also satisfy the SOL regex. Chain detection

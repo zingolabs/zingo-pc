@@ -11,8 +11,25 @@ import Utils from "../../utils/utils";
 import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { isSameZnsAlias, isZnsAlias, resolveZnsAlias } from "../../utils/zns";
-import { extractPlainAddress, possibleChainsForAddress, validateAddressForChain } from "../../swap";
+import {
+  chainFromPaymentUri,
+  extractPlainAddress,
+  possibleChainsForAddress,
+  validateAddressForChain,
+} from "../../swap";
+import { useSwapService } from "../../context/ContextSwapService";
 import { chainDisplayName } from "../swap/chainDisplayName";
+import ScanQrModal from "../common/ScanQrModal";
+import { filterContacts } from "../../utils/contactSearch";
+import { parseZcashURITargets } from "../../utils/uris";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faQrcode } from "@fortawesome/free-solid-svg-icons";
+
+/** The refusal for an address on chains that do not swap with ZEC, naming them. */
+const unswappableMessage = (chains: string[]): string => {
+  const names = Array.from(new Set(chains.map((chain) => chainDisplayName(chain) || chain)));
+  return `That is a ${names.join(" / ")} address. Zingo cannot swap it with ZEC, so it cannot be saved as a contact.`;
+};
 
 type AddressBookProps = {
   addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
@@ -42,6 +59,28 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   const currentChain: ServerChainNameEnum = currentWallet
     ? currentWallet.chain_name
     : ServerChainNameEnum.mainChainName;
+
+  // The chains that swap with ZEC in either direction, from SwapKit's live
+  // lists. Null until they arrive or if they cannot be fetched, and then no
+  // chain is judged: better than refusing every one.
+  const swapService = useSwapService();
+  const [routableChains, setRoutableChains] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    swapService
+      ?.routableChains()
+      .then((chains) => {
+        if (!cancelled) setRoutableChains(chains);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [swapService]);
+  const swappableWithZec = (chains: string[]): string[] =>
+    routableChains ? chains.filter((chain) => chain === ZEC_SWAP_CHAIN || routableChains.has(chain)) : chains;
+  // Chains the typed or scanned address belongs to, when none swaps with ZEC.
+  const [unswappableChains, setUnswappableChains] = useState<string[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -77,17 +116,22 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     const timer = setTimeout(async () => {
       const chains = await possibleChainsForAddress(currentAddress, currentChain);
       if (cancelled) return;
-      setPossibleChains(chains.length > 0 ? chains : [ZEC_SWAP_CHAIN]);
+      // A contact is for sending ZEC or swapping with it: a chain SwapKit does
+      // not route against ZEC is not offered, and an address only such chains
+      // accept is refused by name rather than as an unreadable one.
+      const routable = swappableWithZec(chains);
+      setUnswappableChains(chains.length > 0 && routable.length === 0 ? chains : []);
+      setPossibleChains(routable.length > 0 ? routable : [ZEC_SWAP_CHAIN]);
       // An address that cannot be the chain currently selected moves the
       // selection rather than leaving a contradiction on screen.
-      if (chains.length > 0 && !chains.includes(swapChain)) setSwapChain(chains[0]);
+      if (routable.length > 0 && !routable.includes(swapChain)) setSwapChain(routable[0]);
     }, 350);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentAddress, currentChain]);
+  }, [currentAddress, currentChain, routableChains]);
 
   // The network filter is about Zcash networks, so it only has authority over
   // Zcash contacts. A Bitcoin address has no mainnet/testnet of ours to belong
@@ -104,6 +148,10 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   // drawn only when it does; the filter above them always is.
   const hasVisibleContacts: boolean = !!addressBookSorted && addressBookSorted.length > 0;
 
+  // A long book is searched by any part of a name or an address.
+  const [contactQuery, setContactQuery] = useState<string>("");
+  const contactsShown: AddressBookEntryClass[] = filterContacts(addressBookSorted, contactQuery);
+
   const updateLabel = (_currentLabel: string) => {
     setCurrentLabel(_currentLabel);
   };
@@ -112,7 +160,44 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   // unwrapped down to the bare address; anything else passes through. Without
   // this a perfectly good pasted URI would fail validation for the scheme
   // wrapped around it.
+  // Scanning fills only the address: a contact is an address and a name, and
+  // nothing a payment request carries (amount, memo, its own label) belongs to
+  // either. A Zcash request naming several recipients gives its first, and
+  // says so. A code for any other asset gives its address, and when its URI
+  // names the chain for certain (`bitcoin:`, EIP-681's chain id) that chain is
+  // chosen; a bare address leaves the choice to the detection as typed.
+  const [scanOpen, setScanOpen] = useState<boolean>(false);
+  const [scanNotice, setScanNotice] = useState<string>("");
+  const takeScannedAddress = async (text: string) => {
+    setScanNotice("");
+    const parsed = await parseZcashURITargets(text, currentChain);
+    if (Array.isArray(parsed)) {
+      setSwapChain(ZEC_SWAP_CHAIN);
+      setCurrentAddress(parsed.find((target) => !!target.address)?.address ?? "");
+      if (parsed.length > 1) {
+        setScanNotice(`That request names ${parsed.length} recipients; only the first address was taken.`);
+      }
+      return;
+    }
+    if (!parsed.toLowerCase().startsWith("error")) {
+      setSwapChain(ZEC_SWAP_CHAIN);
+      setCurrentAddress(parsed);
+      return;
+    }
+    const address = extractPlainAddress(text);
+    const named = chainFromPaymentUri(text);
+    if (
+      named &&
+      swappableWithZec([named]).length > 0 &&
+      (await validateAddressForChain(named, address, currentChain))
+    ) {
+      setSwapChain(named);
+    }
+    setCurrentAddress(address);
+  };
+
   const updateAddress = (_currentAddress: string) => {
+    setScanNotice("");
     setCurrentAddress(extractPlainAddress(_currentAddress).replace(/\s+/g, ""));
   };
 
@@ -278,8 +363,12 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
                   right — the tick used to greet an untouched form claiming
                   both fields were good before anything was typed. Nothing is
                   shown until there is something to judge. */}
-              {!!addressError && <span className={cstyles.red}>{addressError}</span>}
-              {!addressError && currentAddress !== "" && (
+              {unswappableChains.length > 0 ? (
+                <span className={cstyles.red}>{unswappableMessage(unswappableChains)}</span>
+              ) : (
+                !!addressError && <span className={cstyles.red}>{addressError}</span>
+              )}
+              {!addressError && unswappableChains.length === 0 && currentAddress !== "" && (
                 <i className={`${cstyles.green} ${"fas"} ${"fa-check"}`} data-testid="address-valid" />
               )}
             </div>
@@ -293,7 +382,40 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
               value={currentAddress}
               onChange={(e) => updateAddress(e.target.value)}
             />
+            <button
+              type="button"
+              className={cstyles.fieldaction}
+              aria-label="Scan a QR code"
+              title="Scan a QR code"
+              onClick={() => setScanOpen(true)}
+            >
+              <FontAwesomeIcon icon={faQrcode} size="lg" />
+            </button>
           </div>
+          {!!scanNotice && (
+            <div className={`${cstyles.yellow} ${cstyles.small} ${cstyles.padtopsmall}`} style={{ textAlign: "left" }}>
+              {scanNotice}
+            </div>
+          )}
+          {scanOpen && (
+            <ScanQrModal
+              modalIsOpen={scanOpen}
+              closeModal={() => setScanOpen(false)}
+              onScanned={(text) => void takeScannedAddress(text)}
+              // Any asset a contact can hold: a Zcash address or request, or an
+              // address (bare or in its chain's payment URI) that one of the
+              // other chains accepts. Anything else is refused in the dialog.
+              validate={async (text) => {
+                const parsed = await parseZcashURITargets(text, currentChain);
+                if (typeof parsed !== "string" || !parsed.toLowerCase().startsWith("error")) return null;
+                const chains = await possibleChainsForAddress(extractPlainAddress(text), currentChain);
+                if (swappableWithZec(chains).length > 0) return null;
+                return chains.length > 0
+                  ? unswappableMessage(chains)
+                  : "That QR code does not carry an address this wallet can save.";
+              }}
+            />
+          )}
 
           <div className={cstyles.horizontalflex} style={{ gap: 16, marginTop: 12, alignItems: "flex-start" }}>
             <div style={{ flex: 2, minWidth: 0 }}>
@@ -399,6 +521,19 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
         >
           {hasVisibleContacts && <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 15 }}>
+            {hasVisibleContacts && (
+              <div className={cstyles.fieldrow} style={{ width: 240 }}>
+                <input
+                  type="search"
+                  aria-label="Search contacts"
+                  className={cstyles.fieldinput}
+                  style={{ fontSize: 14 }}
+                  value={contactQuery}
+                  onChange={(e) => setContactQuery(e.target.value)}
+                  placeholder="Search by name or address"
+                />
+              </div>
+            )}
             <input
               type="checkbox"
               aria-label="Show contacts from all networks"
@@ -423,9 +558,14 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
         <div ref={paneRef}>
           <ScrollPaneTop offsetHeight={paneOffset}>
             <div className={styles.addressbooklist}>
-              {addressBookSorted && addressBookSorted.length > 0 && (
+              {hasVisibleContacts && contactsShown.length === 0 && (
+                <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.margintoplarge}`}>
+                  No contacts match that.
+                </div>
+              )}
+              {contactsShown.length > 0 && (
                 <Accordion>
-                  {addressBookSorted.map((item: AddressBookEntryClass) => (
+                  {contactsShown.map((item: AddressBookEntryClass) => (
                     <AddressBookItem
                       key={item.label}
                       item={item}

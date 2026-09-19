@@ -30,6 +30,28 @@ jest.mock("../../utils/zns", () => {
   };
 });
 
+// The chains that swap with ZEC; null (the default) judges none, as before a
+// swap service is up.
+let mockRoutableChains: Set<string> | null = null;
+jest.mock("../../context/ContextSwapService", () => ({
+  useSwapService: () => (mockRoutableChains ? { routableChains: async () => mockRoutableChains } : null),
+}));
+
+// The scan dialog stands in as a button that "scans" whatever the test sets.
+let mockScanned = "";
+jest.mock("../common/ScanQrModal", () => ({
+  __esModule: true,
+  default: (props: { onScanned: (text: string) => void }) => (
+    <button type="button" onClick={() => props.onScanned(mockScanned)}>
+      fake scan
+    </button>
+  ),
+}));
+let mockParseTargets: (text: string) => Promise<any> = async (text) => text;
+jest.mock("../../utils/uris", () => ({
+  parseZcashURITargets: (text: string) => mockParseTargets(text),
+}));
+
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { native } = require("../../electronBridge");
 
@@ -443,5 +465,131 @@ describe("AddressBook validation ticks", () => {
 
     expect(await screen.findByText("Invalid Address")).toBeInTheDocument();
     expect(screen.queryByTestId("address-valid")).not.toBeInTheDocument();
+  });
+});
+
+describe("AddressBook — scanning a QR code", () => {
+  const scan = async (text: string) => {
+    mockScanned = text;
+    fireEvent.click(screen.getByRole("button", { name: "Scan a QR code" }));
+    fireEvent.click(screen.getByRole("button", { name: "fake scan" }));
+    await waitFor(() => expect(mockParseTargets).toBeDefined());
+  };
+
+  it("fills the address from a code carrying a plain address", async () => {
+    mockParseTargets = async (text) => text;
+    render(<AddressBook {...baseProps} />);
+    await scan("u1scanned");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("u1scanned"));
+  });
+
+  // A contact is an address and a name; nothing else a request carries fits.
+  it("takes only the address from a payment request, not its label", async () => {
+    mockParseTargets = async () => [{ address: "u1shop", amount: 1, label: "Coffee Shop", memoString: "hi" }];
+    render(<AddressBook {...baseProps} />);
+    await scan("zcash:u1shop?amount=1&label=Coffee%20Shop");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("u1shop"));
+    expect(screen.getByRole("textbox", { name: /label/i })).toHaveValue("");
+  });
+
+  // Every EVM chain shares one address format: the URI's chain id settles it.
+  it("reads another asset's code and picks the chain its URI names", async () => {
+    mockParseTargets = async () => "Error: Invalid URI or protocol";
+    mockPossibleChains = ["ETH", "BASE", "ARB"];
+    render(<AddressBook {...baseProps} />);
+    await scan("ethereum:0x1111111111111111111111111111111111111111@8453?value=1");
+    await waitFor(() =>
+      expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue(
+        "0x1111111111111111111111111111111111111111",
+      ),
+    );
+    await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Base"));
+  });
+
+  it("reads a bare address of another asset and leaves the chain to detection", async () => {
+    mockParseTargets = async () => "Error: Invalid URI or protocol";
+    mockPossibleChains = ["BTC"];
+    render(<AddressBook {...baseProps} />);
+    await scan("bc1qscanned");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("bc1qscanned"));
+    await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Bitcoin"));
+  });
+
+  it("takes the first address of a request naming several, and says so", async () => {
+    mockParseTargets = async () => [
+      { address: "u1first", amount: 1 },
+      { address: "u1second", amount: 2 },
+      { address: "u1third", amount: 3 },
+    ];
+    render(<AddressBook {...baseProps} />);
+    await scan("zcash:?address=u1first&amount=1&address.1=u1second&amount.1=2&address.2=u1third&amount.2=3");
+    await waitFor(() => expect(screen.getByRole("textbox", { name: /address/i })).toHaveValue("u1first"));
+    expect(screen.getByText("That request names 3 recipients; only the first address was taken.")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "u1typed" } });
+    expect(screen.queryByText(/only the first address was taken/)).not.toBeInTheDocument();
+  });
+});
+
+describe("AddressBook — search", () => {
+  const entries = [
+    new AddressBookEntryClass("Alice", "u1alice0000000000000000", ServerChainNameEnum.mainChainName),
+    new AddressBookEntryClass("Bob", "u1bob000000000000000000", ServerChainNameEnum.mainChainName),
+  ];
+
+  it("narrows the list by any part of a name or an address", () => {
+    render(<AddressBook {...baseProps} />, { contextOverrides: { addressBook: entries } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search contacts" }), { target: { value: "ali" } });
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.queryByText("Bob")).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search contacts" }), { target: { value: "u1bob" } });
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+    expect(screen.queryByText("Alice")).not.toBeInTheDocument();
+  });
+
+  it("says so when nothing matches", () => {
+    render(<AddressBook {...baseProps} />, { contextOverrides: { addressBook: entries } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search contacts" }), { target: { value: "zzz" } });
+    expect(screen.getByText("No contacts match that.")).toBeInTheDocument();
+  });
+});
+
+describe("AddressBook — chains that do not swap with ZEC", () => {
+  afterEach(() => {
+    mockRoutableChains = null;
+  });
+
+  // A contact is for sending ZEC or swapping with it; Polkadot routes neither.
+  it("refuses a typed address only such a chain accepts, naming it", async () => {
+    mockRoutableChains = new Set(["ZEC", "BTC", "ETH"]);
+    mockPossibleChains = ["DOT"];
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "1polkadotaddr" } });
+    expect(
+      await screen.findByText(
+        "That is a Polkadot address. Zingo cannot swap it with ZEC, so it cannot be saved as a contact.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  // An EVM address fits many chains; only the ones that route ZEC are offered.
+  it("offers only the chains that swap with ZEC", async () => {
+    mockRoutableChains = new Set(["ZEC", "BASE"]);
+    mockPossibleChains = ["ETH", "BASE", "CRO"];
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), {
+      target: { value: "0x1111111111111111111111111111111111111111" },
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: /^chain$/i })).toHaveTextContent("Base"));
+  });
+
+  it("refuses a scanned Monero code, naming the chain", async () => {
+    mockRoutableChains = new Set(["ZEC", "BTC"]);
+    mockPossibleChains = ["XMR"];
+    mockParseTargets = async () => "Error: Invalid URI or protocol";
+    render(<AddressBook {...baseProps} />);
+    fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "4monero" } });
+    expect(await screen.findByText(/That is a Monero address/)).toBeInTheDocument();
   });
 });

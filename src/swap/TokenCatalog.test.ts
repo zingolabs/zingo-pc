@@ -232,3 +232,18 @@ describe("fetching", () => {
     expect(client.swapFrom).toHaveBeenCalledWith("ZEC.ZEC");
   });
 });
+
+describe("routableChains", () => {
+  const buckets = [bucket(SwapKitProviderEnum.Near, [token("ETH.ETH")])];
+
+  // What the address book offers: chains that swap with ZEC either way.
+  it("gives the chains of both routability lists, plus ZEC", async () => {
+    const { catalog } = catalogOver({ buckets, swapTo: ["TRON.USDT-TR7", "eth.eth"], swapFrom: ["BTC.BTC"] });
+    expect([...((await catalog.routableChains()) ?? [])].sort()).toEqual(["BTC", "ETH", "TRON", "ZEC"]);
+  });
+
+  it("judges nothing when neither list could be fetched", async () => {
+    const { catalog } = catalogOver({ buckets, swapTo: new Error("down"), swapFrom: new Error("down") });
+    expect(await catalog.routableChains()).toBeNull();
+  });
+});

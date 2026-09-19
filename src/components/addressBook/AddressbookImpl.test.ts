@@ -116,6 +116,19 @@ describe("AddressbookImpl.migrateZnsAliases", () => {
 });
 
 describe("AddressbookImpl.migrateChainIfMissing", () => {
+  // Saved as TRX, a Tron contact matched no asset in SwapKit's catalog (TRON),
+  // so Swap To from it did nothing.
+  it("renames chain codes SwapKit spells otherwise", async () => {
+    const { migrated, changed } = await AddressbookImpl.migrateChainIfMissing([
+      new AddressBookEntryClass("usdt", "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb", ServerChainNameEnum.mainChainName, "TRX"),
+      new AddressBookEntryClass("gno", "0xabc", ServerChainNameEnum.mainChainName, "GNOSIS"),
+      new AddressBookEntryClass("pol", "0xdef", ServerChainNameEnum.mainChainName, "MATIC"),
+    ]);
+    expect(changed).toBe(true);
+    expect(migrated.map((e) => e.swapChain)).toEqual(["TRON", "GNO", "POL"]);
+    expect(migrated[0].address).toBe("T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb");
+  });
+
   beforeEach(() => {
     jest.spyOn(Utils, "detectAddressChain").mockResolvedValue(ServerChainNameEnum.mainChainName);
   });

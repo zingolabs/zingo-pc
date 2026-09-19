@@ -165,6 +165,22 @@ export class TokenCatalog {
     return tokens.filter((t) => filterSet.has(t.identifier.toLowerCase()));
   }
 
+  /**
+   * The chains that swap with ZEC in either direction, as SwapKit's chain
+   * codes (the part of an asset id before the first dot), plus ZEC itself.
+   * Null when neither routability list could be fetched: better to judge no
+   * chain than to refuse every one.
+   */
+  async routableChains(): Promise<Set<string> | null> {
+    await this.listTokens();
+    if (this.routableOutbound === null && this.routableInbound === null) return null;
+    const chains = new Set<string>([ZEC_IDENTIFIER.split(".")[0]]);
+    for (const id of [...(this.routableOutbound ?? []), ...(this.routableInbound ?? [])]) {
+      chains.add(id.split(".")[0].toUpperCase());
+    }
+    return chains;
+  }
+
   /** Drop the cached list. Next `listTokens()` will refetch. */
   invalidate(): void {
     this.cache = null;
