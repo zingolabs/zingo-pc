@@ -131,3 +131,78 @@ describe("Receive", () => {
 
   // The line rides the balance header, which every one of these pages carries.
 });
+
+describe("Receive — search", () => {
+  // Nothing to narrow with a single address.
+  it("offers no search for one address, and one for several", () => {
+    const { unmount } = render(<Receive />, { contextOverrides: { addressesUnified: [makeUAddr("u1only")] } });
+    expect(screen.queryByRole("searchbox", { name: "Search addresses" })).not.toBeInTheDocument();
+    unmount();
+
+    render(<Receive />, { contextOverrides: { addressesUnified: [makeUAddr("u1first"), makeUAddr("u1second")] } });
+    expect(screen.getByRole("searchbox", { name: "Search addresses" })).toBeInTheDocument();
+  });
+
+  it("narrows the addresses", () => {
+    render(<Receive />, { contextOverrides: { addressesUnified: [makeUAddr("u1first"), makeUAddr("u1second")] } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search addresses" }), { target: { value: "second" } });
+    expect(screen.getByText("u1second")).toBeInTheDocument();
+    expect(screen.queryByText("u1first")).not.toBeInTheDocument();
+  });
+
+  // One search over both tabs: the transparent tab answers for the same query.
+  it("runs over both tabs at once", () => {
+    render(<Receive />, {
+      contextOverrides: {
+        addressesUnified: [makeUAddr("u1first"), makeUAddr("u1second")],
+        addressesTransparent: [makeTAddr("t1second"), makeTAddr("t1other")],
+      },
+    });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search addresses" }), { target: { value: "second" } });
+    fireEvent.click(screen.getByRole("tab", { name: /transparent/i }));
+    expect(screen.getAllByText("t1second").length).toBeGreaterThan(0);
+    expect(screen.queryByText("t1other")).not.toBeInTheDocument();
+  });
+});
+
+describe("Receive — finding your place in a long list", () => {
+  const three = [makeUAddr("u1one"), makeUAddr("u1two"), makeUAddr("u1three")];
+
+  it("counts the addresses beside each tab's name", () => {
+    render(<Receive />, {
+      contextOverrides: { addressesUnified: three, addressesTransparent: [makeTAddr("t1one")] },
+    });
+    expect(screen.getByRole("tab", { name: "Unified (3)" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Transparent (1)" })).toBeInTheDocument();
+  });
+
+  // Scrolling a long list, the position says where you are.
+  it("numbers each address in the list on screen", () => {
+    render(<Receive />, { contextOverrides: { addressesUnified: three } });
+    expect(screen.getAllByText(/2 of 3/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/3 of 3/).length).toBeGreaterThan(0);
+  });
+
+  it("numbers what the search left, not the whole list", () => {
+    render(<Receive />, { contextOverrides: { addressesUnified: three } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search addresses" }), { target: { value: "u1t" } });
+    expect(screen.getAllByText(/2 of 2/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/of 3/)).not.toBeInTheDocument();
+  });
+});
+
+describe("Receive — the open address after a search", () => {
+  const three = [makeUAddr("u1alpha"), makeUAddr("u1beta"), makeUAddr("u1gamma")];
+
+  // Otherwise a search leaves a list of folded addresses and one more click.
+  it("opens the first address the search left", () => {
+    render(<Receive />, { contextOverrides: { addressesUnified: three } });
+    // The list is shown newest first, so it opens on u1gamma.
+    expect(screen.getAllByRole("button", { expanded: true })[0]).toHaveTextContent("");
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search addresses" }), { target: { value: "beta" } });
+    const folded = screen.queryAllByRole("button", { expanded: false, name: /u1/ });
+    expect(folded).toHaveLength(0);
+    expect(screen.getAllByText("u1beta").length).toBeGreaterThan(0);
+  });
+});

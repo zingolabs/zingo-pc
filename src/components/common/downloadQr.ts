@@ -116,8 +116,13 @@ export function composeQrWithTitle(qr: HTMLCanvasElement, title: string): HTMLCa
   const ctx = canvas.getContext("2d");
   if (!ctx) return qr;
 
-  const width = Math.max(qr.width, EXPORTED_QR_SIZE);
-  const qrHeight = Math.round((qr.height * width) / qr.width);
+  const code = Math.max(qr.width, EXPORTED_QR_SIZE);
+  const codeHeight = Math.round((qr.height * code) / qr.width);
+  // The quiet zone the screen trims back, given back in the file: a saved or
+  // printed code is read from further away and off a photo.
+  const quiet = Math.round(code * 0.04);
+  const width = code + 2 * quiet;
+  const qrHeight = codeHeight + 2 * quiet;
   const fontSize = Math.round(width / 22);
   const padding = Math.round(fontSize * 0.75);
   const font = `bold ${fontSize}px Roboto, Arial, Helvetica, sans-serif`;
@@ -139,6 +144,6 @@ export function composeQrWithTitle(qr: HTMLCanvasElement, title: string): HTMLCa
   lines.forEach((l, i) => ctx.fillText(l, width / 2, padding + i * lineHeight, width - 2 * padding));
   // Nearest-neighbour, so the scaled modules keep hard edges and still scan.
   ctx.imageSmoothingEnabled = false;
-  ctx.drawImage(qr, 0, band, width, qrHeight);
+  ctx.drawImage(qr, quiet, band + quiet, code, codeHeight);
   return canvas;
 }

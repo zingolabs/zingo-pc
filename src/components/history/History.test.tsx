@@ -301,3 +301,43 @@ describe("History grouped by swap", () => {
     });
   });
 });
+
+describe("History — search", () => {
+  // The longest list in the wallet: a search reaches all of it, not only the
+  // hundred rows loaded.
+  it("narrows the rows by address, memo or id", () => {
+    const vts = [
+      makeVt({ txid: "tx-coffee", address: "u1coffee", memos: ["Factura número 34"] }),
+      makeVt({ txid: "tx-rent", address: "u1rent", memos: ["alquiler de marzo"] }),
+    ];
+    render(<History />, { contextOverrides: { valueTransfers: vts } });
+    const search = screen.getByRole("searchbox", { name: "Search history" });
+
+    fireEvent.change(search, { target: { value: "numero" } });
+    expect(screen.getByText(/Factura número 34/)).toBeInTheDocument();
+    expect(screen.queryByText(/alquiler de marzo/)).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "u1rent" } });
+    expect(screen.getByText(/alquiler de marzo/)).toBeInTheDocument();
+    expect(screen.queryByText(/Factura número 34/)).not.toBeInTheDocument();
+  });
+
+  // An empty history and a search that found nothing are different facts.
+  it("says a search found nothing, not that there are no transactions", () => {
+    render(<History />, { contextOverrides: { valueTransfers: [makeVt({ txid: "tx1" })] } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search history" }), { target: { value: "zzz" } });
+    expect(screen.getByText("No transactions match that.")).toBeInTheDocument();
+    expect(screen.queryByText("No Transactions Yet")).not.toBeInTheDocument();
+  });
+
+  it("searches past the rows already loaded", () => {
+    const vts = [
+      makeVt({ txid: "tx-oldest", address: "u1oldest", memos: ["the oldest one"] }),
+      ...Array.from({ length: 150 }, (_, i) => makeVt({ txid: `tx${i}` })),
+    ];
+    render(<History />, { contextOverrides: { valueTransfers: vts } });
+    fireEvent.change(screen.getByRole("searchbox", { name: "Search history" }), { target: { value: "oldest" } });
+    expect(screen.getByText(/the oldest one/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Load more/i })).not.toBeInTheDocument();
+  });
+});

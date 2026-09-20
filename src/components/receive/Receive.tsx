@@ -18,6 +18,7 @@ import AddressBlock from "./components/AddressBlock";
 import { ContextApp } from "../../context/ContextAppState";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
+import { matchesAllWords } from "../../utils/textSearch";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 
 type ReceiveProps = {};
@@ -53,10 +54,26 @@ const Receive: React.FC<ReceiveProps> = () => {
   const transparent = usePaneOffset(180);
 
   const [uaddrs, setUaddrs] = useState<UnifiedAddressClass[]>([]);
-  const [defaultUaddr, setDefaultUaddr] = useState<string>("");
   const [taddrs, setTaddrs] = useState<TransparentAddressClass[]>([]);
-  const [defaultTaddr, setDefaultTaddr] = useState<string>("");
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
+  // One search for both tabs, beside them: it runs over the unified and the
+  // transparent addresses at once, so switching tab with a search in place
+  // shows what that tab has to show for it. Offered only when some tab has
+  // more than one address; with a single one there is nothing to narrow.
+  const [query, setQuery] = useState<string>("");
+  const matching = <T extends { encoded_address: string }>(addresses: T[], query: string): T[] =>
+    addresses.filter((a) =>
+      matchesAllWords(`${a.encoded_address} ${addressBookMap.get(a.encoded_address) ?? ""}`, query),
+    );
+  const shownUaddrs = matching(uaddrs, query);
+  const shownTaddrs = matching(taddrs, query);
+  // The first address of the list on screen is the open one, whether the list
+  // is the whole book or what a search left. `preExpanded` is read once, when
+  // the accordion mounts, so keying it by that address is what reopens the
+  // first of a new list; a list whose first address did not change keeps
+  // whatever the user has open.
+  const firstUaddr = shownUaddrs.length > 0 ? shownUaddrs[0].encoded_address : "";
+  const firstTaddr = shownTaddrs.length > 0 ? shownTaddrs[0].encoded_address : "";
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -82,19 +99,13 @@ const Receive: React.FC<ReceiveProps> = () => {
   }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   useEffect(() => {
-    const _uaddrs: UnifiedAddressClass[] = [...addressesUnified].reverse();
-    let _defaultUaddr: string = _uaddrs.length > 0 ? _uaddrs[0].encoded_address : "";
-    setUaddrs(_uaddrs);
-    setDefaultUaddr(_defaultUaddr);
+    setUaddrs([...addressesUnified].reverse());
   }, [addressesUnified]);
 
   useEffect(() => {
-    const _taddrs: TransparentAddressClass[] = [
-      ...addressesTransparent.filter((t: TransparentAddressClass) => t.scope === AddressScopeEnum.external),
-    ].reverse();
-    let _defaultTaddr: string = _taddrs.length > 0 ? _taddrs[0].encoded_address : "";
-    setTaddrs(_taddrs);
-    setDefaultTaddr(_defaultTaddr);
+    setTaddrs(
+      [...addressesTransparent.filter((t: TransparentAddressClass) => t.scope === AddressScopeEnum.external)].reverse(),
+    );
   }, [addressesTransparent]);
 
   useEffect(() => {
@@ -168,25 +179,49 @@ const Receive: React.FC<ReceiveProps> = () => {
           </>
         )}
       </div>
-      <div className={styles.containermargin} style={{ marginLeft: 20 }}>
+      <div className={styles.containermargin} style={{ marginLeft: 20, position: "relative" }}>
+        {/* Beside the tabs rather than inside one of them: the search runs over
+            both, so a tab switched with a search in place answers for itself. */}
+        {(uaddrs.length > 1 || taddrs.length > 1) && (
+          <div className={cstyles.fieldrow} style={{ position: "absolute", top: 0, right: 16, width: 240, zIndex: 1 }}>
+            <input
+              type="search"
+              aria-label="Search addresses"
+              className={cstyles.fieldinput}
+              style={{ fontSize: 14 }}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search by address or name"
+            />
+          </div>
+        )}
         <Tabs>
           <TabList>
-            {(orchardPool || saplingPool) && <Tab>Unified</Tab>}
-            {transparentPool && <Tab>Transparent</Tab>}
+            {/* The count beside the name, so the size of each list is known
+                before opening it. */}
+            {(orchardPool || saplingPool) && <Tab>{`Unified (${uaddrs.length})`}</Tab>}
+            {transparentPool && <Tab>{`Transparent (${taddrs.length})`}</Tab>}
           </TabList>
 
           <TabPanel>
             {(orchardPool || saplingPool) && !!uaddrs && uaddrs.length > 0 && (
               <div ref={unified.paneRef}>
                 <ScrollPaneTop offsetHeight={unified.paneOffset}>
-                  <Accordion preExpanded={[defaultUaddr]}>
-                    {uaddrs.map((a: UnifiedAddressClass) => (
+                  <Accordion key={firstUaddr} preExpanded={[firstUaddr]}>
+                    {shownUaddrs.length === 0 && (
+                      <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.margintoplarge}`}>
+                        No addresses match that.
+                      </div>
+                    )}
+                    {shownUaddrs.map((a: UnifiedAddressClass, i: number) => (
                       <AddressBlock
                         key={`u-${a.encoded_address}`}
                         address={a}
                         currencyName={info.currencyName}
                         label={addressBookMap.get(a.encoded_address)}
                         type={"u"}
+                        position={i + 1}
+                        total={shownUaddrs.length}
                       />
                     ))}
                   </Accordion>
@@ -199,14 +234,21 @@ const Receive: React.FC<ReceiveProps> = () => {
             {transparentPool && !!taddrs && taddrs.length > 0 && (
               <div ref={transparent.paneRef}>
                 <ScrollPaneTop offsetHeight={transparent.paneOffset}>
-                  <Accordion preExpanded={[defaultTaddr]}>
-                    {taddrs.map((a: TransparentAddressClass) => (
+                  <Accordion key={firstTaddr} preExpanded={[firstTaddr]}>
+                    {shownTaddrs.length === 0 && (
+                      <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.margintoplarge}`}>
+                        No addresses match that.
+                      </div>
+                    )}
+                    {shownTaddrs.map((a: TransparentAddressClass, i: number) => (
                       <AddressBlock
                         key={`t-${a.encoded_address}`}
                         address={a}
                         currencyName={info.currencyName}
                         label={addressBookMap.get(a.encoded_address)}
                         type={"t"}
+                        position={i + 1}
+                        total={shownTaddrs.length}
                         calculateShieldFee={calculateShieldFee}
                         handleShieldButton={handleShieldButton}
                       />

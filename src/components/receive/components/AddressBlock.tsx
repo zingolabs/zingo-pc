@@ -32,6 +32,9 @@ type AddressBlockProps = {
   label?: string;
   currencyName: string;
   type: "u" | "t";
+  /** Where this address sits in the list on screen, and how long that list is. */
+  position?: number;
+  total?: number;
   calculateShieldFee?: () => Promise<number>;
   handleShieldButton?: () => void;
 };
@@ -41,6 +44,8 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
   label,
   currencyName,
   type,
+  position,
+  total,
   calculateShieldFee,
   handleShieldButton,
 }) => {
@@ -109,12 +114,27 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
     <div>
       <AccordionItem key={copied ? 1 : 0} className={styles.receiveblock} uuid={address_address}>
         <AccordionItemHeading>
-          <AccordionItemButton className={cstyles.accordionHeader}>
+          {/* Indented to the column the open address heads, so folded and open
+              addresses read down one line rather than two. */}
+          <AccordionItemButton className={`${cstyles.accordionHeader} ${cstyles.marginleft}`}>
             {/* The address while folded, to tell the addresses apart. Open, it is
                 shown once, heading the column beside the QR code; opening
                 another address folds this one. */}
             <AccordionItemState>
-              {({ expanded }) => (expanded ? null : <div className={cstyles.verticalflex}>{fullAddress}</div>)}
+              {({ expanded }) =>
+                expanded ? null : (
+                  <div className={cstyles.verticalflex}>
+                    {/* Which of how many, so a long list says where you are in
+                        it. On its own line, where the open address keeps it
+                        beside the "Address" label, so both addresses start at
+                        the same place. */}
+                    {!!position && !!total && (
+                      <div className={`${cstyles.sublight} ${cstyles.small}`}>{`${position} of ${total}`}</div>
+                    )}
+                    {fullAddress}
+                  </div>
+                )
+              }
             </AccordionItemState>
           </AccordionItemButton>
         </AccordionItemHeading>
@@ -122,7 +142,10 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
           <div className={cstyles.flexspacebetween}>
             <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`}>
               <div>
-                <div className={cstyles.sublight}>Address</div>
+                <div className={cstyles.sublight}>
+                  Address
+                  {!!position && !!total && <span>{` — ${position} of ${total}`}</span>}
+                </div>
                 <div className={`${cstyles.padtopsmall} ${cstyles.fixedfont}`}>{fullAddress}</div>
               </div>
 
@@ -269,7 +292,11 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 // @ts-ignore */}
                 <QRCodeCanvas
                   ref={qrCanvasRef}
-                  includeMargin={true}
+                  // Two modules of quiet zone instead of the standard four: the white band
+                  // around the code took as much room as the code in a list of them, and
+                  // readers manage with two on a screen. The saved image gets its own
+                  // margin back (see composeQrWithTitle).
+                  marginSize={2}
                   size={300}
                   value={address_address}
                   className={styles.receiveQrcode}

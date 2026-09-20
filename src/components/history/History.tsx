@@ -8,6 +8,7 @@ import VtItemBlock from "./components/VtItemBlock";
 import VtModal from "./components/VtModal";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
+import { matchesAllWords } from "../../utils/textSearch";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapRecords, useValueTransfersWithSwaps } from "../../context/ContextSwapService";
 import { SwapStore, groupHistoryBySwap, sliceKeepingGroups, swapGroupOf, swapTxidIndex } from "../../swap";
@@ -42,6 +43,8 @@ const History: React.FC<HistoryProps> = () => {
   // wallet has swaps, since without one there is nothing to group.
   const [groupBySwap, setGroupBySwap] = useState<boolean>(true);
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
+  // The longest list in the wallet, and the last one without a way to narrow it.
+  const [query, setQuery] = useState<string>("");
 
   const [anyPending, setAnyPending] = useState<boolean>(false);
   const [shieldFee, setShieldFee] = useState<number>(0);
@@ -81,9 +84,31 @@ const History: React.FC<HistoryProps> = () => {
   const hasSwaps = swapRecords.length > 0;
   const grouping = hasSwaps && groupBySwap;
   const swapIndex = useMemo(() => swapTxidIndex(swapRecords), [swapRecords]);
+  // Filtered before grouping and before the page is cut, so a search reaches
+  // the whole history rather than the rows already loaded, and a swap still
+  // gathers the transactions of it that match.
+  const searching: boolean = query.trim() !== "";
+  const matchedValueTransfers = useMemo(
+    () =>
+      searching
+        ? mergedValueTransfers.filter((vt: ValueTransferClass) =>
+            matchesAllWords(
+              [
+                vt.address ?? "",
+                (vt.address && addressBookMap.get(vt.address)) ?? "",
+                vt.txid ?? "",
+                vt.type ?? "",
+                ...(vt.memos ?? []),
+              ].join(" "),
+              query,
+            ),
+          )
+        : mergedValueTransfers,
+    [searching, mergedValueTransfers, query, addressBookMap],
+  );
   const orderedValueTransfers = useMemo(
-    () => (grouping ? groupHistoryBySwap(mergedValueTransfers, swapIndex) : mergedValueTransfers),
-    [grouping, mergedValueTransfers, swapIndex],
+    () => (grouping ? groupHistoryBySwap(matchedValueTransfers, swapIndex) : matchedValueTransfers),
+    [grouping, matchedValueTransfers, swapIndex],
   );
   const groupOf = useCallback(
     (vt: ValueTransferClass) => (grouping ? swapGroupOf(vt, swapIndex) : undefined),
@@ -245,6 +270,28 @@ const History: React.FC<HistoryProps> = () => {
           the title off centre. */}
       <div style={{ position: "relative" }}>
         <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>History</div>
+        {/* Left of the title; the grouping toggle keeps the right. */}
+        <div
+          className={cstyles.fieldrow}
+          style={{
+            position: "absolute",
+            left: 16,
+            marginLeft: 20,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 240,
+          }}
+        >
+          <input
+            type="search"
+            aria-label="Search history"
+            className={cstyles.fieldinput}
+            style={{ fontSize: 14 }}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by address, memo or id"
+          />
+        </div>
         {hasSwaps && (
           <label
             style={{
@@ -275,7 +322,9 @@ const History: React.FC<HistoryProps> = () => {
           {!valueTransfersSorted && <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>Loading...</div>}
 
           {valueTransfersSorted && valueTransfersSorted.length === 0 && (
-            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>No Transactions Yet</div>
+            <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
+              {searching ? "No transactions match that." : "No Transactions Yet"}
+            </div>
           )}
 
           {valueTransfersSorted &&

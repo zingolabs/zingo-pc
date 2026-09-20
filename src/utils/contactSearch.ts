@@ -1,19 +1,13 @@
+import { matchesAllWords } from "./textSearch";
+
 /**
- * Finding a contact by any part of its name or address.
- *
- * Each word typed has to appear somewhere, in the name or in the address, so
- * "pepe u1ab" narrows to the Pepe whose address starts that way. Case and
- * accents are ignored ("jose" finds "José"): a long address book is searched
- * by memory, and memory does not keep accents.
+ * Finding a contact by any part of its name or address, with the wallet's one
+ * search rule: every word typed has to appear, ignoring case and accents. So
+ * "pepe u1ab" narrows to the Pepe whose address starts that way.
  */
 
-const normalise = (text: string): string => text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
-
 export function contactMatches(contact: { label: string; address: string }, query: string): boolean {
-  const words = normalise(query).split(/\s+/).filter(Boolean);
-  if (words.length === 0) return true;
-  const haystack = `${normalise(contact.label)} ${normalise(contact.address)}`;
-  return words.every((word) => haystack.includes(word));
+  return matchesAllWords(`${contact.label} ${contact.address}`, query);
 }
 
 export function filterContacts<T extends { label: string; address: string }>(
