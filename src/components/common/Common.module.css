@@ -503,3 +503,26 @@
 .memodiv {
   white-space: pre-wrap;
 }
+
+/*
+ * The "Advanced" line that folds the technical half of a detail view away.
+ *
+ * Not a `.primarybutton`: a green slab in the middle of a page of facts reads
+ * as the thing to do on that page, and this only shows more of it. A line of
+ * text that happens to be pressable is what it is.
+ */
+.disclosurebutton {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.disclosurebutton:hover {
+  text-decoration: underline;
+}

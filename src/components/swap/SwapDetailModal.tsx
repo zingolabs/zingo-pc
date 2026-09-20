@@ -32,6 +32,7 @@ import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
 import { CopyField, Field, FieldRow } from "../common/DetailField";
+import AdvancedSection from "../common/AdvancedSection";
 import ProviderIcon from "./ProviderIcon";
 
 type SwapDetailModalProps = {
@@ -314,8 +315,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               }
             />
             <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
-            {!!record.routeId && <Field label="Route id" value={record.routeId} />}
-            {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} copy={copy} />}
           </FieldRow>
 
           <FieldRow>
@@ -333,21 +332,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               label="Expected"
               value={`${formatAmountForDisplay(record.expectedReceiveAmount)} ${receiveSymbol}`}
             />
-            {!!record.minReceiveAmount && (
-              <Field label="Minimum" value={`${formatAmountForDisplay(record.minReceiveAmount)} ${receiveSymbol}`} />
-            )}
           </FieldRow>
-
-          {/* Beside the amounts they qualify. The tolerance is what set the
-              minimum above; the actual figure is how the result compares
-              with the expected one. Records made before either was kept
-              show neither. */}
-          {(!!slippageTolerance || !!realizedSlippage) && (
-            <FieldRow>
-              {!!slippageTolerance && <Field label="Slippage tolerance" value={slippageTolerance} />}
-              {!!realizedSlippage && <Field label="Actual slippage" value={realizedSlippage} />}
-            </FieldRow>
-          )}
 
           {/* No rule above it: a fee is an amount, so it belongs with the ones
               it was taken from rather than in a section of its own. */}
@@ -392,36 +377,11 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             </>
           )}
 
-          <SectionHeader label="Addresses" />
-          {!!record.sourceAddress && <CopyField label="From" value={record.sourceAddress} copy={copy} />}
-          <CopyField label="To" value={record.destinationAddress} copy={copy} />
-          {/* Suppressed while the deposit slip is up: it carries the same
-              address a few rows above, and two copies of one address invite
-              the reader to wonder which is the real one. */}
-          {!!record.depositAddress && !awaitingDeposit && (
-            <CopyField label="Deposit" value={record.depositAddress} copy={copy} />
-          )}
-
-          {uniqueHashRows.length > 0 && (
-            <>
-              <SectionHeader label="Transactions" />
-              {uniqueHashRows.map((row) => (
-                <CopyField key={`${row.label}-${row.value}`} label={row.label} value={row.value} copy={copy} />
-              ))}
-            </>
-          )}
-
-          {/* Same reason as the deposit address above — the slip already shows
-              the memo, its hex form, and where on this chain it has to go. */}
-          {!!memo && !awaitingDeposit && (
-            <>
-              <SectionHeader label="Memo" />
-              <CopyField label="On-chain memo" value={memo} copy={copy} />
-              {isEvmSourceChain(record.sellAsset.chain) && (
-                <CopyField label="Hex calldata" value={memoToHexCalldata(memo)} copy={copy} />
-              )}
-            </>
-          )}
+          {/* Where the swap was going. The address it left from, the one it was
+              paid into and every hash along the way are the record of how that
+              was done, and wait under Advanced. */}
+          <SectionHeader label="Sent to" />
+          <CopyField label={`${receiveSymbol} address`} value={record.destinationAddress} copy={copy} />
 
           {/* No heading and no rule: three buttons that open a tracker say what
               they are, and a rule under them was the last thing on the screen
@@ -463,6 +423,66 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 ))}
               </div>
             ))}
+
+          {/* Everything above answers what the swap was; this answers how it
+            was carried out. A swap that went through leaves an order id, a
+            route id, the addresses it passed through, a hash per leg and the
+            slippage figures — the record that answers a dispute, and none of
+            what the user opened this for. */}
+          <AdvancedSection>
+            <FieldRow>
+              {!!record.routeId && <Field label="Route id" value={record.routeId} />}
+              {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} copy={copy} />}
+            </FieldRow>
+
+            {/* The minimum the swap guaranteed, the tolerance that set it and
+                how the result compared with what was expected. Each is written
+                only when the record carries it: swaps made before they were
+                kept carry none of the three. */}
+            {(!!record.minReceiveAmount || !!slippageTolerance || !!realizedSlippage) && (
+              <FieldRow>
+                {!!record.minReceiveAmount && (
+                  <Field
+                    label="Minimum"
+                    value={`${formatAmountForDisplay(record.minReceiveAmount)} ${receiveSymbol}`}
+                  />
+                )}
+                {!!slippageTolerance && <Field label="Slippage tolerance" value={slippageTolerance} />}
+                {!!realizedSlippage && <Field label="Actual slippage" value={realizedSlippage} />}
+              </FieldRow>
+            )}
+
+            <SectionHeader label="Addresses" />
+            {!!record.sourceAddress && <CopyField label="From" value={record.sourceAddress} copy={copy} />}
+            {/* Suppressed while the deposit slip is up: it carries the same
+              address, and two copies of one address invite the reader to
+              wonder which is the real one. */}
+            {!!record.depositAddress && !awaitingDeposit && (
+              <CopyField label="Deposit" value={record.depositAddress} copy={copy} />
+            )}
+
+            {uniqueHashRows.length > 0 && (
+              <>
+                <SectionHeader label="Transactions" />
+                {uniqueHashRows.map((row) => (
+                  <CopyField key={`${row.label}-${row.value}`} label={row.label} value={row.value} copy={copy} />
+                ))}
+              </>
+            )}
+
+            {/* Same reason as the deposit address above — the slip already
+              shows the memo, its hex form, and where on this chain it has to
+              go. */}
+            {!!memo && !awaitingDeposit && (
+              <>
+                <SectionHeader label="Memo" />
+                <CopyField label="On-chain memo" value={memo} copy={copy} />
+                {isEvmSourceChain(record.sellAsset.chain) && (
+                  <CopyField label="Hex calldata" value={memoToHexCalldata(memo)} copy={copy} />
+                )}
+              </>
+            )}
+          </AdvancedSection>
         </div>
 
         {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}

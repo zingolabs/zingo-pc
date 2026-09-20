@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import SwapDetailModal from "./SwapDetailModal";
 import { SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
@@ -78,6 +78,9 @@ const renderDetail = (overrides: Partial<SwapRecordType> = {}) =>
     />,
   );
 
+/** Opens the technical half, which a plain view keeps folded away. */
+const openAdvanced = () => fireEvent.click(screen.getByRole("button", { name: /advanced/i }));
+
 /**
  * A swap that ended badly has to say so on the screen the user opens to find
  * out why. The reason is the provider's to give and often missing — SwapKit
@@ -155,6 +158,8 @@ describe("SwapDetailModal slippage", () => {
       realizedSlippageBps: -6,
     });
 
+    openAdvanced();
+
     expect(screen.getByText("Slippage tolerance")).toBeInTheDocument();
     expect(screen.getByText("1%")).toBeInTheDocument();
     expect(screen.getByText("Received 0.06% more than expected")).toBeInTheDocument();
@@ -163,11 +168,15 @@ describe("SwapDetailModal slippage", () => {
   it("shows both tolerances when the provider applied another", () => {
     renderDetail({ requestedSlippageBps: 100, slippageToleranceBps: 200 });
 
+    openAdvanced();
+
     expect(screen.getByText("2% (1% requested)")).toBeInTheDocument();
   });
 
   it("shows nothing for a record made before either was kept", () => {
     renderDetail();
+
+    openAdvanced();
 
     expect(screen.queryByText("Slippage tolerance")).not.toBeInTheDocument();
     expect(screen.queryByText("Actual slippage")).not.toBeInTheDocument();
@@ -244,5 +253,27 @@ describe("SwapDetailModal trackers", () => {
     expect(zcashRow.getByRole("button", { name: /Source chain explorer/ })).toBeInTheDocument();
     expect(zcashRow.getByRole("button", { name: /Source chain hop 1/ })).toBeInTheDocument();
     expect(zcashRow.queryByRole("button", { name: /SwapKit Explorer/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("SwapDetailModal advanced half", () => {
+  // A swap that went through leaves a page of ids, addresses and hashes. The
+  // person who made it came to see that it went through.
+  it("opens on the swap itself, with the record of how it ran folded away", () => {
+    renderDetail({ status: SwapStatusEnum.Completed, routeId: "route-1", providerOrderId: "order-9" });
+
+    expect(screen.getByText("Provider")).toBeInTheDocument();
+    expect(screen.queryByText("Route id")).not.toBeInTheDocument();
+    expect(screen.queryByText("Order id")).not.toBeInTheDocument();
+    expect(screen.queryByText("Deposit")).not.toBeInTheDocument();
+  });
+
+  it("hands the whole record over on one press", () => {
+    renderDetail({ status: SwapStatusEnum.Completed, routeId: "route-1", providerOrderId: "order-9" });
+
+    openAdvanced();
+
+    expect(screen.getByText("route-1")).toBeInTheDocument();
+    expect(screen.getByText("order-9")).toBeInTheDocument();
   });
 });

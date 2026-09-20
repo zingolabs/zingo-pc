@@ -60,6 +60,9 @@ const baseProps = {
   moveDetail: jest.fn(),
 };
 
+/** Opens the technical half: the transaction id, the confirmations, the pools. */
+const openAdvanced = () => fireEvent.click(screen.getByRole("button", { name: /advanced/i }));
+
 const mainnetWallet = { id: 1, chain_name: ServerChainNameEnum.mainChainName } as any;
 const regtestWallet = { id: 1, chain_name: ServerChainNameEnum.regtestChainName } as any;
 
@@ -101,6 +104,7 @@ describe("VtModal", () => {
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt] },
     });
+    openAdvanced();
     fireEvent.click(screen.getByText(/^aaa/));
     expect(clipboard.writeText).toHaveBeenCalled();
   });
@@ -119,6 +123,7 @@ describe("VtModal", () => {
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt], currentWallet: regtestWallet },
     });
+    openAdvanced();
     expect(screen.queryByText(/View TXID/)).not.toBeInTheDocument();
   });
 
@@ -127,6 +132,7 @@ describe("VtModal", () => {
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt], currentWallet: mainnetWallet },
     });
+    openAdvanced();
     expect(screen.getByText(/View TXID/)).toBeInTheDocument();
   });
 
@@ -349,6 +355,7 @@ describe("VtModal", () => {
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt] },
     });
+    openAdvanced();
     expect(screen.getByText("Pools")).toBeInTheDocument();
     expect(screen.getByText("Orchard, Sapling → Ironwood")).toBeInTheDocument();
   });
@@ -383,6 +390,7 @@ describe("VtModal copy targets", () => {
     });
 
     expect(screen.getByRole("button", { name: /copy address/i })).toBeInTheDocument();
+    openAdvanced();
     expect(screen.getByRole("button", { name: /copy transaction id/i })).toBeInTheDocument();
   });
 
@@ -397,5 +405,30 @@ describe("VtModal copy targets", () => {
     fireEvent.click(screen.getByRole("button", { name: /copy address/i }));
 
     expect(clipboard.writeText).toHaveBeenCalled();
+  });
+});
+
+describe("VtModal advanced half", () => {
+  // The detail opens on what the payment was; how the chain carried it is one
+  // press away.
+  it("keeps the transaction id, the confirmations and the pools folded away", () => {
+    const vt = makeVt({
+      poolsSentFrom: [ValueTransferPoolEnum.orchard],
+      poolsReceived: [ValueTransferPoolEnum.ironwood],
+    });
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
+
+    expect(screen.getByText("Amount")).toBeInTheDocument();
+    expect(screen.queryByText("TXID")).not.toBeInTheDocument();
+    expect(screen.queryByText("Confirmations")).not.toBeInTheDocument();
+    expect(screen.queryByText("Pools")).not.toBeInTheDocument();
+
+    openAdvanced();
+
+    expect(screen.getByText("TXID")).toBeInTheDocument();
+    expect(screen.getByText("Confirmations")).toBeInTheDocument();
+    expect(screen.getByText("Pools")).toBeInTheDocument();
   });
 });

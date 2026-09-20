@@ -31,6 +31,7 @@ import { native } from "../../../electronBridge";
 import { userFacingError } from "../../../utils/userFacingError";
 import { useCopy } from "../../common/useCopy";
 import { Field, FieldRow } from "../../common/DetailField";
+import AdvancedSection from "../../common/AdvancedSection";
 import DetailNavigator from "./DetailNavigator";
 import SaveContact from "../../common/SaveContact";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
@@ -399,8 +400,6 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
             />
           )}
 
-          <Field label="Confirmations" value={String(confirmations)} />
-
           {(status === ValueTransferStatusEnum.calculated ||
             status === ValueTransferStatusEnum.transmitted ||
             status === ValueTransferStatusEnum.mempool ||
@@ -433,76 +432,6 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
             />
           )}
         </FieldRow>
-
-        <div className={cstyles.margintoplarge} />
-
-        {!!txid && (
-          <div className={cstyles.flexspacebetween}>
-            <div>
-              <div className={cstyles.sublight}>
-                TXID
-                {txidCopied && (
-                  <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
-                    Copied!
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                aria-label="Copy transaction id"
-                title="Copy transaction id"
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "inherit",
-                  font: "inherit",
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  if (txid) {
-                    copyTxid(txid);
-                    setExpandTxid(true);
-                  }
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                  {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
-                  {expandTxid && !!txid && (
-                    <>
-                      {txid.length < 80
-                        ? txid
-                        : Utils.splitStringIntoChunks(txid, 3).map((item) => <div key={item}>{item}</div>)}
-                    </>
-                  )}
-                </div>
-              </button>
-            </div>
-
-            {!isSwapRow && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                onClick={() =>
-                  Utils.openTxid(
-                    txid,
-                    currentWallet?.chain_name,
-                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                      ? blockExplorerMainnetTransaction
-                      : blockExplorerTestnetTransaction,
-                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                      ? blockExplorerMainnetTransactionCustom
-                      : blockExplorerTestnetTransactionCustom,
-                  )
-                }
-              >
-                View TXID &nbsp;
-                <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
-              </button>
-            )}
-          </div>
-        )}
 
         <hr style={{ width: "100%" }} />
 
@@ -592,8 +521,6 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
               </>
             }
           />
-
-          {poolsText && <Field label="Pools" value={poolsText} />}
         </FieldRow>
 
         <div className={cstyles.margintoplarge} />
@@ -613,7 +540,84 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
           </div>
         )}
 
-        <hr style={{ width: "100%" }} />
+        {/* What the transaction was is above: when, how much, to whom and what
+            it said. Its id, how many blocks have buried it and which pools it
+            moved between are how the chain carried that out — the answer to a
+            question about it rather than the thing itself. */}
+        <AdvancedSection>
+          <FieldRow>
+            <Field label="Confirmations" value={String(confirmations)} />
+            {poolsText && <Field label="Pools" value={poolsText} />}
+          </FieldRow>
+
+          {!!txid && (
+            <div className={cstyles.flexspacebetween}>
+              <div>
+                <div className={cstyles.sublight}>
+                  TXID
+                  {txidCopied && (
+                    <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
+                      Copied!
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  aria-label="Copy transaction id"
+                  title="Copy transaction id"
+                  style={{
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    color: "inherit",
+                    font: "inherit",
+                    textAlign: "left",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => {
+                    if (txid) {
+                      copyTxid(txid);
+                      setExpandTxid(true);
+                    }
+                  }}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
+                    {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
+                    {expandTxid && !!txid && (
+                      <>
+                        {txid.length < 80
+                          ? txid
+                          : Utils.splitStringIntoChunks(txid, 3).map((item) => <div key={item}>{item}</div>)}
+                      </>
+                    )}
+                  </div>
+                </button>
+              </div>
+
+              {!isSwapRow && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+                <button
+                  type="button"
+                  className={cstyles.primarybutton}
+                  onClick={() =>
+                    Utils.openTxid(
+                      txid,
+                      currentWallet?.chain_name,
+                      currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                        ? blockExplorerMainnetTransaction
+                        : blockExplorerTestnetTransaction,
+                      currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                        ? blockExplorerMainnetTransactionCustom
+                        : blockExplorerTestnetTransactionCustom,
+                    )
+                  }
+                >
+                  View TXID &nbsp;
+                  <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
+                </button>
+              )}
+            </div>
+          )}
+        </AdvancedSection>
 
         <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
           <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>
