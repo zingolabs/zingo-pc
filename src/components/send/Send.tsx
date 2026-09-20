@@ -560,7 +560,28 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
         )}
       </div>
 
-      <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Send</div>
+      {/* The button belongs with the list it grows, not with the two that end
+          the send: beside the title, where History keeps its own list control. */}
+      <div style={{ position: "relative" }}>
+        <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Send</div>
+        <div style={{ position: "absolute", right: 16, marginRight: 20, top: "50%", transform: "translateY(-50%)" }}>
+          <button
+            type="button"
+            className={cstyles.primarybutton}
+            disabled={rows.length >= MAX_RECIPIENTS || !everyRowAddressed}
+            title={
+              rows.length >= MAX_RECIPIENTS
+                ? `Up to ${MAX_RECIPIENTS} recipients per send`
+                : everyRowAddressed
+                  ? undefined
+                  : "Give this recipient an address first"
+            }
+            onClick={addRecipient}
+          >
+            <FontAwesomeIcon icon={faPlus} /> Add recipient
+          </button>
+        </div>
+      </div>
 
       <div className={styles.horizontalcontainer}>
         <div className={cstyles.containermarginleft} ref={paneRef}>
@@ -640,24 +661,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
             </div>
 
             <div className={styles.sendfooterbuttons}>
-              {/* First of the three, on the footer's own row: under the list it
-                  took a row of the pane's height, and at the end of the list a
-                  shielded recipient's memo box pushed it out of view. */}
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                disabled={rows.length >= MAX_RECIPIENTS || !everyRowAddressed}
-                title={
-                  rows.length >= MAX_RECIPIENTS
-                    ? `Up to ${MAX_RECIPIENTS} recipients per send`
-                    : everyRowAddressed
-                      ? undefined
-                      : "Give this recipient an address first"
-                }
-                onClick={addRecipient}
-              >
-                <FontAwesomeIcon icon={faPlus} /> Add recipient
-              </button>
               <button
                 type="button"
                 disabled={!canSend || mixnetView.sendBlocked}
