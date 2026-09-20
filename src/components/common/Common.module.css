@@ -526,3 +526,15 @@
 .disclosurebutton:hover {
   text-decoration: underline;
 }
+
+/*
+ * The rows a disclosure folds away: mostly one-line label-and-value pairs,
+ * stacked. With no space of their own they read as one block of text rather
+ * than as a list of facts, which is exactly the reading this section was
+ * meant to spare.
+ */
+.disclosurecontent {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

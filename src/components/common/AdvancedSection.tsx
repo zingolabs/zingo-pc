@@ -19,10 +19,10 @@ type AdvancedSectionProps = {
  * none of it is what the person who made the swap came to see. Shown together,
  * the two amounts and the provider are lost among the rest.
  *
- * So the view keeps what a swap or a payment is about, and everything that
- * explains how it was carried out waits here. Closed on each opening rather
- * than remembered: the plain view is the one worth arriving at, and a reader
- * who wants the rest is one press away from it.
+ * So the view keeps what the swap is about, and everything that explains how
+ * it was carried out waits here. Closed on each opening rather than
+ * remembered: the plain view is the one worth arriving at, and a reader who
+ * wants the rest is one press away from it.
  */
 const AdvancedSection: React.FC<AdvancedSectionProps> = ({ label = "Advanced", children }) => {
   const [open, setOpen] = useState<boolean>(false);
@@ -44,7 +44,11 @@ const AdvancedSection: React.FC<AdvancedSectionProps> = ({ label = "Advanced", c
           {label}
         </button>
       </div>
-      {open && <div id={contentId}>{children}</div>}
+      {open && (
+        <div id={contentId} className={cstyles.disclosurecontent}>
+          {children}
+        </div>
+      )}
     </>
   );
 };
