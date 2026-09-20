@@ -4,7 +4,6 @@ import Modal from "react-modal";
 import cstyles from "../common/Common.module.css";
 import styles from "../history/History.module.css";
 import swapStyles from "./Swap.module.css";
-import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
 import { Field, FieldRow } from "../common/DetailField";
 import { native, ipcRenderer } from "../../electronBridge";
@@ -94,7 +93,6 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   const [committing, setCommitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [postCommit, setPostCommit] = useState<PostCommit | null>(null);
-  const { copied, copy } = useCopy(1500);
 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
 
@@ -246,7 +244,6 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               expiresAtMs={instructions.expiresAtMs ?? route.expiresAtMs}
               paid={!!txId}
               leadingFields={<Field label="Provider" value={providerLongLabel(instructions.provider)} />}
-              copy={copy}
             />
 
             {!!txId && <Field label="Deposit transaction" value={txId} />}
@@ -263,8 +260,6 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               </div>
             )}
           </div>
-
-          {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}
 
           <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
             {/* Only outbound gets this: an inbound deposit is paid from the

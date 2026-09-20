@@ -96,21 +96,42 @@ describe("VtModal", () => {
     expect(closeModal).toHaveBeenCalled();
   });
 
-  it("copies TXID to clipboard and expands it on click", () => {
+  it("copies the TXID from its own button", () => {
     const vt = makeVt({ txid: "a".repeat(100) });
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt] },
     });
-    fireEvent.click(screen.getByText(/^aaa/));
-    expect(clipboard.writeText).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Copy TXID" }));
+    expect(clipboard.writeText).toHaveBeenCalledWith(vt.txid);
+    expect(screen.getByText("Copied!")).toBeInTheDocument();
   });
 
-  it("copies address to clipboard and expands on click", () => {
+  // Folded to its two ends until asked, so a hundred characters of hash do not
+  // decide how tall the view is.
+  it("opens the TXID over two lines and folds it back", () => {
+    const vt = makeVt({ txid: "a".repeat(100) });
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
+
+    const folded = "a".repeat(12) + "..." + "a".repeat(12);
+    expect(screen.getByText(folded)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show TXID in full" }));
+
+    expect(screen.getAllByText(/^a+$/)).toHaveLength(2);
+
+    fireEvent.click(screen.getByRole("button", { name: "Fold TXID" }));
+
+    expect(screen.getByText(folded)).toBeInTheDocument();
+  });
+
+  it("copies the address from its own button", () => {
     const vt = makeVt({ address: "u1" + "x".repeat(100) });
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt] },
     });
-    fireEvent.click(screen.getByText(/u1xxx/));
+    fireEvent.click(screen.getByRole("button", { name: "Copy Address" }));
     expect(clipboard.writeText).toHaveBeenCalledWith(vt.address);
   });
 
@@ -382,8 +403,8 @@ describe("VtModal copy targets", () => {
       contextOverrides: { valueTransfers: [vt] },
     });
 
-    expect(screen.getByRole("button", { name: /copy address/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /copy transaction id/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy Address" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copy TXID" })).toBeInTheDocument();
   });
 
   it("copies the address when its button is pressed", () => {
@@ -394,7 +415,7 @@ describe("VtModal copy targets", () => {
       contextOverrides: { valueTransfers: [vt] },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /copy address/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Copy Address" }));
 
     expect(clipboard.writeText).toHaveBeenCalled();
   });

@@ -9,7 +9,6 @@ import cstyles from "../common/Common.module.css";
 import { ServerChainNameEnum } from "../appstate";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapService } from "../../context/ContextSwapService";
-import { useCopy } from "../common/useCopy";
 import { shell } from "../../electronBridge";
 import {
   SwapDirectionEnum,
@@ -75,7 +74,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     openConfirmModal,
   } = useContext(ContextApp);
   const swapService = useSwapService();
-  const { copied, copy } = useCopy(1500);
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
 
   // A finished swap is no longer polled, so one that finished before the
@@ -305,7 +303,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 depositAddress={record.depositAddress}
                 amountHumanDecimal={record.sellAmountHumanDecimal}
                 memoText={memo}
-                copy={copy}
               />
               {swapService && (
                 <div className={cstyles.padtopsmall}>
@@ -424,7 +421,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                     className={cstyles.flexspacebetween}
                     style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}
                   >
-                    <CopyField label="Refund transaction" value={refundHash} copy={copy} />
+                    <CopyField label="Refund transaction" value={refundHash} />
                     {!!refundTracker && (
                       <button
                         type="button"
@@ -451,7 +448,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             <CopyField
               label={`${isOutbound ? "Sent to" : "Received at"} (${receiveSymbol})`}
               value={record.destinationAddress}
-              copy={copy}
             />
           </div>
 
@@ -463,7 +459,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           <AdvancedSection>
             <FieldRow>
               {!!record.routeId && <Field label="Route id" value={record.routeId} />}
-              {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} copy={copy} />}
+              {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} />}
             </FieldRow>
 
             {/* The minimum the swap guaranteed, the tolerance that set it and
@@ -489,12 +485,12 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 provider’s vault. Where the swap ended up is the user’s own
                 business and stays in the plain view. */}
             <SectionHeader label="Route addresses" />
-            {!!record.sourceAddress && <CopyField label="Paid from" value={record.sourceAddress} copy={copy} />}
+            {!!record.sourceAddress && <CopyField label="Paid from" value={record.sourceAddress} />}
             {/* Suppressed while the deposit slip is up: it carries the same
               address, and two copies of one address invite the reader to
               wonder which is the real one. */}
             {!!record.depositAddress && !awaitingDeposit && (
-              <CopyField label="Deposit address" value={record.depositAddress} copy={copy} />
+              <CopyField label="Deposit address" value={record.depositAddress} />
             )}
 
             {uniqueHashRows.length > 0 && (
@@ -508,7 +504,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                       className={cstyles.flexspacebetween}
                       style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}
                     >
-                      <CopyField label={row.label} value={row.value} copy={copy} />
+                      <CopyField label={row.label} value={row.value} />
                       {!!url && (
                         <button
                           type="button"
@@ -532,9 +528,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             {!!memo && !awaitingDeposit && (
               <>
                 <SectionHeader label="Memo" />
-                <CopyField label="On-chain memo" value={memo} copy={copy} />
+                <CopyField label="On-chain memo" value={memo} />
                 {isEvmSourceChain(record.sellAsset.chain) && (
-                  <CopyField label="Hex calldata" value={memoToHexCalldata(memo)} copy={copy} />
+                  <CopyField label="Hex calldata" value={memoToHexCalldata(memo)} />
                 )}
               </>
             )}
@@ -563,8 +559,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             )}
           </AdvancedSection>
         </div>
-
-        {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}
 
         {/* Space rather than a rule. The buttons are the end of the screen, not
             the start of another section. */}

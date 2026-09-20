@@ -8,7 +8,7 @@ import type { SwapAssetType } from "../../swap";
 jest.mock("../../electronBridge");
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
-const { shell } = require("../../electronBridge");
+const { shell, clipboard } = require("../../electronBridge");
 
 const ETH: SwapAssetType = {
   swapKitId: "ETH.ETH",
@@ -31,7 +31,6 @@ const BTC: SwapAssetType = {
 const MAYA_MEMO = "=:e:0xAA00000000000000000000000000000000000000:0/1/0";
 
 const renderSlip = (props: Partial<React.ComponentProps<typeof DepositSlip>> = {}) => {
-  const copy = jest.fn();
   render(
     <DepositSlip
       provider={SwapKitProviderEnum.MayachainStreaming}
@@ -39,11 +38,9 @@ const renderSlip = (props: Partial<React.ComponentProps<typeof DepositSlip>> = {
       sellAsset={ETH}
       depositAddress="0x1111111111111111111111111111111111111111"
       amountHumanDecimal="0.001"
-      copy={copy}
       {...props}
     />,
   );
-  return { copy };
 };
 
 beforeEach(() => {
@@ -53,14 +50,16 @@ beforeEach(() => {
 describe("DepositSlip", () => {
   it("shows the address and the exact amount with its ticker", () => {
     renderSlip();
-    expect(screen.getByText("0x1111111111111111111111111111111111111111")).toBeInTheDocument();
+    // Folded to its two ends, as every code in a detail view is, and opened by
+    // pressing it.
+    expect(screen.getByText("0x1111111111...111111111111")).toBeInTheDocument();
     expect(screen.getByText("0.001 ETH")).toBeInTheDocument();
   });
 
-  it("copies a row through the handler it was given", () => {
-    const { copy } = renderSlip();
+  it("copies a row from the row itself", () => {
+    renderSlip();
     fireEvent.click(screen.getByLabelText("Copy Deposit address"));
-    expect(copy).toHaveBeenCalledWith("0x1111111111111111111111111111111111111111");
+    expect(clipboard.writeText).toHaveBeenCalledWith("0x1111111111111111111111111111111111111111");
   });
 
   // The whole point of the per-chain hint: an EVM payer must be told about the
@@ -97,9 +96,9 @@ describe("DepositSlip", () => {
     const LINK = "ethereum:0x1111111111111111111111111111111111111111@1?value=1000000000000000";
 
     it("is copied whole", () => {
-      const { copy } = renderSlip({ provider: SwapKitProviderEnum.Near });
+      renderSlip({ provider: SwapKitProviderEnum.Near });
       fireEvent.click(screen.getByRole("button", { name: "Copy payment link" }));
-      expect(copy).toHaveBeenCalledWith(LINK);
+      expect(clipboard.writeText).toHaveBeenCalledWith(LINK);
     });
 
     // Through its own channel, which main validates: the https-only one

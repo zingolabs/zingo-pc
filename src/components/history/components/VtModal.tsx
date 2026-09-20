@@ -29,8 +29,7 @@ import routes from "../../../constants/routes.json";
 
 import { native } from "../../../electronBridge";
 import { userFacingError } from "../../../utils/userFacingError";
-import { useCopy } from "../../common/useCopy";
-import { Field, FieldRow } from "../../common/DetailField";
+import { CopyField, Field, FieldRow } from "../../common/DetailField";
 import DetailNavigator from "./DetailNavigator";
 import SaveContact from "../../common/SaveContact";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
@@ -99,10 +98,6 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
   // Straight from the prop: History remounts this per row, so the prop is
   // always the row on screen and a second copy could only fall behind it.
   const valueTransferIndex = index;
-  const [expandAddress, setExpandAddress] = useState(false);
-  const [expandTxid, setExpandTxid] = useState(false);
-  const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
-  const { copied: txidCopied, copy: copyTxid } = useCopy(1500);
   const [showNavigator, setShowNavigator] = useState<boolean>(true);
   const isTheFirstMount = useRef(true);
 
@@ -228,9 +223,9 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     }
   }
 
+  // The codes fold themselves back: react-modal drops its children when it
+  // closes, so an opened TXID does not come back opened on the next row.
   const localCloseModal = () => {
-    setExpandAddress(false);
-    setExpandTxid(false);
     closeModal();
   };
 
@@ -437,48 +432,8 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
         <div className={cstyles.margintoplarge} />
 
         {!!txid && (
-          <div className={cstyles.flexspacebetween}>
-            <div>
-              <div className={cstyles.sublight}>
-                TXID
-                {txidCopied && (
-                  <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
-                    Copied!
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                aria-label="Copy transaction id"
-                title="Copy transaction id"
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "inherit",
-                  font: "inherit",
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  if (txid) {
-                    copyTxid(txid);
-                    setExpandTxid(true);
-                  }
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                  {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
-                  {expandTxid && !!txid && (
-                    <>
-                      {txid.length < 80
-                        ? txid
-                        : Utils.splitStringIntoChunks(txid, 3).map((item) => <div key={item}>{item}</div>)}
-                    </>
-                  )}
-                </div>
-              </button>
-            </div>
+          <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <CopyField label="TXID" value={txid} />
 
             {!isSwapRow && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
               <button
@@ -507,55 +462,14 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
         <hr style={{ width: "100%" }} />
 
         {!!address && (
-          <div className={cstyles.flexspacebetween}>
-            <div>
-              <div className={cstyles.sublight}>
-                Address
-                {addressCopied && (
-                  <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
-                    Copied!
-                  </span>
-                )}
-              </div>
-              {!!label && (
-                <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
-                  {label}
-                </div>
-              )}
-              <div className={cstyles.verticalflex}>
-                <button
-                  type="button"
-                  aria-label="Copy address"
-                  title="Copy address"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    color: "inherit",
-                    font: "inherit",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => {
-                    if (address) {
-                      copyAddress(address);
-                      setExpandAddress(true);
-                    }
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                    {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
-                    {expandAddress && !!address && (
-                      <>
-                        {address.length < 80
-                          ? address
-                          : Utils.splitStringIntoChunks(address, 3).map((item) => <div key={item}>{item}</div>)}
-                      </>
-                    )}
-                  </div>
-                </button>
-              </div>
-            </div>
+          <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+            {/* The contact’s name under the label, where it was: it names the
+                address below it and belongs to it, not to the value. */}
+            <CopyField
+              label="Address"
+              value={address}
+              note={!!label && <div className={cstyles.highlight}>{label}</div>}
+            />
 
             {!label && (
               <div>

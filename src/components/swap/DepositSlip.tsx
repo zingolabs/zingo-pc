@@ -13,6 +13,7 @@ import {
 } from "../../swap";
 import type { SwapAssetType, SwapDirectionEnum, SwapKitProviderEnum } from "../../swap";
 import { CopyField, Field, FieldRow } from "../common/DetailField";
+import { useCopy } from "../common/useCopy";
 import { shell } from "../../electronBridge";
 
 /** The scheme of a payment link, as the user would recognise it. */
@@ -52,7 +53,6 @@ export type DepositSlipProps = {
    * provider to name, the detail view already names it further up.
    */
   leadingFields?: React.ReactNode;
-  copy: (value: string) => void;
 };
 
 const DepositSlip: React.FC<DepositSlipProps> = ({
@@ -65,8 +65,9 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
   expiresAtMs,
   paid,
   leadingFields,
-  copy,
 }) => {
+  // Its own, for the payment link below. The rows carry their own.
+  const { copied: linkCopied, copy } = useCopy(1500);
   const qr = paid ? null : buildDepositQr({ sellAsset, depositAddress, amountHumanDecimal, memoText });
   // A QR that carries a payment link, rather than only the address the row
   // below already offers. On a desktop the other wallet is usually on the
@@ -103,8 +104,15 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
           {!!paymentLink && (
             <>
               <div className={cstyles.horizontalflex} style={{ justifyContent: "center", flexWrap: "wrap" }}>
-                <button type="button" className={cstyles.primarybutton} onClick={() => copy(paymentLink)}>
-                  Copy payment link
+                {/* Says so on itself, now that no line at the foot of the view
+                    says it for the whole screen. */}
+                <button
+                  type="button"
+                  className={cstyles.primarybutton}
+                  disabled={linkCopied}
+                  onClick={() => copy(paymentLink)}
+                >
+                  {linkCopied ? "Copied!" : "Copy payment link"}
                 </button>
                 <button type="button" className={cstyles.primarybutton} onClick={openPaymentLink}>
                   Open in wallet
@@ -123,7 +131,7 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
 
       <FieldRow>
         {leadingFields}
-        <CopyField label="Exact amount" value={`${amountHumanDecimal} ${amountTicker}`} copy={copy} />
+        <CopyField label="Exact amount" value={`${amountHumanDecimal} ${amountTicker}`} />
         {!!expiresAtMs && (
           <Field
             label="Send before"
@@ -145,16 +153,16 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
       </FieldRow>
       {showExactAmount && <div className={styles.warningbanner}>{exactAmountWarningText(sellAsset.chain)}</div>}
 
-      <CopyField label="Deposit address" value={depositAddress} copy={copy} />
+      <CopyField label="Deposit address" value={depositAddress} />
 
       {!!memoText && (
         <>
-          <CopyField label="Memo" value={memoText} copy={copy} />
+          <CopyField label="Memo" value={memoText} />
           {/* EVM wallets take the memo as a 0x hex blob in the data field, never
               as the raw string. Pre-encoding it here removes the manual ASCII →
               hex step that lost a deposit on 2026-06-27. */}
           {isEvmSourceChain(sellAsset.chain) && (
-            <CopyField label="Memo (hex calldata)" value={memoToHexCalldata(memoText)} copy={copy} />
+            <CopyField label="Memo (hex calldata)" value={memoToHexCalldata(memoText)} />
           )}
           {showMemoHint && <div className={styles.warningbanner}>{memoFieldHintForChain(sellAsset.chain)}</div>}
         </>

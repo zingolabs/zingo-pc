@@ -318,7 +318,8 @@ describe("SwapDetailModal refund", () => {
     openAdvanced();
 
     // Once on the screen, under the Refund heading, not again among the hashes.
-    expect(screen.getAllByText("dd44".repeat(16))).toHaveLength(1);
+    // Folded to its ends, as every code is.
+    expect(screen.getAllByText("dd44dd44dd44...dd44dd44dd44")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /Refund explorer/ })).not.toBeInTheDocument();
   });
 });
