@@ -271,6 +271,22 @@ describe("ToAddrBox", () => {
     expect(screen.getByText("Coffee Shop")).toBeInTheDocument();
   });
 
+  // The field rendered the number back, so "0.0" became "0" under the cursor
+  // and a decimal could not be typed.
+  it("keeps the amount as it is typed, decimal point and all", () => {
+    const updateToField = jest.fn();
+    render(<ToAddrBox {...makeProps({ updateToField })} />);
+    const amount = screen.getByRole("spinbutton", { name: "Amount" });
+
+    fireEvent.change(amount, { target: { value: "0." } });
+    expect(amount).toHaveValue(null);
+    fireEvent.change(amount, { target: { value: "0.0" } });
+    expect((amount as HTMLInputElement).value).toBe("0.0");
+    fireEvent.change(amount, { target: { value: "0.05" } });
+    expect((amount as HTMLInputElement).value).toBe("0.05");
+    expect(updateToField).toHaveBeenLastCalledWith(null, "0.05", null);
+  });
+
   // Typed in dollars, the row still holds and sends ZEC.
   it("takes the amount in USD and hands on the ZEC it comes to", () => {
     const updateToField = jest.fn();
