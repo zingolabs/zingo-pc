@@ -7,7 +7,7 @@ import swapStyles from "./Swap.module.css";
 import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
 import { Field, FieldRow } from "../common/DetailField";
-import { native } from "../../electronBridge";
+import { native, ipcRenderer } from "../../electronBridge";
 import { describeCommitFailure, SwapDirectionEnum, depositSpendsSourceAddress, providerLongLabel } from "../../swap";
 import type {
   DepositInstructionsType,
@@ -98,6 +98,24 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
 
+  /**
+   * The device lock, for the presses that spend from this wallet.
+   *
+   * Confirming a send asks for it, and paying a swap deposit is the same act
+   * by another name: the wallet signs and broadcasts a transaction the user
+   * cannot call back. An inbound swap is paid from the user’s other wallet and
+   * takes nothing from this one, so it is not asked.
+   *
+   * Same pattern as SendConfirmModal.sendButton; a wallet with the setting off
+   * is never prompted.
+   */
+  const deviceAuthPasses = useCallback(async (): Promise<boolean> => {
+    const allSettings = await ipcRenderer.invoke("loadSettings");
+    if (!allSettings?.requireDeviceAuth) return true;
+    const result: { success: boolean } = await ipcRenderer.invoke("auth:verify", "Authorize swap deposit");
+    return !!result?.success;
+  }, []);
+
   const broadcast = useCallback(
     async (record: SwapRecordType, instructions: DepositInstructionsType) => {
       try {
@@ -127,12 +145,17 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
   const retry = useCallback(async () => {
     if (!postCommit) return;
+    if (!(await deviceAuthPasses())) return;
     setCommitting(true);
     await broadcast(postCommit.record, postCommit.instructions);
     setCommitting(false);
-  }, [postCommit, broadcast]);
+  }, [postCommit, broadcast, deviceAuthPasses]);
 
   const commit = useCallback(async () => {
+    // Before anything is reserved: a refused unlock leaves the quote, the
+    // amount and the addresses exactly as they were, so the user can try
+    // again or back out.
+    if (isOutbound && !(await deviceAuthPasses())) return;
     setCommitting(true);
     setError("");
 
@@ -182,7 +205,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
     await broadcast(committed.record, committed.instructions);
     setCommitting(false);
-  }, [swapService, quoteInput, route, fiatValueBasis, direction, isOutbound, broadcast]);
+  }, [swapService, quoteInput, route, fiatValueBasis, direction, isOutbound, broadcast, deviceAuthPasses]);
 
   if (postCommit) {
     const { record, instructions, txId } = postCommit;
