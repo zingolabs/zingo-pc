@@ -136,14 +136,27 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const walletTracker: TrackerEntryType | undefined = trackers.find(
     (tracker) => tracker.onZcash && (tracker.key === "source-explorer" || tracker.key === "dest-explorer"),
   );
-  const otherTrackers: TrackerEntryType[] = trackers.filter((tracker) => tracker !== walletTracker);
+  // A refund is one thing that happened, so it is reported in one place: the
+  // reason, the transaction that brought the deposit back, and the way to it on
+  // an explorer, together under the Refund heading. They used to be three:
+  // the reason here, the hash among the transactions under Advanced and the
+  // link among the trackers, so reading what became of the money meant
+  // collecting it from three parts of the screen.
+  const refundHash: string | undefined = isRealLegHash(record.refundInfo?.refundTxHash)
+    ? (record.refundInfo?.refundTxHash as string)
+    : undefined;
+  const refundTracker: TrackerEntryType | undefined = trackers.find((tracker) => tracker.key === "refund-explorer");
+  const otherTrackers: TrackerEntryType[] = trackers.filter(
+    (tracker) => tracker !== walletTracker && tracker !== refundTracker,
+  );
 
   const isOutbound = record.direction === SwapDirectionEnum.Outbound;
   const sellSymbol = record.sellAsset.ticker ?? record.sellAsset.chain ?? record.sellAsset.symbol;
   const receiveSymbol = record.receiveAsset.ticker ?? record.receiveAsset.chain ?? record.receiveAsset.symbol;
   const memo = (record.providerData as { memo?: string } | undefined)?.memo;
 
-  const uniqueHashRows = hashRowsForRecord(record);
+  // The refund has its own place above, so it is not listed here as well.
+  const uniqueHashRows = hashRowsForRecord(record).filter((row) => row.value !== refundHash);
 
   // What the provider said about an ending nobody asked for. A refund says it
   // in `refundInfo`, a failure in `failureReason`; both reached the record and
@@ -385,6 +398,25 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                     )
                   }
                 />
+                {!!refundHash && (
+                  <div
+                    className={cstyles.flexspacebetween}
+                    style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}
+                  >
+                    <CopyField label="Refund transaction" value={refundHash} copy={copy} />
+                    {!!refundTracker && (
+                      <button
+                        type="button"
+                        className={cstyles.primarybutton}
+                        style={{ marginRight: 0 }}
+                        onClick={() => shell.openExternal(refundTracker.url)}
+                      >
+                        View refund &nbsp;
+                        <FontAwesomeIcon icon={faExternalLinkAlt} />
+                      </button>
+                    )}
+                  </div>
+                )}
               </>
             )}
 
@@ -393,7 +425,14 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 every hash along the way are the record of how it was done,
                 and wait under Advanced. */}
             <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
-              <CopyField label={`${receiveSymbol} address`} value={record.destinationAddress} copy={copy} />
+              {/* "USDC address" said what kind of address it is and not what it
+                  is doing here. What it is doing here is where the swap paid,
+                  or where it paid this wallet. */}
+              <CopyField
+                label={`${isOutbound ? "Sent to" : "Received at"} (${receiveSymbol})`}
+                value={record.destinationAddress}
+                copy={copy}
+              />
               {!!walletTracker && (
                 <button
                   type="button"

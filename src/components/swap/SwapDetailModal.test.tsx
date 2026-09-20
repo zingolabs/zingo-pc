@@ -284,3 +284,31 @@ describe("SwapDetailModal advanced half", () => {
     expect(screen.getByText("order-9")).toBeInTheDocument();
   });
 });
+
+describe("SwapDetailModal refund", () => {
+  // What became of the money was spread over three places: the reason here, the
+  // hash among the transactions under Advanced, the link among the trackers.
+  const refunded = () =>
+    renderDetail({
+      status: SwapStatusEnum.Refunded,
+      refundInfo: { refundReason: "the provider could not deliver", refundTxHash: "dd44".repeat(16) },
+    } as Partial<SwapRecordType>);
+
+  it("reports the reason, the transaction and the way to it together", () => {
+    refunded();
+
+    expect(screen.getByText("the provider could not deliver")).toBeInTheDocument();
+    expect(screen.getByText("Refund transaction")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /View refund/ })).toBeInTheDocument();
+  });
+
+  it("does not list the refund again under Advanced", () => {
+    refunded();
+
+    openAdvanced();
+
+    // Once on the screen, under the Refund heading, not again among the hashes.
+    expect(screen.getAllByText("dd44".repeat(16))).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /Refund explorer/ })).not.toBeInTheDocument();
+  });
+});
