@@ -282,7 +282,7 @@ describe("SwapDetailModal advanced half", () => {
     expect(screen.getByText("Provider")).toBeInTheDocument();
     expect(screen.queryByText("Route id")).not.toBeInTheDocument();
     expect(screen.queryByText("Order id")).not.toBeInTheDocument();
-    expect(screen.queryByText("Deposit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Deposit address")).not.toBeInTheDocument();
   });
 
   it("hands the whole record over on one press", () => {

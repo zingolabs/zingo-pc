@@ -483,13 +483,18 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               </FieldRow>
             )}
 
-            <SectionHeader label="Addresses" />
-            {!!record.sourceAddress && <CopyField label="From" value={record.sourceAddress} copy={copy} />}
+            {/* Not "Addresses", which read as the section every address lives
+                in and left the one above it looking misplaced. These two are
+                the route’s: an address this wallet derived to pay from, and the
+                provider’s vault. Where the swap ended up is the user’s own
+                business and stays in the plain view. */}
+            <SectionHeader label="Route addresses" />
+            {!!record.sourceAddress && <CopyField label="Paid from" value={record.sourceAddress} copy={copy} />}
             {/* Suppressed while the deposit slip is up: it carries the same
               address, and two copies of one address invite the reader to
               wonder which is the real one. */}
             {!!record.depositAddress && !awaitingDeposit && (
-              <CopyField label="Deposit" value={record.depositAddress} copy={copy} />
+              <CopyField label="Deposit address" value={record.depositAddress} copy={copy} />
             )}
 
             {uniqueHashRows.length > 0 && (
