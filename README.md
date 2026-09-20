@@ -10,13 +10,18 @@ App Store: [https://apps.apple.com/app/zingo-pc/id6763584326](https://apps.apple
 
 Pre-built binaries for each release are available on the [Releases page](https://github.com/zingolabs/zingo-pc/releases).
 
-| Platform          | Format                                                             |
-| ----------------- | ------------------------------------------------------------------ |
-| Windows           | `.msi` installer, `.zip` portable                                  |
-| macOS             | `.dmg`                                                             |
-| macOS (App Store) | [App Store link](https://apps.apple.com/app/zingo-pc/id6763584326) |
-| Linux             | `.deb`, `.AppImage`                                                |
-| Linux (Flatpak)   | `.flatpak`                                                         |
+| Platform           | Format                                                             |
+| ------------------ | ------------------------------------------------------------------ |
+| Windows            | `.msi` installer, `.zip` portable                                  |
+| macOS              | `.dmg`                                                             |
+| macOS (App Store)  | [App Store link](https://apps.apple.com/app/zingo-pc/id6763584326) |
+| macOS (TestFlight) | [Public beta](https://testflight.apple.com/join/qBDKNJqk)          |
+| Linux              | `.deb`, `.AppImage`                                                |
+| Linux (Flatpak)    | `.flatpak`                                                         |
+
+> **Trying the beta:** the TestFlight build is where what is still being tested reaches first — swaps
+> among it — before any of it goes to the App Store. It needs a Mac and the TestFlight app; the link
+> above joins the public group, no invitation needed. Feedback is welcome from there.
 
 > **Windows users:** if Windows blocks the app on launch, see [Windows blocks Zingo PC from opening](#troubleshooting) in Troubleshooting. Our Windows builds are code signed, but a recently issued certificate has to accumulate reputation before Windows stops flagging it.
 
@@ -115,11 +120,16 @@ yarn release:prep 2.0.15 142
 - Encrypted memos
 - One-click shielding of the transparent balance
 - Multi-send — several recipients in one transaction
+- Any amount can be typed in USD instead of ZEC — in Send, in a payment request and in a swap; what is
+  sent, requested or swapped is always ZEC
 - Payment requests — a `zcash:` link and QR for an amount, a memo and an optional title, from Receive
 - Scan a payment QR in Send — from an image (file, drag and drop, or a pasted screenshot) or the camera;
   decoded on the device, never stored or sent
 - `zcash:` URI scheme handler (ZIP-321 payment requests, including several recipients)
-- Transaction history, and a separate Messages view for transfers carrying memos
+- Transaction history, and a separate Messages view for transfers carrying memos; both searchable by
+  address, contact name, memo or transaction id
+- Receive lists every address of each pool, numbered ("2 of 5"), with a search across both pools once
+  there is more than one
 - Financial Insight — amounts sent, number of sends and memo bytes, charted per destination address
 
 **Servers**
@@ -137,6 +147,7 @@ yarn release:prep 2.0.15 142
 - A server that stops being published, or that we retire, moves the wallet back to Auto rather than
   leaving it on a dead URI
 - "Try Again" on the wallet-open error screen, to retry without changing any settings
+- The server list is searchable by address
 
 **Privacy**
 
@@ -150,6 +161,8 @@ yarn release:prep 2.0.15 142
 - Swap ZEC to and from assets on other chains through SwapKit (NEAR Intents, Flashnet and other providers)
 - Routes compared by cost against the market rate, with the slippage tolerance chosen and the slippage realised
 - Swap status and history, with links to each chain's explorer and refund tracking
+- When no route is offered, each provider's own reason is given (a minimum to reach, a provider that
+  cannot price the pair right now), and a route already quoted is kept while it is still valid
 - Deposit QR and payment link for paying an inbound swap from another wallet
 - Swap traffic goes over clearnet, not the mixnet: see [docs/swap-privacy.md](docs/swap-privacy.md)
 
@@ -163,7 +176,12 @@ yarn release:prep 2.0.15 142
 
 - Save contacts per network (Mainnet / Testnet / Regtest) — the list filters by the active wallet's network
 - "Show contacts from all networks" toggle to see everything at once
-- Contacts on other chains too, with Swap To / Swap From
+- Contacts on other chains too, with Swap To / Swap From — the chains that can be swapped with ZEC;
+  an address on any other chain is refused by name
+- Search contacts by any part of a name or an address, in the book and in the picker that fills an
+  address field
+- Scan a QR into the address field, for any asset, with the chain chosen when the code's payment link
+  names it
 - Save a contact from Send, Swap or a transaction's detail without leaving the screen
 - A ZNS alias is saved as the address it resolves to, with the alias kept in the label
 
@@ -202,6 +220,18 @@ yarn release:prep 2.0.15 142
 **Q: Clicking a `zcash:` payment link doesn't open Zingo PC (Linux AppImage)**
 
 A: The AppImage must be launched at least once from its current location before the OS registers it as the handler for `zcash:` links. After the first launch, cold-start links work automatically. If you move the AppImage to a new path, launch it once from the new location to re-register it.
+
+---
+
+**Q: The camera does not open when scanning a payment QR**
+
+A: Scanning from an image always works; the camera needs the operating system's permission.
+
+- **macOS:** the first attempt asks. If it was refused, allow it in System Settings → Privacy & Security → Camera.
+- **Windows:** allow it in Settings → Privacy & security → Camera, including "Let desktop apps access your camera".
+- **Linux (Flatpak):** the sandbox grants device access at install; reinstall the Flatpak if it was denied.
+
+If another app holds the camera, the dialog says so. There is no camera on the machine? Use "Choose image", drag an image in, or paste a screenshot.
 
 ---
 
