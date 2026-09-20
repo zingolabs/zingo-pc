@@ -128,6 +128,16 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     blockExplorerTestnetTransactionCustom,
   ]);
 
+  // The one transaction of this swap that happened in this wallet: the deposit
+  // it paid on an outbound swap, the payment it received on an inbound one.
+  // Every other link — the provider’s own order page, the chains a route
+  // passed through, the hops of a two-step deposit — describes the route
+  // rather than this wallet, and waits under Advanced.
+  const walletTracker: TrackerEntryType | undefined = trackers.find(
+    (tracker) => tracker.onZcash && (tracker.key === "source-explorer" || tracker.key === "dest-explorer"),
+  );
+  const otherTrackers: TrackerEntryType[] = trackers.filter((tracker) => tracker !== walletTracker);
+
   const isOutbound = record.direction === SwapDirectionEnum.Outbound;
   const sellSymbol = record.sellAsset.ticker ?? record.sellAsset.chain ?? record.sellAsset.symbol;
   const receiveSymbol = record.receiveAsset.ticker ?? record.receiveAsset.chain ?? record.receiveAsset.symbol;
@@ -315,9 +325,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               }
             />
             <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
-          </FieldRow>
-
-          <FieldRow>
             <Field label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
             {!!record.updatedAtMs && (
               <Field label="Updated" value={dateformat(record.updatedAtMs, "mmm dd, yyyy HH:MM")} />
@@ -326,25 +333,25 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
 
           <hr style={{ width: "100%" }} />
 
-          <FieldRow>
+          {/* The amounts on one line, fees among them: a fee is an amount, so
+              it belongs with the ones it was taken from rather than in a
+              section of its own, and its breakdown opens from the row’s end. */}
+          <FieldRow style={{ alignItems: "flex-end" }}>
             <Field label="Sent" value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}`} />
             <Field
               label="Expected"
               value={`${formatAmountForDisplay(record.expectedReceiveAmount)} ${receiveSymbol}`}
             />
-          </FieldRow>
-
-          {/* No rule above it: a fee is an amount, so it belongs with the ones
-              it was taken from rather than in a section of its own. */}
-          {!!record.feesRaw?.length && (
-            <FieldRow style={{ alignItems: "flex-end" }}>
+            {!!record.feesRaw?.length && (
               <Field
                 label="Total fees"
                 value={`${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
               />
-              {/* The shared button reserves 8px on each side for sitting beside
-                  another one. At the end of a row it has nothing to sit beside,
-                  and that margin reads as the row stopping short. */}
+            )}
+            {!!record.feesRaw?.length && (
+              // The shared button reserves 8px on each side for sitting beside
+              // another one. At the end of a row it has nothing to sit beside,
+              // and that margin reads as the row stopping short.
               <button
                 type="button"
                 className={cstyles.primarybutton}
@@ -353,8 +360,8 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               >
                 Fee breakdown
               </button>
-            </FieldRow>
-          )}
+            )}
+          </FieldRow>
 
           {endedBadly && (
             <>
@@ -366,9 +373,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                     // Said rather than left blank: the user needs to know the
                     // silence is the provider's, not a value still loading, and
                     // where to go next. The provider's own order page sits in
-                    // Trackers below and often carries more than /track does.
+                    // Advanced below and often carries more than /track does.
                     <span className={cstyles.sublight}>
-                      Not given by {providerLongLabel(record.provider)}. Its order page, under Trackers below, may say
+                      Not given by {providerLongLabel(record.provider)}. Its order page, under Advanced below, may say
                       more.
                     </span>
                   )
@@ -377,52 +384,26 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             </>
           )}
 
-          {/* Where the swap was going. The address it left from, the one it was
-              paid into and every hash along the way are the record of how that
-              was done, and wait under Advanced. */}
-          <SectionHeader label="Sent to" />
-          <CopyField label={`${receiveSymbol} address`} value={record.destinationAddress} copy={copy} />
+          {/* Where the swap paid, and the way to that payment on a block
+              explorer. The address it left from, the deposit address and every
+              hash along the way are the record of how it was done, and wait
+              under Advanced. */}
+          <hr style={{ width: "100%" }} />
 
-          {/* No heading and no rule: three buttons that open a tracker say what
-              they are, and a rule under them was the last thing on the screen
-              rather than a separator between two things. */}
-          {/* Two rows rather than one that wraps wherever the width runs out:
-              the trackers and the other chains first, then the wallet's own
-              chain, so a swap with an intermediate leg stays narrow and each
-              row reads as one kind of thing. Each row still wraps, with a row
-              gap matching the 16px the side margins leave between buttons. */}
-          {/* Named groups, so the split is announced as well as seen. */}
-          {[
-            { label: "Trackers", entries: trackers.filter((tracker) => !tracker.onZcash) },
-            { label: "Zcash transactions", entries: trackers.filter((tracker) => tracker.onZcash) },
-          ]
-            .filter((row) => row.entries.length > 0)
-            .map(({ label, entries: row }, index) => (
-              <div
-                key={label}
-                role="group"
-                aria-label={label}
-                className={`${cstyles.horizontalflex} ${index === 0 ? cstyles.margintoplarge : ""}`}
-                style={{
-                  justifyContent: "center",
-                  flexWrap: "wrap",
-                  rowGap: 16,
-                  marginTop: index === 0 ? undefined : 16,
-                }}
+          <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+            <CopyField label={`${receiveSymbol} address`} value={record.destinationAddress} copy={copy} />
+            {!!walletTracker && (
+              <button
+                type="button"
+                className={cstyles.primarybutton}
+                style={{ marginRight: 0 }}
+                onClick={() => shell.openExternal(walletTracker.url)}
               >
-                {row.map((tracker) => (
-                  <button
-                    key={tracker.key}
-                    type="button"
-                    className={cstyles.primarybutton}
-                    onClick={() => shell.openExternal(tracker.url)}
-                  >
-                    {tracker.label} &nbsp;
-                    <FontAwesomeIcon icon={faExternalLinkAlt} />
-                  </button>
-                ))}
-              </div>
-            ))}
+                View transaction &nbsp;
+                <FontAwesomeIcon icon={faExternalLinkAlt} />
+              </button>
+            )}
+          </div>
 
           {/* Everything above answers what the swap was; this answers how it
             was carried out. A swap that went through leaves an order id, a
@@ -481,6 +462,30 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                   <CopyField label="Hex calldata" value={memoToHexCalldata(memo)} copy={copy} />
                 )}
               </>
+            )}
+
+            {/* The provider’s own order page and the chains the route passed
+                through. The one link about this wallet is up beside the
+                address it paid. */}
+            {otherTrackers.length > 0 && (
+              <div
+                role="group"
+                aria-label="Trackers"
+                className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`}
+                style={{ justifyContent: "center", flexWrap: "wrap", rowGap: 16 }}
+              >
+                {otherTrackers.map((tracker) => (
+                  <button
+                    key={tracker.key}
+                    type="button"
+                    className={cstyles.primarybutton}
+                    onClick={() => shell.openExternal(tracker.url)}
+                  >
+                    {tracker.label} &nbsp;
+                    <FontAwesomeIcon icon={faExternalLinkAlt} />
+                  </button>
+                ))}
+              </div>
             )}
           </AdvancedSection>
         </div>

@@ -220,39 +220,46 @@ describe("SwapDetailModal ending", () => {
   });
 });
 
-// A swap with an intermediate leg carries five trackers, and in one wrapping
-// row they made the screen wide. The trackers and the other chains take the
-// first row and the Zcash transactions the second.
+// The link a wallet user wants is the transaction this wallet made; the rest
+// describe the route the provider took, and are one press away under Advanced.
 describe("SwapDetailModal trackers", () => {
-  it("puts the Zcash transactions on a row of their own", () => {
-    render(
-      <SwapDetailModal
-        record={record({
-          status: SwapStatusEnum.Completed,
-          broadcast: {
-            txId: "aa11".repeat(16),
-            allTxIds: ["cc33".repeat(16), "aa11".repeat(16)],
-          } as SwapRecordType["broadcast"],
-          destinationTxHash: "SolanaDeliverySignaturePlaceholder",
-        })}
-        index={0}
-        length={1}
-        moveDetail={jest.fn()}
-        modalIsOpen
-        closeModal={jest.fn()}
-        onRemove={jest.fn()}
-      />,
-      { contextOverrides: { currentWallet: { chain_name: "main" } as never } },
-    );
+  const withLegs = () => (
+    <SwapDetailModal
+      record={record({
+        status: SwapStatusEnum.Completed,
+        broadcast: {
+          txId: "aa11".repeat(16),
+          allTxIds: ["cc33".repeat(16), "aa11".repeat(16)],
+        } as SwapRecordType["broadcast"],
+        destinationTxHash: "SolanaDeliverySignaturePlaceholder",
+      })}
+      index={0}
+      length={1}
+      moveDetail={jest.fn()}
+      modalIsOpen
+      closeModal={jest.fn()}
+      onRemove={jest.fn()}
+    />
+  );
 
-    const trackersRow = within(screen.getByRole("group", { name: "Trackers" }));
-    const zcashRow = within(screen.getByRole("group", { name: "Zcash transactions" }));
+  it("keeps this wallet’s own transaction beside the address it paid", () => {
+    render(withLegs(), { contextOverrides: { currentWallet: { chain_name: "main" } as never } });
 
-    expect(trackersRow.getByRole("button", { name: /SwapKit Explorer/ })).toBeInTheDocument();
-    expect(trackersRow.getByRole("button", { name: /Destination chain explorer/ })).toBeInTheDocument();
-    expect(zcashRow.getByRole("button", { name: /Source chain explorer/ })).toBeInTheDocument();
-    expect(zcashRow.getByRole("button", { name: /Source chain hop 1/ })).toBeInTheDocument();
-    expect(zcashRow.queryByRole("button", { name: /SwapKit Explorer/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /View transaction/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /SwapKit Explorer/ })).not.toBeInTheDocument();
+  });
+
+  it("leaves the route’s own links to the advanced half", () => {
+    render(withLegs(), { contextOverrides: { currentWallet: { chain_name: "main" } as never } });
+
+    openAdvanced();
+
+    const trackers = within(screen.getByRole("group", { name: "Trackers" }));
+    expect(trackers.getByRole("button", { name: /SwapKit Explorer/ })).toBeInTheDocument();
+    expect(trackers.getByRole("button", { name: /Destination chain explorer/ })).toBeInTheDocument();
+    expect(trackers.getByRole("button", { name: /Source chain hop 1/ })).toBeInTheDocument();
+    // The one already beside the address is not repeated here.
+    expect(trackers.queryByRole("button", { name: /Source chain explorer/ })).not.toBeInTheDocument();
   });
 });
 
