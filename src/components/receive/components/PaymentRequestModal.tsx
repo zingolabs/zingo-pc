@@ -235,7 +235,11 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
                 >
                   <QRCodeCanvas
                     ref={canvasRef}
-                    includeMargin={true}
+                    // Two modules of quiet zone instead of the standard four: the white band
+                    // around the code took as much room as the code in a list of them, and
+                    // readers manage with two on a screen. The saved image gets its own
+                    // margin back (see composeQrWithTitle).
+                    marginSize={2}
                     size={260}
                     value={generated.uri}
                     className={styles.receiveQrcode}
