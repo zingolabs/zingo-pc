@@ -309,100 +309,103 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           )}
 
           {/* Laid out the way the transfer detail lays its own facts out: a
-              rule, then a row of label-over-value columns. What was a stack of
+              rule, then rows of label-over-value columns. What was a stack of
               one-per-line rows under a heading is the same information in a
-              third of the height. */}
+              third of the height.
+
+              One rule, under the header. The two that used to sit between the
+              rows separated nothing — each row is already a line of labelled
+              values — and turned three readings of the same kind into three
+              sections. Even space between them is what groups them now. */}
           <hr style={{ width: "100%" }} />
 
-          <FieldRow>
-            <Field
-              label="Provider"
-              value={
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <ProviderIcon provider={record.provider} size={16} decorative />
-                  {providerLongLabel(record.provider)}
-                </span>
-              }
-            />
-            <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
-            <Field label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
-            {!!record.updatedAtMs && (
-              <Field label="Updated" value={dateformat(record.updatedAtMs, "mmm dd, yyyy HH:MM")} />
-            )}
-          </FieldRow>
-
-          <hr style={{ width: "100%" }} />
-
-          {/* The amounts on one line, fees among them: a fee is an amount, so
-              it belongs with the ones it was taken from rather than in a
-              section of its own, and its breakdown opens from the row’s end. */}
-          <FieldRow style={{ alignItems: "flex-end" }}>
-            <Field label="Sent" value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}`} />
-            <Field
-              label="Expected"
-              value={`${formatAmountForDisplay(record.expectedReceiveAmount)} ${receiveSymbol}`}
-            />
-            {!!record.feesRaw?.length && (
+          <div className={cstyles.verticalflex} style={{ gap: 12 }}>
+            <FieldRow>
               <Field
-                label="Total fees"
-                value={`${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
-              />
-            )}
-            {!!record.feesRaw?.length && (
-              // The shared button reserves 8px on each side for sitting beside
-              // another one. At the end of a row it has nothing to sit beside,
-              // and that margin reads as the row stopping short.
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                style={{ marginRight: 0 }}
-                onClick={() => setFeesOpen(true)}
-              >
-                Fee breakdown
-              </button>
-            )}
-          </FieldRow>
-
-          {endedBadly && (
-            <>
-              <SectionHeader label={record.status === SwapStatusEnum.Refunded ? "Refund" : "Failure"} />
-              <Field
-                label="Reason"
+                label="Provider"
                 value={
-                  endedBadlyReason ?? (
-                    // Said rather than left blank: the user needs to know the
-                    // silence is the provider's, not a value still loading, and
-                    // where to go next. The provider's own order page sits in
-                    // Advanced below and often carries more than /track does.
-                    <span className={cstyles.sublight}>
-                      Not given by {providerLongLabel(record.provider)}. Its order page, under Advanced below, may say
-                      more.
-                    </span>
-                  )
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <ProviderIcon provider={record.provider} size={16} decorative />
+                    {providerLongLabel(record.provider)}
+                  </span>
                 }
               />
-            </>
-          )}
+              <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
+              <Field label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
+              {!!record.updatedAtMs && (
+                <Field label="Updated" value={dateformat(record.updatedAtMs, "mmm dd, yyyy HH:MM")} />
+              )}
+            </FieldRow>
 
-          {/* Where the swap paid, and the way to that payment on a block
-              explorer. The address it left from, the deposit address and every
-              hash along the way are the record of how it was done, and wait
-              under Advanced. */}
-          <hr style={{ width: "100%" }} />
+            {/* The amounts on one line, fees among them: a fee is an amount, so
+              it belongs with the ones it was taken from rather than in a
+              section of its own, and its breakdown opens from the row’s end. */}
+            <FieldRow style={{ alignItems: "flex-end" }}>
+              <Field label="Sent" value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}`} />
+              <Field
+                label="Expected"
+                value={`${formatAmountForDisplay(record.expectedReceiveAmount)} ${receiveSymbol}`}
+              />
+              {!!record.feesRaw?.length && (
+                <Field
+                  label="Total fees"
+                  value={`${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
+                />
+              )}
+              {!!record.feesRaw?.length && (
+                // The shared button reserves 8px on each side for sitting beside
+                // another one. At the end of a row it has nothing to sit beside,
+                // and that margin reads as the row stopping short.
+                <button
+                  type="button"
+                  className={cstyles.primarybutton}
+                  style={{ marginRight: 0 }}
+                  onClick={() => setFeesOpen(true)}
+                >
+                  Fee breakdown
+                </button>
+              )}
+            </FieldRow>
 
-          <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
-            <CopyField label={`${receiveSymbol} address`} value={record.destinationAddress} copy={copy} />
-            {!!walletTracker && (
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                style={{ marginRight: 0 }}
-                onClick={() => shell.openExternal(walletTracker.url)}
-              >
-                View transaction &nbsp;
-                <FontAwesomeIcon icon={faExternalLinkAlt} />
-              </button>
+            {endedBadly && (
+              <>
+                <SectionHeader label={record.status === SwapStatusEnum.Refunded ? "Refund" : "Failure"} />
+                <Field
+                  label="Reason"
+                  value={
+                    endedBadlyReason ?? (
+                      // Said rather than left blank: the user needs to know the
+                      // silence is the provider's, not a value still loading, and
+                      // where to go next. The provider's own order page sits in
+                      // Advanced below and often carries more than /track does.
+                      <span className={cstyles.sublight}>
+                        Not given by {providerLongLabel(record.provider)}. Its order page, under Advanced below, may say
+                        more.
+                      </span>
+                    )
+                  }
+                />
+              </>
             )}
+
+            {/* Where the swap paid, and the way to that payment on a block
+                explorer. The address it left from, the deposit address and
+                every hash along the way are the record of how it was done,
+                and wait under Advanced. */}
+            <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+              <CopyField label={`${receiveSymbol} address`} value={record.destinationAddress} copy={copy} />
+              {!!walletTracker && (
+                <button
+                  type="button"
+                  className={cstyles.primarybutton}
+                  style={{ marginRight: 0 }}
+                  onClick={() => shell.openExternal(walletTracker.url)}
+                >
+                  View transaction &nbsp;
+                  <FontAwesomeIcon icon={faExternalLinkAlt} />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Everything above answers what the swap was; this answers how it
