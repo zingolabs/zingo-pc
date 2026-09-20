@@ -45,9 +45,15 @@ const AdvancedSection: React.FC<AdvancedSectionProps> = ({ label = "Advanced", c
         </button>
       </div>
       {open && (
-        <div id={contentId} className={cstyles.disclosurecontent}>
-          {children}
-        </div>
+        <>
+          <div id={contentId} className={cstyles.disclosurecontent}>
+            {children}
+          </div>
+          {/* Closes the section the way the rule above it opened it. Without
+              one the last fact folded out sat flush against whatever the view
+              ends with — in the swap detail, its buttons. */}
+          <hr style={{ width: "100%" }} />
+        </>
       )}
     </>
   );
