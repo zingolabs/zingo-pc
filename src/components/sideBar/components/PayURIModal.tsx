@@ -32,9 +32,30 @@ const PayURIModal = ({
       overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex}>
-        <div className={cstyles.marginbottomlarge} style={{ textAlign: "center" }}>
+        <div className={cstyles.padtopsmall} style={{ textAlign: "center" }}>
           {modalTitle}
         </div>
+
+        {/* A title, a field and two buttons said nothing about what goes in the
+            field or what happens next. Both matter here: what a request
+            carries is what the form will be filled with, and nothing is sent
+            until it is reviewed. */}
+        {!readOnly && (
+          <div className={`${cstyles.sublight} ${cstyles.marginbottomlarge}`} style={{ textAlign: "center" }}>
+            <div className={cstyles.padtopsmall}>
+              Paste a payment request — a <span className={cstyles.fixedfont}>zcash:</span> link — or a plain Zcash
+              address.
+            </div>
+            <div className={cstyles.padtopsmall}>
+              Whatever it carries fills the Send form: the address, and the amount, memo and recipients when the request
+              names them. Nothing leaves the wallet until you review it there.
+            </div>
+            <div className={cstyles.padtopsmall}>
+              Links opened from a browser, a PDF or a message come here on their own, and Send reads the same request
+              from a QR code.
+            </div>
+          </div>
+        )}
 
         {readOnly && (
           <div className={cstyles.well} style={{ textAlign: "center" }}>
