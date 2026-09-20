@@ -96,7 +96,8 @@
   overflow-y: auto;
   padding: 16px;
   background: var(--color-background);
-  border: var(--color-primary) 4px solid;
+  border: var(--modal-border);
+  border-radius: var(--modal-radius);
 }
 
 /*
@@ -146,7 +147,8 @@
   padding: 16px;
   opacity: 1;
   background: var(--color-background);
-  border: var(--color-primary) 4px solid;
+  border: var(--modal-border);
+  border-radius: var(--modal-radius);
 }
 
 /* Sits with the screen title, in the warning colour and none of the box. The

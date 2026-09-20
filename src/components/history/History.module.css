@@ -81,7 +81,8 @@
   min-width: 800px;
   max-height: calc(100vh - 130px);
   overflow-y: auto;
-  border: var(--color-primary) 4px solid;
+  border: var(--modal-border);
+  border-radius: var(--modal-radius);
 }
 
 .containermargin {

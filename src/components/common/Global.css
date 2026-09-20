@@ -7,4 +7,10 @@
   --color-text: #dadfe1;
   --color-error: red;
   --color-warning: yellow;
+
+  /* Every modal is framed the same way: one thin green line and softened
+     corners. The six classes that draw a modal box live in five files, so the
+     frame is a token here rather than six copies that drift apart. */
+  --modal-border: 1px solid var(--color-primary);
+  --modal-radius: 8px;
 }
