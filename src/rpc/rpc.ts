@@ -22,6 +22,7 @@ import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
 import { userFacingError } from "../utils/userFacingError";
+import { syncFailureMessage } from "./syncFailureMessage";
 import { depositSpendsSourceAddress } from "../swap/depositRouting";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "./components/serverHealth";
 import {
@@ -64,6 +65,16 @@ const isMixnetNotReady = (error: unknown): boolean => MIXNET_NOT_READY.test(Stri
 // which is the right way round — the less it answers, the less we ask.
 const HEALTH_PROBE_INTERVAL_MS = 15 * 1000;
 
+// How many polls in a row have to fail before the banner says so.
+//
+// One failure is what a machine waking from sleep, or a window that sat in the
+// background long enough for its connection to go stale, produces every time:
+// the poll that finds the dead connection fails, the next one opens a new one
+// and the sync carries on. Reporting that in red taught users to read a healthy
+// wallet as a broken one. Two in a row is a failure that outlived its own
+// recovery, and that is worth the screen. The console still gets the first.
+const SYNC_FAILURES_BEFORE_BANNER = 2;
+
 export default class RPC {
   fnSetTotalBalance: (tb: TotalBalanceClass) => void;
   fnSetAddressesUnified: (abs: UnifiedAddressClass[]) => void;
@@ -97,6 +108,7 @@ export default class RPC {
   lastTxId?: string;
 
   lastPollSyncError: string;
+  consecutivePollSyncFailures: number;
 
   serverHealth: ServerHealthState;
   // The periodic work currently out, by name. A second ask for something
@@ -142,6 +154,7 @@ export default class RPC {
     this.timers = [];
 
     this.lastPollSyncError = "";
+    this.consecutivePollSyncFailures = 0;
 
     this.serverHealth = INITIAL_SERVER_HEALTH;
 
@@ -568,6 +581,7 @@ export default class RPC {
       const returnPoll: string = await native.poll_sync();
       // Reaching here at all is the sync answering, whatever it answered, so a
       // failure the user is still being shown is over.
+      this.consecutivePollSyncFailures = 0;
       if (this.lastPollSyncError) {
         this.lastPollSyncError = "";
         this.fnSetFetchError("Sync", "");
@@ -625,7 +639,13 @@ export default class RPC {
       if (reason !== this.lastPollSyncError) {
         console.error(`Critical Error sync poll ${error}`);
       }
-      this.fnSetFetchError("Sync", reason);
+      this.consecutivePollSyncFailures += 1;
+      // The first failure of a run is left to the console: see
+      // SYNC_FAILURES_BEFORE_BANNER. A connection that keeps dropping says so
+      // in one sentence instead of the five layers it arrives wrapped in.
+      if (this.consecutivePollSyncFailures >= SYNC_FAILURES_BEFORE_BANNER) {
+        this.fnSetFetchError("Sync", syncFailureMessage(reason));
+      }
       this.lastPollSyncError = reason;
     }
   }
