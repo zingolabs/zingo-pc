@@ -242,24 +242,34 @@ describe("SwapDetailModal trackers", () => {
     />
   );
 
-  it("keeps this wallet’s own transaction beside the address it paid", () => {
+  it("keeps the links out of the plain view", () => {
     render(withLegs(), { contextOverrides: { currentWallet: { chain_name: "main" } as never } });
 
-    expect(screen.getByRole("button", { name: /View transaction/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /View transaction/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /SwapKit Explorer/ })).not.toBeInTheDocument();
   });
 
-  it("leaves the route’s own links to the advanced half", () => {
+  // A link belongs on the transaction it opens: matching a button named after a
+  // leg to a hash listed elsewhere is work the screen can do for the reader.
+  it("gives each transaction its own link", () => {
+    render(withLegs(), { contextOverrides: { currentWallet: { chain_name: "main" } as never } });
+
+    openAdvanced();
+
+    // The deposit, the hop that fed it and the delivery on Solana.
+    expect(screen.getAllByRole("button", { name: /View transaction/ })).toHaveLength(3);
+  });
+
+  it("keeps the swap’s own trackers, which belong to no one transaction", () => {
     render(withLegs(), { contextOverrides: { currentWallet: { chain_name: "main" } as never } });
 
     openAdvanced();
 
     const trackers = within(screen.getByRole("group", { name: "Trackers" }));
     expect(trackers.getByRole("button", { name: /SwapKit Explorer/ })).toBeInTheDocument();
-    expect(trackers.getByRole("button", { name: /Destination chain explorer/ })).toBeInTheDocument();
-    expect(trackers.getByRole("button", { name: /Source chain hop 1/ })).toBeInTheDocument();
-    // The one already beside the address is not repeated here.
-    expect(trackers.queryByRole("button", { name: /Source chain explorer/ })).not.toBeInTheDocument();
+    // Named after a leg rather than after the swap: replaced by the links on
+    // the transaction rows themselves.
+    expect(trackers.queryByRole("button", { name: /chain explorer/ })).not.toBeInTheDocument();
   });
 });
 

@@ -13,6 +13,7 @@ import { useCopy } from "../common/useCopy";
 import { shell } from "../../electronBridge";
 import {
   SwapDirectionEnum,
+  buildChainExplorerUrl,
   buildTrackerEntries,
   canRemoveSwap,
   describeRealizedSlippage,
@@ -128,14 +129,31 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     blockExplorerTestnetTransactionCustom,
   ]);
 
-  // The one transaction of this swap that happened in this wallet: the deposit
-  // it paid on an outbound swap, the payment it received on an inbound one.
-  // Every other link — the provider’s own order page, the chains a route
-  // passed through, the hops of a two-step deposit — describes the route
-  // rather than this wallet, and waits under Advanced.
-  const walletTracker: TrackerEntryType | undefined = trackers.find(
-    (tracker) => tracker.onZcash && (tracker.key === "source-explorer" || tracker.key === "dest-explorer"),
-  );
+  /**
+   * The explorer for one of the transactions listed under Advanced, or null
+   * where the chain publishes none we know of.
+   *
+   * A link belongs on the transaction it opens. It used to be a row of buttons
+   * named after the leg they belonged to — "Source chain explorer", "Source
+   * chain hop 1" — sitting apart from the hashes they were the links for, so
+   * reading a two-hop deposit meant matching a button to a hash by name.
+   */
+  const explorerForHash = (row: { value: string; chain?: string }): string | null =>
+    row.chain
+      ? buildChainExplorerUrl({
+          chain: row.chain,
+          hash: row.value,
+          zecChainName: currentWallet?.chain_name,
+          zecBlockExplorer:
+            currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+              ? blockExplorerMainnetTransaction
+              : blockExplorerTestnetTransaction,
+          zecBlockExplorerCustom:
+            currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+              ? blockExplorerMainnetTransactionCustom
+              : blockExplorerTestnetTransactionCustom,
+        })
+      : null;
   // A refund is one thing that happened, so it is reported in one place: the
   // reason, the transaction that brought the deposit back, and the way to it on
   // an explorer, together under the Refund heading. They used to be three:
@@ -146,8 +164,11 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     ? (record.refundInfo?.refundTxHash as string)
     : undefined;
   const refundTracker: TrackerEntryType | undefined = trackers.find((tracker) => tracker.key === "refund-explorer");
-  const otherTrackers: TrackerEntryType[] = trackers.filter(
-    (tracker) => tracker !== walletTracker && tracker !== refundTracker,
+  // What is left once every transaction carries its own link: the two that are
+  // about the swap rather than about a transaction — SwapKit’s view of it and
+  // the provider’s own order page.
+  const routeTrackers: TrackerEntryType[] = trackers.filter(
+    (tracker) => tracker.key === "swapkit" || tracker.key === "provider",
   );
 
   const isOutbound = record.direction === SwapDirectionEnum.Outbound;
@@ -424,27 +445,14 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 explorer. The address it left from, the deposit address and
                 every hash along the way are the record of how it was done,
                 and wait under Advanced. */}
-            <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
-              {/* "USDC address" said what kind of address it is and not what it
-                  is doing here. What it is doing here is where the swap paid,
-                  or where it paid this wallet. */}
-              <CopyField
-                label={`${isOutbound ? "Sent to" : "Received at"} (${receiveSymbol})`}
-                value={record.destinationAddress}
-                copy={copy}
-              />
-              {!!walletTracker && (
-                <button
-                  type="button"
-                  className={cstyles.primarybutton}
-                  style={{ marginRight: 0 }}
-                  onClick={() => shell.openExternal(walletTracker.url)}
-                >
-                  View transaction &nbsp;
-                  <FontAwesomeIcon icon={faExternalLinkAlt} />
-                </button>
-              )}
-            </div>
+            {/* "USDC address" said what kind of address it is and not what it
+                is doing here. What it is doing here is where the swap paid, or
+                where it paid this wallet. */}
+            <CopyField
+              label={`${isOutbound ? "Sent to" : "Received at"} (${receiveSymbol})`}
+              value={record.destinationAddress}
+              copy={copy}
+            />
           </div>
 
           {/* Everything above answers what the swap was; this answers how it
@@ -487,9 +495,29 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             {uniqueHashRows.length > 0 && (
               <>
                 <SectionHeader label="Transactions" />
-                {uniqueHashRows.map((row) => (
-                  <CopyField key={`${row.label}-${row.value}`} label={row.label} value={row.value} copy={copy} />
-                ))}
+                {uniqueHashRows.map((row) => {
+                  const url = explorerForHash(row);
+                  return (
+                    <div
+                      key={`${row.label}-${row.value}`}
+                      className={cstyles.flexspacebetween}
+                      style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}
+                    >
+                      <CopyField label={row.label} value={row.value} copy={copy} />
+                      {!!url && (
+                        <button
+                          type="button"
+                          className={cstyles.primarybutton}
+                          style={{ marginRight: 0 }}
+                          onClick={() => shell.openExternal(url)}
+                        >
+                          View transaction &nbsp;
+                          <FontAwesomeIcon icon={faExternalLinkAlt} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
               </>
             )}
 
@@ -506,17 +534,16 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               </>
             )}
 
-            {/* The provider’s own order page and the chains the route passed
-                through. The one link about this wallet is up beside the
-                address it paid. */}
-            {otherTrackers.length > 0 && (
+            {/* The two links that are about the swap rather than about one of
+                its transactions. Each transaction carries its own, above. */}
+            {routeTrackers.length > 0 && (
               <div
                 role="group"
                 aria-label="Trackers"
                 className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`}
                 style={{ justifyContent: "center", flexWrap: "wrap", rowGap: 16 }}
               >
-                {otherTrackers.map((tracker) => (
+                {routeTrackers.map((tracker) => (
                   <button
                     key={tracker.key}
                     type="button"
