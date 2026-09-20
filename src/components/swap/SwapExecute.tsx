@@ -8,7 +8,7 @@ import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
 import { Field, FieldRow } from "../common/DetailField";
 import { native } from "../../electronBridge";
-import { SwapDirectionEnum, depositSpendsSourceAddress, providerLongLabel } from "../../swap";
+import { describeCommitFailure, SwapDirectionEnum, depositSpendsSourceAddress, providerLongLabel } from "../../swap";
 import type {
   DepositInstructionsType,
   FiatValueBasisType,
@@ -143,7 +143,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
     try {
       committed = await swapService.commitRoute({ quoteInput, chosenRoute: route, direction, fiatValueBasis });
     } catch (e) {
-      setError(`Could not start the swap: ${e}`);
+      setError(describeCommitFailure(e, route.provider));
       setCommitting(false);
       return;
     }

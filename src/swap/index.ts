@@ -50,6 +50,7 @@ export { formatAmountForDisplay } from "./formatAmountForDisplay";
 export { swapRowLabel } from "./swapRowLabel";
 export { extractFiatValueBasis } from "./quoteFiatBasis";
 export { describeEmptyQuote } from "./describeEmptyQuote";
+export { describeCommitFailure } from "./describeCommitFailure";
 export { FAILED_REFRESH_RETRY_MS, carryOverRoutes, quoteQuestionKey } from "./keepLastQuote";
 export { providerShortLabel, providerLongLabel, providerCustody } from "./providerLabels";
 export type { ProviderCustodyType } from "./providerLabels";
