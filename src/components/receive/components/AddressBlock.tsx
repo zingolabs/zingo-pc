@@ -140,7 +140,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
         </AccordionItemHeading>
         <AccordionItemPanel className={styles.receiveDetail}>
           <div className={cstyles.flexspacebetween}>
-            <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`}>
+            <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`} style={{ flex: "1 1 auto", minWidth: 0 }}>
               <div>
                 <div className={cstyles.sublight}>
                   Address
@@ -179,27 +179,28 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 </div>
               )}
 
-              <div>
+              {/* One row that wraps only when it must, rather than three buttons
+                  each starting a line of its own at any width. */}
+              <div
+                className={cstyles.margintoplarge}
+                style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
+              >
                 <button
                   disabled={copied}
-                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
+                  className={cstyles.primarybutton}
                   type="button"
                   onClick={() => copy(address_address)}
                 >
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
                 </button>
 
-                <button
-                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
-                  type="button"
-                  onClick={() => setPaymentRequestOpen(true)}
-                >
+                <button className={cstyles.primarybutton} type="button" onClick={() => setPaymentRequestOpen(true)}>
                   Payment request
                 </button>
 
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                   <button
-                    className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
+                    className={cstyles.primarybutton}
                     type="button"
                     onClick={() =>
                       Utils.openAddress(
