@@ -309,7 +309,7 @@ describe("SwapDetailModal refund", () => {
 
     expect(screen.getByText("the provider could not deliver")).toBeInTheDocument();
     expect(screen.getByText("Refund transaction")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /View refund/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /View transaction/ })).toBeInTheDocument();
   });
 
   it("does not list the refund again under Advanced", () => {

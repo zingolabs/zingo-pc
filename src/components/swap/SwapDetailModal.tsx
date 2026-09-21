@@ -429,7 +429,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                         style={{ marginRight: 0 }}
                         onClick={() => shell.openExternal(refundTracker.url)}
                       >
-                        View refund &nbsp;
+                        View transaction &nbsp;
                         <FontAwesomeIcon icon={faExternalLinkAlt} />
                       </button>
                     )}
