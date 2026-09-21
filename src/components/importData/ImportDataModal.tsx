@@ -24,9 +24,14 @@ type FileChoice = "replace" | "merge" | "skip";
 const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
   const hasWallets = !!scanResult?.present.includes("wallets.json");
   const hasAddressBook = !!scanResult?.present.includes("AddressBook.json");
+  // Not a file but a folder, one encrypted file per wallet. Named as what it
+  // holds rather than as what it is called on disk, since the user never has
+  // to find it.
+  const hasSwaps = !!scanResult?.present.includes("swap-storage");
 
   const [walletsChoice, setWalletsChoice] = useState<FileChoice>("merge");
   const [addressBookChoice, setAddressBookChoice] = useState<FileChoice>("merge");
+  const [swapsChoice, setSwapsChoice] = useState<FileChoice>("merge");
   const [applying, setApplying] = useState(false);
 
   const handleApply = async () => {
@@ -39,13 +44,16 @@ const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
         settings: "skip",
         wallets: hasWallets ? walletsChoice : "skip",
         addressBook: hasAddressBook ? addressBookChoice : "skip",
+        swaps: hasSwaps ? swapsChoice : "skip",
       },
     });
     setApplying(false);
   };
 
   const nothingSelected =
-    (!hasWallets || walletsChoice === "skip") && (!hasAddressBook || addressBookChoice === "skip");
+    (!hasWallets || walletsChoice === "skip") &&
+    (!hasAddressBook || addressBookChoice === "skip") &&
+    (!hasSwaps || swapsChoice === "skip");
 
   return (
     <Modal
@@ -90,7 +98,27 @@ const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
             ]}
           />
         )}
+        {hasSwaps && (
+          <FileRow
+            label="Swap history"
+            description="Your swaps, and the tracking of any still in flight. Merge keeps existing swaps and adds new ones."
+            value={swapsChoice}
+            onChange={(v) => setSwapsChoice(v as FileChoice)}
+            options={[
+              { value: "replace", label: "Replace" },
+              { value: "merge", label: "Merge (skip duplicates)" },
+              { value: "skip", label: "Skip" },
+            ]}
+          />
+        )}
       </div>
+
+      {hasSwaps && (
+        <div className={`${cstyles.small} ${cstyles.margintopsmall}`} style={{ opacity: 0.7, marginTop: 12 }}>
+          Swap history is encrypted by the installation that wrote it. If this one cannot read it, the import says so
+          and leaves your swaps where they are.
+        </div>
+      )}
 
       <div className={`${cstyles.small} ${cstyles.margintopsmall}`} style={{ opacity: 0.7, marginTop: 12 }}>
         Zingo PC will restart after import to load the new data.

@@ -2213,6 +2213,9 @@ ipcMain.handle("import:scan", async () => {
   // having nothing to import.
   const fileNames = ["wallets.json", "AddressBook.json"];
   const present = fileNames.filter((f) => fs.existsSync(resolveDataFile(sourceDir, f)));
+  // A folder of swaps alone is worth importing: the history of them, and the
+  // tracking of any still in flight, exist nowhere else.
+  if (listSwapFiles(swapStorageDir(sourceDir)).length > 0) present.push("swap-storage");
 
   if (present.length === 0) {
     await dialog.showMessageBox(mainWindow, {
@@ -2220,8 +2223,8 @@ ipcMain.handle("import:scan", async () => {
       title: "Nothing to import",
       message: "No importable data found in this folder.",
       detail:
-        "The selected folder doesn't contain a wallets.json or AddressBook.json " +
-        "from a previous Zingo PC installation.",
+        "The selected folder doesn't contain a wallets.json, an AddressBook.json " +
+        "or a swap history from a previous Zingo PC installation.",
       buttons: ["OK"],
     });
     return { ok: false, reason: "no-data-found", sourceDir };
@@ -2368,6 +2371,17 @@ ipcMain.handle("import:apply", async (_e, { sourceDir, choices }) => {
     }
   } else {
     results.addressBook = "skipped";
+  }
+
+  // Swap history: replace, merge (keep ours on a collision), or skip.
+  if (choices.swaps === "replace" || choices.swaps === "merge") {
+    try {
+      results.swaps = (await importSwapStorage(sourceDir, choices.swaps)).status;
+    } catch (err) {
+      results.swaps = `failed: ${err?.message ?? err}`;
+    }
+  } else {
+    results.swaps = "skipped";
   }
 
   logImp(`from=${sourceDir} ${JSON.stringify(results)}`);
@@ -2584,6 +2598,96 @@ function resolveDataFile(rootDir, name) {
   return path.join(rootDir, name);
 }
 
+function swapStorageDir(rootDir) {
+  return path.join(rootDir, "swap-storage");
+}
+
+/** The per-wallet swap files a folder holds, if any. */
+function listSwapFiles(dir) {
+  try {
+    return fs.readdirSync(dir).filter((name) => name.endsWith(SWAP_FILE_SUFFIX));
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Bring another installation's swap history into this one.
+ *
+ * Read and written rather than copied, because the file is encrypted with a
+ * key this installation may not share. Where it does — a Flatpak talking to
+ * the same host keyring the deb wrote through, or two installs under one
+ * Windows user — the plaintext comes back and is written again under this
+ * installation's own key. Where it does not — the App Store build, whose
+ * sandbox cannot reach the keychain item the DMG build created — the read
+ * fails, and that is reported rather than copied over as bytes this
+ * installation could never open.
+ *
+ * `mode` is "replace" (what is here gives way to the other installation's) or
+ * "merge" (the other's are added to ours, ours winning a collision).
+ */
+async function importSwapStorage(sourceDir, mode) {
+  const srcDir = swapStorageDir(sourceDir);
+  const destDir = swapStorageDir(app.getPath("userData"));
+  const files = listSwapFiles(srcDir);
+
+  if (files.length === 0) return { status: "nothing to import", wallets: 0 };
+  if (!safeStorage.isEncryptionAvailable()) return { status: "failed: OS encryption is unavailable", wallets: 0 };
+
+  let wallets = 0;
+  let broughtOver = 0;
+  let unreadable = 0;
+
+  for (const file of files) {
+    let srcRecords;
+    try {
+      srcRecords = JSON.parse(safeStorage.decryptString(await fs.promises.readFile(path.join(srcDir, file))));
+    } catch (_) {
+      // Either encrypted under a key this installation cannot reach, or not
+      // the JSON we wrote. Neither is worth writing on top of what is here.
+      unreadable += 1;
+      continue;
+    }
+
+    const destFile = path.join(destDir, file);
+    let records = srcRecords;
+    let arriving = Array.isArray(srcRecords) ? srcRecords.length : 0;
+
+    if (mode === "merge" && fs.existsSync(destFile)) {
+      try {
+        const existing = JSON.parse(safeStorage.decryptString(await fs.promises.readFile(destFile)));
+        const merged = mergeSwapRecords(existing, srcRecords);
+        records = merged.records;
+        arriving = merged.added;
+      } catch (_) {
+        // Our own file is unreadable, so there is nothing to merge with. The
+        // arriving records are better than a file neither installation opens.
+        records = srcRecords;
+      }
+    }
+
+    try {
+      await fs.promises.mkdir(destDir, { recursive: true });
+      await fs.promises.writeFile(destFile, safeStorage.encryptString(JSON.stringify(records)));
+      wallets += 1;
+      broughtOver += arriving;
+    } catch (_) {
+      unreadable += 1;
+    }
+  }
+
+  if (wallets === 0) {
+    return {
+      status: unreadable > 0 ? "failed: encrypted by the other installation" : "nothing to import",
+      wallets: 0,
+    };
+  }
+  return {
+    status: `${mode === "replace" ? "replaced" : "merged"}: ${broughtOver} swaps across ${wallets} wallets`,
+    wallets,
+  };
+}
+
 // One-shot migration from a previous DMG (non-sandboxed) install:
 // copies settings.json / wallets.json / AddressBook.json into the MAS container.
 // MAS sandbox cannot read the DMG userData silently — the user picks the folder
@@ -2712,6 +2816,13 @@ async function maybeRunDmgToMasMigration() {
       }
     }
 
+    // The swaps the other installation holds, which no file above carries.
+    // Re-encrypted under this installation’s key, so the App Store build —
+    // whose sandbox cannot reach the keychain item the DMG build wrote — says
+    // so rather than leaving behind bytes it could never open.
+    const swaps = await importSwapStorage(sourceDir, "merge");
+    if (swaps.wallets > 0) copied.push("swap history");
+    else if (swaps.status.startsWith("failed")) failed.push(`swap history (${swaps.status.replace("failed: ", "")})`);
     markChecked();
     logMig(`from=${sourceDir} copied=${copied.join(",")} failed=${failed.join(",")}`);
 
@@ -2821,6 +2932,13 @@ async function maybeRunDebAppImageToFlatpakMigration() {
     }
   }
 
+  // The swaps the other installation holds, which no file above carries.
+  // Re-encrypted under this installation’s key, so the App Store build —
+  // whose sandbox cannot reach the keychain item the DMG build wrote — says
+  // so rather than leaving behind bytes it could never open.
+  const swaps = await importSwapStorage(sourceDir, "merge");
+  if (swaps.wallets > 0) copied.push("swap history");
+  else if (swaps.status.startsWith("failed")) failed.push(`swap history (${swaps.status.replace("failed: ", "")})`);
   markChecked();
   logMig(`from=${sourceDir} copied=${copied.join(",")} failed=${failed.join(",")}`);
 

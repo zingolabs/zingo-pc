@@ -86,6 +86,7 @@ describe("ImportDataModal", () => {
         settings: "skip",
         wallets: "merge",
         addressBook: "merge",
+        swaps: "skip",
       },
     });
   });
@@ -97,5 +98,52 @@ describe("ImportDataModal", () => {
     fireEvent.change(selects[0], { target: { value: "skip" } });
     fireEvent.change(selects[1], { target: { value: "skip" } });
     expect(screen.getByRole("button", { name: /apply & restart/i })).toBeDisabled();
+  });
+});
+
+// The swaps a source folder holds are offered like the rest: they are the one
+// thing a migration used to leave behind, and the tracking of one still in
+// flight lives nowhere else.
+describe("ImportDataModal swap history", () => {
+  const withSwaps: ImportScanResult = {
+    sourceDir: scanResultBoth.sourceDir,
+    present: ["wallets.json", "AddressBook.json", "swap-storage"],
+  };
+
+  beforeEach(() => {
+    mockInvoke.mockReset();
+    mockInvoke.mockResolvedValue({ ok: true });
+  });
+
+  it("offers it when the folder has some", () => {
+    render(<ImportDataModal {...baseProps} scanResult={withSwaps} />);
+
+    expect(screen.getByText("Swap history")).toBeInTheDocument();
+  });
+
+  it("says nothing about it when the folder has none", () => {
+    render(<ImportDataModal {...baseProps} />);
+
+    expect(screen.queryByText("Swap history")).not.toBeInTheDocument();
+  });
+
+  it("asks for it by the choice the user made", () => {
+    render(<ImportDataModal {...baseProps} scanResult={withSwaps} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /apply & restart/i }));
+
+    expect(mockInvoke).toHaveBeenCalledWith("import:apply", {
+      sourceDir: withSwaps.sourceDir,
+      choices: { settings: "skip", wallets: "merge", addressBook: "merge", swaps: "merge" },
+    });
+  });
+
+  // A folder of swaps alone is worth importing.
+  it("can import them on their own", () => {
+    render(
+      <ImportDataModal {...baseProps} scanResult={{ sourceDir: withSwaps.sourceDir, present: ["swap-storage"] }} />,
+    );
+
+    expect(screen.getByRole("button", { name: /apply & restart/i })).toBeEnabled();
   });
 });

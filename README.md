@@ -209,8 +209,10 @@ yarn release:prep 2.0.15 142
 
 **Data portability**
 
-- DMG ↔ MAS first-launch migration assistant (macOS) — imports wallets, address book and settings from a previous DMG install
-- Manual "Import data from another installation" from the Settings menu (MAS / Flatpak), with per-file Replace / Merge / Skip choices
+- DMG ↔ MAS first-launch migration assistant (macOS) — imports wallets, address book, settings and swap history from a previous DMG install
+- deb/AppImage → Flatpak first-launch migration (Linux) — the same, without copying the wallet files, which the Flatpak reads where they are
+- Manual "Import data from another installation" from the Settings menu (MAS / Flatpak), with per-item Replace / Merge / Skip choices
+- Swap history moves with the rest. It is encrypted per installation, so it is decrypted and written again under the new one's key; where the new installation cannot read it — the App Store build cannot reach the keychain item the DMG build wrote — the import says so and leaves it where it is
 - "Change wallets folder location" from the Settings menu (MAS)
 
 ---
