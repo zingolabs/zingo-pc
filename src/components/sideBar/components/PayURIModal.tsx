@@ -32,7 +32,9 @@ const PayURIModal = ({
       overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex}>
-        <div className={cstyles.padtopsmall} style={{ textAlign: "center" }}>
+        {/* Room under it: the dark box starts right where the title ends, and
+            the two read as one block without it. */}
+        <div className={cstyles.padtopsmall} style={{ textAlign: "center", marginBottom: 12 }}>
           {modalTitle}
         </div>
 
