@@ -144,8 +144,9 @@ const ALLOWED_INVOKE = new Set([
   "mixnet:disable",
   "mixnet:get-status",
   "mixnet:attach-current",
-  // The swap store's encrypted-at-rest persistence. Encryption happens in main,
-  // where safeStorage can reach the OS keychain.
+  // The swap store's encrypted-at-rest persistence. Encryption happens in
+  // main, with a key derived from the wallet the records belong to, so they
+  // move with it (public/swapCrypto.js).
   "swapStorage:get",
   "swapStorage:set",
   "swapStorage:remove",

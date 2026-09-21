@@ -115,8 +115,9 @@ const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
 
       {hasSwaps && (
         <div className={`${cstyles.small} ${cstyles.margintopsmall}`} style={{ opacity: 0.7, marginTop: 12 }}>
-          Swap history is encrypted by the installation that wrote it. If this one cannot read it, the import says so
-          and leaves your swaps where they are.
+          Swap history is encrypted with the wallet it belongs to, so it travels with it. History left by an older
+          version is encrypted by the installation that wrote it instead; if this one cannot read that, the import says
+          so and leaves it where it is.
         </div>
       )}
 

@@ -1061,23 +1061,56 @@ function assertSwapEncryption() {
   }
 }
 
-ipcMain.handle("swapStorage:get", async (_e, key) => {
+ipcMain.handle("swapStorage:get", async (_e, key, ufvk) => {
   const file = swapStoragePath(key);
-  let ciphertext;
+  let stored;
   try {
-    ciphertext = await fs.promises.readFile(file);
+    stored = await fs.promises.readFile(file);
   } catch (e) {
     if (e.code === "ENOENT") return null;
     throw e;
   }
+
+  const recordKey = deriveRecordKey(ufvk);
+
+  if (isV2(stored)) {
+    if (!recordKey) throw new Error("swapStorage: this wallet's records need its own key to be read");
+    return decryptV2(stored, recordKey);
+  }
+
+  // Written before the records were tied to the wallet. Readable only here,
+  // by this installation, which is the problem this format replaces.
   assertSwapEncryption();
-  return safeStorage.decryptString(ciphertext);
+  const plaintext = safeStorage.decryptString(stored);
+
+  // Converted the moment its wallet is open, which is the only moment its key
+  // can be derived. Best effort: failing to rewrite loses nothing that the
+  // read above did not already recover.
+  if (recordKey) {
+    try {
+      await fs.promises.writeFile(file, encryptV2(plaintext, recordKey));
+    } catch (err) {
+      console.log(`swapStorage: could not convert ${key} to the portable format`, err);
+    }
+  }
+
+  return plaintext;
 });
 
-ipcMain.handle("swapStorage:set", async (_e, key, value) => {
+ipcMain.handle("swapStorage:set", async (_e, key, value, ufvk) => {
   const file = swapStoragePath(key);
-  assertSwapEncryption();
   await fs.promises.mkdir(path.dirname(file), { recursive: true });
+
+  const recordKey = deriveRecordKey(ufvk);
+  if (recordKey) {
+    await fs.promises.writeFile(file, encryptV2(String(value), recordKey));
+    return;
+  }
+
+  // No wallet key in hand — the delete flow clears another wallet's bucket by
+  // name, without ever opening it. What it writes is an empty array, so the
+  // installation-bound format costs nothing there.
+  assertSwapEncryption();
   await fs.promises.writeFile(file, safeStorage.encryptString(String(value)));
 });
 
@@ -2614,17 +2647,19 @@ function listSwapFiles(dir) {
 /**
  * Bring another installation's swap history into this one.
  *
- * Read and written rather than copied, because the file is encrypted with a
- * key this installation may not share. Where it does — a Flatpak talking to
- * the same host keyring the deb wrote through, or two installs under one
- * Windows user — the plaintext comes back and is written again under this
- * installation's own key. Where it does not — the App Store build, whose
- * sandbox cannot reach the keychain item the DMG build created — the read
- * fails, and that is reported rather than copied over as bytes this
- * installation could never open.
+ * A file written in the portable format is copied as it is: its key comes from
+ * the wallet, so it opens here as soon as that wallet does. A file in the old
+ * installation-bound format is copied only if this installation can open it —
+ * a Flatpak reading what the deb wrote through the same host keyring can, the
+ * App Store build reading what the DMG build wrote cannot — because copying
+ * bytes nobody here can decrypt would turn a swap history into an error where
+ * it used to be a list. Either way it says which.
  *
  * `mode` is "replace" (what is here gives way to the other installation's) or
- * "merge" (the other's are added to ours, ours winning a collision).
+ * "merge". Merging record by record needs both sides open at once, which is
+ * possible only for the old format; a portable file whose wallet is not the
+ * open one cannot be read here at all, so "merge" keeps what is here and takes
+ * only the wallets this installation has no file for.
  */
 async function importSwapStorage(sourceDir, mode) {
   const srcDir = swapStorageDir(sourceDir);
@@ -2632,58 +2667,78 @@ async function importSwapStorage(sourceDir, mode) {
   const files = listSwapFiles(srcDir);
 
   if (files.length === 0) return { status: "nothing to import", wallets: 0 };
-  if (!safeStorage.isEncryptionAvailable()) return { status: "failed: OS encryption is unavailable", wallets: 0 };
 
   let wallets = 0;
-  let broughtOver = 0;
+  let kept = 0;
   let unreadable = 0;
 
-  for (const file of files) {
-    let srcRecords;
+  const readLegacy = (buffer) => {
     try {
-      srcRecords = JSON.parse(safeStorage.decryptString(await fs.promises.readFile(path.join(srcDir, file))));
+      if (!safeStorage.isEncryptionAvailable()) return null;
+      return JSON.parse(safeStorage.decryptString(buffer));
     } catch (_) {
-      // Either encrypted under a key this installation cannot reach, or not
-      // the JSON we wrote. Neither is worth writing on top of what is here.
+      return null;
+    }
+  };
+
+  for (const file of files) {
+    const destFile = path.join(destDir, file);
+    let incoming;
+    try {
+      incoming = await fs.promises.readFile(path.join(srcDir, file));
+    } catch (_) {
       unreadable += 1;
       continue;
     }
 
-    const destFile = path.join(destDir, file);
-    let records = srcRecords;
-    let arriving = Array.isArray(srcRecords) ? srcRecords.length : 0;
+    const portable = isV2(incoming);
+    const incomingRecords = portable ? null : readLegacy(incoming);
 
-    if (mode === "merge" && fs.existsSync(destFile)) {
-      try {
-        const existing = JSON.parse(safeStorage.decryptString(await fs.promises.readFile(destFile)));
-        const merged = mergeSwapRecords(existing, srcRecords);
-        records = merged.records;
-        arriving = merged.added;
-      } catch (_) {
-        // Our own file is unreadable, so there is nothing to merge with. The
-        // arriving records are better than a file neither installation opens.
-        records = srcRecords;
+    if (!portable && incomingRecords === null) {
+      // Encrypted by an installation whose key this one cannot reach.
+      unreadable += 1;
+      continue;
+    }
+
+    const haveOne = fs.existsSync(destFile);
+
+    if (haveOne && mode === "merge") {
+      const ours = portable ? null : readLegacy(await fs.promises.readFile(destFile).catch(() => Buffer.alloc(0)));
+      if (ours === null || incomingRecords === null) {
+        // One of the two is sealed until its wallet is open. Ours stays.
+        kept += 1;
+        continue;
       }
+      const merged = mergeSwapRecords(ours, incomingRecords);
+      try {
+        await fs.promises.mkdir(destDir, { recursive: true });
+        await fs.promises.writeFile(destFile, safeStorage.encryptString(JSON.stringify(merged.records)));
+        wallets += 1;
+      } catch (_) {
+        unreadable += 1;
+      }
+      continue;
     }
 
     try {
       await fs.promises.mkdir(destDir, { recursive: true });
-      await fs.promises.writeFile(destFile, safeStorage.encryptString(JSON.stringify(records)));
+      await fs.promises.writeFile(destFile, incoming);
       wallets += 1;
-      broughtOver += arriving;
     } catch (_) {
       unreadable += 1;
     }
   }
 
   if (wallets === 0) {
-    return {
-      status: unreadable > 0 ? "failed: encrypted by the other installation" : "nothing to import",
-      wallets: 0,
-    };
+    if (unreadable > 0) return { status: "failed: encrypted by the other installation", wallets: 0 };
+    return { status: kept > 0 ? "kept this installation's own" : "nothing to import", wallets: 0 };
   }
+
+  const notes = [];
+  if (kept > 0) notes.push(`${kept} kept`);
+  if (unreadable > 0) notes.push(`${unreadable} unreadable`);
   return {
-    status: `${mode === "replace" ? "replaced" : "merged"}: ${broughtOver} swaps across ${wallets} wallets`,
+    status: `${mode === "replace" ? "replaced" : "merged"}: ${wallets} wallets${notes.length ? ` (${notes.join(", ")})` : ""}`,
     wallets,
   };
 }
