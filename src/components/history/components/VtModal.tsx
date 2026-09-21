@@ -455,7 +455,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                     )
                   }
                 >
-                  View TXID &nbsp;
+                  View transaction &nbsp;
                   <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                 </button>
               )}

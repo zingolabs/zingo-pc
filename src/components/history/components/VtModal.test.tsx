@@ -135,20 +135,20 @@ describe("VtModal", () => {
     expect(clipboard.writeText).toHaveBeenCalledWith(vt.address);
   });
 
-  it("hides 'View TXID' button on regtest", () => {
+  it("hides 'View transaction' button on regtest", () => {
     const vt = makeVt();
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt], currentWallet: regtestWallet },
     });
-    expect(screen.queryByText(/View TXID/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/View transaction/)).not.toBeInTheDocument();
   });
 
-  it("shows 'View TXID' on mainnet", () => {
+  it("shows 'View transaction' on mainnet", () => {
     const vt = makeVt();
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
       contextOverrides: { valueTransfers: [vt], currentWallet: mainnetWallet },
     });
-    expect(screen.getByText(/View TXID/)).toBeInTheDocument();
+    expect(screen.getByText(/View transaction/)).toBeInTheDocument();
   });
 
   // Named in place, as every other screen saves a contact, not on the Address

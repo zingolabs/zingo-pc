@@ -46,7 +46,7 @@ const ShieldResultContent: React.FC<ShieldResultContentProps> = ({
               className={cstyles.primarybutton}
               onClick={() => Utils.openTxid(txid, chainName, blockExplorerTransaction, blockExplorerTransactionCustom)}
             >
-              View TXID &nbsp;
+              View transaction &nbsp;
               <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
             </div>
           ))}

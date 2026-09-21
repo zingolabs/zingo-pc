@@ -462,7 +462,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                       )
                     }
                   >
-                    View TXID &nbsp;
+                    View transaction &nbsp;
                     <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                   </button>
                   {txids.length > 1 && (
@@ -483,7 +483,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                         )
                       }
                     >
-                      View TXID &nbsp;
+                      View transaction &nbsp;
                       <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                     </button>
                   )}
@@ -505,7 +505,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                         )
                       }
                     >
-                      View TXID &nbsp;
+                      View transaction &nbsp;
                       <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
                     </button>
                   )}
