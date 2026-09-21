@@ -108,6 +108,16 @@ function storageKeyFor(fingerprint: string): string {
 let currentWalletFingerprint: string | null = null;
 
 /**
+ * The open wallet's UFVK, from which its records' encryption key is derived.
+ *
+ * Held beside the fingerprint because the two answer the same question: the
+ * fingerprint says which file, this says how to open it. Null while no wallet
+ * is bound, and for a bucket addressed by name alone — the delete flow — which
+ * falls back to the installation-bound encryption it is replacing.
+ */
+let currentWalletUfvk: string | null = null;
+
+/**
  * Callback fired after every mutation that successfully reaches storage.
  * The callback receives the post-mutation array so consumers don't have to
  * re-read. Listeners are notified after the encrypted write completes so a
@@ -249,9 +259,10 @@ export class SwapStore {
    * resolved gets the real data via the subscription rather than the
    * empty placeholder.
    */
-  static async bindToWallet(fingerprint: string): Promise<void> {
+  static async bindToWallet(fingerprint: string, ufvk?: string): Promise<void> {
     return this.enqueue(async () => {
       currentWalletFingerprint = fingerprint;
+      currentWalletUfvk = ufvk ?? null;
       // Push the current bucket out to subscribers so anyone that read
       // before the bind sees the real records now.
       const fresh = await this._readRaw();
@@ -275,6 +286,7 @@ export class SwapStore {
   static async unbind(): Promise<void> {
     return this.enqueue(async () => {
       currentWalletFingerprint = null;
+      currentWalletUfvk = null;
       SwapStore.notify([]);
     });
   }
@@ -311,7 +323,7 @@ export class SwapStore {
     const key = storageKeyFor(currentWalletFingerprint);
     let raw: string | null = null;
     try {
-      raw = await EncryptedStorage.getItem(key);
+      raw = await EncryptedStorage.getItem(key, currentWalletUfvk ?? undefined);
     } catch (err) {
       console.log("SwapStore: encrypted read failed, returning empty:", err);
       return [];
@@ -325,7 +337,7 @@ export class SwapStore {
       // bucket. Log once, then move on.
       console.log("SwapStore: live bucket unparseable, healing with []");
       try {
-        await EncryptedStorage.setItem(key, "[]");
+        await EncryptedStorage.setItem(key, "[]", currentWalletUfvk ?? undefined);
       } catch {
         // Best-effort. If setItem also fails we still return empty —
         // the app keeps working; only the log noise persists.
@@ -341,6 +353,10 @@ export class SwapStore {
       console.log("SwapStore: write skipped — no wallet bound");
       return;
     }
-    await EncryptedStorage.setItem(storageKeyFor(currentWalletFingerprint), JSON.stringify(records));
+    await EncryptedStorage.setItem(
+      storageKeyFor(currentWalletFingerprint),
+      JSON.stringify(records),
+      currentWalletUfvk ?? undefined,
+    );
   }
 }

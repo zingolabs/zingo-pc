@@ -209,8 +209,10 @@ yarn release:prep 2.0.15 142
 
 **Data portability**
 
-- DMG ↔ MAS first-launch migration assistant (macOS) — imports wallets, address book and settings from a previous DMG install
-- Manual "Import data from another installation" from the Settings menu (MAS / Flatpak), with per-file Replace / Merge / Skip choices
+- DMG ↔ MAS first-launch migration assistant (macOS) — imports wallets, address book, settings and swap history from a previous DMG install
+- deb/AppImage → Flatpak first-launch migration (Linux) — the same, without copying the wallet files, which the Flatpak reads where they are
+- Manual "Import data from another installation" from the Settings menu (MAS / Flatpak), with per-item Replace / Merge / Skip choices
+- Swap history moves with the rest. Each wallet's records are encrypted with a key derived from that wallet, so they travel with it — to another installation, another machine, or out of a backup. Records left by a version that encrypted them per installation are converted the next time their wallet is opened; until then they can only be read where they were written, and an import that cannot read them says so and leaves them there
 - "Change wallets folder location" from the Settings menu (MAS)
 
 ---

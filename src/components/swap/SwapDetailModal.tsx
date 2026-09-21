@@ -9,10 +9,10 @@ import cstyles from "../common/Common.module.css";
 import { ServerChainNameEnum } from "../appstate";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapService } from "../../context/ContextSwapService";
-import { useCopy } from "../common/useCopy";
 import { shell } from "../../electronBridge";
 import {
   SwapDirectionEnum,
+  buildChainExplorerUrl,
   buildTrackerEntries,
   canRemoveSwap,
   describeRealizedSlippage,
@@ -32,6 +32,7 @@ import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
 import { CopyField, Field, FieldRow } from "../common/DetailField";
+import AdvancedSection from "../common/AdvancedSection";
 import ProviderIcon from "./ProviderIcon";
 
 type SwapDetailModalProps = {
@@ -73,7 +74,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     openConfirmModal,
   } = useContext(ContextApp);
   const swapService = useSwapService();
-  const { copied, copy } = useCopy(1500);
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
 
   // A finished swap is no longer polled, so one that finished before the
@@ -127,12 +127,55 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     blockExplorerTestnetTransactionCustom,
   ]);
 
+  /**
+   * The explorer for one of the transactions listed under Advanced, or null
+   * where the chain publishes none we know of.
+   *
+   * A link belongs on the transaction it opens. It used to be a row of buttons
+   * named after the leg they belonged to — "Source chain explorer", "Source
+   * chain hop 1" — sitting apart from the hashes they were the links for, so
+   * reading a two-hop deposit meant matching a button to a hash by name.
+   */
+  const explorerForHash = (row: { value: string; chain?: string }): string | null =>
+    row.chain
+      ? buildChainExplorerUrl({
+          chain: row.chain,
+          hash: row.value,
+          zecChainName: currentWallet?.chain_name,
+          zecBlockExplorer:
+            currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+              ? blockExplorerMainnetTransaction
+              : blockExplorerTestnetTransaction,
+          zecBlockExplorerCustom:
+            currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+              ? blockExplorerMainnetTransactionCustom
+              : blockExplorerTestnetTransactionCustom,
+        })
+      : null;
+  // A refund is one thing that happened, so it is reported in one place: the
+  // reason, the transaction that brought the deposit back, and the way to it on
+  // an explorer, together under the Refund heading. They used to be three:
+  // the reason here, the hash among the transactions under Advanced and the
+  // link among the trackers, so reading what became of the money meant
+  // collecting it from three parts of the screen.
+  const refundHash: string | undefined = isRealLegHash(record.refundInfo?.refundTxHash)
+    ? (record.refundInfo?.refundTxHash as string)
+    : undefined;
+  const refundTracker: TrackerEntryType | undefined = trackers.find((tracker) => tracker.key === "refund-explorer");
+  // What is left once every transaction carries its own link: the two that are
+  // about the swap rather than about a transaction — SwapKit’s view of it and
+  // the provider’s own order page.
+  const routeTrackers: TrackerEntryType[] = trackers.filter(
+    (tracker) => tracker.key === "swapkit" || tracker.key === "provider",
+  );
+
   const isOutbound = record.direction === SwapDirectionEnum.Outbound;
   const sellSymbol = record.sellAsset.ticker ?? record.sellAsset.chain ?? record.sellAsset.symbol;
   const receiveSymbol = record.receiveAsset.ticker ?? record.receiveAsset.chain ?? record.receiveAsset.symbol;
   const memo = (record.providerData as { memo?: string } | undefined)?.memo;
 
-  const uniqueHashRows = hashRowsForRecord(record);
+  // The refund has its own place above, so it is not listed here as well.
+  const uniqueHashRows = hashRowsForRecord(record).filter((row) => row.value !== refundHash);
 
   // What the provider said about an ending nobody asked for. A refund says it
   // in `refundInfo`, a failure in `failureReason`; both reached the record and
@@ -260,7 +303,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 depositAddress={record.depositAddress}
                 amountHumanDecimal={record.sellAmountHumanDecimal}
                 memoText={memo}
-                copy={copy}
               />
               {swapService && (
                 <div className={cstyles.padtopsmall}>
@@ -298,159 +340,211 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           )}
 
           {/* Laid out the way the transfer detail lays its own facts out: a
-              rule, then a row of label-over-value columns. What was a stack of
+              rule, then rows of label-over-value columns. What was a stack of
               one-per-line rows under a heading is the same information in a
-              third of the height. */}
+              third of the height.
+
+              One rule, under the header. The two that used to sit between the
+              rows separated nothing — each row is already a line of labelled
+              values — and turned three readings of the same kind into three
+              sections. Even space between them is what groups them now. */}
           <hr style={{ width: "100%" }} />
 
-          <FieldRow>
-            <Field
-              label="Provider"
-              value={
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                  <ProviderIcon provider={record.provider} size={16} decorative />
-                  {providerLongLabel(record.provider)}
-                </span>
-              }
-            />
-            <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
-            {!!record.routeId && <Field label="Route id" value={record.routeId} />}
-            {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} copy={copy} />}
-          </FieldRow>
-
-          <FieldRow>
-            <Field label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
-            {!!record.updatedAtMs && (
-              <Field label="Updated" value={dateformat(record.updatedAtMs, "mmm dd, yyyy HH:MM")} />
-            )}
-          </FieldRow>
-
-          <hr style={{ width: "100%" }} />
-
-          <FieldRow>
-            <Field label="Sent" value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}`} />
-            <Field
-              label="Expected"
-              value={`${formatAmountForDisplay(record.expectedReceiveAmount)} ${receiveSymbol}`}
-            />
-            {!!record.minReceiveAmount && (
-              <Field label="Minimum" value={`${formatAmountForDisplay(record.minReceiveAmount)} ${receiveSymbol}`} />
-            )}
-          </FieldRow>
-
-          {/* Beside the amounts they qualify. The tolerance is what set the
-              minimum above; the actual figure is how the result compares
-              with the expected one. Records made before either was kept
-              show neither. */}
-          {(!!slippageTolerance || !!realizedSlippage) && (
+          <div className={cstyles.verticalflex} style={{ gap: 12 }}>
             <FieldRow>
-              {!!slippageTolerance && <Field label="Slippage tolerance" value={slippageTolerance} />}
-              {!!realizedSlippage && <Field label="Actual slippage" value={realizedSlippage} />}
-            </FieldRow>
-          )}
-
-          {/* No rule above it: a fee is an amount, so it belongs with the ones
-              it was taken from rather than in a section of its own. */}
-          {!!record.feesRaw?.length && (
-            <FieldRow style={{ alignItems: "flex-end" }}>
               <Field
-                label="Total fees"
-                value={`${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
-              />
-              {/* The shared button reserves 8px on each side for sitting beside
-                  another one. At the end of a row it has nothing to sit beside,
-                  and that margin reads as the row stopping short. */}
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                style={{ marginRight: 0 }}
-                onClick={() => setFeesOpen(true)}
-              >
-                Fee breakdown
-              </button>
-            </FieldRow>
-          )}
-
-          {endedBadly && (
-            <>
-              <SectionHeader label={record.status === SwapStatusEnum.Refunded ? "Refund" : "Failure"} />
-              <Field
-                label="Reason"
+                label="Provider"
                 value={
-                  endedBadlyReason ?? (
-                    // Said rather than left blank: the user needs to know the
-                    // silence is the provider's, not a value still loading, and
-                    // where to go next. The provider's own order page sits in
-                    // Trackers below and often carries more than /track does.
-                    <span className={cstyles.sublight}>
-                      Not given by {providerLongLabel(record.provider)}. Its order page, under Trackers below, may say
-                      more.
-                    </span>
-                  )
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <ProviderIcon provider={record.provider} size={16} decorative />
+                    {providerLongLabel(record.provider)}
+                  </span>
                 }
               />
-            </>
-          )}
-
-          <SectionHeader label="Addresses" />
-          {!!record.sourceAddress && <CopyField label="From" value={record.sourceAddress} copy={copy} />}
-          <CopyField label="To" value={record.destinationAddress} copy={copy} />
-          {/* Suppressed while the deposit slip is up: it carries the same
-              address a few rows above, and two copies of one address invite
-              the reader to wonder which is the real one. */}
-          {!!record.depositAddress && !awaitingDeposit && (
-            <CopyField label="Deposit" value={record.depositAddress} copy={copy} />
-          )}
-
-          {uniqueHashRows.length > 0 && (
-            <>
-              <SectionHeader label="Transactions" />
-              {uniqueHashRows.map((row) => (
-                <CopyField key={`${row.label}-${row.value}`} label={row.label} value={row.value} copy={copy} />
-              ))}
-            </>
-          )}
-
-          {/* Same reason as the deposit address above — the slip already shows
-              the memo, its hex form, and where on this chain it has to go. */}
-          {!!memo && !awaitingDeposit && (
-            <>
-              <SectionHeader label="Memo" />
-              <CopyField label="On-chain memo" value={memo} copy={copy} />
-              {isEvmSourceChain(record.sellAsset.chain) && (
-                <CopyField label="Hex calldata" value={memoToHexCalldata(memo)} copy={copy} />
+              <Field label="Direction" value={isOutbound ? "Outbound" : "Inbound"} />
+              <Field label="Created" value={dateformat(record.createdAtMs, "mmm dd, yyyy HH:MM")} />
+              {!!record.updatedAtMs && (
+                <Field label="Updated" value={dateformat(record.updatedAtMs, "mmm dd, yyyy HH:MM")} />
               )}
-            </>
-          )}
+            </FieldRow>
 
-          {/* No heading and no rule: three buttons that open a tracker say what
-              they are, and a rule under them was the last thing on the screen
-              rather than a separator between two things. */}
-          {/* Two rows rather than one that wraps wherever the width runs out:
-              the trackers and the other chains first, then the wallet's own
-              chain, so a swap with an intermediate leg stays narrow and each
-              row reads as one kind of thing. Each row still wraps, with a row
-              gap matching the 16px the side margins leave between buttons. */}
-          {/* Named groups, so the split is announced as well as seen. */}
-          {[
-            { label: "Trackers", entries: trackers.filter((tracker) => !tracker.onZcash) },
-            { label: "Zcash transactions", entries: trackers.filter((tracker) => tracker.onZcash) },
-          ]
-            .filter((row) => row.entries.length > 0)
-            .map(({ label, entries: row }, index) => (
+            {/* The amounts on one line, fees among them: a fee is an amount, so
+              it belongs with the ones it was taken from rather than in a
+              section of its own, and its breakdown opens from the row’s end. */}
+            <FieldRow style={{ alignItems: "flex-end" }}>
+              <Field label="Sent" value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}`} />
+              <Field
+                label="Expected"
+                value={`${formatAmountForDisplay(record.expectedReceiveAmount)} ${receiveSymbol}`}
+              />
+              {!!record.feesRaw?.length && (
+                <Field
+                  label="Total fees"
+                  value={`${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
+                />
+              )}
+              {!!record.feesRaw?.length && (
+                // The shared button reserves 8px on each side for sitting beside
+                // another one. At the end of a row it has nothing to sit beside,
+                // and that margin reads as the row stopping short.
+                <button
+                  type="button"
+                  className={cstyles.primarybutton}
+                  style={{ marginRight: 0 }}
+                  onClick={() => setFeesOpen(true)}
+                >
+                  Fee breakdown
+                </button>
+              )}
+            </FieldRow>
+
+            {endedBadly && (
+              <>
+                <SectionHeader label={record.status === SwapStatusEnum.Refunded ? "Refund" : "Failure"} />
+                <Field
+                  label="Reason"
+                  value={
+                    endedBadlyReason ?? (
+                      // Said rather than left blank: the user needs to know the
+                      // silence is the provider's, not a value still loading, and
+                      // where to go next. The provider's own order page sits in
+                      // Advanced below and often carries more than /track does.
+                      <span className={cstyles.sublight}>
+                        Not given by {providerLongLabel(record.provider)}. Its order page, under Advanced below, may say
+                        more.
+                      </span>
+                    )
+                  }
+                />
+                {!!refundHash && (
+                  <div
+                    className={cstyles.flexspacebetween}
+                    style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}
+                  >
+                    <CopyField label="Refund transaction" value={refundHash} />
+                    {!!refundTracker && (
+                      <button
+                        type="button"
+                        className={cstyles.primarybutton}
+                        style={{ marginRight: 0 }}
+                        onClick={() => shell.openExternal(refundTracker.url)}
+                      >
+                        View transaction &nbsp;
+                        <FontAwesomeIcon icon={faExternalLinkAlt} />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* Where the swap paid, and the way to that payment on a block
+                explorer. The address it left from, the deposit address and
+                every hash along the way are the record of how it was done,
+                and wait under Advanced. */}
+            {/* "USDC address" said what kind of address it is and not what it
+                is doing here. What it is doing here is where the swap paid, or
+                where it paid this wallet. */}
+            <CopyField
+              label={`${isOutbound ? "Sent to" : "Received at"} (${receiveSymbol})`}
+              value={record.destinationAddress}
+            />
+          </div>
+
+          {/* Everything above answers what the swap was; this answers how it
+            was carried out. A swap that went through leaves an order id, a
+            route id, the addresses it passed through, a hash per leg and the
+            slippage figures — the record that answers a dispute, and none of
+            what the user opened this for. */}
+          <AdvancedSection>
+            <FieldRow>
+              {!!record.routeId && <Field label="Route id" value={record.routeId} />}
+              {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} />}
+            </FieldRow>
+
+            {/* The minimum the swap guaranteed, the tolerance that set it and
+                how the result compared with what was expected. Each is written
+                only when the record carries it: swaps made before they were
+                kept carry none of the three. */}
+            {(!!record.minReceiveAmount || !!slippageTolerance || !!realizedSlippage) && (
+              <FieldRow>
+                {!!record.minReceiveAmount && (
+                  <Field
+                    label="Minimum"
+                    value={`${formatAmountForDisplay(record.minReceiveAmount)} ${receiveSymbol}`}
+                  />
+                )}
+                {!!slippageTolerance && <Field label="Slippage tolerance" value={slippageTolerance} />}
+                {!!realizedSlippage && <Field label="Actual slippage" value={realizedSlippage} />}
+              </FieldRow>
+            )}
+
+            {/* Not "Addresses", which read as the section every address lives
+                in and left the one above it looking misplaced. These two are
+                the route’s: an address this wallet derived to pay from, and the
+                provider’s vault. Where the swap ended up is the user’s own
+                business and stays in the plain view. */}
+            <SectionHeader label="Route addresses" />
+            {!!record.sourceAddress && <CopyField label="Paid from" value={record.sourceAddress} />}
+            {/* Suppressed while the deposit slip is up: it carries the same
+              address, and two copies of one address invite the reader to
+              wonder which is the real one. */}
+            {!!record.depositAddress && !awaitingDeposit && (
+              <CopyField label="Deposit address" value={record.depositAddress} />
+            )}
+
+            {uniqueHashRows.length > 0 && (
+              <>
+                <SectionHeader label="Transactions" />
+                {uniqueHashRows.map((row) => {
+                  const url = explorerForHash(row);
+                  return (
+                    <div
+                      key={`${row.label}-${row.value}`}
+                      className={cstyles.flexspacebetween}
+                      style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}
+                    >
+                      <CopyField label={row.label} value={row.value} />
+                      {!!url && (
+                        <button
+                          type="button"
+                          className={cstyles.primarybutton}
+                          style={{ marginRight: 0 }}
+                          onClick={() => shell.openExternal(url)}
+                        >
+                          View transaction &nbsp;
+                          <FontAwesomeIcon icon={faExternalLinkAlt} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {/* Same reason as the deposit address above — the slip already
+              shows the memo, its hex form, and where on this chain it has to
+              go. */}
+            {!!memo && !awaitingDeposit && (
+              <>
+                <SectionHeader label="Memo" />
+                <CopyField label="On-chain memo" value={memo} />
+                {isEvmSourceChain(record.sellAsset.chain) && (
+                  <CopyField label="Hex calldata" value={memoToHexCalldata(memo)} />
+                )}
+              </>
+            )}
+
+            {/* The two links that are about the swap rather than about one of
+                its transactions. Each transaction carries its own, above. */}
+            {routeTrackers.length > 0 && (
               <div
-                key={label}
                 role="group"
-                aria-label={label}
-                className={`${cstyles.horizontalflex} ${index === 0 ? cstyles.margintoplarge : ""}`}
-                style={{
-                  justifyContent: "center",
-                  flexWrap: "wrap",
-                  rowGap: 16,
-                  marginTop: index === 0 ? undefined : 16,
-                }}
+                aria-label="Trackers"
+                className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`}
+                style={{ justifyContent: "center", flexWrap: "wrap", rowGap: 16 }}
               >
-                {row.map((tracker) => (
+                {routeTrackers.map((tracker) => (
                   <button
                     key={tracker.key}
                     type="button"
@@ -462,10 +556,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                   </button>
                 ))}
               </div>
-            ))}
+            )}
+          </AdvancedSection>
         </div>
-
-        {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}
 
         {/* Space rather than a rule. The buttons are the end of the screen, not
             the start of another section. */}

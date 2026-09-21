@@ -88,6 +88,9 @@ const ToAddrBox = ({
 
   const [toLocal, setToLocal] = useState<string>(toaddr.to);
   const [amountLocal, setAmountLocal] = useState<number>(toaddr.amount);
+  // What the field shows, as typed. Rendering the number back turned "0.0"
+  // into "0" under the cursor, so a decimal could not be typed at all.
+  const [amountText, setAmountText] = useState<string>(toaddr.amount ? String(toaddr.amount) : "");
   const [memoLocal, setMemoLocal] = useState<string>(toaddr.memo);
 
   const [addressKind, setAddressKind] = useState<AddressKindEnum>();
@@ -97,8 +100,9 @@ const ToAddrBox = ({
   const [usdValue, setUsdValue] = useState<string>("");
   // The amount can be typed in USD; what the row holds and sends is always ZEC.
   const usdAmount = useUsdAmount({
-    zecText: isNaN(amountLocal) ? "" : String(amountLocal),
+    zecText: amountText,
     setZecText: (zecText) => {
+      setAmountText(zecText);
       setAmountLocal(Number(zecText));
       updateToField(null, zecText, null);
     },
@@ -148,6 +152,11 @@ const ToAddrBox = ({
   useEffect(() => {
     setToLocal(toaddr.to);
     setAmountLocal(toaddr.amount);
+    // Only when the row's amount is not the one being typed: a Max button or a
+    // payment request writes the field, a keystroke of the user's does not.
+    setAmountText((typed) =>
+      parseFloat(typed) === toaddr.amount ? typed : toaddr.amount ? String(toaddr.amount) : "",
+    );
     setMemoLocal(toaddr.memo);
     setZnsAliasLocal(toaddr.znsAlias);
   }, [toaddr.to, toaddr.amount, toaddr.memo, toaddr.znsAlias]);

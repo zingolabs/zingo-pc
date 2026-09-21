@@ -32,7 +32,8 @@
   position: absolute;
   padding: 16px;
   min-width: 800px;
-  border: var(--color-primary) 4px solid;
+  border: var(--modal-border);
+  border-radius: var(--modal-radius);
 }
 
 .confirmModalAddress {

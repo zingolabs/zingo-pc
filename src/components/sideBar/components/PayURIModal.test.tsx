@@ -21,6 +21,22 @@ const baseProps = {
 };
 
 describe("PayURIModal", () => {
+  // A title, a field and two buttons said nothing about what goes in the field.
+  it("says what to paste and what will happen with it", () => {
+    render(<PayURIModal {...baseProps} modalTitle="Pay URI" actionButtonName="Pay" />);
+    expect(screen.getByText(/Paste a payment request/)).toBeInTheDocument();
+    expect(screen.getByText(/fills the Send form/)).toBeInTheDocument();
+    expect(screen.getByText(/review it there/)).toBeInTheDocument();
+  });
+
+  it("explains nothing to a watch-only wallet, which cannot pay", () => {
+    render(<PayURIModal {...baseProps} modalTitle="Pay URI" actionButtonName="Pay" />, {
+      contextOverrides: { readOnly: true },
+    });
+    expect(screen.queryByText(/Paste a payment request/)).not.toBeInTheDocument();
+    expect(screen.getByText(/only-watch wallet/)).toBeInTheDocument();
+  });
+
   beforeEach(() => jest.clearAllMocks());
 
   it("renders the title", () => {

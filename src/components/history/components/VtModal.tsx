@@ -29,8 +29,7 @@ import routes from "../../../constants/routes.json";
 
 import { native } from "../../../electronBridge";
 import { userFacingError } from "../../../utils/userFacingError";
-import { useCopy } from "../../common/useCopy";
-import { Field, FieldRow } from "../../common/DetailField";
+import { CopyField, Field, FieldRow } from "../../common/DetailField";
 import DetailNavigator from "./DetailNavigator";
 import SaveContact from "../../common/SaveContact";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
@@ -99,10 +98,6 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
   // Straight from the prop: History remounts this per row, so the prop is
   // always the row on screen and a second copy could only fall behind it.
   const valueTransferIndex = index;
-  const [expandAddress, setExpandAddress] = useState(false);
-  const [expandTxid, setExpandTxid] = useState(false);
-  const { copied: addressCopied, copy: copyAddress } = useCopy(1500);
-  const { copied: txidCopied, copy: copyTxid } = useCopy(1500);
   const [showNavigator, setShowNavigator] = useState<boolean>(true);
   const isTheFirstMount = useRef(true);
 
@@ -228,9 +223,9 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     }
   }
 
+  // The codes fold themselves back: react-modal drops its children when it
+  // closes, so an opened TXID does not come back opened on the next row.
   const localCloseModal = () => {
-    setExpandAddress(false);
-    setExpandTxid(false);
     closeModal();
   };
 
@@ -380,238 +375,161 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
           </div>
         )}
 
-        <hr style={{ width: "100%" }} />
+        {/* The same rhythm the swap detail uses: an even 12px between the
+            rows. Three 24px spacers used to sit between them, on top of each
+            row's own padding, which pushed a memo so far down that it was off
+            the screen on the transactions most likely to carry one. */}
+        <div className={cstyles.verticalflex} style={{ gap: 12 }}>
+          <hr style={{ width: "100%" }} />
 
-        <FieldRow>
-          <Field label="Time" value={`${datePart} ${timePart}`} />
+          <FieldRow>
+            <Field label="Time" value={`${datePart} ${timePart}`} />
 
-          {fees > 0 && (
+            {fees > 0 && (
+              <Field
+                label="Transaction Fee"
+                value={
+                  <>
+                    ZEC {Utils.maxPrecisionTrimmed(fees)}
+                    {currencyName === "ZEC" && (
+                      <div className={cstyles.sublight}>{Utils.getZecToUsdString(price, fees)}</div>
+                    )}
+                  </>
+                }
+              />
+            )}
+
+            <Field label="Confirmations" value={String(confirmations)} />
+
+            {(status === ValueTransferStatusEnum.calculated ||
+              status === ValueTransferStatusEnum.transmitted ||
+              status === ValueTransferStatusEnum.mempool ||
+              status === ValueTransferStatusEnum.failed) && (
+              <Field
+                label="Status"
+                value={
+                  <span
+                    style={{
+                      color:
+                        status === ValueTransferStatusEnum.failed
+                          ? "var(--color-error)"
+                          : status === ValueTransferStatusEnum.calculated ||
+                              status === ValueTransferStatusEnum.transmitted
+                            ? "var(--color-warning)"
+                            : "var(--color-primary-disable)",
+                    }}
+                  >
+                    {status === ValueTransferStatusEnum.calculated
+                      ? "Calculated"
+                      : status === ValueTransferStatusEnum.transmitted
+                        ? "Transmitted"
+                        : status === ValueTransferStatusEnum.mempool
+                          ? "In Mempool"
+                          : status === ValueTransferStatusEnum.failed
+                            ? "Failed"
+                            : ""}
+                  </span>
+                }
+              />
+            )}
+          </FieldRow>
+
+          {!!txid && (
+            <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+              <CopyField label="TXID" value={txid} />
+
+              {!isSwapRow && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+                <button
+                  type="button"
+                  className={cstyles.primarybutton}
+                  onClick={() =>
+                    Utils.openTxid(
+                      txid,
+                      currentWallet?.chain_name,
+                      currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                        ? blockExplorerMainnetTransaction
+                        : blockExplorerTestnetTransaction,
+                      currentWallet?.chain_name === ServerChainNameEnum.mainChainName
+                        ? blockExplorerMainnetTransactionCustom
+                        : blockExplorerTestnetTransactionCustom,
+                    )
+                  }
+                >
+                  View transaction &nbsp;
+                  <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
+                </button>
+              )}
+            </div>
+          )}
+
+          <hr style={{ width: "100%" }} />
+
+          {!!address && (
+            <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+              {/* The contact’s name under the label, where it was: it names the
+                address below it and belongs to it, not to the value. */}
+              <CopyField
+                label="Address"
+                value={address}
+                note={!!label && <div className={cstyles.highlight}>{label}</div>}
+              />
+
+              {!label && (
+                <div>
+                  <button type="button" className={cstyles.primarybutton} onClick={() => setSaveContactOpen(true)}>
+                    Add Label
+                  </button>
+                </div>
+              )}
+
+              {!readOnly && (
+                <div>
+                  <button type="button" className={cstyles.primarybutton} onClick={() => sendMore()}>
+                    Send More
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          <FieldRow>
             <Field
-              label="Transaction Fee"
+              label="Amount"
               value={
                 <>
-                  ZEC {Utils.maxPrecisionTrimmed(fees)}
-                  {currencyName === "ZEC" && (
-                    <div className={cstyles.sublight}>{Utils.getZecToUsdString(price, fees)}</div>
-                  )}
+                  <div>
+                    <span>
+                      {currencyName} {bigPart}
+                    </span>
+                    <span className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPart}</span>
+                  </div>
+                  <div className={cstyles.sublight}>{priceString}</div>
                 </>
               }
             />
-          )}
 
-          <Field label="Confirmations" value={String(confirmations)} />
+            {poolsText && <Field label="Pools" value={poolsText} />}
+          </FieldRow>
 
-          {(status === ValueTransferStatusEnum.calculated ||
-            status === ValueTransferStatusEnum.transmitted ||
-            status === ValueTransferStatusEnum.mempool ||
-            status === ValueTransferStatusEnum.failed) && (
-            <Field
-              label="Status"
-              value={
-                <span
-                  style={{
-                    color:
-                      status === ValueTransferStatusEnum.failed
-                        ? "var(--color-error)"
-                        : status === ValueTransferStatusEnum.calculated ||
-                            status === ValueTransferStatusEnum.transmitted
-                          ? "var(--color-warning)"
-                          : "var(--color-primary-disable)",
-                  }}
+          {memos && memos.length > 0 && !!memos.join("") && (
+            <div className={cstyles.padtopsmall}>
+              <div className={cstyles.sublight}>Memo</div>
+              <div className={cstyles.flexspacebetween}>
+                <div
+                  className={[
+                    cstyles.small,
+                    cstyles.sublight,
+                    cstyles.padtopsmall,
+                    cstyles.memodiv,
+                    styles.txmemo,
+                  ].join(" ")}
                 >
-                  {status === ValueTransferStatusEnum.calculated
-                    ? "Calculated"
-                    : status === ValueTransferStatusEnum.transmitted
-                      ? "Transmitted"
-                      : status === ValueTransferStatusEnum.mempool
-                        ? "In Mempool"
-                        : status === ValueTransferStatusEnum.failed
-                          ? "Failed"
-                          : ""}
-                </span>
-              }
-            />
+                  {memos.join("\n") + "\n" + labelReplyTo}
+                </div>
+              </div>
+            </div>
           )}
-        </FieldRow>
-
-        <div className={cstyles.margintoplarge} />
-
-        {!!txid && (
-          <div className={cstyles.flexspacebetween}>
-            <div>
-              <div className={cstyles.sublight}>
-                TXID
-                {txidCopied && (
-                  <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
-                    Copied!
-                  </span>
-                )}
-              </div>
-              <button
-                type="button"
-                aria-label="Copy transaction id"
-                title="Copy transaction id"
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  color: "inherit",
-                  font: "inherit",
-                  textAlign: "left",
-                  cursor: "pointer",
-                }}
-                onClick={() => {
-                  if (txid) {
-                    copyTxid(txid);
-                    setExpandTxid(true);
-                  }
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                  {!expandTxid && !!txid && Utils.trimToSmall(txid, 10)}
-                  {expandTxid && !!txid && (
-                    <>
-                      {txid.length < 80
-                        ? txid
-                        : Utils.splitStringIntoChunks(txid, 3).map((item) => <div key={item}>{item}</div>)}
-                    </>
-                  )}
-                </div>
-              </button>
-            </div>
-
-            {!isSwapRow && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                onClick={() =>
-                  Utils.openTxid(
-                    txid,
-                    currentWallet?.chain_name,
-                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                      ? blockExplorerMainnetTransaction
-                      : blockExplorerTestnetTransaction,
-                    currentWallet?.chain_name === ServerChainNameEnum.mainChainName
-                      ? blockExplorerMainnetTransactionCustom
-                      : blockExplorerTestnetTransactionCustom,
-                  )
-                }
-              >
-                View TXID &nbsp;
-                <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
-              </button>
-            )}
-          </div>
-        )}
-
-        <hr style={{ width: "100%" }} />
-
-        {!!address && (
-          <div className={cstyles.flexspacebetween}>
-            <div>
-              <div className={cstyles.sublight}>
-                Address
-                {addressCopied && (
-                  <span className={cstyles.highlight} style={{ marginLeft: 8 }}>
-                    Copied!
-                  </span>
-                )}
-              </div>
-              {!!label && (
-                <div className={cstyles.highlight} style={{ marginBottom: 0 }}>
-                  {label}
-                </div>
-              )}
-              <div className={cstyles.verticalflex}>
-                <button
-                  type="button"
-                  aria-label="Copy address"
-                  title="Copy address"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    padding: 0,
-                    color: "inherit",
-                    font: "inherit",
-                    textAlign: "left",
-                    cursor: "pointer",
-                  }}
-                  onClick={() => {
-                    if (address) {
-                      copyAddress(address);
-                      setExpandAddress(true);
-                    }
-                  }}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", flexWrap: "wrap" }}>
-                    {!expandAddress && !!address && Utils.trimToSmall(address, 10)}
-                    {expandAddress && !!address && (
-                      <>
-                        {address.length < 80
-                          ? address
-                          : Utils.splitStringIntoChunks(address, 3).map((item) => <div key={item}>{item}</div>)}
-                      </>
-                    )}
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {!label && (
-              <div>
-                <button type="button" className={cstyles.primarybutton} onClick={() => setSaveContactOpen(true)}>
-                  Add Label
-                </button>
-              </div>
-            )}
-
-            {!readOnly && (
-              <div>
-                <button type="button" className={cstyles.primarybutton} onClick={() => sendMore()}>
-                  Send More
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        <div className={cstyles.margintoplarge} />
-
-        <FieldRow>
-          <Field
-            label="Amount"
-            value={
-              <>
-                <div>
-                  <span>
-                    {currencyName} {bigPart}
-                  </span>
-                  <span className={`${cstyles.small} ${cstyles.zecsmallpart}`}>{smallPart}</span>
-                </div>
-                <div className={cstyles.sublight}>{priceString}</div>
-              </>
-            }
-          />
-
-          {poolsText && <Field label="Pools" value={poolsText} />}
-        </FieldRow>
-
-        <div className={cstyles.margintoplarge} />
-
-        {memos && memos.length > 0 && !!memos.join("") && (
-          <div className={cstyles.padtopsmall}>
-            <div className={cstyles.sublight}>Memo</div>
-            <div className={cstyles.flexspacebetween}>
-              <div
-                className={[cstyles.small, cstyles.sublight, cstyles.padtopsmall, cstyles.memodiv, styles.txmemo].join(
-                  " ",
-                )}
-              >
-                {memos.join("\n") + "\n" + labelReplyTo}
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
 
         <hr style={{ width: "100%" }} />
 

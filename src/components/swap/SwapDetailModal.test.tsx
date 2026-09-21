@@ -1,5 +1,5 @@
 import React from "react";
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import SwapDetailModal from "./SwapDetailModal";
 import { SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
@@ -78,6 +78,9 @@ const renderDetail = (overrides: Partial<SwapRecordType> = {}) =>
     />,
   );
 
+/** Opens the technical half, which a plain view keeps folded away. */
+const openAdvanced = () => fireEvent.click(screen.getByRole("button", { name: /advanced/i }));
+
 /**
  * A swap that ended badly has to say so on the screen the user opens to find
  * out why. The reason is the provider's to give and often missing — SwapKit
@@ -155,6 +158,8 @@ describe("SwapDetailModal slippage", () => {
       realizedSlippageBps: -6,
     });
 
+    openAdvanced();
+
     expect(screen.getByText("Slippage tolerance")).toBeInTheDocument();
     expect(screen.getByText("1%")).toBeInTheDocument();
     expect(screen.getByText("Received 0.06% more than expected")).toBeInTheDocument();
@@ -163,11 +168,15 @@ describe("SwapDetailModal slippage", () => {
   it("shows both tolerances when the provider applied another", () => {
     renderDetail({ requestedSlippageBps: 100, slippageToleranceBps: 200 });
 
+    openAdvanced();
+
     expect(screen.getByText("2% (1% requested)")).toBeInTheDocument();
   });
 
   it("shows nothing for a record made before either was kept", () => {
     renderDetail();
+
+    openAdvanced();
 
     expect(screen.queryByText("Slippage tolerance")).not.toBeInTheDocument();
     expect(screen.queryByText("Actual slippage")).not.toBeInTheDocument();
@@ -211,38 +220,106 @@ describe("SwapDetailModal ending", () => {
   });
 });
 
-// A swap with an intermediate leg carries five trackers, and in one wrapping
-// row they made the screen wide. The trackers and the other chains take the
-// first row and the Zcash transactions the second.
+// The link a wallet user wants is the transaction this wallet made; the rest
+// describe the route the provider took, and are one press away under Advanced.
 describe("SwapDetailModal trackers", () => {
-  it("puts the Zcash transactions on a row of their own", () => {
-    render(
-      <SwapDetailModal
-        record={record({
-          status: SwapStatusEnum.Completed,
-          broadcast: {
-            txId: "aa11".repeat(16),
-            allTxIds: ["cc33".repeat(16), "aa11".repeat(16)],
-          } as SwapRecordType["broadcast"],
-          destinationTxHash: "SolanaDeliverySignaturePlaceholder",
-        })}
-        index={0}
-        length={1}
-        moveDetail={jest.fn()}
-        modalIsOpen
-        closeModal={jest.fn()}
-        onRemove={jest.fn()}
-      />,
-      { contextOverrides: { currentWallet: { chain_name: "main" } as never } },
-    );
+  const withLegs = () => (
+    <SwapDetailModal
+      record={record({
+        status: SwapStatusEnum.Completed,
+        broadcast: {
+          txId: "aa11".repeat(16),
+          allTxIds: ["cc33".repeat(16), "aa11".repeat(16)],
+        } as SwapRecordType["broadcast"],
+        destinationTxHash: "SolanaDeliverySignaturePlaceholder",
+      })}
+      index={0}
+      length={1}
+      moveDetail={jest.fn()}
+      modalIsOpen
+      closeModal={jest.fn()}
+      onRemove={jest.fn()}
+    />
+  );
 
-    const trackersRow = within(screen.getByRole("group", { name: "Trackers" }));
-    const zcashRow = within(screen.getByRole("group", { name: "Zcash transactions" }));
+  it("keeps the links out of the plain view", () => {
+    render(withLegs(), { contextOverrides: { currentWallet: { chain_name: "main" } as never } });
 
-    expect(trackersRow.getByRole("button", { name: /SwapKit Explorer/ })).toBeInTheDocument();
-    expect(trackersRow.getByRole("button", { name: /Destination chain explorer/ })).toBeInTheDocument();
-    expect(zcashRow.getByRole("button", { name: /Source chain explorer/ })).toBeInTheDocument();
-    expect(zcashRow.getByRole("button", { name: /Source chain hop 1/ })).toBeInTheDocument();
-    expect(zcashRow.queryByRole("button", { name: /SwapKit Explorer/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /View transaction/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /SwapKit Explorer/ })).not.toBeInTheDocument();
+  });
+
+  // A link belongs on the transaction it opens: matching a button named after a
+  // leg to a hash listed elsewhere is work the screen can do for the reader.
+  it("gives each transaction its own link", () => {
+    render(withLegs(), { contextOverrides: { currentWallet: { chain_name: "main" } as never } });
+
+    openAdvanced();
+
+    // The deposit, the hop that fed it and the delivery on Solana.
+    expect(screen.getAllByRole("button", { name: /View transaction/ })).toHaveLength(3);
+  });
+
+  it("keeps the swap’s own trackers, which belong to no one transaction", () => {
+    render(withLegs(), { contextOverrides: { currentWallet: { chain_name: "main" } as never } });
+
+    openAdvanced();
+
+    const trackers = within(screen.getByRole("group", { name: "Trackers" }));
+    expect(trackers.getByRole("button", { name: /SwapKit Explorer/ })).toBeInTheDocument();
+    // Named after a leg rather than after the swap: replaced by the links on
+    // the transaction rows themselves.
+    expect(trackers.queryByRole("button", { name: /chain explorer/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("SwapDetailModal advanced half", () => {
+  // A swap that went through leaves a page of ids, addresses and hashes. The
+  // person who made it came to see that it went through.
+  it("opens on the swap itself, with the record of how it ran folded away", () => {
+    renderDetail({ status: SwapStatusEnum.Completed, routeId: "route-1", providerOrderId: "order-9" });
+
+    expect(screen.getByText("Provider")).toBeInTheDocument();
+    expect(screen.queryByText("Route id")).not.toBeInTheDocument();
+    expect(screen.queryByText("Order id")).not.toBeInTheDocument();
+    expect(screen.queryByText("Deposit address")).not.toBeInTheDocument();
+  });
+
+  it("hands the whole record over on one press", () => {
+    renderDetail({ status: SwapStatusEnum.Completed, routeId: "route-1", providerOrderId: "order-9" });
+
+    openAdvanced();
+
+    expect(screen.getByText("route-1")).toBeInTheDocument();
+    expect(screen.getByText("order-9")).toBeInTheDocument();
+  });
+});
+
+describe("SwapDetailModal refund", () => {
+  // What became of the money was spread over three places: the reason here, the
+  // hash among the transactions under Advanced, the link among the trackers.
+  const refunded = () =>
+    renderDetail({
+      status: SwapStatusEnum.Refunded,
+      refundInfo: { refundReason: "the provider could not deliver", refundTxHash: "dd44".repeat(16) },
+    } as Partial<SwapRecordType>);
+
+  it("reports the reason, the transaction and the way to it together", () => {
+    refunded();
+
+    expect(screen.getByText("the provider could not deliver")).toBeInTheDocument();
+    expect(screen.getByText("Refund transaction")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /View transaction/ })).toBeInTheDocument();
+  });
+
+  it("does not list the refund again under Advanced", () => {
+    refunded();
+
+    openAdvanced();
+
+    // Once on the screen, under the Refund heading, not again among the hashes.
+    // Folded to its ends, as every code is.
+    expect(screen.getAllByText("dd44dd44dd44...dd44dd44dd44")).toHaveLength(1);
+    expect(screen.queryByRole("button", { name: /Refund explorer/ })).not.toBeInTheDocument();
   });
 });

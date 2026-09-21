@@ -101,7 +101,7 @@ describe("a refunded swap", () => {
   it("lists the refund under its own name", () => {
     const tracked = applyDefaultTrackUpdate(leftBehind(), flashnetRefundedTrack);
 
-    expect(hashRowsForRecord(tracked)).toContainEqual({ label: "Refund", value: REFUND_HASH });
+    expect(hashRowsForRecord(tracked)).toContainEqual({ label: "Refund", value: REFUND_HASH, chain: "ZEC" });
     expect(hashRowsForRecord(tracked).some((row) => row.label === "Destination")).toBe(false);
   });
 });
@@ -145,10 +145,12 @@ describe("buildTrackerEntries", () => {
   it("lists each leg once, under the name of what it is", () => {
     const tracked = applyDefaultTrackUpdate(record({ status: SwapStatusEnum.Processing }), nearZecToSolUsdcTrack);
 
+    // Each row carries the chain it happened on, which is what lets the detail
+    // view offer the right explorer for it.
     expect(hashRowsForRecord(tracked)).toEqual([
-      { label: "Deposit", value: DEPOSIT_HASH },
-      { label: "Via NEAR", value: NEAR_EXECUTION_HASH },
-      { label: "Destination", value: SOLANA_DELIVERY_SIGNATURE },
+      { label: "Deposit", value: DEPOSIT_HASH, chain: "ZEC" },
+      { label: "Via NEAR", value: NEAR_EXECUTION_HASH, chain: "NEAR" },
+      { label: "Destination", value: SOLANA_DELIVERY_SIGNATURE, chain: "SOL" },
     ]);
   });
 

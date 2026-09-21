@@ -1,4 +1,4 @@
-import { IRONWOOD_RECEIVER_LABEL, IRONWOOD_RECEIVER_TOOLTIP } from "../../../constants/ironwood";
+import { IRONWOOD_RECEIVER_LABEL } from "../../../constants/ironwood";
 import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import {
   AccordionItem,
@@ -24,7 +24,7 @@ import RPC from "../../../rpc/rpc";
 import { useCopy } from "../../common/useCopy";
 import { downloadQrCanvas, qrFileName } from "../../common/downloadQr";
 import PaymentRequestModal from "./PaymentRequestModal";
-import { faExternalLinkSquareAlt, faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { faExternalLinkSquareAlt } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 type AddressBlockProps = {
@@ -140,7 +140,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
         </AccordionItemHeading>
         <AccordionItemPanel className={styles.receiveDetail}>
           <div className={cstyles.flexspacebetween}>
-            <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`}>
+            <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`} style={{ flex: "1 1 auto", minWidth: 0 }}>
               <div>
                 <div className={cstyles.sublight}>
                   Address
@@ -158,17 +158,13 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
               {type === "u" && (
                 <div style={{ marginTop: 12 }}>
+                  {/* No gloss on the name any more. It was an info icon whose
+                      tooltip explained that Ironwood is the shielded pool, from
+                      when the name was new; by now it is the name of the pool,
+                      and a circle with a question mark beside it only asks a
+                      question the screen does not answer. */}
                   <div className={cstyles.sublight}>
                     Address type: {Utils.getReceivers(address as UnifiedAddressClass).join(" + ")}
-                    {/* Only where the gloss appears. A Sapling-only address says
-                        nothing about Ironwood, so it gets nothing to explain. */}
-                    {(address as UnifiedAddressClass).has_orchard && (
-                      <FontAwesomeIcon
-                        icon={faInfoCircle}
-                        title={IRONWOOD_RECEIVER_TOOLTIP}
-                        style={{ marginLeft: 6, cursor: "help", opacity: 0.8 }}
-                      />
-                    )}
                   </div>
                 </div>
               )}
@@ -179,27 +175,28 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 </div>
               )}
 
-              <div>
+              {/* One row that wraps only when it must, rather than three buttons
+                  each starting a line of its own at any width. */}
+              <div
+                className={cstyles.margintoplarge}
+                style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
+              >
                 <button
                   disabled={copied}
-                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
+                  className={cstyles.primarybutton}
                   type="button"
                   onClick={() => copy(address_address)}
                 >
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
                 </button>
 
-                <button
-                  className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
-                  type="button"
-                  onClick={() => setPaymentRequestOpen(true)}
-                >
+                <button className={cstyles.primarybutton} type="button" onClick={() => setPaymentRequestOpen(true)}>
                   Payment request
                 </button>
 
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                   <button
-                    className={`${cstyles.primarybutton} ${cstyles.margintoplarge}`}
+                    className={cstyles.primarybutton}
                     type="button"
                     onClick={() =>
                       Utils.openAddress(
@@ -229,8 +226,17 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   <select
                     aria-label="New address type"
                     className={cstyles.fieldselect}
-                    // In line with the buttons above, which carry 8px each side.
-                    style={{ marginLeft: 8 }}
+                    style={{
+                      // In line with the buttons above, which carry 8px each side.
+                      marginLeft: 8,
+                      // As wide as its longest option and no wider. It inherits
+                      // `flex: 1` from `fieldinput`, which is right for a field
+                      // that owns its row and wrong here: it grew to the edge of
+                      // the column and pushed New Address out with it, so this
+                      // row ran past the buttons above instead of ending with
+                      // them.
+                      flex: "0 0 auto",
+                    }}
                     value={unifiedCreateType}
                     onChange={(e) => {
                       setUnifiedCreateType(e.target.value as "o" | "z" | "oz");

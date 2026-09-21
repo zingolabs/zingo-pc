@@ -4,11 +4,10 @@ import Modal from "react-modal";
 import cstyles from "../common/Common.module.css";
 import styles from "../history/History.module.css";
 import swapStyles from "./Swap.module.css";
-import { useCopy } from "../common/useCopy";
 import DepositSlip from "./DepositSlip";
 import { Field, FieldRow } from "../common/DetailField";
-import { native } from "../../electronBridge";
-import { SwapDirectionEnum, depositSpendsSourceAddress, providerLongLabel } from "../../swap";
+import { native, ipcRenderer } from "../../electronBridge";
+import { describeCommitFailure, SwapDirectionEnum, depositSpendsSourceAddress, providerLongLabel } from "../../swap";
 import type {
   DepositInstructionsType,
   FiatValueBasisType,
@@ -94,9 +93,26 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   const [committing, setCommitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [postCommit, setPostCommit] = useState<PostCommit | null>(null);
-  const { copied, copy } = useCopy(1500);
 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
+
+  /**
+   * The device lock, for the presses that spend from this wallet.
+   *
+   * Confirming a send asks for it, and paying a swap deposit is the same act
+   * by another name: the wallet signs and broadcasts a transaction the user
+   * cannot call back. An inbound swap is paid from the user’s other wallet and
+   * takes nothing from this one, so it is not asked.
+   *
+   * Same pattern as SendConfirmModal.sendButton; a wallet with the setting off
+   * is never prompted.
+   */
+  const deviceAuthPasses = useCallback(async (): Promise<boolean> => {
+    const allSettings = await ipcRenderer.invoke("loadSettings");
+    if (!allSettings?.requireDeviceAuth) return true;
+    const result: { success: boolean } = await ipcRenderer.invoke("auth:verify", "Authorize swap deposit");
+    return !!result?.success;
+  }, []);
 
   const broadcast = useCallback(
     async (record: SwapRecordType, instructions: DepositInstructionsType) => {
@@ -127,12 +143,17 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
   const retry = useCallback(async () => {
     if (!postCommit) return;
+    if (!(await deviceAuthPasses())) return;
     setCommitting(true);
     await broadcast(postCommit.record, postCommit.instructions);
     setCommitting(false);
-  }, [postCommit, broadcast]);
+  }, [postCommit, broadcast, deviceAuthPasses]);
 
   const commit = useCallback(async () => {
+    // Before anything is reserved: a refused unlock leaves the quote, the
+    // amount and the addresses exactly as they were, so the user can try
+    // again or back out.
+    if (isOutbound && !(await deviceAuthPasses())) return;
     setCommitting(true);
     setError("");
 
@@ -143,7 +164,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
     try {
       committed = await swapService.commitRoute({ quoteInput, chosenRoute: route, direction, fiatValueBasis });
     } catch (e) {
-      setError(`Could not start the swap: ${e}`);
+      setError(describeCommitFailure(e, route.provider));
       setCommitting(false);
       return;
     }
@@ -182,7 +203,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
     await broadcast(committed.record, committed.instructions);
     setCommitting(false);
-  }, [swapService, quoteInput, route, fiatValueBasis, direction, isOutbound, broadcast]);
+  }, [swapService, quoteInput, route, fiatValueBasis, direction, isOutbound, broadcast, deviceAuthPasses]);
 
   if (postCommit) {
     const { record, instructions, txId } = postCommit;
@@ -223,7 +244,6 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               expiresAtMs={instructions.expiresAtMs ?? route.expiresAtMs}
               paid={!!txId}
               leadingFields={<Field label="Provider" value={providerLongLabel(instructions.provider)} />}
-              copy={copy}
             />
 
             {!!txId && <Field label="Deposit transaction" value={txId} />}
@@ -240,8 +260,6 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               </div>
             )}
           </div>
-
-          {copied && <div className={`${cstyles.center} ${cstyles.small}`}>Copied</div>}
 
           <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
             {/* Only outbound gets this: an inbound deposit is paid from the

@@ -45,6 +45,8 @@ const settings = require("electron-settings");
 const storage = require("electron-json-storage");
 const { createServerRegistry } = require("./serverRegistry");
 const { isOpenablePaymentUri } = require("./paymentUri");
+const { SWAP_FILE_SUFFIX, mergeSwapRecords } = require("./swapImport");
+const { deriveRecordKey, isV2, encryptV2, decryptV2 } = require("./swapCrypto");
 
 const STORAGE_KEY = "wallets";
 const isDev = !app.isPackaged;
@@ -876,7 +878,6 @@ function getZnsClient(chain) {
   if (znsClients.has(chain)) return znsClients.get(chain);
   const network = chain === "main" ? "mainnet" : chain === "test" ? "testnet" : null;
   if (!network) return null;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { ZNS } = require("zcashname-sdk");
   const client = new ZNS({ network });
   znsClients.set(chain, client);
@@ -1061,23 +1062,56 @@ function assertSwapEncryption() {
   }
 }
 
-ipcMain.handle("swapStorage:get", async (_e, key) => {
+ipcMain.handle("swapStorage:get", async (_e, key, ufvk) => {
   const file = swapStoragePath(key);
-  let ciphertext;
+  let stored;
   try {
-    ciphertext = await fs.promises.readFile(file);
+    stored = await fs.promises.readFile(file);
   } catch (e) {
     if (e.code === "ENOENT") return null;
     throw e;
   }
+
+  const recordKey = deriveRecordKey(ufvk);
+
+  if (isV2(stored)) {
+    if (!recordKey) throw new Error("swapStorage: this wallet's records need its own key to be read");
+    return decryptV2(stored, recordKey);
+  }
+
+  // Written before the records were tied to the wallet. Readable only here,
+  // by this installation, which is the problem this format replaces.
   assertSwapEncryption();
-  return safeStorage.decryptString(ciphertext);
+  const plaintext = safeStorage.decryptString(stored);
+
+  // Converted the moment its wallet is open, which is the only moment its key
+  // can be derived. Best effort: failing to rewrite loses nothing that the
+  // read above did not already recover.
+  if (recordKey) {
+    try {
+      await fs.promises.writeFile(file, encryptV2(plaintext, recordKey));
+    } catch (err) {
+      console.log(`swapStorage: could not convert ${key} to the portable format`, err);
+    }
+  }
+
+  return plaintext;
 });
 
-ipcMain.handle("swapStorage:set", async (_e, key, value) => {
+ipcMain.handle("swapStorage:set", async (_e, key, value, ufvk) => {
   const file = swapStoragePath(key);
-  assertSwapEncryption();
   await fs.promises.mkdir(path.dirname(file), { recursive: true });
+
+  const recordKey = deriveRecordKey(ufvk);
+  if (recordKey) {
+    await fs.promises.writeFile(file, encryptV2(String(value), recordKey));
+    return;
+  }
+
+  // No wallet key in hand — the delete flow clears another wallet's bucket by
+  // name, without ever opening it. What it writes is an empty array, so the
+  // installation-bound format costs nothing there.
+  assertSwapEncryption();
   await fs.promises.writeFile(file, safeStorage.encryptString(String(value)));
 });
 
@@ -2213,6 +2247,9 @@ ipcMain.handle("import:scan", async () => {
   // having nothing to import.
   const fileNames = ["wallets.json", "AddressBook.json"];
   const present = fileNames.filter((f) => fs.existsSync(resolveDataFile(sourceDir, f)));
+  // A folder of swaps alone is worth importing: the history of them, and the
+  // tracking of any still in flight, exist nowhere else.
+  if (listSwapFiles(swapStorageDir(sourceDir)).length > 0) present.push("swap-storage");
 
   if (present.length === 0) {
     await dialog.showMessageBox(mainWindow, {
@@ -2220,8 +2257,8 @@ ipcMain.handle("import:scan", async () => {
       title: "Nothing to import",
       message: "No importable data found in this folder.",
       detail:
-        "The selected folder doesn't contain a wallets.json or AddressBook.json " +
-        "from a previous Zingo PC installation.",
+        "The selected folder doesn't contain a wallets.json, an AddressBook.json " +
+        "or a swap history from a previous Zingo PC installation.",
       buttons: ["OK"],
     });
     return { ok: false, reason: "no-data-found", sourceDir };
@@ -2370,6 +2407,17 @@ ipcMain.handle("import:apply", async (_e, { sourceDir, choices }) => {
     results.addressBook = "skipped";
   }
 
+  // Swap history: replace, merge (keep ours on a collision), or skip.
+  if (choices.swaps === "replace" || choices.swaps === "merge") {
+    try {
+      results.swaps = (await importSwapStorage(sourceDir, choices.swaps)).status;
+    } catch (err) {
+      results.swaps = `failed: ${err?.message ?? err}`;
+    }
+  } else {
+    results.swaps = "skipped";
+  }
+
   logImp(`from=${sourceDir} ${JSON.stringify(results)}`);
 
   // app.relaunch() is unreliable in MAS sandbox — ask the user to reopen instead.
@@ -2471,10 +2519,16 @@ function createWindow() {
 
   // Diagnostic logging for MAS/sandbox builds — writes to userData so we can
   // read it from ~/Library/Containers/co.zingo.pc/Data/Library/Application Support/Zingo PC/startup.log
+  //
+  // Declared out here rather than inside the block: the sandbox warning below
+  // guards on `typeof log === "function"`, and a `const` inside the block is
+  // not something that guard can see — so the warning it protects never
+  // reached the log it was written for.
+  let log = null;
   if (!isDev) {
     const logPath = path.join(app.getPath("userData"), "startup.log");
     const ts = () => new Date().toISOString();
-    const log = (msg) => {
+    log = (msg) => {
       try {
         require("fs").appendFileSync(logPath, `${ts()} ${msg}\n`);
       } catch (_) {}
@@ -2502,8 +2556,8 @@ function createWindow() {
   menuBuilder.buildMenu();
 
   if (sandboxDisabled) {
-    // Log to startup.log if available (log() is only defined in the !isDev block above).
-    if (typeof log === "function") log("WARNING: Chromium sandbox disabled (unprivileged_userns_clone=0)");
+    // Only written in a packaged build, which is where the log exists.
+    if (log) log("WARNING: Chromium sandbox disabled (unprivileged_userns_clone=0)");
     mainWindow.webContents.once("did-finish-load", () => {
       dialog.showMessageBox(mainWindow, {
         type: "warning",
@@ -2582,6 +2636,118 @@ if (process.platform !== "darwin") {
 function resolveDataFile(rootDir, name) {
   if (name === "wallets.json") return path.join(rootDir, "storage", "wallets.json");
   return path.join(rootDir, name);
+}
+
+function swapStorageDir(rootDir) {
+  return path.join(rootDir, "swap-storage");
+}
+
+/** The per-wallet swap files a folder holds, if any. */
+function listSwapFiles(dir) {
+  try {
+    return fs.readdirSync(dir).filter((name) => name.endsWith(SWAP_FILE_SUFFIX));
+  } catch (_) {
+    return [];
+  }
+}
+
+/**
+ * Bring another installation's swap history into this one.
+ *
+ * A file written in the portable format is copied as it is: its key comes from
+ * the wallet, so it opens here as soon as that wallet does. A file in the old
+ * installation-bound format is copied only if this installation can open it —
+ * a Flatpak reading what the deb wrote through the same host keyring can, the
+ * App Store build reading what the DMG build wrote cannot — because copying
+ * bytes nobody here can decrypt would turn a swap history into an error where
+ * it used to be a list. Either way it says which.
+ *
+ * `mode` is "replace" (what is here gives way to the other installation's) or
+ * "merge". Merging record by record needs both sides open at once, which is
+ * possible only for the old format; a portable file whose wallet is not the
+ * open one cannot be read here at all, so "merge" keeps what is here and takes
+ * only the wallets this installation has no file for.
+ */
+async function importSwapStorage(sourceDir, mode) {
+  const srcDir = swapStorageDir(sourceDir);
+  const destDir = swapStorageDir(app.getPath("userData"));
+  const files = listSwapFiles(srcDir);
+
+  if (files.length === 0) return { status: "nothing to import", wallets: 0 };
+
+  let wallets = 0;
+  let kept = 0;
+  let unreadable = 0;
+
+  const readLegacy = (buffer) => {
+    try {
+      if (!safeStorage.isEncryptionAvailable()) return null;
+      return JSON.parse(safeStorage.decryptString(buffer));
+    } catch (_) {
+      return null;
+    }
+  };
+
+  for (const file of files) {
+    const destFile = path.join(destDir, file);
+    let incoming;
+    try {
+      incoming = await fs.promises.readFile(path.join(srcDir, file));
+    } catch (_) {
+      unreadable += 1;
+      continue;
+    }
+
+    const portable = isV2(incoming);
+    const incomingRecords = portable ? null : readLegacy(incoming);
+
+    if (!portable && incomingRecords === null) {
+      // Encrypted by an installation whose key this one cannot reach.
+      unreadable += 1;
+      continue;
+    }
+
+    const haveOne = fs.existsSync(destFile);
+
+    if (haveOne && mode === "merge") {
+      const ours = portable ? null : readLegacy(await fs.promises.readFile(destFile).catch(() => Buffer.alloc(0)));
+      if (ours === null || incomingRecords === null) {
+        // One of the two is sealed until its wallet is open. Ours stays.
+        kept += 1;
+        continue;
+      }
+      const merged = mergeSwapRecords(ours, incomingRecords);
+      try {
+        await fs.promises.mkdir(destDir, { recursive: true });
+        await fs.promises.writeFile(destFile, safeStorage.encryptString(JSON.stringify(merged.records)));
+        wallets += 1;
+      } catch (_) {
+        unreadable += 1;
+      }
+      continue;
+    }
+
+    try {
+      await fs.promises.mkdir(destDir, { recursive: true });
+      await fs.promises.writeFile(destFile, incoming);
+      wallets += 1;
+    } catch (_) {
+      unreadable += 1;
+    }
+  }
+
+  if (wallets === 0) {
+    if (unreadable > 0) return { status: "failed: encrypted by the other installation", wallets: 0 };
+    return { status: kept > 0 ? "kept this installation's own" : "nothing to import", wallets: 0 };
+  }
+
+  const notes = [];
+  if (kept > 0) notes.push(`${kept} kept`);
+  if (unreadable > 0) notes.push(`${unreadable} unreadable`);
+  return {
+    status: `${mode === "replace" ? "replaced" : "merged"}: ${wallets} wallets${notes.length ? ` (${notes.join(", ")})` : ""}`,
+    wallets,
+  };
 }
 
 // One-shot migration from a previous DMG (non-sandboxed) install:
@@ -2712,6 +2878,13 @@ async function maybeRunDmgToMasMigration() {
       }
     }
 
+    // The swaps the other installation holds, which no file above carries.
+    // Re-encrypted under this installation’s key, so the App Store build —
+    // whose sandbox cannot reach the keychain item the DMG build wrote — says
+    // so rather than leaving behind bytes it could never open.
+    const swaps = await importSwapStorage(sourceDir, "merge");
+    if (swaps.wallets > 0) copied.push("swap history");
+    else if (swaps.status.startsWith("failed")) failed.push(`swap history (${swaps.status.replace("failed: ", "")})`);
     markChecked();
     logMig(`from=${sourceDir} copied=${copied.join(",")} failed=${failed.join(",")}`);
 
@@ -2821,6 +2994,13 @@ async function maybeRunDebAppImageToFlatpakMigration() {
     }
   }
 
+  // The swaps the other installation holds, which no file above carries.
+  // Re-encrypted under this installation’s key, so the App Store build —
+  // whose sandbox cannot reach the keychain item the DMG build wrote — says
+  // so rather than leaving behind bytes it could never open.
+  const swaps = await importSwapStorage(sourceDir, "merge");
+  if (swaps.wallets > 0) copied.push("swap history");
+  else if (swaps.status.startsWith("failed")) failed.push(`swap history (${swaps.status.replace("failed: ", "")})`);
   markChecked();
   logMig(`from=${sourceDir} copied=${copied.join(",")} failed=${failed.join(",")}`);
 

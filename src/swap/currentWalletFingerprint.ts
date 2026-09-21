@@ -19,14 +19,20 @@ import { deriveWalletFingerprint } from "./walletFingerprint";
  * registry's id is local bookkeeping, while the bucket is keyed by the wallet's
  * own key material: the same seed restored twice must find its own records.
  */
-export async function readCurrentWalletFingerprint(): Promise<string> {
+export async function readCurrentWalletKeys(): Promise<{ fingerprint: string; ufvk: string }> {
   try {
     const raw: string = await native.get_ufvk();
-    if (!raw) return "";
+    if (!raw) return { fingerprint: "", ufvk: "" };
     const parsed = JSON.parse(raw) as { ufvk?: string };
-    return deriveWalletFingerprint(parsed.ufvk ?? "");
+    const ufvk: string = parsed.ufvk ?? "";
+    return { fingerprint: deriveWalletFingerprint(ufvk), ufvk };
   } catch (error) {
-    console.log(`readCurrentWalletFingerprint: could not read the UFVK ${error}`);
-    return "";
+    console.log(`readCurrentWalletKeys: could not read the UFVK ${error}`);
+    return { fingerprint: "", ufvk: "" };
   }
+}
+
+/** The fingerprint alone, for callers that only name a bucket. */
+export async function readCurrentWalletFingerprint(): Promise<string> {
+  return (await readCurrentWalletKeys()).fingerprint;
 }
