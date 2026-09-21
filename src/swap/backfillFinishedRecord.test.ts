@@ -76,14 +76,14 @@ const serviceOver = (stored: SwapRecordType, track: () => Promise<TrackResponseT
  * the tracker kept some detail, or while it kept something wrong, never gets
  * corrected. The detail view asks about such a record once when it is shown.
  */
-// A completed inbound Flashnet swap as `/track` reports it when queried by
-// deposit address: the source leg is there, with an empty hash.
+// A completed inbound Flashnet swap as `/track` now reports it when queried by
+// deposit address, with the source leg filled (SwapKit, 2026-09-21).
 const inboundFlashnetTrack: TrackResponseType = {
   status: "completed",
   trackingStatus: "completed",
   meta: { provider: "FLASHNET", providerOrderId: "ord_00000000-aaaa-bbbb-cccc-000000000001" },
   legs: [
-    { chainId: "solana", hash: "", type: "native_send", status: "completed" },
+    { chainId: "solana", hash: "SolanaDepositSignature".padEnd(88, "x"), type: "native_send", status: "completed" },
     { chainId: "spark", hash: "0x" + "0".repeat(64), type: "swap", status: "completed" },
     { chainId: "zcash", hash: "ee55".repeat(16), type: "native_send", status: "completed" },
   ],
@@ -103,7 +103,10 @@ describe("SwapService.backfillFinishedRecord on an inbound Flashnet swap", () =>
       trackCaptureVersion: 2,
     });
 
-  const serviceWith = (explorerHash: string | null) => {
+  // A swap that finished while `/track` was still answering with an empty
+  // source leg has no deposit hash on the record. Opening its detail asks
+  // again, and now there is one to take.
+  it("fills the deposit hash of a finished swap when it is shown", async () => {
     const upsert = jest.fn(async (_record: SwapRecordType) => undefined);
     const service = new SwapService({
       client: { track: jest.fn(async () => inboundFlashnetTrack) } as unknown as SwapKitClient,
@@ -111,29 +114,12 @@ describe("SwapService.backfillFinishedRecord on an inbound Flashnet swap", () =>
       store: { getByRecordId: async () => inbound(), upsert } as unknown as typeof SwapStore,
       poller: null as unknown as SwapPoller,
       tokenCatalog: null as unknown as TokenCatalog,
-      flashnetExplorerClient: { getOrderSourceTxHash: jest.fn(async () => explorerHash) },
     });
-    return { service, upsert };
-  };
-
-  // A swap that finished before the fallback existed gets its deposit when
-  // its detail is opened: that record is what the fix was for.
-  it("fills the deposit hash of a finished swap when it is shown", async () => {
-    const { service } = serviceWith("SourceSignaturePlaceholder".padEnd(88, "x"));
 
     const updated = await service.backfillFinishedRecord("rec-1");
 
-    expect(updated?.observedDepositTxHash).toBe("SourceSignaturePlaceholder".padEnd(88, "x"));
+    expect(updated?.observedDepositTxHash).toBe("SolanaDepositSignature".padEnd(88, "x"));
     expect(updated?.trackCaptureVersion).toBe(TRACK_CAPTURE_VERSION);
-  });
-
-  it("leaves it to be asked again when the explorer has no hash", async () => {
-    const { service } = serviceWith(null);
-
-    const updated = await service.backfillFinishedRecord("rec-1");
-
-    expect(updated?.observedDepositTxHash).toBeUndefined();
-    expect(updated?.trackCaptureVersion).toBe(2);
   });
 });
 

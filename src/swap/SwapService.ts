@@ -1,7 +1,5 @@
 import { ChainNameEnum } from "./enums/ChainNameEnum";
 import { MidgardClient } from "./MidgardClient";
-import { FlashnetExplorerClient } from "./FlashnetExplorerClient";
-import { fillFlashnetDepositHash } from "./flashnetDepositHash";
 import { SwapKitClient } from "./SwapKitClient";
 import { SwapPoller, buildTrackParams } from "./SwapPoller";
 import type { TrackResponseType } from "./types/TrackResponseType";
@@ -53,7 +51,6 @@ export type SwapServiceArgs = {
   poller: SwapPoller;
   tokenCatalog: TokenCatalog;
   /** Flashnet's explorer, for the backfill; see `SwapPollerArgs`. */
-  flashnetExplorerClient?: Pick<FlashnetExplorerClient, "getOrderSourceTxHash">;
 };
 
 export type QuoteInput = {
@@ -129,11 +126,9 @@ export class SwapService {
 
   /** Finished swaps already asked about this session. */
   private readonly backfillAttempted = new Set<string>();
-  private readonly flashnetExplorerClient: Pick<FlashnetExplorerClient, "getOrderSourceTxHash"> | undefined;
 
   constructor(args: SwapServiceArgs) {
     this.client = args.client;
-    this.flashnetExplorerClient = args.flashnetExplorerClient;
     this.registry = args.registry;
     this.store = args.store;
     this.poller = args.poller;
@@ -409,13 +404,7 @@ export class SwapService {
       return undefined;
     }
 
-    const tracked = await fillFlashnetDepositHash(
-      this.registry.get(record.provider).applyTrackUpdate(record, response),
-      {
-        previousVersion: record.trackCaptureVersion,
-        client: this.flashnetExplorerClient,
-      },
-    );
+    const tracked = this.registry.get(record.provider).applyTrackUpdate(record, response);
     const updated: SwapRecordType = isTerminalStatus(tracked.status)
       ? tracked
       : { ...tracked, status: record.status, trackingStatus: record.trackingStatus, terminalAtMs: record.terminalAtMs };
@@ -665,10 +654,9 @@ export function createSwapService(args: {
   const midgardClient = new MidgardClient();
   // One instance for both, so a hash the poller found is not asked for again
   // when the detail view backfills the same swap.
-  const flashnetExplorerClient = new FlashnetExplorerClient();
-  const poller = new SwapPoller({ client, registry, store, midgardClient, flashnetExplorerClient });
+  const poller = new SwapPoller({ client, registry, store, midgardClient });
   const tokenCatalog = new TokenCatalog(client);
-  return new SwapService({ client, registry, store, poller, tokenCatalog, flashnetExplorerClient });
+  return new SwapService({ client, registry, store, poller, tokenCatalog });
 }
 
 /**
@@ -689,10 +677,9 @@ export function createSwapService(args: {
  * and paid, so `/track` has a swap to answer about. An abandoned or expired
  * swap that never saw a deposit has none, and asking would only log a failure.
  *
- * Paid is not only a deposit hash on the record. An inbound Flashnet swap is
- * missing exactly that hash, which is what the backfill fills, so requiring it
- * shut out the very record the fallback was for. A swap the provider completed
- * or refunded was paid, and so was one it took an order for.
+ * Paid is not only a deposit hash on the record: an inbound swap can be known
+ * by its order id alone before its deposit hash arrives. A swap the provider
+ * completed or refunded was paid, and so was one it took an order for.
  */
 function needsBackfill(record: SwapRecordType): boolean {
   if (!isTerminalStatus(record.status)) return false;

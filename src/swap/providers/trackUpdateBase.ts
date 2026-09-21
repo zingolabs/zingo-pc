@@ -38,8 +38,11 @@ import { mapSwapStatus, mapTrackingStatus } from "./statusMapping";
  *   1. Intermediate legs, and the slippage SwapKit reports.
  *   2. A refund's return leg is no longer taken for the delivery. Records
  *      stamped 1 may hold that refund hash as their destination.
- *   3. The deposit hash of an inbound Flashnet swap, from Flashnet's explorer
- *      when `/track` leaves it empty (see `fillFlashnetDepositHash`).
+ *   3. The deposit hash of an inbound Flashnet swap. SwapKit's `/track`
+ *      returned that leg with an empty hash, and the wallet read it from
+ *      Flashnet's own explorer instead; SwapKit fixed it on 2026-09-21 and
+ *      the detour is gone, but records stamped 2 may still lack the hash
+ *      until they are tracked again.
  */
 export const TRACK_CAPTURE_VERSION = 3;
 

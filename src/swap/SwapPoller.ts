@@ -1,6 +1,4 @@
 import { MidgardClient } from "./MidgardClient";
-import type { FlashnetExplorerClient } from "./FlashnetExplorerClient";
-import { fillFlashnetDepositHash } from "./flashnetDepositHash";
 import { SwapKitClient } from "./SwapKitClient";
 import { SwapStore } from "./SwapStore";
 import { ProviderRegistry } from "./providers/ProviderRegistry";
@@ -86,7 +84,6 @@ export type SwapPollerArgs = {
   /** Flashnet's explorer, for the deposit hash of an inbound Flashnet swap
    *  that `/track` reports with an empty source leg. Optional: without it
    *  such a swap simply has no deposit hash, as before. */
-  flashnetExplorerClient?: Pick<FlashnetExplorerClient, "getOrderSourceTxHash">;
   /** Optional timing overrides; defaults to `DEFAULT_SWAP_POLLER_CONFIG`. */
   config?: Partial<SwapPollerConfig>;
 };
@@ -96,7 +93,6 @@ export class SwapPoller {
   private readonly registry: ProviderRegistry;
   private readonly store: typeof SwapStore;
   private readonly midgardClient: MidgardClient;
-  private readonly flashnetExplorerClient: Pick<FlashnetExplorerClient, "getOrderSourceTxHash"> | undefined;
   private readonly config: SwapPollerConfig;
 
   private timer: ReturnType<typeof setInterval> | null = null;
@@ -117,7 +113,6 @@ export class SwapPoller {
     this.registry = args.registry;
     this.store = args.store;
     this.midgardClient = args.midgardClient;
-    this.flashnetExplorerClient = args.flashnetExplorerClient;
     this.config = { ...DEFAULT_SWAP_POLLER_CONFIG, ...args.config };
   }
 
@@ -349,11 +344,7 @@ export class SwapPoller {
 
     if (!this.isRunningForGeneration(callerGeneration)) return;
 
-    const tracked = executor.applyTrackUpdate(effectiveRecord, response);
-    const updated = await fillFlashnetDepositHash(tracked, {
-      previousVersion: effectiveRecord.trackCaptureVersion,
-      client: this.flashnetExplorerClient,
-    });
+    const updated = executor.applyTrackUpdate(effectiveRecord, response);
     if (!this.isRunningForGeneration(callerGeneration)) return;
 
     if (!hasMeaningfulChange(effectiveRecord, updated)) {
