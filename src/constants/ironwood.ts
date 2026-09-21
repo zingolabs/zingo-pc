@@ -11,10 +11,8 @@ export const ironwoodReady = (activationHeight: number, walletHeight: number): b
 // what lands there through to Ironwood, since Orchard is frozen. The app calls
 // that receiver Ironwood all the same (decided 2026-09-15): not strictly what the
 // address encodes, but Ironwood is where the money ends up, and it is the
-// shielded pool users should come to think of as theirs. The tooltip keeps the
-// one sentence that makes the name true.
+// shielded pool users should come to think of as theirs.
 //
 // "Orchard" stays only where it names funds that still have to move: the
 // "Orchard (legacy)" balance and the migration screens.
 export const IRONWOOD_RECEIVER_LABEL = "Ironwood";
-export const IRONWOOD_RECEIVER_TOOLTIP = "Ironwood is the shielded pool. Funds sent to this receiver land in Ironwood.";
