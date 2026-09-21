@@ -512,12 +512,17 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
             one. With no titles to sit between, it takes the middle itself. */}
         <div
           className={`${cstyles.flexspacebetween} ${cstyles.xlarge} ${cstyles.marginnegativetitle}`}
-          // `marginnegativetitle` pulls -20px up, which suited a row of bare
-          // titles and does not suit this one: the checkbox is taller than
-          // they are, and the pull put it under the Add and Clear buttons.
-          // Overridden at the top only — the negative bottom still hugs the
-          // list, which is where the height this change recovers comes from.
-          style={{ marginTop: 8, ...(hasVisibleContacts ? undefined : { justifyContent: "center" }) }}
+          // `marginnegativetitle` pulls -20px at both ends, which suited a row
+          // of bare titles and does not suit this one. At the top the checkbox
+          // is taller than a title and the pull put it under the Add and Clear
+          // buttons. At the bottom -20 against the 15 its children carry left
+          // the row five pixels inside the list, so the search field sat on the
+          // first contact; -10 leaves five between them instead.
+          style={{
+            marginTop: 8,
+            marginBottom: -10,
+            ...(hasVisibleContacts ? undefined : { justifyContent: "center" }),
+          }}
         >
           {hasVisibleContacts && <div style={{ marginLeft: 40, marginBottom: 15 }}>Label</div>}
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 15 }}>
