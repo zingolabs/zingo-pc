@@ -151,9 +151,9 @@ yarn release:prep 2.0.15 142
 
 **Privacy**
 
-- Nym mixnet transport for wallet traffic, with a status indicator in the sidebar and an on/off
-  control under Settings → Nym Mixnet. What rides it and what does not is set out in
-  [The Nym mixnet](#the-nym-mixnet)
+- Nym mixnet transport for sending a payment and for the price lookup, with a status indicator in
+  the sidebar and an on/off control under Settings → Nym Mixnet. Syncing is not covered; what rides
+  it and what does not is set out in [The Nym mixnet](#the-nym-mixnet)
 - ZEC price is fetched over the mixnet only; while the transport is not ready the USD figures read
   `USD --` rather than falling back to clearnet
 - Sending fails closed: a payment goes out over the mixnet, or not at all, unless the mixnet has been
@@ -222,20 +222,33 @@ yarn release:prep 2.0.15 142
 
 ## The Nym mixnet
 
-Zingo PC bundles `nym-proxy` and starts it with the app. While the transport is
-ready, the wallet's own traffic travels through the Nym mixnet, which keeps the
-server that serves your wallet from learning the IP address it came from. It
-does nothing about what you tell a counterparty directly.
+Zingo PC bundles `nym-proxy` and starts it with the app. What the mixnet covers
+is the two surfaces zingolib judged highest-linkage (its ADR 0011): sending a
+payment, and fetching the price. Syncing is not one of them.
 
 **Goes through the mixnet**
 
-- Everything the wallet says to its lightwalletd server: syncing, balances,
-  transaction history, and broadcasting a payment
-- The ZEC price, which is only ever fetched over the mixnet. While the transport
-  is not ready the USD figures read `USD --` rather than falling back to clearnet
+- **Broadcasting a payment.** The transaction is transmitted through the tunnel,
+  so the indexer it is submitted to does not learn the IP it came from. This is
+  what the mixnet is for: a broadcast is handed to the same indexer that has
+  been serving your wallet, and without the tunnel that indexer sees a person
+  and a transaction at the same address
+- **The transmissions of the Ironwood migration**, which are payments by another
+  name and follow the same rule
+- **The ZEC price.** Mixnet-only: no setting sends it over clearnet, and while
+  the transport is not ready the USD figures read `USD --` rather than falling
+  back
 
 **Goes over clearnet**
 
+- **Syncing.** Compact blocks, nullifiers, transparent-address queries, full
+  transaction fetches, the mempool — the whole scan talks to your server
+  directly. zingolib's ADR 0023 decided that the top of the chain should ride
+  the mixnet and records that its implementation is deferred, so the server you
+  sync from does see your IP. What the mixnet keeps from it is the IP behind a
+  payment
+- The server health check behind the sidebar indicator, which asks each server
+  for its latest block over an ordinary connection
 - Swap traffic: quotes, the commit, tracking, the token catalog and its logos,
   and the Flashnet lookup that finds an inbound deposit. The provider therefore
   sees the IP the request came from, beside the addresses a quote has to carry.
@@ -248,15 +261,18 @@ does nothing about what you tell a counterparty directly.
 - The Nym client's own hostname lookups, which go to Quad9 and Cloudflare over
   DNS-over-TLS and DNS-over-HTTPS (see the antivirus entry under Troubleshooting)
 
-**Sending fails closed.** A payment goes out only when the transport is ready,
-or when you have switched the mixnet off yourself. While it is bootstrapping,
-unattached, or lost, sending refuses: losing the transport is not consent to
-send over clearnet.
+If you want the rest covered too, that is a job for a system-level VPN or
+NymVPN; the wallet does not embed one.
+
+**Sending fails closed.** A payment goes out through the mixnet or not at all.
+While the transport is bootstrapping, unattached or lost, sending refuses rather
+than falling back — losing the transport is not consent to clearnet.
 
 **Turning it on and off.** The sidebar carries the current state, and Settings →
-Nym Mixnet turns the transport off and on. Switching it off lasts for that
-session only — the choice is deliberately not saved, so the next launch starts
-on the mixnet again.
+Nym Mixnet turns the transport off and on. Switching it off also puts that
+session's payments on clearnet, which is the one way a payment travels that way:
+by being asked for. The choice is deliberately not saved, so the next launch
+starts on the mixnet again.
 
 ---
 
