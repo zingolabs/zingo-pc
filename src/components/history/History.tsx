@@ -283,7 +283,9 @@ const History: React.FC<HistoryProps> = () => {
             marginLeft: 20,
             top: "50%",
             transform: "translateY(-50%)",
-            width: 240,
+            // Wide enough for the whole placeholder: it names what can be
+            // searched, and cut off at 240px it named half of it.
+            width: 300,
           }}
         >
           <input
