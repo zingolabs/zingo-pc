@@ -9,6 +9,7 @@ import VtModal from "./components/VtModal";
 import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
 import { matchesAllWords } from "../../utils/textSearch";
+import { swapRecordSearchText, valueTransferSearchText } from "./historySearchText";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapRecords, useValueTransfersWithSwaps } from "../../context/ContextSwapService";
 import { SwapStore, groupHistoryBySwap, sliceKeepingGroups, swapGroupOf, swapTxidIndex } from "../../swap";
@@ -88,23 +89,26 @@ const History: React.FC<HistoryProps> = () => {
   // the whole history rather than the rows already loaded, and a swap still
   // gathers the transactions of it that match.
   const searching: boolean = query.trim() !== "";
+  // Built once per list rather than once per keystroke: the text a row can be
+  // matched on does not change while the user types, and rebuilding it for
+  // every character of a query, over every transfer a long-lived wallet holds,
+  // is the one place this screen could be made to stutter.
+  const searchTexts = useMemo(() => {
+    const swapsById = new Map(swapRecords.map((record) => [record.recordId, record]));
+    return mergedValueTransfers.map((vt: ValueTransferClass) => {
+      const record = vt.swapRecordId ? swapsById.get(vt.swapRecordId) : undefined;
+      const own = valueTransferSearchText(vt, vt.address ? addressBookMap.get(vt.address) : undefined);
+      return record ? `${own} ${swapRecordSearchText(record)}` : own;
+    });
+  }, [mergedValueTransfers, addressBookMap, swapRecords]);
   const matchedValueTransfers = useMemo(
     () =>
       searching
-        ? mergedValueTransfers.filter((vt: ValueTransferClass) =>
-            matchesAllWords(
-              [
-                vt.address ?? "",
-                (vt.address && addressBookMap.get(vt.address)) ?? "",
-                vt.txid ?? "",
-                vt.type ?? "",
-                ...(vt.memos ?? []),
-              ].join(" "),
-              query,
-            ),
+        ? mergedValueTransfers.filter((_vt: ValueTransferClass, index: number) =>
+            matchesAllWords(searchTexts[index], query),
           )
         : mergedValueTransfers,
-    [searching, mergedValueTransfers, query, addressBookMap],
+    [searching, mergedValueTransfers, searchTexts, query],
   );
   const orderedValueTransfers = useMemo(
     () => (grouping ? groupHistoryBySwap(matchedValueTransfers, swapIndex) : matchedValueTransfers),
@@ -289,7 +293,7 @@ const History: React.FC<HistoryProps> = () => {
             style={{ fontSize: 14 }}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by address, memo or id"
+            placeholder="Search by address, amount, memo or id"
           />
         </div>
         {hasSwaps && (
