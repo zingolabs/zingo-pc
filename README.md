@@ -152,9 +152,12 @@ yarn release:prep 2.0.15 142
 **Privacy**
 
 - Nym mixnet transport for wallet traffic, with a status indicator in the sidebar and an on/off
-  control under Settings → Nym Mixnet
+  control under Settings → Nym Mixnet. What rides it and what does not is set out in
+  [The Nym mixnet](#the-nym-mixnet)
 - ZEC price is fetched over the mixnet only; while the transport is not ready the USD figures read
   `USD --` rather than falling back to clearnet
+- Sending fails closed: a payment goes out over the mixnet, or not at all, unless the mixnet has been
+  switched off deliberately
 
 **Swaps** _(experimental, still under testing)_
 
@@ -214,6 +217,46 @@ yarn release:prep 2.0.15 142
 - Manual "Import data from another installation" from the Settings menu (MAS / Flatpak), with per-item Replace / Merge / Skip choices
 - Swap history moves with the rest. Each wallet's records are encrypted with a key derived from that wallet, so they travel with it — to another installation, another machine, or out of a backup. Records left by a version that encrypted them per installation are converted the next time their wallet is opened; until then they can only be read where they were written, and an import that cannot read them says so and leaves them there
 - "Change wallets folder location" from the Settings menu (MAS)
+
+---
+
+## The Nym mixnet
+
+Zingo PC bundles `nym-proxy` and starts it with the app. While the transport is
+ready, the wallet's own traffic travels through the Nym mixnet, which keeps the
+server that serves your wallet from learning the IP address it came from. It
+does nothing about what you tell a counterparty directly.
+
+**Goes through the mixnet**
+
+- Everything the wallet says to its lightwalletd server: syncing, balances,
+  transaction history, and broadcasting a payment
+- The ZEC price, which is only ever fetched over the mixnet. While the transport
+  is not ready the USD figures read `USD --` rather than falling back to clearnet
+
+**Goes over clearnet**
+
+- Swap traffic: quotes, the commit, tracking, the token catalog and its logos,
+  and the Flashnet lookup that finds an inbound deposit. The provider therefore
+  sees the IP the request came from, beside the addresses a quote has to carry.
+  The Swap screen says so, and [docs/swap-privacy.md](docs/swap-privacy.md) has
+  the reasoning and what it would take to change
+- Resolving a `name.zcash` alias, which asks the Zcash Name Service
+- The server list, fetched from `hosh.zec.rocks` when you open the server picker
+- Anything handed to your browser: a block explorer, or "Open in wallet" on a
+  deposit
+- The Nym client's own hostname lookups, which go to Quad9 and Cloudflare over
+  DNS-over-TLS and DNS-over-HTTPS (see the antivirus entry under Troubleshooting)
+
+**Sending fails closed.** A payment goes out only when the transport is ready,
+or when you have switched the mixnet off yourself. While it is bootstrapping,
+unattached, or lost, sending refuses: losing the transport is not consent to
+send over clearnet.
+
+**Turning it on and off.** The sidebar carries the current state, and Settings →
+Nym Mixnet turns the transport off and on. Switching it off lasts for that
+session only — the choice is deliberately not saved, so the next launch starts
+on the mixnet again.
 
 ---
 
