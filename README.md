@@ -249,9 +249,9 @@ payment, and fetching the price. Syncing is not one of them.
   payment
 - The server health check behind the sidebar indicator, which asks each server
   for its latest block over an ordinary connection
-- Swap traffic: quotes, the commit, tracking, the token catalog and its logos,
-  and the Flashnet lookup that finds an inbound deposit. The provider therefore
-  sees the IP the request came from, beside the addresses a quote has to carry.
+- Swap traffic: quotes, the commit, tracking, and the token catalog with its
+  logos. The provider therefore sees the IP the request came from, beside the
+  addresses a quote has to carry.
   The Swap screen says so, and [docs/swap-privacy.md](docs/swap-privacy.md) has
   the reasoning and what it would take to change
 - Resolving a `name.zcash` alias, which asks the Zcash Name Service
