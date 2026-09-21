@@ -204,7 +204,7 @@
   "build": {
     "productName": "Zingo PC",
     "appId": "co.zingo.pc",
-    "buildVersion": "188",
+    "buildVersion": "189",
     "artifactName": "${productName}-${version}-${buildVersion}-${arch}.${ext}",
     "afterSign": "./afterMasSign.js",
     "afterAllArtifactBuild": "./afterSignHook.js",
@@ -231,7 +231,7 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "entitlements": "./configs/entitlements.mac.inherit.plist",
-      "bundleVersion": "188",
+      "bundleVersion": "189",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Zingo PC uses the camera only to read payment QR codes. Images are processed on this device and never stored or sent."
@@ -260,7 +260,7 @@
       "entitlements": "./configs/entitlements.mas.plist",
       "entitlementsInherit": "./configs/entitlements.mas.inherit.plist",
       "provisioningProfile": "./configs/Zingo_PC_Profile.provisionprofile",
-      "bundleVersion": "188",
+      "bundleVersion": "189",
       "extendInfo": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "Zingo PC uses the camera only to read payment QR codes. Images are processed on this device and never stored or sent."
