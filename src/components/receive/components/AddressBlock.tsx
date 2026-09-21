@@ -176,7 +176,13 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               )}
 
               {/* One row that wraps only when it must, rather than three buttons
-                  each starting a line of its own at any width. */}
+                  each starting a line of its own at any width.
+
+                  The buttons share the row's width equally. The row under this
+                  one is a select, which grows to fill what is left, so it ran
+                  to the edge of the column while this one stopped wherever its
+                  three labels happened to end — two rows of actions, ragged
+                  against each other. They end together now. */}
               <div
                 className={cstyles.margintoplarge}
                 style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
@@ -184,19 +190,26 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 <button
                   disabled={copied}
                   className={cstyles.primarybutton}
+                  style={{ flex: "1 1 0", minWidth: 140 }}
                   type="button"
                   onClick={() => copy(address_address)}
                 >
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
                 </button>
 
-                <button className={cstyles.primarybutton} type="button" onClick={() => setPaymentRequestOpen(true)}>
+                <button
+                  className={cstyles.primarybutton}
+                  style={{ flex: "1 1 0", minWidth: 140 }}
+                  type="button"
+                  onClick={() => setPaymentRequestOpen(true)}
+                >
                   Payment request
                 </button>
 
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                   <button
                     className={cstyles.primarybutton}
+                    style={{ flex: "1 1 0", minWidth: 140 }}
                     type="button"
                     onClick={() =>
                       Utils.openAddress(
