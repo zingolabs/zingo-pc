@@ -45,6 +45,8 @@ const settings = require("electron-settings");
 const storage = require("electron-json-storage");
 const { createServerRegistry } = require("./serverRegistry");
 const { isOpenablePaymentUri } = require("./paymentUri");
+const { SWAP_FILE_SUFFIX, mergeSwapRecords } = require("./swapImport");
+const { deriveRecordKey, isV2, encryptV2, decryptV2 } = require("./swapCrypto");
 
 const STORAGE_KEY = "wallets";
 const isDev = !app.isPackaged;
@@ -876,7 +878,6 @@ function getZnsClient(chain) {
   if (znsClients.has(chain)) return znsClients.get(chain);
   const network = chain === "main" ? "mainnet" : chain === "test" ? "testnet" : null;
   if (!network) return null;
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { ZNS } = require("zcashname-sdk");
   const client = new ZNS({ network });
   znsClients.set(chain, client);
@@ -2518,10 +2519,16 @@ function createWindow() {
 
   // Diagnostic logging for MAS/sandbox builds — writes to userData so we can
   // read it from ~/Library/Containers/co.zingo.pc/Data/Library/Application Support/Zingo PC/startup.log
+  //
+  // Declared out here rather than inside the block: the sandbox warning below
+  // guards on `typeof log === "function"`, and a `const` inside the block is
+  // not something that guard can see — so the warning it protects never
+  // reached the log it was written for.
+  let log = null;
   if (!isDev) {
     const logPath = path.join(app.getPath("userData"), "startup.log");
     const ts = () => new Date().toISOString();
-    const log = (msg) => {
+    log = (msg) => {
       try {
         require("fs").appendFileSync(logPath, `${ts()} ${msg}\n`);
       } catch (_) {}
@@ -2549,8 +2556,8 @@ function createWindow() {
   menuBuilder.buildMenu();
 
   if (sandboxDisabled) {
-    // Log to startup.log if available (log() is only defined in the !isDev block above).
-    if (typeof log === "function") log("WARNING: Chromium sandbox disabled (unprivileged_userns_clone=0)");
+    // Only written in a packaged build, which is where the log exists.
+    if (log) log("WARNING: Chromium sandbox disabled (unprivileged_userns_clone=0)");
     mainWindow.webContents.once("did-finish-load", () => {
       dialog.showMessageBox(mainWindow, {
         type: "warning",
