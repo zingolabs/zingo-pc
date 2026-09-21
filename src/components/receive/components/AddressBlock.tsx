@@ -176,13 +176,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
               )}
 
               {/* One row that wraps only when it must, rather than three buttons
-                  each starting a line of its own at any width.
-
-                  The buttons share the row's width equally. The row under this
-                  one is a select, which grows to fill what is left, so it ran
-                  to the edge of the column while this one stopped wherever its
-                  three labels happened to end — two rows of actions, ragged
-                  against each other. They end together now. */}
+                  each starting a line of its own at any width. */}
               <div
                 className={cstyles.margintoplarge}
                 style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
@@ -190,26 +184,19 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 <button
                   disabled={copied}
                   className={cstyles.primarybutton}
-                  style={{ flex: "1 1 0", minWidth: 140 }}
                   type="button"
                   onClick={() => copy(address_address)}
                 >
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
                 </button>
 
-                <button
-                  className={cstyles.primarybutton}
-                  style={{ flex: "1 1 0", minWidth: 140 }}
-                  type="button"
-                  onClick={() => setPaymentRequestOpen(true)}
-                >
+                <button className={cstyles.primarybutton} type="button" onClick={() => setPaymentRequestOpen(true)}>
                   Payment request
                 </button>
 
                 {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                   <button
                     className={cstyles.primarybutton}
-                    style={{ flex: "1 1 0", minWidth: 140 }}
                     type="button"
                     onClick={() =>
                       Utils.openAddress(
@@ -239,8 +226,17 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   <select
                     aria-label="New address type"
                     className={cstyles.fieldselect}
-                    // In line with the buttons above, which carry 8px each side.
-                    style={{ marginLeft: 8 }}
+                    style={{
+                      // In line with the buttons above, which carry 8px each side.
+                      marginLeft: 8,
+                      // As wide as its longest option and no wider. It inherits
+                      // `flex: 1` from `fieldinput`, which is right for a field
+                      // that owns its row and wrong here: it grew to the edge of
+                      // the column and pushed New Address out with it, so this
+                      // row ran past the buttons above instead of ending with
+                      // them.
+                      flex: "0 0 auto",
+                    }}
                     value={unifiedCreateType}
                     onChange={(e) => {
                       setUnifiedCreateType(e.target.value as "o" | "z" | "oz");
