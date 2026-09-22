@@ -420,11 +420,9 @@ const AppRoutes: React.FC = () => {
     setSendPageState,
   ]);
 
-  // Changing the active server means reopening the wallet. `change_server` on a
-  // live client swaps the URI but leaves it unable to reach the new one, so
-  // every server picked that way looked dead — which is why that path sat unused
-  // in the first place. Going round through LoadingScreen is what the wallet
-  // settings screen already does, and it is the one that works.
+  // Changing the active server means reopening the wallet, the way the wallet
+  // settings screen already does. Swapping the URI on a live client left it
+  // unable to reach the new one, so every server picked that way looked dead.
   // `selection` is what the caller means by the move, and only the caller
   // knows. A hand pick from the list is the `list` mode by definition; a
   // rotation is auto doing exactly what auto is for and must stay on it.

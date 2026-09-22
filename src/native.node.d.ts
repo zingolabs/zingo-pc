@@ -57,7 +57,6 @@ export function stop_sync(): Promise<string>;
 export function status_sync(): Promise<string>;
 export function run_rescan(): Promise<string>;
 export function info_server(): Promise<string>;
-export function change_server(server_uri: string): Promise<string>;
 export function wallet_kind(): Promise<string>;
 export function parse_address(address: string): Promise<string>;
 export function parse_ufvk(ufvk: string): Promise<string>;
