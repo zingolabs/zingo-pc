@@ -10,6 +10,14 @@
 // send, so a consumer must treat them apart.
 export type RPCMixnetMode = "unattached" | "switched_off" | "bootstrapping" | "ready" | "died";
 
+// Added by this app's main process, not by zingolib: a bootstrap that follows a
+// lost transport rather than the first one. Main builds the snapshot itself in
+// every state but ready, so it is the one that knows the attempts before this
+// one failed.
+export type RPCMixnetAppFields = {
+  retrying?: boolean;
+};
+
 // The stage a covered network operation failed at (zingo-net-diag NetOpStage).
 // Unit stages are kebab tokens; a timeout also carries the bound it exceeded.
 export type RPCNetOpStage =
@@ -45,4 +53,4 @@ export type RPCMixnetStatusType = {
   socks5_addr?: string;
   bootstrap_detail?: string;
   death?: RPCDeathReport;
-};
+} & RPCMixnetAppFields;

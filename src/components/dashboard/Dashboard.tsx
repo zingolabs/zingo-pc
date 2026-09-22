@@ -1,5 +1,6 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import styles from "./Dashboard.module.css";
+import { scanRangeWidthsPercent } from "./scanMap";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceBlock";
@@ -77,6 +78,14 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   // reading this must never give. Null while the figure has not been fetched,
   // which is also when the map has nothing to draw.
   const scanIsComplete: boolean = verificationProgress !== null && verificationProgress >= 100;
+
+  // Drawn to the span the ranges themselves cover — `scanRangeWidthsPercent`
+  // carries what that replaces and why.
+  const scanRanges: SyncStatusScanRangeType[] = useMemo(
+    () => syncingStatus.scan_ranges ?? [],
+    [syncingStatus.scan_ranges],
+  );
+  const scanWidths: number[] = useMemo(() => scanRangeWidthsPercent(scanRanges), [scanRanges]);
   const scanPercent: string | null =
     verificationProgress === null
       ? null
@@ -422,8 +431,8 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
             !currentWalletOpenError &&
             birthday >= 0 &&
             !!syncingStatus.scan_ranges &&
-            syncingStatus.scan_ranges.map((range: SyncStatusScanRangeType) => {
-              const percent: number = ((range.end_block - range.start_block) * 100) / (info.latestBlock - birthday);
+            scanRanges.map((range: SyncStatusScanRangeType, index: number) => {
+              const percent: number = scanWidths[index];
               return (
                 <div
                   key={`${range.start_block.toString() + "-" + range.end_block.toString()}`}

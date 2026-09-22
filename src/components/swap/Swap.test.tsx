@@ -120,3 +120,30 @@ describe("Swap arriving from the Address Book", () => {
     expect(screen.getByRole("button", { name: "Change asset, currently SOL" })).toBeInTheDocument();
   });
 });
+
+// With no connection the catalog request never reaches SwapKit, and the screen
+// used to print the transport error whole: "Error invoking remote method
+// 'swapHttp:request': TypeError: fetch failed", with no way to try again.
+describe("Swap with no way out to the provider", () => {
+  it("says the service cannot be reached, and offers to try again", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SwapKitNetworkError } = require("../../swap");
+    const listRoutableTokens = jest.fn(async () => {
+      throw new SwapKitNetworkError("quote", new TypeError("fetch failed"));
+    });
+    mockService = { listRoutableTokens };
+
+    render(
+      <Arriving
+        spendable={1}
+        handoff={{ address: "SoLcontactAddress", swapChain: "SOL", direction: SwapDirectionEnum.Outbound }}
+      />,
+    );
+
+    await act(() => new Promise((resolve) => setTimeout(resolve, 80)));
+
+    expect(screen.getByText(/Can’t reach the swap service/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Retry/ })).toBeInTheDocument();
+    expect(screen.queryByText(/fetch failed/)).not.toBeInTheDocument();
+  });
+});

@@ -1470,6 +1470,9 @@ const mixnet = {
   exits: [],
   narration: null,
   phase: "unattached", // unattached | bootstrapping | ready | switched_off | died
+  // True from the first loss until the transport is ready again or switched
+  // off: a bootstrap in between is a retry, and says so.
+  lostSinceReady: false,
   // The wallet's own published Mixnet Mode, refreshed on the renderer's poll.
   // Held rather than folded into `phase`, because `phase` is what this side
   // knows about a child process and that stays true on its own terms; this is
@@ -1527,10 +1530,12 @@ function mixnetStatusSnapshot() {
   switch (mixnet.phase) {
     case "ready":
       return readyStateOfRecord();
-    case "bootstrapping":
-      return mixnet.narration
+    case "bootstrapping": {
+      const snapshot = mixnet.narration
         ? { mode: "bootstrapping", bootstrap_detail: mixnet.narration }
         : { mode: "bootstrapping" };
+      return mixnet.lostSinceReady ? { ...snapshot, retrying: true } : snapshot;
+    }
     case "switched_off":
       return { mode: "switched_off" };
     case "died":
@@ -1581,10 +1586,17 @@ function clearMixnetReconnectTimer() {
 function cancelMixnetReconnect() {
   clearMixnetReconnectTimer();
   mixnetReconnectDelay = MIXNET_RECONNECT_BASE_MS;
+  mixnet.lostSinceReady = false;
 }
 
 function scheduleMixnetReconnect(reason) {
   if (mixnet.intent !== "on") return; // deliberately off: leave it off
+  // Every loss comes through here, and only reaching ready or switching off
+  // clears it. Without a network each attempt bootstraps for up to two
+  // minutes, fails, and starts again, and every one of them used to be
+  // reported as a first attempt — "connecting" for as long as the network
+  // stayed down, with the failures in between too brief to be seen.
+  mixnet.lostSinceReady = true;
   if (mixnetReconnectTimer !== null) return; // one already in flight
   const wait = mixnetReconnectDelay;
   console.log(`[mixnet] transport lost (${reason}); reconnecting in ${wait / 1000}s`);
@@ -1615,6 +1627,17 @@ async function attachCurrentWallet() {
     setMixnetPhase("ready");
   } catch (e) {
     console.error("[mixnet] attach failed:", e && e.message ? e.message : e);
+    // A proxy that bootstrapped but that the wallet cannot attach to carries
+    // nothing, and it is still alive, so no exit will ever report it. Left as
+    // it was, this was a dead end: the phase stayed at bootstrapping, which
+    // the status poll leaves alone by design, and nothing scheduled another
+    // try — "Mixnet connecting" for good, neither failing nor recovering, even
+    // once the network was back. It is a lost transport, and goes the way
+    // every other one does.
+    if (mixnet.intent === "on" && mixnet.phase === "bootstrapping") {
+      setMixnetPhase("died");
+      scheduleMixnetReconnect("the wallet could not attach to the proxy");
+    }
   }
 }
 

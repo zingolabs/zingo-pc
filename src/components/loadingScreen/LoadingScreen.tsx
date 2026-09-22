@@ -807,7 +807,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         // Passed rather than read back from context: `setReadOnly` has only
         // just been called, so the context still holds the previous wallet's
         // value on this tick.
-        this.getInfo(!readOnly);
+        this.getInfo(!readOnly, currentWallet.chain_name);
       }
     } catch (error) {
       console.error("Error initializing", error);
@@ -818,12 +818,12 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     }
   };
 
-  getInfo = async (canSpend: boolean) => {
+  getInfo = async (canSpend: boolean, walletChain: ServerChainNameEnum) => {
     // Try getting the info.
     try {
       const { runRPCConfigure, setInfo } = this.props;
 
-      const info: InfoClass = await RPC.getInfoObject(canSpend);
+      const info: InfoClass = await RPC.getInfoObject(canSpend, walletChain);
 
       if (info.error) {
         this.props.setFetchError("info", `${info.error}`);

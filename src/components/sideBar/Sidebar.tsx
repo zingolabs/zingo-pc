@@ -198,6 +198,8 @@ function mixnetIndicator(view: MixnetView): {
       return { colorClass: cstyles.green, icon: faCheck, label: "Mixnet ready" };
     case "mixnet.status.bootstrapping":
       return { colorClass: cstyles.yellow, icon: faSync, label: "Mixnet connecting" };
+    case "mixnet.status.retrying":
+      return { colorClass: cstyles.red, icon: faSync, label: "Mixnet unreachable, retrying" };
     case "mixnet.status.off":
       return { colorClass: cstyles.yellow, icon: faTimesCircle, label: "Mixnet off (clearnet)" };
     case "mixnet.status.died":

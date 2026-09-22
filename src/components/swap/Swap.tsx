@@ -13,6 +13,7 @@ import { native } from "../../electronBridge";
 import {
   SwapDirectionEnum,
   SwapKitHttpError,
+  SwapKitNetworkError,
   describeEmptyQuote,
   FAILED_REFRESH_RETRY_MS,
   quoteQuestionKey,
@@ -114,6 +115,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // a server having a bad day. Told apart from any other failure because the
   // way out is different: a VPN, not waiting.
   const [catalogEdgeBlocked, setCatalogEdgeBlocked] = useState<boolean>(false);
+  // The catalog request never reached SwapKit: no connection, or none that
+  // gets out. Said as that, with a way to try again, instead of the transport
+  // error's own text — "Error invoking remote method 'swapHttp:request':
+  // TypeError: fetch failed" is true and tells a user nothing they can act on.
+  const [catalogUnreachable, setCatalogUnreachable] = useState<boolean>(false);
   const [catalogRetrying, setCatalogRetrying] = useState<boolean>(false);
   const [selectedToken, setSelectedToken] = useState<TokenEntryType | null>(null);
 
@@ -229,6 +235,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       setTokensDirection(isOutbound ? SwapDirectionEnum.Outbound : SwapDirectionEnum.Inbound);
       setCatalogError("");
       setCatalogEdgeBlocked(false);
+      setCatalogUnreachable(false);
       setSelectedToken(catalog.find((t) => t.identifier === DEFAULT_TOKEN_IDENTIFIER) ?? catalog[0] ?? null);
     } catch (error) {
       if (token.cancelled) return;
@@ -236,8 +243,10 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       // An edge block gets the banner and no error line: the banner already
       // says more, and better, than the raw message would.
       const edgeBlocked = error instanceof SwapKitHttpError && error.isEdgeBlocked;
+      const unreachable = error instanceof SwapKitNetworkError;
       setCatalogEdgeBlocked(edgeBlocked);
-      setCatalogError(edgeBlocked ? "" : `${error}`);
+      setCatalogUnreachable(unreachable);
+      setCatalogError(edgeBlocked || unreachable ? "" : `${error}`);
     } finally {
       if (!token.cancelled) setCatalogRetrying(false);
     }
@@ -882,6 +891,32 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               >
                 {catalogRetrying ? "Retrying..." : "Retry"}
               </button>
+            </div>
+          )}
+
+          {/* The action on the left and what happened beside it: there is one
+              thing to do here, and a banner a line and a half tall does not
+              need to stack it underneath. */}
+          {catalogUnreachable && (
+            <div
+              className={styles.regionblockbanner}
+              style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 16 }}
+            >
+              <button
+                type="button"
+                className={cstyles.primarybutton}
+                style={{ marginLeft: 0, flexShrink: 0 }}
+                onClick={loadCatalog}
+                disabled={catalogRetrying}
+              >
+                {catalogRetrying ? "Retrying..." : "Retry"}
+              </button>
+              <div>
+                <div className={cstyles.large} style={{ marginBottom: 4 }}>
+                  Can’t reach the swap service
+                </div>
+                <div>Swaps talk to the provider over the internet, and this request did not get through.</div>
+              </div>
             </div>
           )}
 
