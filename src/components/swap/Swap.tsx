@@ -894,21 +894,29 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             </div>
           )}
 
+          {/* The action on the left and what happened beside it: there is one
+              thing to do here, and a banner a line and a half tall does not
+              need to stack it underneath. */}
           {catalogUnreachable && (
-            <div className={styles.regionblockbanner}>
-              <div className={cstyles.large} style={{ marginBottom: 4 }}>
-                Can’t reach the swap service
-              </div>
-              <div>Swaps talk to the provider over the internet, and this request did not get through.</div>
+            <div
+              className={styles.regionblockbanner}
+              style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 16 }}
+            >
               <button
                 type="button"
                 className={cstyles.primarybutton}
-                style={{ marginTop: 10, marginLeft: 0 }}
+                style={{ marginLeft: 0, flexShrink: 0 }}
                 onClick={loadCatalog}
                 disabled={catalogRetrying}
               >
                 {catalogRetrying ? "Retrying..." : "Retry"}
               </button>
+              <div>
+                <div className={cstyles.large} style={{ marginBottom: 4 }}>
+                  Can’t reach the swap service
+                </div>
+                <div>Swaps talk to the provider over the internet, and this request did not get through.</div>
+              </div>
             </div>
           )}
 
