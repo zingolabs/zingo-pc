@@ -403,8 +403,24 @@ export default class RPC {
     throw new Error(`unexpected confirm result: ${JSON.stringify(confirmJSON)}`);
   }
 
-  // Special method to get the Info object. This is used both internally and by the Loading screen
-  static async getInfoObject(canSpend: boolean): Promise<InfoClass> {
+  /**
+   * The currency a wallet counts in, from the chain the wallet belongs to.
+   *
+   * It is a fact about the wallet, not about the server: the wallet file lives
+   * under its chain and was opened for it. It was read from the server's
+   * answer instead, so a wallet without a connection lost its currency and
+   * every amount on screen went unlabelled — ZEC or TAZ was not something the
+   * app could say offline, though nothing about it had changed.
+   */
+  static currencyForChain(chain: ServerChainNameEnum | undefined): string {
+    if (!chain) return "";
+    return chain === ServerChainNameEnum.mainChainName ? "ZEC" : "TAZ";
+  }
+
+  // Special method to get the Info object. This is used both internally and by the Loading screen.
+  // `walletChain` is the chain of the wallet being shown, which decides its currency whether or
+  // not the server answers; `chainName` stays the server's own, which is what "Server Network" means.
+  static async getInfoObject(canSpend: boolean, walletChain?: ServerChainNameEnum): Promise<InfoClass> {
     try {
       const infostr: string = await native.info_server();
       if (!infostr) {
@@ -412,6 +428,7 @@ export default class RPC {
         // Empty server info (e.g. offline): keep the Ironwood banners from the
         // local reads.
         const offlineInfo = new InfoClass(infostr);
+        offlineInfo.currencyName = RPC.currencyForChain(walletChain);
         await RPC.populateLocalIronwoodFields(offlineInfo, canSpend);
         return offlineInfo;
       }
@@ -424,7 +441,7 @@ export default class RPC {
       info.serverUri = infoJSON.server_uri;
       info.version = `${infoJSON.vendor}/${infoJSON.git_commit ? infoJSON.git_commit.substring(0, 6) : ""}/${infoJSON.version}`;
       info.zcashdVersion = "Not Available";
-      info.currencyName = info.chainName === ServerChainNameEnum.mainChainName ? "ZEC" : "TAZ";
+      info.currencyName = RPC.currencyForChain(walletChain ?? info.chainName);
       info.solps = 0;
 
       // ZEC price lives outside InfoClass (see `getZecPrice` below) and is
@@ -449,6 +466,7 @@ export default class RPC {
       // on LOCAL wallet state, not server facts. Guard so a local-read hiccup
       // can't mask the original error path.
       const info = new InfoClass("Error: to parse info " + err);
+      info.currencyName = RPC.currencyForChain(walletChain);
       try {
         await RPC.populateLocalIronwoodFields(info, canSpend);
       } catch (e) {
@@ -551,7 +569,7 @@ export default class RPC {
   }
 
   async fetchInfo(): Promise<void> {
-    const info: InfoClass = await RPC.getInfoObject(!this.readOnly);
+    const info: InfoClass = await RPC.getInfoObject(!this.readOnly, this.currentWallet?.chain_name);
 
     this.fnSetInfo(info);
   }

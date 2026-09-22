@@ -60,7 +60,10 @@ export function deriveMixnetView(status: RPCMixnetStatusType): MixnetView {
       };
     case "bootstrapping":
       return {
-        statusKey: "mixnet.status.bootstrapping",
+        // The same bootstrap either way; what differs is what the user is
+        // told. A first attempt is connecting. One that follows a loss is a
+        // transport that cannot be reached and keeps being tried.
+        statusKey: status.retrying ? "mixnet.status.retrying" : "mixnet.status.bootstrapping",
         socks5Addr: null,
         narration: status.bootstrap_detail || null,
         sendBlocked: true,
@@ -113,6 +116,8 @@ export function describeSendRoute(view: MixnetView): string {
       return "This send will travel over clearnet — the Nym mixnet is off for this session.";
     case "mixnet.status.bootstrapping":
       return `Sending waits for the Nym mixnet to finish connecting${view.narration ? ` (${view.narration})` : ""}.`;
+    case "mixnet.status.retrying":
+      return "Sending waits for the Nym mixnet, which cannot be reached right now and keeps being retried. Switch it off to send over clearnet.";
     default:
       return "Sending waits for the Nym mixnet. Re-enable it from Settings, or switch it off to send over clearnet.";
   }

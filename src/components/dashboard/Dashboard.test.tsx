@@ -365,3 +365,32 @@ describe("Dashboard", () => {
     });
   });
 });
+
+// The map was scaled by the server's tip, which is 0 with no connection: every
+// width came out negative and the map disappeared, while its legend and its
+// percentage — both read from the wallet, not the server — stayed on screen
+// describing a map that was not there.
+describe("Dashboard scanning map without a connection", () => {
+  const ranges = [
+    { start_block: 100, end_block: 200, priority: SyncStatusScanRangePriorityEnum.Scanned },
+    { start_block: 200, end_block: 300, priority: SyncStatusScanRangePriorityEnum.Scanning },
+  ];
+
+  const renderOffline = () =>
+    render(<Dashboard navigateToHistory={jest.fn()} />, {
+      contextOverrides: {
+        currentWallet: makeWallet(),
+        info: makeInfo({ latestBlock: 0 }),
+        birthday: 100,
+        syncingStatus: { scan_ranges: ranges } as any,
+        verificationProgress: 100,
+      },
+    });
+
+  it("keeps the legend and the percentage it belongs to", () => {
+    renderOffline();
+
+    expect(screen.getByText("Nonlinear Scanning Map")).toBeInTheDocument();
+    expect(screen.getByText("100% synced")).toBeInTheDocument();
+  });
+});

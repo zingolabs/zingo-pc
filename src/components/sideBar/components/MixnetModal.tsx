@@ -17,6 +17,7 @@ type MixnetModalProps = {
 const STATUS_TEXT: Record<string, string> = {
   "mixnet.status.ready": "Ready",
   "mixnet.status.bootstrapping": "Connecting",
+  "mixnet.status.retrying": "Unreachable — retrying",
   "mixnet.status.off": "Off (clearnet)",
   "mixnet.status.unattached": "Not connected",
   "mixnet.status.died": "Disconnected",
@@ -30,7 +31,9 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
   // Active while the transport is up or coming up; anything else (off,
   // unattached, died) offers Enable so a failed start can be retried.
   const active =
-    mixnetView.statusKey === "mixnet.status.ready" || mixnetView.statusKey === "mixnet.status.bootstrapping";
+    mixnetView.statusKey === "mixnet.status.ready" ||
+    mixnetView.statusKey === "mixnet.status.bootstrapping" ||
+    mixnetView.statusKey === "mixnet.status.retrying";
   const off = mixnetView.statusKey === "mixnet.status.off";
   const deathStory: string | null = describeMixnetDeath(mixnetView.death);
   // The transport is absent and nobody consented to clearnet, so sends refuse.

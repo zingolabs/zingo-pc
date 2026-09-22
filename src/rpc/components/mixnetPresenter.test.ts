@@ -152,3 +152,32 @@ describe("describeMixnetDeath", () => {
     expect(describeMixnetDeath(null)).toBeNull();
   });
 });
+
+// Without a network the transport bootstraps for up to two minutes, fails, and
+// starts again; every attempt used to read as the first one, so the sidebar
+// said "connecting" for as long as the network stayed down. Main marks a
+// bootstrap that follows a loss, and that one says what it is.
+describe("a bootstrap that follows a lost transport", () => {
+  it("is its own state, not another first attempt", () => {
+    const first = deriveMixnetView({ mode: "bootstrapping" });
+    const again = deriveMixnetView({ mode: "bootstrapping", retrying: true });
+
+    expect(first.statusKey).toBe("mixnet.status.bootstrapping");
+    expect(again.statusKey).toBe("mixnet.status.retrying");
+  });
+
+  it("still refuses a send, and still keeps its narration", () => {
+    const view = deriveMixnetView({ mode: "bootstrapping", retrying: true, bootstrap_detail: "3 of 5 hops" });
+
+    expect(view.sendBlocked).toBe(true);
+    expect(view.narration).toBe("3 of 5 hops");
+    expect(view.recovery).toBe("wait");
+  });
+
+  it("says the mixnet cannot be reached, and how to send anyway", () => {
+    const text = describeSendRoute(deriveMixnetView({ mode: "bootstrapping", retrying: true }));
+
+    expect(text).toMatch(/cannot be reached/);
+    expect(text).toMatch(/switch it off to send over clearnet/i);
+  });
+});
