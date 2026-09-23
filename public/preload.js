@@ -58,7 +58,6 @@ const _ALL_NATIVE_METHODS = [
   "deinitialize",
   "get_developer_donation_address",
   "get_zennies_for_zingo_donation_address",
-  "ensure_crypto_default_provider",
   // async with params
   "get_latest_block_server",
   "parse_address",

@@ -123,7 +123,6 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("check_save_error", check_save_error)?;
     cx.export_function("get_developer_donation_address", get_developer_donation_address)?;
     cx.export_function("get_zennies_for_zingo_donation_address", get_zennies_for_zingo_donation_address)?;
-    cx.export_function("ensure_crypto_default_provider", ensure_crypto_default_provider)?;
     cx.export_function("get_seed", get_seed)?;
     cx.export_function("get_ufvk", get_ufvk)?;
     cx.export_function("get_latest_block_server", get_latest_block_server)?;
@@ -915,24 +914,6 @@ fn get_zennies_for_zingo_donation_address(mut cx: FunctionContext) -> JsResult<J
         let resp = zingolib::ZENNIES_FOR_ZINGO_DONATION_ADDRESS.to_string();
 
         Ok(resp)
-    });
-
-    match res {
-        Ok(v) => Ok(cx.string(v)),
-        Err(e) => cx.throw_error(e.to_string()),
-    }
-}
-
-/// Makes sure the process has a rustls provider before anything opens a TLS
-/// connection. The install is zingolib's own: it asks for aws-lc-rs with
-/// X25519MLKEM768, ML-KEM exists on no other provider, and rustls keeps
-/// whichever provider lands first, so a second installer here could only
-/// take that handshake away. Guarded and idempotent, so calling it beside
-/// zingolib's own calls is free.
-fn ensure_crypto_default_provider(mut cx: FunctionContext) -> JsResult<JsString> {
-    let res: Result<String, ZingolibError> = with_panic_guard(|| {
-        zingolib::ensure_default_crypto_provider();
-        Ok("true".to_string())
     });
 
     match res {

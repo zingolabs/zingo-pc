@@ -124,13 +124,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
 
     this.armWatchdog();
 
-    this.setStep("initialising crypto provider");
-    try {
-      await native.ensure_crypto_default_provider();
-    } catch (error) {
-      console.error(`Critical Error crypto provider default ${error}`);
-    }
-
     // A throw in here used to end the launch silently: the promise rejected,
     // componentDidMount stopped, and the app sat on this screen for good — no
     // message, and menu clicks doing nothing because the renderer never got as
