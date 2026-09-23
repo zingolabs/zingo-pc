@@ -126,7 +126,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
 
     this.setStep("initialising crypto provider");
     try {
-      await native.set_crypto_default_provider_to_ring();
+      await native.ensure_crypto_default_provider();
     } catch (error) {
       console.error(`Critical Error crypto provider default ${error}`);
     }

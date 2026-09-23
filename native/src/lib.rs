@@ -46,15 +46,6 @@ use once_cell::sync::Lazy;
 
 use bip0039::Mnemonic;
 use json::object;
-// aws-lc-rs, not ring. The zingolib feat/ironwood workspace (this commit)
-// documents aws-lc-rs as its SOLE rustls CryptoProvider — "ring is excised" —
-// and enables prefer-post-quantum (X25519MLKEM768). Both zingo-netutils (gRPC
-// sync) and zingo-price (the Gemini price fetch) install aws-lc-rs first-
-// install-wins. Installing `ring` here pre-empts that: sync still connects with
-// classical kx, but the price handshake wants PQ groups ring lacks and fails.
-// (The exported fn name `set_crypto_default_provider_to_ring` is kept for the
-// JS caller; despite the name it now installs aws-lc-rs.)
-use rustls::crypto::{CryptoProvider, aws_lc_rs::default_provider};
 
 use zcash_address::unified::{Container, Encoding, Ufvk};
 use zcash_keys::address::Address;
@@ -132,7 +123,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("check_save_error", check_save_error)?;
     cx.export_function("get_developer_donation_address", get_developer_donation_address)?;
     cx.export_function("get_zennies_for_zingo_donation_address", get_zennies_for_zingo_donation_address)?;
-    cx.export_function("set_crypto_default_provider_to_ring", set_crypto_default_provider_to_ring)?;
+    cx.export_function("ensure_crypto_default_provider", ensure_crypto_default_provider)?;
     cx.export_function("get_seed", get_seed)?;
     cx.export_function("get_ufvk", get_ufvk)?;
     cx.export_function("get_latest_block_server", get_latest_block_server)?;
@@ -932,17 +923,16 @@ fn get_zennies_for_zingo_donation_address(mut cx: FunctionContext) -> JsResult<J
     }
 }
 
-fn set_crypto_default_provider_to_ring(mut cx: FunctionContext) -> JsResult<JsString> {
+/// Makes sure the process has a rustls provider before anything opens a TLS
+/// connection. The install is zingolib's own: it asks for aws-lc-rs with
+/// X25519MLKEM768, ML-KEM exists on no other provider, and rustls keeps
+/// whichever provider lands first, so a second installer here could only
+/// take that handshake away. Guarded and idempotent, so calling it beside
+/// zingolib's own calls is free.
+fn ensure_crypto_default_provider(mut cx: FunctionContext) -> JsResult<JsString> {
     let res: Result<String, ZingolibError> = with_panic_guard(|| {
-        CryptoProvider::get_default().map_or_else(
-            || match default_provider().install_default() {
-                Ok(_) => Ok("true".to_string()),
-                Err(_) => Err(ZingolibError::Init(
-                    "failed to install crypto provider".to_string(),
-                )),
-            },
-            |_| Ok("true".to_string()),
-        )
+        zingolib::ensure_default_crypto_provider();
+        Ok("true".to_string())
     });
 
     match res {

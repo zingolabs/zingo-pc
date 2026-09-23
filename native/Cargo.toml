@@ -102,11 +102,6 @@ serde_json = "1"
 hex = "0.4"
 http = "1"
 tokio = "1"
-# aws_lc_rs, not ring: the zingolib feat/ironwood workspace excised ring and
-# uses aws-lc-rs as its sole rustls CryptoProvider (with prefer-post-quantum).
-# zingo-netutils (sync) and zingo-price (Gemini fetch) both install aws-lc-rs;
-# we must install the same default or the price handshake fails. See lib.rs.
-rustls = { version = "0.23", features = ["aws_lc_rs"] }
 
 # zingo-price fetches the ZEC price over HTTPS with reqwest built as
 # `rustls-tls-no-provider`, which resolves to `rustls-tls-manual-roots` — an
