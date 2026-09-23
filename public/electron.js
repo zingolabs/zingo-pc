@@ -1322,7 +1322,7 @@ function setWalletBaseDirInMainProcess(walletPath, wdLog) {
 
 // ── zingolib native IPC handlers (async no-param methods) ─────────────────
 // These route native.node calls from the renderer through the main process.
-// Sync no-param methods (deinitialize, set_crypto_default_provider_to_ring, etc.)
+// Sync no-param methods (deinitialize, etc.)
 // and methods with parameters are handled in subsequent refactor phases.
 const _NATIVE_NO_PARAM_METHODS = [
   "save_wallet_file",
@@ -1383,7 +1383,6 @@ for (const method of [
   "deinitialize",
   "get_developer_donation_address",
   "get_zennies_for_zingo_donation_address",
-  "set_crypto_default_provider_to_ring",
 ]) {
   ipcMain.handle(`native:${method}`, () => requireNative(method)[method]());
 }

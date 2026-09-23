@@ -48,7 +48,6 @@ beforeEach(() => {
   // componentDidMount calls these — return false/empty so it doesn't try to init wallets
   (native.wallet_exists as jest.Mock).mockResolvedValue(false);
   (native.wallet_kind as jest.Mock).mockResolvedValue("");
-  (native.set_crypto_default_provider_to_ring as jest.Mock).mockResolvedValue(undefined);
   (native.get_latest_block_server as jest.Mock).mockReset().mockResolvedValue("0");
   (ipcRenderer.invoke as jest.Mock).mockResolvedValue([]);
   // Registry silent by default, so every test that doesn't care about it runs
