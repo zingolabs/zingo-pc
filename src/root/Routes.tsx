@@ -44,6 +44,7 @@ import { SwapServiceProvider } from "../context/ContextSwapService";
 
 import { native } from "../electronBridge";
 import { userFacingError } from "../utils/userFacingError";
+import { shieldQuoteSaysNotYet } from "../utils/shieldQuote";
 import { Messages } from "../components/messages";
 import { OrchardMigration } from "../components/orchardMigration";
 import { RPCIronwoodDrainType } from "../rpc/components/RPCIronwoodDrainType";
@@ -579,13 +580,18 @@ const AppRoutes: React.FC = () => {
       }
       const resultJSON = JSON.parse(result);
       if (resultJSON.error) {
-        setFetchError("Shield", userFacingError(resultJSON.error));
+        // A quote the wallet cannot give yet is an answer, not a fault: see
+        // `shieldQuoteSaysNotYet`. No fee means no button, which is the right
+        // screen either way.
+        const reason: string = userFacingError(resultJSON.error);
+        if (!shieldQuoteSaysNotYet(reason)) setFetchError("Shield", reason);
         return 0;
       }
       return resultJSON.fee ? resultJSON.fee / 10 ** 8 : 0;
     } catch (error) {
       console.error(`Critical Error calculate shield fee ${error}`);
-      setFetchError("Shield", userFacingError(error));
+      const reason: string = userFacingError(error);
+      if (!shieldQuoteSaysNotYet(reason)) setFetchError("Shield", reason);
       return 0;
     }
   }, [setFetchError]);
