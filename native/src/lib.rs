@@ -563,6 +563,12 @@ fn construct_uri_load_config(
         sync_config: SyncConfig {
             transparent_address_discovery: TransparentAddressDiscovery::minimal(),
             performance_level: performancetype,
+            // Continuous sync (zingolib ADR 0051): reaching the tip leaves the
+            // engine running, checking for new blocks, instead of returning and
+            // waiting to be launched again. It is what zingolib defaults to,
+            // written here so this app says what it wants rather than
+            // inheriting it.
+            shutdown_on_completion: false,
         },
         // `min_confirmations` comes from the renderer through IPC. Reject 0 (and
         // anything that casts to 0 — negatives, NaN, fractional values <1) instead
@@ -2452,17 +2458,14 @@ fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
     })
 }
 
-fn get_spendable_balance_with_address_string(address: String, zennies: String) -> Result<String, ZingolibError> {
+fn get_spendable_balance_with_address_string(address: String) -> Result<String, ZingolibError> {
     with_initialized_lightclient_read(|lightclient| {
         let address = address_from_str(&address).map_err(|e| {
             ZingolibError::Read(format!("unknown address format. {}", cause_chain(&e)))
         })?;
-        let zennies = zennies.parse().map_err(|e| {
-            ZingolibError::Read(format!("failed to parse zennies setting. {e}"))
-        })?;
         RT.block_on(async move {
             match lightclient
-                .max_send_value(address, zennies, AccountId::ZERO)
+                .max_send_value(address, AccountId::ZERO)
                 .await
             {
                 Ok(bal) => {
@@ -2476,9 +2479,8 @@ fn get_spendable_balance_with_address_string(address: String, zennies: String) -
 
 fn get_spendable_balance_with_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let address = cx.argument::<JsString>(0)?.value(&mut cx);
-    let zennies = cx.argument::<JsString>(1)?.value(&mut cx);
 
-    spawn_promise(&mut cx, move || get_spendable_balance_with_address_string(address, zennies))
+    spawn_promise(&mut cx, move || get_spendable_balance_with_address_string(address))
 }
 
 fn get_spendable_balance_total_string() -> Result<String, ZingolibError> {

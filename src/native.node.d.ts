@@ -71,7 +71,7 @@ export function mixnet_status(): Promise<string>;
 export function attach_mixnet(socks5_addr: string, exits: string[]): Promise<string>;
 export function stop_mixnet(): Promise<string>;
 export function remove_transaction(txid: string): Promise<string>;
-export function get_spendable_balance_with_address(address: string, zennies: string): Promise<string>;
+export function get_spendable_balance_with_address(address: string): Promise<string>;
 export function get_spendable_balance_total(): Promise<string>;
 export function set_option_wallet(): Promise<string>;
 export function get_unified_addresses(): Promise<string>;

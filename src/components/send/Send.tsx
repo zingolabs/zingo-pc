@@ -63,7 +63,7 @@ async function calculateSpendable(
     return { spendable: trimSpendable(totalSpendableBalance), error: "" };
   }
   try {
-    const result: string = await native.get_spendable_balance_with_address(address, "false");
+    const result: string = await native.get_spendable_balance_with_address(address);
     if (!result) {
       return { spendable: 0, error: "" };
     }

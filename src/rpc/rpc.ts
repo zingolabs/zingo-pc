@@ -614,11 +614,12 @@ export default class RPC {
       if (returnPoll.toLowerCase().startsWith("sync task is not complete")) {
         console.log("SYNC POLL -> FETCH STATUS", returnPoll);
         void this.fetchSyncStatus();
-        console.log("SYNC POLL -> RUN SYNC", returnPoll);
-        // I don't trust in this message, when the tx is stuck in Trasmitted
-        // this is the message I got & after that the status says 100% complete
-        // this is not true, here Just in case, I need to run the sync again.
-        void this.refreshSync();
+        // No relaunch. A running engine answers "not complete" for as long as
+        // it runs, and under continuous sync (zingolib ADR 0051) that is the
+        // whole session: reaching the tip no longer ends it. Asking it to
+        // launch again every five seconds only takes the wallet lock to be
+        // told it is already running. A session that does end leaves
+        // "not launched" behind, and the branch above starts the next one.
         return;
       }
 
