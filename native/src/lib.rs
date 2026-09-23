@@ -1307,8 +1307,24 @@ fn stop_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     })
 }
 
+/// The sync engine's status: the one it last published, or computed from the
+/// wallet when it has published none.
+///
+/// The engine publishes on every scan result and on every new-block check
+/// (zingolib #2773 exposed the receiver it publishes through), and
+/// `latest_sync_status` is a clone of that value — no wallet lock, nothing
+/// recomputed. This endpoint is on the five-second cycle, and it was doing the
+/// whole computation over the wallet every time to arrive at what the engine
+/// had already worked out.
+///
+/// The fallback is what answers before a session has published anything: a
+/// wallet just opened, or one whose engine is not running. That case is worth
+/// the computation, which is why it is still here.
 fn status_sync_string() -> Result<String, ZingolibError> {
     with_initialized_lightclient_read(|lightclient| {
+        if let Some(published) = lightclient.latest_sync_status() {
+            return Ok(json::JsonValue::from(published).pretty(2));
+        }
         RT.block_on(async move {
             match pepper_sync::sync_status(&*lightclient.wallet().read().await).await {
                 Ok(status) => Ok(json::JsonValue::from(status).pretty(2)),
