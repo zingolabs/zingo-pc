@@ -452,14 +452,36 @@ where
     f(&mut guard)
 }
 
+/// Ends the outgoing client's sync session before the client is dropped.
+///
+/// Dropping a `LightClient` does not end its sync engine: the engine runs as a
+/// detached task on `RT`, and the handle the client holds only detaches it when
+/// it goes. Until continuous sync that was invisible, because an engine reached
+/// the chain tip and returned on its own; now it never does. Every wallet this
+/// session opened — a server change is one, and each opens the wallet again —
+/// left its engine scanning a wallet nobody reads any more, and talking to the
+/// server the user had just walked away from, for as long as the app stayed up.
+///
+/// Setting the mode is all it takes: the engine reads it on its next tick and
+/// winds itself down, so no one has to wait here for it.
+fn retire_client(slot: &Option<LightClient>) {
+    if let Some(outgoing) = slot {
+        // `SyncNotRunning` is the ordinary case — a client that never synced,
+        // or one whose engine has already ended.
+        let _ = outgoing.stop_sync();
+    }
+}
+
 fn reset_lightclient() {
     with_lightclient_write(|slot| {
+        retire_client(slot);
         *slot = None;
     });
 }
 
 fn store_client(lightclient: LightClient) -> Result<(), ZingolibError> {
     with_lightclient_write(|slot| {
+        retire_client(slot);
         *slot = Some(lightclient);
     });
     Ok(())
