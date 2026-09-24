@@ -15,7 +15,6 @@ import {
   TotalBalanceClass,
   ValueTransferClass,
   ValueTransferKindEnum,
-  ValueTransferStatusEnum,
 } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
@@ -45,7 +44,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
     orchardPool,
     saplingPool,
     transparentPool,
-    calculateShieldFee,
     zecPrice,
     reopenWallet,
     verificationProgress,
@@ -113,8 +111,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
 
   const { paneRef, paneOffset } = usePaneOffset(260);
 
-  const [anyPending, setAnyPending] = useState<boolean>(false);
-  const [shieldFee, setShieldFee] = useState<number>(0);
   // Optimistically hide the "complete" banner the instant Dismiss is clicked;
   // cancelIronwoodMigration clears the persisted state so the next info refresh
   // keeps it hidden too (a completed migration lingers as phase "complete" until
@@ -154,27 +150,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
   // show five older transfers while the swap that just left the wallet sat
   // above all of them on the History page.
   const recentTransfers = useValueTransfersWithSwaps(valueTransfers);
-
-  useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
-    // avoid failed txs because always they have 0 confirmations.
-    const pending: number =
-      valueTransfers.length > 0
-        ? valueTransfers
-            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
-            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
-        : 0;
-    setAnyPending(pending > 0);
-  }, [valueTransfers]);
-
-  useEffect(() => {
-    // with confirmed transparent funds & no readonly wallet
-    if (totalBalance.confirmedTransparentBalance > 0 && !readOnly && !anyPending) {
-      (async () => {
-        setShieldFee(await calculateShieldFee());
-      })();
-    }
-  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   return (
     <div>
@@ -398,7 +373,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
               Enable Mixnet Mode to see them.
             </div>
           )}
-          <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
+          <ShieldBalance />
           {!!fetchError && !!fetchError.error && (
             <>
               <hr />

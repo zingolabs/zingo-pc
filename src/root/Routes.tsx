@@ -570,6 +570,8 @@ const AppRoutes: React.FC = () => {
   // given — transparent funds the wallet could not shield and a wallet that
   // simply refused to quote looked identical. The reason goes to the banner;
   // the number still says "no button".
+  const [shieldQuoteReason, setShieldQuoteReason] = useState<string>("");
+
   const calculateShieldFee = useCallback(async (): Promise<number> => {
     try {
       // Proposing is how the fee is asked for, and zingolib stores the
@@ -577,6 +579,7 @@ const AppRoutes: React.FC = () => {
       const result: string = await native.shield();
       if (!result) {
         setFetchError("Shield", "the wallet returned no shielding quote");
+        setShieldQuoteReason("the wallet returned no shielding quote");
         return 0;
       }
       const resultJSON = JSON.parse(result);
@@ -585,17 +588,22 @@ const AppRoutes: React.FC = () => {
         // `shieldQuoteSaysNotYet`. No fee means no button, which is the right
         // screen either way.
         const reason: string = userFacingError(resultJSON.error);
-        // Banner or not, it is said once here: a refusal that only removes the
-        // button leaves a screen with no button and no reason anywhere, which
-        // is exactly the report that sent us looking for this.
+        // Said in three places, because each answers a different question: the
+        // log for a report, the banner for a fault, and the shield block for
+        // the user looking at transparent funds and no button. The refusals
+        // kept off the banner are ordinary states rather than faults — and
+        // they are precisely the ones that used to leave the screen silent.
         console.log(`Shield quote refused: ${reason}`);
+        setShieldQuoteReason(reason);
         if (!shieldQuoteSaysNotYet(reason)) setFetchError("Shield", reason);
         return 0;
       }
+      setShieldQuoteReason("");
       return resultJSON.fee ? resultJSON.fee / 10 ** 8 : 0;
     } catch (error) {
       console.error(`Critical Error calculate shield fee ${error}`);
       const reason: string = userFacingError(error);
+      setShieldQuoteReason(reason);
       if (!shieldQuoteSaysNotYet(reason)) setFetchError("Shield", reason);
       return 0;
     } finally {
@@ -717,6 +725,7 @@ const AppRoutes: React.FC = () => {
       setSendTo,
       setSwapTo,
       calculateShieldFee,
+      shieldQuoteReason,
       handleShieldButton,
       addAddressBookEntry,
       zecPrice,
@@ -767,6 +776,7 @@ const AppRoutes: React.FC = () => {
       setSendTo,
       setSwapTo,
       calculateShieldFee,
+      shieldQuoteReason,
       handleShieldButton,
       addAddressBookEntry,
       zecPrice,

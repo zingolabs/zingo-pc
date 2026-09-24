@@ -131,7 +131,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
     currentWallet,
     addressBook,
     openConfirmModal,
-    calculateShieldFee,
     zecPrice,
     mixnetView,
   } = context;
@@ -148,9 +147,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
   const [totalAmountAvailable, setTotalAmountAvailable] = useState<number>(0);
   const [tooltip, setTooltip] = useState<string>("");
 
-  const [anyPending, setAnyPending] = useState<boolean>(false);
-  const [shieldFee, setShieldFee] = useState<number>(0);
-
   // Each row's own verdict, keyed by the row's id.
   const [rowStatuses, setRowStatuses] = useState<{ [id: number]: RecipientStatusType }>({});
   // The row being edited. The others fold to one line.
@@ -160,25 +156,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
   const serverChainName: ServerChainNameEnum = currentWallet
     ? currentWallet.chain_name
     : ServerChainNameEnum.mainChainName;
-
-  useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
-    const pending: number =
-      valueTransfers.length > 0
-        ? valueTransfers
-            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
-            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
-        : 0;
-    setAnyPending(pending > 0);
-  }, [valueTransfers]);
-
-  useEffect(() => {
-    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly && !anyPending) {
-      (async () => {
-        setShieldFee(await calculateShieldFee());
-      })();
-    }
-  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   useEffect(() => {
     let _tooltip: string = "";
@@ -560,7 +537,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
             tooltip={tooltip}
           />
         </div>
-        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
+        <ShieldBalance />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
