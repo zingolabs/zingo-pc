@@ -18,13 +18,6 @@ mod lock_discipline_tests;
 /// How long a single indexer request may take before it is abandoned.
 const INDEXER_REQUEST_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30);
 
-/// How long the reachability probe in `change_server` may take.
-///
-/// Short on purpose: it runs off the lock, and its whole job is to decide
-/// whether the dial that follows is worth taking the lock for. A server that
-/// cannot answer a handshake in five seconds is not the one to switch to.
-const SERVER_DIAL_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(5);
-
 static WALLET_BASE_DIR: once_cell::sync::OnceCell<std::path::PathBuf> = once_cell::sync::OnceCell::new();
 
 /// How much room a refreshed security-scoped bookmark gets, base64 encoded.
@@ -34,7 +27,6 @@ const REFRESHED_BOOKMARK_CAP: usize = 16 * 1024;
 use neon::prelude::*;
 
 use std::num::NonZeroU32;
-use std::str::FromStr;
 use std::sync::RwLock;
 use std::fs::remove_file;
 use std::any::Any;
@@ -135,7 +127,6 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("status_sync", status_sync)?;
     cx.export_function("run_rescan", run_rescan)?;
     cx.export_function("info_server", info_server)?;
-    cx.export_function("change_server", change_server)?;
     cx.export_function("wallet_kind", wallet_kind)?;
     cx.export_function("parse_address", parse_address)?;
     cx.export_function("parse_ufvk", parse_ufvk)?;
@@ -1331,9 +1322,19 @@ fn run_rescan(mut cx: FunctionContext) -> JsResult<JsPromise> {
 
 fn info_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
+        // `info` takes the client mutably, so this holds the exclusive lock
+        // across a network call — and a call that never returns holds it for
+        // good. That is how a connection that died silently froze the whole
+        // wallet with nothing in red: this waited, and every other endpoint
+        // waited behind it. Bounded like every other indexer request here, so
+        // the worst it can do is fail.
         with_initialized_lightclient(|lightclient| {
             RT.block_on(async move {
-                match lightclient.info().await {
+                let answer = match tokio::time::timeout(INDEXER_REQUEST_TIMEOUT, lightclient.info()).await {
+                    Ok(answer) => answer,
+                    Err(_) => return Err(ZingolibError::Read("the server did not answer in time".to_string())),
+                };
+                match answer {
                     // `ServerInfo` doesn't derive `Serialize` (and its
                     // `server_uri` is an `http::Uri`), so build the JSON
                     // the renderer expects (`RPCInfoType`) by hand.
@@ -1352,72 +1353,6 @@ fn info_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Err(e) => Err(ZingolibError::Read(cause_chain(&e))),
                 }
             })
-        })
-    })
-}
-
-fn change_server(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
-
-    spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
-        let is_default = server_uri.is_empty();
-        let uri = if is_default {
-            http::Uri::default()
-        } else {
-            match http::Uri::from_str(&server_uri) {
-                Ok(uri) => uri,
-                // Which part of what the user typed is invalid — a missing
-                // scheme reads nothing like a bad port.
-                Err(e) => {
-                    return Ok(
-                        object! { "error" => format!("invalid server uri. {}", cause_chain(&e)) }
-                            .pretty(2),
-                    );
-                }
-            }
-        };
-
-        // Reachability is decided before the lock is taken, which is the
-        // whole point of doing it here rather than inside the closure below.
-        // `set_indexer_uri` really (re)connects, so a switch to a server
-        // that has stopped answering would otherwise hold the exclusive
-        // lock for as long as the dial takes to give up, and every other
-        // endpoint would queue behind it.
-        //
-        // No user reaches that today: the renderer switches servers by
-        // reopening the wallet, not through here (see `switchServer` in
-        // Routes.tsx), so this endpoint is currently unused. It is written
-        // this way so that whoever wires it up does not inherit the freeze.
-        //
-        // The default uri is Offline Mode and has nothing to dial.
-        if !is_default {
-            let reachable = RT.block_on(async {
-                tokio::time::timeout(SERVER_DIAL_TIMEOUT, GrpcIndexer::new(uri.clone())).await
-            });
-            if !matches!(reachable, Ok(Ok(_))) {
-                return Ok(object! { "error" => "server did not answer" }.pretty(2));
-            }
-        }
-
-        with_initialized_lightclient(|lightclient| {
-            // The probe just connected, so this one is short. It is still
-            // bounded: between the probe and here the server is free to
-            // stop answering, and that must not become a held lock.
-            //
-            // Success and failure both cross as structured JSON — never
-            // error prose.
-            Ok(RT.block_on(async move {
-                match tokio::time::timeout(SERVER_DIAL_TIMEOUT, lightclient.set_indexer_uri(uri))
-                    .await
-                {
-                    Ok(Ok(_)) => object! {
-                        "status" => if is_default { "server set (default)" } else { "server set" }
-                    }
-                    .pretty(2),
-                    Ok(Err(e)) => object! { "error" => cause_chain(&e) }.pretty(2),
-                    Err(_) => object! { "error" => "server stopped answering" }.pretty(2),
-                }
-            }))
         })
     })
 }
