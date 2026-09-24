@@ -561,7 +561,13 @@ fn construct_uri_load_config(
 
     let wallet_settings = WalletSettings {
         sync_config: SyncConfig {
-            transparent_address_discovery: TransparentAddressDiscovery::minimal(),
+            // The gap limit decides how far past the last address in use the
+            // scan keeps looking. At 1 a wallet whose owner skipped an address
+            // stops there and misses everything beyond it, which is the fault
+            // Arlo reported. The default looks ten ahead; what made 1 tempting
+            // was the cost of the discovery pass, and continuous sync pays that
+            // once per session rather than once per launch.
+            transparent_address_discovery: TransparentAddressDiscovery::default(),
             performance_level: performancetype,
             // Continuous sync (zingolib ADR 0051): reaching the tip leaves the
             // engine running, checking for new blocks, instead of returning and
@@ -806,6 +812,22 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
         let has_seed = RT.block_on(async {
             lightclient.wallet().read().await.mnemonic_phrase().is_some()
         });
+
+        // A wallet opened here carries the gap limit it was created with, and
+        // every wallet this app made until now was made with 1: the scan stops
+        // one address past the last one in use, so an owner who skipped an
+        // address loses sight of everything beyond it. Raised to the default
+        // on open, never lowered, so a wallet that already looks further keeps
+        // doing so.
+        RT.block_on(async {
+            let mut wallet = lightclient.wallet().write().await;
+            let wanted = TransparentAddressDiscovery::default().gap_limit;
+            if wallet.wallet_settings.sync_config.transparent_address_discovery.gap_limit < wanted {
+                wallet.wallet_settings.sync_config.transparent_address_discovery.gap_limit = wanted;
+                wallet.mark_dirty();
+            }
+        });
+
         // save the wallet file here
         RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
