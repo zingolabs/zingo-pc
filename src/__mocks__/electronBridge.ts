@@ -19,6 +19,7 @@ export const native = {
   send: jest.fn(),
   confirm: jest.fn(),
   shield: jest.fn(),
+  clear_proposal: jest.fn(),
   get_spendable_balance_with_address: jest.fn(),
   // History
   remove_transaction: jest.fn(),

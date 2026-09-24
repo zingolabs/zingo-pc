@@ -1357,6 +1357,7 @@ const _NATIVE_NO_PARAM_METHODS = [
   "get_wallet_version",
   "shield",
   "confirm",
+  "clear_proposal",
   "drain_orchard_to_ironwood",
   "drain_status",
   "get_ironwood_activation_height",

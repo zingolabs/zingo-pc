@@ -572,6 +572,8 @@ const AppRoutes: React.FC = () => {
   // the number still says "no button".
   const calculateShieldFee = useCallback(async (): Promise<number> => {
     try {
+      // Proposing is how the fee is asked for, and zingolib stores the
+      // proposal it answers with — see the `clear_proposal` in the finally.
       const result: string = await native.shield();
       if (!result) {
         setFetchError("Shield", "the wallet returned no shielding quote");
@@ -583,6 +585,10 @@ const AppRoutes: React.FC = () => {
         // `shieldQuoteSaysNotYet`. No fee means no button, which is the right
         // screen either way.
         const reason: string = userFacingError(resultJSON.error);
+        // Banner or not, it is said once here: a refusal that only removes the
+        // button leaves a screen with no button and no reason anywhere, which
+        // is exactly the report that sent us looking for this.
+        console.log(`Shield quote refused: ${reason}`);
         if (!shieldQuoteSaysNotYet(reason)) setFetchError("Shield", reason);
         return 0;
       }
@@ -592,6 +598,15 @@ const AppRoutes: React.FC = () => {
       const reason: string = userFacingError(error);
       if (!shieldQuoteSaysNotYet(reason)) setFetchError("Shield", reason);
       return 0;
+    } finally {
+      // The proposal this quote stored, and the sync pause it holds, are
+      // dropped as soon as the fee has been read. Nothing here is going to
+      // send it: the Shield button proposes again when it is pressed.
+      try {
+        await native.clear_proposal();
+      } catch (error) {
+        console.error(`Error clearing the shield quote proposal ${error}`);
+      }
     }
   }, [setFetchError]);
 

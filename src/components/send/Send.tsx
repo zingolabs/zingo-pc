@@ -85,6 +85,8 @@ async function calculateSpendable(
 async function calculateSendFee(toaddrs: ToAddrClass[]): Promise<{ fee: number; error: string }> {
   try {
     const sendJson: SendManyJsonType[] = recipientsToSendManyJSON(toaddrs);
+    // Proposing is how the fee is asked for, and zingolib stores the proposal
+    // it answers with — see the `clear_proposal` in the finally.
     const result: string = await native.send(JSON.stringify(sendJson));
     if (!result) {
       return { fee: 0, error: "" };
@@ -97,6 +99,15 @@ async function calculateSendFee(toaddrs: ToAddrClass[]): Promise<{ fee: number; 
   } catch (error: any) {
     console.error(`Critical Error calculate send fee ${error}`);
     return { fee: 0, error: userFacingError(error) };
+  } finally {
+    // The proposal this quote stored, and the sync pause it holds, are dropped
+    // as soon as the fee has been read. The Send button proposes again when it
+    // is pressed; this one was only ever a question.
+    try {
+      await native.clear_proposal();
+    } catch (error) {
+      console.error(`Error clearing the send quote proposal ${error}`);
+    }
   }
 }
 

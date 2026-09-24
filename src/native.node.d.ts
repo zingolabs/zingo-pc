@@ -87,6 +87,8 @@ export function get_wallet_version(): Promise<string>;
 export function send(send_json: string): Promise<string>;
 export function send_swap_deposit(vault_address: string, amount: number, memo_hex: string): Promise<string>;
 export function shield(): Promise<string>;
+/** Drops the proposal a fee quote stored, releasing the sync pause it holds. */
+export function clear_proposal(): Promise<string>;
 export function confirm(): Promise<string>;
 export function drain_orchard_to_ironwood(): Promise<string>;
 export function drain_status(): Promise<string>;

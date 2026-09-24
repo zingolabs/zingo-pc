@@ -175,6 +175,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("send", send)?;
     cx.export_function("send_swap_deposit", send_swap_deposit)?;
     cx.export_function("shield", shield)?;
+    cx.export_function("clear_proposal", clear_proposal)?;
     cx.export_function("confirm", confirm)?;
     cx.export_function("delete_wallet", delete_wallet)?;
 
@@ -2966,6 +2967,25 @@ fn shield(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 }
                 .pretty(2)
             }))
+        })
+    })
+}
+
+// clear_proposal: drops the proposal a quote left behind.
+//
+// Proposing is how this app asks what a send or a shield would cost, and
+// zingolib stores the proposal it answers with — and, with it, a guard that
+// keeps the sync engine paused until the proposal is consumed or cleared. A
+// quote consumes nothing, so every fee shown on screen used to leave both
+// behind. That was invisible while sync ended at the chain tip: pausing an
+// engine that was not running does nothing. Under continuous sync the engine
+// is always running, and the first fee quote would have stopped it scanning
+// for the rest of the session.
+fn clear_proposal(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
+        with_initialized_lightclient(|lightclient| {
+            RT.block_on(async move { lightclient.clear_proposal().await });
+            Ok("OK".to_string())
         })
     })
 }
