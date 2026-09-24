@@ -67,7 +67,7 @@ export function ShieldBalance({ shieldFee, anyPending }: ShieldBalanceProps) {
               Both run to the end of the row rather than wrapping inside a
               width picked by hand; `minWidth: 0` is what lets a flex item
               narrow enough to wrap at all. */}
-          <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 10 }}>
             <div className={`${cstyles.sublight} ${cstyles.small}`}>
               Transparent funds cannot be spent. Shielding moves them into your own shielded balance, not to anyone
               else.
