@@ -323,7 +323,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         "",
       );
-      console.log(mainnetWalletExistsResult);
       if (!mainnetWalletExistsResult) {
         console.log("MIGRATION. Mainnet wallet not found.");
       } else {
@@ -367,7 +366,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         "",
       );
-      console.log(testnetWalletExistsResult);
       if (!testnetWalletExistsResult) {
         console.log("MIGRATION. Testnet wallet not found.");
       } else {
@@ -411,7 +409,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         "",
       );
-      console.log(regnetWalletExistsResult);
       if (!regnetWalletExistsResult) {
         console.log("MIGRATION. Regtest wallet not found.");
       } else {
@@ -504,12 +501,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
             ? selection
             : ServerSelectionEnum.custom,
       );
-      console.log(
-        "&&&&&&&&&&&&&&&&& CHECKED wallet settings",
-        currentWalleUri,
-        currentWalletChain_name,
-        currentWalletSelection,
-      );
       uri = currentWalleUri;
       chain_name = currentWalletChain_name;
       selection = currentWalletSelection;
@@ -537,7 +528,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         "",
       );
-      console.log(mainnetWalletExistsResult);
       if (!mainnetWalletExistsResult) {
         if (wallets.filter((w) => w.id === 1).length === 1) {
           console.log("RECOVERY. Mainnet wallet not found, delete wallet.");
@@ -586,7 +576,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         "",
       );
-      console.log(testnetWalletExistsResult);
       if (!testnetWalletExistsResult) {
         if (wallets.filter((w) => w.id === 2).length === 1) {
           console.log("RECOVERY. Testnet wallet not found, delete wallet.");
@@ -635,7 +624,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         "",
       );
-      console.log(regnetWalletExistsResult);
       if (!regnetWalletExistsResult) {
         if (wallets.filter((w) => w.id === 3).length === 1) {
           console.log("RECOVERY. Regtest wallet not found, delete wallet");
@@ -721,9 +709,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
 
     this.setStep("loading wallets");
     let { currentWallet, wallets } = await this.loadCurrentWallet();
-    console.log(
-      `Url: -${currentWallet && currentWallet.id}-${currentWallet && currentWallet.uri}-${currentWallet && currentWallet.chain_name}-${currentWallet && currentWallet.selection}`,
-    );
 
     // if no current wallet but there are wallets,
     // select the first one.
@@ -754,7 +739,6 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         currentWallet.fileName,
       );
-      console.log(walletExistsResult);
       if (!walletExistsResult) {
         // the wallet file DOES NOT exists
         // if currentWalletId have a value -> remove the wallet local data for this id.

@@ -279,7 +279,6 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         3,
         nextWalletName,
       );
-      console.log(walletExistsResult);
       if (walletExistsResult) {
         next = next + 1;
         nextWalletName = `zingo-wallet-${next}.dat`;
@@ -680,7 +679,6 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           3,
           currentWallet.fileName,
         );
-        console.log(walletExistsResult);
         if (walletExistsResult) {
           // interrupt syncing, just in case.
           // only if the App is going to delete the DAT file.

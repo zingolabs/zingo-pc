@@ -345,8 +345,7 @@ export default class RPC {
   // console and nothing else.
   static async doSave(): Promise<string> {
     try {
-      const syncstr: string = await native.check_save_error();
-      console.log(`wallet check saved: ${syncstr}`);
+      await native.check_save_error();
       return "";
     } catch (error: any) {
       console.error(`Critical Error check save wallet ${error}`);
@@ -759,7 +758,6 @@ export default class RPC {
             ? 99.99
             : Number(ss.percentage_total_blocks_scanned?.toFixed(2));
 
-      console.log("SYNC STATUS", ss);
       console.log(
         "SYNC STATUS",
         ss.scan_ranges?.length,
