@@ -49,11 +49,13 @@ export function ShieldBalance({ shieldFee, anyPending }: ShieldBalanceProps) {
       {canShield && (
         // The row is its own flex box: the container spreads its children to
         // the edges, and the sentence belongs beside the button it explains,
-        // not across the pane from it.
-        <div style={{ display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
+        // not across the pane from it. It claims the whole box so the text has
+        // the rest of the row to run in.
+        <div style={{ display: "flex", alignItems: "center", gap: 12, textAlign: "left", flex: 1 }}>
           <button
             className={cstyles.primarybutton}
             type="button"
+            style={{ flexShrink: 0 }}
             disabled={mixnetView.sendBlocked}
             onClick={handleShieldButton}
           >
@@ -61,8 +63,11 @@ export function ShieldBalance({ shieldFee, anyPending }: ShieldBalanceProps) {
           </button>
           {/* Two lines beside the button: why it is there, and where what it
               does will travel — the second in the words the Send and Swap
-              screens use, because it is the same route and the same wait. */}
-          <div style={{ maxWidth: 420 }}>
+              screens use, because it is the same route and the same wait.
+              Both run to the end of the row rather than wrapping inside a
+              width picked by hand; `minWidth: 0` is what lets a flex item
+              narrow enough to wrap at all. */}
+          <div style={{ flex: 1, minWidth: 0 }}>
             <div className={`${cstyles.sublight} ${cstyles.small}`}>
               Transparent funds cannot be spent. Shielding moves them into your own shielded balance, not to anyone
               else.
