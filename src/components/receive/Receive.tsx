@@ -9,8 +9,6 @@ import {
   TotalBalanceClass,
   TransparentAddressClass,
   UnifiedAddressClass,
-  ValueTransferClass,
-  ValueTransferStatusEnum,
 } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
@@ -33,11 +31,7 @@ const Receive: React.FC<ReceiveProps> = () => {
     orchardPool,
     saplingPool,
     transparentPool,
-    calculateShieldFee,
-    handleShieldButton,
     totalBalance,
-    valueTransfers,
-    readOnly,
     fetchError,
     zecPrice,
   } = context;
@@ -74,29 +68,6 @@ const Receive: React.FC<ReceiveProps> = () => {
   // whatever the user has open.
   const firstUaddr = shownUaddrs.length > 0 ? shownUaddrs[0].encoded_address : "";
   const firstTaddr = shownTaddrs.length > 0 ? shownTaddrs[0].encoded_address : "";
-
-  const [anyPending, setAnyPending] = useState<boolean>(false);
-  const [shieldFee, setShieldFee] = useState<number>(0);
-
-  useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
-    const pending: number =
-      valueTransfers.length > 0
-        ? valueTransfers
-            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
-            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
-        : 0;
-    setAnyPending(pending > 0);
-  }, [valueTransfers]);
-
-  useEffect(() => {
-    // with confirmed transparent funds & no readonly wallet
-    if (totalBalance.confirmedTransparentBalance > 0 && !readOnly && !anyPending) {
-      (async () => {
-        setShieldFee(await calculateShieldFee());
-      })();
-    }
-  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   useEffect(() => {
     setUaddrs([...addressesUnified].reverse());
@@ -169,7 +140,7 @@ const Receive: React.FC<ReceiveProps> = () => {
             />
           )}
         </div>
-        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
+        <ShieldBalance />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />
@@ -249,8 +220,6 @@ const Receive: React.FC<ReceiveProps> = () => {
                         type={"t"}
                         position={i + 1}
                         total={shownTaddrs.length}
-                        calculateShieldFee={calculateShieldFee}
-                        handleShieldButton={handleShieldButton}
                       />
                     ))}
                   </Accordion>

@@ -70,7 +70,7 @@ export function mixnet_status(): Promise<string>;
 export function attach_mixnet(socks5_addr: string, exits: string[]): Promise<string>;
 export function stop_mixnet(): Promise<string>;
 export function remove_transaction(txid: string): Promise<string>;
-export function get_spendable_balance_with_address(address: string, zennies: string): Promise<string>;
+export function get_spendable_balance_with_address(address: string): Promise<string>;
 export function get_spendable_balance_total(): Promise<string>;
 export function set_option_wallet(): Promise<string>;
 export function get_unified_addresses(): Promise<string>;
@@ -87,6 +87,8 @@ export function get_wallet_version(): Promise<string>;
 export function send(send_json: string): Promise<string>;
 export function send_swap_deposit(vault_address: string, amount: number, memo_hex: string): Promise<string>;
 export function shield(): Promise<string>;
+/** Drops the proposal a fee quote stored, releasing the sync pause it holds. */
+export function clear_proposal(): Promise<string>;
 export function confirm(): Promise<string>;
 export function drain_orchard_to_ironwood(): Promise<string>;
 export function drain_status(): Promise<string>;

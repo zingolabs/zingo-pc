@@ -3,15 +3,7 @@ import { Accordion } from "react-accessible-accordion";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../../test-utils";
 import AddressBlock from "./AddressBlock";
-import {
-  UnifiedAddressClass,
-  TransparentAddressClass,
-  TotalBalanceClass,
-  ServerChainNameEnum,
-  ValueTransferClass,
-  ValueTransferKindEnum,
-  ValueTransferStatusEnum,
-} from "../../appstate";
+import { UnifiedAddressClass, TransparentAddressClass, TotalBalanceClass, ServerChainNameEnum } from "../../appstate";
 import { AddressScopeEnum } from "../../appstate/enums/AddressScopeEnum";
 
 jest.mock("../../../electronBridge");
@@ -186,70 +178,20 @@ describe("AddressBlock — Transparent", () => {
     expect(RPC.createNewAddressTransparent).toHaveBeenCalled();
   });
 
-  it("shows Shield button when transparent balance >= fee, no readOnly, no pending", async () => {
-    const totalBalance = Object.assign(new TotalBalanceClass(), { confirmedTransparentBalance: 1 });
-    const calculateShieldFee = jest.fn().mockResolvedValue(0.001);
-    const handleShieldButton = jest.fn();
-    renderInAccordion(
-      <AddressBlock
-        {...baseProps}
-        address={tAddr}
-        type="t"
-        calculateShieldFee={calculateShieldFee}
-        handleShieldButton={handleShieldButton}
-      />,
-      { contextOverrides: { totalBalance, currentWallet: mainnetWallet } },
-    );
-    fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
-    await waitFor(() => expect(calculateShieldFee).toHaveBeenCalled());
-    const btn = await screen.findByRole("button", { name: /shield balance/i });
-    fireEvent.click(btn);
-    expect(handleShieldButton).toHaveBeenCalled();
-  });
-
-  // One row: New Address, then Shield, rather than Shield wrapping on to a row
-  // of its own above New Address.
-  it("puts Shield right after New Address", async () => {
-    const totalBalance = Object.assign(new TotalBalanceClass(), { confirmedTransparentBalance: 1 });
-    const calculateShieldFee = jest.fn().mockResolvedValue(0.001);
-    renderInAccordion(
-      <AddressBlock {...baseProps} address={tAddr} type="t" calculateShieldFee={calculateShieldFee} />,
-      { contextOverrides: { totalBalance, currentWallet: mainnetWallet } },
-    );
-    fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
-    await screen.findByRole("button", { name: /shield balance/i });
-    const names = screen.getAllByRole("button").map((b) => b.textContent ?? "");
-    const newAddress = names.findIndex((n) => n === "New Address");
-    expect(names[newAddress + 1]).toMatch(/^Shield Balance/);
-  });
-
-  it("hides Shield button when readOnly is true", async () => {
+  // Shielding is one act on the whole transparent balance, not something an
+  // address does: the button that starts it lives in the balance block, with
+  // the sentence that says what it is for and the route it will take. Repeated
+  // under every transparent address, it also had every one of them asking
+  // zingolib for a quote, and each quote proposes.
+  it("offers no shielding of its own", async () => {
     const totalBalance = Object.assign(new TotalBalanceClass(), { confirmedTransparentBalance: 1 });
     renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />, {
-      contextOverrides: { totalBalance, readOnly: true, currentWallet: mainnetWallet },
+      contextOverrides: { totalBalance, currentWallet: mainnetWallet },
     });
     fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
-    // Wait briefly to allow any effects to flush.
+    // Long enough for an effect that asked for a fee to have answered.
     await new Promise((r) => setTimeout(r, 30));
-    expect(screen.queryByRole("button", { name: /shield balance/i })).not.toBeInTheDocument();
-  });
 
-  it("hides Shield button when there are pending value transfers", async () => {
-    const totalBalance = Object.assign(new TotalBalanceClass(), { confirmedTransparentBalance: 1 });
-    const pending = new ValueTransferClass(
-      ValueTransferKindEnum.sent,
-      1,
-      100,
-      ValueTransferStatusEnum.confirmed,
-      "txid",
-      0,
-      1,
-      "addr",
-    );
-    renderInAccordion(<AddressBlock {...baseProps} address={tAddr} type="t" />, {
-      contextOverrides: { totalBalance, valueTransfers: [pending], currentWallet: mainnetWallet },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "t1shortaddr" }));
-    expect(screen.queryByRole("button", { name: /shield balance/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /shield/i })).not.toBeInTheDocument();
   });
 });

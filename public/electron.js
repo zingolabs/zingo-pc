@@ -1357,6 +1357,7 @@ const _NATIVE_NO_PARAM_METHODS = [
   "get_wallet_version",
   "shield",
   "confirm",
+  "clear_proposal",
   "drain_orchard_to_ironwood",
   "drain_status",
   "get_ironwood_activation_height",
@@ -1887,8 +1888,8 @@ app.on("browser-window-focus", () => {
 
 app.on("before-quit", () => killProxy());
 ipcMain.handle("native:remove_transaction", (_e, txid) => requireNative("remove_transaction").remove_transaction(txid));
-ipcMain.handle("native:get_spendable_balance_with_address", (_e, address, zennies) =>
-  requireNative("get_spendable_balance_with_address").get_spendable_balance_with_address(address, zennies),
+ipcMain.handle("native:get_spendable_balance_with_address", (_e, address) =>
+  requireNative("get_spendable_balance_with_address").get_spendable_balance_with_address(address),
 );
 ipcMain.handle("native:create_new_unified_address", (_e, receivers) =>
   requireNative("create_new_unified_address").create_new_unified_address(receivers),

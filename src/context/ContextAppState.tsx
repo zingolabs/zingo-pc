@@ -48,6 +48,7 @@ export const defaultAppState: AppState = {
   setSendTo: () => {},
   setSwapTo: () => {},
   calculateShieldFee: async () => 0,
+  shieldQuoteReason: "",
   handleShieldButton: () => {},
   addAddressBookEntry: () => {},
   zecPrice: 0,

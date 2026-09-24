@@ -345,8 +345,7 @@ export default class RPC {
   // console and nothing else.
   static async doSave(): Promise<string> {
     try {
-      const syncstr: string = await native.check_save_error();
-      console.log(`wallet check saved: ${syncstr}`);
+      await native.check_save_error();
       return "";
     } catch (error: any) {
       console.error(`Critical Error check save wallet ${error}`);
@@ -386,6 +385,10 @@ export default class RPC {
   // comma-joined txids on success. No "Error:" prose ever crosses on the data
   // channel — the caller's catch turns a throw into its own error surface.
   async shieldTransparentBalanceToIronwood(): Promise<string> {
+    return this.withSyncStopped(async () => this.shieldWithSyncStopped());
+  }
+
+  private async shieldWithSyncStopped(): Promise<string> {
     // PROPOSING
     const shieldResult: string = await native.shield();
     if (!shieldResult) throw new Error("internal error: empty shield result");
@@ -614,11 +617,12 @@ export default class RPC {
       if (returnPoll.toLowerCase().startsWith("sync task is not complete")) {
         console.log("SYNC POLL -> FETCH STATUS", returnPoll);
         void this.fetchSyncStatus();
-        console.log("SYNC POLL -> RUN SYNC", returnPoll);
-        // I don't trust in this message, when the tx is stuck in Trasmitted
-        // this is the message I got & after that the status says 100% complete
-        // this is not true, here Just in case, I need to run the sync again.
-        void this.refreshSync();
+        // No relaunch. A running engine answers "not complete" for as long as
+        // it runs, and under continuous sync (zingolib ADR 0051) that is the
+        // whole session: reaching the tip no longer ends it. Asking it to
+        // launch again every five seconds only takes the wallet lock to be
+        // told it is already running. A session that does end leaves
+        // "not launched" behind, and the branch above starts the next one.
         return;
       }
 
@@ -758,7 +762,6 @@ export default class RPC {
             ? 99.99
             : Number(ss.percentage_total_blocks_scanned?.toFixed(2));
 
-      console.log("SYNC STATUS", ss);
       console.log(
         "SYNC STATUS",
         ss.scan_ranges?.length,
@@ -1061,49 +1064,46 @@ export default class RPC {
 
   // Send a transaction using the already constructed sendJson structure
   async sendTransaction(sendJson: Array<SendJsonToTypeType>): Promise<string> {
-    // clear the timers - Tasks.
-    await this.clearTimers();
     // sending
     let sendError: string = "";
     let sendTxids: string = "";
-    try {
-      // creating the propose
-      const proposeStr: string = await native.send(JSON.stringify(sendJson));
-      if (!proposeStr) {
-        console.error("Internal Error propose");
-        sendError = "Internal RPC Error: propose";
-      }
-      if (!sendError) {
-        const proposeJSON: SendProposeType = JSON.parse(proposeStr);
-        if (proposeJSON.error) {
-          console.error(`Error propose ${proposeJSON.error}`);
-          sendError = proposeJSON.error;
+    await this.withSyncStopped(async () => {
+      try {
+        // creating the propose
+        const proposeStr: string = await native.send(JSON.stringify(sendJson));
+        if (!proposeStr) {
+          console.error("Internal Error propose");
+          sendError = "Internal RPC Error: propose";
         }
         if (!sendError) {
-          // creating the transaction
-          const sendStr: string = await native.confirm();
-          if (!sendStr) {
-            console.error("Internal Error confirm");
-            sendError = "Internal RPC Error: confirm";
+          const proposeJSON: SendProposeType = JSON.parse(proposeStr);
+          if (proposeJSON.error) {
+            console.error(`Error propose ${proposeJSON.error}`);
+            sendError = proposeJSON.error;
           }
           if (!sendError) {
-            const sendJSON: SendType = JSON.parse(sendStr);
-            if (sendJSON.error) {
-              console.error(`Error confirm ${sendJSON.error}`);
-              sendError = sendJSON.error;
-            } else if (sendJSON.txids && sendJSON.txids.length > 0) {
-              sendTxids = sendJSON.txids.join(", ");
+            // creating the transaction
+            const sendStr: string = await native.confirm();
+            if (!sendStr) {
+              console.error("Internal Error confirm");
+              sendError = "Internal RPC Error: confirm";
+            }
+            if (!sendError) {
+              const sendJSON: SendType = JSON.parse(sendStr);
+              if (sendJSON.error) {
+                console.error(`Error confirm ${sendJSON.error}`);
+                sendError = sendJSON.error;
+              } else if (sendJSON.txids && sendJSON.txids.length > 0) {
+                sendTxids = sendJSON.txids.join(", ");
+              }
             }
           }
         }
+      } catch (error) {
+        console.error(`Critical Error send ${error}`);
+        sendError = `Error: send ${error}`;
       }
-    } catch (error) {
-      console.error(`Critical Error send ${error}`);
-      sendError = `Error: send ${error}`;
-    }
-
-    // create the tasks
-    await this.configure();
+    });
 
     if (sendTxids) {
       return sendTxids;
@@ -1159,10 +1159,9 @@ export default class RPC {
         .filter((s) => s.length > 0);
     }
 
-    // Sends outright, so the timers come down first the way `sendTransaction`
-    // does: a sync running across a send competes for the wallet's lock.
-    await this.clearTimers();
-    try {
+    // Sends outright, so it stops the engine first the way `sendTransaction`
+    // does.
+    return this.withSyncStopped(async () => {
       const answer: string = await native.send_swap_deposit(
         args.depositAddress,
         args.amountAtomic,
@@ -1178,6 +1177,33 @@ export default class RPC {
         throw new Error(parsed.error);
       }
       return parsed.txids ?? [];
+    });
+  }
+
+  // Runs an operation that spends with the sync engine stopped, and brings
+  // the app's own cycle back afterwards.
+  //
+  // zingolib pauses the engine around a proposal, but that pause is an
+  // agreement, not a stop: the engine reads the mode inside its scanning loop
+  // and nowhere else. Its outer loop, which it now re-enters on every mined
+  // block, extends the wallet's tree bounds, truncates on a re-org and fills
+  // the subtree roots in three separate takes of the wallet lock. A spend that
+  // reads the tree between the first and the last sees a tree whose nodes are
+  // declared and empty, and fails with "Unable to compute root; missing values
+  // for nodes" — which is exactly what a shield did here.
+  //
+  // Until sync reaching the tip meant the engine ended, no spend ever ran
+  // beside a live engine and none of this could happen. Continuous sync makes
+  // it the normal case, so the engine is stopped outright, as the Ironwood
+  // drain has always done, and the five-second cycle launches the next one.
+  private async withSyncStopped<T>(operation: () => Promise<T>): Promise<T> {
+    await this.clearTimers();
+    try {
+      // Answers "already stopped" when nothing runs, so this is safe to ask
+      // for unconditionally.
+      await native.stop_sync();
+      await this.waitForSyncStopped();
+      return await operation();
     } finally {
       await this.configure();
     }
@@ -1208,29 +1234,24 @@ export default class RPC {
   // and the in-flight sync, wait until it is actually stopped, drain, then
   // resume the loop (mirrors how sendTransaction brackets a spend).
   async drainOrchardToIronwood(): Promise<{ result: RPCIronwoodDrainType | null; error: string }> {
-    await this.clearTimers();
-    try {
-      await native.stop_sync();
-      await this.waitForSyncStopped();
-
-      const resultStr: string = await native.drain_orchard_to_ironwood();
-      if (resultStr) {
-        const resultJSON: RPCIronwoodDrainType & { error?: string } = JSON.parse(resultStr);
-        // Failures now cross as `{ error }` JSON alongside the success shape.
-        if (resultJSON.error) {
-          console.error(`Error drain orchard to ironwood: ${resultJSON.error}`);
-          return { result: null, error: resultJSON.error };
+    return this.withSyncStopped(async () => {
+      try {
+        const resultStr: string = await native.drain_orchard_to_ironwood();
+        if (resultStr) {
+          const resultJSON: RPCIronwoodDrainType & { error?: string } = JSON.parse(resultStr);
+          // Failures now cross as `{ error }` JSON alongside the success shape.
+          if (resultJSON.error) {
+            console.error(`Error drain orchard to ironwood: ${resultJSON.error}`);
+            return { result: null, error: resultJSON.error };
+          }
+          return { result: resultJSON, error: "" };
         }
-        return { result: resultJSON, error: "" };
+        return { result: null, error: "Error: Internal RPC Error: drain orchard to ironwood" };
+      } catch (error) {
+        console.error(`Critical error drain orchard to ironwood: ${error}`);
+        return { result: null, error: `Error: ${error}` };
       }
-      return { result: null, error: "Error: Internal RPC Error: drain orchard to ironwood" };
-    } catch (error) {
-      console.error(`Critical error drain orchard to ironwood: ${error}`);
-      return { result: null, error: `Error: ${error}` };
-    } finally {
-      // Always resume the background sync loop.
-      await this.configure();
-    }
+    });
   }
 
   // ---- Private (scheduled) Ironwood migration (zingolib parts/buckets) ----

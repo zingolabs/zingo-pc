@@ -95,6 +95,11 @@ export default class AppState {
   closeConfirmModal: () => void;
   setSendTo: (t: ZcashURITarget | ZcashURITarget[]) => void;
   calculateShieldFee: () => Promise<number>;
+  // Why the last shielding quote gave no fee, empty when it gave one. A
+  // refusal here is often an ordinary state — a wallet that cannot quote yet —
+  // and it used to be swallowed: no fee means no button, and the screen simply
+  // lost the button with nothing said anywhere.
+  shieldQuoteReason: string;
   handleShieldButton: () => void;
   // Files a contact. Every screen that saves one asks for its name in place,
   // with the Save contact dialog, rather than sending the user to the Address
@@ -164,6 +169,7 @@ export default class AppState {
     this.closeConfirmModal = () => {};
     this.setSendTo = () => {};
     this.calculateShieldFee = async () => 0;
+    this.shieldQuoteReason = "";
     this.handleShieldButton = () => {};
     this.addAddressBookEntry = () => {};
     this.setSwapTo = () => {};

@@ -1,7 +1,7 @@
 import React, { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./History.module.css";
-import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum, TotalBalanceClass } from "../appstate";
+import { ValueTransferClass, AddressBookEntryClass, TotalBalanceClass } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import VtItemBlock from "./components/VtItemBlock";
@@ -26,12 +26,10 @@ const History: React.FC<HistoryProps> = () => {
     info,
     addressBook,
     totalBalance,
-    readOnly,
     fetchError,
     orchardPool,
     saplingPool,
     transparentPool,
-    calculateShieldFee,
     zecPrice,
   } = context;
 
@@ -47,9 +45,6 @@ const History: React.FC<HistoryProps> = () => {
   // The longest list in the wallet, and the last one without a way to narrow it.
   const [query, setQuery] = useState<string>("");
 
-  const [anyPending, setAnyPending] = useState<boolean>(false);
-  const [shieldFee, setShieldFee] = useState<number>(0);
-
   const swapRecords = useSwapRecords();
 
   // The block above the list has no fixed height. The balance row gains and
@@ -60,25 +55,6 @@ const History: React.FC<HistoryProps> = () => {
   const { paneRef, paneOffset } = usePaneOffset(203);
 
   const mergedValueTransfers = useValueTransfersWithSwaps(valueTransfers);
-
-  useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
-    const pending: number =
-      valueTransfers.length > 0
-        ? valueTransfers
-            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
-            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
-        : 0;
-    setAnyPending(pending > 0);
-  }, [valueTransfers]);
-
-  useEffect(() => {
-    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly && !anyPending) {
-      (async () => {
-        setShieldFee(await calculateShieldFee());
-      })();
-    }
-  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   // Derived rather than copied into state by an effect: the list is the same
   // either way, and an effect paid a second render for every change.
@@ -259,7 +235,7 @@ const History: React.FC<HistoryProps> = () => {
             />
           )}
         </div>
-        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
+        <ShieldBalance />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />

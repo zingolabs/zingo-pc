@@ -1,5 +1,5 @@
 import { IRONWOOD_RECEIVER_LABEL } from "../../../constants/ironwood";
-import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import {
   AccordionItem,
   AccordionItemHeading,
@@ -12,13 +12,7 @@ import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import Utils from "../../../utils/utils";
 import { ContextApp } from "../../../context/ContextAppState";
-import {
-  ServerChainNameEnum,
-  TransparentAddressClass,
-  UnifiedAddressClass,
-  ValueTransferClass,
-  ValueTransferStatusEnum,
-} from "../../appstate";
+import { ServerChainNameEnum, TransparentAddressClass, UnifiedAddressClass } from "../../appstate";
 import RPC from "../../../rpc/rpc";
 
 import { useCopy } from "../../common/useCopy";
@@ -35,25 +29,11 @@ type AddressBlockProps = {
   /** Where this address sits in the list on screen, and how long that list is. */
   position?: number;
   total?: number;
-  calculateShieldFee?: () => Promise<number>;
-  handleShieldButton?: () => void;
 };
 
-const AddressBlock: React.FC<AddressBlockProps> = ({
-  address,
-  label,
-  currencyName,
-  type,
-  position,
-  total,
-  calculateShieldFee,
-  handleShieldButton,
-}) => {
+const AddressBlock: React.FC<AddressBlockProps> = ({ address, label, currencyName, type, position, total }) => {
   const context = useContext(ContextApp);
   const {
-    readOnly,
-    totalBalance,
-    valueTransfers,
     openErrorModal,
     currentWallet,
     blockExplorerMainnetAddress,
@@ -65,7 +45,6 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
 
   const { copied, copy } = useCopy(1500);
   const [creating, setCreating] = useState<boolean>(false);
-  const [shieldFee, setShieldFee] = useState<number>(0);
 
   const [unifiedCreateType, setUnifiedCreateType] = useState<"o" | "z" | "oz">("o");
 
@@ -75,28 +54,6 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
       clearTimeout(creatingTimerRef.current);
     };
   }, []);
-
-  const anyPending: boolean = useMemo(
-    () =>
-      valueTransfers
-        .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
-        .some((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3),
-    [valueTransfers],
-  );
-
-  useEffect(() => {
-    if (
-      type === "t" &&
-      totalBalance.confirmedTransparentBalance > 0 &&
-      calculateShieldFee &&
-      !readOnly &&
-      !anyPending
-    ) {
-      (async () => {
-        setShieldFee(await calculateShieldFee());
-      })();
-    }
-  }, [calculateShieldFee, address, anyPending, readOnly, totalBalance.confirmedTransparentBalance, type]);
 
   // This block's own canvas. Looked up in the document, the first canvas on
   // the screen was saved whichever address was clicked.
@@ -274,17 +231,6 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                 >
                   {creating ? <span>Creating...</span> : <span>New Address</span>}
                 </button>
-                {/* Beside New Address rather than wrapping on to a row of its own
-                    under the address actions. */}
-                {type === "t" &&
-                  totalBalance.confirmedTransparentBalance >= shieldFee &&
-                  shieldFee > 0 &&
-                  !readOnly &&
-                  !anyPending && (
-                    <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
-                      Shield Balance (Fee: {shieldFee})
-                    </button>
-                  )}
               </div>
             </div>
             <div style={{ marginRight: 10, alignSelf: "center" }}>

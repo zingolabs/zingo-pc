@@ -68,6 +68,10 @@ beforeEach(() => {
   mockNavigate.mockReset();
 });
 
+// Shielding transmits, so the button waits for the mixnet; the default
+// context is the fail-closed view.
+const READY_MIXNET = deriveMixnetView({ mode: "ready", socks5_addr: "127.0.0.1:1080" });
+
 describe("Dashboard", () => {
   it("renders the 'no wallet' state when currentWallet is null", () => {
     render(<Dashboard navigateToHistory={jest.fn()} />, {
@@ -173,6 +177,7 @@ describe("Dashboard", () => {
         totalBalance: makeBalance({ confirmedTransparentBalance: 1, totalTransparentBalance: 1 }),
         calculateShieldFee,
         handleShieldButton,
+        mixnetView: READY_MIXNET,
       },
     });
     await waitFor(() => expect(calculateShieldFee).toHaveBeenCalled());

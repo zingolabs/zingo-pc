@@ -108,6 +108,10 @@ export function deriveMixnetView(status: RPCMixnetStatusType): MixnetView {
  * Stated for every state, including the good ones: a route that is only ever
  * mentioned when something is wrong teaches the user nothing about the route.
  */
+// One wording for every screen that transmits — send, swap and shield. A
+// shield ends in `transmit_transactions` under the same route policy as a
+// send, so it waits for the same transport, and a user reading two screens
+// should not have to work out whether two sentences mean the same thing.
 export function describeSendRoute(view: MixnetView): string {
   switch (view.statusKey) {
     case "mixnet.status.ready":

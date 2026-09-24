@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./Messages.module.css";
-import { ValueTransferClass, AddressBookEntryClass, ValueTransferStatusEnum, TotalBalanceClass } from "../appstate";
+import { ValueTransferClass, AddressBookEntryClass, TotalBalanceClass } from "../appstate";
 import ScrollPaneBottom from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import MessagesItemBlock from "./components/MessagesItemBlock";
@@ -16,20 +16,8 @@ type MessagesProps = {};
 
 const Messages: React.FC<MessagesProps> = () => {
   const context = useContext(ContextApp);
-  const {
-    messages,
-    info,
-    addressBook,
-    totalBalance,
-    readOnly,
-    fetchError,
-    valueTransfers,
-    orchardPool,
-    saplingPool,
-    transparentPool,
-    calculateShieldFee,
-    zecPrice,
-  } = context;
+  const { messages, info, addressBook, totalBalance, fetchError, orchardPool, saplingPool, transparentPool, zecPrice } =
+    context;
 
   // Measured, as History measures its own: the fixed offset this pane had was
   // shorter than what now sits above it, and the last message ran below the
@@ -57,28 +45,6 @@ const Messages: React.FC<MessagesProps> = () => {
     });
   };
   const [addressBookMap, setAddressBookMap] = useState<Map<string, string>>(new Map());
-
-  const [anyPending, setAnyPending] = useState<boolean>(false);
-  const [shieldFee, setShieldFee] = useState<number>(0);
-
-  useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
-    const pending: number =
-      valueTransfers.length > 0
-        ? valueTransfers
-            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
-            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
-        : 0;
-    setAnyPending(pending > 0);
-  }, [valueTransfers]);
-
-  useEffect(() => {
-    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly && !anyPending) {
-      (async () => {
-        setShieldFee(await calculateShieldFee());
-      })();
-    }
-  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   const searching: boolean = messageQuery.trim() !== "";
 
@@ -170,7 +136,7 @@ const Messages: React.FC<MessagesProps> = () => {
             />
           )}
         </div>
-        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
+        <ShieldBalance />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />

@@ -63,7 +63,7 @@ async function calculateSpendable(
     return { spendable: trimSpendable(totalSpendableBalance), error: "" };
   }
   try {
-    const result: string = await native.get_spendable_balance_with_address(address, "false");
+    const result: string = await native.get_spendable_balance_with_address(address);
     if (!result) {
       return { spendable: 0, error: "" };
     }
@@ -85,6 +85,8 @@ async function calculateSpendable(
 async function calculateSendFee(toaddrs: ToAddrClass[]): Promise<{ fee: number; error: string }> {
   try {
     const sendJson: SendManyJsonType[] = recipientsToSendManyJSON(toaddrs);
+    // Proposing is how the fee is asked for, and zingolib stores the proposal
+    // it answers with — see the `clear_proposal` in the finally.
     const result: string = await native.send(JSON.stringify(sendJson));
     if (!result) {
       return { fee: 0, error: "" };
@@ -97,6 +99,15 @@ async function calculateSendFee(toaddrs: ToAddrClass[]): Promise<{ fee: number; 
   } catch (error: any) {
     console.error(`Critical Error calculate send fee ${error}`);
     return { fee: 0, error: userFacingError(error) };
+  } finally {
+    // The proposal this quote stored, and the sync pause it holds, are dropped
+    // as soon as the fee has been read. The Send button proposes again when it
+    // is pressed; this one was only ever a question.
+    try {
+      await native.clear_proposal();
+    } catch (error) {
+      console.error(`Error clearing the send quote proposal ${error}`);
+    }
   }
 }
 
@@ -120,7 +131,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
     currentWallet,
     addressBook,
     openConfirmModal,
-    calculateShieldFee,
     zecPrice,
     mixnetView,
   } = context;
@@ -137,9 +147,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
   const [totalAmountAvailable, setTotalAmountAvailable] = useState<number>(0);
   const [tooltip, setTooltip] = useState<string>("");
 
-  const [anyPending, setAnyPending] = useState<boolean>(false);
-  const [shieldFee, setShieldFee] = useState<number>(0);
-
   // Each row's own verdict, keyed by the row's id.
   const [rowStatuses, setRowStatuses] = useState<{ [id: number]: RecipientStatusType }>({});
   // The row being edited. The others fold to one line.
@@ -149,25 +156,6 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
   const serverChainName: ServerChainNameEnum = currentWallet
     ? currentWallet.chain_name
     : ServerChainNameEnum.mainChainName;
-
-  useEffect(() => {
-    // set somePending as well here when I know there is something new in ValueTransfers
-    const pending: number =
-      valueTransfers.length > 0
-        ? valueTransfers
-            .filter((vt: ValueTransferClass) => vt.status !== ValueTransferStatusEnum.failed)
-            .filter((vt: ValueTransferClass) => vt.confirmations >= 0 && vt.confirmations < 3).length
-        : 0;
-    setAnyPending(pending > 0);
-  }, [valueTransfers]);
-
-  useEffect(() => {
-    if (totalBalance.confirmedTransparentBalance > 0 && calculateShieldFee && !readOnly && !anyPending) {
-      (async () => {
-        setShieldFee(await calculateShieldFee());
-      })();
-    }
-  }, [totalBalance.confirmedTransparentBalance, anyPending, calculateShieldFee, readOnly]);
 
   useEffect(() => {
     let _tooltip: string = "";
@@ -549,7 +537,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
             tooltip={tooltip}
           />
         </div>
-        <ShieldBalance shieldFee={shieldFee} anyPending={anyPending} />
+        <ShieldBalance />
         {!!fetchError && !!fetchError.error && (
           <>
             <hr />

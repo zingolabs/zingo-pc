@@ -250,10 +250,7 @@ fn spendable_balance_with_address_answers_beside_a_held_read_guard() {
     // decides beside the guard rather than queueing behind it. The address is
     // parsed inside the lock, so even a refusal proves the lock was taken.
     let outcome = outcome_under_held_read_lock(|| {
-        get_spendable_balance_with_address_string(
-            zingolib::DEVELOPER_DONATION_ADDRESS.to_string(),
-            "false".to_string(),
-        )
+        get_spendable_balance_with_address_string(zingolib::DEVELOPER_DONATION_ADDRESS.to_string())
     });
     match outcome {
         Ok(answer) => {
@@ -430,7 +427,7 @@ fn nothing_shielded_answers_zero_rather_than_a_consensus_error() {
     // of ours: it guards the pin. Should a future bump lose that answer, this
     // is what says so, and it says it in the wallet we ship rather than in a
     // test suite we do not run.
-    let answer = get_spendable_balance_with_address_string(fixture_transparent_address(), "false".to_string())
+    let answer = get_spendable_balance_with_address_string(fixture_transparent_address())
         .expect("a balance question is not a consensus question");
 
     let parsed = json::parse(&answer).expect("well-formed JSON");

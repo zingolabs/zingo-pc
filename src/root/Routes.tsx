@@ -4,6 +4,7 @@ import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { ErrorModal } from "../components/errorModal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json";
+import { NO_WALLET_KEY, nextSwapProviderKey } from "./swapProviderKey";
 import { Dashboard } from "../components/dashboard";
 import { Insight } from "../components/insight";
 import { Send, SendManyJsonType } from "../components/send";
@@ -44,6 +45,7 @@ import { SwapServiceProvider } from "../context/ContextSwapService";
 
 import { native } from "../electronBridge";
 import { userFacingError } from "../utils/userFacingError";
+import { shieldQuoteSaysNotYet } from "../utils/shieldQuote";
 import { Messages } from "../components/messages";
 import { OrchardMigration } from "../components/orchardMigration";
 import { RPCIronwoodDrainType } from "../rpc/components/RPCIronwoodDrainType";
@@ -568,23 +570,51 @@ const AppRoutes: React.FC = () => {
   // given — transparent funds the wallet could not shield and a wallet that
   // simply refused to quote looked identical. The reason goes to the banner;
   // the number still says "no button".
+  const [shieldQuoteReason, setShieldQuoteReason] = useState<string>("");
+
   const calculateShieldFee = useCallback(async (): Promise<number> => {
     try {
+      // Proposing is how the fee is asked for, and zingolib stores the
+      // proposal it answers with — see the `clear_proposal` in the finally.
       const result: string = await native.shield();
       if (!result) {
         setFetchError("Shield", "the wallet returned no shielding quote");
+        setShieldQuoteReason("the wallet returned no shielding quote");
         return 0;
       }
       const resultJSON = JSON.parse(result);
       if (resultJSON.error) {
-        setFetchError("Shield", userFacingError(resultJSON.error));
+        // A quote the wallet cannot give yet is an answer, not a fault: see
+        // `shieldQuoteSaysNotYet`. No fee means no button, which is the right
+        // screen either way.
+        const reason: string = userFacingError(resultJSON.error);
+        // Said in three places, because each answers a different question: the
+        // log for a report, the banner for a fault, and the shield block for
+        // the user looking at transparent funds and no button. The refusals
+        // kept off the banner are ordinary states rather than faults — and
+        // they are precisely the ones that used to leave the screen silent.
+        console.log(`Shield quote refused: ${reason}`);
+        setShieldQuoteReason(reason);
+        if (!shieldQuoteSaysNotYet(reason)) setFetchError("Shield", reason);
         return 0;
       }
+      setShieldQuoteReason("");
       return resultJSON.fee ? resultJSON.fee / 10 ** 8 : 0;
     } catch (error) {
       console.error(`Critical Error calculate shield fee ${error}`);
-      setFetchError("Shield", userFacingError(error));
+      const reason: string = userFacingError(error);
+      setShieldQuoteReason(reason);
+      if (!shieldQuoteSaysNotYet(reason)) setFetchError("Shield", reason);
       return 0;
+    } finally {
+      // The proposal this quote stored, and the sync pause it holds, are
+      // dropped as soon as the fee has been read. Nothing here is going to
+      // send it: the Shield button proposes again when it is pressed.
+      try {
+        await native.clear_proposal();
+      } catch (error) {
+        console.error(`Error clearing the shield quote proposal ${error}`);
+      }
     }
   }, [setFetchError]);
 
@@ -695,6 +725,7 @@ const AppRoutes: React.FC = () => {
       setSendTo,
       setSwapTo,
       calculateShieldFee,
+      shieldQuoteReason,
       handleShieldButton,
       addAddressBookEntry,
       zecPrice,
@@ -745,6 +776,7 @@ const AppRoutes: React.FC = () => {
       setSendTo,
       setSwapTo,
       calculateShieldFee,
+      shieldQuoteReason,
       handleShieldButton,
       addAddressBookEntry,
       zecPrice,
@@ -759,6 +791,11 @@ const AppRoutes: React.FC = () => {
       setBlockExplorer,
     ],
   );
+
+  // The key the swap provider is rendered under, which must not move while the
+  // loading screen is working: see `nextSwapProviderKey`.
+  const swapWalletKey = useRef<string | number>(NO_WALLET_KEY);
+  swapWalletKey.current = nextSwapProviderKey(swapWalletKey.current, location.pathname, currentWallet?.id);
 
   if (!lockChecked) return null;
 
@@ -788,10 +825,11 @@ const AppRoutes: React.FC = () => {
       {/* The swap store binds against the loaded wallet's UFVK, which needs the
           lightclient up. `currentWallet` is set while the loading screen is
           still opening the wallet, so it is not that signal: leaving the
-          loading route is. Keyed by the wallet so a switch rebinds the store
-          and re-arms the poller against the new one. */}
+          loading route is. Keyed by the wallet, held still while that route is
+          on screen, so a switch rebinds the store and re-arms the poller
+          against the new one. */}
       <SwapServiceProvider
-        key={currentWallet?.id ?? "no-wallet"}
+        key={swapWalletKey.current}
         chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
         enabled={!!currentWallet && !currentWalletOpenError && location.pathname !== routes.LOADING}
       >

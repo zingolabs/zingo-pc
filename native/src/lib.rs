@@ -175,6 +175,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("send", send)?;
     cx.export_function("send_swap_deposit", send_swap_deposit)?;
     cx.export_function("shield", shield)?;
+    cx.export_function("clear_proposal", clear_proposal)?;
     cx.export_function("confirm", confirm)?;
     cx.export_function("delete_wallet", delete_wallet)?;
 
@@ -452,14 +453,36 @@ where
     f(&mut guard)
 }
 
+/// Ends the outgoing client's sync session before the client is dropped.
+///
+/// Dropping a `LightClient` does not end its sync engine: the engine runs as a
+/// detached task on `RT`, and the handle the client holds only detaches it when
+/// it goes. Until continuous sync that was invisible, because an engine reached
+/// the chain tip and returned on its own; now it never does. Every wallet this
+/// session opened — a server change is one, and each opens the wallet again —
+/// left its engine scanning a wallet nobody reads any more, and talking to the
+/// server the user had just walked away from, for as long as the app stayed up.
+///
+/// Setting the mode is all it takes: the engine reads it on its next tick and
+/// winds itself down, so no one has to wait here for it.
+fn retire_client(slot: &Option<LightClient>) {
+    if let Some(outgoing) = slot {
+        // `SyncNotRunning` is the ordinary case — a client that never synced,
+        // or one whose engine has already ended.
+        let _ = outgoing.stop_sync();
+    }
+}
+
 fn reset_lightclient() {
     with_lightclient_write(|slot| {
+        retire_client(slot);
         *slot = None;
     });
 }
 
 fn store_client(lightclient: LightClient) -> Result<(), ZingolibError> {
     with_lightclient_write(|slot| {
+        retire_client(slot);
         *slot = Some(lightclient);
     });
     Ok(())
@@ -552,8 +575,20 @@ fn construct_uri_load_config(
 
     let wallet_settings = WalletSettings {
         sync_config: SyncConfig {
-            transparent_address_discovery: TransparentAddressDiscovery::minimal(),
+            // The gap limit decides how far past the last address in use the
+            // scan keeps looking. At 1 a wallet whose owner skipped an address
+            // stops there and misses everything beyond it, which is the fault
+            // Arlo reported. The default looks ten ahead; what made 1 tempting
+            // was the cost of the discovery pass, and continuous sync pays that
+            // once per session rather than once per launch.
+            transparent_address_discovery: TransparentAddressDiscovery::default(),
             performance_level: performancetype,
+            // Continuous sync (zingolib ADR 0051): reaching the tip leaves the
+            // engine running, checking for new blocks, instead of returning and
+            // waiting to be launched again. It is what zingolib defaults to,
+            // written here so this app says what it wants rather than
+            // inheriting it.
+            shutdown_on_completion: false,
         },
         // `min_confirmations` comes from the renderer through IPC. Reject 0 (and
         // anything that casts to 0 — negatives, NaN, fractional values <1) instead
@@ -791,6 +826,22 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
         let has_seed = RT.block_on(async {
             lightclient.wallet().read().await.mnemonic_phrase().is_some()
         });
+
+        // A wallet opened here carries the gap limit it was created with, and
+        // every wallet this app made until now was made with 1: the scan stops
+        // one address past the last one in use, so an owner who skipped an
+        // address loses sight of everything beyond it. Raised to the default
+        // on open, never lowered, so a wallet that already looks further keeps
+        // doing so.
+        RT.block_on(async {
+            let mut wallet = lightclient.wallet().write().await;
+            let wanted = TransparentAddressDiscovery::default().gap_limit;
+            if wallet.wallet_settings.sync_config.transparent_address_discovery.gap_limit < wanted {
+                wallet.wallet_settings.sync_config.transparent_address_discovery.gap_limit = wanted;
+                wallet.mark_dirty();
+            }
+        });
+
         // save the wallet file here
         RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
@@ -1292,8 +1343,24 @@ fn stop_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     })
 }
 
+/// The sync engine's status: the one it last published, or computed from the
+/// wallet when it has published none.
+///
+/// The engine publishes on every scan result and on every new-block check
+/// (zingolib #2773 exposed the receiver it publishes through), and
+/// `latest_sync_status` is a clone of that value — no wallet lock, nothing
+/// recomputed. This endpoint is on the five-second cycle, and it was doing the
+/// whole computation over the wallet every time to arrive at what the engine
+/// had already worked out.
+///
+/// The fallback is what answers before a session has published anything: a
+/// wallet just opened, or one whose engine is not running. That case is worth
+/// the computation, which is why it is still here.
 fn status_sync_string() -> Result<String, ZingolibError> {
     with_initialized_lightclient_read(|lightclient| {
+        if let Some(published) = lightclient.latest_sync_status() {
+            return Ok(json::JsonValue::from(published).pretty(2));
+        }
         RT.block_on(async move {
             match pepper_sync::sync_status(&*lightclient.wallet().read().await).await {
                 Ok(status) => Ok(json::JsonValue::from(status).pretty(2)),
@@ -2142,8 +2209,11 @@ fn auto_broadcast_if_due(mut cx: FunctionContext) -> JsResult<JsPromise> {
 // broadcasts every part to Ironwood at once. This is the ONLY public path that
 // drives note-splitting to completion (the scheduled start/broadcast_due_parts
 // flow has no public split driver in this zingolib build), so it is what an
-// interactive migration uses. Long-running and syncs internally, so the caller
-// must stop any background sync first (the RPC layer brackets it like the drain).
+// interactive migration uses. Long-running, and it syncs itself: once per
+// round, and again while it waits for confirmations. Under continuous sync
+// that sync would never return, so zingolib stops the running engine before
+// each one and leaves it stopped (#2781, raised from here) — which is why the
+// RPC layer brackets this call and lets its cycle launch the next engine.
 // Returns structured JSON: the summary on success, `{ error }` on failure.
 fn migrate_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
@@ -2387,17 +2457,14 @@ fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {
     })
 }
 
-fn get_spendable_balance_with_address_string(address: String, zennies: String) -> Result<String, ZingolibError> {
+fn get_spendable_balance_with_address_string(address: String) -> Result<String, ZingolibError> {
     with_initialized_lightclient_read(|lightclient| {
         let address = address_from_str(&address).map_err(|e| {
             ZingolibError::Read(format!("unknown address format. {}", cause_chain(&e)))
         })?;
-        let zennies = zennies.parse().map_err(|e| {
-            ZingolibError::Read(format!("failed to parse zennies setting. {e}"))
-        })?;
         RT.block_on(async move {
             match lightclient
-                .max_send_value(address, zennies, AccountId::ZERO)
+                .max_send_value(address, AccountId::ZERO)
                 .await
             {
                 Ok(bal) => {
@@ -2411,9 +2478,8 @@ fn get_spendable_balance_with_address_string(address: String, zennies: String) -
 
 fn get_spendable_balance_with_address(mut cx: FunctionContext) -> JsResult<JsPromise> {
     let address = cx.argument::<JsString>(0)?.value(&mut cx);
-    let zennies = cx.argument::<JsString>(1)?.value(&mut cx);
 
-    spawn_promise(&mut cx, move || get_spendable_balance_with_address_string(address, zennies))
+    spawn_promise(&mut cx, move || get_spendable_balance_with_address_string(address))
 }
 
 fn get_spendable_balance_total_string() -> Result<String, ZingolibError> {
@@ -2901,6 +2967,25 @@ fn shield(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 }
                 .pretty(2)
             }))
+        })
+    })
+}
+
+// clear_proposal: drops the proposal a quote left behind.
+//
+// Proposing is how this app asks what a send or a shield would cost, and
+// zingolib stores the proposal it answers with — and, with it, a guard that
+// keeps the sync engine paused until the proposal is consumed or cleared. A
+// quote consumes nothing, so every fee shown on screen used to leave both
+// behind. That was invisible while sync ended at the chain tip: pausing an
+// engine that was not running does nothing. Under continuous sync the engine
+// is always running, and the first fee quote would have stopped it scanning
+// for the rest of the session.
+fn clear_proposal(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
+        with_initialized_lightclient(|lightclient| {
+            RT.block_on(async move { lightclient.clear_proposal().await });
+            Ok("OK".to_string())
         })
     })
 }
