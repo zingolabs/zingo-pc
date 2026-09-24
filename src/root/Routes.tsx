@@ -4,6 +4,7 @@ import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import { ErrorModal } from "../components/errorModal";
 import cstyles from "../components/common/Common.module.css";
 import routes from "../constants/routes.json";
+import { NO_WALLET_KEY, nextSwapProviderKey } from "./swapProviderKey";
 import { Dashboard } from "../components/dashboard";
 import { Insight } from "../components/insight";
 import { Send, SendManyJsonType } from "../components/send";
@@ -766,6 +767,11 @@ const AppRoutes: React.FC = () => {
     ],
   );
 
+  // The key the swap provider is rendered under, which must not move while the
+  // loading screen is working: see `nextSwapProviderKey`.
+  const swapWalletKey = useRef<string | number>(NO_WALLET_KEY);
+  swapWalletKey.current = nextSwapProviderKey(swapWalletKey.current, location.pathname, currentWallet?.id);
+
   if (!lockChecked) return null;
 
   if (locked) {
@@ -794,10 +800,11 @@ const AppRoutes: React.FC = () => {
       {/* The swap store binds against the loaded wallet's UFVK, which needs the
           lightclient up. `currentWallet` is set while the loading screen is
           still opening the wallet, so it is not that signal: leaving the
-          loading route is. Keyed by the wallet so a switch rebinds the store
-          and re-arms the poller against the new one. */}
+          loading route is. Keyed by the wallet, held still while that route is
+          on screen, so a switch rebinds the store and re-arms the poller
+          against the new one. */}
       <SwapServiceProvider
-        key={currentWallet?.id ?? "no-wallet"}
+        key={swapWalletKey.current}
         chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
         enabled={!!currentWallet && !currentWalletOpenError && location.pathname !== routes.LOADING}
       >
