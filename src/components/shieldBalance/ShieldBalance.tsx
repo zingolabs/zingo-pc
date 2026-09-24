@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 
 import { ContextApp } from "../../context/ContextAppState";
+import { describeSendRoute } from "../../rpc/components/mixnetPresenter";
 import cstyles from "../common/Common.module.css";
 
 type ShieldBalanceProps = {
@@ -29,9 +30,16 @@ type ShieldBalanceProps = {
  * One component rather than the copy this replaced in five screens. The block
  * was already identical in all five; the prose is the part that must not drift
  * between them.
+ *
+ * Shielding transmits, and it ends in the same route policy a send does, so it
+ * waits for the same transport: with the mixnet bootstrapping, lost or
+ * unreadable, the wallet core refuses it. The Send and Swap screens have always
+ * said so and held their buttons back; this one let the user press it and meet
+ * the refusal as an error, which reads like a fault in the shield rather than a
+ * transport that is not up yet.
  */
 export function ShieldBalance({ shieldFee, anyPending }: ShieldBalanceProps) {
-  const { totalBalance, readOnly, handleShieldButton } = useContext(ContextApp);
+  const { totalBalance, readOnly, handleShieldButton, mixnetView } = useContext(ContextApp);
 
   const canShield: boolean =
     totalBalance.confirmedTransparentBalance >= shieldFee && shieldFee > 0 && !readOnly && !anyPending;
@@ -43,13 +51,27 @@ export function ShieldBalance({ shieldFee, anyPending }: ShieldBalanceProps) {
         // the edges, and the sentence belongs beside the button it explains,
         // not across the pane from it.
         <div style={{ display: "flex", alignItems: "center", gap: 12, textAlign: "left" }}>
-          <button className={cstyles.primarybutton} type="button" onClick={handleShieldButton}>
+          <button
+            className={cstyles.primarybutton}
+            type="button"
+            disabled={mixnetView.sendBlocked}
+            onClick={handleShieldButton}
+          >
             Shield Transparent Balance (Fee: {shieldFee})
           </button>
           <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ maxWidth: 420 }}>
             Transparent funds cannot be spent. Shielding moves them into your own shielded balance, where they can be
             spent — it does not send them to anyone.
           </div>
+        </div>
+      )}
+      {/* Only when it blocks. The Send screen names the route in every state,
+          because that is the screen where the route is worth teaching; here the
+          line exists to say why a button went grey, and this block appears on
+          five screens. */}
+      {canShield && mixnetView.sendBlocked && (
+        <div className={`${cstyles.yellow} ${cstyles.small} ${cstyles.padtopsmall}`}>
+          {describeSendRoute(mixnetView, "shield")}
         </div>
       )}
       {!!anyPending && (

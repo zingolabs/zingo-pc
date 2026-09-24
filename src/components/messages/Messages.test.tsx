@@ -9,6 +9,7 @@ import {
   ValueTransferStatusEnum,
   ServerChainNameEnum,
 } from "../appstate";
+import { deriveMixnetView } from "../../rpc/components/mixnetPresenter";
 
 jest.mock("../../electronBridge");
 
@@ -47,6 +48,10 @@ const makeVt = (overrides: Partial<ValueTransferClass> = {}): ValueTransferClass
   );
 
 const makeBalance = (overrides: Partial<TotalBalanceClass> = {}) => Object.assign(new TotalBalanceClass(), overrides);
+
+// Shielding transmits, so the button waits for the mixnet; the default
+// context is the fail-closed view.
+const READY_MIXNET = deriveMixnetView({ mode: "ready", socks5_addr: "127.0.0.1:1080" });
 
 describe("Messages", () => {
   it("renders without crashing", () => {
@@ -133,6 +138,7 @@ describe("Messages", () => {
         totalBalance: makeBalance({ confirmedTransparentBalance: 1 }),
         calculateShieldFee,
         handleShieldButton,
+        mixnetView: READY_MIXNET,
       },
     });
     await waitFor(() => expect(calculateShieldFee).toHaveBeenCalled());

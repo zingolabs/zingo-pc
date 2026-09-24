@@ -2,14 +2,20 @@ import React from "react";
 import { render, screen } from "../../test-utils";
 import { ShieldBalance } from "./ShieldBalance";
 import { TotalBalanceClass } from "../appstate";
+import { deriveMixnetView } from "../../rpc/components/mixnetPresenter";
 
 jest.mock("../../electronBridge");
 
 const balanceWithTransparent = (confirmedTransparentBalance: number): TotalBalanceClass =>
   ({ ...new TotalBalanceClass(), confirmedTransparentBalance }) as TotalBalanceClass;
 
+// Shielding transmits, so it takes the same route a send does and the screens
+// default to the fail-closed view. Every case that is not about the transport
+// says the transport is up.
+const READY = deriveMixnetView({ mode: "ready", socks5_addr: "127.0.0.1:1080" });
+
 const show = (overrides: Record<string, unknown>, props: { shieldFee: number; anyPending: boolean }) =>
-  render(<ShieldBalance {...props} />, { contextOverrides: overrides });
+  render(<ShieldBalance {...props} />, { contextOverrides: { mixnetView: READY, ...overrides } });
 
 const EXPLANATION = /Transparent funds cannot be spent/;
 
@@ -48,6 +54,41 @@ describe("ShieldBalance", () => {
 
     expect(screen.queryByRole("button", { name: /Shield Transparent Balance/ })).not.toBeInTheDocument();
     expect(screen.getByText(/Some transactions are pending/)).toBeInTheDocument();
+  });
+
+  it("holds the button back until the mixnet is up, and says what it waits for", () => {
+    // The wallet core refuses the transmission in this state, so a live button
+    // only buys the user an error that reads like a fault in the shield.
+    show(
+      {
+        totalBalance: balanceWithTransparent(0.05),
+        readOnly: false,
+        mixnetView: deriveMixnetView({ mode: "bootstrapping", bootstrap_detail: "3 of 5 hops" }),
+      },
+      { shieldFee: 0.00015, anyPending: false },
+    );
+
+    expect(screen.getByRole("button", { name: /Shield Transparent Balance/ })).toBeDisabled();
+    // Named as what it is, not as a send.
+    expect(
+      screen.getByText("Shielding waits for the Nym mixnet to finish connecting (3 of 5 hops)."),
+    ).toBeInTheDocument();
+  });
+
+  it("leaves it live when the mixnet is off for the session", () => {
+    // Opting out costs privacy, not the ability to shield: the route resolves
+    // to clearnet and the core transmits.
+    show(
+      {
+        totalBalance: balanceWithTransparent(0.05),
+        readOnly: false,
+        mixnetView: deriveMixnetView({ mode: "switched_off" }),
+      },
+      { shieldFee: 0.00015, anyPending: false },
+    );
+
+    expect(screen.getByRole("button", { name: /Shield Transparent Balance/ })).toBeEnabled();
+    expect(screen.queryByText(/Shielding waits/)).not.toBeInTheDocument();
   });
 
   it("says nothing before the fee is known", () => {

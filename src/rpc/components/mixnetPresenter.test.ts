@@ -87,6 +87,27 @@ describe("deriveMixnetView", () => {
   });
 });
 
+describe("describeSendRoute for a shield", () => {
+  it("names the act the user is looking at rather than calling it a send", () => {
+    const view = deriveMixnetView({ mode: "bootstrapping" });
+
+    expect(describeSendRoute(view, "shield")).toMatch(/Shielding waits for the Nym mixnet/);
+    expect(describeSendRoute(view, "shield")).not.toMatch(/send/i);
+  });
+
+  it("offers the clearnet opt-out in the same words", () => {
+    expect(describeSendRoute(deriveMixnetView({ mode: "died" }), "shield")).toMatch(
+      /switch it off to shield over clearnet/,
+    );
+  });
+
+  it("says where a shield travels when the transport is up", () => {
+    expect(describeSendRoute(deriveMixnetView({ mode: "ready", socks5_addr: "127.0.0.1:1080" }), "shield")).toBe(
+      "Shielding will travel over the Nym mixnet.",
+    );
+  });
+});
+
 describe("describeSendRoute", () => {
   // Two of the five states are working routes, not failures: a ready mixnet and
   // a deliberate opt-out both send, one privately and one over clearnet.
