@@ -34,7 +34,6 @@ const Receive: React.FC<ReceiveProps> = () => {
     saplingPool,
     transparentPool,
     calculateShieldFee,
-    handleShieldButton,
     totalBalance,
     valueTransfers,
     readOnly,
@@ -249,8 +248,6 @@ const Receive: React.FC<ReceiveProps> = () => {
                         type={"t"}
                         position={i + 1}
                         total={shownTaddrs.length}
-                        calculateShieldFee={calculateShieldFee}
-                        handleShieldButton={handleShieldButton}
                       />
                     ))}
                   </Accordion>

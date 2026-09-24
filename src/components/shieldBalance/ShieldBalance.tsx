@@ -59,19 +59,18 @@ export function ShieldBalance({ shieldFee, anyPending }: ShieldBalanceProps) {
           >
             Shield Transparent Balance (Fee: {shieldFee})
           </button>
-          <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ maxWidth: 420 }}>
-            Transparent funds cannot be spent. Shielding moves them into your own shielded balance, where they can be
-            spent — it does not send them to anyone.
+          {/* Two lines beside the button: why it is there, and where what it
+              does will travel — the second in the words the Send and Swap
+              screens use, because it is the same route and the same wait. */}
+          <div style={{ maxWidth: 420 }}>
+            <div className={`${cstyles.sublight} ${cstyles.small}`}>
+              Transparent funds cannot be spent. Shielding moves them into your own shielded balance, not to anyone
+              else.
+            </div>
+            <div className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small}`}>
+              {describeSendRoute(mixnetView)}
+            </div>
           </div>
-        </div>
-      )}
-      {/* Only when it blocks. The Send screen names the route in every state,
-          because that is the screen where the route is worth teaching; here the
-          line exists to say why a button went grey, and this block appears on
-          five screens. */}
-      {canShield && mixnetView.sendBlocked && (
-        <div className={`${cstyles.yellow} ${cstyles.small} ${cstyles.padtopsmall}`}>
-          {describeSendRoute(mixnetView, "shield")}
         </div>
       )}
       {!!anyPending && (

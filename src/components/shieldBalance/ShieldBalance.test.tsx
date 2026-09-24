@@ -32,8 +32,7 @@ describe("ShieldBalance", () => {
 
     // Someone told their money is stuck is not reassured by a control that
     // moves it somewhere unnamed.
-    expect(screen.getByText(/your own shielded balance/)).toBeInTheDocument();
-    expect(screen.getByText(/does not send them to anyone/)).toBeInTheDocument();
+    expect(screen.getByText(/your own shielded balance, not to anyone else/)).toBeInTheDocument();
   });
 
   it("says nothing when there is nothing to shield", () => {
@@ -69,9 +68,10 @@ describe("ShieldBalance", () => {
     );
 
     expect(screen.getByRole("button", { name: /Shield Transparent Balance/ })).toBeDisabled();
-    // Named as what it is, not as a send.
+    // The same sentence the Send and Swap screens show, because it is the same
+    // route and the same wait.
     expect(
-      screen.getByText("Shielding waits for the Nym mixnet to finish connecting (3 of 5 hops)."),
+      screen.getByText("Sending waits for the Nym mixnet to finish connecting (3 of 5 hops)."),
     ).toBeInTheDocument();
   });
 
@@ -88,7 +88,11 @@ describe("ShieldBalance", () => {
     );
 
     expect(screen.getByRole("button", { name: /Shield Transparent Balance/ })).toBeEnabled();
-    expect(screen.queryByText(/Shielding waits/)).not.toBeInTheDocument();
+    // The route is named in every state, as on the Send screen: a line that
+    // only appears when something is wrong teaches nothing about the route.
+    expect(
+      screen.getByText("This send will travel over clearnet — the Nym mixnet is off for this session."),
+    ).toBeInTheDocument();
   });
 
   it("says nothing before the fee is known", () => {

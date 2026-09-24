@@ -108,30 +108,22 @@ export function deriveMixnetView(status: RPCMixnetStatusType): MixnetView {
  * Stated for every state, including the good ones: a route that is only ever
  * mentioned when something is wrong teaches the user nothing about the route.
  */
-// What is about to travel. A shield is a transmission like any other — it
-// ends in `transmit_transactions`, under the same route policy — so it waits
-// for the same transport, and the line that says so should name the act the
-// user is looking at rather than call it a send.
-export type TransmissionSubject = "send" | "shield";
-
-const SUBJECT_WORDS: Record<TransmissionSubject, { travels: string; waits: string; clearnet: string }> = {
-  send: { travels: "This send will travel", waits: "Sending waits", clearnet: "send over clearnet" },
-  shield: { travels: "Shielding will travel", waits: "Shielding waits", clearnet: "shield over clearnet" },
-};
-
-export function describeSendRoute(view: MixnetView, subject: TransmissionSubject = "send"): string {
-  const words = SUBJECT_WORDS[subject];
+// One wording for every screen that transmits — send, swap and shield. A
+// shield ends in `transmit_transactions` under the same route policy as a
+// send, so it waits for the same transport, and a user reading two screens
+// should not have to work out whether two sentences mean the same thing.
+export function describeSendRoute(view: MixnetView): string {
   switch (view.statusKey) {
     case "mixnet.status.ready":
-      return `${words.travels} over the Nym mixnet.`;
+      return "This send will travel over the Nym mixnet.";
     case "mixnet.status.off":
-      return `${words.travels} over clearnet — the Nym mixnet is off for this session.`;
+      return "This send will travel over clearnet — the Nym mixnet is off for this session.";
     case "mixnet.status.bootstrapping":
-      return `${words.waits} for the Nym mixnet to finish connecting${view.narration ? ` (${view.narration})` : ""}.`;
+      return `Sending waits for the Nym mixnet to finish connecting${view.narration ? ` (${view.narration})` : ""}.`;
     case "mixnet.status.retrying":
-      return `${words.waits} for the Nym mixnet, which cannot be reached right now and keeps being retried. Switch it off to ${words.clearnet}.`;
+      return "Sending waits for the Nym mixnet, which cannot be reached right now and keeps being retried. Switch it off to send over clearnet.";
     default:
-      return `${words.waits} for the Nym mixnet. Re-enable it from Settings, or switch it off to ${words.clearnet}.`;
+      return "Sending waits for the Nym mixnet. Re-enable it from Settings, or switch it off to send over clearnet.";
   }
 }
 
