@@ -2208,8 +2208,11 @@ fn auto_broadcast_if_due(mut cx: FunctionContext) -> JsResult<JsPromise> {
 // broadcasts every part to Ironwood at once. This is the ONLY public path that
 // drives note-splitting to completion (the scheduled start/broadcast_due_parts
 // flow has no public split driver in this zingolib build), so it is what an
-// interactive migration uses. Long-running and syncs internally, so the caller
-// must stop any background sync first (the RPC layer brackets it like the drain).
+// interactive migration uses. Long-running, and it syncs itself: once per
+// round, and again while it waits for confirmations. Under continuous sync
+// that sync would never return, so zingolib stops the running engine before
+// each one and leaves it stopped (#2781, raised from here) — which is why the
+// RPC layer brackets this call and lets its cycle launch the next engine.
 // Returns structured JSON: the summary on success, `{ error }` on failure.
 fn migrate_to_ironwood(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {

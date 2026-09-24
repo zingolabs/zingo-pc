@@ -72,9 +72,19 @@ crate-type = ["cdylib"]
 # `max_send_value` lost its Zennies argument with the send-all rework, and
 # `sync::sync_status` is no longer re-exported: `LightClient::latest_sync_status`
 # is the published status, and pepper-sync's own function the computed one.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "af40a1f3368ebcb5a0db22cce75268578acbfe4f", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "af40a1f3368ebcb5a0db22cce75268578acbfe4f" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "af40a1f3368ebcb5a0db22cce75268578acbfe4f" }
+#
+# This bump (af40a1f3 -> 0838ea8c) closes what continuous sync left open in
+# the migration flows. They used to sync with `sync_and_await`, which under
+# a wallet that never shuts its engine down does not return: the call this
+# crate makes under the exclusive client lock would have waited for good,
+# with every other endpoint behind it. They now use `sync_to_tip_and_await`,
+# which overrides `shutdown_on_completion` for that one session, stops any
+# running engine first and leaves it stopped — the five-second cycle this
+# crate restores after a migration launches the next one (zingolib #2781,
+# raised from here). Nothing else in the surface this crate names changed.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "0838ea8ceb6946d6510a9d115111bec749b2e0ca", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "0838ea8ceb6946d6510a9d115111bec749b2e0ca" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "0838ea8ceb6946d6510a9d115111bec749b2e0ca" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two

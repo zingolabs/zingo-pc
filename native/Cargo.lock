@@ -2011,7 +2011,7 @@ dependencies = [
 [[package]]
 name = "pepper-sync"
 version = "0.5.0"
-source = "git+https://github.com/zingolabs/zingolib?rev=af40a1f3368ebcb5a0db22cce75268578acbfe4f#af40a1f3368ebcb5a0db22cce75268578acbfe4f"
+source = "git+https://github.com/zingolabs/zingolib?rev=0838ea8ceb6946d6510a9d115111bec749b2e0ca#0838ea8ceb6946d6510a9d115111bec749b2e0ca"
 dependencies = [
  "bip32",
  "byteorder",
@@ -4199,7 +4199,7 @@ dependencies = [
 [[package]]
 name = "zingo-memo"
 version = "0.1.1"
-source = "git+https://github.com/zingolabs/zingolib?rev=af40a1f3368ebcb5a0db22cce75268578acbfe4f#af40a1f3368ebcb5a0db22cce75268578acbfe4f"
+source = "git+https://github.com/zingolabs/zingolib?rev=0838ea8ceb6946d6510a9d115111bec749b2e0ca#0838ea8ceb6946d6510a9d115111bec749b2e0ca"
 dependencies = [
  "zcash_address",
  "zcash_encoding",
@@ -4210,7 +4210,7 @@ dependencies = [
 [[package]]
 name = "zingo-net-diag"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?rev=af40a1f3368ebcb5a0db22cce75268578acbfe4f#af40a1f3368ebcb5a0db22cce75268578acbfe4f"
+source = "git+https://github.com/zingolabs/zingolib?rev=0838ea8ceb6946d6510a9d115111bec749b2e0ca#0838ea8ceb6946d6510a9d115111bec749b2e0ca"
 dependencies = [
  "serde",
 ]
@@ -4218,7 +4218,7 @@ dependencies = [
 [[package]]
 name = "zingo-netutils"
 version = "5.0.1"
-source = "git+https://github.com/zingolabs/zingolib?rev=af40a1f3368ebcb5a0db22cce75268578acbfe4f#af40a1f3368ebcb5a0db22cce75268578acbfe4f"
+source = "git+https://github.com/zingolabs/zingolib?rev=0838ea8ceb6946d6510a9d115111bec749b2e0ca#0838ea8ceb6946d6510a9d115111bec749b2e0ca"
 dependencies = [
  "http",
  "hyper-util",
@@ -4240,7 +4240,7 @@ dependencies = [
 [[package]]
 name = "zingo-price"
 version = "0.1.0"
-source = "git+https://github.com/zingolabs/zingolib?rev=af40a1f3368ebcb5a0db22cce75268578acbfe4f#af40a1f3368ebcb5a0db22cce75268578acbfe4f"
+source = "git+https://github.com/zingolabs/zingolib?rev=0838ea8ceb6946d6510a9d115111bec749b2e0ca#0838ea8ceb6946d6510a9d115111bec749b2e0ca"
 dependencies = [
  "byteorder",
  "serde",
@@ -4254,7 +4254,7 @@ dependencies = [
 [[package]]
 name = "zingo-status"
 version = "0.2.1"
-source = "git+https://github.com/zingolabs/zingolib?rev=af40a1f3368ebcb5a0db22cce75268578acbfe4f#af40a1f3368ebcb5a0db22cce75268578acbfe4f"
+source = "git+https://github.com/zingolabs/zingolib?rev=0838ea8ceb6946d6510a9d115111bec749b2e0ca#0838ea8ceb6946d6510a9d115111bec749b2e0ca"
 dependencies = [
  "byteorder",
  "zcash_protocol",
@@ -4272,7 +4272,7 @@ dependencies = [
 [[package]]
 name = "zingolib"
 version = "6.0.0"
-source = "git+https://github.com/zingolabs/zingolib?rev=af40a1f3368ebcb5a0db22cce75268578acbfe4f#af40a1f3368ebcb5a0db22cce75268578acbfe4f"
+source = "git+https://github.com/zingolabs/zingolib?rev=0838ea8ceb6946d6510a9d115111bec749b2e0ca#0838ea8ceb6946d6510a9d115111bec749b2e0ca"
 dependencies = [
  "append-only-vec",
  "bech32",
