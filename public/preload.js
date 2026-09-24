@@ -71,7 +71,6 @@ const _ALL_NATIVE_METHODS = [
   "send",
   "send_swap_deposit",
   "delete_wallet",
-  "change_server",
   "start_ironwood_migration",
   "reschedule_parts",
   "execute_due_parts",

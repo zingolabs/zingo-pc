@@ -1907,7 +1907,6 @@ ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_co
   assertWalletName(wallet_name);
   return requireNative("delete_wallet").delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);
 });
-ipcMain.handle("native:change_server", (_e, server_uri) => requireNative("change_server").change_server(server_uri));
 ipcMain.handle("native:start_ironwood_migration", (_e, consented_plan_hash, per_bucket) =>
   requireNative("start_ironwood_migration").start_ironwood_migration(consented_plan_hash, per_bucket),
 );
