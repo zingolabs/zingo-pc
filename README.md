@@ -105,6 +105,10 @@ yarn release:prep 2.0.15 142
 **Wallet**
 
 - Light client — no full chain download, syncs from a `lightwalletd` server
+- Follows the chain while it is open — sync stays at the tip and scans each block as it is mined,
+  rather than running to the end and waiting to be asked again, so a payment shows up when it lands
+- Looks ten transparent addresses past the last one used, so funds sent to an address you skipped are
+  found rather than left behind the first gap
 - Multi-wallet support — manage several wallets in the same install
 - Multi-network — Mainnet, Testnet and Regtest; the network is chosen when the wallet is created and
   fixed from then on, so several wallets can sit on different networks side by side
@@ -157,7 +161,8 @@ yarn release:prep 2.0.15 142
 - ZEC price is fetched over the mixnet only; while the transport is not ready the USD figures read
   `USD --` rather than falling back to clearnet
 - Sending fails closed: a payment goes out over the mixnet, or not at all, unless the mixnet has been
-  switched off deliberately
+  switched off deliberately. Shielding the transparent balance is a payment by another name and waits
+  the same way
 
 **Swaps** _(experimental, still under testing)_
 
@@ -233,6 +238,8 @@ payment, and fetching the price. Syncing is not one of them.
   what the mixnet is for: a broadcast is handed to the same indexer that has
   been serving your wallet, and without the tunnel that indexer sees a person
   and a transaction at the same address
+- **Shielding the transparent balance**, which is a transmission like any other:
+  the Shield button waits for the transport exactly as Send and Swap do
 - **The transmissions of the Ironwood migration**, which are payments by another
   name and follow the same rule
 - **The ZEC price.** Mixnet-only: no setting sends it over clearnet, and while
@@ -266,7 +273,9 @@ NymVPN; the wallet does not embed one.
 
 **Sending fails closed.** A payment goes out through the mixnet or not at all.
 While the transport is bootstrapping, unattached or lost, sending refuses rather
-than falling back — losing the transport is not consent to clearnet.
+than falling back — losing the transport is not consent to clearnet. That covers
+shielding and a swap deposit too: the screens hold their buttons back and say
+what they are waiting for, instead of letting the wallet refuse afterwards.
 
 **Turning it on and off.** The sidebar carries the current state, and Settings →
 Nym Mixnet turns the transport off and on. Switching it off also puts that
@@ -277,6 +286,14 @@ starts on the mixnet again.
 ---
 
 ## Troubleshooting
+
+**Q: An older version of Zingo PC will not open my wallet any more**
+
+A: Opening a wallet with a newer version can write it in a newer format, and that is one-way: the
+older build refuses a file whose layout it does not know. Stay on the version you upgraded to, or
+restore the wallet from its seed phrase in the older one — which is what the seed is for.
+
+---
 
 **Q: Clicking a `zcash:` payment link doesn't open Zingo PC (Linux AppImage)**
 
