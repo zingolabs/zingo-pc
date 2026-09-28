@@ -1,4 +1,10 @@
-import { INITIAL_SERVER_HEALTH, ServerHealthState, deriveServerHealth, recordProbe } from "./serverHealth";
+import {
+  recordCannotServe,
+  INITIAL_SERVER_HEALTH,
+  ServerHealthState,
+  deriveServerHealth,
+  recordProbe,
+} from "./serverHealth";
 
 const fold = (outcomes: boolean[]): ServerHealthState =>
   outcomes.reduce((state, answered) => recordProbe(state, answered), INITIAL_SERVER_HEALTH);
@@ -125,5 +131,30 @@ describe("slow answers", () => {
       [true, 8000],
     ]);
     expect(deriveServerHealth(state)).toBe("slow");
+  });
+
+  // A server missing a whole pool answers the latest-block probe as readily as
+  // any other, so no number of probes will ever call it down while the wallet
+  // does not advance a block. The verdict comes from the sync engine instead.
+  describe("a server that answers but cannot serve the wallet", () => {
+    it("is unusable, whatever the probes say", () => {
+      const healthy = recordProbe(recordProbe(INITIAL_SERVER_HEALTH, true, 120), true, 130);
+      expect(deriveServerHealth(healthy)).toBe("ok");
+
+      const unusable = recordCannotServe(healthy, "Invalid shielded protocol value");
+      expect(deriveServerHealth(unusable)).toBe("unusable");
+    });
+
+    it("stays unusable while it goes on answering", () => {
+      const unusable = recordCannotServe(INITIAL_SERVER_HEALTH, "Invalid shielded protocol value");
+
+      expect(deriveServerHealth(recordProbe(unusable, true, 100))).toBe("unusable");
+    });
+
+    it("clears when the reason does", () => {
+      const unusable = recordCannotServe(INITIAL_SERVER_HEALTH, "Invalid shielded protocol value");
+
+      expect(deriveServerHealth(recordProbe(recordCannotServe(unusable, null), true, 100))).toBe("ok");
+    });
   });
 });

@@ -19,6 +19,27 @@ describe("syncFailureMessage", () => {
     expect(syncFailureMessage(reason)).toBe("The server stopped answering — reconnecting.");
   });
 
+  // The verdict outranks the prose. A server that cannot serve this wallet
+  // says so in terms of a protocol value the user never chose, and the only
+  // thing they can do about it is use a different server.
+  it("says what to do when the server cannot serve the wallet", () => {
+    const reason =
+      "sync: server error ← server request failed ← code: 'Client specified an invalid argument', " +
+      'message: "Error: Invalid shielded protocol value."';
+
+    expect(syncFailureMessage(reason, "server_unavailable")).toBe(
+      "This server cannot serve this wallet. Switch to another server.",
+    );
+  });
+
+  // The same failure text, classified as transient, is the ordinary dropped
+  // connection and keeps its own sentence.
+  it("keeps the reconnecting sentence for a failure the library calls recoverable", () => {
+    expect(syncFailureMessage("transport error ← Timeout expired", "maybe_recoverable_server")).toBe(
+      "The server stopped answering — reconnecting.",
+    );
+  });
+
   // Anything the wallet knows about itself is a fact we have no better words for.
   it("leaves the wallet's own refusals alone", () => {
     const reason = "sync: wallet height 34100000 is more than 100 blocks ahead of best chain height 3470916";

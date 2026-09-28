@@ -20,6 +20,9 @@ const DOT_COLOUR: Record<ServerHealthLevel, string> = {
   slow: "var(--color-warning)",
   unstable: "var(--color-warning)",
   down: "var(--color-error)",
+  // Red with down: both mean this server is no use to you now, and the one
+  // thing to do about either is the same. The tooltip says which it is.
+  unusable: "var(--color-error)",
 };
 
 // What the colour is telling you. Amber and red are the ones that need saying:
@@ -30,6 +33,7 @@ const DOT_TOOLTIP: Record<ServerHealthLevel, string> = {
   slow: "This server is answering, but taking seconds to do it. The wallet will feel stuck.",
   unstable: "This server has failed some checks this session, but not three in a row.",
   down: "This server has not answered the last three checks.",
+  unusable: "This server answers, but cannot serve this wallet. Switch to another server.",
 };
 
 /**

@@ -22,9 +22,9 @@ import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
 import { userFacingError } from "../utils/userFacingError";
-import { syncFailureMessage } from "./syncFailureMessage";
+import { SyncRecovery, syncFailureMessage } from "./syncFailureMessage";
 import { depositSpendsSourceAddress } from "../swap/depositRouting";
-import { INITIAL_SERVER_HEALTH, ServerHealthState, recordProbe } from "./components/serverHealth";
+import { INITIAL_SERVER_HEALTH, ServerHealthState, recordCannotServe, recordProbe } from "./components/serverHealth";
 import {
   FfiBatchReport,
   FfiMigrationSummary,
@@ -109,6 +109,10 @@ export default class RPC {
 
   lastPollSyncError: string;
   consecutivePollSyncFailures: number;
+  // Set when the sync engine says this server cannot serve this wallet, and
+  // the reason it gave. While it holds, the cycle stops launching sessions
+  // that will die the same way.
+  serverCannotSync: string;
 
   serverHealth: ServerHealthState;
   // The periodic work currently out, by name. A second ask for something
@@ -155,6 +159,7 @@ export default class RPC {
 
     this.lastPollSyncError = "";
     this.consecutivePollSyncFailures = 0;
+    this.serverCannotSync = "";
 
     this.serverHealth = INITIAL_SERVER_HEALTH;
 
@@ -196,6 +201,7 @@ export default class RPC {
 
   /** A different server has nothing to do with the last one's record. */
   resetServerHealth(): void {
+    this.serverCannotSync = "";
     this.serverHealth = INITIAL_SERVER_HEALTH;
     this.healthProbeAt = 0;
     this.fnSetServerHealth(this.serverHealth);
@@ -259,6 +265,12 @@ export default class RPC {
   }
 
   async configure(): Promise<void> {
+    // Whatever brought us here — a new wallet, a new server, a spend that
+    // stopped the engine — the reason a previous session could not sync is a
+    // fact about a session that is over. Held any longer it would keep the
+    // cycle from ever launching another one.
+    this.serverCannotSync = "";
+
     // Bring this wallet onto the session mixnet transport (ADR 0024). Main owns
     // the proxy across wallet switches, so this attaches the fresh client to the
     // already-running tunnel (or records the per-session opt-out) with no
@@ -601,14 +613,32 @@ export default class RPC {
       // data channel.
       const returnPoll: string = await native.poll_sync();
       // Reaching here at all is the sync answering, whatever it answered, so a
-      // failure the user is still being shown is over.
+      // failure the user is still being shown is over. The verdict on the
+      // server is not cleared here: this branch is reached by the poll that
+      // reports the failure too, and the engine only answers again once
+      // something has changed — a new server, a new wallet — which is where
+      // `configure` clears it.
       this.consecutivePollSyncFailures = 0;
-      if (this.lastPollSyncError) {
+      // Except while the server stands accused: the very next poll answers
+      // "not launched", because the failed session left no engine behind, and
+      // clearing on that would take the message off screen a few seconds after
+      // putting it there — with the wallet no closer to syncing.
+      if (this.lastPollSyncError && !this.serverCannotSync) {
         this.lastPollSyncError = "";
         this.fnSetFetchError("Sync", "");
       }
 
       if (returnPoll.toLowerCase().startsWith("sync task has not been launched")) {
+        // Except against a server the engine has already told us it cannot
+        // sync from. Relaunching there is a session that dies at the same
+        // request every fifteen seconds, for as long as the app is open, while
+        // the screen shows the last status it managed to publish — which is
+        // how a wallet falling further behind every block looked like one at
+        // 99.99%.
+        if (this.serverCannotSync) {
+          console.log("SYNC POLL -> NOT RELAUNCHING", this.serverCannotSync);
+          return;
+        }
         console.log("SYNC POLL -> RUN SYNC", returnPoll);
         void this.refreshSync();
         return;
@@ -634,6 +664,13 @@ export default class RPC {
         return;
       }
 
+      // A session that ended in failure crosses here rather than as a throw,
+      // carrying zingolib's own verdict on what to do about it.
+      if (sp.sync_failed) {
+        this.recordSyncFailure(sp.sync_failed.reason ?? "", sp.sync_failed.recovery);
+        return;
+      }
+
       console.log("SYNC POLL", sp);
 
       console.log("SYNC POLL -> FETCH STATUS");
@@ -653,23 +690,47 @@ export default class RPC {
       // clause is the one that says anything — "wallet height 34100000 is more
       // than 100 blocks ahead of best chain height 3470916" tells someone what
       // is wrong with their wallet; the four wrappers around it do not.
-      const reason = userFacingError(error);
-      // The console is deduplicated; the banner is not. It clears itself a few
-      // seconds after the last failure, so a wallet that cannot sync at all
-      // used to say so once and then look healthy forever — publishing every
-      // poll is what keeps it on screen while the failure lasts.
-      if (reason !== this.lastPollSyncError) {
-        console.error(`Critical Error sync poll ${error}`);
-      }
-      this.consecutivePollSyncFailures += 1;
-      // The first failure of a run is left to the console: see
-      // SYNC_FAILURES_BEFORE_BANNER. A connection that keeps dropping says so
-      // in one sentence instead of the five layers it arrives wrapped in.
-      if (this.consecutivePollSyncFailures >= SYNC_FAILURES_BEFORE_BANNER) {
-        this.fnSetFetchError("Sync", syncFailureMessage(reason));
-      }
-      this.lastPollSyncError = reason;
+      // The IPC layers it arrives wrapped in are stripped: the last clause is
+      // the one that says anything — "wallet height 34100000 is more than 100
+      // blocks ahead of best chain height 3470916" tells someone what is wrong
+      // with their wallet; the four wrappers around it do not.
+      this.recordSyncFailure(userFacingError(error));
     }
+  }
+
+  /**
+   * One place where a failed sync is recorded, however it reached us.
+   *
+   * `recovery` is zingolib's classification of the failure, present whenever
+   * the session itself failed and absent when the call did. It decides whether
+   * the cycle keeps launching sessions: a dropped connection is worth another
+   * try against the same server and the next poll opens a fresh connection,
+   * while a server the wallet cannot sync from stays that way however many
+   * times it is asked. The second is also the one the user has to act on, so
+   * it colours the server indicator rather than only the sync line.
+   */
+  private recordSyncFailure(reason: string, recovery?: SyncRecovery): void {
+    // The console is deduplicated; the banner is not. It clears itself a few
+    // seconds after the last failure, so a wallet that cannot sync at all used
+    // to say so once and then look healthy forever — publishing every poll is
+    // what keeps it on screen while the failure lasts.
+    if (reason !== this.lastPollSyncError) {
+      console.error(`Critical Error sync poll ${reason}`);
+    }
+    this.consecutivePollSyncFailures += 1;
+    // The first failure of a run is left to the console: see
+    // SYNC_FAILURES_BEFORE_BANNER. A connection that keeps dropping says so in
+    // one sentence instead of the five layers it arrives wrapped in. A server
+    // that cannot serve the wallet is said at once: it is not going to pass.
+    if (recovery === "server_unavailable" || this.consecutivePollSyncFailures >= SYNC_FAILURES_BEFORE_BANNER) {
+      this.fnSetFetchError("Sync", syncFailureMessage(reason, recovery));
+    }
+    if (recovery === "server_unavailable") {
+      this.serverCannotSync = reason;
+      this.serverHealth = recordCannotServe(this.serverHealth, reason);
+      this.fnSetServerHealth(this.serverHealth);
+    }
+    this.lastPollSyncError = reason;
   }
 
   async refreshSync(fullRescan?: boolean): Promise<void> {

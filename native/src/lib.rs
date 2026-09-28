@@ -53,7 +53,7 @@ use pepper_sync::config::SyncConfig;
 use pepper_sync::config::{PerformanceLevel, TransparentAddressDiscovery};
 use pepper_sync::keys::transparent;
 use pepper_sync::wallet::{KeyIdInterface, SyncMode};
-use pepper_sync::error::SyncModeError;
+use pepper_sync::error::{SyncModeError, SyncRecoveryObservables};
 use zingolib::config::{ChainType, ClientConfig, WalletConfig, construct_indexer_uri};
 use zingolib::data::PollReport;
 use zingolib::lightclient::LightClient;
@@ -1263,6 +1263,23 @@ fn get_value_transfers(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, get_value_transfers_string)
 }
 
+/// What zingolib recommends doing about a failed sync, as a stable token.
+///
+/// The library classifies every sync failure into one of three, and the three
+/// want different things from this app: a dropped connection is worth retrying
+/// against the same server, a server returning data the wallet cannot use is
+/// worth trying elsewhere, and the rest needs the user. Reading the token is
+/// how the renderer tells them apart — the alternative is matching on the
+/// error's prose, which is how a wallet ends up retrying a server that will
+/// never work for it.
+fn recovery_token(recovery: SyncRecoveryObservables) -> &'static str {
+    match recovery {
+        SyncRecoveryObservables::MaybeRecoverableServer => "maybe_recoverable_server",
+        SyncRecoveryObservables::ServerUnavailable => "server_unavailable",
+        SyncRecoveryObservables::Abort => "abort",
+    }
+}
+
 fn poll_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
         with_initialized_lightclient(|lightclient| {
@@ -1274,7 +1291,16 @@ fn poll_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
                         Ok(json::object! { "sync_complete" => json::JsonValue::from(sync_result) }
                             .pretty(2))
                     }
-                    Err(e) => Err(ZingolibError::Sync(cause_chain(&e))),
+                    // A failed session crosses on the data channel rather than
+                    // as a throw, because the verdict travels with it and a
+                    // thrown string has nowhere to carry one.
+                    Err(e) => Ok(json::object! {
+                        "sync_failed" => json::object! {
+                            "recovery" => recovery_token(e.recovery_recommendation()),
+                            "reason" => cause_chain(&e),
+                        }
+                    }
+                    .pretty(2)),
                 },
             }
         })
