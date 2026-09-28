@@ -221,6 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
   const {
     info,
     verificationProgress,
+    syncingStatus,
     readOnly,
     birthday,
     setSendTo,
@@ -251,7 +252,12 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
   let stateSync: string = "";
   let progress: string = "";
   if (info.latestBlock) {
-    if (verificationProgress) {
+    if (syncingStatus.stopped) {
+      // No session is running and none is being started: the heights below are
+      // the last a session reached, and the tick beside them would be claiming
+      // the wallet is level with a chain it has stopped following.
+      stateSync = "STOPPED";
+    } else if (verificationProgress) {
       if (verificationProgress === 100) {
         stateSync = "CONNECTED";
         progress = "100";
@@ -649,6 +655,12 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
               &nbsp; {info.walletHeight} &nbsp;
             </div>
             {info.latestBlock > info.walletHeight && `(${info.latestBlock - info.walletHeight} blocks behind)`}
+          </div>
+        )}
+        {stateSync === "STOPPED" && (
+          <div className={`${cstyles.padsmallall} ${cstyles.margintopsmall} ${cstyles.blackbg}`}>
+            <div className={cstyles.yellow}>Not syncing</div>
+            <div>{info.walletHeight}</div>
           </div>
         )}
         {stateSync === "SYNCING" && (

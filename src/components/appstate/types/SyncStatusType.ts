@@ -15,4 +15,9 @@ export type SyncStatusType = {
   percentage_total_outputs_scanned?: number | null;
   // from poll sync
   lastError?: string;
+  // Set while no sync session is running and the app is not starting another,
+  // because the engine said this server cannot serve the wallet. The figures
+  // above are then the last ones a session published and the chain has moved
+  // on past them: "100% synced" is a statement about a moment that has gone.
+  stopped?: boolean;
 };

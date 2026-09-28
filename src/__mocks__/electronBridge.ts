@@ -14,6 +14,7 @@ export const native = {
   delete_wallet: jest.fn(),
   // Sync
   poll_sync: jest.fn(),
+  status_sync: jest.fn(),
   run_sync: jest.fn(),
   // Send
   send: jest.fn(),

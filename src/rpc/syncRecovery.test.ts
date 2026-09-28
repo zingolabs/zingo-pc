@@ -12,7 +12,7 @@
 import { native } from "../electronBridge";
 import RPC from "./rpc";
 import { deriveServerHealth, ServerHealthState } from "./components/serverHealth";
-import { WalletType } from "../components/appstate";
+import { SyncStatusType, WalletType } from "../components/appstate";
 
 // Hoisted above the imports by the transform, so the bridge is the mock.
 jest.mock("../electronBridge");
@@ -26,17 +26,19 @@ const failedPoll = (recovery: string, reason = "Error: Invalid shielded protocol
 type Published = {
   errors: { command: string; error: string }[];
   health: ServerHealthState[];
+  status: SyncStatusType[];
 };
 
 const walletOn = (uri: string) => ({ uri, chain_name: "main" }) as unknown as WalletType;
 
 const makeRpc = (uri = "https://one.example:443"): { rpc: RPC; published: Published } => {
-  const published: Published = { errors: [], health: [] };
+  const published: Published = { errors: [], health: [], status: [] };
   const setters = Array.from({ length: 12 }, () => jest.fn());
   // fnSetFetchError is the tenth, fnSetServerHealth the twelfth.
   setters[9] = jest.fn((command: unknown, error: unknown) =>
     published.errors.push({ command: command as string, error: error as string }),
   );
+  setters[7] = jest.fn((status: unknown) => published.status.push(status as SyncStatusType));
   setters[11] = jest.fn((health: unknown) => published.health.push(health as ServerHealthState));
   const rpc = new (RPC as unknown as new (...args: unknown[]) => RPC)(...setters, walletOn(uri));
   jest.spyOn(rpc, "refreshSync").mockImplementation(async () => {});
@@ -83,6 +85,23 @@ describe("a sync session that failed", () => {
     await rpc.fetchSyncPoll();
 
     expect(rpc.refreshSync).toHaveBeenCalled();
+  });
+
+  // The figures a dead session left behind are what the screen goes on
+  // drawing, and they do not age. Saying which world they belong to is the
+  // difference between a wallet that is up to date and one that stopped being
+  // told.
+  it("marks the status it publishes as stopped", async () => {
+    const { rpc, published } = makeRpc();
+    jest.spyOn(rpc, "fetchSyncStatus").mockRestore();
+    answering("status_sync", JSON.stringify({ percentage_total_outputs_scanned: 100 }));
+
+    answering("poll_sync", failedPoll("server_unavailable"));
+    await rpc.fetchSyncPoll();
+    answering("poll_sync", "Sync task is not complete.");
+    await rpc.fetchSyncPoll();
+
+    expect(published.status.at(-1)?.stopped).toBe(true);
   });
 
   it("clears the mark when the user moves to another server", async () => {

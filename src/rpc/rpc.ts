@@ -811,6 +811,10 @@ export default class RPC {
       try {
         ss = JSON.parse(returnStatus);
         ss.lastError = this.lastPollSyncError;
+        // The figures are whatever the last session managed to publish. Saying
+        // which of those two worlds they belong to is the difference between a
+        // wallet that is up to date and one that stopped being told.
+        ss.stopped = !!this.serverCannotSync;
       } catch (error) {
         console.error("SYNC STATUS ERROR - PARSE JSON", returnStatus, error);
         return;
