@@ -12,6 +12,7 @@
 import { native } from "../electronBridge";
 import RPC from "./rpc";
 import { deriveServerHealth, ServerHealthState } from "./components/serverHealth";
+import { WalletType } from "../components/appstate";
 
 // Hoisted above the imports by the transform, so the bridge is the mock.
 jest.mock("../electronBridge");
@@ -27,7 +28,9 @@ type Published = {
   health: ServerHealthState[];
 };
 
-const makeRpc = (): { rpc: RPC; published: Published } => {
+const walletOn = (uri: string) => ({ uri, chain_name: "main" }) as unknown as WalletType;
+
+const makeRpc = (uri = "https://one.example:443"): { rpc: RPC; published: Published } => {
   const published: Published = { errors: [], health: [] };
   const setters = Array.from({ length: 12 }, () => jest.fn());
   // fnSetFetchError is the tenth, fnSetServerHealth the twelfth.
@@ -35,7 +38,7 @@ const makeRpc = (): { rpc: RPC; published: Published } => {
     published.errors.push({ command: command as string, error: error as string }),
   );
   setters[11] = jest.fn((health: unknown) => published.health.push(health as ServerHealthState));
-  const rpc = new (RPC as unknown as new (...args: unknown[]) => RPC)(...setters, null);
+  const rpc = new (RPC as unknown as new (...args: unknown[]) => RPC)(...setters, walletOn(uri));
   jest.spyOn(rpc, "refreshSync").mockImplementation(async () => {});
   jest.spyOn(rpc, "fetchSyncStatus").mockImplementation(async () => {});
   return { rpc, published };
@@ -79,6 +82,23 @@ describe("a sync session that failed", () => {
     answering("poll_sync", "Sync task has not been launched.");
     await rpc.fetchSyncPoll();
 
+    expect(rpc.refreshSync).toHaveBeenCalled();
+  });
+
+  it("clears the mark when the user moves to another server", async () => {
+    const { rpc, published } = makeRpc("https://refuses.example:443");
+    answering("poll_sync", failedPoll("server_unavailable"));
+    await rpc.fetchSyncPoll();
+    expect(deriveServerHealth(published.health.at(-1) as ServerHealthState)).toBe("unusable");
+
+    // What every switch of server ends in, whatever route the user took to it.
+    rpc.setCurrentWallet(walletOn("https://serves.example:443"));
+    jest.spyOn(rpc, "fetchTandZandOValueTransfers").mockResolvedValue(undefined as never);
+    await rpc.configure();
+
+    expect(deriveServerHealth(published.health.at(-1) as ServerHealthState)).not.toBe("unusable");
+    answering("poll_sync", "Sync task has not been launched.");
+    await rpc.fetchSyncPoll();
     expect(rpc.refreshSync).toHaveBeenCalled();
   });
 

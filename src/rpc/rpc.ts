@@ -113,6 +113,9 @@ export default class RPC {
   // the reason it gave. While it holds, the cycle stops launching sessions
   // that will die the same way.
   serverCannotSync: string;
+  // The server the health record on screen is about. A record belongs to the
+  // server it was earned against, and says nothing about the next one.
+  healthUri: string;
 
   serverHealth: ServerHealthState;
   // The periodic work currently out, by name. A second ask for something
@@ -160,6 +163,7 @@ export default class RPC {
     this.lastPollSyncError = "";
     this.consecutivePollSyncFailures = 0;
     this.serverCannotSync = "";
+    this.healthUri = currentWallet?.uri ?? "";
 
     this.serverHealth = INITIAL_SERVER_HEALTH;
 
@@ -202,6 +206,7 @@ export default class RPC {
   /** A different server has nothing to do with the last one's record. */
   resetServerHealth(): void {
     this.serverCannotSync = "";
+    this.healthUri = this.currentWallet?.uri ?? "";
     this.serverHealth = INITIAL_SERVER_HEALTH;
     this.healthProbeAt = 0;
     this.fnSetServerHealth(this.serverHealth);
@@ -265,11 +270,21 @@ export default class RPC {
   }
 
   async configure(): Promise<void> {
-    // Whatever brought us here — a new wallet, a new server, a spend that
-    // stopped the engine — the reason a previous session could not sync is a
-    // fact about a session that is over. Held any longer it would keep the
-    // cycle from ever launching another one.
-    this.serverCannotSync = "";
+    // A different server starts its record over. The old one's probes and the
+    // verdict earned against it are facts about a server this wallet is no
+    // longer talking to — and the verdict is the one that would otherwise
+    // stay: it is not a run of failures that three good probes clear, it is a
+    // flag, and nothing was clearing it.
+    if ((this.currentWallet?.uri ?? "") !== this.healthUri) {
+      this.resetServerHealth();
+    } else if (this.serverCannotSync) {
+      // Same server, new session: the app is entitled to try again — after a
+      // spend, a rescan, a wallet reopened. If it still cannot sync, the next
+      // poll says so within seconds.
+      this.serverCannotSync = "";
+      this.serverHealth = recordCannotServe(this.serverHealth, null);
+      this.fnSetServerHealth(this.serverHealth);
+    }
 
     // Bring this wallet onto the session mixnet transport (ADR 0024). Main owns
     // the proxy across wallet switches, so this attaches the fresh client to the
