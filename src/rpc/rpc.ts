@@ -652,6 +652,13 @@ export default class RPC {
         // 99.99%.
         if (this.serverCannotSync) {
           console.log("SYNC POLL -> NOT RELAUNCHING", this.serverCannotSync);
+          // Still published, and this is the branch that reaches it: with no
+          // session there is no "not complete" reply, which is where the
+          // status is otherwise read. Without this the screen went on showing
+          // the figures of the session that died — a percentage in the
+          // finished colour and a sidebar saying "Syncing" — for as long as
+          // the app stayed open.
+          void this.fetchSyncStatus();
           return;
         }
         console.log("SYNC POLL -> RUN SYNC", returnPoll);
@@ -744,6 +751,10 @@ export default class RPC {
       this.serverCannotSync = reason;
       this.serverHealth = recordCannotServe(this.serverHealth, reason);
       this.fnSetServerHealth(this.serverHealth);
+      // At once, rather than on the next cycle: the failure and the figures it
+      // strands arrive together, and five seconds of "100% synced" beside a red
+      // dot is the confusion this exists to end.
+      void this.fetchSyncStatus();
     }
     this.lastPollSyncError = reason;
   }

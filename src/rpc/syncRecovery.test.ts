@@ -98,7 +98,13 @@ describe("a sync session that failed", () => {
 
     answering("poll_sync", failedPoll("server_unavailable"));
     await rpc.fetchSyncPoll();
-    answering("poll_sync", "Sync task is not complete.");
+
+    // Said with the failure, not five seconds later.
+    expect(published.status.at(-1)?.stopped).toBe(true);
+
+    // And again on the poll that finds no session, which is the only reply
+    // there is once the cycle stops launching them.
+    answering("poll_sync", "Sync task has not been launched.");
     await rpc.fetchSyncPoll();
 
     expect(published.status.at(-1)?.stopped).toBe(true);
