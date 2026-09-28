@@ -286,7 +286,7 @@ describe("Dashboard", () => {
   // The figure sits at the end of the map's legend and carries the same signal
   // the map does: still working, or done.
   describe("scan percentage beside the map", () => {
-    const showMap = (verificationProgress: number | null) =>
+    const showMap = (verificationProgress: number | null, stopped = false) =>
       render(<Dashboard navigateToHistory={jest.fn()} />, {
         contextOverrides: {
           currentWallet: makeWallet(),
@@ -296,6 +296,7 @@ describe("Dashboard", () => {
             scan_ranges: [
               { start_block: 100, end_block: 110, priority: SyncStatusScanRangePriorityEnum.Scanning },
             ] as any,
+            stopped,
           } as any,
           verificationProgress,
         },
@@ -319,6 +320,16 @@ describe("Dashboard", () => {
       showMap(99.996);
       expect(screen.getByText("99.99% synced")).toHaveClass("yellow");
       expect(screen.queryByText(/100/)).not.toBeInTheDocument();
+    });
+
+    // The figures a stopped session left behind do not get older, and the
+    // chain does. A wallet that has stopped following it read "100% synced" in
+    // green while it fell a block further behind every seventy-five seconds.
+    it("does not call a stopped wallet synced", () => {
+      showMap(100, true);
+
+      expect(screen.getByText("not syncing — last at 100%")).toHaveClass("yellow");
+      expect(screen.queryByText("100% synced")).not.toBeInTheDocument();
     });
 
     it("keeps the two decimals the sidebar shows", () => {

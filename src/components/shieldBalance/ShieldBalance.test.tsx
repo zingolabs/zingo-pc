@@ -89,20 +89,20 @@ describe("ShieldBalance", () => {
     expect(noButton()).not.toBeInTheDocument();
   });
 
-  it("says so when the wallet will not price a shield, rather than losing the button in silence", async () => {
-    // A zero fee is how every refusal arrives, and no fee means no button. The
-    // reason is the only thing standing between that and a screen the user
-    // cannot make sense of.
+  it("greys the button and gives the wallet's reason when it will not price a shield", async () => {
+    // A zero fee is how every refusal arrives. Removing the button and leaving
+    // the sentence beside it reads as something the screen forgot to clear, so
+    // the pair stays together and the reason takes the route line's place.
     show({
       totalBalance: balanceWithTransparent(0.05),
       calculateShieldFee: async () => 0,
       shieldQuoteReason: "Insufficient funds",
     });
 
-    expect(
-      await screen.findByText(/shielding them is not available right now: Insufficient funds/),
-    ).toBeInTheDocument();
-    expect(noButton()).not.toBeInTheDocument();
+    expect(await screen.findByText(/Shielding is not available right now: Insufficient funds/)).toBeInTheDocument();
+    expect(await button()).toBeDisabled();
+    // No fee to name, so the label does not pretend to one.
+    expect(screen.getByRole("button", { name: "Shield Transparent Balance" })).toBeInTheDocument();
   });
 
   it("holds the button back until the mixnet is up, and says what it waits for", async () => {
@@ -157,11 +157,11 @@ describe("ShieldBalance", () => {
 
     const { rerender } = rtlRender(<Harness status={SCANNING} />);
     await waitFor(() => expect(calculateShieldFee).toHaveBeenCalledTimes(1));
-    expect(noButton()).not.toBeInTheDocument();
+    expect(await button()).toBeDisabled();
 
     caughtUp = true;
     rerender(<Harness status={CAUGHT_UP} />);
 
-    expect(await button()).toBeInTheDocument();
+    await waitFor(async () => expect(await button()).toBeEnabled());
   });
 });

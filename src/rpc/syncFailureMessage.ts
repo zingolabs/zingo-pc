@@ -40,7 +40,22 @@ export function isConnectionFailure(reason: string): boolean {
   return CONNECTION_SIGNS.some((sign) => sign.test(reason));
 }
 
-export function syncFailureMessage(reason: string): string {
+/**
+ * zingolib's verdict on a failed sync, as it crosses the boundary.
+ *
+ * The library classifies every failure, and the classification is what this
+ * app acts on: matching its prose would be guessing at what it already knows.
+ */
+export type SyncRecovery = "maybe_recoverable_server" | "server_unavailable" | "abort";
+
+export function syncFailureMessage(reason: string, recovery?: SyncRecovery): string {
+  // A server the wallet cannot sync from will not become one by being asked
+  // again, and that is the whole of what the user needs to know: the cause
+  // chain under it names a protocol value they did not choose and cannot set.
+  // Kept as a second sentence because it is what they do next.
+  if (recovery === "server_unavailable") {
+    return "This server cannot serve this wallet. Switch to another server.";
+  }
   return isConnectionFailure(reason) ? "The server stopped answering — reconnecting." : reason;
 }
 

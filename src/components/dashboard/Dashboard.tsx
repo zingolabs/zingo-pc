@@ -567,10 +567,15 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                 which hung it off the end of the very thing it labels. */}
             {scanPercent !== null && (
               <div
-                className={scanIsComplete ? cstyles.green : cstyles.yellow}
+                className={scanIsComplete && !syncingStatus.stopped ? cstyles.green : cstyles.yellow}
                 style={{ marginLeft: "auto", marginRight: 5, fontWeight: "bold" }}
               >
-                {scanPercent}% synced
+                {/* A stopped session leaves its last figures behind, and the
+                    chain goes on without them. Reading "100% synced" off those
+                    is how a wallet that is falling further behind every block
+                    looks finished — so the percentage says what it is, the
+                    last thing anyone measured. */}
+                {syncingStatus.stopped ? `not syncing — last at ${scanPercent}%` : `${scanPercent}% synced`}
               </div>
             )}
           </div>

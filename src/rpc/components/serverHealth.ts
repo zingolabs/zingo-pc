@@ -12,7 +12,7 @@
 // this replaced trying to tell a server failure from a zingolib failure by
 // reading error strings.
 
-export type ServerHealthLevel = "unknown" | "ok" | "slow" | "unstable" | "down";
+export type ServerHealthLevel = "unknown" | "ok" | "slow" | "unstable" | "down" | "unusable";
 
 // How many in a row it takes to call it, either way.
 const RUN_TO_CALL_IT = 3;
@@ -42,6 +42,11 @@ export type ServerHealthState = {
   // Answers that arrived, and took too long about it.
   readonly consecutiveSlow: number;
   readonly sawFailure: boolean;
+  // Why the wallet cannot sync from this server, when the server is answering
+  // perfectly well. The probe cannot see this: it asks for the latest block,
+  // which a server missing a whole pool answers as readily as any other. It
+  // comes from the sync engine's own verdict on the session it just lost.
+  readonly cannotServe: string | null;
   // Round-trip of the last probe in ms, whatever its outcome. Kept so the
   // timeout can later be argued from measurements rather than from taste.
   readonly lastDurationMs: number | null;
@@ -53,6 +58,7 @@ export const INITIAL_SERVER_HEALTH: ServerHealthState = {
   consecutiveFailures: 0,
   consecutiveSlow: 0,
   sawFailure: false,
+  cannotServe: null,
   lastDurationMs: null,
 };
 
@@ -72,8 +78,24 @@ export function recordProbe(
     consecutiveFailures: answered ? 0 : state.consecutiveFailures + 1,
     consecutiveSlow: slow ? state.consecutiveSlow + 1 : measuredFast ? 0 : state.consecutiveSlow,
     sawFailure: state.sawFailure || !answered,
+    // A probe says nothing either way about whether the server can serve this
+    // wallet: it is the same question answered the same way before and after.
+    cannotServe: state.cannotServe,
     lastDurationMs: durationMs,
   };
+}
+
+/**
+ * Records that sync cannot run against this server, with the reason.
+ *
+ * Kept apart from the probe run because it is a different kind of fact. A
+ * server that does not serve a pool this wallet needs answers every probe and
+ * will go on answering them: no number of them will ever call it down, and the
+ * wallet meanwhile does not advance a block. Passing `null` clears it, which
+ * is what a session that syncs does.
+ */
+export function recordCannotServe(state: ServerHealthState, reason: string | null): ServerHealthState {
+  return { ...state, cannotServe: reason };
 }
 
 /**
@@ -91,6 +113,12 @@ export function recordProbe(
  * server.
  */
 export function deriveServerHealth(state: ServerHealthState): ServerHealthLevel {
+  // Above everything, including silence: a server that answers but cannot
+  // serve this wallet is not going to be redeemed by the next three probes,
+  // and the remedy is a different server rather than patience.
+  if (state.cannotServe) {
+    return "unusable";
+  }
   if (state.probes === 0) {
     return "unknown";
   }
