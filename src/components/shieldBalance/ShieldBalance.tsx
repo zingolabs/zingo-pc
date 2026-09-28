@@ -78,14 +78,18 @@ export function ShieldBalance() {
     };
   }, [worthQuoting, confirmedTransparent, caughtUp, calculateShieldFee]);
 
-  const canShield: boolean = worthQuoting && confirmedTransparent >= shieldFee && shieldFee > 0;
-  // Transparent funds the wallet will not price right now. Saying nothing here
-  // is what made this look like the button had vanished.
-  const cannotQuoteYet: boolean = worthQuoting && shieldFee <= 0;
+  // Priced, affordable, and the transport willing: the button does something.
+  const priced: boolean = confirmedTransparent >= shieldFee && shieldFee > 0;
+  const canShield: boolean = worthQuoting && priced && !mixnetView.sendBlocked;
+  // Why it cannot, when it cannot. The wallet's own words for a quote it will
+  // not give, and the route's for a transport that is not up.
+  const heldBack: string = !priced
+    ? `Shielding is not available right now${shieldQuoteReason ? `: ${shieldQuoteReason}` : "."}`
+    : describeSendRoute(mixnetView);
 
   return (
     <div className={cstyles.balancebox}>
-      {canShield && (
+      {worthQuoting && (
         // The row is its own flex box: the container spreads its children to
         // the edges, and the sentence belongs beside the button it explains,
         // not across the pane from it. It claims the whole box so the text has
@@ -95,14 +99,18 @@ export function ShieldBalance() {
             className={cstyles.primarybutton}
             type="button"
             style={{ flexShrink: 0 }}
-            disabled={mixnetView.sendBlocked}
+            disabled={!canShield}
             onClick={handleShieldButton}
           >
-            Shield Transparent Balance (Fee: {shieldFee})
+            {priced ? `Shield Transparent Balance (Fee: ${shieldFee})` : "Shield Transparent Balance"}
           </button>
-          {/* Two lines beside the button: why it is there, and where what it
-              does will travel — the second in the words the Send and Swap
-              screens use, because it is the same route and the same wait.
+          {/* Two lines beside the button: why it is there, and then either
+              where what it does will travel — in the words the Send and Swap
+              screens use, because it is the same route and the same wait — or
+              why the button is grey. Never one without the other: a sentence
+              left standing where a button used to be reads as something the
+              screen forgot to remove.
+
               Both run to the end of the row rather than wrapping inside a
               width picked by hand; `minWidth: 0` is what lets a flex item
               narrow enough to wrap at all. */}
@@ -111,16 +119,8 @@ export function ShieldBalance() {
               Transparent funds cannot be spent. Shielding moves them into your own shielded balance, not to anyone
               else.
             </div>
-            <div className={`${mixnetView.sendBlocked ? cstyles.yellow : cstyles.sublight} ${cstyles.small}`}>
-              {describeSendRoute(mixnetView)}
-            </div>
+            <div className={`${canShield ? cstyles.sublight : cstyles.yellow} ${cstyles.small}`}>{heldBack}</div>
           </div>
-        </div>
-      )}
-      {cannotQuoteYet && (
-        <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ textAlign: "left" }}>
-          Transparent funds cannot be spent, and shielding them is not available right now
-          {shieldQuoteReason ? `: ${shieldQuoteReason}` : "."}
         </div>
       )}
       {anyPending && (
