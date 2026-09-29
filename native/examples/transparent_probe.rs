@@ -41,7 +41,17 @@ async fn main() {
         .await
         .expect("the server reports its tip")
         .height;
-    println!("{uri} tip {tip}, reading the last {span} blocks");
+    // The version the server claims to serve. From zingolib #2794 this decides
+    // whether sync runs at all: below v0.5.0, or absent, and the session is
+    // refused with a recommendation to change server.
+    match client.get_lightd_info(TIMEOUT).await {
+        Ok(info) => println!(
+            "{uri} tip {tip}, protocol '{}', server '{}'",
+            info.lightwallet_protocol_version, info.version
+        ),
+        Err(e) => println!("{uri} tip {tip}, protocol unknown: {}", e.message()),
+    }
+    println!("  reading the last {span} blocks");
 
     let mut stream = client
         .get_block_range(
