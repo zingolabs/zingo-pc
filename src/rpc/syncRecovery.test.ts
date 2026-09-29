@@ -11,7 +11,7 @@
  */
 import { native } from "../electronBridge";
 import RPC from "./rpc";
-import { deriveServerHealth, ServerHealthState } from "./components/serverHealth";
+import { deriveServerHealth, INITIAL_SERVER_HEALTH, ServerHealthState } from "./components/serverHealth";
 import { SyncStatusType, WalletType } from "../components/appstate";
 
 // Hoisted above the imports by the transform, so the bridge is the mock.
@@ -74,6 +74,30 @@ describe("a sync session that failed", () => {
     await rpc.fetchSyncPoll();
 
     expect(published.errors).toHaveLength(1);
+  });
+
+  // What happened in the field: a window left unfocused for twenty minutes,
+  // the connection gone stale, and the timeout that follows arriving as
+  // `ServerUnavailable` — because zingolib's `ServerError::RequestFailed`
+  // carries a timed-out request and a server serving unusable data alike.
+  // Taken at its word, the wallet stopped for good over a blip that the next
+  // poll mends.
+  it("keeps relaunching after a timeout, whatever the library calls it", async () => {
+    const { rpc, published } = makeRpc();
+    const timeout =
+      "server error ← server request failed ← code: 'The operation was cancelled', " +
+      'message: "Timeout expired", source: tonic::transport::Error(Transport, TimeoutExpired(())) ' +
+      "← transport error ← Timeout expired";
+    answering("poll_sync", failedPoll("server_unavailable", timeout));
+    await rpc.fetchSyncPoll();
+
+    answering("poll_sync", "Sync task has not been launched.");
+    await rpc.fetchSyncPoll();
+
+    expect(rpc.refreshSync).toHaveBeenCalled();
+    // And the server keeps its record: a dropped connection says nothing about
+    // whether this server can serve this wallet.
+    expect(deriveServerHealth(published.health.at(-1) ?? INITIAL_SERVER_HEALTH)).not.toBe("unusable");
   });
 
   it("keeps relaunching when the library calls the failure recoverable", async () => {
