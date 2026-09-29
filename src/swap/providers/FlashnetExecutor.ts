@@ -10,16 +10,36 @@ import { applyDefaultTrackUpdate } from "./trackUpdateBase";
  * Provider executor for Flashnet swaps.
  *
  * Flashnet is one of the three providers SwapKit currently routes ZEC through
- * (verified via `/providers`.supportedChainIds). The first mainnet trace
- * arrived on 2026-09-11 and taught the one thing the documented schema does
- * not say: the deposit must come from the declared `sourceAddress`. That
- * swap was paid straight out of the shielded pool, so the transaction
- * carried no transparent sender to check, and the order was refunded with
- * `errorCode: deposit_source_mismatch` in its order record. It is a check, not
- * how the order is found: Flashnet mints a deposit address per order.
- * Hence `requiresDepositFromSourceAddress` below, which routes an outbound
- * deposit through the ZIP 320 address the quote named. The extraction is
- * from SwapKit's documented schema:
+ * (verified via `/providers`.supportedChainIds).
+ *
+ * The deposit must come from the declared `sourceAddress`, which the
+ * documented schema does not say, and which is why
+ * `requiresDepositFromSourceAddress` below routes an outbound deposit through
+ * the ZIP 320 address the quote named: a deshield to it, then that address
+ * paying the vault. Two transactions, two fees, and one of the user's
+ * transparent addresses on chain. It is a check rather than how the order is
+ * found — Flashnet mints a deposit address per order.
+ *
+ * That costs enough to be worth the three traces it took to settle, all on
+ * mainnet:
+ *
+ *   - 2026-09-11, paid straight out of the shielded pool: refunded, with
+ *     `errorCode: deposit_source_mismatch` in the order record. No transparent
+ *     sender to check.
+ *   - 2026-09-26, paid the same way again, after SwapKit relayed that Flashnet
+ *     "say it shouldn't be an issue" alongside an indexing fix of theirs:
+ *     refunded again, 0.01975 ZEC back to the declared address, while `/track`
+ *     still reported the order as swapping. Deposit
+ *     `56a0f8d5e387ece5fc9feb6155a60d499fc90029ecb80d4fb377ebb7eed2ec6d`.
+ *   - 2026-09-29, paid as the two transactions: completed. 0.02 ZEC out,
+ *     0.01010668 ETH in. Deposit
+ *     `5e056bd143d5bc141135baaa946c43d518325781dda0d0de654bd3993c731f16`.
+ *
+ * So the extra hop is the price of this provider accepting the deposit, not a
+ * precaution that could be dropped. Anyone tempted to drop it again wants a
+ * fourth trace, not an argument.
+ *
+ * The extraction is from SwapKit's documented schema:
  *
  *   - `tx.to` / `inboundAddress` — deposit address the user funds.
  *   - `transient.swapId` — SwapKit-assigned identifier (prefixed `sk-`).
