@@ -118,9 +118,27 @@ crate-type = ["cdylib"]
 # would now refuse: `lwd.bunny-zec.xyz` serves no Ironwood at all and
 # `zaino.unsafe.zec.rocks` serves the tree state but refuses the roots
 # (measured with `cargo run --example ironwood_probe`).
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "b38bbcbbc48e43cd235ebe7259fd5c0db1f88872", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "b38bbcbbc48e43cd235ebe7259fd5c0db1f88872" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "b38bbcbbc48e43cd235ebe7259fd5c0db1f88872" }
+#
+# This bump (b38bbcbb -> 51e5d7a0) is the other half of what the wallet could
+# not see. A compact block request names the pools it wants, and pepper-sync
+# named none, so the blocks it scanned carried no transparent data at all —
+# which is why a payment to a t-address of an open wallet was never found by
+# the session it arrived in, sat as `Mempool` while the chain moved past it,
+# and was eventually marked failed for funds that were on chain the whole
+# time (zingolib #2794, closing this crate's report #2785). Transparent data
+# is now asked for, and only for the blocks above the session's transparent
+# scan floor, which are the ones it is scanned in.
+#
+# With it comes one more refusal: a server whose lightwallet protocol version
+# is below v0.5.0, or absent, has its sync refused at the start of the
+# session, because that is the version where transparent data in compact
+# blocks and the Ironwood pool arrived. Every server this app draws from
+# reports exactly v0.5.0; `lwd.bunny-zec.xyz`, on v0.4.19, reports none. Like
+# the other server refusals it recommends `ServerUnavailable`, which this
+# crate now acts on.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "51e5d7a07c3e45c485981e523ce0f55e4ede9b23", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "51e5d7a07c3e45c485981e523ce0f55e4ede9b23" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "51e5d7a07c3e45c485981e523ce0f55e4ede9b23" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two

@@ -1,18 +1,26 @@
-//! Asks a server whether its compact blocks carry transparent data.
+//! Asks a server for the transparent data of its compact blocks.
 //!
 //! pepper-sync finds a transparent payment in one of two ways: the address
 //! discovery RPCs, which run once per sync session, and the `vout`/`vin`
 //! entries of compact blocks, which is the only one that can see a payment
-//! that arrives while a session is already running. The protocol carries both
-//! fields; a server that does not populate them leaves a wallet unable to
-//! notice an incoming transparent payment until its next session — and only
-//! if that session's discovery pass reaches back far enough.
+//! arriving while a session is already running.
+//!
+//! The request names the pools it wants and the server serves those. Asking
+//! for none — which is what this probe did at first, and what pepper-sync did
+//! until zingolib #2794 — is answered with no transparent data at all, and
+//! looks exactly like a server that cannot serve it. It was read that way
+//! here: the four servers this app draws from were reported as serving none,
+//! when what they had been sent was a request for shielded pools. Asked
+//! properly, each of them serves it.
+//!
+//! So the number to watch is zero where the pools were named, which means the
+//! server really does not have it.
 //!
 //! Run with: cargo run --example transparent_probe -- <uri> [blocks]
 
 use std::time::Duration;
 
-use zingo_netutils::lightwallet_protocol::{BlockId, BlockRange};
+use zingo_netutils::lightwallet_protocol::{BlockId, BlockRange, PoolType};
 use zingo_netutils::{GrpcIndexer, Indexer};
 
 const TIMEOUT: Duration = Duration::from_secs(30);
@@ -33,7 +41,17 @@ async fn main() {
         .await
         .expect("the server reports its tip")
         .height;
-    println!("{uri} tip {tip}, reading the last {span} blocks");
+    // The version the server claims to serve. From zingolib #2794 this decides
+    // whether sync runs at all: below v0.5.0, or absent, and the session is
+    // refused with a recommendation to change server.
+    match client.get_lightd_info(TIMEOUT).await {
+        Ok(info) => println!(
+            "{uri} tip {tip}, protocol '{}', server '{}'",
+            info.lightwallet_protocol_version, info.version
+        ),
+        Err(e) => println!("{uri} tip {tip}, protocol unknown: {}", e.message()),
+    }
+    println!("  reading the last {span} blocks");
 
     let mut stream = client
         .get_block_range(
@@ -46,6 +64,17 @@ async fn main() {
                     height: tip,
                     hash: Vec::new(),
                 }),
+                // The request names the pools it wants, and a server serves
+                // only those. Left empty — which is what this asked for at
+                // first, and what pepper-sync asked for until zingolib #2794 —
+                // a server returns no transparent data at all, and the wallet
+                // reads that as a chain with no transparent activity in it.
+                pool_types: vec![
+                    PoolType::Transparent as i32,
+                    PoolType::Sapling as i32,
+                    PoolType::Orchard as i32,
+                    PoolType::Ironwood as i32,
+                ],
                 ..Default::default()
             },
             TIMEOUT,
@@ -68,6 +97,6 @@ async fn main() {
     println!("  transparent outputs (vout) {vout}, inputs (vin) {vin}");
     println!("  shielded outputs/actions {shielded}");
     if vout == 0 {
-        println!("  -> no transparent outputs served: a payment to a t-address cannot be seen by scanning");
+        println!("  -> no transparent outputs served, though they were asked for");
     }
 }
