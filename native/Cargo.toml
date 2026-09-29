@@ -136,9 +136,19 @@ crate-type = ["cdylib"]
 # reports exactly v0.5.0; `lwd.bunny-zec.xyz`, on v0.4.19, reports none. Like
 # the other server refusals it recommends `ServerUnavailable`, which this
 # crate now acts on.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "51e5d7a07c3e45c485981e523ce0f55e4ede9b23", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "51e5d7a07c3e45c485981e523ce0f55e4ede9b23" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "51e5d7a07c3e45c485981e523ce0f55e4ede9b23" }
+#
+# This bump (51e5d7a0 -> 12f30ade) is bandwidth rather than correctness. A
+# range whose nullifiers were dropped for want of map space could be picked
+# for re-fetching while a lower range was still being scanned, and the
+# nullifiers it fetched were then discarded again, because every range below
+# must be scanned before a re-fetch proves anything (zingolib #2797). It
+# needs the map to fill in the first place, which at this app's default
+# performance level takes two million nullifiers, so it is the wallets set to
+# Low or Medium by hand, and long rescans, that were paying for it. Also in
+# the range: the first test of the nullifier re-fetch path (#2795).
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "12f30ade0e757c0fba0c874812940d59bd134d3a", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "12f30ade0e757c0fba0c874812940d59bd134d3a" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "12f30ade0e757c0fba0c874812940d59bd134d3a" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two
