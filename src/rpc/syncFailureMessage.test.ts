@@ -32,6 +32,16 @@ describe("syncFailureMessage", () => {
     );
   });
 
+  // A timeout arrives classified as `server_unavailable` too, because one
+  // error variant upstream carries both. What it looks like decides.
+  it("reads a timed-out request as the connection, not the server", () => {
+    const reason =
+      "server error ← server request failed ← code: 'The operation was cancelled', " +
+      'message: "Timeout expired" ← transport error ← Timeout expired';
+
+    expect(syncFailureMessage(reason, "server_unavailable")).toBe("The server stopped answering — reconnecting.");
+  });
+
   // The same failure text, classified as transient, is the ordinary dropped
   // connection and keeps its own sentence.
   it("keeps the reconnecting sentence for a failure the library calls recoverable", () => {

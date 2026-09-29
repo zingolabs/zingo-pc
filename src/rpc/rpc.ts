@@ -22,7 +22,7 @@ import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
 import { userFacingError } from "../utils/userFacingError";
-import { SyncRecovery, syncFailureMessage } from "./syncFailureMessage";
+import { SyncRecovery, serverCannotServe, syncFailureMessage } from "./syncFailureMessage";
 import { depositSpendsSourceAddress } from "../swap/depositRouting";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordCannotServe, recordProbe } from "./components/serverHealth";
 import {
@@ -744,10 +744,17 @@ export default class RPC {
     // SYNC_FAILURES_BEFORE_BANNER. A connection that keeps dropping says so in
     // one sentence instead of the five layers it arrives wrapped in. A server
     // that cannot serve the wallet is said at once: it is not going to pass.
-    if (recovery === "server_unavailable" || this.consecutivePollSyncFailures >= SYNC_FAILURES_BEFORE_BANNER) {
+    // The verdict is not taken on its own: zingolib answers `ServerUnavailable`
+    // for a request that timed out as readily as for a server serving data the
+    // wallet cannot use, and the first of those is a connection that dropped —
+    // the commonest failure there is, and one the next poll mends. Taking it
+    // literally stopped a wallet for good over a window left unfocused for
+    // twenty minutes.
+    const cannotServe = serverCannotServe(reason, recovery);
+    if (cannotServe || this.consecutivePollSyncFailures >= SYNC_FAILURES_BEFORE_BANNER) {
       this.fnSetFetchError("Sync", syncFailureMessage(reason, recovery));
     }
-    if (recovery === "server_unavailable") {
+    if (cannotServe) {
       this.serverCannotSync = reason;
       this.serverHealth = recordCannotServe(this.serverHealth, reason);
       this.fnSetServerHealth(this.serverHealth);
