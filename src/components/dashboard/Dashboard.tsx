@@ -589,7 +589,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
               wallet rather than to the screen. */}
           <div ref={paneRef}>
             <ScrollPaneTop offsetHeight={paneOffset}>
-              <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", padding: 20 }}>
+              <div className={cstyles.horizontalflex} style={{ justifyContent: "space-between", padding: 12 }}>
                 {currentWallet !== null && !currentWalletOpenError && (
                   <div style={{ width: "48%", justifyContent: "center", alignItems: "center", textAlign: "center" }}>
                     Last transactions
