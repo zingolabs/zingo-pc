@@ -48,29 +48,12 @@ export function isConnectionFailure(reason: string): boolean {
  */
 export type SyncRecovery = "maybe_recoverable_server" | "server_unavailable" | "abort";
 
-/**
- * Whether the server itself is the thing to change.
- *
- * zingolib's `ServerUnavailable` covers two different situations, because
- * `ServerError::RequestFailed` carries both: a server answering with data this
- * wallet cannot use — a missing pool, a protocol too old — and a request that
- * timed out. The first calls for a different server. The second is the
- * commonest failure there is, recovers by itself on the next attempt, and is
- * what a machine coming back from sleep or a window left unfocused produces.
- *
- * So the verdict alone is not enough to stop trying: the reason has to not
- * look like a connection that dropped.
- */
-export function serverCannotServe(reason: string, recovery?: SyncRecovery): boolean {
-  return recovery === "server_unavailable" && !isConnectionFailure(reason);
-}
-
 export function syncFailureMessage(reason: string, recovery?: SyncRecovery): string {
   // A server the wallet cannot sync from will not become one by being asked
   // again, and that is the whole of what the user needs to know: the cause
   // chain under it names a protocol value they did not choose and cannot set.
   // Kept as a second sentence because it is what they do next.
-  if (serverCannotServe(reason, recovery)) {
+  if (recovery === "server_unavailable") {
     return "This server cannot serve this wallet. Switch to another server.";
   }
   return isConnectionFailure(reason) ? "The server stopped answering — reconnecting." : reason;

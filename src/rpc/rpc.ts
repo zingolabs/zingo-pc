@@ -22,7 +22,7 @@ import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
 import { userFacingError } from "../utils/userFacingError";
-import { SyncRecovery, serverCannotServe, syncFailureMessage } from "./syncFailureMessage";
+import { SyncRecovery, syncFailureMessage } from "./syncFailureMessage";
 import { depositSpendsSourceAddress } from "../swap/depositRouting";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordCannotServe, recordProbe } from "./components/serverHealth";
 import {
@@ -74,6 +74,21 @@ const HEALTH_PROBE_INTERVAL_MS = 15 * 1000;
 // wallet as a broken one. Two in a row is a failure that outlived its own
 // recovery, and that is worth the screen. The console still gets the first.
 const SYNC_FAILURES_BEFORE_BANNER = 2;
+
+// How many failures in a row a server the library calls recoverable is given
+// before it is treated as one that cannot serve the wallet.
+//
+// zingolib asks for this in as many words: "callers should retry a bounded
+// number of times, then treat the server as ServerUnavailable. A single error
+// cannot tell passing network weather from a failure the server repeats on
+// every attempt, such as a proxy that always cuts a long stream at the same
+// point." Unbounded, this app sat through the second kind for as long as it
+// was open, launching a session every fifteen seconds to watch it die.
+//
+// Six is a minute and a half of weather at the cycle's pace. A connection that
+// went stale is mended by the first or second of those; a server failing the
+// same way every time has proved it by the sixth.
+const RECOVERABLE_FAILURES_BEFORE_GIVING_UP = 6;
 
 export default class RPC {
   fnSetTotalBalance: (tb: TotalBalanceClass) => void;
@@ -627,23 +642,9 @@ export default class RPC {
       // launched", "not complete") and the completed JSON still cross on the
       // data channel.
       const returnPoll: string = await native.poll_sync();
-      // Reaching here at all is the sync answering, whatever it answered, so a
-      // failure the user is still being shown is over. The verdict on the
-      // server is not cleared here: this branch is reached by the poll that
-      // reports the failure too, and the engine only answers again once
-      // something has changed — a new server, a new wallet — which is where
-      // `configure` clears it.
-      this.consecutivePollSyncFailures = 0;
-      // Except while the server stands accused: the very next poll answers
-      // "not launched", because the failed session left no engine behind, and
-      // clearing on that would take the message off screen a few seconds after
-      // putting it there — with the wallet no closer to syncing.
-      if (this.lastPollSyncError && !this.serverCannotSync) {
-        this.lastPollSyncError = "";
-        this.fnSetFetchError("Sync", "");
-      }
 
       if (returnPoll.toLowerCase().startsWith("sync task has not been launched")) {
+        this.clearSyncFailureRun();
         // Except against a server the engine has already told us it cannot
         // sync from. Relaunching there is a session that dies at the same
         // request every fifteen seconds, for as long as the app is open, while
@@ -667,6 +668,7 @@ export default class RPC {
       }
 
       if (returnPoll.toLowerCase().startsWith("sync task is not complete")) {
+        this.clearSyncFailureRun();
         console.log("SYNC POLL -> FETCH STATUS", returnPoll);
         void this.fetchSyncStatus();
         // No relaunch. A running engine answers "not complete" for as long as
@@ -693,6 +695,7 @@ export default class RPC {
         return;
       }
 
+      this.clearSyncFailureRun();
       console.log("SYNC POLL", sp);
 
       console.log("SYNC POLL -> FETCH STATUS");
@@ -721,6 +724,29 @@ export default class RPC {
   }
 
   /**
+   * A poll that found no failure ends whatever run of them was going.
+   *
+   * Called from the replies that mean the engine is alive or idle, and not
+   * from the one that reports a session's failure — which is an answer too,
+   * and used to land here and reset the count to zero before the failure was
+   * even recorded. The run never reached two, so the banner's threshold was
+   * unreachable by that path and the bound below could never be met.
+   *
+   * The verdict on the server is not cleared here either: the poll right after
+   * a failed session answers "not launched", because the session left no
+   * engine behind, and clearing on that would take the message off screen a
+   * few seconds after putting it there, with the wallet no closer to syncing.
+   * `configure` is where it goes, when something has actually changed.
+   */
+  private clearSyncFailureRun(): void {
+    this.consecutivePollSyncFailures = 0;
+    if (this.lastPollSyncError && !this.serverCannotSync) {
+      this.lastPollSyncError = "";
+      this.fnSetFetchError("Sync", "");
+    }
+  }
+
+  /**
    * One place where a failed sync is recorded, however it reached us.
    *
    * `recovery` is zingolib's classification of the failure, present whenever
@@ -740,19 +766,22 @@ export default class RPC {
       console.error(`Critical Error sync poll ${reason}`);
     }
     this.consecutivePollSyncFailures += 1;
+    // The verdict decides, and it can be taken at its word again: zingolib
+    // reads the failure's own source chain for a transport error, a timeout or
+    // an I/O error before calling a server unavailable, so a connection that
+    // dropped no longer arrives as a server that cannot serve the wallet.
+    //
+    // What it asks in return is that a recoverable failure be retried a
+    // bounded number of times: passing weather and a server that fails the
+    // same way every time look alike until one of them stops happening.
+    const cannotServe =
+      recovery === "server_unavailable" || this.consecutivePollSyncFailures >= RECOVERABLE_FAILURES_BEFORE_GIVING_UP;
     // The first failure of a run is left to the console: see
     // SYNC_FAILURES_BEFORE_BANNER. A connection that keeps dropping says so in
     // one sentence instead of the five layers it arrives wrapped in. A server
     // that cannot serve the wallet is said at once: it is not going to pass.
-    // The verdict is not taken on its own: zingolib answers `ServerUnavailable`
-    // for a request that timed out as readily as for a server serving data the
-    // wallet cannot use, and the first of those is a connection that dropped —
-    // the commonest failure there is, and one the next poll mends. Taking it
-    // literally stopped a wallet for good over a window left unfocused for
-    // twenty minutes.
-    const cannotServe = serverCannotServe(reason, recovery);
     if (cannotServe || this.consecutivePollSyncFailures >= SYNC_FAILURES_BEFORE_BANNER) {
-      this.fnSetFetchError("Sync", syncFailureMessage(reason, recovery));
+      this.fnSetFetchError("Sync", syncFailureMessage(reason, cannotServe ? "server_unavailable" : recovery));
     }
     if (cannotServe) {
       this.serverCannotSync = reason;
