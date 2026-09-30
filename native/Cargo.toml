@@ -165,9 +165,15 @@ crate-type = ["cdylib"]
 # number of retries before it treats the server as unavailable, because one
 # error cannot tell passing weather from a server that fails the same way
 # every time.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "784e6b8bfac04619509f5743da41743a66529500", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "784e6b8bfac04619509f5743da41743a66529500" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "784e6b8bfac04619509f5743da41743a66529500" }
+#
+# And with it (#2807) the third transparent blind spot of the week: a scan
+# returned the whole set of gap addresses and the scanner adopted it, so a
+# nullifier re-fetch — which reads no transparent data and returned an empty
+# set — left the session watching no gap address at all. Scans now return
+# only what changed.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "925f9ca2ca3f63d8274065c170bf4988e668188f", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "925f9ca2ca3f63d8274065c170bf4988e668188f" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "925f9ca2ca3f63d8274065c170bf4988e668188f" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two
