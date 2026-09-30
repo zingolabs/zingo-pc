@@ -23,10 +23,13 @@
   margin-top: 16px;
 }
 
+/* A percentage margin resolves against the container's width, so this gap
+   grew and shrank with the window's width and had nothing to do with the
+   space above it. */
 .detailcontainer {
   width: 100%;
   flex-direction: column;
-  margin-top: 3%;
+  margin-top: 10px;
   justify-content: flex-start;
   align-items: center;
 }
