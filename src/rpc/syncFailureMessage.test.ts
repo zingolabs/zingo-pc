@@ -32,14 +32,15 @@ describe("syncFailureMessage", () => {
     );
   });
 
-  // A timeout arrives classified as `server_unavailable` too, because one
-  // error variant upstream carries both. What it looks like decides.
+  // zingolib reads the failure's own source chain before classifying it, so a
+  // timed-out request comes back as recoverable and keeps the sentence that
+  // says the wallet is reconnecting.
   it("reads a timed-out request as the connection, not the server", () => {
     const reason =
       "server error ← server request failed ← code: 'The operation was cancelled', " +
       'message: "Timeout expired" ← transport error ← Timeout expired';
 
-    expect(syncFailureMessage(reason, "server_unavailable")).toBe("The server stopped answering — reconnecting.");
+    expect(syncFailureMessage(reason, "maybe_recoverable_server")).toBe("The server stopped answering — reconnecting.");
   });
 
   // The same failure text, classified as transient, is the ordinary dropped

@@ -76,28 +76,43 @@ describe("a sync session that failed", () => {
     expect(published.errors).toHaveLength(1);
   });
 
-  // What happened in the field: a window left unfocused for twenty minutes,
-  // the connection gone stale, and the timeout that follows arriving as
-  // `ServerUnavailable` — because zingolib's `ServerError::RequestFailed`
-  // carries a timed-out request and a server serving unusable data alike.
-  // Taken at its word, the wallet stopped for good over a blip that the next
-  // poll mends.
-  it("keeps relaunching after a timeout, whatever the library calls it", async () => {
+  // What happened in the field: a window left unfocused for twenty minutes and
+  // the connection gone stale. zingolib now reads the failure's source chain
+  // and calls that recoverable, so the cycle carries on and the server keeps
+  // its record — a dropped connection says nothing about whether this server
+  // can serve this wallet.
+  it("keeps relaunching after a timeout", async () => {
     const { rpc, published } = makeRpc();
     const timeout =
       "server error ← server request failed ← code: 'The operation was cancelled', " +
       'message: "Timeout expired", source: tonic::transport::Error(Transport, TimeoutExpired(())) ' +
       "← transport error ← Timeout expired";
-    answering("poll_sync", failedPoll("server_unavailable", timeout));
+    answering("poll_sync", failedPoll("maybe_recoverable_server", timeout));
     await rpc.fetchSyncPoll();
 
     answering("poll_sync", "Sync task has not been launched.");
     await rpc.fetchSyncPoll();
 
     expect(rpc.refreshSync).toHaveBeenCalled();
-    // And the server keeps its record: a dropped connection says nothing about
-    // whether this server can serve this wallet.
     expect(deriveServerHealth(published.health.at(-1) ?? INITIAL_SERVER_HEALTH)).not.toBe("unusable");
+  });
+
+  // The bound zingolib asks for: weather passes, and a server that fails the
+  // same way every time does not. The two are indistinguishable until one of
+  // them stops happening, so the retries are counted.
+  it("gives up on a recoverable failure that keeps happening", async () => {
+    const { rpc, published } = makeRpc();
+    answering("poll_sync", failedPoll("maybe_recoverable_server", "transport error ← Timeout expired"));
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      await rpc.fetchSyncPoll();
+    }
+
+    answering("poll_sync", "Sync task has not been launched.");
+    await rpc.fetchSyncPoll();
+
+    expect(rpc.refreshSync).not.toHaveBeenCalled();
+    expect(deriveServerHealth(published.health.at(-1) as ServerHealthState)).toBe("unusable");
+    expect(published.errors.at(-1)?.error).toBe("This server cannot serve this wallet. Switch to another server.");
   });
 
   it("keeps relaunching when the library calls the failure recoverable", async () => {
