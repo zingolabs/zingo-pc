@@ -45,7 +45,7 @@ import QuoteRefreshRing from "./QuoteRefreshRing";
 import AssetPicker from "./AssetPicker";
 import QuotesPicker from "./QuotesPicker";
 import SlippagePicker, { formatSlippagePercent } from "./SlippagePicker";
-import { optimalRouteId } from "../../swap/optimalRoute";
+import { selectionAcrossRefresh } from "../../swap/selectionAcrossRefresh";
 import InsufficientFunds from "./InsufficientFunds";
 import ContactPicker from "../common/ContactPicker";
 import SaveContact from "../common/SaveContact";
@@ -529,7 +529,6 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       const carried = carriedFrom(result.routes);
       const routesNow = [...result.routes, ...carried];
       const carriedProviders = new Set(carried.map((r) => r.provider));
-      setQuoteNotice(noticeFor(carried));
       if (routesNow.length > 0) {
         shownQuoteRef.current = {
           questionKey,
@@ -550,20 +549,31 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       // again a second later gets the same answer, and the amount is the thing
       // the user has to change.
       setQuoteAttemptFailed(routesNow.length === 0);
-      // A refresh must not silently move a choice the user made — route ids
-      // are minted per quote, so their pick is carried across by provider,
-      // which is what they actually chose.
-      //
-      // Where they made no choice, the selection was ours, and carrying it
-      // over left the panel showing a route that had since stopped being the
-      // best one. Follow the new optimum instead. Same fallback in both cases
-      // when the provider is gone, rather than leaving nothing selected.
-      setChosenRouteId((previous) => {
-        if (!routePickedByUserRef.current) return optimalRouteId(routesNow);
-        const chosenProvider = routesRef.current?.find((r) => r.routeId === previous)?.provider;
-        const sameProvider = routesNow.find((r) => r.provider === chosenProvider);
-        return sameProvider?.routeId ?? optimalRouteId(routesNow);
+      // A refresh must not silently move a choice the user made, and must not
+      // hold ours once a better route exists; `selectionAcrossRefresh` is
+      // where that is decided. A dropped pick leaves nothing selected, so
+      // Review waits until the user chooses again.
+      const selection = selectionAcrossRefresh({
+        pickedRouteId: chosenRouteIdRef.current,
+        pickedByUser: routePickedByUserRef.current,
+        shownRoutes: routesRef.current ?? [],
+        freshRoutes: routesNow,
       });
+      setChosenRouteId(selection.routeId);
+      if (selection.droppedProvider) setRoutePickedByUser(false);
+      // Both halves are about what this refresh brought back, so they are one
+      // notice. Set here rather than with the carried routes above because the
+      // dropped provider is only known once the selection has been settled.
+      setQuoteNotice(
+        [
+          noticeFor(carried),
+          selection.droppedProvider
+            ? `${providerShortLabel(selection.droppedProvider)} is no longer quoting this swap. Choose a route.`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
       setRoutes(routesNow);
       // A carried route is on offer, so its provider is not listed as missing.
       setUnavailable(result.unavailable.filter((row) => !carriedProviders.has(row.provider)));
@@ -721,6 +731,10 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   useEffect(() => {
     routePickedByUserRef.current = routePickedByUser;
   }, [routePickedByUser]);
+  const chosenRouteIdRef = useRef<string>("");
+  useEffect(() => {
+    chosenRouteIdRef.current = chosenRouteId;
+  }, [chosenRouteId]);
 
   // Re-quote on a fixed cadence rather than trusting the providers' own
   // expiries: they advertise tens of minutes (NEAR an hour, Maya around 75
