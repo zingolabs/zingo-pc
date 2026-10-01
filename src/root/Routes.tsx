@@ -282,11 +282,15 @@ const AppRoutes: React.FC = () => {
       setLocked(isLocked);
       setLockChecked(true);
       if (allSettings && Object.prototype.hasOwnProperty.call(allSettings, "blockexplorer")) {
-        // A previously-selected explorer may have been removed (e.g. Zypherscan).
-        // Fall any obsolete value back to Zcashexplorer across the 4 explorer fields.
+        // A previously-selected explorer may have been removed (e.g. Zypherscan)
+        // or renamed (Cipherscan became ZecBlock). Map the stored value across
+        // the 4 explorer fields: obsolete ones fall back to Zcashexplorer.
         const cfg = allSettings.blockexplorer;
-        const fallback = (v: unknown): BlockExplorerEnum =>
-          v === "Zypherscan" ? BlockExplorerEnum.Zcashexplorer : (v as BlockExplorerEnum);
+        const fallback = (v: unknown): BlockExplorerEnum => {
+          if (v === "Zypherscan") return BlockExplorerEnum.Zcashexplorer;
+          if (v === "Cipherscan") return BlockExplorerEnum.ZecBlock;
+          return v as BlockExplorerEnum;
+        };
         setBlockExplorerState({
           ...cfg,
           blockExplorerMainnetTransaction: fallback(cfg?.blockExplorerMainnetTransaction),

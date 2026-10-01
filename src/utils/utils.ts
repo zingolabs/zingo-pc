@@ -422,8 +422,8 @@ export default class Utils {
         ? `https://testnet.zcashexplorer.app/transactions/${txid}`
         : `https://mainnet.zcashexplorer.app/transactions/${txid}`;
     }
-    if (blockExplorer === BlockExplorerEnum.Cipherscan) {
-      return testnet ? `https://testnet.cipherscan.app/tx/${txid}` : `https://cipherscan.app/tx/${txid}`;
+    if (blockExplorer === BlockExplorerEnum.ZecBlock) {
+      return testnet ? `https://testnet.zecblock.com/tx/${txid}` : `https://zecblock.com/tx/${txid}`;
     }
     if (blockExplorer === BlockExplorerEnum.Zexplorer) {
       return testnet ? `https://zexplorer.app/testnet/tx/${txid}` : `https://zexplorer.app/mainnet/tx/${txid}`;
@@ -456,11 +456,11 @@ export default class Utils {
       } else {
         shell.openExternal(`https://mainnet.zcashexplorer.app/search?qs=${address}`);
       }
-    } else if (blockExplorer === BlockExplorerEnum.Cipherscan) {
+    } else if (blockExplorer === BlockExplorerEnum.ZecBlock) {
       if (chainName === ServerChainNameEnum.testChainName) {
-        shell.openExternal(`https://testnet.cipherscan.app/address/${address}`);
+        shell.openExternal(`https://testnet.zecblock.com/address/${address}`);
       } else {
-        shell.openExternal(`https://cipherscan.app/address/${address}`);
+        shell.openExternal(`https://zecblock.com/address/${address}`);
       }
     } else if (blockExplorer === BlockExplorerEnum.Zexplorer) {
       if (chainName === ServerChainNameEnum.testChainName) {

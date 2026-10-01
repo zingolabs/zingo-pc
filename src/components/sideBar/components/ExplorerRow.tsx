@@ -37,7 +37,7 @@ const ExplorerRow = ({
             Select…
           </option>
           <option value={BlockExplorerEnum.Zcashexplorer}>Zcash Explorer App</option>
-          <option value={BlockExplorerEnum.Cipherscan}>Cipher Scan App</option>
+          <option value={BlockExplorerEnum.ZecBlock}>ZecBlock</option>
           <option value={BlockExplorerEnum.Zexplorer}>Zexplorer</option>
           <option value={BlockExplorerEnum.Custom}>Custom</option>
         </select>
