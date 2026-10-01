@@ -42,9 +42,9 @@ describe("ExplorerRow", () => {
     const onChange = jest.fn();
     render(<ExplorerRow {...baseProps} onChange={onChange} />);
     const select = screen.getByRole("combobox", { name: /block explorer for mainnet transactions/i });
-    fireEvent.change(select, { target: { value: BlockExplorerEnum.Cipherscan } });
+    fireEvent.change(select, { target: { value: BlockExplorerEnum.ZecBlock } });
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith(BlockExplorerEnum.Cipherscan);
+    expect(onChange).toHaveBeenCalledWith(BlockExplorerEnum.ZecBlock);
   });
 
   it("calls onCustomChange when the custom URL input changes", () => {

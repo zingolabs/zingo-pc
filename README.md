@@ -203,7 +203,7 @@ yarn release:prep 2.0.15 142
 **Block explorers**
 
 - User-selectable per-network explorer for transactions and addresses
-  (Zcashexplorer, Cipherscan, Zexplorer, or a custom URL)
+  (Zcashexplorer, ZecBlock, Zexplorer, or a custom URL)
 
 **Security**
 
