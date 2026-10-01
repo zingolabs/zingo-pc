@@ -3,6 +3,8 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../test-utils";
 import SwapExecute from "./SwapExecute";
 import { SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
+import { SwapKitHttpError } from "../../swap/errors";
+import { SwapOperationEnum } from "../../swap/enums/SwapErrorCategoryEnum";
 import type { QuoteInput, RouteOptionType, SwapAssetType, SwapRecordType, SwapService } from "../../swap";
 
 jest.mock("../../electronBridge");
@@ -81,22 +83,27 @@ const renderExecute = (
   direction: SwapDirectionEnum,
   deposit?: jest.Mock,
   instructionOverrides: Record<string, unknown> = {},
+  commitFailure?: unknown,
 ) => {
-  const commitRoute = jest.fn(async () => ({
-    record: record(direction),
-    instructions: {
-      provider: SwapKitProviderEnum.Near,
-      depositAddress: direction === SwapDirectionEnum.Outbound ? "near1deposit" : "bc1qdeposit",
-      amountHumanDecimal: "1.5",
-      providerData: { kind: SwapKitProviderEnum.Near as const, depositAddress: "near1deposit" },
-      ...instructionOverrides,
-    },
-  }));
+  const commitRoute = jest.fn(async () => {
+    if (commitFailure) throw commitFailure;
+    return {
+      record: record(direction),
+      instructions: {
+        provider: SwapKitProviderEnum.Near,
+        depositAddress: direction === SwapDirectionEnum.Outbound ? "near1deposit" : "bc1qdeposit",
+        amountHumanDecimal: "1.5",
+        providerData: { kind: SwapKitProviderEnum.Near as const, depositAddress: "near1deposit" },
+        ...instructionOverrides,
+      },
+    };
+  });
   const markBroadcasted = jest.fn(async () => record(direction));
   const sendSwapDeposit = deposit ?? jest.fn(async () => ["a".repeat(64)]);
   const swapService = { commitRoute, markBroadcasted } as unknown as SwapService;
   const onDone = jest.fn();
   const onCancel = jest.fn();
+  const onRouteRefused = jest.fn();
 
   render(
     <SwapExecute
@@ -108,9 +115,10 @@ const renderExecute = (
       sendSwapDeposit={sendSwapDeposit}
       onDone={onDone}
       onCancel={onCancel}
+      onRouteRefused={onRouteRefused}
     />,
   );
-  return { commitRoute, markBroadcasted, sendSwapDeposit, onDone, onCancel };
+  return { commitRoute, markBroadcasted, sendSwapDeposit, onDone, onCancel, onRouteRefused };
 };
 
 beforeEach(() => {
@@ -366,5 +374,40 @@ describe("SwapExecute device lock", () => {
     await waitFor(() =>
       expect(ipcRenderer.invoke.mock.calls.filter((c: unknown[]) => c[0] === "auth:verify")).toHaveLength(2),
     );
+  });
+});
+
+describe("SwapExecute when the provider refuses the route", () => {
+  // Flashnet quoted ZEC routes for days and answered
+  // `xchain_source_route_unavailable` to every commit. Pressing again asks the
+  // same question about the same route id, so the press goes away and the
+  // screen behind is told to stop offering the route.
+  const refusal = new SwapKitHttpError({
+    operation: SwapOperationEnum.Swap,
+    httpStatus: 400,
+    body: '{"error":"quoteError","message":"xchain_source_route_unavailable"}',
+  });
+
+  it("says why, tells the panel, and takes the press away", async () => {
+    const { onRouteRefused } = renderExecute(SwapDirectionEnum.Outbound, undefined, {}, refusal);
+
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await waitFor(() => expect(screen.getByText(/no route out of the asset you are selling/i)).toBeInTheDocument());
+    expect(onRouteRefused).toHaveBeenCalledWith(expect.stringMatching(/no route out of the asset you are selling/i));
+    expect(screen.queryByRole("button", { name: /swap and send deposit/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /back to the routes/i })).toBeInTheDocument();
+  });
+
+  // A timeout says nothing about the route: the same press a moment later can
+  // go through, so neither the button nor the panel's list changes.
+  it("keeps the press for a failure that is not the route's fault", async () => {
+    const { onRouteRefused } = renderExecute(SwapDirectionEnum.Outbound, undefined, {}, new Error("network down"));
+
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    await waitFor(() => expect(screen.getByText(/network down/i)).toBeInTheDocument());
+    expect(onRouteRefused).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /swap and send deposit/i })).toBeInTheDocument();
   });
 });

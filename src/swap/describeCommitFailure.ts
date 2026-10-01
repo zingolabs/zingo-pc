@@ -38,3 +38,20 @@ export function describeCommitFailure(error: unknown, provider?: SwapKitProvider
   }
   return `Could not start the swap: ${error}`;
 }
+
+/**
+ * Whether a failed commit condemns the route it was for.
+ *
+ * A refusal with an HTTP status came from SwapKit or the provider behind it,
+ * and it is about this route id: asking again with the same id gets the same
+ * answer. Flashnet has spent whole days quoting ZEC routes and answering
+ * `xchain_source_route_unavailable` to every commit, at every amount and for
+ * every asset bought, so a user who pressed the button once could press it
+ * for ever.
+ *
+ * Anything else — a timeout, the machine losing its network — says nothing
+ * about the route, and the same press a moment later can go through.
+ */
+export function commitRefusalCondemnsRoute(error: unknown): boolean {
+  return error instanceof SwapKitHttpError;
+}
