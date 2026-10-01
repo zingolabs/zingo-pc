@@ -43,8 +43,11 @@ import { mapSwapStatus, mapTrackingStatus } from "./statusMapping";
  *      Flashnet's own explorer instead; SwapKit fixed it on 2026-09-21 and
  *      the detour is gone, but records stamped 2 may still lack the hash
  *      until they are tracked again.
+ *   4. A payout of zero is no longer taken for the realised amount. Records
+ *      stamped 3 may hold the zero a provider reported while the swap was
+ *      still in flight.
  */
-export const TRACK_CAPTURE_VERSION = 3;
+export const TRACK_CAPTURE_VERSION = 4;
 
 export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackResponseType): SwapRecordType {
   const nowMs = Date.now();
@@ -66,22 +69,17 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
   const destinationTxHash =
     pickLegHash(response, "outbound", record.receiveAsset.chainId) ??
     (isRealLegHash(record.destinationTxHash) ? record.destinationTxHash : undefined);
-  // Provider's actually-realised payout in the destination asset. SwapKit's
-  // `/track` surfaces intermediate-leg amounts during multi-step swaps
-  // (NEAR Intents, Mayachain streaming, etc.) — the top-level `toAmount`
-  // may temporarily refer to a hop's intermediate asset rather than our
-  // configured receive asset. Naively persisting whatever comes through
-  // caused the History row to jitter between unrelated values (e.g. a
-  // USDT-leg amount displayed as ZEC) before the swap converged on the
-  // real destination amount. Guard the write: only accept `toAmount` when
-  // `toAsset` matches the record's `receiveAsset.swapKitId`. Otherwise
-  // keep the previous value (or fall back to the quote-time estimate via
-  // `swapRecordToValueTransfer`).
+  // The payout the provider realised, which is only worth keeping once it is
+  // one. Two ways it is not: an amount denominated in some other asset, which
+  // a multi-step swap reports at the top level mid-flight and which made the
+  // History row show a USDT leg as ZEC; and a zero, which is what a provider
+  // that fixes the output only on settlement reports until then — NEAR Intents
+  // answers 0 ETH while the deposit sits in the mempool. Either way the
+  // previous value stands, and a record with none falls back to the
+  // quote-time estimate in `swapRecordToValueTransfer`.
   const toAssetMatches = typeof response.toAsset === "string" && response.toAsset === record.receiveAsset.swapKitId;
-  const actualReceiveAmount =
-    toAssetMatches && typeof response.toAmount === "string" && response.toAmount.length > 0
-      ? response.toAmount
-      : record.actualReceiveAmount;
+  const reportedPayout = typeof response.toAmount === "string" ? Number(response.toAmount) : NaN;
+  const actualReceiveAmount = toAssetMatches && reportedPayout > 0 ? response.toAmount : record.actualReceiveAmount;
 
   // Some providers (Flashnet, others to come) ship a deep-link URL into
   // their own dashboard — strictly richer than the SwapKit explorer

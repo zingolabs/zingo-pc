@@ -271,6 +271,28 @@ describe("applyDefaultTrackUpdate", () => {
     expect(updated.actualReceiveAmount).toBe("0.002");
   });
 
+  // A provider that fixes the output on settlement reports zero until then.
+  // Shown, it read "0.03 ZEC → 0 ETH" on a swap that was proceeding normally.
+  it("refuses a payout of zero", () => {
+    const updated = applyDefaultTrackUpdate(record({ actualReceiveAmount: "0.00197" }), {
+      status: "PROCESSING",
+      toAsset: "BTC.BTC",
+      toAmount: "0",
+    });
+
+    expect(updated.actualReceiveAmount).toBe("0.00197");
+  });
+
+  it("leaves a record with no payout yet alone rather than calling it zero", () => {
+    const updated = applyDefaultTrackUpdate(record(), {
+      status: "PROCESSING",
+      toAsset: "BTC.BTC",
+      toAmount: "0",
+    });
+
+    expect(updated.actualReceiveAmount).toBeUndefined();
+  });
+
   it("refuses an amount with no asset named at all", () => {
     const updated = applyDefaultTrackUpdate(record(), { status: "PROCESSING", toAmount: "0.00197" });
 
