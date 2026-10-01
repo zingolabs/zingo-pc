@@ -32,6 +32,18 @@ describe("describeCommitFailure", () => {
     expect(describeCommitFailure(new Error("network down"))).toBe("Could not start the swap: Error: network down");
   });
 
+  // Also reported raw: "HTTP 400: xchain_source_route_unavailable /
+  // quoteError" from a route that had just been quoted.
+  it("says a provider has no route out of the asset being sold", () => {
+    const message = describeCommitFailure(
+      httpError('{"error":"quoteError","message":"xchain_source_route_unavailable"}'),
+      SwapKitProviderEnum.Flashnet,
+    );
+    expect(message).toBe(
+      "Flashnet has no route out of the asset you are selling just now. Take another route, or try again later.",
+    );
+  });
+
   it("names no provider when the route did not say which", () => {
     expect(describeCommitFailure(httpError('{"message":"estimate_unavailable"}'))).toMatch(/^The provider could not/);
   });

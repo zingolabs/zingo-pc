@@ -20,6 +20,13 @@ export function describeCommitFailure(error: unknown, provider?: SwapKitProvider
   if (raw.includes("estimate_unavailable") || raw.includes("noroutesfound") || raw.includes("no route")) {
     return `${who} could not price this swap just now. Refresh the quote and try again, or take another route.`;
   }
+  // The provider priced the swap a moment ago and now says it has no way
+  // out of the asset being sold. It is the same kind of refusal as the one
+  // above, but with its own code, and it is about the leg rather than the
+  // price, so it gets its own sentence.
+  if (raw.includes("xchain_source_route_unavailable")) {
+    return `${who} has no route out of the asset you are selling just now. Take another route, or try again later.`;
+  }
   if (raw.includes("insufficientliquidity") || raw.includes("liquidity")) {
     return `${who} does not have the liquidity for this swap right now. Try a smaller amount, or another route.`;
   }
