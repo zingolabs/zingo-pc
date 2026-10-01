@@ -20,6 +20,13 @@ export function describeCommitFailure(error: unknown, provider?: SwapKitProvider
   if (raw.includes("estimate_unavailable") || raw.includes("noroutesfound") || raw.includes("no route")) {
     return `${who} could not price this swap just now. Refresh the quote and try again, or take another route.`;
   }
+  // The provider priced the swap a moment ago and now says it has no way
+  // out of the asset being sold. It is the same kind of refusal as the one
+  // above, but with its own code, and it is about the leg rather than the
+  // price, so it gets its own sentence.
+  if (raw.includes("xchain_source_route_unavailable")) {
+    return `${who} has no route out of the asset you are selling just now. Take another route, or try again later.`;
+  }
   if (raw.includes("insufficientliquidity") || raw.includes("liquidity")) {
     return `${who} does not have the liquidity for this swap right now. Try a smaller amount, or another route.`;
   }
@@ -30,4 +37,21 @@ export function describeCommitFailure(error: unknown, provider?: SwapKitProvider
     return `${who} is refusing requests for the moment. Try again in a minute.`;
   }
   return `Could not start the swap: ${error}`;
+}
+
+/**
+ * Whether a failed commit condemns the route it was for.
+ *
+ * A refusal with an HTTP status came from SwapKit or the provider behind it,
+ * and it is about this route id: asking again with the same id gets the same
+ * answer. Flashnet has spent whole days quoting ZEC routes and answering
+ * `xchain_source_route_unavailable` to every commit, at every amount and for
+ * every asset bought, so a user who pressed the button once could press it
+ * for ever.
+ *
+ * Anything else — a timeout, the machine losing its network — says nothing
+ * about the route, and the same press a moment later can go through.
+ */
+export function commitRefusalCondemnsRoute(error: unknown): boolean {
+  return error instanceof SwapKitHttpError;
 }

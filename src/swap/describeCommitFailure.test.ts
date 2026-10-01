@@ -1,7 +1,7 @@
 import { SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { SwapKitHttpError } from "./errors";
-import { describeCommitFailure } from "./describeCommitFailure";
+import { describeCommitFailure, commitRefusalCondemnsRoute } from "./describeCommitFailure";
 
 const httpError = (body: string) => new SwapKitHttpError({ operation: SwapOperationEnum.Swap, httpStatus: 400, body });
 
@@ -32,7 +32,32 @@ describe("describeCommitFailure", () => {
     expect(describeCommitFailure(new Error("network down"))).toBe("Could not start the swap: Error: network down");
   });
 
+  // Also reported raw: "HTTP 400: xchain_source_route_unavailable /
+  // quoteError" from a route that had just been quoted.
+  it("says a provider has no route out of the asset being sold", () => {
+    const message = describeCommitFailure(
+      httpError('{"error":"quoteError","message":"xchain_source_route_unavailable"}'),
+      SwapKitProviderEnum.Flashnet,
+    );
+    expect(message).toBe(
+      "Flashnet has no route out of the asset you are selling just now. Take another route, or try again later.",
+    );
+  });
+
   it("names no provider when the route did not say which", () => {
     expect(describeCommitFailure(httpError('{"message":"estimate_unavailable"}'))).toMatch(/^The provider could not/);
+  });
+});
+
+describe("commitRefusalCondemnsRoute", () => {
+  // The provider answered about this route id. Asking again changes nothing.
+  it("condemns the route when the provider refused it", () => {
+    expect(commitRefusalCondemnsRoute(httpError('{"message":"xchain_source_route_unavailable"}'))).toBe(true);
+  });
+
+  // Nothing was heard from the provider at all, so the route is not the thing
+  // that failed.
+  it("leaves the route alone when the request never landed", () => {
+    expect(commitRefusalCondemnsRoute(new Error("socket hang up"))).toBe(false);
   });
 });

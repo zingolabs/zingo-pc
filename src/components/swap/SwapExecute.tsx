@@ -7,7 +7,13 @@ import swapStyles from "./Swap.module.css";
 import DepositSlip from "./DepositSlip";
 import { Field, FieldRow } from "../common/DetailField";
 import { native, ipcRenderer } from "../../electronBridge";
-import { describeCommitFailure, SwapDirectionEnum, depositSpendsSourceAddress, providerLongLabel } from "../../swap";
+import {
+  describeCommitFailure,
+  commitRefusalCondemnsRoute,
+  SwapDirectionEnum,
+  depositSpendsSourceAddress,
+  providerLongLabel,
+} from "../../swap";
 import type {
   DepositInstructionsType,
   FiatValueBasisType,
@@ -62,6 +68,9 @@ type SwapExecuteProps = {
    *  reserved, so the quote, the amount and the addresses all stay: they
    *  walked up to the edge and stepped back, not away. */
   onCancel: () => void;
+  /** The provider refused this route, so the screen behind should stop
+   *  offering it. Nothing was reserved; the reason is the user's. */
+  onRouteRefused: (reason: string) => void;
 };
 
 type PostCommit = {
@@ -89,9 +98,14 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   sendSwapDeposit,
   onDone,
   onCancel,
+  onRouteRefused,
 }) => {
   const [committing, setCommitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
+  // Set when the provider refused this route. Pressing again would ask the
+  // same question and get the same answer, so the press goes away and the
+  // way out is the other route the screen behind now offers.
+  const [refused, setRefused] = useState<boolean>(false);
   const [postCommit, setPostCommit] = useState<PostCommit | null>(null);
 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
@@ -164,7 +178,12 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
     try {
       committed = await swapService.commitRoute({ quoteInput, chosenRoute: route, direction, fiatValueBasis });
     } catch (e) {
-      setError(describeCommitFailure(e, route.provider));
+      const reason = describeCommitFailure(e, route.provider);
+      setError(reason);
+      if (commitRefusalCondemnsRoute(e)) {
+        setRefused(true);
+        onRouteRefused(reason);
+      }
       setCommitting(false);
       return;
     }
@@ -203,7 +222,17 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
     await broadcast(committed.record, committed.instructions);
     setCommitting(false);
-  }, [swapService, quoteInput, route, fiatValueBasis, direction, isOutbound, broadcast, deviceAuthPasses]);
+  }, [
+    swapService,
+    quoteInput,
+    route,
+    fiatValueBasis,
+    direction,
+    isOutbound,
+    broadcast,
+    deviceAuthPasses,
+    onRouteRefused,
+  ]);
 
   if (postCommit) {
     const { record, instructions, txId } = postCommit;
@@ -331,11 +360,13 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
         </div>
 
         <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
-          <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={commit}>
-            {committing ? "Working..." : isOutbound ? "Swap and send deposit" : "Start the swap"}
-          </button>
+          {!refused && (
+            <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={commit}>
+              {committing ? "Working..." : isOutbound ? "Swap and send deposit" : "Start the swap"}
+            </button>
+          )}
           <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={onCancel}>
-            Cancel
+            {refused ? "Back to the routes" : "Cancel"}
           </button>
         </div>
       </div>

@@ -45,7 +45,7 @@ import QuoteRefreshRing from "./QuoteRefreshRing";
 import AssetPicker from "./AssetPicker";
 import QuotesPicker from "./QuotesPicker";
 import SlippagePicker, { formatSlippagePercent } from "./SlippagePicker";
-import { optimalRouteId } from "../../swap/optimalRoute";
+import { selectionAcrossRefresh } from "../../swap/selectionAcrossRefresh";
 import InsufficientFunds from "./InsufficientFunds";
 import ContactPicker from "../common/ContactPicker";
 import SaveContact from "../common/SaveContact";
@@ -159,6 +159,13 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // the optimum while nobody has said otherwise, and stops the moment someone
   // does — overriding a deliberate pick would be worse than a stale one.
   const [routePickedByUser, setRoutePickedByUser] = useState<boolean>(false);
+  // The providers that refused to commit a route for this intent, and what
+  // they said. A refusal with an HTTP status is about the route id and not
+  // about the moment, so the provider is kept out of the quotes until the
+  // user changes the swap they are asking for: re-offering a route every
+  // twenty seconds that cannot be taken is an invitation to keep pressing.
+  // Listed as unavailable rather than dropped, so the reason stays on screen.
+  const [refused, setRefused] = useState<UnavailableProviderType[]>([]);
   const [quoteContext, setQuoteContext] = useState<{
     quoteInput: QuoteInput;
     fiatValueBasis: FiatValueBasisType;
@@ -287,6 +294,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     setUnavailable([]);
     setChosenRouteId("");
     setRoutePickedByUser(false);
+    setRefused([]);
     setQuoteContext(null);
     setReviewed(null);
     setQuoteError("");
@@ -527,9 +535,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       questionKey = quoteQuestionKey(quoteInput);
       const result = await swapService.quote(quoteInput);
       const carried = carriedFrom(result.routes);
-      const routesNow = [...result.routes, ...carried];
+      const refusedProviders = new Set(refusedRef.current.map((row) => row.provider));
+      const routesNow = [...result.routes, ...carried].filter((r) => !refusedProviders.has(r.provider));
       const carriedProviders = new Set(carried.map((r) => r.provider));
-      setQuoteNotice(noticeFor(carried));
       if (routesNow.length > 0) {
         shownQuoteRef.current = {
           questionKey,
@@ -550,23 +558,42 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       // again a second later gets the same answer, and the amount is the thing
       // the user has to change.
       setQuoteAttemptFailed(routesNow.length === 0);
-      // A refresh must not silently move a choice the user made — route ids
-      // are minted per quote, so their pick is carried across by provider,
-      // which is what they actually chose.
-      //
-      // Where they made no choice, the selection was ours, and carrying it
-      // over left the panel showing a route that had since stopped being the
-      // best one. Follow the new optimum instead. Same fallback in both cases
-      // when the provider is gone, rather than leaving nothing selected.
-      setChosenRouteId((previous) => {
-        if (!routePickedByUserRef.current) return optimalRouteId(routesNow);
-        const chosenProvider = routesRef.current?.find((r) => r.routeId === previous)?.provider;
-        const sameProvider = routesNow.find((r) => r.provider === chosenProvider);
-        return sameProvider?.routeId ?? optimalRouteId(routesNow);
+      // A refresh must not silently move a choice the user made, and must not
+      // hold ours once a better route exists; `selectionAcrossRefresh` is
+      // where that is decided. A dropped pick leaves nothing selected, so
+      // Review waits until the user chooses again.
+      const selection = selectionAcrossRefresh({
+        pickedRouteId: chosenRouteIdRef.current,
+        pickedByUser: routePickedByUserRef.current,
+        shownRoutes: routesRef.current ?? [],
+        freshRoutes: routesNow,
       });
+      setChosenRouteId(selection.routeId);
+      if (selection.droppedProvider) setRoutePickedByUser(false);
+      // Both halves are about what this refresh brought back, so they are one
+      // notice. Set here rather than with the carried routes above because the
+      // dropped provider is only known once the selection has been settled.
+      setQuoteNotice(
+        [
+          noticeFor(carried),
+          selection.droppedProvider
+            ? `${providerShortLabel(selection.droppedProvider)} is no longer quoting this swap. Choose a route.`
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+      );
       setRoutes(routesNow);
       // A carried route is on offer, so its provider is not listed as missing.
-      setUnavailable(result.unavailable.filter((row) => !carriedProviders.has(row.provider)));
+      // A provider that refused to commit is, with its own refusal as the
+      // reason: SwapKit keeps quoting it, so nothing else would say why it is
+      // gone from the routes.
+      setUnavailable([
+        ...result.unavailable.filter(
+          (row) => !carriedProviders.has(row.provider) && !refusedProviders.has(row.provider),
+        ),
+        ...refusedRef.current,
+      ]);
       // Nothing fresh at all: ask again soon rather than after the full cycle.
       setRefreshedAtMs(
         result.routes.length === 0 && carried.length > 0
@@ -721,6 +748,14 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   useEffect(() => {
     routePickedByUserRef.current = routePickedByUser;
   }, [routePickedByUser]);
+  const chosenRouteIdRef = useRef<string>("");
+  useEffect(() => {
+    chosenRouteIdRef.current = chosenRouteId;
+  }, [chosenRouteId]);
+  const refusedRef = useRef<UnavailableProviderType[]>([]);
+  useEffect(() => {
+    refusedRef.current = refused;
+  }, [refused]);
 
   // Re-quote on a fixed cadence rather than trusting the providers' own
   // expiries: they advertise tens of minutes (NEAR an hour, Maya around 75
@@ -1159,6 +1194,22 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             // the user retype a swap they merely wanted a second look at is a
             // punishment for reading.
             onCancel={() => setReviewed(null)}
+            // The provider refused the route while the user was looking at it.
+            // It comes off the list here and stays off until the swap being
+            // asked for changes, with the refusal as its reason. The selection
+            // goes with it rather than moving to another provider: which
+            // counterparty gets the money is the user's to choose.
+            onRouteRefused={(reason: string) => {
+              const provider = reviewed.route.provider;
+              setRefused((previous) => [...previous.filter((row) => row.provider !== provider), { provider, reason }]);
+              setRoutes((previous) => previous?.filter((r) => r.provider !== provider) ?? previous);
+              setUnavailable((previous) => [
+                ...previous.filter((row) => row.provider !== provider),
+                { provider, reason },
+              ]);
+              setChosenRouteId("");
+              setRoutePickedByUser(false);
+            }}
             onDone={() => {
               setReviewed(null);
               setRoutes(null);
