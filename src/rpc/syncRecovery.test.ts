@@ -1,13 +1,12 @@
 /**
  * What the cycle does with a sync session that failed.
  *
- * zingolib classifies every sync failure, and the classification is the whole
- * point: a dropped connection is worth asking the same server again, and the
- * next poll opens a fresh connection. A server that cannot serve this wallet —
- * one missing a pool the wallet needs — stays that way however many times it
- * is asked, and the app used to ask every fifteen seconds for as long as it
- * was open, showing the last status the engine managed to publish. A wallet
- * falling further behind with every block looked like one at 99.99%.
+ * A server answers with an error of some kind every so often, whatever zingolib
+ * calls it, and one such answer says nothing about the next. The cycle stops
+ * launching sessions only once a failure has held: six sessions in a row, over
+ * at least two minutes, with no block scanned between them. Then zingolib's
+ * classification decides what the screen says: a server that cannot serve this
+ * wallet, or a wallet that needs a rescan.
  */
 import { native } from "../electronBridge";
 import RPC from "./rpc";
@@ -22,6 +21,9 @@ const answering = (name: string, answer: string) =>
 
 const failedPoll = (recovery: string, reason = "Error: Invalid shielded protocol value.") =>
   JSON.stringify({ sync_failed: { recovery, reason } });
+
+const shardTree =
+  "shard tree error ← Inserted root conflicts with existing root at address Address { level: Level(5), index: 10850 }";
 
 type Published = {
   errors: { command: string; error: string }[];
@@ -46,17 +48,49 @@ const makeRpc = (uri = "https://one.example:443"): { rpc: RPC; published: Publis
   return { rpc, published };
 };
 
+let now = 0;
+
+// One failed session as the cycle sees it: the failure, then the poll that
+// finds no engine left behind.
+const failSession = async (rpc: RPC, recovery: string, reason?: string, secondsLater = 30) => {
+  now += secondsLater * 1000;
+  answering("poll_sync", failedPoll(recovery, reason));
+  await rpc.fetchSyncPoll();
+  answering("poll_sync", "Sync task has not been launched.");
+  await rpc.fetchSyncPoll();
+};
+
+const failSessions = async (rpc: RPC, count: number, recovery: string, reason?: string, secondsApart = 30) => {
+  for (let session = 0; session < count; session += 1) {
+    await failSession(rpc, recovery, reason, secondsApart);
+  }
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
+  now = 1_000_000;
+  jest.spyOn(Date, "now").mockImplementation(() => now);
+});
+
+afterEach(() => {
+  jest.restoreAllMocks();
 });
 
 describe("a sync session that failed", () => {
-  it("stops the cycle relaunching against a server that cannot serve the wallet", async () => {
+  it("relaunches after one failure the library calls a server it cannot use", async () => {
     const { rpc, published } = makeRpc();
-    answering("poll_sync", failedPoll("server_unavailable"));
-    await rpc.fetchSyncPoll();
+    await failSession(rpc, "server_unavailable");
 
-    // The next poll finds no session — which is the branch that launches one.
+    expect(rpc.refreshSync).toHaveBeenCalled();
+    expect(published.errors).toHaveLength(0);
+    expect(deriveServerHealth(published.health.at(-1) ?? INITIAL_SERVER_HEALTH)).not.toBe("unusable");
+  });
+
+  it("stops relaunching once a server failure has held for six sessions over two minutes", async () => {
+    const { rpc, published } = makeRpc();
+    await failSessions(rpc, 6, "server_unavailable");
+    (rpc.refreshSync as jest.Mock).mockClear();
+
     answering("poll_sync", "Sync task has not been launched.");
     await rpc.fetchSyncPoll();
 
@@ -65,61 +99,110 @@ describe("a sync session that failed", () => {
     expect(deriveServerHealth(published.health.at(-1) as ServerHealthState)).toBe("unusable");
   });
 
-  it("says so at once rather than waiting for a second failure", async () => {
-    // A dropped connection is given one poll to recover before anything is
-    // said; this will not recover, so saying it late only delays the remedy.
+  it("keeps relaunching when six failures come inside two minutes", async () => {
     const { rpc, published } = makeRpc();
-    answering("poll_sync", failedPoll("server_unavailable"));
+    await failSessions(rpc, 6, "server_unavailable", undefined, 10);
 
-    await rpc.fetchSyncPoll();
-
-    expect(published.errors).toHaveLength(1);
+    expect(rpc.refreshSync).toHaveBeenCalledTimes(6);
+    expect(deriveServerHealth(published.health.at(-1) ?? INITIAL_SERVER_HEALTH)).not.toBe("unusable");
   });
 
-  // What happened in the field: a window left unfocused for twenty minutes and
-  // the connection gone stale. zingolib now reads the failure's source chain
-  // and calls that recoverable, so the cycle carries on and the server keeps
-  // its record — a dropped connection says nothing about whether this server
-  // can serve this wallet.
-  it("keeps relaunching after a timeout", async () => {
-    const { rpc, published } = makeRpc();
-    const timeout =
-      "server error ← server request failed ← code: 'The operation was cancelled', " +
-      'message: "Timeout expired", source: tonic::transport::Error(Transport, TimeoutExpired(())) ' +
-      "← transport error ← Timeout expired";
-    answering("poll_sync", failedPoll("maybe_recoverable_server", timeout));
-    await rpc.fetchSyncPoll();
+  it("keeps relaunching when failures outlast two minutes in fewer than six sessions", async () => {
+    const { rpc } = makeRpc();
+    await failSessions(rpc, 5, "server_unavailable", undefined, 60);
 
+    expect(rpc.refreshSync).toHaveBeenCalledTimes(5);
+  });
+
+  // The failures that come and go during a long sync: each session scans some
+  // blocks before the connection drops, and that is a sync making its way.
+  it("starts the count again when blocks are scanned between failures", async () => {
+    const { rpc, published } = makeRpc();
+    jest.spyOn(rpc, "fetchSyncStatus").mockRestore();
+    let scanned = 1000;
+    (native.status_sync as unknown as jest.Mock).mockImplementation(async () =>
+      JSON.stringify({ total_blocks_scanned: scanned }),
+    );
+
+    for (let session = 0; session < 10; session += 1) {
+      await failSession(rpc, "maybe_recoverable_server", "transport error ← Timeout expired");
+      scanned += 500;
+      await rpc.fetchSyncStatus();
+    }
+    (rpc.refreshSync as jest.Mock).mockClear();
     answering("poll_sync", "Sync task has not been launched.");
     await rpc.fetchSyncPoll();
 
     expect(rpc.refreshSync).toHaveBeenCalled();
-    expect(deriveServerHealth(published.health.at(-1) ?? INITIAL_SERVER_HEALTH)).not.toBe("unusable");
+    expect(published.status.at(-1)?.stopped).toBe(false);
   });
 
-  // The bound zingolib asks for: weather passes, and a server that fails the
-  // same way every time does not. The two are indistinguishable until one of
-  // them stops happening, so the retries are counted.
-  it("gives up on a recoverable failure that keeps happening", async () => {
+  it("gives up on a recoverable failure that keeps happening without progress", async () => {
     const { rpc, published } = makeRpc();
-    answering("poll_sync", failedPoll("maybe_recoverable_server", "transport error ← Timeout expired"));
-    for (let attempt = 0; attempt < 6; attempt += 1) {
-      await rpc.fetchSyncPoll();
-    }
+    await failSessions(rpc, 6, "maybe_recoverable_server", "transport error ← Timeout expired");
+    (rpc.refreshSync as jest.Mock).mockClear();
 
     answering("poll_sync", "Sync task has not been launched.");
     await rpc.fetchSyncPoll();
 
     expect(rpc.refreshSync).not.toHaveBeenCalled();
     expect(deriveServerHealth(published.health.at(-1) as ServerHealthState)).toBe("unusable");
-    expect(published.errors.at(-1)?.error).toBe("This server cannot serve this wallet. Switch to another server.");
   });
 
-  it("keeps relaunching when the library calls the failure recoverable", async () => {
-    const { rpc } = makeRpc();
-    answering("poll_sync", failedPoll("maybe_recoverable_server", "transport error ← Timeout expired"));
+  it("says what happened from the second failure, before the cycle gives up", async () => {
+    const { rpc, published } = makeRpc();
+    await failSessions(rpc, 2, "maybe_recoverable_server", "transport error ← Timeout expired");
+
+    expect(published.errors.at(-1)?.error).toBe("The server stopped answering — reconnecting.");
+  });
+
+  // What happened in the field: a shard tree left half-written by a session
+  // that was cut off. Every relaunch rescanned the same ten blocks and died on
+  // the same root, and the screen said "Connecting" for as long as it was open.
+  it("stops relaunching once the wallet itself has failed for six sessions over two minutes", async () => {
+    const { rpc, published } = makeRpc();
+    await failSessions(rpc, 6, "abort", shardTree);
+    (rpc.refreshSync as jest.Mock).mockClear();
+
+    answering("poll_sync", "Sync task has not been launched.");
     await rpc.fetchSyncPoll();
 
+    expect(rpc.refreshSync).not.toHaveBeenCalled();
+    expect(published.errors.at(-1)?.error).toBe(`Sync stopped: ${shardTree}. Rescan the wallet to recover.`);
+    expect(deriveServerHealth(published.health.at(-1) ?? INITIAL_SERVER_HEALTH)).not.toBe("unusable");
+  });
+
+  // The banner clears itself twelve seconds after its last publish. A halted
+  // cycle has no failures left to publish it, and the reason used to leave the
+  // screen while the wallet stayed stopped.
+  it("keeps the reason on screen for as long as the cycle is halted", async () => {
+    const { rpc, published } = makeRpc();
+    await failSessions(rpc, 6, "abort", shardTree);
+    const before = published.errors.length;
+
+    answering("poll_sync", "Sync task has not been launched.");
+    await rpc.fetchSyncPoll();
+    await rpc.fetchSyncPoll();
+
+    expect(published.errors.length).toBe(before + 2);
+    expect(published.errors.at(-1)?.error).toBe(`Sync stopped: ${shardTree}. Rescan the wallet to recover.`);
+  });
+
+  it("relaunches after one failure the library calls unrecoverable", async () => {
+    const { rpc } = makeRpc();
+    await failSession(rpc, "abort", shardTree);
+
+    expect(rpc.refreshSync).toHaveBeenCalled();
+  });
+
+  it("launches again once the wallet is set up anew", async () => {
+    const { rpc } = makeRpc();
+    await failSessions(rpc, 6, "abort", shardTree);
+    (rpc.refreshSync as jest.Mock).mockClear();
+
+    // A rescan ends here, and so does reopening the wallet.
+    jest.spyOn(rpc, "fetchTandZandOValueTransfers").mockResolvedValue(undefined as never);
+    await rpc.configure();
     answering("poll_sync", "Sync task has not been launched.");
     await rpc.fetchSyncPoll();
 
@@ -130,30 +213,21 @@ describe("a sync session that failed", () => {
   // drawing, and they do not age. Saying which world they belong to is the
   // difference between a wallet that is up to date and one that stopped being
   // told.
-  it("marks the status it publishes as stopped", async () => {
+  it("marks the status it publishes as stopped once the cycle gives up", async () => {
     const { rpc, published } = makeRpc();
     jest.spyOn(rpc, "fetchSyncStatus").mockRestore();
     answering("status_sync", JSON.stringify({ percentage_total_outputs_scanned: 100 }));
 
-    answering("poll_sync", failedPoll("server_unavailable"));
-    await rpc.fetchSyncPoll();
-
-    // Said with the failure, not five seconds later.
-    expect(published.status.at(-1)?.stopped).toBe(true);
-
-    // And again on the poll that finds no session, which is the only reply
-    // there is once the cycle stops launching them.
-    answering("poll_sync", "Sync task has not been launched.");
-    await rpc.fetchSyncPoll();
+    await failSessions(rpc, 6, "server_unavailable");
 
     expect(published.status.at(-1)?.stopped).toBe(true);
   });
 
   it("clears the mark when the user moves to another server", async () => {
     const { rpc, published } = makeRpc("https://refuses.example:443");
-    answering("poll_sync", failedPoll("server_unavailable"));
-    await rpc.fetchSyncPoll();
+    await failSessions(rpc, 6, "server_unavailable");
     expect(deriveServerHealth(published.health.at(-1) as ServerHealthState)).toBe("unusable");
+    (rpc.refreshSync as jest.Mock).mockClear();
 
     // What every switch of server ends in, whatever route the user took to it.
     rpc.setCurrentWallet(walletOn("https://serves.example:443"));
@@ -166,42 +240,10 @@ describe("a sync session that failed", () => {
     expect(rpc.refreshSync).toHaveBeenCalled();
   });
 
-  // What happened in the field: a shard tree left half-written by a session
-  // that was cut off. Every relaunch rescanned the same ten blocks and died on
-  // the same root, and the screen said "Connecting" for as long as it was open.
-  it("stops relaunching when the wallet itself cannot go on", async () => {
-    const { rpc, published } = makeRpc();
-    const shardTree =
-      "shard tree error ← Inserted root conflicts with existing root at address Address { level: Level(5), index: 10850 }";
-    answering("poll_sync", failedPoll("abort", shardTree));
-    await rpc.fetchSyncPoll();
-
-    answering("poll_sync", "Sync task has not been launched.");
-    await rpc.fetchSyncPoll();
-
-    expect(rpc.refreshSync).not.toHaveBeenCalled();
-    expect(published.errors.at(-1)?.error).toBe(`Sync stopped: ${shardTree}. Rescan the wallet to recover.`);
-    expect(deriveServerHealth(published.health.at(-1) ?? INITIAL_SERVER_HEALTH)).not.toBe("unusable");
-  });
-
-  it("launches again once the wallet is set up anew", async () => {
-    const { rpc } = makeRpc();
-    answering("poll_sync", failedPoll("abort", "shard tree error"));
-    await rpc.fetchSyncPoll();
-
-    // A rescan ends here, and so does reopening the wallet.
-    jest.spyOn(rpc, "fetchTandZandOValueTransfers").mockResolvedValue(undefined as never);
-    await rpc.configure();
-    answering("poll_sync", "Sync task has not been launched.");
-    await rpc.fetchSyncPoll();
-
-    expect(rpc.refreshSync).toHaveBeenCalled();
-  });
-
   it("holds the verdict against this server until something changes", async () => {
     const { rpc } = makeRpc();
-    answering("poll_sync", failedPoll("server_unavailable"));
-    await rpc.fetchSyncPoll();
+    await failSessions(rpc, 6, "server_unavailable");
+    (rpc.refreshSync as jest.Mock).mockClear();
 
     // A switch of server, a new wallet, a spend that stopped the engine: each
     // ends with the cycle being set up again, and the reason a session that is
