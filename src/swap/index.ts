@@ -51,6 +51,7 @@ export { swapRowLabel } from "./swapRowLabel";
 export { extractFiatValueBasis } from "./quoteFiatBasis";
 export { describeEmptyQuote } from "./describeEmptyQuote";
 export { describeCommitFailure, commitRefusalCondemnsRoute } from "./describeCommitFailure";
+export { describeQuoteFailure } from "./describeQuoteFailure";
 export { FAILED_REFRESH_RETRY_MS, carryOverRoutes, quoteQuestionKey } from "./keepLastQuote";
 export { providerShortLabel, providerLongLabel, providerCustody } from "./providerLabels";
 export type { ProviderCustodyType } from "./providerLabels";
