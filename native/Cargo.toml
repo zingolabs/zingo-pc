@@ -185,9 +185,22 @@ crate-type = ["cdylib"]
 # write. Before it they read any version as their own, which is why 44 and 45
 # were each minted for an embedded change — and why a wallet written here
 # and opened by an older build is misread rather than refused.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "44a3741e61a4e57ab79ec5bb371296d861a1c27f", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "44a3741e61a4e57ab79ec5bb371296d861a1c27f" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "44a3741e61a4e57ab79ec5bb371296d861a1c27f" }
+#
+# This bump (44a3741e -> 63998665) is two fixes to the engine under a re-org
+# and under a pause, and the release versions of the librustzcash crates.
+#
+# Scan results of a range a re-org truncated or re-prioritised while it was
+# being scanned are discarded, and what the wallet still holds of the range is
+# scanned again (zingolib #2837). A server reporting a chain height below the
+# wallet's, with a scan of the tip in flight, truncated the range and then
+# panicked on the results.
+#
+# And a sync with `shutdown_on_completion` set no longer overwrites a pause
+# with its own shutdown (#2840). This crate runs continuous sync, where that
+# setting is off, so it is here for the migration paths that sync to the tip.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "6399866557ddf6a39f8a8cb5684c071db8a62fbc", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "6399866557ddf6a39f8a8cb5684c071db8a62fbc" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "6399866557ddf6a39f8a8cb5684c071db8a62fbc" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two
@@ -200,7 +213,7 @@ zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "44a3741
 # these from crates.io. When bumping the zingolib rev, read its workspace
 # Cargo.toml and copy the numbers across.
 zcash_address = "0.13"
-zcash_client_backend = { version = "0.24.0-rc.7", features = [
+zcash_client_backend = { version = "0.24.0", features = [
     "lightwalletd-tonic",
     "orchard",
     "transparent-inputs",
@@ -257,22 +270,11 @@ windows = { version = "0.61", features = ["Security_Credentials_UI"] }
 [build-dependencies]
 cc = "1"
 
-# Only the patches the zingolib branch actually needs (per its Cargo.lock): a
-# dependency's own [patch] table is ignored by cargo, so this must be replicated
-# here. lightwallet-protocol carries the Ironwood proto fields (its
-# `rebuild-proto` feature needs `protoc` on PATH).
-#
-# librustzcash rev pin lives in Cargo.lock, NOT here. zingolib depends on
-# zcash_pool_migration (and, transitively, zcash_primitives 0.30 / zcash_address
-# / zcash_protocol / equihash / f4jumble / zcash_transparent) from
-# librustzcash's git DEFAULT BRANCH with no rev, so a bare `cargo update` floats
-# them to main's tip, where the migration denomination constants
-# (MIGRATION_MAX_DENOMINATION_ZEC, RESIDUAL_MIGRATION_MIN) were renamed and
-# zingolib no longer compiles. The lock is pinned to e12f1d0f, matching the
-# branch's own Cargo.lock. After any float, re-pin with
-# `cargo update -p zcash_pool_migration --precise e12f1d0ff7be5e5bfd2e4bcbb8d9a863a405f031`.
+# Only the patches zingolib's workspace applies: a dependency's own [patch]
+# table is ignored by cargo, so they are replicated here. lightwallet-protocol
+# carries the Ironwood proto fields (its `rebuild-proto` feature needs
+# `protoc` on PATH).
 [patch.crates-io]
-time = { git = "https://github.com/time-rs/time", tag = "v0.3.47" }
 lightwallet-protocol = { git = "https://github.com/zingolabs/lightwallet-protocol-rust", rev = "9bdfdc77eb283f2a3d26c27100cc2ac90148cd93" }
 
 [profile.release]
