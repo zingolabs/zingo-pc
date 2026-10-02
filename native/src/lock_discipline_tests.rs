@@ -139,6 +139,10 @@ fn sync_caught_up_is_false_until_a_session_has_published() {
         Some(false),
         "no session has published a status: {answer}"
     );
+    assert!(
+        answer["percent"].is_null(),
+        "nor a percentage to go with it: {answer}"
+    );
 }
 
 #[test]

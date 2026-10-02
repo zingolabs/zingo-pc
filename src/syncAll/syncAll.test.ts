@@ -79,8 +79,7 @@ const scripted = (polls: Record<number, SessionPoll[]>, overrides: Partial<SyncA
       cursor[open] = at + 1;
       return polls[open]?.[at] ?? { kind: "running" };
     },
-    caughtUp: async () => (cursor[open] ?? 0) > (polls[open]?.length ?? 0),
-    percent: async () => null,
+    progress: async () => ({ caughtUp: (cursor[open] ?? 0) > (polls[open]?.length ?? 0), percent: null }),
     stop: async () => {
       calls.push(`stop ${open}`);
     },
@@ -186,7 +185,8 @@ describe("runSyncAll", () => {
 
   it("reports the server and the progress while a wallet syncs", async () => {
     const reported: WalletProgress[] = [];
-    const { deps } = scripted({ 1: [{ kind: "running" }] }, { percent: async () => 42.5 });
+    let asked = 0;
+    const { deps } = scripted({}, { progress: async () => ({ caughtUp: (asked += 1) > 1, percent: 42.5 }) });
 
     await runSyncAll(
       [wallet(1)],

@@ -1402,20 +1402,22 @@ fn status_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
 }
 
 /// Whether the session this client is running has scanned up to the chain tip
-/// it found.
+/// it found, and how far along it is.
 ///
-/// Read from the engine's published status alone, and false until it has
-/// published one. `status_sync` cannot answer this: before a session's first
-/// publish it falls back to the wallet's stored state, which says "complete"
-/// for a wallet that was at the tip the last time it ran, however far the
-/// chain has moved since. A continuous session never ends on its own, so this
-/// is the only signal that one has reached the tip.
+/// Read from the engine's published status alone: false and no percentage
+/// until it has published one. `status_sync` cannot answer this: before a
+/// session's first publish it falls back to the wallet's stored state, which
+/// says "complete" for a wallet that was at the tip the last time it ran,
+/// however far the chain has moved since. A continuous session never ends on
+/// its own, so this is the only signal that one has reached the tip.
 fn sync_caught_up_string() -> Result<String, ZingolibError> {
     with_initialized_lightclient_read(|lightclient| {
-        let caught_up = lightclient
-            .latest_sync_status()
-            .is_some_and(|status| status.is_complete());
-        Ok(object! { "caught_up" => caught_up }.pretty(2))
+        let Some(status) = lightclient.latest_sync_status() else {
+            return Ok(object! { "caught_up" => false, "percent" => json::Null }.pretty(2));
+        };
+        let caught_up = status.is_complete();
+        let percent = json::JsonValue::from(status)["percentage_total_outputs_scanned"].clone();
+        Ok(object! { "caught_up" => caught_up, "percent" => percent }.pretty(2))
     })
 }
 

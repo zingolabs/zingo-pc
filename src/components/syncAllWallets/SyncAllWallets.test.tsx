@@ -38,8 +38,7 @@ const fakeDeps = (overrides: Partial<SyncAllDeps> = {}): SyncAllDeps => ({
   open: async () => {},
   launch: async () => {},
   poll: async (): Promise<SessionPoll> => ({ kind: "running" }),
-  caughtUp: async () => true,
-  percent: async () => null,
+  progress: async () => ({ caughtUp: true, percent: null }),
   stop: async () => {},
   save: async () => {},
   sleep: async () => {},
@@ -129,7 +128,7 @@ describe("SyncAllWallets", () => {
     const saved: string[] = [];
     const { onExit } = renderScreen(
       fakeDeps({
-        caughtUp: async () => false,
+        progress: async () => ({ caughtUp: false, percent: null }),
         sleep: () => new Promise<void>((resolve) => (release = resolve)),
         save: async () => {
           saved.push("saved");

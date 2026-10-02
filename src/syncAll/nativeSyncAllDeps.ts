@@ -68,11 +68,9 @@ export function nativeSyncAllDeps(): SyncAllDeps {
 
     poll: async (): Promise<SessionPoll> => parseSessionPoll(await native.poll_sync()),
 
-    caughtUp: async (): Promise<boolean> => JSON.parse(await native.sync_caught_up()).caught_up === true,
-
-    percent: async (): Promise<number | null> => {
-      const percent = JSON.parse(await native.status_sync()).percentage_total_outputs_scanned;
-      return typeof percent === "number" ? percent : null;
+    progress: async (): Promise<{ caughtUp: boolean; percent: number | null }> => {
+      const { caught_up, percent } = JSON.parse(await native.sync_caught_up());
+      return { caughtUp: caught_up === true, percent: typeof percent === "number" ? percent : null };
     },
 
     stop: async (): Promise<void> => {

@@ -38,9 +38,11 @@ export type SyncAllDeps = {
   open: (wallet: WalletType, server: string) => Promise<void>;
   launch: () => Promise<void>;
   poll: () => Promise<SessionPoll>;
-  /** True once the running session has scanned up to the tip it found. */
-  caughtUp: () => Promise<boolean>;
-  percent: () => Promise<number | null>;
+  /**
+   * Where the running session is: whether it has scanned up to the tip it
+   * found, and the percentage it has published, null before its first.
+   */
+  progress: () => Promise<{ caughtUp: boolean; percent: number | null }>;
   /** Stops the session and returns once it has ended. */
   stop: () => Promise<void>;
   save: () => Promise<void>;
@@ -92,8 +94,8 @@ async function syncOne(
         launches += 1;
         await deps.launch();
       } else {
-        if (await deps.caughtUp()) return { kind: "synced" };
-        const percent = await deps.percent();
+        const { caughtUp, percent } = await deps.progress();
+        if (caughtUp) return { kind: "synced" };
         if (percent !== null && percent > best) {
           best = percent;
           launches = 1;
