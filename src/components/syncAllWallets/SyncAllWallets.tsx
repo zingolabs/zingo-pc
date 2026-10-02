@@ -31,6 +31,8 @@ function stateText(progress: WalletProgress): string {
       return "Synced";
     case "failed":
       return progress.reason;
+    case "skipped":
+      return "Skipped";
     case "cancelled":
       return "Not synced";
   }
@@ -62,7 +64,9 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
   const [phase, setPhase] = useState<Phase>("warning");
   const [progress, setProgress] = useState<Record<number, WalletProgress>>({});
   const [cancelling, setCancelling] = useState<boolean>(false);
+  const [skipping, setSkipping] = useState<boolean>(false);
   const cancelRef = useRef<boolean>(false);
+  const skipRef = useRef<boolean>(false);
   const mountedRef = useRef<boolean>(true);
 
   // Leaving the screen by any road ends the run: the loop reads this between
@@ -94,9 +98,20 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
         ordered,
         deps,
         (walletId: number, state: WalletProgress) => {
-          if (mountedRef.current) setProgress((previous) => ({ ...previous, [walletId]: state }));
+          if (!mountedRef.current) return;
+          setProgress((previous) => ({ ...previous, [walletId]: state }));
+          // The wallet in hand has ended, by a skip or otherwise; the next one
+          // starts with the button offered again.
+          if (state.kind !== "syncing") setSkipping(false);
         },
-        () => cancelRef.current,
+        {
+          cancelled: () => cancelRef.current,
+          takeSkip: () => {
+            const asked = skipRef.current;
+            skipRef.current = false;
+            return asked;
+          },
+        },
       );
     } finally {
       await ipcRenderer.invoke("power:keep-awake", false);
@@ -114,6 +129,11 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
   const cancel = () => {
     cancelRef.current = true;
     setCancelling(true);
+  };
+
+  const skip = () => {
+    skipRef.current = true;
+    setSkipping(true);
   };
 
   const synced: number = ordered.filter((w) => progress[w.id]?.kind === "synced").length;
@@ -175,9 +195,17 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
           </>
         )}
         {phase === "running" && (
-          <button type="button" className={cstyles.primarybutton} disabled={cancelling} onClick={cancel}>
-            {cancelling ? "Cancelling..." : "Cancel"}
-          </button>
+          <>
+            {/* For the wallet that is taking too long: the run goes on to the
+                next instead of holding at the same place every time it is
+                started. */}
+            <button type="button" className={cstyles.primarybutton} disabled={cancelling || skipping} onClick={skip}>
+              {skipping ? "Skipping..." : "Skip this wallet"}
+            </button>
+            <button type="button" className={cstyles.primarybutton} disabled={cancelling} onClick={cancel}>
+              {cancelling ? "Cancelling..." : "Cancel"}
+            </button>
+          </>
         )}
         {phase === "done" && (
           <button type="button" className={cstyles.primarybutton} onClick={onExit}>

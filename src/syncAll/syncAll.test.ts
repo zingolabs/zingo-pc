@@ -96,13 +96,19 @@ const scripted = (polls: Record<number, SessionPoll[]>, overrides: Partial<SyncA
   return { deps, calls, seen, onProgress };
 };
 
+/** Controls for a run nobody touches, unless `cancelled` says otherwise. */
+const run = (cancelled: () => boolean = () => false, takeSkip: () => boolean = () => false) => ({
+  cancelled,
+  takeSkip,
+});
+
 const weather: SessionPoll = { kind: "failed", reason: "Timeout expired", recovery: "maybe_recoverable_server" };
 
 describe("runSyncAll", () => {
   it("opens, syncs, stops and saves each wallet before the next is opened", async () => {
     const { deps, calls, seen, onProgress } = scripted({});
 
-    await runSyncAll([wallet(1), wallet(2)], deps, onProgress, () => false);
+    await runSyncAll([wallet(1), wallet(2)], deps, onProgress, run());
 
     expect(calls).toEqual(["open 1", "launch 1", "stop 1", "save 1", "open 2", "launch 2", "stop 2", "save 2"]);
     expect(seen).toEqual({ 1: { kind: "synced" }, 2: { kind: "synced" } });
@@ -114,7 +120,7 @@ describe("runSyncAll", () => {
       1: [{ kind: "failed", reason: "no tree state", recovery: "server_unavailable" }],
     });
 
-    await runSyncAll([wallet(1), wallet(2)], deps, onProgress, () => false);
+    await runSyncAll([wallet(1), wallet(2)], deps, onProgress, run());
 
     expect(seen[1]).toEqual({ kind: "failed", reason: "This server cannot serve this wallet." });
     expect(seen[2]).toEqual({ kind: "synced" });
@@ -123,7 +129,7 @@ describe("runSyncAll", () => {
   it("launches a session again after passing weather", async () => {
     const { deps, calls, seen, onProgress } = scripted({ 1: [weather] });
 
-    await runSyncAll([wallet(1)], deps, onProgress, () => false);
+    await runSyncAll([wallet(1)], deps, onProgress, run());
 
     expect(calls.filter((c) => c === "launch 1")).toHaveLength(2);
     expect(seen[1]).toEqual({ kind: "synced" });
@@ -132,7 +138,7 @@ describe("runSyncAll", () => {
   it("gives a wallet up once its session has failed too many times in a row", async () => {
     const { deps, calls, seen, onProgress } = scripted({ 1: Array(LAUNCHES_BEFORE_GIVING_UP).fill(weather) });
 
-    await runSyncAll([wallet(1)], deps, onProgress, () => false);
+    await runSyncAll([wallet(1)], deps, onProgress, run());
 
     expect(calls.filter((c) => c === "launch 1")).toHaveLength(LAUNCHES_BEFORE_GIVING_UP);
     // Said without "reconnecting": nothing is going to try again.
@@ -142,7 +148,7 @@ describe("runSyncAll", () => {
   it("does not open a wallet whose file is gone", async () => {
     const { deps, calls, seen, onProgress } = scripted({}, { walletExists: async (w) => w.id !== 1 });
 
-    await runSyncAll([wallet(1), wallet(2)], deps, onProgress, () => false);
+    await runSyncAll([wallet(1), wallet(2)], deps, onProgress, run());
 
     expect(calls).not.toContain("open 1");
     expect(seen[1]).toEqual({ kind: "failed", reason: "The wallet file was not found." });
@@ -159,7 +165,7 @@ describe("runSyncAll", () => {
       },
     );
 
-    await runSyncAll([wallet(1)], deps, onProgress, () => false);
+    await runSyncAll([wallet(1)], deps, onProgress, run());
 
     expect(seen[1]).toEqual({ kind: "failed", reason: "init: the wallet file is corrupt" });
   });
@@ -177,10 +183,45 @@ describe("runSyncAll", () => {
       },
     );
 
-    await runSyncAll([wallet(1), wallet(2)], deps, onProgress, () => cancelled);
+    await runSyncAll(
+      [wallet(1), wallet(2)],
+      deps,
+      onProgress,
+      run(() => cancelled),
+    );
 
     expect(calls).toEqual(["open 1", "launch 1", "stop 1", "save 1"]);
     expect(seen).toEqual({ 1: { kind: "cancelled" }, 2: { kind: "cancelled" } });
+  });
+
+  // The wallet in hand is stopped and saved like any other, and the run goes
+  // on to the next; a skip asked while the previous wallet was closing is not
+  // carried over to this one.
+  it("skips the wallet in hand and carries on with the next", async () => {
+    let skip = false;
+    const { deps, calls, seen, onProgress } = scripted(
+      { 1: [{ kind: "running" }, { kind: "running" }] },
+      {
+        sleep: async () => {
+          skip = true;
+        },
+      },
+    );
+    const takeSkip = () => {
+      const asked = skip;
+      skip = false;
+      return asked;
+    };
+
+    await runSyncAll(
+      [wallet(1), wallet(2)],
+      deps,
+      onProgress,
+      run(() => false, takeSkip),
+    );
+
+    expect(calls).toEqual(["open 1", "launch 1", "stop 1", "save 1", "open 2", "launch 2", "stop 2", "save 2"]);
+    expect(seen).toEqual({ 1: { kind: "skipped" }, 2: { kind: "synced" } });
   });
 
   it("reports the server and the progress while a wallet syncs", async () => {
@@ -188,12 +229,7 @@ describe("runSyncAll", () => {
     let asked = 0;
     const { deps } = scripted({}, { progress: async () => ({ caughtUp: (asked += 1) > 1, percent: 42.5 }) });
 
-    await runSyncAll(
-      [wallet(1)],
-      deps,
-      (_id, progress) => reported.push(progress),
-      () => false,
-    );
+    await runSyncAll([wallet(1)], deps, (_id, progress) => reported.push(progress), run());
 
     expect(reported).toContainEqual({ kind: "syncing", server: "https://server-1", percent: 42.5 });
     expect(reported[reported.length - 1]).toEqual({ kind: "synced" });

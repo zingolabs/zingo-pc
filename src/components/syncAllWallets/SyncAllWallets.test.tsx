@@ -149,4 +149,32 @@ describe("SyncAllWallets", () => {
     expect(keepAwakeCalls()).toEqual([true, false]);
     expect(screen.queryByTestId("sync-all-summary")).not.toBeInTheDocument();
   });
+
+  // A wallet far behind would otherwise hold every run at the same place.
+  it("skips the wallet in hand and goes on to the next", async () => {
+    let release: () => void = () => {};
+    let opened = 0;
+    const { onExit } = renderScreen(
+      fakeDeps({
+        open: async (w) => {
+          opened = w.id;
+        },
+        // The first wallet never reaches the tip; the second does at once.
+        progress: async () => ({ caughtUp: opened !== 1, percent: null }),
+        sleep: () => new Promise<void>((resolve) => (release = resolve)),
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    await waitFor(() => expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Opening..."));
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip this wallet" }));
+    expect(screen.getByRole("button", { name: "Skipping..." })).toBeDisabled();
+    release();
+
+    await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("1 of 2 wallets synced."));
+    expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Skipped");
+    expect(screen.getByTestId("sync-all-wallet-2")).toHaveTextContent("Synced");
+    expect(onExit).not.toHaveBeenCalled();
+  });
 });

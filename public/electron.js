@@ -1364,6 +1364,7 @@ const _NATIVE_NO_PARAM_METHODS = [
   "pause_sync",
   "stop_sync",
   "status_sync",
+  "sync_caught_up",
   "run_rescan",
   "info_server",
   "wallet_kind",

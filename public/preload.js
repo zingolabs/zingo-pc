@@ -18,6 +18,7 @@ const _ALL_NATIVE_METHODS = [
   "pause_sync",
   "stop_sync",
   "status_sync",
+  "sync_caught_up",
   "run_rescan",
   "info_server",
   "wallet_kind",

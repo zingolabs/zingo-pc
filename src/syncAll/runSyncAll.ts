@@ -19,8 +19,22 @@ export type WalletProgress =
   | { readonly kind: "syncing"; readonly server: string; readonly percent: number | null }
   | { readonly kind: "synced" }
   | { readonly kind: "failed"; readonly reason: string }
+  // The user skipped this wallet: it was stopped mid-sync and the run moved on.
+  | { readonly kind: "skipped" }
   // The run was cancelled: this wallet was stopped mid-sync, or never started.
   | { readonly kind: "cancelled" };
+
+/** What the user can ask of a run while it goes. Both are read between steps. */
+export type SyncAllControls = {
+  /** Once true, the wallet in hand is stopped and no other is opened. */
+  cancelled: () => boolean;
+  /**
+   * Answers true once per request to skip the wallet in hand, and clears it.
+   * A wallet far behind would otherwise hold the run at the same place every
+   * time it starts, with the wallets after it never reached.
+   */
+  takeSkip: () => boolean;
+};
 
 export type SessionPoll =
   | { readonly kind: "running" }
@@ -64,7 +78,7 @@ async function syncOne(
   wallet: WalletType,
   deps: SyncAllDeps,
   report: (progress: WalletProgress) => void,
-  cancelled: () => boolean,
+  controls: SyncAllControls,
 ): Promise<WalletProgress> {
   const server = await deps.resolveServer(wallet);
   report({ kind: "syncing", server, percent: null });
@@ -79,7 +93,8 @@ async function syncOne(
     let launches = 1;
     let best = -1;
     for (;;) {
-      if (cancelled()) return { kind: "cancelled" };
+      if (controls.cancelled()) return { kind: "cancelled" };
+      if (controls.takeSkip()) return { kind: "skipped" };
 
       const poll = await deps.poll();
       if (poll.kind === "completed") return { kind: "synced" };
@@ -120,23 +135,25 @@ async function syncOne(
 
 /**
  * Runs the whole sequence. `onProgress` is told each wallet's state as it
- * changes; `cancelled` is asked between steps, and once it answers true the
- * wallet in hand is stopped and saved and no other is opened.
+ * changes; `controls` are asked between steps.
  */
 export async function runSyncAll(
   wallets: readonly WalletType[],
   deps: SyncAllDeps,
   onProgress: (walletId: number, progress: WalletProgress) => void,
-  cancelled: () => boolean,
+  controls: SyncAllControls,
 ): Promise<void> {
   for (const wallet of wallets) {
-    if (cancelled()) {
+    if (controls.cancelled()) {
       onProgress(wallet.id, { kind: "cancelled" });
       continue;
     }
+    // A skip asked while the previous wallet was being stopped and saved was
+    // meant for it, not for this one.
+    controls.takeSkip();
     let outcome: WalletProgress;
     try {
-      outcome = await syncOne(wallet, deps, (progress) => onProgress(wallet.id, progress), cancelled);
+      outcome = await syncOne(wallet, deps, (progress) => onProgress(wallet.id, progress), controls);
     } catch (error) {
       outcome = { kind: "failed", reason: userFacingError(error) };
     }
