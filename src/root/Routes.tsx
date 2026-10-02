@@ -37,6 +37,7 @@ import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
 import { WalletBar } from "../components/walletBar";
+import { SyncAllWallets } from "../components/syncAllWallets";
 import { History } from "../components/history";
 import { Swap } from "../components/swap";
 import type { SwapDirectionEnum } from "../swap/enums/SwapDirectionEnum";
@@ -67,6 +68,10 @@ function deepEqual(a: unknown, b: unknown): boolean {
 const AppRoutes: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  // For the listeners registered once, which would otherwise read the route
+  // the app started on.
+  const pathnameRef = useRef<string>(location.pathname);
+  pathnameRef.current = location.pathname;
 
   // --- state ---
   const [totalBalance, setTotalBalanceState] = useState(defaultAppState.totalBalance);
@@ -305,13 +310,16 @@ const AppRoutes: React.FC = () => {
     const subscriptions = [ipcRenderer.on("appsecurity", appsecurityListener)];
 
     // Change wallet folder location — main process handles the dialog, picker, and restart.
+    // Not while every wallet is being synced: the run is reading that folder.
     const changeWalletDirListener = () => {
+      if (pathnameRef.current === routes.SYNCALL) return;
       ipcRenderer.invoke("wallet-dir:change");
     };
     subscriptions.push(ipcRenderer.on("change-wallet-dir", changeWalletDirListener));
 
     // Import data from another installation — kick off the folder picker, then open the modal.
     const importDataListener = async () => {
+      if (pathnameRef.current === routes.SYNCALL) return;
       const result = await ipcRenderer.invoke("import:scan");
       if (result?.ok) {
         setImportScanResult(result as ImportScanResult);
@@ -835,23 +843,37 @@ const AppRoutes: React.FC = () => {
       <SwapServiceProvider
         key={swapWalletKey.current}
         chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
-        enabled={!!currentWallet && !currentWalletOpenError && location.pathname !== routes.LOADING}
+        enabled={
+          !!currentWallet &&
+          !currentWalletOpenError &&
+          location.pathname !== routes.LOADING &&
+          // Syncing every wallet puts other wallets in the native module, one
+          // after another, and the store must not bind against any of them.
+          location.pathname !== routes.SYNCALL
+        }
       >
         <div style={{ overflow: "hidden" }}>
-          {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
-            <div className={cstyles.sidebarcontainer}>
-              <Sidebar doRescan={runRPCRescan} />
-            </div>
-          )}
+          {/* No sidebar while every wallet is being synced: it is the way to
+              every screen that needs the open wallet, and the menu actions it
+              listens for, and there is no open wallet until the run ends. */}
+          {location.pathname !== "/" &&
+            location.pathname !== routes.SYNCALL &&
+            !location.pathname.toLowerCase().includes("zingo") && (
+              <div className={cstyles.sidebarcontainer}>
+                <Sidebar doRescan={runRPCRescan} />
+              </div>
+            )}
 
           <div className={cstyles.contentcontainer}>
             {/* Above the routes rather than inside any of them: the wallet you
                 are in and the server it talks to are true of every screen, and
                 the server line had already been pasted into five of them
                 separately. It hides itself when there is no wallet. */}
-            {location.pathname !== routes.LOADING && !location.pathname.toLowerCase().includes("zingo") && (
-              <WalletBar navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet} />
-            )}
+            {location.pathname !== routes.LOADING &&
+              location.pathname !== routes.SYNCALL &&
+              !location.pathname.toLowerCase().includes("zingo") && (
+                <WalletBar navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet} />
+              )}
             <Routes>
               <Route
                 path={routes.SEND}
@@ -892,6 +914,18 @@ const AppRoutes: React.FC = () => {
                     navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
                     doSaveWallet={() => RPC.doSave()}
                     clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
+                  />
+                }
+              />
+              <Route
+                path={routes.SYNCALL}
+                element={
+                  <SyncAllWallets
+                    clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
+                    onBack={navigateToDashboard}
+                    // Through the loading screen, which opens the wallet that
+                    // was active the way a launch does.
+                    onExit={navigateToLoadingScreenChangingWallet}
                   />
                 }
               />

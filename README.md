@@ -116,6 +116,8 @@ yarn release:prep 2.0.15 142
 - Wallet seed phrase / UFVK backup viewer
 - Per-wallet performance profiles
 - Rescan from the Wallet menu, with a nonlinear scanning map on the dashboard showing sync progress
+- Sync all wallets from the Wallet menu — every wallet is brought to the chain tip in turn, Mainnet first, on a
+  screen that takes the app over until it finishes or is cancelled, with the computer kept awake meanwhile
 
 **Transactions**
 
