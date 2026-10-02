@@ -1375,8 +1375,35 @@ const _NATIVE_NO_PARAM_METHODS = [
   "execute_due_parts_status",
 ];
 
+const _SYNC_TRACED_METHODS = new Set(["poll_sync", "run_sync", "status_sync"]);
+
+function syncTrace(line) {
+  console.log(`[sync-trace] ${line}`);
+  try {
+    require("fs").appendFileSync(
+      require("path").join(app.getPath("userData"), "startup.log"),
+      `${new Date().toISOString()} [sync-trace] ${line}\n`,
+    );
+  } catch (_) {}
+}
+
+async function tracedNative(method) {
+  const started = Date.now();
+  syncTrace(`${method} start`);
+  try {
+    const reply = await requireNative(method)[method]();
+    syncTrace(`${method} ${Date.now() - started}ms ${String(reply).slice(0, 600)}`);
+    return reply;
+  } catch (e) {
+    syncTrace(`${method} ${Date.now() - started}ms rejected ${e}`);
+    throw e;
+  }
+}
+
 for (const method of _NATIVE_NO_PARAM_METHODS) {
-  ipcMain.handle(`native:${method}`, () => requireNative(method)[method]());
+  ipcMain.handle(`native:${method}`, () =>
+    _SYNC_TRACED_METHODS.has(method) ? tracedNative(method) : requireNative(method)[method](),
+  );
 }
 
 // Sync no-param methods (also routed to main — become async over IPC)
