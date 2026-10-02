@@ -408,32 +408,26 @@ fn fixture_transparent_address() -> String {
 }
 
 #[test]
-fn nothing_shielded_answers_zero_rather_than_a_consensus_error() {
+fn an_unscanned_wallet_is_told_to_scan_rather_than_given_a_consensus_error() {
     let _serial = serialized();
     init_offline_wallet();
 
-    // `max_send_value` used to price a trial payment of the whole shielded
-    // spendable balance to the address. With nothing shielded that payment was
-    // zero-valued, and zip321 refuses a zero-valued output to a transparent
-    // recipient — so asking what could be sent answered "zero-valued
-    // transparent outputs are disallowed by consensus". The Send screen asks
-    // this on every address change, so it arrived on the keystroke that
-    // finished pasting an address, with no send attempted.
+    // `max_send_value` once priced a trial payment of the whole shielded
+    // balance, and with nothing shielded that was a zero-valued output to a
+    // transparent recipient, which zip321 refuses: asking what could be sent
+    // answered "zero-valued transparent outputs are disallowed by consensus".
+    // The Send screen asks on every address change, so it arrived on the
+    // keystroke that finished pasting an address.
     //
-    // A shielded recipient hid it, because zip321 allows a zero-valued
-    // shielded output. That asymmetry is why it looked arbitrary.
-    //
-    // zingolib answers zero itself now, so this no longer guards a workaround
-    // of ours: it guards the pin. Should a future bump lose that answer, this
-    // is what says so, and it says it in the wallet we ship rather than in a
-    // test suite we do not run.
-    let answer = get_spendable_balance_with_address_string(fixture_transparent_address())
-        .expect("a balance question is not a consensus question");
+    // zingolib answers zero for a scanned wallet with nothing to send, and
+    // since #2774 prices through the send path, which needs the chain height:
+    // a wallet that has never scanned is told so. This fixture never scans, so
+    // that is the answer it pins, and the Send screen shows it as it is.
+    let refusal = get_spendable_balance_with_address_string(fixture_transparent_address())
+        .expect_err("a wallet with no chain height has nothing to price a send against");
 
-    let parsed = json::parse(&answer).expect("well-formed JSON");
-    assert_eq!(
-        parsed["spendable_balance"].as_u64(),
-        Some(0),
-        "a wallet with nothing shielded can send nothing: {parsed}"
+    assert!(
+        matches!(&refusal, ZingolibError::Read(reason) if reason.contains("Must scan blocks first")),
+        "an unscanned wallet is asked to scan, not handed a consensus error: {refusal:?}"
     );
 }
