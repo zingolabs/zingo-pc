@@ -51,6 +51,12 @@ describe("syncFailureMessage", () => {
     );
   });
 
+  // The library's words stay, with the one thing the user can do about them.
+  it("says a rescan recovers a failure the library cannot retry", () => {
+    const reason = "shard tree error ← Inserted root conflicts with existing root";
+    expect(syncFailureMessage(reason, "abort")).toBe(`Sync stopped: ${reason}. Rescan the wallet to recover.`);
+  });
+
   // Anything the wallet knows about itself is a fact we have no better words for.
   it("leaves the wallet's own refusals alone", () => {
     const reason = "sync: wallet height 34100000 is more than 100 blocks ahead of best chain height 3470916";

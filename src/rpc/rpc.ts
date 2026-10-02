@@ -128,6 +128,9 @@ export default class RPC {
   // the reason it gave. While it holds, the cycle stops launching sessions
   // that will die the same way.
   serverCannotSync: string;
+  // Set when the sync engine says this wallet cannot go on syncing without the
+  // user, and the reason it gave. Another server fails it the same way.
+  walletCannotSync: string;
   // The server the health record on screen is about. A record belongs to the
   // server it was earned against, and says nothing about the next one.
   healthUri: string;
@@ -178,6 +181,7 @@ export default class RPC {
     this.lastPollSyncError = "";
     this.consecutivePollSyncFailures = 0;
     this.serverCannotSync = "";
+    this.walletCannotSync = "";
     this.healthUri = currentWallet?.uri ?? "";
 
     this.serverHealth = INITIAL_SERVER_HEALTH;
@@ -285,6 +289,9 @@ export default class RPC {
   }
 
   async configure(): Promise<void> {
+    // A rescan or a reopened wallet is the intervention it was waiting for.
+    this.walletCannotSync = "";
+
     // A different server starts its record over. The old one's probes and the
     // verdict earned against it are facts about a server this wallet is no
     // longer talking to — and the verdict is the one that would otherwise
@@ -651,8 +658,8 @@ export default class RPC {
         // the screen shows the last status it managed to publish — which is
         // how a wallet falling further behind every block looked like one at
         // 99.99%.
-        if (this.serverCannotSync) {
-          console.log("SYNC POLL -> NOT RELAUNCHING", this.serverCannotSync);
+        if (this.serverCannotSync || this.walletCannotSync) {
+          console.log("SYNC POLL -> NOT RELAUNCHING", this.serverCannotSync || this.walletCannotSync);
           // Still published, and this is the branch that reaches it: with no
           // session there is no "not complete" reply, which is where the
           // status is otherwise read. Without this the screen went on showing
@@ -740,7 +747,7 @@ export default class RPC {
    */
   private clearSyncFailureRun(): void {
     this.consecutivePollSyncFailures = 0;
-    if (this.lastPollSyncError && !this.serverCannotSync) {
+    if (this.lastPollSyncError && !this.serverCannotSync && !this.walletCannotSync) {
       this.lastPollSyncError = "";
       this.fnSetFetchError("Sync", "");
     }
@@ -766,6 +773,15 @@ export default class RPC {
       console.error(`Critical Error sync poll ${reason}`);
     }
     this.consecutivePollSyncFailures += 1;
+    // The wallet's own state is broken: no retry and no other server changes
+    // that, and the server keeps its record.
+    if (recovery === "abort") {
+      this.walletCannotSync = reason;
+      this.fnSetFetchError("Sync", syncFailureMessage(reason, recovery));
+      this.lastPollSyncError = reason;
+      void this.fetchSyncStatus();
+      return;
+    }
     // The verdict decides, and it can be taken at its word again: zingolib
     // reads the failure's own source chain for a transport error, a timeout or
     // an I/O error before calling a server unavailable, so a connection that
@@ -861,7 +877,7 @@ export default class RPC {
         // The figures are whatever the last session managed to publish. Saying
         // which of those two worlds they belong to is the difference between a
         // wallet that is up to date and one that stopped being told.
-        ss.stopped = !!this.serverCannotSync;
+        ss.stopped = !!this.serverCannotSync || !!this.walletCannotSync;
       } catch (error) {
         console.error("SYNC STATUS ERROR - PARSE JSON", returnStatus, error);
         return;

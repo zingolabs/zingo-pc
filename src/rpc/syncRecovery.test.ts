@@ -166,6 +166,38 @@ describe("a sync session that failed", () => {
     expect(rpc.refreshSync).toHaveBeenCalled();
   });
 
+  // What happened in the field: a shard tree left half-written by a session
+  // that was cut off. Every relaunch rescanned the same ten blocks and died on
+  // the same root, and the screen said "Connecting" for as long as it was open.
+  it("stops relaunching when the wallet itself cannot go on", async () => {
+    const { rpc, published } = makeRpc();
+    const shardTree =
+      "shard tree error ← Inserted root conflicts with existing root at address Address { level: Level(5), index: 10850 }";
+    answering("poll_sync", failedPoll("abort", shardTree));
+    await rpc.fetchSyncPoll();
+
+    answering("poll_sync", "Sync task has not been launched.");
+    await rpc.fetchSyncPoll();
+
+    expect(rpc.refreshSync).not.toHaveBeenCalled();
+    expect(published.errors.at(-1)?.error).toBe(`Sync stopped: ${shardTree}. Rescan the wallet to recover.`);
+    expect(deriveServerHealth(published.health.at(-1) ?? INITIAL_SERVER_HEALTH)).not.toBe("unusable");
+  });
+
+  it("launches again once the wallet is set up anew", async () => {
+    const { rpc } = makeRpc();
+    answering("poll_sync", failedPoll("abort", "shard tree error"));
+    await rpc.fetchSyncPoll();
+
+    // A rescan ends here, and so does reopening the wallet.
+    jest.spyOn(rpc, "fetchTandZandOValueTransfers").mockResolvedValue(undefined as never);
+    await rpc.configure();
+    answering("poll_sync", "Sync task has not been launched.");
+    await rpc.fetchSyncPoll();
+
+    expect(rpc.refreshSync).toHaveBeenCalled();
+  });
+
   it("holds the verdict against this server until something changes", async () => {
     const { rpc } = makeRpc();
     answering("poll_sync", failedPoll("server_unavailable"));

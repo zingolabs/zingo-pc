@@ -56,6 +56,9 @@ export function syncFailureMessage(reason: string, recovery?: SyncRecovery): str
   if (recovery === "server_unavailable") {
     return "This server cannot serve this wallet. Switch to another server.";
   }
+  if (recovery === "abort") {
+    return `Sync stopped: ${reason}. Rescan the wallet to recover.`;
+  }
   return isConnectionFailure(reason) ? "The server stopped answering — reconnecting." : reason;
 }
 

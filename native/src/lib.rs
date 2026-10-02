@@ -86,9 +86,7 @@ impl log::Log for StderrLogger {
     }
 
     fn log(&self, record: &log::Record) {
-        let keep = record.level() <= log::Level::Warn
-            || record.target().contains("migrat")
-            || record.target().starts_with("pepper_sync");
+        let keep = record.level() <= log::Level::Warn || record.target().contains("migrat");
         if keep {
             eprintln!("[zingolib {} {}] {}", record.level(), record.target(), record.args());
         }
