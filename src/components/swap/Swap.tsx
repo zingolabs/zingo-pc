@@ -15,6 +15,7 @@ import {
   SwapKitHttpError,
   SwapKitNetworkError,
   describeEmptyQuote,
+  describeQuoteFailure,
   FAILED_REFRESH_RETRY_MS,
   quoteQuestionKey,
   carryOverRoutes,
@@ -626,7 +627,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         return;
       }
       setQuoteNotice("");
-      setQuoteError(`${error}`);
+      setQuoteError(describeQuoteFailure(error));
       setRoutes(null);
       setUnavailable([]);
       setQuoteContext(null);
