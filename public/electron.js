@@ -35,6 +35,7 @@ const {
   session,
   clipboard,
   powerMonitor,
+  powerSaveBlocker,
   safeStorage,
   systemPreferences,
 } = require("electron");
@@ -222,6 +223,12 @@ class MenuBuilder {
           },
         },
         {
+          label: "S&ync all Wallets",
+          click: () => {
+            mainWindow.webContents.send("syncallwallets");
+          },
+        },
+        {
           label: "&Wallet Settings",
           accelerator: "Ctrl+W",
           click: () => {
@@ -377,6 +384,12 @@ class MenuBuilder {
             accelerator: "Ctrl+R",
             click: () => {
               mainWindow.webContents.send("rescan");
+            },
+          },
+          {
+            label: "S&ync all Wallets",
+            click: () => {
+              mainWindow.webContents.send("syncallwallets");
             },
           },
           {
@@ -702,6 +715,21 @@ ipcMain.handle("auth:check", async () => {
     );
   }
   return "not_supported";
+});
+
+// Held while the renderer syncs every wallet in turn. A run can take hours,
+// and a machine that suspends under it drops the server connection and leaves
+// the app locked on a wallet that is going nowhere. The display may still
+// sleep: only the work has to keep going.
+let keepAwakeId = null;
+ipcMain.handle("power:keep-awake", (_e, on) => {
+  if (on && keepAwakeId === null) {
+    keepAwakeId = powerSaveBlocker.start("prevent-app-suspension");
+  } else if (!on && keepAwakeId !== null) {
+    powerSaveBlocker.stop(keepAwakeId);
+    keepAwakeId = null;
+  }
+  return keepAwakeId !== null;
 });
 
 ipcMain.handle("auth:verify", async (_e, reason) => {
