@@ -126,6 +126,21 @@ fn value_transfers_answer_beside_a_held_read_guard() {
     );
 }
 
+/// The fixture never launches a session, so nothing has been published, and
+/// the wallet's stored state must not stand in: that state is what reads as
+/// "complete" for a wallet that was at the tip a week ago.
+#[test]
+fn sync_caught_up_is_false_until_a_session_has_published() {
+    let _serial = serialized();
+    init_offline_wallet();
+    let answer = answer_under_held_read_lock(sync_caught_up_string);
+    assert_eq!(
+        answer["caught_up"].as_bool(),
+        Some(false),
+        "no session has published a status: {answer}"
+    );
+}
+
 #[test]
 fn status_sync_answers_beside_a_held_read_guard() {
     let _serial = serialized();
