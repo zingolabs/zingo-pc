@@ -183,7 +183,10 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
         })}
       </div>
 
-      <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
+      <div
+        className={`${cstyles.horizontalflex} ${cstyles.margintoplarge} ${styles.buttons}`}
+        style={{ justifyContent: "center" }}
+      >
         {phase === "warning" && (
           <>
             <button type="button" className={cstyles.primarybutton} disabled={ordered.length === 0} onClick={start}>

@@ -223,12 +223,6 @@ class MenuBuilder {
           },
         },
         {
-          label: "S&ync all Wallets",
-          click: () => {
-            mainWindow.webContents.send("syncallwallets");
-          },
-        },
-        {
           label: "&Wallet Settings",
           accelerator: "Ctrl+W",
           click: () => {
@@ -248,6 +242,14 @@ class MenuBuilder {
           accelerator: "Ctrl+P",
           click: () => {
             mainWindow.webContents.send("payuri");
+          },
+        },
+        { type: "separator" },
+        {
+          label: "S&ync all Wallets",
+          accelerator: "Ctrl+Y",
+          click: () => {
+            mainWindow.webContents.send("syncallwallets");
           },
         },
         { type: "separator" },
@@ -387,12 +389,6 @@ class MenuBuilder {
             },
           },
           {
-            label: "S&ync all Wallets",
-            click: () => {
-              mainWindow.webContents.send("syncallwallets");
-            },
-          },
-          {
             label: "&Wallet Settings",
             accelerator: "Ctrl+W",
             click: () => {
@@ -405,6 +401,14 @@ class MenuBuilder {
             accelerator: "Ctrl+D",
             click: () => {
               mainWindow.webContents.send("deletewallet");
+            },
+          },
+          { type: "separator" },
+          {
+            label: "S&ync all Wallets",
+            accelerator: "Ctrl+Y",
+            click: () => {
+              mainWindow.webContents.send("syncallwallets");
             },
           },
           { type: "separator" },
