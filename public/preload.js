@@ -18,6 +18,7 @@ const _ALL_NATIVE_METHODS = [
   "pause_sync",
   "stop_sync",
   "status_sync",
+  "sync_caught_up",
   "run_rescan",
   "info_server",
   "wallet_kind",
@@ -95,6 +96,7 @@ const ALLOWED_RECEIVE = new Set([
   "blockexplorer",
   "seed",
   "rescan",
+  "syncallwallets",
   "addnewwallet",
   "settingswallet",
   "deletewallet",
@@ -125,6 +127,7 @@ const ALLOWED_INVOKE = new Set([
   // Reading a payment QR with the camera, in Send.
   "camera:request-access",
   "auth:verify",
+  "power:keep-awake",
   "wallet-dir:request",
   "fs:existsSync",
   "fs:mkdir",

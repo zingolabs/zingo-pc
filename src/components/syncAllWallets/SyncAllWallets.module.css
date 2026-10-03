@@ -1,0 +1,79 @@
+/* The sidebar is not rendered on this screen; the content column is still
+   laid out beside where it would be, so this takes that width back.
+
+   The page itself never scrolls (html is overflow: hidden), so the screen is
+   the window's height and the list is the one part of it that scrolls: the
+   title, the notice and the buttons stay where they are however many wallets
+   there are. */
+.container {
+  margin-left: -220px;
+  padding: 40px 10% 24px 10%;
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.notice {
+  flex-shrink: 0;
+  max-width: 720px;
+  text-align: left;
+  line-height: 1.5;
+  margin-top: 16px;
+}
+
+/* The wallet being synced, on its own above the list and lifted a little
+   from it: it is the one row that changes, and the list below it moves. */
+.inhand {
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 720px;
+  margin-top: 24px;
+  padding: 12px 16px 4px 16px;
+  box-sizing: border-box;
+  background-color: var(--color-background-dark);
+  border: 1px solid grey;
+  border-bottom: none;
+}
+
+/* Two lines on the left, one on the right: centred against both rather than
+   sitting on the first. */
+.inhand .wallet {
+  align-items: center;
+}
+
+.inhand + .wallets {
+  margin-top: 0;
+}
+
+.wallets {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  width: 100%;
+  max-width: 720px;
+  margin-top: 24px;
+  border: 1px solid grey;
+  padding: 16px 16px 8px 16px;
+  box-sizing: border-box;
+}
+
+.wallet {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.state {
+  text-align: right;
+  flex-shrink: 0;
+  max-width: 55%;
+}
+
+.buttons {
+  flex-shrink: 0;
+}

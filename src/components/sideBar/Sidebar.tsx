@@ -455,6 +455,10 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
       }
     };
 
+    const syncallwallets = (_event: any) => {
+      navigate(routes.SYNCALL);
+    };
+
     const addnewwallet = (_event: any) => {
       navigate(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
     };
@@ -493,6 +497,7 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
       ipcRenderer.on("blockexplorer", blockexplorer),
       ipcRenderer.on("seed", seed),
       ipcRenderer.on("rescan", rescan),
+      ipcRenderer.on("syncallwallets", syncallwallets),
       ipcRenderer.on("addnewwallet", addnewwallet),
       ipcRenderer.on("settingswallet", settingswallet),
       ipcRenderer.on("deletewallet", deletewallet),

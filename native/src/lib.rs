@@ -125,6 +125,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("pause_sync", pause_sync)?;
     cx.export_function("stop_sync", stop_sync)?;
     cx.export_function("status_sync", status_sync)?;
+    cx.export_function("sync_caught_up", sync_caught_up)?;
     cx.export_function("run_rescan", run_rescan)?;
     cx.export_function("info_server", info_server)?;
     cx.export_function("wallet_kind", wallet_kind)?;
@@ -1400,6 +1401,30 @@ fn status_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, status_sync_string)
 }
 
+/// Whether the session this client is running has scanned up to the chain tip
+/// it found, and how far along it is.
+///
+/// Read from the engine's published status alone: false and no percentage
+/// until it has published one. `status_sync` cannot answer this: before a
+/// session's first publish it falls back to the wallet's stored state, which
+/// says "complete" for a wallet that was at the tip the last time it ran,
+/// however far the chain has moved since. A continuous session never ends on
+/// its own, so this is the only signal that one has reached the tip.
+fn sync_caught_up_string() -> Result<String, ZingolibError> {
+    with_initialized_lightclient_read(|lightclient| {
+        let Some(status) = lightclient.latest_sync_status() else {
+            return Ok(object! { "caught_up" => false, "percent" => json::Null }.pretty(2));
+        };
+        let caught_up = status.is_complete();
+        let percent = json::JsonValue::from(status)["percentage_total_outputs_scanned"].clone();
+        Ok(object! { "caught_up" => caught_up, "percent" => percent }.pretty(2))
+    })
+}
+
+fn sync_caught_up(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    spawn_promise(&mut cx, sync_caught_up_string)
+}
+
 fn run_rescan(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
         with_initialized_lightclient(|lightclient| {
@@ -2451,7 +2476,7 @@ fn stop_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
         with_initialized_lightclient(|lightclient| {
             RT.block_on(async move {
-                lightclient.set_transmit_policy(zingolib::mixnet::TransmitPolicy::Clearnet);
+                lightclient.set_transmit_policy(zingolib::mixnet::TransmitPolicy::Nakednet);
                 lightclient.disable_mixnet().await;
             });
             Ok(object! { "status" => "ok" }.pretty(2))

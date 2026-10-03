@@ -54,6 +54,7 @@ export function run_sync(): Promise<string>;
 export function pause_sync(): Promise<string>;
 export function stop_sync(): Promise<string>;
 export function status_sync(): Promise<string>;
+export function sync_caught_up(): Promise<string>;
 export function run_rescan(): Promise<string>;
 export function info_server(): Promise<string>;
 export function wallet_kind(): Promise<string>;

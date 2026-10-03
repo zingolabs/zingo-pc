@@ -10,5 +10,6 @@
   "ADDNEWWALLET": "/addnewwallet",
   "INSIGHT": "/insight",
   "MIGRATION": "/migration",
-  "SWAP": "/swap"
+  "SWAP": "/swap",
+  "SYNCALL": "/syncall"
 }
