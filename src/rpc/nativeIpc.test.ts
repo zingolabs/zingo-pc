@@ -11,7 +11,7 @@ import path from "path";
  *
  * So the gap is checked here instead, by reading the three sides: the lists in
  * `public/electron.js`, the list in `public/preload.js`, and the argument
- * reads in `native/src/lib.rs`.
+ * reads in the native source, found through its export table.
  */
 
 const repoRoot = path.join(__dirname, "..", "..");
@@ -41,15 +41,31 @@ const bridgeBlock: string = preloadSource.slice(
 );
 const exposedToRenderer: string[] = namesIn(bridgeBlock);
 
+// Where an exported method lives: `cx.export_function("name", function)`
+// names a function in `lib.rs`, or `module::function` in that module's file.
+const rustFunctionFor = (method: string): { source: string; name: string } | null => {
+  const exported = nativeSource.match(new RegExp(`cx\\.export_function\\("${method}", ([a-z0-9_:]+)\\)`));
+  if (!exported) return null;
+  const segments: string[] = exported[1].split("::");
+  const name: string = segments[segments.length - 1];
+  return { source: segments.length > 1 ? read(`native/src/${segments[0]}.rs`) : nativeSource, name };
+};
+
+const DECLARATION = /^(pub(\([a-z]+\))? )?fn /;
+
 // Highest `cx.argument::<T>(n)` index the Rust function reads, + 1. Scans from
 // the declaration to the next top-level `fn`.
 const argumentsRead = (method: string): number | null => {
-  const lines: string[] = nativeSource.split(/\r?\n/);
-  const start: number = lines.findIndex((line) => line.trim().startsWith(`fn ${method}(`));
+  const rust = rustFunctionFor(method);
+  if (!rust) return null;
+  const lines: string[] = rust.source.split(/\r?\n/);
+  const start: number = lines.findIndex(
+    (line) => DECLARATION.test(line) && line.replace(DECLARATION, "").startsWith(`${rust.name}(`),
+  );
   if (start < 0) return null;
   let count = 0;
   for (let i = start + 1; i < lines.length; i++) {
-    if (lines[i].startsWith("fn ")) break;
+    if (DECLARATION.test(lines[i])) break;
     const read = lines[i].match(/cx\.argument(?:_opt)?::<[^>]+>\((\d+)\)/);
     if (read) count = Math.max(count, Number(read[1]) + 1);
   }
