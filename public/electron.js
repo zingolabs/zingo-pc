@@ -1368,7 +1368,13 @@ const _NATIVE_NO_PARAM_METHODS = [
   "pause_sync",
   "stop_sync",
   "status_sync",
-  "sync_caught_up",
+  // the wallet synced behind the one on screen (native/src/background.rs)
+  "background_run_sync",
+  "background_poll_sync",
+  "background_sync_caught_up",
+  "background_stop_sync",
+  "background_save",
+  "background_close",
   "run_rescan",
   "info_server",
   "wallet_kind",
@@ -1457,6 +1463,10 @@ ipcMain.handle("native:init_from_ufvk", (_e, ufvk, birthday, server_uri, chain_h
 ipcMain.handle("native:init_from_b64", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
   return requireNative("init_from_b64").init_from_b64(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:background_open", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
+  assertWalletName(wallet_name);
+  return requireNative("background_open").background_open(server_uri, chain_hint, perf, min_conf, wallet_name);
 });
 ipcMain.handle("native:get_latest_block_server", (_e, server_uri) =>
   requireNative("get_latest_block_server").get_latest_block_server(server_uri),
