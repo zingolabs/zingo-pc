@@ -150,6 +150,34 @@ describe("SyncAllWallets", () => {
     expect(screen.queryByTestId("sync-all-summary")).not.toBeInTheDocument();
   });
 
+  // With many wallets the rows that change are the ones out of sight. So the
+  // wallet in hand sits on its own above the list, and the list puts the
+  // latest finished wallet first, where the user is looking.
+  it("keeps the wallet in hand above the list, and the latest finished wallet first below", async () => {
+    let release: () => void = () => {};
+    let opened = 0;
+    renderScreen(
+      fakeDeps({
+        open: async (w) => {
+          opened = w.id;
+        },
+        progress: async () => ({ caughtUp: opened === 1, percent: null }),
+        sleep: () => new Promise<void>((resolve) => (release = resolve)),
+      }),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Test coins"));
+
+    expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Opening...");
+    const listed = screen.getAllByTestId(/^sync-all-wallet-/);
+    expect(listed.map((row) => row.getAttribute("data-testid"))).toEqual(["sync-all-wallet-2", "sync-all-wallet-1"]);
+    expect(listed[1]).toHaveTextContent("Synced");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    release();
+  });
+
   // A wallet far behind would otherwise hold every run at the same place.
   it("skips the wallet in hand and goes on to the next", async () => {
     let release: () => void = () => {};

@@ -21,6 +21,8 @@ type Phase = "warning" | "running" | "done";
 
 const PENDING: WalletProgress = { kind: "pending" };
 
+const ended = (progress: WalletProgress): boolean => progress.kind !== "pending" && progress.kind !== "syncing";
+
 function stateText(progress: WalletProgress): string {
   switch (progress.kind) {
     case "pending":
@@ -63,6 +65,10 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
 
   const [phase, setPhase] = useState<Phase>("warning");
   const [progress, setProgress] = useState<Record<number, WalletProgress>>({});
+  // The wallets that have ended, in the order they did. The list below the
+  // wallet in hand shows the latest of them first, so a long run keeps its
+  // news where the user is looking rather than wherever the wallet sat.
+  const [endedIds, setEndedIds] = useState<number[]>([]);
   const [cancelling, setCancelling] = useState<boolean>(false);
   const [skipping, setSkipping] = useState<boolean>(false);
   const cancelRef = useRef<boolean>(false);
@@ -100,9 +106,12 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
         (walletId: number, state: WalletProgress) => {
           if (!mountedRef.current) return;
           setProgress((previous) => ({ ...previous, [walletId]: state }));
-          // The wallet in hand has ended, by a skip or otherwise; the next one
-          // starts with the button offered again.
-          if (state.kind !== "syncing") setSkipping(false);
+          if (ended(state)) {
+            setEndedIds((previous) => (previous.includes(walletId) ? previous : [...previous, walletId]));
+            // The wallet in hand has ended, by a skip or otherwise; the next
+            // one starts with the button offered again.
+            setSkipping(false);
+          }
         },
         {
           cancelled: () => cancelRef.current,
@@ -138,6 +147,40 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
 
   const synced: number = ordered.filter((w) => progress[w.id]?.kind === "synced").length;
 
+  // What goes where. Before the run, the wallets in the order they will be
+  // taken. During and after it, the wallet in hand on its own above the list,
+  // and below it the ones that have ended, latest first, then the rest in
+  // their order.
+  const inHand: WalletType | undefined =
+    phase === "warning" ? undefined : ordered.find((w) => progress[w.id]?.kind === "syncing");
+  const listed: WalletType[] =
+    phase === "warning"
+      ? ordered
+      : [
+          ...[...endedIds].reverse().flatMap((id) => ordered.filter((w) => w.id === id)),
+          ...ordered.filter((w) => w !== inHand && !endedIds.includes(w.id)),
+        ];
+
+  const row = (wallet: WalletType) => {
+    const state: WalletProgress = progress[wallet.id] ?? PENDING;
+    return (
+      <div key={wallet.id} className={styles.wallet} data-testid={`sync-all-wallet-${wallet.id}`}>
+        <div>
+          <div>{wallet.alias}</div>
+          <div className={`${cstyles.sublight} ${cstyles.small}`}>
+            {Utils.chainDisplayName(wallet.chain_name)}
+            {state.kind === "syncing" && ` - ${state.server}`}
+          </div>
+        </div>
+        {phase !== "warning" && (
+          <div className={styles.state} style={{ color: stateColour(state) }}>
+            {stateText(state)}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className={`${cstyles.verticalflex} ${cstyles.center} ${styles.container}`}>
       <div className={cstyles.xlarge}>Sync all wallets</div>
@@ -161,27 +204,13 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
         </div>
       )}
 
-      <div className={styles.wallets}>
-        {ordered.map((wallet: WalletType) => {
-          const state: WalletProgress = progress[wallet.id] ?? PENDING;
-          return (
-            <div key={wallet.id} className={styles.wallet} data-testid={`sync-all-wallet-${wallet.id}`}>
-              <div>
-                <div>{wallet.alias}</div>
-                <div className={`${cstyles.sublight} ${cstyles.small}`}>
-                  {Utils.chainDisplayName(wallet.chain_name)}
-                  {state.kind === "syncing" && ` - ${state.server}`}
-                </div>
-              </div>
-              {phase !== "warning" && (
-                <div className={styles.state} style={{ color: stateColour(state) }}>
-                  {stateText(state)}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      {inHand && (
+        <div className={styles.inhand} data-testid="sync-all-in-hand">
+          {row(inHand)}
+        </div>
+      )}
+
+      <div className={styles.wallets}>{listed.map(row)}</div>
 
       <div
         className={`${cstyles.horizontalflex} ${cstyles.margintoplarge} ${styles.buttons}`}
