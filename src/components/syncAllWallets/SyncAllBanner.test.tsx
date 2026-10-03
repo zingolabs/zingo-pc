@@ -73,8 +73,7 @@ describe("SyncAllBanner", () => {
 
     const banner = screen.getByTestId("sync-all-banner");
     expect(banner).toHaveTextContent("Syncing all wallets");
-    expect(banner).toHaveTextContent("1 of 3 wallets done");
-    expect(banner).toHaveTextContent("33%");
+    expect(banner).toHaveTextContent("1 of 3 done");
     expect(banner).toHaveTextContent("Spending: 42.10%");
   });
 
@@ -100,7 +99,7 @@ describe("SyncAllBanner", () => {
       }),
     );
 
-    expect(screen.getByTestId("sync-all-banner")).toHaveTextContent("2 of 3 wallets synced.");
+    expect(screen.getByTestId("sync-all-banner")).toHaveTextContent("2 of 3 wallets synced");
     fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
     expect(dismiss).toHaveBeenCalled();
   });

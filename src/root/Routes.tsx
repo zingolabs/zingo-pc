@@ -37,7 +37,7 @@ import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
 import { WalletBar } from "../components/walletBar";
-import { SyncAllWallets } from "../components/syncAllWallets";
+import { SyncAllBanner, SyncAllWallets } from "../components/syncAllWallets";
 import { SyncAllContext, useSyncAllRun } from "../syncAll";
 import { History } from "../components/history";
 import { Swap } from "../components/swap";
@@ -870,6 +870,10 @@ const AppRoutes: React.FC = () => {
               {location.pathname !== routes.LOADING && !location.pathname.toLowerCase().includes("zingo") && (
                 <WalletBar navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet} />
               )}
+              {/* Under the wallet bar on every screen, so a run in the background is
+                  in sight wherever the user is. Not on its own detail screen, which
+                  says all of it and more. */}
+              {location.pathname !== routes.LOADING && location.pathname !== routes.SYNCALL && <SyncAllBanner />}
               <Routes>
                 <Route
                   path={routes.SEND}

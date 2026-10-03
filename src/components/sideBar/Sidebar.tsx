@@ -473,11 +473,10 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
         openErrorModal("Sync all Wallets", "There are no wallets to sync.");
         return;
       }
+      // The banner under the wallet bar takes it from here, on whichever
+      // screen the user is.
       openConfirmModalRef.current("Sync all Wallets", <SyncAllNotice />, () => {
         syncAllRef.current.start(syncAllOrder(walletsRef.current));
-        // To the screen with the banner, which is where the run is followed
-        // from now on.
-        navigate(routes.DASHBOARD);
       });
     };
 

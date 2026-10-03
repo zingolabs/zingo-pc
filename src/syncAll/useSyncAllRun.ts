@@ -34,6 +34,12 @@ export type SyncAllRun = {
 
 export const ended = (progress: WalletProgress): boolean => progress.kind !== "pending" && progress.kind !== "syncing";
 
+const sameProgress = (a: WalletProgress | undefined, b: WalletProgress): boolean =>
+  !!a &&
+  a.kind === b.kind &&
+  (a.kind !== "syncing" || (b.kind === "syncing" && a.server === b.server && a.percent === b.percent)) &&
+  (a.kind !== "failed" || (b.kind === "failed" && a.reason === b.reason));
+
 // How long opening a wallet on screen waits for the run to let go of it. The
 // run's own stop is bounded at thirty seconds and a save follows it. Past
 // this the open goes ahead, and the native module refuses it with its reason
@@ -94,7 +100,11 @@ export function useSyncAllRun(
       // starts with the button offered again.
       setSkipping(false);
     }
-    setProgress((previous) => ({ ...previous, [walletId]: state }));
+    // The run is held at the top of the app, so an update here re-renders all
+    // of it. A poll that found nothing new is not one.
+    setProgress((previous) =>
+      sameProgress(previous[walletId], state) ? previous : { ...previous, [walletId]: state },
+    );
   }, []);
 
   const start = useCallback(

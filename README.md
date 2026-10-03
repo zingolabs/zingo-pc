@@ -117,8 +117,8 @@ yarn release:prep 2.0.15 142
 - Per-wallet performance profiles
 - Rescan from the Wallet menu, with a nonlinear scanning map on the dashboard showing sync progress
 - Sync all wallets from the Wallet menu — every other wallet is brought to the chain tip in turn, Mainnet first,
-  in the background while the app stays in use; a banner on the dashboard shows how far it has got, and the
-  computer is kept awake until it finishes
+  in the background while the app stays in use; a line under the wallet bar shows how far it has got on every
+  screen, and the computer is kept awake until it finishes
 
 **Transactions**
 

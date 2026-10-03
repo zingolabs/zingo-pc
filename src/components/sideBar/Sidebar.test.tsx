@@ -343,8 +343,8 @@ describe("Sidebar", () => {
         );
 
       // Nothing starts on the menu press. The user is told what a run does,
-      // and it begins when they confirm, on the screen that has its banner.
-      it("asks first, and starts the run on the dashboard once confirmed", () => {
+      // and it begins when they confirm, on whichever screen they are.
+      it("asks first, and starts the run where the user is once confirmed", () => {
         const run = syncAllRun();
         const openConfirmModal = jest.fn();
         const testnet = { ...makeWallet(ServerChainNameEnum.testChainName), id: 2 };
@@ -361,7 +361,7 @@ describe("Sidebar", () => {
 
         // In the order the run takes them: mainnet first.
         expect((run.start as jest.Mock).mock.calls[0][0].map((w: any) => w.id)).toEqual([5, 2]);
-        expect(mockNavigate).toHaveBeenCalledWith(routes.DASHBOARD);
+        expect(mockNavigate).not.toHaveBeenCalled();
       });
 
       it("shows the run rather than asking again while one is going", () => {

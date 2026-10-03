@@ -44,15 +44,15 @@ function stateColour(progress: WalletProgress): string | undefined {
  *
  * The run itself lives above the screens (`useSyncAllRun`): it is started
  * from the Wallet menu, goes on in the background while the user uses the
- * app, and this is only where they look at it, by way of the dashboard
- * banner. Leaving the screen changes nothing about the run.
+ * app, and this is only where they look at it, by way of the banner under
+ * the wallet bar. Leaving the screen changes nothing about the run.
  */
 const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
   const run = useContext(SyncAllContext);
   const { paneRef, footerRef, paneOffset } = usePaneOffset(200);
 
-  // With no run there is nothing to show: one that was put away from the
-  // dashboard, or a screen reached with none started.
+  // With no run there is nothing to show: one that was put away, or a screen
+  // reached with none started.
   const idle: boolean = run.phase === "idle";
   useEffect(() => {
     if (idle) onClose();

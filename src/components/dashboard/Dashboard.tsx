@@ -1,6 +1,5 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import styles from "./Dashboard.module.css";
-import SyncAllBanner from "./SyncAllBanner";
 import { scanRangeWidthsPercent } from "./scanMap";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
@@ -179,7 +178,6 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
           </div>
         </div>
       )}
-      <SyncAllBanner />
       {/* Gate the whole banner on info-only, self-consistent signals: nu63Activation
           and orchardMigratable both come from the same fetchInfo commit, so they never
           disagree the way get_balance and the drain plan can while a wallet loads/syncs
