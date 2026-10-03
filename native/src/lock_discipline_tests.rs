@@ -126,25 +126,6 @@ fn value_transfers_answer_beside_a_held_read_guard() {
     );
 }
 
-/// The fixture never launches a session, so nothing has been published, and
-/// the wallet's stored state must not stand in: that state is what reads as
-/// "complete" for a wallet that was at the tip a week ago.
-#[test]
-fn sync_caught_up_is_false_until_a_session_has_published() {
-    let _serial = serialized();
-    init_offline_wallet();
-    let answer = answer_under_held_read_lock(sync_caught_up_string);
-    assert_eq!(
-        answer["caught_up"].as_bool(),
-        Some(false),
-        "no session has published a status: {answer}"
-    );
-    assert!(
-        answer["percent"].is_null(),
-        "nor a percentage to go with it: {answer}"
-    );
-}
-
 #[test]
 fn status_sync_answers_beside_a_held_read_guard() {
     let _serial = serialized();
@@ -448,5 +429,91 @@ fn an_unscanned_wallet_is_told_to_scan_rather_than_given_a_consensus_error() {
     assert!(
         matches!(&refusal, ZingolibError::Read(reason) if reason.contains("Must scan blocks first")),
         "an unscanned wallet is asked to scan, not handed a consensus error: {refusal:?}"
+    );
+}
+
+/// The name `init_offline_wallet` gives its wallet file.
+const FIXTURE_WALLET_NAME: &str = "lock-discipline-fixture";
+
+/// Opens the fixture wallet's file in the background slot.
+fn open_fixture_in_the_background() -> Result<String, ZingolibError> {
+    background::open_string(
+        String::new(),
+        "main".to_string(),
+        "Medium".to_string(),
+        1.0,
+        FIXTURE_WALLET_NAME.to_string(),
+    )
+}
+
+/// Two clients on one file each save it when their wallet changes, and the
+/// later save discards the other's scans. The wallet on screen is the one the
+/// user is acting on, so the background is the one refused.
+#[test]
+fn the_background_refuses_the_wallet_open_on_screen() {
+    let _serial = serialized();
+    init_offline_wallet();
+    background::close_for_tests();
+
+    let refusal = open_fixture_in_the_background()
+        .expect_err("the fixture wallet is open on screen");
+
+    assert!(
+        matches!(&refusal, ZingolibError::Init(reason) if reason.contains("open in the app")),
+        "refused for being the wallet on screen: {refusal:?}"
+    );
+}
+
+/// The same rule from the other side: a wallet the background is syncing is
+/// not opened on screen until the background has let it go.
+#[test]
+fn a_wallet_the_background_holds_is_refused_on_screen_until_it_is_closed() {
+    let _serial = serialized();
+    init_offline_wallet();
+    let wallet_path = with_initialized_lightclient(|lightclient| {
+        save_wallet_report(lightclient)?;
+        Ok(lightclient.wallet_path())
+    })
+    .expect("the fixture wallet is written to its file");
+    // Off the screen, so the background may have it.
+    reset_lightclient();
+
+    open_fixture_in_the_background().expect("nothing else holds the fixture wallet");
+    let refusal = background::refuse_a_file_it_holds(&wallet_path)
+        .expect_err("the background holds this file");
+    assert!(
+        matches!(&refusal, ZingolibError::Init(reason) if reason.contains("in the background")),
+        "refused for being synced in the background: {refusal:?}"
+    );
+
+    background::close_for_tests();
+    background::refuse_a_file_it_holds(&wallet_path)
+        .expect("a closed background holds no file");
+}
+
+/// A wallet just opened in the background has published nothing, like one
+/// just opened on screen.
+#[test]
+fn the_background_wallet_has_not_caught_up_before_it_syncs() {
+    let _serial = serialized();
+    init_offline_wallet();
+    with_initialized_lightclient(save_wallet_report).expect("the fixture wallet is written");
+    reset_lightclient();
+    open_fixture_in_the_background().expect("nothing else holds the fixture wallet");
+
+    let answer = json::parse(&background::sync_caught_up_string().expect("a wallet is open"))
+        .expect("well-formed JSON");
+    assert_eq!(answer["caught_up"].as_bool(), Some(false), "{answer}");
+    // The wallet's stored state must not stand in for a published status: it
+    // is what reads as complete for a wallet that was at the tip a week ago.
+    assert!(answer["percent"].is_null(), "{answer}");
+
+    background::close_for_tests();
+    assert!(
+        matches!(
+            background::sync_caught_up_string(),
+            Err(ZingolibError::LightclientNotInitialized)
+        ),
+        "a closed background has no wallet to ask"
     );
 }

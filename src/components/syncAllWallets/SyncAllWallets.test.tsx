@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../test-utils";
 import SyncAllWallets from "./SyncAllWallets";
 import { ipcRenderer } from "../../electronBridge";
@@ -10,7 +10,9 @@ import {
   ServerSelectionEnum,
   WalletType,
 } from "../appstate";
-import type { SessionPoll, SyncAllDeps } from "../../syncAll";
+import { SyncAllContext, syncAllOrder, useSyncAllRun } from "../../syncAll";
+import SyncAllNotice from "./SyncAllNotice";
+import type { SessionPoll, SyncAllDeps, SyncAllRun } from "../../syncAll";
 
 jest.mock("../../electronBridge");
 
@@ -31,7 +33,7 @@ const WALLETS: WalletType[] = [
   wallet(1, "Savings", ServerChainNameEnum.mainChainName),
 ];
 
-/** Sessions that reach the tip on their first poll, unless `poll` says otherwise. */
+/** Sessions that reach the tip on their first poll, unless told otherwise. */
 const fakeDeps = (overrides: Partial<SyncAllDeps> = {}): SyncAllDeps => ({
   resolveServer: async (w) => w.uri,
   walletExists: async () => true,
@@ -41,18 +43,36 @@ const fakeDeps = (overrides: Partial<SyncAllDeps> = {}): SyncAllDeps => ({
   progress: async () => ({ caughtUp: true, percent: null }),
   stop: async () => {},
   save: async () => {},
+  close: async () => {},
   sleep: async () => {},
   ...overrides,
 });
 
-const renderScreen = (deps: SyncAllDeps = fakeDeps()) => {
-  const clearTimers = jest.fn(async () => {});
-  const onBack = jest.fn();
-  const onExit = jest.fn();
-  render(<SyncAllWallets clearTimers={clearTimers} onBack={onBack} onExit={onExit} makeDeps={() => deps} />, {
-    contextOverrides: { wallets: WALLETS },
-  });
-  return { clearTimers, onBack, onExit };
+/** Starts a run the way the Wallet menu does once the user has confirmed. */
+let startRun: () => void = () => {};
+
+/**
+ * The screen under the run it reads, as the app mounts them: the run above,
+ * the screen below, so the screen can come and go while the run stays.
+ */
+const renderScreen = (deps: SyncAllDeps = fakeDeps(), openWalletId?: number) => {
+  const onClose = jest.fn();
+  const held: { run: SyncAllRun | null; showScreen: (show: boolean) => void } = { run: null, showScreen: () => {} };
+  const makeDeps = () => deps;
+
+  const Harness: React.FC = () => {
+    const run = useSyncAllRun(openWalletId, makeDeps);
+    const [shown, setShown] = React.useState<boolean>(true);
+    held.run = run;
+    held.showScreen = setShown;
+    return (
+      <SyncAllContext.Provider value={run}>{shown && <SyncAllWallets onClose={onClose} />}</SyncAllContext.Provider>
+    );
+  };
+
+  render(<Harness />);
+  startRun = () => act(() => held.run!.start(syncAllOrder(WALLETS)));
+  return { onClose, held };
 };
 
 const keepAwakeCalls = () =>
@@ -66,38 +86,29 @@ beforeEach(() => {
 });
 
 describe("SyncAllWallets", () => {
-  it("says what is about to happen and lists the wallets in the order they will be synced", () => {
-    renderScreen();
+  // The screen shows a run. With none, it has nothing to show and leaves.
+  it("leaves when there is no run", () => {
+    const { onClose } = renderScreen();
 
-    expect(screen.getByText(/the app does nothing else/i)).toBeInTheDocument();
-    const rows = screen.getAllByTestId(/^sync-all-wallet-/);
-    expect(rows.map((row) => row.getAttribute("data-testid"))).toEqual(["sync-all-wallet-1", "sync-all-wallet-2"]);
-  });
-
-  // Backing out of the warning is not a cancelled run: the open wallet's
-  // session was never stopped, so there is nothing to reopen.
-  it("touches nothing when the user backs out of the warning", () => {
-    const { clearTimers, onBack, onExit } = renderScreen();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
-
-    expect(onBack).toHaveBeenCalled();
-    expect(onExit).not.toHaveBeenCalled();
-    expect(clearTimers).not.toHaveBeenCalled();
-    expect(keepAwakeCalls()).toEqual([]);
+    expect(onClose).toHaveBeenCalled();
+    expect(screen.queryByText("Sync all wallets")).not.toBeInTheDocument();
   });
 
   it("syncs every wallet, keeps the computer awake meanwhile, and reports", async () => {
-    const { clearTimers, onExit } = renderScreen();
+    const { onClose, held } = renderScreen();
+    onClose.mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
 
     await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("2 of 2 wallets synced."));
-    expect(clearTimers).toHaveBeenCalled();
     expect(keepAwakeCalls()).toEqual([true, false]);
+    // In the order the run takes them, whatever order the app holds them in.
+    expect(held.run?.wallets.map((w) => w.id)).toEqual([1, 2]);
 
-    fireEvent.click(screen.getByRole("button", { name: "Back to my wallet" }));
-    expect(onExit).toHaveBeenCalled();
+    // Closing a finished run puts it away.
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalled();
+    expect(held.run?.phase).toBe("idle");
   });
 
   it("shows why a wallet could not be synced, and still counts the others", async () => {
@@ -114,40 +125,91 @@ describe("SyncAllWallets", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
 
     await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("1 of 2 wallets synced."));
     expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("This server cannot serve this wallet.");
     expect(screen.getByTestId("sync-all-wallet-2")).toHaveTextContent("Synced");
   });
 
-  // The user asked to stop, not to read a report: the wallet in hand is
-  // stopped and saved, and the app goes back to the one that was open.
-  it("goes straight back to the open wallet when the run is cancelled", async () => {
+  // Its own session syncs it. Two clients on one wallet file would each
+  // overwrite the other's scans.
+  it("leaves the wallet that is open in the app to its own sync", async () => {
+    const opened: number[] = [];
+    renderScreen(
+      fakeDeps({
+        open: async (w) => {
+          opened.push(w.id);
+        },
+      }),
+      1,
+    );
+
+    startRun();
+
+    await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("1 of 2 wallets synced."));
+    expect(opened).toEqual([2]);
+    expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Open in the app");
+  });
+
+  // The run is not the screen's. Leaving and coming back finds it where it
+  // has got to, which is what lets the user use the app meanwhile.
+  it("goes on while the screen is away, and shows where it has got to on return", async () => {
     let release: () => void = () => {};
-    const saved: string[] = [];
-    const { onExit } = renderScreen(
+    let opened = 0;
+    const { held } = renderScreen(
+      fakeDeps({
+        open: async (w) => {
+          opened = w.id;
+        },
+        progress: async () => ({ caughtUp: opened === 1, percent: 12.5 }),
+        sleep: () => new Promise<void>((resolve) => (release = resolve)),
+      }),
+    );
+
+    startRun();
+    await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Test coins"));
+
+    act(() => held.showScreen(false));
+    expect(screen.queryByText("Sync all wallets")).not.toBeInTheDocument();
+    expect(held.run?.phase).toBe("running");
+
+    act(() => held.showScreen(true));
+    expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Syncing 12.50%");
+    expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Synced");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    release();
+    await waitFor(() => expect(held.run?.phase).toBe("done"));
+  });
+
+  it("stops and saves the wallet in hand when the run is cancelled", async () => {
+    let release: () => void = () => {};
+    const done: string[] = [];
+    renderScreen(
       fakeDeps({
         progress: async () => ({ caughtUp: false, percent: null }),
         sleep: () => new Promise<void>((resolve) => (release = resolve)),
         save: async () => {
-          saved.push("saved");
+          done.push("save");
+        },
+        close: async () => {
+          done.push("close");
         },
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
     await waitFor(() => expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Opening..."));
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     expect(screen.getByRole("button", { name: "Cancelling..." })).toBeDisabled();
     release();
 
-    await waitFor(() => expect(onExit).toHaveBeenCalled());
-    // Once for the wallet that was open, once for the one the run had in hand.
-    expect(saved).toHaveLength(2);
+    await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("0 of 2 wallets synced."));
+    expect(done).toEqual(["save", "close"]);
     expect(keepAwakeCalls()).toEqual([true, false]);
-    expect(screen.queryByTestId("sync-all-summary")).not.toBeInTheDocument();
+    expect(screen.getByTestId("sync-all-wallet-2")).toHaveTextContent("Not synced");
   });
 
   // With many wallets the rows that change are the ones out of sight. So the
@@ -166,7 +228,7 @@ describe("SyncAllWallets", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
     await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Test coins"));
 
     expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Opening...");
@@ -182,7 +244,7 @@ describe("SyncAllWallets", () => {
   it("skips the wallet in hand and goes on to the next", async () => {
     let release: () => void = () => {};
     let opened = 0;
-    const { onExit } = renderScreen(
+    renderScreen(
       fakeDeps({
         open: async (w) => {
           opened = w.id;
@@ -193,7 +255,7 @@ describe("SyncAllWallets", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
     await waitFor(() => expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Opening..."));
 
     fireEvent.click(screen.getByRole("button", { name: "Skip this wallet" }));
@@ -203,6 +265,54 @@ describe("SyncAllWallets", () => {
     await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("1 of 2 wallets synced."));
     expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Skipped");
     expect(screen.getByTestId("sync-all-wallet-2")).toHaveTextContent("Synced");
-    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  // The user picks, in the app, the wallet the run has in hand. Opening it
+  // waits until the run has stopped, saved and closed it: only then is the
+  // file free.
+  it("lets go of the wallet in hand before the app opens it", async () => {
+    let release: () => void = () => {};
+    const done: string[] = [];
+    const { held } = renderScreen(
+      fakeDeps({
+        progress: async () => ({ caughtUp: false, percent: null }),
+        sleep: () => new Promise<void>((resolve) => (release = resolve)),
+        close: async () => {
+          done.push("closed");
+        },
+      }),
+    );
+
+    startRun();
+    await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Savings"));
+
+    let released = false;
+    const releasing = held.run!.releaseForScreen(1).then(() => {
+      released = true;
+      done.push("free to open");
+    });
+    expect(released).toBe(false);
+    release();
+    await act(async () => {
+      await releasing;
+    });
+
+    expect(done).toEqual(["closed", "free to open"]);
+    expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Open in the app");
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    release();
+  });
+});
+
+describe("SyncAllNotice", () => {
+  // The confirmation is the one place the user is told what a run costs
+  // before it starts.
+  it("says the app stays in use, and what a run costs meanwhile", () => {
+    render(<SyncAllNotice />);
+
+    expect(screen.getByText(/you can keep using the app/i)).toBeInTheDocument();
+    expect(screen.getByText(/sending and shielding take longer/i)).toBeInTheDocument();
+    expect(screen.getByText(/the wallet you have open is left to its own sync/i)).toBeInTheDocument();
   });
 });

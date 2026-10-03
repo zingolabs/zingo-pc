@@ -28,7 +28,8 @@ export function parseSessionPoll(reply: string): SessionPoll {
 }
 
 /**
- * The run's hands on the wallet and the network.
+ * The run's hands on the wallet and the network: the native module's
+ * background slot, which holds a wallet beside the one on screen.
  *
  * One instance per run: it remembers the server picked for each network, so
  * every `auto` wallet on a network syncs from the same one and the race is
@@ -53,7 +54,7 @@ export function nativeSyncAllDeps(): SyncAllDeps {
       native.wallet_exists(server, wallet.chain_name, wallet.performanceLevel, MIN_CONFIRMATIONS, wallet.fileName),
 
     open: async (wallet: WalletType, server: string): Promise<void> => {
-      await native.init_from_b64(
+      await native.background_open(
         server,
         wallet.chain_name,
         wallet.performanceLevel,
@@ -63,29 +64,33 @@ export function nativeSyncAllDeps(): SyncAllDeps {
     },
 
     launch: async (): Promise<void> => {
-      await native.run_sync();
+      await native.background_run_sync();
     },
 
-    poll: async (): Promise<SessionPoll> => parseSessionPoll(await native.poll_sync()),
+    poll: async (): Promise<SessionPoll> => parseSessionPoll(await native.background_poll_sync()),
 
     progress: async (): Promise<{ caughtUp: boolean; percent: number | null }> => {
-      const { caught_up, percent } = JSON.parse(await native.sync_caught_up());
+      const { caught_up, percent } = JSON.parse(await native.background_sync_caught_up());
       return { caughtUp: caught_up === true, percent: typeof percent === "number" ? percent : null };
     },
 
     stop: async (): Promise<void> => {
-      await native.stop_sync();
+      await native.background_stop_sync();
       // Bounded: a session that will not end must not hold the run for ever.
       // The save that follows still writes what the wallet holds.
       const deadline = Date.now() + STOP_TIMEOUT_MS;
       while (Date.now() < deadline) {
-        if (parseSessionPoll(await native.poll_sync()).kind !== "running") return;
+        if (parseSessionPoll(await native.background_poll_sync()).kind !== "running") return;
         await sleep(STOP_POLL_MS);
       }
     },
 
     save: async (): Promise<void> => {
-      await native.save_wallet_file();
+      await native.background_save();
+    },
+
+    close: async (): Promise<void> => {
+      await native.background_close();
     },
 
     sleep,

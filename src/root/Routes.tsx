@@ -37,7 +37,8 @@ import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
 import { WalletBar } from "../components/walletBar";
-import { SyncAllWallets } from "../components/syncAllWallets";
+import { SyncAllBanner, SyncAllWallets } from "../components/syncAllWallets";
+import { SyncAllContext, useSyncAllRun } from "../syncAll";
 import { History } from "../components/history";
 import { Swap } from "../components/swap";
 import type { SwapDirectionEnum } from "../swap/enums/SwapDirectionEnum";
@@ -68,10 +69,6 @@ function deepEqual(a: unknown, b: unknown): boolean {
 const AppRoutes: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  // For the listeners registered once, which would otherwise read the route
-  // the app started on.
-  const pathnameRef = useRef<string>(location.pathname);
-  pathnameRef.current = location.pathname;
 
   // --- state ---
   const [totalBalance, setTotalBalanceState] = useState(defaultAppState.totalBalance);
@@ -87,6 +84,13 @@ const AppRoutes: React.FC = () => {
   const [readOnly, setReadOnlyState] = useState(defaultAppState.readOnly);
   const [fetchError, setFetchErrorState] = useState(defaultAppState.fetchError);
   const [currentWallet, setCurrentWalletState] = useState(defaultAppState.currentWallet);
+  // The run of "sync all wallets". Held here, above the screens, because it
+  // goes on in the background whichever of them is up.
+  const syncAll = useSyncAllRun(currentWallet?.id);
+  // For the listeners registered once, which would otherwise read the run as
+  // it was when the app started.
+  const syncAllRunningRef = useRef<boolean>(false);
+  syncAllRunningRef.current = syncAll.phase === "running";
   const [currentWalletOpenError, setCurrentWalletOpenErrorState] = useState(defaultAppState.currentWalletOpenError);
   const [wallets, setWalletsState] = useState(defaultAppState.wallets);
   const [birthday, setBirthdayState] = useState(defaultAppState.birthday);
@@ -312,14 +316,14 @@ const AppRoutes: React.FC = () => {
     // Change wallet folder location — main process handles the dialog, picker, and restart.
     // Not while every wallet is being synced: the run is reading that folder.
     const changeWalletDirListener = () => {
-      if (pathnameRef.current === routes.SYNCALL) return;
+      if (syncAllRunningRef.current) return;
       ipcRenderer.invoke("wallet-dir:change");
     };
     subscriptions.push(ipcRenderer.on("change-wallet-dir", changeWalletDirListener));
 
     // Import data from another installation — kick off the folder picker, then open the modal.
     const importDataListener = async () => {
-      if (pathnameRef.current === routes.SYNCALL) return;
+      if (syncAllRunningRef.current) return;
       const result = await ipcRenderer.invoke("import:scan");
       if (result?.ok) {
         setImportScanResult(result as ImportScanResult);
@@ -336,7 +340,12 @@ const AppRoutes: React.FC = () => {
       // don't block the close on it for more than ~800ms. Whichever finishes
       // first (the save or the cap) lets us send `appquitdone` and have the
       // main process exit instantly.
-      const savePromise = native.save_wallet_file().catch(() => {});
+      // The wallet being synced in the background, when there is one, is
+      // flushed the same way.
+      const savePromise = Promise.all([
+        native.save_wallet_file().catch(() => {}),
+        native.background_save().catch(() => {}),
+      ]);
       const cap = new Promise<void>((resolve) => setTimeout(resolve, 800));
       await Promise.race([savePromise, cap]);
       ipcRenderer.send("appquitdone");
@@ -821,135 +830,117 @@ const AppRoutes: React.FC = () => {
 
   return (
     <ContextAppProvider value={contextAppState}>
-      <AppSecurityModal isOpen={securityModalOpen} onClose={() => setSecurityModalOpen(false)} />
-      <ImportDataModal
-        isOpen={importModalOpen}
-        scanResult={importScanResult}
-        onClose={() => {
-          setImportModalOpen(false);
-          setImportScanResult(null);
-        }}
-      />
+      <SyncAllContext.Provider value={syncAll}>
+        <AppSecurityModal isOpen={securityModalOpen} onClose={() => setSecurityModalOpen(false)} />
+        <ImportDataModal
+          isOpen={importModalOpen}
+          scanResult={importScanResult}
+          onClose={() => {
+            setImportModalOpen(false);
+            setImportScanResult(null);
+          }}
+        />
 
-      {confirmModal.modalIsOpen && <ConfirmModal closeModal={closeConfirmModal} />}
-      {errorModal.modalIsOpen && <ErrorModal closeModal={closeErrorModal} />}
+        {confirmModal.modalIsOpen && <ConfirmModal closeModal={closeConfirmModal} />}
+        {errorModal.modalIsOpen && <ErrorModal closeModal={closeErrorModal} />}
 
-      {/* The swap store binds against the loaded wallet's UFVK, which needs the
+        {/* The swap store binds against the loaded wallet's UFVK, which needs the
           lightclient up. `currentWallet` is set while the loading screen is
           still opening the wallet, so it is not that signal: leaving the
           loading route is. Keyed by the wallet, held still while that route is
           on screen, so a switch rebinds the store and re-arms the poller
           against the new one. */}
-      <SwapServiceProvider
-        key={swapWalletKey.current}
-        chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
-        enabled={
-          !!currentWallet &&
-          !currentWalletOpenError &&
-          location.pathname !== routes.LOADING &&
-          // Syncing every wallet puts other wallets in the native module, one
-          // after another, and the store must not bind against any of them.
-          location.pathname !== routes.SYNCALL
-        }
-      >
-        <div style={{ overflow: "hidden" }}>
-          {/* No sidebar while every wallet is being synced: it is the way to
-              every screen that needs the open wallet, and the menu actions it
-              listens for, and there is no open wallet until the run ends. */}
-          {location.pathname !== "/" &&
-            location.pathname !== routes.SYNCALL &&
-            !location.pathname.toLowerCase().includes("zingo") && (
+        <SwapServiceProvider
+          key={swapWalletKey.current}
+          chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
+          enabled={!!currentWallet && !currentWalletOpenError && location.pathname !== routes.LOADING}
+        >
+          <div style={{ overflow: "hidden" }}>
+            {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
               <div className={cstyles.sidebarcontainer}>
                 <Sidebar doRescan={runRPCRescan} />
               </div>
             )}
 
-          <div className={cstyles.contentcontainer}>
-            {/* Above the routes rather than inside any of them: the wallet you
+            <div className={cstyles.contentcontainer}>
+              {/* Above the routes rather than inside any of them: the wallet you
                 are in and the server it talks to are true of every screen, and
                 the server line had already been pasted into five of them
                 separately. It hides itself when there is no wallet. */}
-            {location.pathname !== routes.LOADING &&
-              location.pathname !== routes.SYNCALL &&
-              !location.pathname.toLowerCase().includes("zingo") && (
+              {location.pathname !== routes.LOADING && !location.pathname.toLowerCase().includes("zingo") && (
                 <WalletBar navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet} />
               )}
-            <Routes>
-              <Route
-                path={routes.SEND}
-                element={
-                  <Send
-                    sendTransaction={runRPCSendTransaction}
-                    setSendPageState={setSendPageState}
-                    addAddressBookEntry={addAddressBookEntry}
-                  />
-                }
-              />
-              <Route path={routes.RECEIVE} element={<Receive />} />
-              <Route
-                path={routes.ADDRESSBOOK}
-                element={
-                  <AddressBook
-                    addAddressBookEntry={addAddressBookEntry}
-                    removeAddressBookEntry={removeAddressBookEntry}
-                  />
-                }
-              />
-              <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
-              <Route path={routes.INSIGHT} element={<Insight />} />
-              <Route path={routes.HISTORY} element={<History />} />
-              <Route
-                path={routes.SWAP}
-                element={<Swap sendSwapDeposit={runRPCSendSwapDeposit} addAddressBookEntry={addAddressBookEntry} />}
-              />
-              <Route path={routes.MESSAGES} element={<Messages />} />
-              <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
-              <Route
-                path={routes.ADDNEWWALLET}
-                element={
-                  <AddNewWallet
-                    closeModal={navigateToDashboard}
-                    setWallets={setWallets}
-                    setCurrentWallet={setCurrentWallet}
-                    navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
-                    doSaveWallet={() => RPC.doSave()}
-                    clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
-                  />
-                }
-              />
-              <Route
-                path={routes.SYNCALL}
-                element={
-                  <SyncAllWallets
-                    clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
-                    onBack={navigateToDashboard}
-                    // Through the loading screen, which opens the wallet that
-                    // was active the way a launch does.
-                    onExit={navigateToLoadingScreenChangingWallet}
-                  />
-                }
-              />
-              <Route
-                path={routes.LOADING}
-                element={
-                  <LoadingScreen
-                    runRPCConfigure={() => rpcRef.current?.configure()}
-                    setInfo={setInfo}
-                    setReadOnly={setReadOnly}
-                    navigateToDashboard={navigateToDashboard}
-                    setBirthday={setBirthday}
-                    setPools={setPools}
-                    setWallets={setWallets}
-                    setCurrentWallet={setCurrentWallet}
-                    setCurrentWalletOpenError={setCurrentWalletOpenError}
-                    setFetchError={setFetchError}
-                  />
-                }
-              />
-            </Routes>
+              {/* Under the wallet bar on every screen, so a run in the background is
+                  in sight wherever the user is. Not on its own detail screen, which
+                  says all of it and more. */}
+              {location.pathname !== routes.LOADING && location.pathname !== routes.SYNCALL && <SyncAllBanner />}
+              <Routes>
+                <Route
+                  path={routes.SEND}
+                  element={
+                    <Send
+                      sendTransaction={runRPCSendTransaction}
+                      setSendPageState={setSendPageState}
+                      addAddressBookEntry={addAddressBookEntry}
+                    />
+                  }
+                />
+                <Route path={routes.RECEIVE} element={<Receive />} />
+                <Route
+                  path={routes.ADDRESSBOOK}
+                  element={
+                    <AddressBook
+                      addAddressBookEntry={addAddressBookEntry}
+                      removeAddressBookEntry={removeAddressBookEntry}
+                    />
+                  }
+                />
+                <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
+                <Route path={routes.INSIGHT} element={<Insight />} />
+                <Route path={routes.HISTORY} element={<History />} />
+                <Route
+                  path={routes.SWAP}
+                  element={<Swap sendSwapDeposit={runRPCSendSwapDeposit} addAddressBookEntry={addAddressBookEntry} />}
+                />
+                <Route path={routes.MESSAGES} element={<Messages />} />
+                <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />
+                <Route
+                  path={routes.ADDNEWWALLET}
+                  element={
+                    <AddNewWallet
+                      closeModal={navigateToDashboard}
+                      setWallets={setWallets}
+                      setCurrentWallet={setCurrentWallet}
+                      navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
+                      doSaveWallet={() => RPC.doSave()}
+                      clearTimers={() => rpcRef.current?.clearTimers() ?? Promise.resolve()}
+                    />
+                  }
+                />
+                <Route path={routes.SYNCALL} element={<SyncAllWallets onClose={navigateToDashboard} />} />
+                <Route
+                  path={routes.LOADING}
+                  element={
+                    <LoadingScreen
+                      runRPCConfigure={() => rpcRef.current?.configure()}
+                      setInfo={setInfo}
+                      setReadOnly={setReadOnly}
+                      navigateToDashboard={navigateToDashboard}
+                      setBirthday={setBirthday}
+                      setPools={setPools}
+                      setWallets={setWallets}
+                      setCurrentWallet={setCurrentWallet}
+                      setCurrentWalletOpenError={setCurrentWalletOpenError}
+                      setFetchError={setFetchError}
+                      releaseForScreen={syncAll.releaseForScreen}
+                    />
+                  }
+                />
+              </Routes>
+            </div>
           </div>
-        </div>
-      </SwapServiceProvider>
+        </SwapServiceProvider>
+      </SyncAllContext.Provider>
     </ContextAppProvider>
   );
 };

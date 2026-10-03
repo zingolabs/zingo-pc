@@ -15,7 +15,13 @@ export const native = {
   // Sync
   poll_sync: jest.fn(),
   status_sync: jest.fn(),
-  sync_caught_up: jest.fn(),
+  background_open: jest.fn(),
+  background_run_sync: jest.fn(),
+  background_poll_sync: jest.fn(),
+  background_sync_caught_up: jest.fn(),
+  background_stop_sync: jest.fn(),
+  background_save: jest.fn(),
+  background_close: jest.fn(),
   run_sync: jest.fn(),
   // Send
   send: jest.fn(),

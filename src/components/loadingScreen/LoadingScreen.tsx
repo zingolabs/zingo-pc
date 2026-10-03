@@ -64,6 +64,8 @@ type LoadingScreenProps = {
   setCurrentWallet: (w: WalletType | null) => void;
   setCurrentWalletOpenError: (e: string) => void;
   setFetchError: (command: string, error: string) => void;
+  /** Resolves once a background "sync all wallets" run holds no claim on the wallet. */
+  releaseForScreen: (walletId: number) => Promise<void>;
 };
 
 class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
@@ -758,7 +760,10 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         // the wallet file YES exists
         // A failed init rejects (typed error on the throw channel); the catch
         // below surfaces it via setCurrentWalletOpenError. Success is JSON.
+        // A wallet being synced in the background is let go of first: a
+        // wallet file is never held by two clients at once.
         this.setStep("opening wallet");
+        await this.props.releaseForScreen(currentWallet.id);
         const result: string = await native.init_from_b64(
           currentWallet.uri,
           currentWallet.chain_name,

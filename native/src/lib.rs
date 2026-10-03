@@ -12,6 +12,7 @@ extern "C" {
     ) -> std::ffi::c_int;
 }
 
+mod background;
 #[cfg(test)]
 mod lock_discipline_tests;
 
@@ -125,7 +126,13 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("pause_sync", pause_sync)?;
     cx.export_function("stop_sync", stop_sync)?;
     cx.export_function("status_sync", status_sync)?;
-    cx.export_function("sync_caught_up", sync_caught_up)?;
+    cx.export_function("background_open", background::open)?;
+    cx.export_function("background_run_sync", background::run_sync)?;
+    cx.export_function("background_poll_sync", background::poll_sync)?;
+    cx.export_function("background_sync_caught_up", background::sync_caught_up)?;
+    cx.export_function("background_stop_sync", background::stop_sync)?;
+    cx.export_function("background_save", background::save)?;
+    cx.export_function("background_close", background::close)?;
     cx.export_function("run_rescan", run_rescan)?;
     cx.export_function("info_server", info_server)?;
     cx.export_function("wallet_kind", wallet_kind)?;
@@ -804,6 +811,33 @@ fn init_from_ufvk(mut cx: FunctionContext) -> JsResult<JsString> {
     }
 }
 
+/// Opens the wallet file `config` names and starts its save task.
+fn open_wallet_file(config: zingolib::config::ClientConfig) -> Result<LightClient, ZingolibError> {
+    let mut lightclient = match RT.block_on(async { LightClient::new(config, false).await }) {
+        Ok(l) => l,
+        Err(e) => return Err(ZingolibError::Init(cause_chain(&e))),
+    };
+
+    // A wallet opened here carries the gap limit it was created with, and
+    // every wallet this app made until now was made with 1: the scan stops
+    // one address past the last one in use, so an owner who skipped an
+    // address loses sight of everything beyond it. Raised to the default
+    // on open, never lowered, so a wallet that already looks further keeps
+    // doing so.
+    RT.block_on(async {
+        let mut wallet = lightclient.wallet().write().await;
+        let wanted = TransparentAddressDiscovery::default().gap_limit;
+        if wallet.wallet_settings.sync_config.transparent_address_discovery.gap_limit < wanted {
+            wallet.wallet_settings.sync_config.transparent_address_discovery.gap_limit = wanted;
+            wallet.mark_dirty();
+        }
+    });
+
+    // save the wallet file here
+    RT.block_on(async { lightclient.save_task().await });
+    Ok(lightclient)
+}
+
 fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
     let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
     let chain_hint = cx.argument::<JsString>(1)?.value(&mut cx);
@@ -812,7 +846,6 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
     let wallet_name = cx.argument::<JsString>(4)?.value(&mut cx);
 
     let res: Result<String, ZingolibError> = with_panic_guard(|| {
-        reset_lightclient();
         let (builder, _wallet_settings, _lightwalletd_uri) =
             construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name)?;
         // Read the existing wallet file from disk (Read variant).
@@ -820,31 +853,14 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
             .set_wallet_config(WalletConfig::Read)
             .build()
             .map_err(|e| ZingolibError::Init(cause_chain(&e)))?;
-        let mut lightclient = match RT.block_on(async { LightClient::new(config, false).await }) {
-            Ok(l) => l,
-            Err(e) => return Err(ZingolibError::Init(cause_chain(&e))),
-        };
+        // Before the wallet that was open is let go: a refusal here leaves it
+        // where it was.
+        background::refuse_a_file_it_holds(&config.get_wallet_path())?;
+        reset_lightclient();
+        let lightclient = open_wallet_file(config)?;
         let has_seed = RT.block_on(async {
             lightclient.wallet().read().await.mnemonic_phrase().is_some()
         });
-
-        // A wallet opened here carries the gap limit it was created with, and
-        // every wallet this app made until now was made with 1: the scan stops
-        // one address past the last one in use, so an owner who skipped an
-        // address loses sight of everything beyond it. Raised to the default
-        // on open, never lowered, so a wallet that already looks further keeps
-        // doing so.
-        RT.block_on(async {
-            let mut wallet = lightclient.wallet().write().await;
-            let wanted = TransparentAddressDiscovery::default().gap_limit;
-            if wallet.wallet_settings.sync_config.transparent_address_discovery.gap_limit < wanted {
-                wallet.wallet_settings.sync_config.transparent_address_discovery.gap_limit = wanted;
-                wallet.mark_dirty();
-            }
-        });
-
-        // save the wallet file here
-        RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
         if has_seed { get_seed_string() } else { get_ufvk_string() }
@@ -896,26 +912,29 @@ fn write_to_path(wallet_path: &std::path::Path, bytes: &[u8]) -> std::io::Result
     Ok(())
 }
 
+/// Writes `lightclient`'s wallet to its file.
+fn save_wallet_report(lightclient: &mut LightClient) -> Result<String, ZingolibError> {
+    // Failures travel on the typed error channel; only benign
+    // status strings (which never begin with "error") cross on
+    // the data channel, so no success can resemble a failure.
+    RT.block_on(async move {
+        let wallet_path = lightclient.wallet_path();
+        let mut wallet = lightclient.wallet().write().await;
+        match wallet.save() {
+            Ok(Some(wallet_bytes)) => {
+                write_to_path(&wallet_path, &wallet_bytes)
+                    .map_err(|e| ZingolibError::Save(format!("writing wallet file: {e}")))?;
+                Ok(format!("Wallet saved successfully. Size: {} bytes.", wallet_bytes.len()))
+            }
+            Ok(None) => Ok("Wallet is empty. Nothing to save.".to_string()),
+            Err(e) => Err(ZingolibError::Save(cause_chain(&e))),
+        }
+    })
+}
+
 fn save_wallet_file(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
-        with_initialized_lightclient(|lightclient| {
-            // Failures travel on the typed error channel; only benign
-            // status strings (which never begin with "error") cross on
-            // the data channel, so no success can resemble a failure.
-            RT.block_on(async move {
-                let wallet_path = lightclient.wallet_path();
-                let mut wallet = lightclient.wallet().write().await;
-                match wallet.save() {
-                    Ok(Some(wallet_bytes)) => {
-                        write_to_path(&wallet_path, &wallet_bytes)
-                            .map_err(|e| ZingolibError::Save(format!("writing wallet file: {e}")))?;
-                        Ok(format!("Wallet saved successfully. Size: {} bytes.", wallet_bytes.len()))
-                    }
-                    Ok(None) => Ok("Wallet is empty. Nothing to save.".to_string()),
-                    Err(e) => Err(ZingolibError::Save(cause_chain(&e))),
-                }
-            })
-        })
+        with_initialized_lightclient(save_wallet_report)
     })
 }
 
@@ -1281,61 +1300,67 @@ fn recovery_token(recovery: SyncRecoveryObservables) -> &'static str {
     }
 }
 
+/// Where `lightclient`'s sync session stands, as the renderer reads it.
+fn poll_sync_report(lightclient: &mut LightClient) -> Result<String, ZingolibError> {
+    match lightclient.poll_sync() {
+        PollReport::NoHandle => Ok("Sync task has not been launched.".to_string()),
+        PollReport::NotReady => Ok("Sync task is not complete.".to_string()),
+        PollReport::Ready(result) => match result {
+            Ok(sync_result) => {
+                Ok(json::object! { "sync_complete" => json::JsonValue::from(sync_result) }
+                    .pretty(2))
+            }
+            // A failed session crosses on the data channel rather than
+            // as a throw, because the verdict travels with it and a
+            // thrown string has nowhere to carry one.
+            Err(e) => Ok(json::object! {
+                "sync_failed" => json::object! {
+                    "recovery" => recovery_token(e.recovery_recommendation()),
+                    "reason" => cause_chain(&e),
+                }
+            }
+            .pretty(2)),
+        },
+    }
+}
+
 fn poll_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
-        with_initialized_lightclient(|lightclient| {
-            match lightclient.poll_sync() {
-                PollReport::NoHandle => Ok("Sync task has not been launched.".to_string()),
-                PollReport::NotReady => Ok("Sync task is not complete.".to_string()),
-                PollReport::Ready(result) => match result {
-                    Ok(sync_result) => {
-                        Ok(json::object! { "sync_complete" => json::JsonValue::from(sync_result) }
-                            .pretty(2))
-                    }
-                    // A failed session crosses on the data channel rather than
-                    // as a throw, because the verdict travels with it and a
-                    // thrown string has nowhere to carry one.
-                    Err(e) => Ok(json::object! {
-                        "sync_failed" => json::object! {
-                            "recovery" => recovery_token(e.recovery_recommendation()),
-                            "reason" => cause_chain(&e),
-                        }
-                    }
-                    .pretty(2)),
-                },
+        with_initialized_lightclient(poll_sync_report)
+    })
+}
+
+/// Launches `lightclient`'s sync session, or resumes it when it is paused.
+fn launch_sync(lightclient: &mut LightClient) -> Result<String, ZingolibError> {
+    if lightclient.sync_mode() == SyncMode::Paused {
+        // resume_sync can race: sync_mode() was Paused a moment
+        // ago but the task may have advanced before we got here.
+        // Return the error typed instead of `expect` — panicking
+        // would poison the client's lock.
+        match lightclient.resume_sync() {
+            Ok(_) => Ok("Resuming sync task...".to_string()),
+            Err(e) => Err(ZingolibError::Sync(cause_chain(&e))),
+        }
+    } else {
+        RT.block_on(async move {
+            match lightclient.sync().await {
+                Ok(_) => Ok("Launching sync task...".to_string()),
+                // Launching is idempotent: a concurrent launch
+                // means the desired state — a running sync —
+                // already holds, so it reports as status, not
+                // failure.
+                Err(LightClientError::SyncModeError(
+                    SyncModeError::SyncAlreadyRunning,
+                )) => Ok("Sync task already running.".to_string()),
+                Err(e) => Err(ZingolibError::Sync(cause_chain(&e))),
             }
         })
-    })
+    }
 }
 
 fn run_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
-        with_initialized_lightclient(|lightclient| {
-            if lightclient.sync_mode() == SyncMode::Paused {
-                // resume_sync can race: sync_mode() was Paused a moment
-                // ago but the task may have advanced before we got here.
-                // Return the error typed instead of `expect` — panicking
-                // would poison LIGHTCLIENT.
-                match lightclient.resume_sync() {
-                    Ok(_) => Ok("Resuming sync task...".to_string()),
-                    Err(e) => Err(ZingolibError::Sync(cause_chain(&e))),
-                }
-            } else {
-                RT.block_on(async move {
-                    match lightclient.sync().await {
-                        Ok(_) => Ok("Launching sync task...".to_string()),
-                        // Launching is idempotent: a concurrent launch
-                        // means the desired state — a running sync —
-                        // already holds, so it reports as status, not
-                        // failure.
-                        Err(LightClientError::SyncModeError(
-                            SyncModeError::SyncAlreadyRunning,
-                        )) => Ok("Sync task already running.".to_string()),
-                        Err(e) => Err(ZingolibError::Sync(cause_chain(&e))),
-                    }
-                })
-            }
-        })
+        with_initialized_lightclient(launch_sync)
     })
 }
 
@@ -1352,21 +1377,24 @@ fn pause_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     })
 }
 
+/// Asks `lightclient`'s sync session to stop.
+fn stop_sync_report(lightclient: &mut LightClient) -> Result<String, ZingolibError> {
+    match lightclient.stop_sync() {
+        Ok(_) => Ok("Stopping sync task...".to_string()),
+        // Stopping when nothing is running is a no-op, not a failure.
+        // Callers bracket a drain/spend with stop_sync and the sync
+        // loop may already be idle; surfacing this as an error made the
+        // migration falsely report "failed".
+        Err(pepper_sync::error::SyncModeError::SyncNotRunning) => {
+            Ok("Sync already stopped.".to_string())
+        }
+        Err(e) => Err(ZingolibError::Sync(cause_chain(&e))),
+    }
+}
+
 fn stop_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
-        with_initialized_lightclient(|lightclient| {
-            match lightclient.stop_sync() {
-                Ok(_) => Ok("Stopping sync task...".to_string()),
-                // Stopping when nothing is running is a no-op, not a failure.
-                // Callers bracket a drain/spend with stop_sync and the sync
-                // loop may already be idle; surfacing this as an error made the
-                // migration falsely report "failed".
-                Err(pepper_sync::error::SyncModeError::SyncNotRunning) => {
-                    Ok("Sync already stopped.".to_string())
-                }
-                Err(e) => Err(ZingolibError::Sync(cause_chain(&e))),
-            }
-        })
+        with_initialized_lightclient(stop_sync_report)
     })
 }
 
@@ -1410,19 +1438,13 @@ fn status_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
 /// says "complete" for a wallet that was at the tip the last time it ran,
 /// however far the chain has moved since. A continuous session never ends on
 /// its own, so this is the only signal that one has reached the tip.
-fn sync_caught_up_string() -> Result<String, ZingolibError> {
-    with_initialized_lightclient_read(|lightclient| {
-        let Some(status) = lightclient.latest_sync_status() else {
-            return Ok(object! { "caught_up" => false, "percent" => json::Null }.pretty(2));
-        };
-        let caught_up = status.is_complete();
-        let percent = json::JsonValue::from(status)["percentage_total_outputs_scanned"].clone();
-        Ok(object! { "caught_up" => caught_up, "percent" => percent }.pretty(2))
-    })
-}
-
-fn sync_caught_up(mut cx: FunctionContext) -> JsResult<JsPromise> {
-    spawn_promise(&mut cx, sync_caught_up_string)
+fn caught_up_report(lightclient: &LightClient) -> Result<String, ZingolibError> {
+    let Some(status) = lightclient.latest_sync_status() else {
+        return Ok(object! { "caught_up" => false, "percent" => json::Null }.pretty(2));
+    };
+    let caught_up = status.is_complete();
+    let percent = json::JsonValue::from(status)["percentage_total_outputs_scanned"].clone();
+    Ok(object! { "caught_up" => caught_up, "percent" => percent }.pretty(2))
 }
 
 fn run_rescan(mut cx: FunctionContext) -> JsResult<JsPromise> {
