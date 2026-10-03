@@ -60,8 +60,11 @@ const SyncAllBanner: React.FC = () => {
       </div>
       <div className={styles.side}>
         {inHand && state?.kind === "syncing" && (
-          <span className={`${cstyles.yellow} ${styles.inhand}`}>
-            {inHand.alias}: {state.percent === null ? "opening..." : `${state.percent.toFixed(2)}%`}
+          <span className={styles.inhand}>
+            {inHand.alias}:{" "}
+            <span className={cstyles.yellow}>
+              {state.percent === null ? "opening..." : `${state.percent.toFixed(2)}%`}
+            </span>
           </span>
         )}
         {details}
