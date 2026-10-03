@@ -50,7 +50,7 @@ crate-type = ["cdylib"]
 # Transmissions now follow a per-session `mixnet::TransmitPolicy` instead of
 # the transport's own switched-off state, and `disable_mixnet` deliberately
 # leaves that policy alone. Since a session starts under `Mixnet`, the native
-# `stop_mixnet` sets the policy to `Clearnet` itself — without it, switching
+# `stop_mixnet` sets the policy to `Nakednet` itself — without it, switching
 # Mixnet Mode off would leave every send refusing as "the Nym mixnet is not
 # enabled", which is the opposite of what this app's off switch means.
 #
@@ -186,8 +186,9 @@ crate-type = ["cdylib"]
 # were each minted for an embedded change — and why a wallet written here
 # and opened by an older build is misread rather than refused.
 #
-# This bump (44a3741e -> 63998665) is two fixes to the engine under a re-org
-# and under a pause, and the release versions of the librustzcash crates.
+# This bump (44a3741e -> 9d80d9ae) is the engine under a re-org, under a pause
+# and at the end of a failed session, and the release versions of the
+# librustzcash crates.
 #
 # Scan results of a range a re-org truncated or re-prioritised while it was
 # being scanned are discarded, and what the wallet still holds of the range is
@@ -195,12 +196,27 @@ crate-type = ["cdylib"]
 # wallet's, with a scan of the tip in flight, truncated the range and then
 # panicked on the results.
 #
-# And a sync with `shutdown_on_completion` set no longer overwrites a pause
-# with its own shutdown (#2840). This crate runs continuous sync, where that
+# A re-org at the tip no longer ends the session as a server that cannot
+# serve (#2839). The server answering "no such block" for a height the chain
+# had just dropped below was recommended `ServerUnavailable`, which here is a
+# red light and a halted cycle on a healthy server; it is now
+# `MaybeRecoverableServer`. A hash discontinuity outside verification, which
+# was `Abort`, is verified again within the session.
+#
+# The mempool monitor stops on every exit from `sync`, not only a clean one
+# (#2842). A session that failed left its monitor holding the stream, or
+# retrying a refused one every three seconds for the life of the process, and
+# this crate launches a new session after each failure.
+#
+# A sync with `shutdown_on_completion` set no longer overwrites a pause with
+# its own shutdown (#2840). This crate runs continuous sync, where that
 # setting is off, so it is here for the migration paths that sync to the tip.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "6399866557ddf6a39f8a8cb5684c071db8a62fbc", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "6399866557ddf6a39f8a8cb5684c071db8a62fbc" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "6399866557ddf6a39f8a8cb5684c071db8a62fbc" }
+#
+# And clearnet is nakednet in every public name (#2856):
+# `TransmitPolicy::Clearnet` is `TransmitPolicy::Nakednet`.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "9d80d9aea1cecbe4dea3e0bd8d84f32092c29fcd", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "9d80d9aea1cecbe4dea3e0bd8d84f32092c29fcd" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "9d80d9aea1cecbe4dea3e0bd8d84f32092c29fcd" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two

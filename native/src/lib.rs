@@ -2476,7 +2476,7 @@ fn stop_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
         with_initialized_lightclient(|lightclient| {
             RT.block_on(async move {
-                lightclient.set_transmit_policy(zingolib::mixnet::TransmitPolicy::Clearnet);
+                lightclient.set_transmit_policy(zingolib::mixnet::TransmitPolicy::Nakednet);
                 lightclient.disable_mixnet().await;
             });
             Ok(object! { "status" => "ok" }.pretty(2))
