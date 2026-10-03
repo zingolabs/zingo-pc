@@ -37,6 +37,12 @@
   border-bottom: none;
 }
 
+/* Two lines on the left, one on the right: centred against both rather than
+   sitting on the first. */
+.inhand .wallet {
+  align-items: center;
+}
+
 .inhand + .wallets {
   margin-top: 0;
 }
