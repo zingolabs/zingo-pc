@@ -3,6 +3,7 @@ import { act, cleanup, screen } from "@testing-library/react";
 import { render } from "../../test-utils";
 import { InfoClass, ServerChainNameEnum } from "../appstate";
 import routes from "../../constants/routes.json";
+import type { SyncAllRun } from "../../syncAll";
 
 // Stable shared mock surfaces — avoids the auto-mock's per-test reset losing them.
 // The bridge returns a disposer, so the mock must too — a component that
@@ -50,6 +51,9 @@ jest.mock("./components/BlockExplorerModal", () => ({
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const Sidebar = require("./Sidebar").default;
+// Required here like the Sidebar, and for its reason: it reaches the bridge mocked above.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const { SyncAllContext } = require("../../syncAll");
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const PayURIModalMock = require("./components/PayURIModal").default as jest.Mock;
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -308,6 +312,79 @@ describe("Sidebar", () => {
       renderSidebar();
       act(() => getListener("addnewwallet")?.({}));
       expect(mockNavigate).toHaveBeenCalledWith(routes.ADDNEWWALLET, { state: { mode: "addnew" } });
+    });
+
+    describe("'syncallwallets'", () => {
+      const syncAllRun = (overrides: Partial<SyncAllRun> = {}): SyncAllRun => ({
+        phase: "idle",
+        wallets: [],
+        progress: {},
+        endedIds: [],
+        cancelling: false,
+        skipping: false,
+        start: jest.fn(),
+        cancel: jest.fn(),
+        skip: jest.fn(),
+        dismiss: jest.fn(),
+        releaseForScreen: jest.fn(),
+        ...overrides,
+      });
+
+      const renderUnderRun = (run: SyncAllRun, overrides: any = {}) =>
+        render(
+          <SyncAllContext.Provider value={run}>
+            <Sidebar
+              doRescan={jest.fn()}
+              navigateToLoadingScreenChangingWallet={jest.fn()}
+              setBlockExplorer={jest.fn()}
+            />
+          </SyncAllContext.Provider>,
+          { contextOverrides: { currentWallet: makeWallet(), info: new InfoClass(), ...overrides } },
+        );
+
+      // Nothing starts on the menu press. The user is told what a run does,
+      // and it begins when they confirm, on the screen that has its banner.
+      it("asks first, and starts the run on the dashboard once confirmed", () => {
+        const run = syncAllRun();
+        const openConfirmModal = jest.fn();
+        const testnet = { ...makeWallet(ServerChainNameEnum.testChainName), id: 2 };
+        const mainnet = { ...makeWallet(), id: 5 };
+        renderUnderRun(run, { openConfirmModal, wallets: [testnet, mainnet] });
+
+        act(() => getListener("syncallwallets")?.({}));
+
+        expect(openConfirmModal).toHaveBeenCalledWith("Sync all Wallets", expect.anything(), expect.any(Function));
+        expect(run.start).not.toHaveBeenCalled();
+        expect(mockNavigate).not.toHaveBeenCalled();
+
+        act(() => openConfirmModal.mock.calls[0][2]());
+
+        // In the order the run takes them: mainnet first.
+        expect((run.start as jest.Mock).mock.calls[0][0].map((w: any) => w.id)).toEqual([5, 2]);
+        expect(mockNavigate).toHaveBeenCalledWith(routes.DASHBOARD);
+      });
+
+      it("shows the run rather than asking again while one is going", () => {
+        const run = syncAllRun({ phase: "running" });
+        const openConfirmModal = jest.fn();
+        renderUnderRun(run, { openConfirmModal, wallets: [makeWallet()] });
+
+        act(() => getListener("syncallwallets")?.({}));
+
+        expect(openConfirmModal).not.toHaveBeenCalled();
+        expect(mockNavigate).toHaveBeenCalledWith(routes.SYNCALL);
+      });
+
+      it("says so when there is no wallet to sync", () => {
+        const openErrorModal = jest.fn();
+        const openConfirmModal = jest.fn();
+        renderUnderRun(syncAllRun(), { openErrorModal, openConfirmModal, wallets: [] });
+
+        act(() => getListener("syncallwallets")?.({}));
+
+        expect(openErrorModal).toHaveBeenCalledWith("Sync all Wallets", expect.any(String));
+        expect(openConfirmModal).not.toHaveBeenCalled();
+      });
     });
 
     it("'settingswallet' navigates to settings mode when wallet is loaded", () => {

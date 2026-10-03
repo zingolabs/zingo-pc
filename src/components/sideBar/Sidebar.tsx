@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import styles from "./Sidebar.module.css";
 import cstyles from "../common/Common.module.css";
 import routes from "../../constants/routes.json";
+import { SyncAllContext, syncAllOrder } from "../../syncAll";
+import { SyncAllNotice } from "../syncAllWallets";
 import { parseZcashURITargets, ZcashURITarget } from "../../utils/uris";
 import PayURIModal from "./components/PayURIModal";
 import SidebarMenuItem from "./components/SidebarMenuItem";
@@ -242,6 +244,11 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
   const currentWalletRef = useRef<WalletType | null>(null);
   const currentWalletOpenErrorRef = useRef<string>("");
   const walletsRef = useRef<WalletType[]>([]);
+  const syncAll = useContext(SyncAllContext);
+  const syncAllRef = useRef(syncAll);
+  syncAllRef.current = syncAll;
+  const openConfirmModalRef = useRef(context.openConfirmModal);
+  openConfirmModalRef.current = context.openConfirmModal;
   const readOnlyRef = useRef<boolean>(false);
   const birthdayRef = useRef<number>(birthday);
   const doRescanRef = useRef<() => void>(doRescan);
@@ -456,7 +463,22 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
     };
 
     const syncallwallets = (_event: any) => {
-      navigate(routes.SYNCALL);
+      // A run already going, or finished and not yet put away, is shown
+      // rather than asked about again.
+      if (syncAllRef.current.phase !== "idle") {
+        navigate(routes.SYNCALL);
+        return;
+      }
+      if (walletsRef.current.length === 0) {
+        openErrorModal("Sync all Wallets", "There are no wallets to sync.");
+        return;
+      }
+      openConfirmModalRef.current("Sync all Wallets", <SyncAllNotice />, () => {
+        syncAllRef.current.start(syncAllOrder(walletsRef.current));
+        // To the screen with the banner, which is where the run is followed
+        // from now on.
+        navigate(routes.DASHBOARD);
+      });
     };
 
     const addnewwallet = (_event: any) => {

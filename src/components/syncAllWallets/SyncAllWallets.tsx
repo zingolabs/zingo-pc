@@ -1,12 +1,11 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext, useEffect } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./SyncAllWallets.module.css";
-import { ContextApp } from "../../context/ContextAppState";
 import { WalletType } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import Utils from "../../utils/utils";
-import { SyncAllContext, WalletProgress, syncAllOrder } from "../../syncAll";
+import { SyncAllContext, WalletProgress } from "../../syncAll";
 
 type SyncAllWalletsProps = {
   /** Leaves the screen. A run in progress goes on without it. */
@@ -41,40 +40,35 @@ function stateColour(progress: WalletProgress): string | undefined {
 }
 
 /**
- * Starts a run of "sync all wallets", and shows one in detail.
+ * A run of "sync all wallets", in detail.
  *
- * The run itself lives above the screens (`useSyncAllRun`): it goes on in the
- * background while the user uses the app, and this is only where they look at
- * it. Leaving the screen changes nothing about the run.
+ * The run itself lives above the screens (`useSyncAllRun`): it is started
+ * from the Wallet menu, goes on in the background while the user uses the
+ * app, and this is only where they look at it, by way of the dashboard
+ * banner. Leaving the screen changes nothing about the run.
  */
 const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
-  const { wallets } = useContext(ContextApp);
   const run = useContext(SyncAllContext);
-  const { paneRef, footerRef, paneOffset } = usePaneOffset(260);
+  const { paneRef, footerRef, paneOffset } = usePaneOffset(200);
 
-  // Before a run, the wallets as they would be taken. During and after one,
-  // the wallets it was started with.
-  const ordered: readonly WalletType[] = useMemo(
-    () => (run.phase === "idle" ? syncAllOrder(wallets) : run.wallets),
-    [run.phase, run.wallets, wallets],
-  );
+  // With no run there is nothing to show: one that was put away from the
+  // dashboard, or a screen reached with none started.
+  const idle: boolean = run.phase === "idle";
+  useEffect(() => {
+    if (idle) onClose();
+  }, [idle, onClose]);
 
+  const ordered: readonly WalletType[] = run.wallets;
   const synced: number = ordered.filter((w) => run.progress[w.id]?.kind === "synced").length;
 
-  // What goes where. Before the run, the wallets in the order they will be
-  // taken. During and after it, the wallet in hand on its own above the list,
-  // and below it the ones that have ended, latest first, then the rest in
-  // their order: with many wallets, what changes is at the top rather than
-  // under the scroll.
-  const inHand: WalletType | undefined =
-    run.phase === "idle" ? undefined : ordered.find((w) => run.progress[w.id]?.kind === "syncing");
-  const listed: readonly WalletType[] =
-    run.phase === "idle"
-      ? ordered
-      : [
-          ...[...run.endedIds].reverse().flatMap((id) => ordered.filter((w) => w.id === id)),
-          ...ordered.filter((w) => w !== inHand && !run.endedIds.includes(w.id)),
-        ];
+  // The wallet in hand on its own above the list, and below it the ones that
+  // have ended, latest first, then the rest in their order: with many
+  // wallets, what changes is at the top rather than under the scroll.
+  const inHand: WalletType | undefined = ordered.find((w) => run.progress[w.id]?.kind === "syncing");
+  const listed: readonly WalletType[] = [
+    ...[...run.endedIds].reverse().flatMap((id) => ordered.filter((w) => w.id === id)),
+    ...ordered.filter((w) => w !== inHand && !run.endedIds.includes(w.id)),
+  ];
 
   const row = (wallet: WalletType) => {
     const state: WalletProgress = run.progress[wallet.id] ?? PENDING;
@@ -87,31 +81,18 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
             {state.kind === "syncing" && !!state.server && ` - ${state.server}`}
           </div>
         </div>
-        {run.phase !== "idle" && (
-          <div className={styles.state} style={{ color: stateColour(state) }}>
-            {stateText(state)}
-          </div>
-        )}
+        <div className={styles.state} style={{ color: stateColour(state) }}>
+          {stateText(state)}
+        </div>
       </div>
     );
   };
 
+  if (idle) return null;
+
   return (
     <div className={`${cstyles.center} ${styles.container}`}>
       <div className={cstyles.xlarge}>Sync all wallets</div>
-
-      {run.phase === "idle" && (
-        <div className={styles.notice}>
-          <p>
-            Every wallet below is synced to the chain tip, one after another, in this order. It happens in the
-            background: you can keep using the app, and come back here to see how it is going.
-          </p>
-          <p>
-            The wallet you have open is left to its own sync. Sending and shielding take longer while this runs, and the
-            computer is kept awake until it finishes. You can cancel at any moment: what has been scanned is kept.
-          </p>
-        </div>
-      )}
 
       {run.phase === "done" && (
         <div className={styles.notice} data-testid="sync-all-summary">
@@ -136,21 +117,6 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
         className={`${cstyles.horizontalflex} ${styles.buttons}`}
         style={{ justifyContent: "center" }}
       >
-        {run.phase === "idle" && (
-          <>
-            <button
-              type="button"
-              className={cstyles.primarybutton}
-              disabled={ordered.length === 0}
-              onClick={() => run.start(ordered)}
-            >
-              Sync all wallets
-            </button>
-            <button type="button" className={cstyles.primarybutton} onClick={onClose}>
-              Cancel
-            </button>
-          </>
-        )}
         {run.phase === "running" && (
           <>
             {/* For the wallet that is taking too long: the run goes on to the

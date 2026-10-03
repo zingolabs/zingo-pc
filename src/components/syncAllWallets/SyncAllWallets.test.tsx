@@ -10,7 +10,8 @@ import {
   ServerSelectionEnum,
   WalletType,
 } from "../appstate";
-import { SyncAllContext, useSyncAllRun } from "../../syncAll";
+import { SyncAllContext, syncAllOrder, useSyncAllRun } from "../../syncAll";
+import SyncAllNotice from "./SyncAllNotice";
 import type { SessionPoll, SyncAllDeps, SyncAllRun } from "../../syncAll";
 
 jest.mock("../../electronBridge");
@@ -47,6 +48,9 @@ const fakeDeps = (overrides: Partial<SyncAllDeps> = {}): SyncAllDeps => ({
   ...overrides,
 });
 
+/** Starts a run the way the Wallet menu does once the user has confirmed. */
+let startRun: () => void = () => {};
+
 /**
  * The screen under the run it reads, as the app mounts them: the run above,
  * the screen below, so the screen can come and go while the run stays.
@@ -66,7 +70,8 @@ const renderScreen = (deps: SyncAllDeps = fakeDeps(), openWalletId?: number) => 
     );
   };
 
-  render(<Harness />, { contextOverrides: { wallets: WALLETS } });
+  render(<Harness />);
+  startRun = () => act(() => held.run!.start(syncAllOrder(WALLETS)));
   return { onClose, held };
 };
 
@@ -81,33 +86,26 @@ beforeEach(() => {
 });
 
 describe("SyncAllWallets", () => {
-  it("says what is about to happen and lists the wallets in the order they will be synced", () => {
-    renderScreen();
-
-    expect(screen.getByText(/you can keep using the app/i)).toBeInTheDocument();
-    const rows = screen.getAllByTestId(/^sync-all-wallet-/);
-    expect(rows.map((row) => row.getAttribute("data-testid"))).toEqual(["sync-all-wallet-1", "sync-all-wallet-2"]);
-  });
-
-  it("starts nothing when the user backs out", () => {
-    const { onClose, held } = renderScreen();
-
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  // The screen shows a run. With none, it has nothing to show and leaves.
+  it("leaves when there is no run", () => {
+    const { onClose } = renderScreen();
 
     expect(onClose).toHaveBeenCalled();
-    expect(held.run?.phase).toBe("idle");
-    expect(keepAwakeCalls()).toEqual([]);
+    expect(screen.queryByText("Sync all wallets")).not.toBeInTheDocument();
   });
 
   it("syncs every wallet, keeps the computer awake meanwhile, and reports", async () => {
     const { onClose, held } = renderScreen();
+    onClose.mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
 
     await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("2 of 2 wallets synced."));
     expect(keepAwakeCalls()).toEqual([true, false]);
+    // In the order the run takes them, whatever order the app holds them in.
+    expect(held.run?.wallets.map((w) => w.id)).toEqual([1, 2]);
 
-    // Closing a finished run puts it away: the next visit starts afresh.
+    // Closing a finished run puts it away.
     fireEvent.click(screen.getByRole("button", { name: "Close" }));
     expect(onClose).toHaveBeenCalled();
     expect(held.run?.phase).toBe("idle");
@@ -127,7 +125,7 @@ describe("SyncAllWallets", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
 
     await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("1 of 2 wallets synced."));
     expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("This server cannot serve this wallet.");
@@ -147,7 +145,7 @@ describe("SyncAllWallets", () => {
       1,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
 
     await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("1 of 2 wallets synced."));
     expect(opened).toEqual([2]);
@@ -169,7 +167,7 @@ describe("SyncAllWallets", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
     await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Test coins"));
 
     act(() => held.showScreen(false));
@@ -201,7 +199,7 @@ describe("SyncAllWallets", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
     await waitFor(() => expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Opening..."));
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -230,7 +228,7 @@ describe("SyncAllWallets", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
     await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Test coins"));
 
     expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Opening...");
@@ -257,7 +255,7 @@ describe("SyncAllWallets", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
     await waitFor(() => expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Opening..."));
 
     fireEvent.click(screen.getByRole("button", { name: "Skip this wallet" }));
@@ -285,7 +283,7 @@ describe("SyncAllWallets", () => {
       }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Sync all wallets" }));
+    startRun();
     await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Savings"));
 
     let released = false;
@@ -304,5 +302,17 @@ describe("SyncAllWallets", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
     release();
+  });
+});
+
+describe("SyncAllNotice", () => {
+  // The confirmation is the one place the user is told what a run costs
+  // before it starts.
+  it("says the app stays in use, and what a run costs meanwhile", () => {
+    render(<SyncAllNotice />);
+
+    expect(screen.getByText(/you can keep using the app/i)).toBeInTheDocument();
+    expect(screen.getByText(/sending and shielding take longer/i)).toBeInTheDocument();
+    expect(screen.getByText(/the wallet you have open is left to its own sync/i)).toBeInTheDocument();
   });
 });
