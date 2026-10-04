@@ -270,9 +270,36 @@ describe("SyncAllWallets", () => {
     expect(screen.getByTestId("sync-all-wallet-2")).toHaveTextContent("Synced");
   });
 
-  // Either press stops work that may have taken hours to get where it is.
-  // Each says what it will do, and does nothing until the user says yes.
-  it("asks before skipping a wallet or cancelling the sync, and does neither unasked", async () => {
+  // Cancelling gives up every wallet still waiting. It says what it will do,
+  // and does nothing until the user says yes.
+  it("asks before cancelling the sync, and does not cancel unasked", async () => {
+    let release: () => void = () => {};
+    const asked = jest.fn();
+    const { held } = renderScreen(
+      fakeDeps({
+        progress: async () => ({ caughtUp: false, percent: null }),
+        sleep: () => new Promise<void>((resolve) => (release = resolve)),
+      }),
+      undefined,
+      asked,
+    );
+
+    startRun();
+    await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Savings"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Syncing" }));
+
+    expect(asked).toHaveBeenCalledWith("Cancel Syncing", expect.anything(), expect.any(Function));
+    expect(held.run?.cancelling).toBe(false);
+
+    act(() => asked.mock.calls[0][2]());
+    expect(held.run?.cancelling).toBe(true);
+    release();
+    await waitFor(() => expect(held.run?.phase).toBe("done"));
+  });
+
+  // Skipping gives up one wallet and the run goes on: it acts on the press.
+  it("skips at once, without asking", async () => {
     let release: () => void = () => {};
     const asked = jest.fn();
     const { held } = renderScreen(
@@ -288,15 +315,11 @@ describe("SyncAllWallets", () => {
     await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Savings"));
 
     fireEvent.click(screen.getByRole("button", { name: "Skip this wallet" }));
-    fireEvent.click(screen.getByRole("button", { name: "Cancel Syncing" }));
 
-    expect(asked.mock.calls.map(([title]) => title)).toEqual(["Skip this wallet", "Cancel Syncing"]);
-    expect(held.run?.skipping).toBe(false);
-    expect(held.run?.cancelling).toBe(false);
+    expect(asked).not.toHaveBeenCalled();
+    expect(held.run?.skipping).toBe(true);
 
-    // Saying yes to the second is what cancels.
-    act(() => asked.mock.calls[1][2]());
-    expect(held.run?.cancelling).toBe(true);
+    act(() => held.run!.cancel());
     release();
     await waitFor(() => expect(held.run?.phase).toBe("done"));
   });

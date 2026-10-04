@@ -102,26 +102,9 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
     );
   };
 
-  // Both presses stop work that may have taken hours to get where it is, so
-  // each says what it will do and waits for a yes.
-  const askToSkip = () => {
-    if (!inHand) return;
-    const asked: WalletType = inHand;
-    openConfirmModal(
-      "Skip this wallet",
-      <Consequence>
-        {asked.alias} is stopped where it is, and what it has scanned is kept. The sync goes on with the next wallet.
-      </Consequence>,
-      () => {
-        // Only the wallet that was asked about. The run may have moved on
-        // while the question stood, and the next wallet was never the one
-        // meant.
-        const current = runRef.current;
-        if (current.progress[asked.id]?.kind === "syncing") current.skip();
-      },
-    );
-  };
-
+  // Cancelling gives up every wallet still waiting, so it says what it will do
+  // and waits for a yes. Skipping gives up one and the run goes on, which the
+  // row says as it happens.
   const askToCancel = () => {
     openConfirmModal(
       "Cancel Syncing",
@@ -170,7 +153,7 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
               type="button"
               className={cstyles.primarybutton}
               disabled={run.cancelling || run.skipping || !inHand}
-              onClick={askToSkip}
+              onClick={run.skip}
             >
               {run.skipping ? "Skipping..." : "Skip this wallet"}
             </button>
