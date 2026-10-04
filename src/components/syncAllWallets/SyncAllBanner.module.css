@@ -1,0 +1,55 @@
+/*
+ * One thin line under the wallet bar, on every screen. It is there for as
+ * long as a run is, so it takes as little height as a line of text needs and
+ * spreads what it says to its two ends.
+ *
+ * The horizontal margins are the wallet bar's, so the three edges line up:
+ * bar, banner, and the screen's own well below.
+ */
+.banner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 5px 8px 5px;
+  padding: 5px 12px 7px 12px;
+  font-size: 13px;
+  background-color: var(--color-background-dark);
+  overflow: hidden;
+}
+
+.side {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* The wallet in hand gives way first: an alias varies without bound. */
+.inhand {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  color: var(--color-primary);
+  text-decoration: underline;
+  flex-shrink: 0;
+}
+
+/* How much of the run is done, along the bottom edge. */
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  background-color: var(--color-primary);
+  transition: width 0.3s ease;
+}

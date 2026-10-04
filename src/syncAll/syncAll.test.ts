@@ -86,6 +86,9 @@ const scripted = (polls: Record<number, SessionPoll[]>, overrides: Partial<SyncA
     save: async () => {
       calls.push(`save ${open}`);
     },
+    close: async () => {
+      calls.push(`close ${open}`);
+    },
     sleep: async () => {},
     ...overrides,
   };
@@ -96,11 +99,12 @@ const scripted = (polls: Record<number, SessionPoll[]>, overrides: Partial<SyncA
   return { deps, calls, seen, onProgress };
 };
 
-/** Controls for a run nobody touches, unless `cancelled` says otherwise. */
-const run = (cancelled: () => boolean = () => false, takeSkip: () => boolean = () => false) => ({
-  cancelled,
-  takeSkip,
-});
+/** Controls for a run nobody touches, unless told otherwise. */
+const run = (
+  cancelled: () => boolean = () => false,
+  takeSkip: () => boolean = () => false,
+  isOpen: (walletId: number) => boolean = () => false,
+) => ({ cancelled, takeSkip, isOpen });
 
 const weather: SessionPoll = { kind: "failed", reason: "Timeout expired", recovery: "maybe_recoverable_server" };
 
@@ -110,7 +114,18 @@ describe("runSyncAll", () => {
 
     await runSyncAll([wallet(1), wallet(2)], deps, onProgress, run());
 
-    expect(calls).toEqual(["open 1", "launch 1", "stop 1", "save 1", "open 2", "launch 2", "stop 2", "save 2"]);
+    expect(calls).toEqual([
+      "open 1",
+      "launch 1",
+      "stop 1",
+      "save 1",
+      "close 1",
+      "open 2",
+      "launch 2",
+      "stop 2",
+      "save 2",
+      "close 2",
+    ]);
     expect(seen).toEqual({ 1: { kind: "synced" }, 2: { kind: "synced" } });
   });
 
@@ -190,7 +205,7 @@ describe("runSyncAll", () => {
       run(() => cancelled),
     );
 
-    expect(calls).toEqual(["open 1", "launch 1", "stop 1", "save 1"]);
+    expect(calls).toEqual(["open 1", "launch 1", "stop 1", "save 1", "close 1"]);
     expect(seen).toEqual({ 1: { kind: "cancelled" }, 2: { kind: "cancelled" } });
   });
 
@@ -220,8 +235,63 @@ describe("runSyncAll", () => {
       run(() => false, takeSkip),
     );
 
-    expect(calls).toEqual(["open 1", "launch 1", "stop 1", "save 1", "open 2", "launch 2", "stop 2", "save 2"]);
+    expect(calls.filter((c) => c.startsWith("open"))).toEqual(["open 1", "open 2"]);
     expect(seen).toEqual({ 1: { kind: "skipped" }, 2: { kind: "synced" } });
+  });
+
+  // Its own session syncs it, and a wallet file held by two clients would
+  // have each overwrite the other's scans.
+  it("never opens the wallet that is on screen", async () => {
+    const { deps, calls, seen, onProgress } = scripted({});
+
+    await runSyncAll(
+      [wallet(1), wallet(2)],
+      deps,
+      onProgress,
+      run(
+        () => false,
+        () => false,
+        (id) => id === 1,
+      ),
+    );
+
+    expect(calls).not.toContain("open 1");
+    expect(seen).toEqual({ 1: { kind: "open" }, 2: { kind: "synced" } });
+  });
+
+  // The user opens the wallet the run has in hand: the app asks the run to
+  // let go, and the slot is emptied before the screen may open the file.
+  it("lets go of the wallet in hand when the user opens it on screen", async () => {
+    let onScreen = 0;
+    let asked = false;
+    const { deps, calls, seen, onProgress } = scripted(
+      { 1: [{ kind: "running" }, { kind: "running" }] },
+      {
+        sleep: async () => {
+          onScreen = 1;
+          asked = true;
+        },
+      },
+    );
+    const takeSkip = () => {
+      const was = asked;
+      asked = false;
+      return was;
+    };
+
+    await runSyncAll(
+      [wallet(1), wallet(2)],
+      deps,
+      onProgress,
+      run(
+        () => false,
+        takeSkip,
+        (id) => id === onScreen,
+      ),
+    );
+
+    expect(calls.slice(0, 5)).toEqual(["open 1", "launch 1", "stop 1", "save 1", "close 1"]);
+    expect(seen).toEqual({ 1: { kind: "open" }, 2: { kind: "synced" } });
   });
 
   it("reports the server and the progress while a wallet syncs", async () => {
@@ -231,6 +301,7 @@ describe("runSyncAll", () => {
 
     await runSyncAll([wallet(1)], deps, (_id, progress) => reported.push(progress), run());
 
+    expect(reported[0]).toEqual({ kind: "syncing", server: "", percent: null });
     expect(reported).toContainEqual({ kind: "syncing", server: "https://server-1", percent: 42.5 });
     expect(reported[reported.length - 1]).toEqual({ kind: "synced" });
   });

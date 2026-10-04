@@ -1,27 +1,18 @@
-import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./SyncAllWallets.module.css";
-import { ContextApp } from "../../context/ContextAppState";
-import { ipcRenderer } from "../../electronBridge";
 import { WalletType } from "../appstate";
+import ScrollPaneTop from "../scrollPane/ScrollPane";
+import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import Utils from "../../utils/utils";
-import { SyncAllDeps, WalletProgress, nativeSyncAllDeps, runSyncAll, syncAllOrder } from "../../syncAll";
+import { SyncAllContext, WalletProgress } from "../../syncAll";
 
 type SyncAllWalletsProps = {
-  /** Stops the open wallet's task cycle. The run takes the native module over. */
-  clearTimers: () => Promise<void>;
-  /** The user backed out before anything started. Nothing was touched. */
-  onBack: () => void;
-  /** The run is over. The wallet that was open has to be opened again. */
-  onExit: () => void;
-  makeDeps?: () => SyncAllDeps;
+  /** Leaves the screen. A run in progress goes on without it. */
+  onClose: () => void;
 };
 
-type Phase = "warning" | "running" | "done";
-
 const PENDING: WalletProgress = { kind: "pending" };
-
-const ended = (progress: WalletProgress): boolean => progress.kind !== "pending" && progress.kind !== "syncing";
 
 function stateText(progress: WalletProgress): string {
   switch (progress.kind) {
@@ -35,6 +26,8 @@ function stateText(progress: WalletProgress): string {
       return progress.reason;
     case "skipped":
       return "Skipped";
+    case "open":
+      return "Open in the app";
     case "cancelled":
       return "Not synced";
   }
@@ -47,158 +40,61 @@ function stateColour(progress: WalletProgress): string | undefined {
 }
 
 /**
- * Syncs every wallet the app holds, one after another, on a screen of its own.
+ * A run of "sync all wallets", in detail.
  *
- * The native module holds one wallet at a time, so while this runs the wallet
- * the user had open is not there: no balance, no send, no receive. That is why
- * it is a screen with no sidebar and no wallet bar rather than a modal over
- * the app, and why it says so before it starts.
+ * The run itself lives above the screens (`useSyncAllRun`): it is started
+ * from the Wallet menu, goes on in the background while the user uses the
+ * app, and this is only where they look at it, by way of the banner under
+ * the wallet bar. Leaving the screen changes nothing about the run.
  */
-const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
-  clearTimers,
-  onBack,
-  onExit,
-  makeDeps = nativeSyncAllDeps,
-}) => {
-  const { wallets } = useContext(ContextApp);
-  const ordered: WalletType[] = useMemo(() => syncAllOrder(wallets), [wallets]);
+const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
+  const run = useContext(SyncAllContext);
+  const { paneRef, footerRef, paneOffset } = usePaneOffset(200);
 
-  const [phase, setPhase] = useState<Phase>("warning");
-  const [progress, setProgress] = useState<Record<number, WalletProgress>>({});
-  // The wallets that have ended, in the order they did. The list below the
-  // wallet in hand shows the latest of them first, so a long run keeps its
-  // news where the user is looking rather than wherever the wallet sat.
-  const [endedIds, setEndedIds] = useState<number[]>([]);
-  const [cancelling, setCancelling] = useState<boolean>(false);
-  const [skipping, setSkipping] = useState<boolean>(false);
-  const cancelRef = useRef<boolean>(false);
-  const skipRef = useRef<boolean>(false);
-  const mountedRef = useRef<boolean>(true);
-
-  // Leaving the screen by any road ends the run: the loop reads this between
-  // steps, stops the wallet in hand and opens no other.
+  // With no run there is nothing to show: one that was put away, or a screen
+  // reached with none started.
+  const idle: boolean = run.phase === "idle";
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      cancelRef.current = true;
-    };
-  }, []);
+    if (idle) onClose();
+  }, [idle, onClose]);
 
-  const start = useCallback(async () => {
-    setPhase("running");
-    const deps = makeDeps();
-    await clearTimers();
-    // The open wallet's engine is stopped and its file written before the
-    // first wallet of the run replaces it. A wallet that never opened has
-    // neither, and says so by throwing.
-    try {
-      await deps.stop();
-      await deps.save();
-    } catch (error) {
-      console.log(`sync all: no open wallet to stop and save ${error}`);
-    }
-    await ipcRenderer.invoke("power:keep-awake", true);
-    try {
-      await runSyncAll(
-        ordered,
-        deps,
-        (walletId: number, state: WalletProgress) => {
-          if (!mountedRef.current) return;
-          setProgress((previous) => ({ ...previous, [walletId]: state }));
-          if (ended(state)) {
-            setEndedIds((previous) => (previous.includes(walletId) ? previous : [...previous, walletId]));
-            // The wallet in hand has ended, by a skip or otherwise; the next
-            // one starts with the button offered again.
-            setSkipping(false);
-          }
-        },
-        {
-          cancelled: () => cancelRef.current,
-          takeSkip: () => {
-            const asked = skipRef.current;
-            skipRef.current = false;
-            return asked;
-          },
-        },
-      );
-    } finally {
-      await ipcRenderer.invoke("power:keep-awake", false);
-    }
-    if (!mountedRef.current) return;
-    // A cancelled run goes straight back to the wallet that was open: the
-    // user asked to stop, not to read a report.
-    if (cancelRef.current) {
-      onExit();
-    } else {
-      setPhase("done");
-    }
-  }, [ordered, makeDeps, clearTimers, onExit]);
+  const ordered: readonly WalletType[] = run.wallets;
+  const synced: number = ordered.filter((w) => run.progress[w.id]?.kind === "synced").length;
 
-  const cancel = () => {
-    cancelRef.current = true;
-    setCancelling(true);
-  };
-
-  const skip = () => {
-    skipRef.current = true;
-    setSkipping(true);
-  };
-
-  const synced: number = ordered.filter((w) => progress[w.id]?.kind === "synced").length;
-
-  // What goes where. Before the run, the wallets in the order they will be
-  // taken. During and after it, the wallet in hand on its own above the list,
-  // and below it the ones that have ended, latest first, then the rest in
-  // their order.
-  const inHand: WalletType | undefined =
-    phase === "warning" ? undefined : ordered.find((w) => progress[w.id]?.kind === "syncing");
-  const listed: WalletType[] =
-    phase === "warning"
-      ? ordered
-      : [
-          ...[...endedIds].reverse().flatMap((id) => ordered.filter((w) => w.id === id)),
-          ...ordered.filter((w) => w !== inHand && !endedIds.includes(w.id)),
-        ];
+  // The wallet in hand on its own above the list, and below it the ones that
+  // have ended, latest first, then the rest in their order: with many
+  // wallets, what changes is at the top rather than under the scroll.
+  const inHand: WalletType | undefined = ordered.find((w) => run.progress[w.id]?.kind === "syncing");
+  const listed: readonly WalletType[] = [
+    ...[...run.endedIds].reverse().flatMap((id) => ordered.filter((w) => w.id === id)),
+    ...ordered.filter((w) => w !== inHand && !run.endedIds.includes(w.id)),
+  ];
 
   const row = (wallet: WalletType) => {
-    const state: WalletProgress = progress[wallet.id] ?? PENDING;
+    const state: WalletProgress = run.progress[wallet.id] ?? PENDING;
     return (
       <div key={wallet.id} className={styles.wallet} data-testid={`sync-all-wallet-${wallet.id}`}>
         <div>
           <div>{wallet.alias}</div>
           <div className={`${cstyles.sublight} ${cstyles.small}`}>
             {Utils.chainDisplayName(wallet.chain_name)}
-            {state.kind === "syncing" && ` - ${state.server}`}
+            {state.kind === "syncing" && !!state.server && ` - ${state.server}`}
           </div>
         </div>
-        {phase !== "warning" && (
-          <div className={styles.state} style={{ color: stateColour(state) }}>
-            {stateText(state)}
-          </div>
-        )}
+        <div className={styles.state} style={{ color: stateColour(state) }}>
+          {stateText(state)}
+        </div>
       </div>
     );
   };
 
+  if (idle) return null;
+
   return (
-    <div className={`${cstyles.verticalflex} ${cstyles.center} ${styles.container}`}>
+    <div className={`${cstyles.center} ${styles.container}`}>
       <div className={cstyles.xlarge}>Sync all wallets</div>
 
-      {phase === "warning" && (
-        <div className={styles.notice}>
-          <p>
-            Every wallet below is opened and synced to the chain tip, one after another, in this order. While this runs
-            the app does nothing else: you cannot send, receive or change wallet until it finishes or you cancel it.
-          </p>
-          <p>
-            A wallet that is far behind can take a long time. The computer is kept awake meanwhile. You can cancel at
-            any moment: what has been scanned is kept, and the app goes back to the wallet you have open now.
-          </p>
-        </div>
-      )}
-
-      {phase === "done" && (
+      {run.phase === "done" && (
         <div className={styles.notice} data-testid="sync-all-summary">
           {synced} of {ordered.length} wallets synced.
         </div>
@@ -210,38 +106,45 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({
         </div>
       )}
 
-      <div className={styles.wallets}>{listed.map(row)}</div>
+      <div ref={paneRef} className={styles.pane}>
+        <ScrollPaneTop offsetHeight={paneOffset}>
+          <div className={`${styles.wallets} ${inHand ? styles.walletsbelow : ""}`}>{listed.map(row)}</div>
+        </ScrollPaneTop>
+      </div>
 
       <div
-        className={`${cstyles.horizontalflex} ${cstyles.margintoplarge} ${styles.buttons}`}
+        ref={footerRef}
+        className={`${cstyles.horizontalflex} ${styles.buttons}`}
         style={{ justifyContent: "center" }}
       >
-        {phase === "warning" && (
-          <>
-            <button type="button" className={cstyles.primarybutton} disabled={ordered.length === 0} onClick={start}>
-              Sync all wallets
-            </button>
-            <button type="button" className={cstyles.primarybutton} onClick={onBack}>
-              Cancel
-            </button>
-          </>
-        )}
-        {phase === "running" && (
+        {run.phase === "running" && (
           <>
             {/* For the wallet that is taking too long: the run goes on to the
                 next instead of holding at the same place every time it is
                 started. */}
-            <button type="button" className={cstyles.primarybutton} disabled={cancelling || skipping} onClick={skip}>
-              {skipping ? "Skipping..." : "Skip this wallet"}
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              disabled={run.cancelling || run.skipping || !inHand}
+              onClick={run.skip}
+            >
+              {run.skipping ? "Skipping..." : "Skip this wallet"}
             </button>
-            <button type="button" className={cstyles.primarybutton} disabled={cancelling} onClick={cancel}>
-              {cancelling ? "Cancelling..." : "Cancel"}
+            <button type="button" className={cstyles.primarybutton} disabled={run.cancelling} onClick={run.cancel}>
+              {run.cancelling ? "Cancelling..." : "Cancel"}
             </button>
           </>
         )}
-        {phase === "done" && (
-          <button type="button" className={cstyles.primarybutton} onClick={onExit}>
-            Back to my wallet
+        {run.phase === "done" && (
+          <button
+            type="button"
+            className={cstyles.primarybutton}
+            onClick={() => {
+              run.dismiss();
+              onClose();
+            }}
+          >
+            Close
           </button>
         )}
       </div>

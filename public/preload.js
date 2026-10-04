@@ -18,7 +18,12 @@ const _ALL_NATIVE_METHODS = [
   "pause_sync",
   "stop_sync",
   "status_sync",
-  "sync_caught_up",
+  "background_run_sync",
+  "background_poll_sync",
+  "background_sync_caught_up",
+  "background_stop_sync",
+  "background_save",
+  "background_close",
   "run_rescan",
   "info_server",
   "wallet_kind",
@@ -82,6 +87,7 @@ const _ALL_NATIVE_METHODS = [
   "init_from_seed",
   "init_from_ufvk",
   "init_from_b64",
+  "background_open",
 ];
 
 const nativeForRenderer = {};

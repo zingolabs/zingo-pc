@@ -40,6 +40,19 @@ export function init_from_b64(
   min_confirmations: number,
   wallet_name: string,
 ): string;
+export function background_open(
+  server_uri: string,
+  chain_hint: ServerChainNameEnum,
+  performance_level: PerformanceLevelEnum,
+  min_confirmations: number,
+  wallet_name: string,
+): Promise<string>;
+export function background_run_sync(): Promise<string>;
+export function background_poll_sync(): Promise<string>;
+export function background_sync_caught_up(): Promise<string>;
+export function background_stop_sync(): Promise<string>;
+export function background_save(): Promise<string>;
+export function background_close(): Promise<string>;
 export function save_wallet_file(): Promise<string>;
 export function check_save_error(): Promise<string>;
 export function get_developer_donation_address(): string;
@@ -54,7 +67,6 @@ export function run_sync(): Promise<string>;
 export function pause_sync(): Promise<string>;
 export function stop_sync(): Promise<string>;
 export function status_sync(): Promise<string>;
-export function sync_caught_up(): Promise<string>;
 export function run_rescan(): Promise<string>;
 export function info_server(): Promise<string>;
 export function wallet_kind(): Promise<string>;

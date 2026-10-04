@@ -3,12 +3,18 @@ import { SyncRecovery, isConnectionFailure } from "../rpc/syncFailureMessage";
 import userFacingError from "../utils/userFacingError";
 
 /**
- * Syncs every wallet to the chain tip, one after another.
+ * Syncs every wallet to the chain tip, one after another, behind the wallet
+ * the app has open.
  *
- * The native module holds one wallet at a time, so a run is a sequence: open,
- * sync to the tip, stop, save, and on to the next. A wallet that cannot be
- * synced is recorded with its reason and the run moves on, because one dead
- * server should not cost the user the wallets after it.
+ * The native module has one slot for a wallet synced in the background, so a
+ * run is a sequence: open, sync to the tip, stop, save, close, and on to the
+ * next. A wallet that cannot be synced is recorded with its reason and the run
+ * moves on, because one dead server should not cost the user the wallets
+ * after it.
+ *
+ * The wallet on screen is never opened here: its own session syncs it, and a
+ * wallet file held by two clients at once would have each overwrite the
+ * other's scans.
  *
  * Everything that touches the wallet or the network comes in through `deps`,
  * so the sequence can be tested without either.
@@ -21,19 +27,24 @@ export type WalletProgress =
   | { readonly kind: "failed"; readonly reason: string }
   // The user skipped this wallet: it was stopped mid-sync and the run moved on.
   | { readonly kind: "skipped" }
+  // This is the wallet on screen, or became it: its own session syncs it.
+  | { readonly kind: "open" }
   // The run was cancelled: this wallet was stopped mid-sync, or never started.
   | { readonly kind: "cancelled" };
 
-/** What the user can ask of a run while it goes. Both are read between steps. */
+/** What the app can ask of a run while it goes. All are read between steps. */
 export type SyncAllControls = {
   /** Once true, the wallet in hand is stopped and no other is opened. */
   cancelled: () => boolean;
   /**
-   * Answers true once per request to skip the wallet in hand, and clears it.
-   * A wallet far behind would otherwise hold the run at the same place every
-   * time it starts, with the wallets after it never reached.
+   * Answers true once per request to let go of the wallet in hand, and clears
+   * it. The user asks for a wallet far behind, which would otherwise hold the
+   * run at the same place every time it starts; the app asks when the user
+   * opens the wallet in hand on screen.
    */
   takeSkip: () => boolean;
+  /** Whether this wallet is the one on screen, or about to be. */
+  isOpen: (walletId: number) => boolean;
 };
 
 export type SessionPoll =
@@ -48,7 +59,7 @@ export type SyncAllDeps = {
   /** The server this wallet syncs from, by its own selection mode. */
   resolveServer: (wallet: WalletType) => Promise<string>;
   walletExists: (wallet: WalletType, server: string) => Promise<boolean>;
-  /** Opens the wallet, replacing whichever one the native module held. */
+  /** Opens the wallet in the background slot. */
   open: (wallet: WalletType, server: string) => Promise<void>;
   launch: () => Promise<void>;
   poll: () => Promise<SessionPoll>;
@@ -60,6 +71,8 @@ export type SyncAllDeps = {
   /** Stops the session and returns once it has ended. */
   stop: () => Promise<void>;
   save: () => Promise<void>;
+  /** Empties the background slot, so the wallet it held can be opened on screen. */
+  close: () => Promise<void>;
   sleep: (ms: number) => Promise<void>;
 };
 
@@ -94,7 +107,9 @@ async function syncOne(
     let best = -1;
     for (;;) {
       if (controls.cancelled()) return { kind: "cancelled" };
-      if (controls.takeSkip()) return { kind: "skipped" };
+      // Let go because the user is opening it on screen, or because they
+      // skipped it: the same stop, said differently.
+      if (controls.takeSkip()) return controls.isOpen(wallet.id) ? { kind: "open" } : { kind: "skipped" };
 
       const poll = await deps.poll();
       if (poll.kind === "completed") return { kind: "synced" };
@@ -120,15 +135,20 @@ async function syncOne(
       await deps.sleep(POLL_MS);
     }
   } finally {
-    // However it ended, the engine is stopped and what it scanned is written
-    // before the next wallet replaces this one in the native module. Neither
-    // step changes the outcome already reached, so a failure here is logged
-    // and no more.
+    // However it ended, the engine is stopped, what it scanned is written and
+    // the slot is emptied, in that order: a wallet still in the slot cannot be
+    // opened on screen. None of it changes the outcome already reached, so a
+    // failure here is logged and no more.
     try {
       await deps.stop();
       await deps.save();
     } catch (error) {
       console.error(`sync all: could not stop and save wallet ${wallet.id}: ${error}`);
+    }
+    try {
+      await deps.close();
+    } catch (error) {
+      console.error(`sync all: could not close wallet ${wallet.id}: ${error}`);
     }
   }
 }
@@ -146,6 +166,15 @@ export async function runSyncAll(
   for (const wallet of wallets) {
     if (controls.cancelled()) {
       onProgress(wallet.id, { kind: "cancelled" });
+      continue;
+    }
+    // In hand before the question is asked, and with no await between the
+    // two. The app does the mirror of it when the user opens a wallet: says
+    // which, then looks at what is in hand. Whichever runs second sees the
+    // other, so the wallet is never opened in both places.
+    onProgress(wallet.id, { kind: "syncing", server: "", percent: null });
+    if (controls.isOpen(wallet.id)) {
+      onProgress(wallet.id, { kind: "open" });
       continue;
     }
     // A skip asked while the previous wallet was being stopped and saved was
