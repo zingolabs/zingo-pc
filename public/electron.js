@@ -32,6 +32,7 @@ const {
   shell,
   ipcMain,
   dialog,
+  nativeImage,
   session,
   clipboard,
   powerMonitor,
@@ -94,6 +95,13 @@ setInterval(() => {
     );
   } catch (_) {}
 }, LOOP_TICK_MS).unref();
+
+// The one entry in the menu that is marked out. The system draws the menu, so
+// an entry's text cannot be given a colour; an icon is what it can carry. The
+// file sits beside this script in both the source tree and the build, and an
+// `@2x` beside it is picked up for dense displays. Missing, it loads as an
+// empty image and the entry simply has no icon.
+const syncAllMenuIcon = nativeImage.createFromPath(path.join(__dirname, "menu-sync-all.png"));
 
 class MenuBuilder {
   mainWindow;
@@ -247,6 +255,7 @@ class MenuBuilder {
         { type: "separator" },
         {
           label: "S&ync all Wallets",
+          icon: syncAllMenuIcon,
           accelerator: "Ctrl+Y",
           click: () => {
             mainWindow.webContents.send("syncallwallets");
@@ -406,6 +415,7 @@ class MenuBuilder {
           { type: "separator" },
           {
             label: "S&ync all Wallets",
+            icon: syncAllMenuIcon,
             accelerator: "Ctrl+Y",
             click: () => {
               mainWindow.webContents.send("syncallwallets");

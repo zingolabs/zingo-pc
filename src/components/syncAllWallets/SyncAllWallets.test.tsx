@@ -55,7 +55,10 @@ let startRun: () => void = () => {};
  * The screen under the run it reads, as the app mounts them: the run above,
  * the screen below, so the screen can come and go while the run stays.
  */
-const renderScreen = (deps: SyncAllDeps = fakeDeps(), openWalletId?: number) => {
+/** The confirmation every stopping press goes through, answered yes at once. */
+const confirmAtOnce = () => jest.fn((_title: string, _body: unknown, action: () => void) => action());
+
+const renderScreen = (deps: SyncAllDeps = fakeDeps(), openWalletId?: number, openConfirmModal = confirmAtOnce()) => {
   const onClose = jest.fn();
   const held: { run: SyncAllRun | null; showScreen: (show: boolean) => void } = { run: null, showScreen: () => {} };
   const makeDeps = () => deps;
@@ -70,9 +73,9 @@ const renderScreen = (deps: SyncAllDeps = fakeDeps(), openWalletId?: number) => 
     );
   };
 
-  render(<Harness />);
+  render(<Harness />, { contextOverrides: { openConfirmModal } });
   startRun = () => act(() => held.run!.start(syncAllOrder(WALLETS)));
-  return { onClose, held };
+  return { onClose, held, openConfirmModal };
 };
 
 const keepAwakeCalls = () =>
@@ -178,7 +181,7 @@ describe("SyncAllWallets", () => {
     expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Syncing 12.50%");
     expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Synced");
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Syncing" }));
     release();
     await waitFor(() => expect(held.run?.phase).toBe("done"));
   });
@@ -202,7 +205,7 @@ describe("SyncAllWallets", () => {
     startRun();
     await waitFor(() => expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Opening..."));
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Syncing" }));
     expect(screen.getByRole("button", { name: "Cancelling..." })).toBeDisabled();
     release();
 
@@ -236,7 +239,7 @@ describe("SyncAllWallets", () => {
     expect(listed.map((row) => row.getAttribute("data-testid"))).toEqual(["sync-all-wallet-2", "sync-all-wallet-1"]);
     expect(listed[1]).toHaveTextContent("Synced");
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Syncing" }));
     release();
   });
 
@@ -265,6 +268,60 @@ describe("SyncAllWallets", () => {
     await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("1 of 2 wallets synced."));
     expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Skipped");
     expect(screen.getByTestId("sync-all-wallet-2")).toHaveTextContent("Synced");
+  });
+
+  // Cancelling gives up every wallet still waiting. It says what it will do,
+  // and does nothing until the user says yes.
+  it("asks before cancelling the sync, and does not cancel unasked", async () => {
+    let release: () => void = () => {};
+    const asked = jest.fn();
+    const { held } = renderScreen(
+      fakeDeps({
+        progress: async () => ({ caughtUp: false, percent: null }),
+        sleep: () => new Promise<void>((resolve) => (release = resolve)),
+      }),
+      undefined,
+      asked,
+    );
+
+    startRun();
+    await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Savings"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Syncing" }));
+
+    expect(asked).toHaveBeenCalledWith("Cancel Syncing", expect.anything(), expect.any(Function));
+    expect(held.run?.cancelling).toBe(false);
+
+    act(() => asked.mock.calls[0][2]());
+    expect(held.run?.cancelling).toBe(true);
+    release();
+    await waitFor(() => expect(held.run?.phase).toBe("done"));
+  });
+
+  // Skipping gives up one wallet and the run goes on: it acts on the press.
+  it("skips at once, without asking", async () => {
+    let release: () => void = () => {};
+    const asked = jest.fn();
+    const { held } = renderScreen(
+      fakeDeps({
+        progress: async () => ({ caughtUp: false, percent: null }),
+        sleep: () => new Promise<void>((resolve) => (release = resolve)),
+      }),
+      undefined,
+      asked,
+    );
+
+    startRun();
+    await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Savings"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Skip this wallet" }));
+
+    expect(asked).not.toHaveBeenCalled();
+    expect(held.run?.skipping).toBe(true);
+
+    act(() => held.run!.cancel());
+    release();
+    await waitFor(() => expect(held.run?.phase).toBe("done"));
   });
 
   // The user picks, in the app, the wallet the run has in hand. Opening it
@@ -300,7 +357,7 @@ describe("SyncAllWallets", () => {
     expect(done).toEqual(["closed", "free to open"]);
     expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("Open in the app");
 
-    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel Syncing" }));
     release();
   });
 });

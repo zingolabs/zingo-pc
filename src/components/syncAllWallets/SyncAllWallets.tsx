@@ -1,6 +1,7 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext, useEffect, useRef } from "react";
 import cstyles from "../common/Common.module.css";
 import styles from "./SyncAllWallets.module.css";
+import { ContextApp } from "../../context/ContextAppState";
 import { WalletType } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
@@ -33,6 +34,14 @@ function stateText(progress: WalletProgress): string {
   }
 }
 
+/**
+ * What a press is about to do, for the confirmation in front of it. Broken at
+ * words: the dialog breaks anywhere, which is for addresses and not sentences.
+ */
+const Consequence: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <div style={{ wordBreak: "normal", lineHeight: 1.5 }}>{children}</div>
+);
+
 function stateColour(progress: WalletProgress): string | undefined {
   if (progress.kind === "failed") return "var(--color-error)";
   if (progress.kind === "synced") return "var(--color-primary)";
@@ -48,7 +57,12 @@ function stateColour(progress: WalletProgress): string | undefined {
  * the wallet bar. Leaving the screen changes nothing about the run.
  */
 const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
+  const { openConfirmModal } = useContext(ContextApp);
   const run = useContext(SyncAllContext);
+  // The run as it is when a confirmation is answered, which is later than
+  // when it was asked.
+  const runRef = useRef(run);
+  runRef.current = run;
   const { paneRef, footerRef, paneOffset } = usePaneOffset(200);
 
   // With no run there is nothing to show: one that was put away, or a screen
@@ -85,6 +99,19 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
           {stateText(state)}
         </div>
       </div>
+    );
+  };
+
+  // Cancelling gives up every wallet still waiting, so it says what it will do
+  // and waits for a yes. Skipping gives up one and the run goes on, which the
+  // row says as it happens.
+  const askToCancel = () => {
+    openConfirmModal(
+      "Cancel Syncing",
+      <Consequence>
+        The wallet being synced is stopped, and what it has scanned is kept. The wallets still waiting are not synced.
+      </Consequence>,
+      () => runRef.current.cancel(),
     );
   };
 
@@ -130,8 +157,10 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
             >
               {run.skipping ? "Skipping..." : "Skip this wallet"}
             </button>
-            <button type="button" className={cstyles.primarybutton} disabled={run.cancelling} onClick={run.cancel}>
-              {run.cancelling ? "Cancelling..." : "Cancel"}
+            {/* Named for what it cancels. A bare "Cancel" under a list reads
+                as a way out of the screen. */}
+            <button type="button" className={cstyles.primarybutton} disabled={run.cancelling} onClick={askToCancel}>
+              {run.cancelling ? "Cancelling..." : "Cancel Syncing"}
             </button>
           </>
         )}
