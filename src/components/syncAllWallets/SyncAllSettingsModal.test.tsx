@@ -1,5 +1,5 @@
 import React from "react";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { render } from "../../test-utils";
 import SyncAllSettingsModal from "./SyncAllSettingsModal";
 import { SyncAllContext } from "../../syncAll";
@@ -13,7 +13,7 @@ jest.mock("react-modal", () => {
   return Modal;
 });
 
-const run = (autoEnabled: boolean, setAutoEnabled: jest.Mock): SyncAllRun => ({
+const run = (autoEnabled: boolean, setAutoEnabled: jest.Mock, extra: Partial<SyncAllRun> = {}): SyncAllRun => ({
   phase: "idle",
   wallets: [],
   progress: {},
@@ -28,13 +28,15 @@ const run = (autoEnabled: boolean, setAutoEnabled: jest.Mock): SyncAllRun => ({
   setWatched: jest.fn(),
   autoEnabled,
   setAutoEnabled,
+  nextAutoRunAt: null,
+  ...extra,
 });
 
-const renderModal = (autoEnabled: boolean) => {
+const renderModal = (autoEnabled: boolean, extra: Partial<SyncAllRun> = {}) => {
   const setAutoEnabled = jest.fn();
   const onClose = jest.fn();
   render(
-    <SyncAllContext.Provider value={run(autoEnabled, setAutoEnabled)}>
+    <SyncAllContext.Provider value={run(autoEnabled, setAutoEnabled, extra)}>
       <SyncAllSettingsModal isOpen onClose={onClose} />
     </SyncAllContext.Provider>,
   );
@@ -69,5 +71,33 @@ describe("SyncAllSettingsModal", () => {
 
     expect(setAutoEnabled).not.toHaveBeenCalled();
     expect(onClose).toHaveBeenCalled();
+  });
+
+  describe("the countdown to the next run", () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date("2026-10-05T10:00:00Z"));
+    });
+    afterEach(() => jest.useRealTimers());
+
+    it("counts down to the next run while the app syncs by itself", () => {
+      renderModal(true, { nextAutoRunAt: Date.now() + 4 * 60 * 1000 + 7 * 1000 });
+
+      expect(screen.getByTestId("sync-all-next-run")).toHaveTextContent("Next sync in 4:07.");
+      act(() => void jest.advanceTimersByTime(2000));
+      expect(screen.getByTestId("sync-all-next-run")).toHaveTextContent("Next sync in 4:05.");
+    });
+
+    it("says so while a run is going", () => {
+      renderModal(true, { phase: "running", nextAutoRunAt: null });
+
+      expect(screen.getByTestId("sync-all-next-run")).toHaveTextContent("Syncing now.");
+    });
+
+    it("shows nothing when the app does not sync by itself", () => {
+      renderModal(false, { nextAutoRunAt: null });
+
+      expect(screen.queryByTestId("sync-all-next-run")).not.toBeInTheDocument();
+    });
   });
 });

@@ -44,6 +44,7 @@ const run = (overrides: Partial<SyncAllRun>): SyncAllRun => ({
   setWatched: jest.fn(),
   autoEnabled: false,
   setAutoEnabled: jest.fn(),
+  nextAutoRunAt: null,
   ...overrides,
 });
 

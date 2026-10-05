@@ -330,6 +330,7 @@ describe("Sidebar", () => {
         setWatched: jest.fn(),
         autoEnabled: false,
         setAutoEnabled: jest.fn(),
+        nextAutoRunAt: null,
         ...overrides,
       });
 

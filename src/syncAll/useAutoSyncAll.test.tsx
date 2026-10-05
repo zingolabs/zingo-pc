@@ -146,4 +146,20 @@ describe("useAutoSyncAll", () => {
     advance(AUTO_SYNC_STARTUP_DELAY_MS);
     expect(start).toHaveBeenCalledTimes(1);
   });
+
+  // For the settings to count down to.
+  it("says when the next run is due, and nothing while one is going or it is off", async () => {
+    const { result, rerender } = await mount({});
+    const startedAt = Date.now();
+    expect(result.current.nextRunAt).toBe(startedAt + AUTO_SYNC_STARTUP_DELAY_MS);
+
+    rerender({ phase: "running", ready: true, wallets: WALLETS });
+    expect(result.current.nextRunAt).toBeNull();
+
+    rerender({ phase: "idle", ready: true, wallets: WALLETS });
+    expect(result.current.nextRunAt).toBe(Date.now() + AUTO_SYNC_INTERVAL_MS);
+
+    act(() => result.current.setEnabled(false));
+    expect(result.current.nextRunAt).toBeNull();
+  });
 });

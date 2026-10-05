@@ -29,12 +29,15 @@ export function useAutoSyncAll(
   openWalletId: number | undefined,
   /** The app has a wallet open and is past its loading screen. */
   ready: boolean,
-): { enabled: boolean; setEnabled: (enabled: boolean) => void } {
+): { enabled: boolean; setEnabled: (enabled: boolean) => void; nextRunAt: number | null } {
   // Unknown until the settings are read. Nothing starts before then: a user
   // who turned this off must not get one last run on every launch.
   const [enabled, setEnabledState] = useState<boolean | null>(null);
   // Bumped to schedule again when a due run found nothing to do.
   const [tick, setTick] = useState<number>(0);
+  // When the next run is due, for the settings to count down to. Null while
+  // nothing is scheduled: turned off, not ready yet, or a run going.
+  const [nextRunAt, setNextRunAt] = useState<number | null>(null);
 
   const walletsRef = useRef(wallets);
   walletsRef.current = wallets;
@@ -71,12 +74,16 @@ export function useAutoSyncAll(
     }
     previousPhaseRef.current = run.phase;
 
-    if (enabled !== true || !ready || run.phase === "running") return;
+    if (enabled !== true || !ready || run.phase === "running") {
+      setNextRunAt(null);
+      return;
+    }
 
     const delay: number =
       lastEndedAtRef.current === null
         ? AUTO_SYNC_STARTUP_DELAY_MS
         : Math.max(0, lastEndedAtRef.current + AUTO_SYNC_INTERVAL_MS - Date.now());
+    setNextRunAt(Date.now() + delay);
     const timer = setTimeout(() => {
       // The wallet on screen syncs itself, so with no other there is nothing
       // for a run to do, and starting one would only flash its line.
@@ -90,7 +97,7 @@ export function useAutoSyncAll(
     return () => clearTimeout(timer);
   }, [enabled, ready, run.phase, tick]);
 
-  return { enabled: enabled === true, setEnabled };
+  return { enabled: enabled === true, setEnabled, nextRunAt };
 }
 
 export default useAutoSyncAll;

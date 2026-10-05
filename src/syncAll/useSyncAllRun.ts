@@ -39,6 +39,8 @@ export type SyncAllRun = {
   /** Whether the app starts runs by itself. See `useAutoSyncAll`. */
   autoEnabled: boolean;
   setAutoEnabled: (enabled: boolean) => void;
+  /** When the app will next start a run by itself; null when it will not. */
+  nextAutoRunAt: number | null;
 };
 
 export const ended = (progress: WalletProgress): boolean => progress.kind !== "pending" && progress.kind !== "syncing";
@@ -70,12 +72,13 @@ const IDLE_RUN: SyncAllRun = {
   setWatched: () => {},
   autoEnabled: false,
   setAutoEnabled: () => {},
+  nextAutoRunAt: null,
 };
 
 export const SyncAllContext = createContext<SyncAllRun>(IDLE_RUN);
 
 /** The run itself, without the setting that decides whether the app starts one. */
-export type SyncAllRunCore = Omit<SyncAllRun, "autoEnabled" | "setAutoEnabled">;
+export type SyncAllRunCore = Omit<SyncAllRun, "autoEnabled" | "setAutoEnabled" | "nextAutoRunAt">;
 
 export function useSyncAllRun(
   openWalletId: number | undefined,

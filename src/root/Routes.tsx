@@ -103,8 +103,13 @@ const AppRoutes: React.FC = () => {
     location.pathname !== routes.LOADING && !!currentWallet?.id,
   );
   const syncAll: SyncAllRun = useMemo(
-    () => ({ ...syncAllRun, autoEnabled: autoSyncAll.enabled, setAutoEnabled: autoSyncAll.setEnabled }),
-    [syncAllRun, autoSyncAll.enabled, autoSyncAll.setEnabled],
+    () => ({
+      ...syncAllRun,
+      autoEnabled: autoSyncAll.enabled,
+      setAutoEnabled: autoSyncAll.setEnabled,
+      nextAutoRunAt: autoSyncAll.nextRunAt,
+    }),
+    [syncAllRun, autoSyncAll.enabled, autoSyncAll.setEnabled, autoSyncAll.nextRunAt],
   );
   const [syncAllSettingsOpen, setSyncAllSettingsOpen] = useState(false);
   const [birthday, setBirthdayState] = useState(defaultAppState.birthday);

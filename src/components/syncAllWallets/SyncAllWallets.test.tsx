@@ -67,7 +67,7 @@ const renderScreen = (deps: SyncAllDeps = fakeDeps(), openWalletId?: number, ope
     const core = useSyncAllRun(openWalletId, makeDeps);
     const [autoEnabled, setAutoEnabled] = React.useState<boolean>(true);
     const run: SyncAllRun = React.useMemo(
-      () => ({ ...core, autoEnabled, setAutoEnabled }),
+      () => ({ ...core, autoEnabled, setAutoEnabled, nextAutoRunAt: null }),
       [core, autoEnabled, setAutoEnabled],
     );
     const [shown, setShown] = React.useState<boolean>(true);
