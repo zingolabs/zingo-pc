@@ -20,7 +20,11 @@ export type SyncAllRun = {
   endedIds: readonly number[];
   cancelling: boolean;
   skipping: boolean;
-  start: (wallets: readonly WalletType[]) => void;
+  /**
+   * `automatic` is a run the app started by itself. It is quieter than one
+   * the user asked for: see `start` below.
+   */
+  start: (wallets: readonly WalletType[], automatic?: boolean) => void;
   cancel: () => void;
   skip: () => void;
   /** Puts a finished run away. */
@@ -30,6 +34,11 @@ export type SyncAllRun = {
    * holds no claim on it. A wallet file is never held by two clients.
    */
   releaseForScreen: (walletId: number) => Promise<void>;
+  /** Said by the screen that shows the run, for as long as it is up. */
+  setWatched: (watched: boolean) => void;
+  /** Whether the app starts runs by itself. See `useAutoSyncAll`. */
+  autoEnabled: boolean;
+  setAutoEnabled: (enabled: boolean) => void;
 };
 
 export const ended = (progress: WalletProgress): boolean => progress.kind !== "pending" && progress.kind !== "syncing";
@@ -58,14 +67,20 @@ const IDLE_RUN: SyncAllRun = {
   skip: () => {},
   dismiss: () => {},
   releaseForScreen: async () => {},
+  setWatched: () => {},
+  autoEnabled: false,
+  setAutoEnabled: () => {},
 };
 
 export const SyncAllContext = createContext<SyncAllRun>(IDLE_RUN);
 
+/** The run itself, without the setting that decides whether the app starts one. */
+export type SyncAllRunCore = Omit<SyncAllRun, "autoEnabled" | "setAutoEnabled">;
+
 export function useSyncAllRun(
   openWalletId: number | undefined,
   makeDeps: () => SyncAllDeps = nativeSyncAllDeps,
-): SyncAllRun {
+): SyncAllRunCore {
   const [phase, setPhase] = useState<SyncAllRun["phase"]>("idle");
   const [wallets, setWallets] = useState<readonly WalletType[]>([]);
   const [progress, setProgress] = useState<Record<number, WalletProgress>>({});
@@ -82,6 +97,10 @@ export function useSyncAllRun(
   // The wallet the run has in hand, and who is waiting for it to let go.
   const inHandRef = useRef<number | null>(null);
   const waitersRef = useRef<Array<{ walletId: number; resolve: () => void }>>([]);
+  // Whether a wallet of this run could not be synced, and whether the user is
+  // looking at the run: what decides if an automatic one puts itself away.
+  const failedRef = useRef<boolean>(false);
+  const watchedRef = useRef<boolean>(false);
 
   useEffect(() => {
     openIdRef.current = openWalletId;
@@ -91,6 +110,7 @@ export function useSyncAllRun(
     if (state.kind === "syncing") {
       inHandRef.current = walletId;
     } else if (ended(state)) {
+      if (state.kind === "failed") failedRef.current = true;
       if (inHandRef.current === walletId) inHandRef.current = null;
       const waiting = waitersRef.current.filter((w) => w.walletId === walletId);
       waitersRef.current = waitersRef.current.filter((w) => w.walletId !== walletId);
@@ -107,12 +127,20 @@ export function useSyncAllRun(
     );
   }, []);
 
+  const clear = useCallback(() => {
+    setPhase("idle");
+    setWallets([]);
+    setProgress({});
+    setEndedIds([]);
+  }, []);
+
   const start = useCallback(
-    (toSync: readonly WalletType[]) => {
+    (toSync: readonly WalletType[], automatic: boolean = false) => {
       if (runningRef.current) return;
       runningRef.current = true;
       cancelRef.current = false;
       skipRef.current = false;
+      failedRef.current = false;
       setWallets(toSync);
       setProgress({});
       setEndedIds([]);
@@ -121,9 +149,12 @@ export function useSyncAllRun(
       setPhase("running");
 
       void (async () => {
-        // A run can take hours. The machine is kept from suspending under it;
-        // the display may still sleep.
-        await ipcRenderer.invoke("power:keep-awake", true);
+        // A run the user asked for can take hours, and the machine is kept
+        // from suspending under it; the display may still sleep. One the app
+        // starts by itself holds nothing: it comes round every few minutes,
+        // and a wallet app that never lets a laptop sleep is not a trade the
+        // user made. If the machine suspends under it, the next one picks up.
+        if (!automatic) await ipcRenderer.invoke("power:keep-awake", true);
         try {
           await runSyncAll(toSync, makeDeps(), onProgress, {
             cancelled: () => cancelRef.current,
@@ -135,13 +166,20 @@ export function useSyncAllRun(
             isOpen: (walletId: number) => openIdRef.current === walletId,
           });
         } finally {
-          await ipcRenderer.invoke("power:keep-awake", false);
+          if (!automatic) await ipcRenderer.invoke("power:keep-awake", false);
           runningRef.current = false;
-          setPhase("done");
+          // A run nobody asked for, that nobody is looking at and that has
+          // nothing to report, leaves no line behind to dismiss every few
+          // minutes. One that could not sync a wallet stays, to say so.
+          if (automatic && !watchedRef.current && !failedRef.current) {
+            clear();
+          } else {
+            setPhase("done");
+          }
         }
       })();
     },
-    [makeDeps, onProgress],
+    [makeDeps, onProgress, clear],
   );
 
   const cancel = useCallback(() => {
@@ -158,10 +196,11 @@ export function useSyncAllRun(
 
   const dismiss = useCallback(() => {
     if (runningRef.current) return;
-    setPhase("idle");
-    setWallets([]);
-    setProgress({});
-    setEndedIds([]);
+    clear();
+  }, [clear]);
+
+  const setWatched = useCallback((watched: boolean) => {
+    watchedRef.current = watched;
   }, []);
 
   const releaseForScreen = useCallback(async (walletId: number): Promise<void> => {
@@ -196,8 +235,22 @@ export function useSyncAllRun(
       skip,
       dismiss,
       releaseForScreen,
+      setWatched,
     }),
-    [phase, wallets, progress, endedIds, cancelling, skipping, start, cancel, skip, dismiss, releaseForScreen],
+    [
+      phase,
+      wallets,
+      progress,
+      endedIds,
+      cancelling,
+      skipping,
+      start,
+      cancel,
+      skip,
+      dismiss,
+      releaseForScreen,
+      setWatched,
+    ],
   );
 }
 
