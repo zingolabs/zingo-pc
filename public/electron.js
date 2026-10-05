@@ -291,6 +291,7 @@ class MenuBuilder {
         },
         {
           label: "&Background Sync",
+          accelerator: "Ctrl+B",
           click: () => {
             mainWindow.webContents.send("syncall-settings");
           },
@@ -457,6 +458,7 @@ class MenuBuilder {
           },
           {
             label: "&Background Sync",
+            accelerator: "Ctrl+B",
             click: () => {
               mainWindow.webContents.send("syncall-settings");
             },
