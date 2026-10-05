@@ -137,6 +137,7 @@ describe("SyncAllWallets", () => {
 
     await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("1 of 2 wallets synced."));
     expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("This server cannot serve this wallet.");
+    expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("https://server-1");
     expect(screen.getByTestId("sync-all-wallet-2")).toHaveTextContent("Synced");
   });
 

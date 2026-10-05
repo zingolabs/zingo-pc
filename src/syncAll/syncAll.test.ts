@@ -137,7 +137,12 @@ describe("runSyncAll", () => {
 
     await runSyncAll([wallet(1), wallet(2)], deps, onProgress, run());
 
-    expect(seen[1]).toEqual({ kind: "failed", reason: "This server cannot serve this wallet." });
+    // With the server it failed on.
+    expect(seen[1]).toEqual({
+      kind: "failed",
+      reason: "This server cannot serve this wallet.",
+      server: "https://server-1",
+    });
     expect(seen[2]).toEqual({ kind: "synced" });
   });
 
@@ -157,7 +162,7 @@ describe("runSyncAll", () => {
 
     expect(calls.filter((c) => c === "launch 1")).toHaveLength(LAUNCHES_BEFORE_GIVING_UP);
     // Said without "reconnecting": nothing is going to try again.
-    expect(seen[1]).toEqual({ kind: "failed", reason: "The server stopped answering." });
+    expect(seen[1]).toEqual({ kind: "failed", reason: "The server stopped answering.", server: "https://server-1" });
   });
 
   it("does not open a wallet whose file is gone", async () => {
@@ -166,7 +171,7 @@ describe("runSyncAll", () => {
     await runSyncAll([wallet(1), wallet(2)], deps, onProgress, run());
 
     expect(calls).not.toContain("open 1");
-    expect(seen[1]).toEqual({ kind: "failed", reason: "The wallet file was not found." });
+    expect(seen[1]).toEqual({ kind: "failed", reason: "The wallet file was not found.", server: "https://server-1" });
     expect(seen[2]).toEqual({ kind: "synced" });
   });
 
@@ -182,7 +187,7 @@ describe("runSyncAll", () => {
 
     await runSyncAll([wallet(1)], deps, onProgress, run());
 
-    expect(seen[1]).toEqual({ kind: "failed", reason: "init: the wallet file is corrupt" });
+    expect(seen[1]).toEqual({ kind: "failed", reason: "init: the wallet file is corrupt", server: "https://server-1" });
   });
 
   // Cancelling stops the wallet in hand cleanly, so what it had scanned is

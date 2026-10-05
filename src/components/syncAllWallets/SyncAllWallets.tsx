@@ -101,7 +101,9 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
           <div>{wallet.alias}</div>
           <div className={`${cstyles.sublight} ${cstyles.small}`}>
             {Utils.chainDisplayName(wallet.chain_name)}
-            {state.kind === "syncing" && !!state.server && ` - ${state.server}`}
+            {/* The server while it syncs, and the one it failed on: which server
+                it was is half of what a failure says. */}
+            {(state.kind === "syncing" || state.kind === "failed") && !!state.server && ` - ${state.server}`}
           </div>
         </div>
         <div className={styles.state} style={{ color: stateColour(state) }}>
