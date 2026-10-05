@@ -116,6 +116,13 @@ async function syncOne(
       const poll = await deps.poll();
       if (poll.kind === "completed") return { kind: "synced" };
       if (poll.kind === "failed" || poll.kind === "idle") {
+        // The engine's own words, before they are put into the user's: the
+        // screen says what to do, the log has to say what happened.
+        if (poll.kind === "failed") {
+          console.log(
+            `sync all: wallet ${wallet.id} session failed (${poll.recovery ?? "no verdict"}): ${poll.reason}`,
+          );
+        }
         const recoverable = poll.kind === "idle" || poll.recovery === "maybe_recoverable_server";
         if (!recoverable || launches >= LAUNCHES_BEFORE_GIVING_UP) {
           return {
