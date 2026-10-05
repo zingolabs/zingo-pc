@@ -198,7 +198,7 @@ yarn release:prep 2.0.15 142
 - Save a contact from Send, Swap or a transaction's detail without leaving the screen
 - A ZNS alias is saved as the address it resolves to, with the alias kept in the label
 
-**Zcash Names (ZNS)** _(experimental)_
+**Zcash Names (ZNS)**
 
 - Type `alice.zcash` in the recipient field — auto-resolves to the unified address via the public ZNS indexer
 - Network-aware (`Mainnet` / `Testnet`), with a one-click link to the public ZNS explorer page
