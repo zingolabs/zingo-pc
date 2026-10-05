@@ -116,9 +116,8 @@ yarn release:prep 2.0.15 142
 - Wallet seed phrase / UFVK backup viewer
 - Per-wallet performance profiles
 - Rescan from the Wallet menu, with a nonlinear scanning map on the dashboard showing sync progress
-- Sync all wallets from the Wallet menu — every other wallet is brought to the chain tip in turn, Mainnet first,
-  in the background while the app stays in use; a line under the wallet bar shows how far it has got on every
-  screen, and the computer is kept awake until it finishes
+- Every other wallet kept close to the tip too: they are synced in the background, one after another, when
+  the app starts and every 15 minutes, while the app stays in use — see [Syncing every wallet](#syncing-every-wallet)
 
 **Transactions**
 
@@ -141,7 +140,7 @@ yarn release:prep 2.0.15 142
 
 **Servers**
 
-- Three selection modes per wallet, shown at all times above the balances:
+- Three selection modes per wallet, shown at all times in the bar above every screen, beside the wallet selector:
   - **Auto** — picks a server on every launch and stays automatic
   - **List** — you choose from the published servers
   - **Custom** — your own `lightwalletd` URI
@@ -149,8 +148,9 @@ yarn release:prep 2.0.15 142
   clearnet servers and ranked by 30-day uptime; the built-in list is the fallback whenever the registry
   is unreachable
 - Health indicator next to the active server — green while it answers, amber after an occasional
-  failure, red after three in a row. Clicking it offers the next step for the current mode: switch
-  server (Auto), pick from the list (List), or open the wallet settings (Custom)
+  failure, red after three in a row or when it answers but cannot serve this wallet. Clicking it
+  offers the next step for the current mode: switch server (Auto), pick from the list (List), or
+  open the wallet settings (Custom)
 - A server that stops being published, or that we retire, moves the wallet back to Auto rather than
   leaving it on a dead URI
 - "Try Again" on the wallet-open error screen, to retry without changing any settings
@@ -174,6 +174,8 @@ yarn release:prep 2.0.15 142
 - Swap status and history, with links to each chain's explorer and refund tracking
 - When no route is offered, each provider's own reason is given (a minimum to reach, a provider that
   cannot price the pair right now), and a route already quoted is kept while it is still valid
+- A provider that refuses to start a swap it has just quoted is set aside, with its reason, until the
+  swap asked for changes, rather than offered again every refresh
 - Deposit QR and payment link for paying an inbound swap from another wallet
 - Swap traffic goes over clearnet, not the mixnet: see [docs/swap-privacy.md](docs/swap-privacy.md)
 
@@ -256,9 +258,10 @@ payment, and fetching the price. Syncing is not one of them.
   directly. zingolib's ADR 0023 decided that the top of the chain should ride
   the mixnet and records that its implementation is deferred, so the server you
   sync from does see your IP. What the mixnet keeps from it is the IP behind a
-  payment
-- The server health check behind the sidebar indicator, which asks each server
-  for its latest block over an ordinary connection
+  payment. The same holds for the other wallets synced in the background, each
+  against its own server
+- The server health check behind the indicator next to the active server, which
+  asks each server for its latest block over an ordinary connection
 - Swap traffic: quotes, the commit, tracking, and the token catalog with its
   logos. The provider therefore sees the IP the request came from, beside the
   addresses a quote has to carry.
@@ -285,6 +288,52 @@ Nym Mixnet turns the transport off and on. Switching it off also puts that
 session's payments on clearnet, which is the one way a payment travels that way:
 by being asked for. The choice is deliberately not saved, so the next launch
 starts on the mixnet again.
+
+---
+
+## Syncing every wallet
+
+The wallet you have open syncs itself and follows the chain while it is open.
+The others used to move only when you opened them, so a wallet you had not
+looked at for a while started days behind. Zingo PC now syncs them too, in the
+background, while you keep using the one in front of you.
+
+**When it runs**
+
+- By itself, ten seconds after the app has opened its wallet, and again
+  15 minutes after each run ends. The time is counted from the end, so a long
+  run is never overlapped by the next one
+- When you ask, from Wallet → Sync all Wallets (`Ctrl+Y`), after a
+  confirmation that says what it will do
+- Settings → Background Sync (`Ctrl+B`) turns the automatic runs off, and
+  counts down to the next one while they are on. Turned off, a run only starts
+  from the Wallet menu
+
+**What a run does**
+
+- Takes every wallet except the one open on screen, one after another: Mainnet
+  first, then Testnet, then Regtest. Each syncs from its own server — the one
+  you chose for it, or for an Auto wallet the fastest of the published ones
+- A thin line under the wallet bar, on every screen, says how many wallets are
+  done and which one is being synced; _Details_ opens the list of every wallet
+  with its state
+- From that list you can skip the wallet being synced, or cancel the whole run.
+  Either way what has been scanned is kept
+- A wallet that cannot be synced is passed over with the reason and the server
+  it failed on, and the run carries on with the next. The same goes to the log
+- An automatic run that ends with nothing to report puts its line away by
+  itself. One where a wallet failed leaves it, so you see what happened
+
+**What it costs**
+
+- Sending and shielding take longer while a run is going: the scan and the
+  proofs share the processor. They are not held back, only slower
+- A run you start from the menu keeps the computer from sleeping until it
+  ends. An automatic one does not: it comes round every 15 minutes, and keeping
+  a laptop awake that often is not something a setting left on should do
+- A wallet is never held open twice. Opening on screen the wallet a run is
+  syncing makes the run let go of it first, and the wallet open on screen is
+  never taken by a run
 
 ---
 

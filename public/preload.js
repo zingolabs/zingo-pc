@@ -108,6 +108,7 @@ const ALLOWED_RECEIVE = new Set([
   "deletewallet",
   "appquitting",
   "appsecurity",
+  "syncall-settings",
   "change-wallet-dir",
   "import-data",
   "mixnet-status",

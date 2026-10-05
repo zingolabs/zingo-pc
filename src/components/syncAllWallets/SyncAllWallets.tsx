@@ -7,6 +7,7 @@ import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import Utils from "../../utils/utils";
 import { SyncAllContext, WalletProgress } from "../../syncAll";
+import { AUTO_SYNC_LABEL } from "./SyncAllSettingsModal";
 
 type SyncAllWalletsProps = {
   /** Leaves the screen. A run in progress goes on without it. */
@@ -72,6 +73,14 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
     if (idle) onClose();
   }, [idle, onClose]);
 
+  // A run the app started by itself puts itself away when it ends with
+  // nothing to report. Not from under a user who is reading it.
+  const { setWatched } = run;
+  useEffect(() => {
+    setWatched(true);
+    return () => setWatched(false);
+  }, [setWatched]);
+
   const ordered: readonly WalletType[] = run.wallets;
   const synced: number = ordered.filter((w) => run.progress[w.id]?.kind === "synced").length;
 
@@ -92,7 +101,9 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
           <div>{wallet.alias}</div>
           <div className={`${cstyles.sublight} ${cstyles.small}`}>
             {Utils.chainDisplayName(wallet.chain_name)}
-            {state.kind === "syncing" && !!state.server && ` - ${state.server}`}
+            {/* The server while it syncs, and the one it failed on: which server
+                it was is half of what a failure says. */}
+            {(state.kind === "syncing" || state.kind === "failed") && !!state.server && ` - ${state.server}`}
           </div>
         </div>
         <div className={styles.state} style={{ color: stateColour(state) }}>
@@ -139,43 +150,53 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
         </ScrollPaneTop>
       </div>
 
-      <div
-        ref={footerRef}
-        className={`${cstyles.horizontalflex} ${styles.buttons}`}
-        style={{ justifyContent: "center" }}
-      >
-        {run.phase === "running" && (
-          <>
-            {/* For the wallet that is taking too long: the run goes on to the
+      <div ref={footerRef} className={styles.footer}>
+        {/* The same setting as Settings > Background Sync, here because this
+            is where a user who finds the app syncing by itself comes to see
+            what it is doing. It takes effect as it is ticked. */}
+        <label className={`${cstyles.small} ${styles.auto}`}>
+          <input
+            type="checkbox"
+            checked={run.autoEnabled}
+            onChange={(e) => run.setAutoEnabled(e.target.checked)}
+            style={{ width: 16, height: 16, cursor: "pointer", accentColor: "var(--color-primary)" }}
+          />
+          {AUTO_SYNC_LABEL}
+        </label>
+        <div className={`${cstyles.horizontalflex} ${styles.buttons}`} style={{ justifyContent: "center" }}>
+          {run.phase === "running" && (
+            <>
+              {/* For the wallet that is taking too long: the run goes on to the
                 next instead of holding at the same place every time it is
                 started. */}
+              <button
+                type="button"
+                className={cstyles.primarybutton}
+                disabled={run.cancelling || run.skipping || !inHand}
+                onClick={run.skip}
+              >
+                {run.skipping ? "Skipping..." : "Skip this wallet"}
+              </button>
+              {/* Named for what it cancels. A bare "Cancel" under a list reads
+                as a way out of the screen. */}
+              <button type="button" className={cstyles.primarybutton} disabled={run.cancelling} onClick={askToCancel}>
+                {run.cancelling ? "Cancelling..." : "Cancel Syncing"}
+              </button>
+            </>
+          )}
+          {run.phase === "done" && (
             <button
               type="button"
               className={cstyles.primarybutton}
-              disabled={run.cancelling || run.skipping || !inHand}
-              onClick={run.skip}
+              onClick={() => {
+                run.dismiss();
+                onClose();
+              }}
             >
-              {run.skipping ? "Skipping..." : "Skip this wallet"}
+              Close
             </button>
-            {/* Named for what it cancels. A bare "Cancel" under a list reads
-                as a way out of the screen. */}
-            <button type="button" className={cstyles.primarybutton} disabled={run.cancelling} onClick={askToCancel}>
-              {run.cancelling ? "Cancelling..." : "Cancel Syncing"}
-            </button>
-          </>
-        )}
-        {run.phase === "done" && (
-          <button
-            type="button"
-            className={cstyles.primarybutton}
-            onClick={() => {
-              run.dismiss();
-              onClose();
-            }}
-          >
-            Close
-          </button>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );

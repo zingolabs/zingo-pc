@@ -24,7 +24,9 @@ export type WalletProgress =
   | { readonly kind: "pending" }
   | { readonly kind: "syncing"; readonly server: string; readonly percent: number | null }
   | { readonly kind: "synced" }
-  | { readonly kind: "failed"; readonly reason: string }
+  // `server` is the one the wallet was being synced from, empty when it
+  // failed before one was chosen.
+  | { readonly kind: "failed"; readonly reason: string; readonly server?: string }
   // The user skipped this wallet: it was stopped mid-sync and the run moved on.
   | { readonly kind: "skipped" }
   // This is the wallet on screen, or became it: its own session syncs it.
@@ -114,6 +116,13 @@ async function syncOne(
       const poll = await deps.poll();
       if (poll.kind === "completed") return { kind: "synced" };
       if (poll.kind === "failed" || poll.kind === "idle") {
+        // The engine's own words, before they are put into the user's: the
+        // screen says what to do, the log has to say what happened.
+        if (poll.kind === "failed") {
+          console.log(
+            `sync all: wallet ${wallet.id} session failed (${poll.recovery ?? "no verdict"}): ${poll.reason}`,
+          );
+        }
         const recoverable = poll.kind === "idle" || poll.recovery === "maybe_recoverable_server";
         if (!recoverable || launches >= LAUNCHES_BEFORE_GIVING_UP) {
           return {
@@ -180,11 +189,26 @@ export async function runSyncAll(
     // A skip asked while the previous wallet was being stopped and saved was
     // meant for it, not for this one.
     controls.takeSkip();
+    // The server the wallet was last reported against, so a failure can say
+    // which one it came from, whichever step it came out of.
+    let server = "";
+    const report = (progress: WalletProgress) => {
+      if (progress.kind === "syncing" && progress.server) server = progress.server;
+      onProgress(wallet.id, progress);
+    };
     let outcome: WalletProgress;
     try {
-      outcome = await syncOne(wallet, deps, (progress) => onProgress(wallet.id, progress), controls);
+      outcome = await syncOne(wallet, deps, report, controls);
     } catch (error) {
       outcome = { kind: "failed", reason: userFacingError(error) };
+    }
+    if (outcome.kind === "failed" && server) outcome = { ...outcome, server };
+    // In the log as well as on screen: a failure seen once in passing is the
+    // one a user is asked about later.
+    if (outcome.kind === "failed") {
+      console.log(
+        `sync all: wallet ${wallet.id} (${wallet.alias}) failed on ${server || "no server"}: ${outcome.reason}`,
+      );
     }
     onProgress(wallet.id, outcome);
   }

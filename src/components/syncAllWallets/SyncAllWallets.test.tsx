@@ -64,7 +64,12 @@ const renderScreen = (deps: SyncAllDeps = fakeDeps(), openWalletId?: number, ope
   const makeDeps = () => deps;
 
   const Harness: React.FC = () => {
-    const run = useSyncAllRun(openWalletId, makeDeps);
+    const core = useSyncAllRun(openWalletId, makeDeps);
+    const [autoEnabled, setAutoEnabled] = React.useState<boolean>(true);
+    const run: SyncAllRun = React.useMemo(
+      () => ({ ...core, autoEnabled, setAutoEnabled, nextAutoRunAt: null }),
+      [core, autoEnabled, setAutoEnabled],
+    );
     const [shown, setShown] = React.useState<boolean>(true);
     held.run = run;
     held.showScreen = setShown;
@@ -132,6 +137,7 @@ describe("SyncAllWallets", () => {
 
     await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("1 of 2 wallets synced."));
     expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("This server cannot serve this wallet.");
+    expect(screen.getByTestId("sync-all-wallet-1")).toHaveTextContent("https://server-1");
     expect(screen.getByTestId("sync-all-wallet-2")).toHaveTextContent("Synced");
   });
 
@@ -359,6 +365,80 @@ describe("SyncAllWallets", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Cancel Syncing" }));
     release();
+  });
+});
+
+describe("a run the app started by itself", () => {
+  /** Starts a run as the scheduler does, with the screen up or away. */
+  const startAutomatic = (held: { run: SyncAllRun | null }) => act(() => held.run!.start(syncAllOrder(WALLETS), true));
+
+  // It comes round every few minutes. A line to dismiss each time, for a run
+  // nobody asked for and that has nothing to say, would be noise.
+  it("puts itself away when it ends with nothing to report and nobody watching", async () => {
+    const { held } = renderScreen();
+    act(() => held.showScreen(false));
+
+    startAutomatic(held);
+
+    await waitFor(() => expect(held.run?.phase).toBe("idle"));
+    expect(held.run?.wallets).toEqual([]);
+  });
+
+  it("stays to say so when a wallet could not be synced", async () => {
+    const { held } = renderScreen(
+      fakeDeps({ poll: async (): Promise<SessionPoll> => ({ kind: "failed", reason: "no", recovery: "abort" }) }),
+    );
+    act(() => held.showScreen(false));
+
+    startAutomatic(held);
+
+    await waitFor(() => expect(held.run?.phase).toBe("done"));
+  });
+
+  it("is not taken from under a user who is reading it", async () => {
+    const { held } = renderScreen();
+
+    startAutomatic(held);
+
+    await waitFor(() => expect(screen.getByTestId("sync-all-summary")).toHaveTextContent("2 of 2 wallets synced."));
+    expect(held.run?.phase).toBe("done");
+  });
+
+  // A wallet app that never lets a laptop sleep is not a trade the user
+  // made by leaving a setting on.
+  it("does not keep the computer awake", async () => {
+    const { held } = renderScreen();
+    act(() => held.showScreen(false));
+
+    startAutomatic(held);
+
+    await waitFor(() => expect(held.run?.phase).toBe("idle"));
+    expect(keepAwakeCalls()).toEqual([]);
+  });
+});
+
+describe("the automatic sync setting on the detail screen", () => {
+  it("shows the setting and changes it as it is ticked", async () => {
+    let release: () => void = () => {};
+    const { held } = renderScreen(
+      fakeDeps({
+        progress: async () => ({ caughtUp: false, percent: null }),
+        sleep: () => new Promise<void>((resolve) => (release = resolve)),
+      }),
+    );
+    startRun();
+    await waitFor(() => expect(screen.getByTestId("sync-all-in-hand")).toHaveTextContent("Savings"));
+
+    const box = screen.getByRole("checkbox", { name: "Sync all wallets automatically" });
+    expect(box).toBeChecked();
+    fireEvent.click(box);
+
+    expect(held.run?.autoEnabled).toBe(false);
+    expect(box).not.toBeChecked();
+
+    act(() => held.run!.cancel());
+    release();
+    await waitFor(() => expect(held.run?.phase).toBe("done"));
   });
 });
 
