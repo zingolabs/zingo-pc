@@ -214,9 +214,18 @@ crate-type = ["cdylib"]
 #
 # And clearnet is nakednet in every public name (#2856):
 # `TransmitPolicy::Clearnet` is `TransmitPolicy::Nakednet`.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "9d80d9aea1cecbe4dea3e0bd8d84f32092c29fcd", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "9d80d9aea1cecbe4dea3e0bd8d84f32092c29fcd" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "9d80d9aea1cecbe4dea3e0bd8d84f32092c29fcd" }
+#
+# This bump (9d80d9ae -> f14a10c4) repairs a wallet that every session failed
+# on with `shard tree error ← Inserted root conflicts with existing root`,
+# classified `Abort`, which only a rescan from the birthday got out of
+# (zingolib #2860, closing #2834). A session cut partway through a wallet
+# update left note commitments in the shard trees for blocks not yet recorded
+# as scanned, and a re-org that replaced those blocks made them conflict for
+# good. `sync` now rolls each tree back to the highest scanned height when it
+# starts, and the abort that could cut a session that way is gone.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "f14a10c47eeb1b61a2fd11acecfdd82f151d714a", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "f14a10c47eeb1b61a2fd11acecfdd82f151d714a" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "f14a10c47eeb1b61a2fd11acecfdd82f151d714a" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two
