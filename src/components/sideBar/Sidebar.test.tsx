@@ -327,6 +327,9 @@ describe("Sidebar", () => {
         skip: jest.fn(),
         dismiss: jest.fn(),
         releaseForScreen: jest.fn(),
+        setWatched: jest.fn(),
+        autoEnabled: false,
+        setAutoEnabled: jest.fn(),
         ...overrides,
       });
 

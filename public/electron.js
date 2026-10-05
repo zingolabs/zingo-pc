@@ -290,6 +290,12 @@ class MenuBuilder {
           },
         },
         {
+          label: "&Background Sync",
+          click: () => {
+            mainWindow.webContents.send("syncall-settings");
+          },
+        },
+        {
           label: "&Nym Mixnet",
           accelerator: "Ctrl+N",
           click: () => {
@@ -447,6 +453,12 @@ class MenuBuilder {
             accelerator: "Ctrl+Shift+S",
             click: () => {
               mainWindow.webContents.send("appsecurity");
+            },
+          },
+          {
+            label: "&Background Sync",
+            click: () => {
+              mainWindow.webContents.send("syncall-settings");
             },
           },
           {

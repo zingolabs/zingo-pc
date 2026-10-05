@@ -37,8 +37,8 @@ import { AddNewWallet } from "../components/addNewWallet";
 import { AddressBook, AddressbookImpl } from "../components/addressBook";
 import { Sidebar } from "../components/sideBar";
 import { WalletBar } from "../components/walletBar";
-import { SyncAllBanner, SyncAllWallets } from "../components/syncAllWallets";
-import { SyncAllContext, useSyncAllRun } from "../syncAll";
+import { SyncAllBanner, SyncAllSettingsModal, SyncAllWallets } from "../components/syncAllWallets";
+import { SyncAllContext, SyncAllRun, useAutoSyncAll, useSyncAllRun } from "../syncAll";
 import { History } from "../components/history";
 import { Swap } from "../components/swap";
 import type { SwapDirectionEnum } from "../swap/enums/SwapDirectionEnum";
@@ -86,13 +86,27 @@ const AppRoutes: React.FC = () => {
   const [currentWallet, setCurrentWalletState] = useState(defaultAppState.currentWallet);
   // The run of "sync all wallets". Held here, above the screens, because it
   // goes on in the background whichever of them is up.
-  const syncAll = useSyncAllRun(currentWallet?.id);
+  const syncAllRun = useSyncAllRun(currentWallet?.id);
   // For the listeners registered once, which would otherwise read the run as
   // it was when the app started.
   const syncAllRunningRef = useRef<boolean>(false);
-  syncAllRunningRef.current = syncAll.phase === "running";
+  syncAllRunningRef.current = syncAllRun.phase === "running";
   const [currentWalletOpenError, setCurrentWalletOpenErrorState] = useState(defaultAppState.currentWalletOpenError);
   const [wallets, setWalletsState] = useState(defaultAppState.wallets);
+  // The app starting runs by itself, once it has a wallet open and is past
+  // the loading screen: that is the first moment there is anything behind the
+  // wallet on screen to sync.
+  const autoSyncAll = useAutoSyncAll(
+    syncAllRun,
+    wallets,
+    currentWallet?.id,
+    location.pathname !== routes.LOADING && !!currentWallet?.id,
+  );
+  const syncAll: SyncAllRun = useMemo(
+    () => ({ ...syncAllRun, autoEnabled: autoSyncAll.enabled, setAutoEnabled: autoSyncAll.setEnabled }),
+    [syncAllRun, autoSyncAll.enabled, autoSyncAll.setEnabled],
+  );
+  const [syncAllSettingsOpen, setSyncAllSettingsOpen] = useState(false);
   const [birthday, setBirthdayState] = useState(defaultAppState.birthday);
   const [orchardPool, setOrchardPoolState] = useState(defaultAppState.orchardPool);
   const [saplingPool, setSaplingPoolState] = useState(defaultAppState.saplingPool);
@@ -312,6 +326,7 @@ const AppRoutes: React.FC = () => {
 
     const appsecurityListener = () => setSecurityModalOpen(true);
     const subscriptions = [ipcRenderer.on("appsecurity", appsecurityListener)];
+    subscriptions.push(ipcRenderer.on("syncall-settings", () => setSyncAllSettingsOpen(true)));
 
     // Change wallet folder location — main process handles the dialog, picker, and restart.
     // Not while every wallet is being synced: the run is reading that folder.
@@ -832,6 +847,7 @@ const AppRoutes: React.FC = () => {
     <ContextAppProvider value={contextAppState}>
       <SyncAllContext.Provider value={syncAll}>
         <AppSecurityModal isOpen={securityModalOpen} onClose={() => setSecurityModalOpen(false)} />
+        <SyncAllSettingsModal isOpen={syncAllSettingsOpen} onClose={() => setSyncAllSettingsOpen(false)} />
         <ImportDataModal
           isOpen={importModalOpen}
           scanResult={importScanResult}

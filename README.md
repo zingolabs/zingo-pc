@@ -116,9 +116,10 @@ yarn release:prep 2.0.15 142
 - Wallet seed phrase / UFVK backup viewer
 - Per-wallet performance profiles
 - Rescan from the Wallet menu, with a nonlinear scanning map on the dashboard showing sync progress
-- Sync all wallets from the Wallet menu — every other wallet is brought to the chain tip in turn, Mainnet first,
-  in the background while the app stays in use; a line under the wallet bar shows how far it has got on every
-  screen, and the computer is kept awake until it finishes
+- Sync all wallets — every other wallet is brought to the chain tip in turn, Mainnet first, in the background
+  while the app stays in use, with a line under the wallet bar showing how far it has got on every screen. The app
+  does it by itself when it starts and every 15 minutes after (Settings > Background Sync turns that off), and on
+  request from the Wallet menu, which also keeps the computer awake until it finishes
 
 **Transactions**
 

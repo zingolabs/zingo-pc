@@ -65,6 +65,20 @@
   max-width: 55%;
 }
 
+.footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.auto {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  cursor: pointer;
+}
+
 .buttons {
-  padding: 16px 0;
+  padding: 12px 0 16px 0;
 }
