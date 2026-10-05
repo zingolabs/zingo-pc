@@ -23,6 +23,7 @@ import { swapRowLabel } from "../../swap";
 import DetailLine from "../detailLine/DetailLine";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 import { useNavigate } from "react-router-dom";
+import buildId from "../../buildId";
 
 type DashboardProps = {
   navigateToHistory: () => void;
@@ -691,6 +692,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                             <DetailLine label="Server Network" value={Utils.chainDisplayName(info.chainName)} />
                             <DetailLine label="Server Version" value={info.version} />
                             <DetailLine label="Zingolib Version" value={info.zingolib} />
+                            <DetailLine label="Zingo PC Version" value={buildId()} />
                             <DetailLine label="Block Height" value={`${info.latestBlock}`} />
                             {info.currencyName === "ZEC" && (
                               <DetailLine
