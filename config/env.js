@@ -56,6 +56,20 @@ process.env.NODE_PATH = (process.env.NODE_PATH || "")
 // injected into the application via DefinePlugin in webpack configuration.
 const REACT_APP = /^REACT_APP_/i;
 
+// The commit the app is built from, for the build id the Dashboard shows
+// beside zingolib's. Empty where there is no repository to ask, such as a
+// build from a source tarball; the id then goes without it.
+function gitCommit() {
+  try {
+    return require("child_process")
+      .execSync("git rev-parse --short=7 HEAD", { cwd: appDirectory, stdio: ["ignore", "pipe", "ignore"] })
+      .toString()
+      .trim();
+  } catch (_) {
+    return "";
+  }
+}
+
 function getClientEnvironment(publicUrl) {
   const raw = Object.keys(process.env)
     .filter((key) => REACT_APP.test(key))
@@ -86,6 +100,7 @@ function getClientEnvironment(publicUrl) {
         // which is why it's disabled by default.
         // It is defined here so it is available in the webpackHotDevClient.
         FAST_REFRESH: process.env.FAST_REFRESH !== "false",
+        GIT_COMMIT: gitCommit(),
       },
     );
   // Stringify all values so we can feed into webpack DefinePlugin
