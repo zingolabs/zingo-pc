@@ -315,7 +315,7 @@ background, while you keep using the one in front of you.
   first, then Testnet, then Regtest. Each syncs from its own server — the one
   you chose for it, or for an Auto wallet the fastest of the published ones
 - A thin line under the wallet bar, on every screen, says how many wallets are
-  done and which one is being synced; *Details* opens the list of every wallet
+  done and which one is being synced; _Details_ opens the list of every wallet
   with its state
 - From that list you can skip the wallet being synced, or cancel the whole run.
   Either way what has been scanned is kept
