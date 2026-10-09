@@ -32,11 +32,6 @@ jobs:
         with:
           cmake-version: "latest"
 
-      - name: Install Protoc
-        uses: arduino/setup-protoc@v3
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Install dependencies
         run: yarn install
 

@@ -37,7 +37,6 @@ Zingo PC is written in Electron/JavaScript and can be built from source. It will
 - [Yarn](https://yarnpkg.com)
 - [Rust (stable)](https://www.rust-lang.org/tools/install)
 - [CMake](https://cmake.org/download/)
-- [Protobuf compiler](https://grpc.io/docs/protoc-installation/)
 
 #### Node.js version manager (recommended)
 
