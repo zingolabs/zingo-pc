@@ -12,12 +12,9 @@ crate-type = ["cdylib"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# Ironwood (NU6.3). Versions match the zingolib lockfile at the commit this
-# resolves to: mostly published crates.io zcash crates, plus a few from
-# librustzcash git (zcash_pool_migration, zcash_primitives 0.30) that the branch
-# needs, pinned in Cargo.lock (see the [patch] note below). Ground truth = that
-# Cargo.lock, not zingo-mobile's manifest. Build with `yarn neon` (needs
-# `protoc` on PATH).
+# Versions match the zingolib lockfile at the commit this resolves to: the
+# librustzcash NU7 pre-release cohort, all from crates.io. Ground truth = that
+# Cargo.lock, not zingo-mobile's manifest. Build with `yarn neon`.
 #
 # History of the previous dev pin, kept because the constraints it records
 # still hold: fix/for-zingo-pc-working (the boundary-carrier serde mint on
@@ -223,9 +220,23 @@ crate-type = ["cdylib"]
 # as scanned, and a re-org that replaced those blocks made them conflict for
 # good. `sync` now rolls each tree back to the highest scanned height when it
 # starts, and the abort that could cut a session that way is gone.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "f14a10c47eeb1b61a2fd11acecfdd82f151d714a", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "f14a10c47eeb1b61a2fd11acecfdd82f151d714a" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "f14a10c47eeb1b61a2fd11acecfdd82f151d714a" }
+#
+# This bump (f14a10c4 -> 6d43e7c4) is NU7. It activated on testnet at
+# 4,465,026 on 2026-10-04 with consensus branch id 0x77190AD9, and every
+# testnet wallet stopped syncing at the first NU7 transaction (zingolib
+# #2859). Mainnet follows on 2026-11-05. zingolib moves to the librustzcash
+# pre-release cohort that knows NU7 (#2878), so a transaction built above the
+# activation signs with the branch id the network accepts, and the expiry
+# delta becomes 120 blocks above it, where 40 blocks at the new 25-second
+# spacing gave a send 17 minutes to be mined (#2891).
+#
+# With it: a scan result's writes no longer start before the requests they
+# depend on, so a failed request leaves the wallet as it was (#2861); the
+# stale-scan check decides per task (#2851); and lightwallet-protocol 0.4.0
+# ships the Ironwood bindings, so no build needs protoc (#2882).
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "6d43e7c48343cc39cf99bad7e05349baaf4f0b90", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "6d43e7c48343cc39cf99bad7e05349baaf4f0b90" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "6d43e7c48343cc39cf99bad7e05349baaf4f0b90" }
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two
@@ -233,33 +244,33 @@ zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "f14a10c
 # `TryFrom<&UnifiedKeyStore>` impl only targets its own — the compiler then
 # reports a missing trait impl that looks nothing like a version mismatch.
 #
-# The 0.29/0.30 `zcash_primitives` split that forced the old rc.1 pin is gone:
-# the branch dropped the librustzcash git dependency and now takes every one of
-# these from crates.io. When bumping the zingolib rev, read its workspace
-# Cargo.toml and copy the numbers across.
-zcash_address = "0.13"
-zcash_client_backend = { version = "0.24.0", features = [
+# When bumping the zingolib rev, read its workspace Cargo.toml and copy the
+# numbers across. The NU7 cohort's pre-releases pin each other exactly, hence
+# the `=`: a looser requirement would let cargo pick a later pre-release that
+# the rest of the cohort does not match.
+zcash_address = "=0.14.0-pre.1"
+zcash_client_backend = { version = "=0.25.0-pre.1", features = [
     "lightwalletd-tonic",
     "orchard",
     "transparent-inputs",
 ] }
-zcash_encoding = "0.4"
-zcash_keys = { version = "0.16.1", features = [
+zcash_encoding = "0.5"
+zcash_keys = { version = "=0.17.0-pre.1", features = [
     "transparent-inputs",
     "sapling",
     "orchard",
 ] }
-zcash_note_encryption = "0.4.2"
-zcash_proofs = "0.30"
-zcash_protocol = "0.10"
-zcash_transparent = "0.10"
+zcash_note_encryption = "0.5.1"
+zcash_proofs = "=0.31.0-pre.1"
+zcash_protocol = "=0.11.0-pre.0"
+zcash_transparent = "=0.11.0-pre.1"
 
 rusqlite = { version = "0.37.0", features = ["bundled"] }
 
 zingo_common_components = "0.4.0"
 
 bip0039 = { version = "0.14", features = [ "rand" ] }
-zip32 = "0.2.0"
+zip32 = "0.3.0"
 json = "0.12"
 serde_json = "1"
 hex = "0.4"
@@ -297,10 +308,9 @@ cc = "1"
 
 # Only the patches zingolib's workspace applies: a dependency's own [patch]
 # table is ignored by cargo, so they are replicated here. lightwallet-protocol
-# carries the Ironwood proto fields (its `rebuild-proto` feature needs
-# `protoc` on PATH).
+# 0.4.0 at this rev ships its bindings generated from the Ironwood protos.
 [patch.crates-io]
-lightwallet-protocol = { git = "https://github.com/zingolabs/lightwallet-protocol-rust", rev = "9bdfdc77eb283f2a3d26c27100cc2ac90148cd93" }
+lightwallet-protocol = { git = "https://github.com/zingolabs/lightwallet-protocol-rust", rev = "02211904910a50218f8b15f6136b5b127f98e4cc" }
 
 [profile.release]
 debug = 1
