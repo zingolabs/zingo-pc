@@ -1,4 +1,5 @@
 import { SwapKitHttpError } from "./errors";
+import { RATE_LIMITED_MESSAGE, isRateLimited } from "./rateLimited";
 import { providerShortLabel } from "./providerLabels";
 import type { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 
@@ -14,6 +15,9 @@ import type { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
  * which is: take a fresh quote, or take another provider's route.
  */
 export function describeCommitFailure(error: unknown, provider?: SwapKitProviderEnum): string {
+  // Before the provider's name is put on anything: a 429 is the app's quota,
+  // and blaming whichever provider the route went through misleads.
+  if (isRateLimited(error)) return RATE_LIMITED_MESSAGE;
   const who = provider ? providerShortLabel(provider) : "The provider";
   const raw = `${error instanceof SwapKitHttpError ? `${error.message} ${error.body}` : String(error)}`.toLowerCase();
 
@@ -33,7 +37,7 @@ export function describeCommitFailure(error: unknown, provider?: SwapKitProvider
   if (raw.includes("expired") || raw.includes("quote not found") || raw.includes("route not found")) {
     return "That quote is no longer good. Refresh it and start the swap again.";
   }
-  if (raw.includes("ratelimit") || raw.includes("rate limit") || raw.includes("429")) {
+  if (raw.includes("ratelimit") || raw.includes("rate limit")) {
     return `${who} is refusing requests for the moment. Try again in a minute.`;
   }
   return `Could not start the swap: ${error}`;
@@ -58,7 +62,5 @@ export function describeCommitFailure(error: unknown, provider?: SwapKitProvider
  * about the route either, and the same press a moment later can go through.
  */
 export function commitRefusalCondemnsRoute(error: unknown): boolean {
-  return error instanceof SwapKitHttpError && error.httpStatus !== TOO_MANY_REQUESTS;
+  return error instanceof SwapKitHttpError && !isRateLimited(error);
 }
-
-const TOO_MANY_REQUESTS = 429;

@@ -254,7 +254,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
       const unreachable = error instanceof SwapKitNetworkError;
       setCatalogEdgeBlocked(edgeBlocked);
       setCatalogUnreachable(unreachable);
-      setCatalogError(edgeBlocked || unreachable ? "" : `${error}`);
+      setCatalogError(edgeBlocked || unreachable ? "" : describeQuoteFailure(error));
     } finally {
       if (!token.cancelled) setCatalogRetrying(false);
     }

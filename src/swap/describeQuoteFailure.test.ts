@@ -15,6 +15,16 @@ describe("describeQuoteFailure", () => {
     expect(describeQuoteFailure(error)).toBe("That amount is over the limit for a single swap. Try a smaller amount.");
   });
 
+  it("says the service is busy when the app is over its request quota", () => {
+    const error = new SwapKitHttpError({
+      operation: SwapOperationEnum.Quote,
+      httpStatus: 429,
+      body: '{"message":"Too Many Requests"}',
+    });
+
+    expect(describeQuoteFailure(error)).toBe("The swap service is busy right now. Try again in a minute.");
+  });
+
   it("leaves any other failure in its own words", () => {
     expect(describeQuoteFailure(new Error("network down"))).toBe("Error: network down");
   });
