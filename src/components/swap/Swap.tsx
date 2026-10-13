@@ -16,6 +16,9 @@ import {
   SwapKitNetworkError,
   describeEmptyQuote,
   describeQuoteFailure,
+  isRateLimited,
+  rateLimitWaitMs,
+  rateLimitedNotice,
   FAILED_REFRESH_RETRY_MS,
   quoteQuestionKey,
   carryOverRoutes,
@@ -206,6 +209,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // immediate re-quote; without a cooldown a spammed click would fire one HTTP
   // request per press.
   const [manualRefreshCooldownUntilMs, setManualRefreshCooldownUntilMs] = useState<number>(0);
+  // Until when the screen leaves the swap service alone after a 429. Its quota
+  // belongs to the app's key and every user waits on it, so a refresh every
+  // five seconds, which is what a failed one gets otherwise, would spend it
+  // for all of them while it is out. 0 while nothing is held off.
+  const [rateLimitedUntilMs, setRateLimitedUntilMs] = useState<number>(0);
   const [pickerOpen, setPickerOpen] = useState<boolean>(false);
   const [quotesOpen, setQuotesOpen] = useState<boolean>(false);
   const [slippageOpen, setSlippageOpen] = useState<boolean>(false);
@@ -617,6 +625,13 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
         }),
       });
     } catch (error) {
+      if (isRateLimited(error)) {
+        const now = Date.now();
+        setRateLimitedUntilMs(now + rateLimitWaitMs(error));
+        // The countdown reads the screen's clock, which ticks once a second
+        // and may be behind; set it, so the first figure is the whole wait.
+        setNowMs(now);
+      }
       // A refresh that failed outright brought nothing back: the routes on
       // screen that still stand stay, and it is asked again soon.
       const carried = carriedFrom([]);
@@ -641,7 +656,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // press. The debounce is what makes that affordable: an amount typed digit
   // by digit settles into one request instead of one per keystroke.
   useEffect(() => {
-    if (!canQuote || reviewing || quoting) return;
+    if (!canQuote || reviewing || quoting || rateLimitedUntilMs > 0) return;
     // Do NOT re-fire when the last attempt for the CURRENT inputs already
     // failed (below-minimum amount, no route, provider transient…). Without
     // this guard the debounce keeps hammering the API with the same failing
@@ -654,7 +669,17 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     // amount changes, which would restart the debounce on every keystroke and
     // then fire immediately once it settled, defeating the delay.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canQuote, reviewing, amount, slippageBps, selectedToken, direction, boundAddress, quoteAttemptFailed]);
+  }, [
+    canQuote,
+    reviewing,
+    amount,
+    slippageBps,
+    selectedToken,
+    direction,
+    boundAddress,
+    quoteAttemptFailed,
+    rateLimitedUntilMs,
+  ]);
 
   // Any input change that could make a previously-failed attempt worth
   // retrying clears the flag, so the auto-fire schedules again for the new
@@ -765,18 +790,28 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // snapshot they were shown, and the provider refuses a stale commit itself
   // if they linger.
   useEffect(() => {
-    if (!routes?.length || reviewing || quoting) return;
+    if ((!routes?.length && rateLimitedUntilMs === 0) || reviewing || quoting) return;
     const timer = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(timer);
-  }, [routes, reviewing, quoting]);
+  }, [routes, reviewing, quoting, rateLimitedUntilMs]);
+
+  const rateLimited: boolean = nowMs < rateLimitedUntilMs;
+  // The hold is over: quoting picks up by itself, and an error the 429 left
+  // with no routes on screen is not the last word for these inputs.
+  useEffect(() => {
+    if (rateLimitedUntilMs === 0 || nowMs < rateLimitedUntilMs) return;
+    setRateLimitedUntilMs(0);
+    setQuoteAttemptFailed(false);
+    setQuoteError("");
+  }, [nowMs, rateLimitedUntilMs]);
 
   const secondsToRefresh = Math.max(0, Math.ceil((refreshedAtMs + QUOTE_REFRESH_MS - nowMs) / 1000));
 
   useEffect(() => {
-    if (!routes?.length || reviewing || quoting) return;
+    if (!routes?.length || reviewing || quoting || rateLimited) return;
     if (nowMs - refreshedAtMs < QUOTE_REFRESH_MS) return;
     requestQuote();
-  }, [nowMs, refreshedAtMs, routes, reviewing, quoting, requestQuote]);
+  }, [nowMs, refreshedAtMs, routes, reviewing, quoting, rateLimited, requestQuote]);
 
   // The sidebar hides its entry in both cases, so reaching this is a direct
   // navigation. Saying which condition fails beats an empty form.
@@ -1024,7 +1059,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
 
         {quoteError && (
           <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
-            <div style={{ color: "var(--color-error)", whiteSpace: "pre-line" }}>{quoteError}</div>
+            <div style={{ color: "var(--color-error)", whiteSpace: "pre-line" }} data-testid="swap-quote-error">
+              {/* Counted down while held off, where the static sentence
+                  would go on saying "a minute" for a whole minute. */}
+              {rateLimited ? rateLimitedNotice(rateLimitedUntilMs - nowMs) : quoteError}
+            </div>
             {/* The countdown ring is the hand-refresh for a quote that worked,
                 and it lives in the Routes panel — which is not rendered when
                 there are no routes. So the one manual retry the screen had
@@ -1044,7 +1083,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
               type="button"
               className={cstyles.primarybutton}
               style={{ marginTop: 12 }}
-              disabled={quoting || reviewing || nowMs < manualRefreshCooldownUntilMs}
+              disabled={quoting || reviewing || rateLimited || nowMs < manualRefreshCooldownUntilMs}
               onClick={() => {
                 setManualRefreshCooldownUntilMs(Date.now() + MANUAL_REFRESH_COOLDOWN_MS);
                 setQuoteAttemptFailed(false);
@@ -1071,7 +1110,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                     ? "Refreshing..."
                     : reviewing
                       ? "Paused while you review"
-                      : `Refreshing in ${secondsToRefresh}s`}
+                      : rateLimited
+                        ? "Paused: service busy"
+                        : `Refreshing in ${secondsToRefresh}s`}
                 </div>
                 <QuoteRefreshRing
                   size={28}
@@ -1088,11 +1129,19 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                     setQuoteAttemptFailed(false);
                     requestQuote();
                   }}
-                  disabled={quoting || reviewing || nowMs < manualRefreshCooldownUntilMs}
+                  disabled={quoting || reviewing || rateLimited || nowMs < manualRefreshCooldownUntilMs}
                   title="Refresh the quote now"
                 />
               </div>
             </div>
+            {rateLimited && (
+              <div
+                className={`${cstyles.yellow} ${cstyles.small} ${cstyles.padtopsmall}`}
+                data-testid="swap-rate-limited"
+              >
+                {rateLimitedNotice(rateLimitedUntilMs - nowMs)}
+              </div>
+            )}
             {!!quoteNotice && (
               <div className={`${cstyles.yellow} ${cstyles.small} ${cstyles.padtopsmall}`}>{quoteNotice}</div>
             )}

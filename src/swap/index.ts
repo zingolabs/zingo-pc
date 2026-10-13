@@ -120,3 +120,4 @@ export { NearIntentsExecutor } from "./providers/NearIntentsExecutor";
 export { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
 export { mapSwapStatus, mapTrackingStatus } from "./providers/statusMapping";
 export { applyDefaultTrackUpdate, pickLegHash, isRealLegHash } from "./providers/trackUpdateBase";
+export { isRateLimited, rateLimitWaitMs, rateLimitedNotice, RATE_LIMITED_MESSAGE } from "./rateLimited";

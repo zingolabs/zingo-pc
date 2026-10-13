@@ -57,14 +57,34 @@ export class SwapKitNetworkError extends SwapKitError {
   }
 }
 
+/**
+ * `Retry-After` in milliseconds: delta-seconds, or an HTTP date taken from
+ * `now`. Null when absent or unreadable.
+ */
+export function parseRetryAfter(header: string | null | undefined, now: number): number | null {
+  if (!header) return null;
+  const trimmed = header.trim();
+  if (/^\d+$/.test(trimmed)) return Number(trimmed) * 1000;
+  const at = Date.parse(trimmed);
+  return Number.isNaN(at) ? null : Math.max(0, at - now);
+}
+
 /** Wrap a non-2xx HTTP response. */
 export class SwapKitHttpError extends SwapKitError {
   /** True when the response is the CF "Sorry, you have been blocked" page
    *  (or any 403 returning an HTML body). Used by the UI to render a
    *  region-specific banner instead of the generic error message. */
   readonly isEdgeBlocked: boolean;
+  /** How long the response's `Retry-After` asked to wait, when it said. */
+  readonly retryAfterMs: number | null;
 
-  constructor(args: { operation: SwapOperationEnum; httpStatus: number; body: string }) {
+  constructor(args: {
+    operation: SwapOperationEnum;
+    httpStatus: number;
+    body: string;
+    retryAfter?: string | null;
+    now?: number;
+  }) {
     // Extract a short, user-visible reason from the JSON body when SwapKit
     // returns one (`{message, error}`). Falls back to the raw body when not
     // JSON. Capped at 240 chars so the snackbar stays readable on phones.
@@ -81,6 +101,7 @@ export class SwapKitHttpError extends SwapKitError {
     });
     this.name = "SwapKitHttpError";
     this.isEdgeBlocked = isEdgeBlockedResponse(args.httpStatus, args.body);
+    this.retryAfterMs = parseRetryAfter(args.retryAfter, args.now ?? Date.now());
   }
 }
 

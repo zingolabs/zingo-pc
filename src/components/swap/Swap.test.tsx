@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { MemoryRouter } from "react-router-dom";
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import Swap from "./Swap";
 import { ContextApp, defaultAppState } from "../../context/ContextAppState";
 import { ServerChainNameEnum, TotalBalanceClass } from "../appstate";
@@ -145,5 +145,72 @@ describe("Swap with no way out to the provider", () => {
     expect(screen.getByText(/Can’t reach the swap service/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Retry/ })).toBeInTheDocument();
     expect(screen.queryByText(/fetch failed/)).not.toBeInTheDocument();
+  });
+});
+
+// SwapKit turned the app's key away for its request quota. Every user shares
+// that quota, so the screen holds its quotes off for as long as SwapKit asked,
+// says so with a countdown, and takes the hand refresh away until then.
+describe("Swap over the app's request quota", () => {
+  it("holds quotes off for as long as asked, says so, and quotes again after", async () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SwapKitHttpError } = require("../../swap");
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { SwapOperationEnum } = require("../../swap/enums/SwapErrorCategoryEnum");
+    const listRoutableTokens = jest.fn(async () => CATALOG);
+    const quote = jest.fn(async () => {
+      throw new SwapKitHttpError({
+        operation: SwapOperationEnum.Quote,
+        httpStatus: 429,
+        body: '{"message":"Too Many Requests"}',
+        retryAfter: "8",
+      });
+    });
+    mockService = { listRoutableTokens, quote };
+    // The wallet-side address a quote carries.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { native } = require("../../electronBridge");
+    native.derive_refund_address = jest.fn(async () => JSON.stringify({ encoded_address: "t1ephemeral" }));
+
+    jest.useFakeTimers();
+    try {
+      render(
+        <Arriving
+          spendable={0}
+          handoff={{ address: "SoLcontactAddress", swapChain: "SOL", direction: SwapDirectionEnum.Inbound }}
+        />,
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+
+      fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), { target: { value: "1" } });
+      await act(async () => {
+        jest.advanceTimersByTime(1_100);
+      });
+      expect(quote).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId("swap-quote-error")).toHaveTextContent(
+        "The swap service is busy right now. Quotes resume in 0:08.",
+      );
+      expect(screen.getByRole("button", { name: "Try Again" })).toBeDisabled();
+
+      // Nothing more is asked while it holds, however the screen ticks.
+      await act(async () => {
+        jest.advanceTimersByTime(5_000);
+      });
+      expect(quote).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId("swap-quote-error")).toHaveTextContent("Quotes resume in 0:03.");
+
+      // Once it is over, quoting picks up by itself.
+      await act(async () => {
+        jest.advanceTimersByTime(5_000);
+      });
+      await act(async () => {
+        jest.advanceTimersByTime(1_100);
+      });
+      expect(quote).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

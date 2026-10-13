@@ -4,6 +4,8 @@ export type SwapHttpResponse = {
   ok: boolean;
   status: number;
   text: string;
+  /** The `Retry-After` header, when the response carried one. */
+  retryAfter?: string | null;
 };
 
 /**
@@ -19,9 +21,9 @@ export type SwapHttpResponse = {
  * IPC. Main applies it, and its own cap, so an abort still cuts the request
  * even though the controller stays on this side.
  *
- * Main answers with the status and body rather than a `Response`, which is why
- * this returns a small shape instead of pretending to be `fetch`. The callers
- * only ever read those three fields.
+ * Main answers with the status, the body and `Retry-After` rather than a
+ * `Response`, which is why this returns a small shape instead of pretending to
+ * be `fetch`. Those are the only parts of a response the callers read.
  */
 export function swapHttpRequest(args: {
   url: string;
