@@ -50,6 +50,18 @@ describe("describeCommitFailure", () => {
 });
 
 describe("commitRefusalCondemnsRoute", () => {
+  // The app's key is over its quota, which every user shares: the route is
+  // fine, and the press can go through once the minute is out.
+  it("leaves the route alone when the app is over its request quota", () => {
+    const rateLimited = new SwapKitHttpError({
+      operation: SwapOperationEnum.Swap,
+      httpStatus: 429,
+      body: '{"message":"Too Many Requests"}',
+    });
+
+    expect(commitRefusalCondemnsRoute(rateLimited)).toBe(false);
+  });
+
   // The provider answered about this route id. Asking again changes nothing.
   it("condemns the route when the provider refused it", () => {
     expect(commitRefusalCondemnsRoute(httpError('{"message":"xchain_source_route_unavailable"}'))).toBe(true);

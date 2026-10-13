@@ -49,9 +49,16 @@ export function describeCommitFailure(error: unknown, provider?: SwapKitProvider
  * every asset bought, so a user who pressed the button once could press it
  * for ever.
  *
+ * A 429 is the exception: SwapKit turning this app's API key away for having
+ * used its quota, which every user shares. It says nothing about the route,
+ * and setting the provider aside for it would leave the user without one of
+ * the routes that is there to take once the minute is out.
+ *
  * Anything else — a timeout, the machine losing its network — says nothing
- * about the route, and the same press a moment later can go through.
+ * about the route either, and the same press a moment later can go through.
  */
 export function commitRefusalCondemnsRoute(error: unknown): boolean {
-  return error instanceof SwapKitHttpError;
+  return error instanceof SwapKitHttpError && error.httpStatus !== TOO_MANY_REQUESTS;
 }
+
+const TOO_MANY_REQUESTS = 429;
