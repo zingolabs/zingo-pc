@@ -1044,7 +1044,9 @@ ipcMain.handle("swapHttp:request", async (_e, request) => {
     });
     const text = await response.text();
     if (response.ok) rememberLogoHosts(parsed, text);
-    return { ok: response.ok, status: response.status, text };
+    // `Retry-After` is the one header the swap layer reads: how long SwapKit
+    // asks to be left alone after turning the app's key away for its quota.
+    return { ok: response.ok, status: response.status, text, retryAfter: response.headers.get("retry-after") };
   } finally {
     clearTimeout(timer);
   }

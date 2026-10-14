@@ -90,3 +90,19 @@ describe("SwapKitClient transient retries", () => {
     jest.spyOn(Date, "now").mockRestore();
   });
 });
+
+describe("SwapKitClient on the app's request quota", () => {
+  // A 429 is not retried: every user shares the quota, so asking again at
+  // once only spends it for all of them. How long to wait goes up with the
+  // error instead, for the screen to hold off by.
+  it("reports a 429 at once, with the wait its Retry-After asked for", async () => {
+    request.mockResolvedValue({ ok: false, status: 429, text: '{"message":"Too Many Requests"}', retryAfter: "30" });
+
+    const failure = await client()
+      .quote(quoteParams)
+      .catch((error: unknown) => error);
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(failure).toMatchObject({ httpStatus: 429, retryAfterMs: 30_000 });
+  });
+});

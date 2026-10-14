@@ -49,7 +49,41 @@ describe("describeCommitFailure", () => {
   });
 });
 
+describe("describeCommitFailure on the app's quota", () => {
+  // A 429 is the app's API key over its quota. The provider the route went
+  // through had nothing to do with it, so it is not named.
+  it("says the service is busy without naming the provider", () => {
+    const rateLimited = new SwapKitHttpError({
+      operation: SwapOperationEnum.Swap,
+      httpStatus: 429,
+      body: '{"message":"Too Many Requests"}',
+    });
+
+    expect(describeCommitFailure(rateLimited, SwapKitProviderEnum.Near)).toBe(
+      "The swap service is busy right now. Try again in a minute.",
+    );
+  });
+
+  it("still names the provider when its own answer says it is rate limiting", () => {
+    expect(describeCommitFailure(httpError('{"message":"rate limit"}'), SwapKitProviderEnum.Near)).toBe(
+      "NEAR is refusing requests for the moment. Try again in a minute.",
+    );
+  });
+});
+
 describe("commitRefusalCondemnsRoute", () => {
+  // The app's key is over its quota, which every user shares: the route is
+  // fine, and the press can go through once the minute is out.
+  it("leaves the route alone when the app is over its request quota", () => {
+    const rateLimited = new SwapKitHttpError({
+      operation: SwapOperationEnum.Swap,
+      httpStatus: 429,
+      body: '{"message":"Too Many Requests"}',
+    });
+
+    expect(commitRefusalCondemnsRoute(rateLimited)).toBe(false);
+  });
+
   // The provider answered about this route id. Asking again changes nothing.
   it("condemns the route when the provider refused it", () => {
     expect(commitRefusalCondemnsRoute(httpError('{"message":"xchain_source_route_unavailable"}'))).toBe(true);

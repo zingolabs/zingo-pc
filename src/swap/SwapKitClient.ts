@@ -346,6 +346,7 @@ export class SwapKitClient {
         operation: args.operation,
         httpStatus: response.status,
         body: text,
+        retryAfter: response.retryAfter,
       });
     }
 

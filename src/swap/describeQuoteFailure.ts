@@ -1,4 +1,5 @@
 import { SwapKitHttpError } from "./errors";
+import { RATE_LIMITED_MESSAGE, isRateLimited } from "./rateLimited";
 
 /**
  * Why asking for a quote failed, in the user's terms.
@@ -15,6 +16,7 @@ import { SwapKitHttpError } from "./errors";
  * limit is, so neither does this.
  */
 export function describeQuoteFailure(error: unknown): string {
+  if (isRateLimited(error)) return RATE_LIMITED_MESSAGE;
   const raw = `${error instanceof SwapKitHttpError ? `${error.message} ${error.body}` : String(error)}`.toLowerCase();
 
   if (raw.includes("swapsizeexceeded")) {
