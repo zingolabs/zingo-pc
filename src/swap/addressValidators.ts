@@ -177,6 +177,32 @@ const VALIDATORS: Readonly<Record<string, Validator>> = {
   SOL: isSol,
 };
 
+// The bech32 forms above, and CashAddr after them. Their specs (BIP 173, the
+// CashAddr spec) allow an address written all in uppercase, which is what a QR
+// code carries; mixed case is never valid. The regexes, SwapKit and the
+// providers all take the lowercase form, so an uppercase one is lowercased.
+const UPPERCASE_ALLOWED: Readonly<Record<string, Validator>> = {
+  BTC: (a) => BTC_BECH32_RE.test(a),
+  LTC: (a) => LTC_BECH32_RE.test(a),
+  BCH: (a) => BCH_CASHADDR_RE.test(a),
+  ATOM: (a) => ATOM_RE.test(a),
+  ADA: (a) => ADA_SHELLEY_RE.test(a),
+  ALEO: (a) => ALEO_RE.test(a),
+  THOR: (a) => THOR_RE.test(a),
+  MAYA: (a) => MAYA_RE.test(a),
+};
+
+/**
+ * The address as it should be validated, stored and sent: trimmed, and
+ * lowercased when it is an all-uppercase bech32 or CashAddr address.
+ */
+export function canonicalChainAddress(chain: string, address: string): string {
+  const trimmed = address.trim();
+  const lower = trimmed.toLowerCase();
+  const allowsUppercase = UPPERCASE_ALLOWED[chain.toUpperCase()];
+  return allowsUppercase && /^[A-Z0-9:]+$/.test(trimmed) && allowsUppercase(lower) ? lower : trimmed;
+}
+
 /**
  * Returns true when the address is plausibly a valid wallet address on the
  * given chain. Empty strings always validate so that the caller's
@@ -189,7 +215,7 @@ export function isValidChainAddress(chain: string, address: string): boolean {
   if (trimmed.length === 0) return true;
   const v = VALIDATORS[chain.toUpperCase()];
   if (!v) return true;
-  return v(trimmed);
+  return v(canonicalChainAddress(chain, trimmed));
 }
 
 /**

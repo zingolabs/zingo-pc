@@ -1,4 +1,4 @@
-import { isValidChainAddress } from "./addressValidators";
+import { canonicalChainAddress, isValidChainAddress } from "./addressValidators";
 // Keyed by SwapKit's chain codes, so a contact's chain meets the catalog's.
 describe("isValidChainAddress — SwapKit's chain codes", () => {
   const EVM = "0x1111111111111111111111111111111111111111";
@@ -29,5 +29,49 @@ describe("isValidChainAddress — SwapKit's chain codes", () => {
     expect(isValidChainAddress("MAYA", "maya1" + "q".repeat(38))).toBe(true);
     expect(isValidChainAddress("XMR", "4" + "8".repeat(94))).toBe(true);
     expect(isValidChainAddress("XMR", "4short")).toBe(false);
+  });
+});
+
+// BIP 173 and CashAddr allow an address in all uppercase, the form QR codes
+// carry. SwapKit and the providers take the lowercase one.
+describe("uppercase bech32 and CashAddr addresses", () => {
+  const BTC = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+  const LTC = "ltc1qw508d6qejxtdg4y5r3zarvary0c5xw7kgmn4n9";
+  const CASES: ReadonlyArray<[string, string]> = [
+    ["BTC", BTC],
+    ["LTC", LTC],
+    ["BCH", "bitcoincash:qpm2qsznhks23z7629mms6s4cwef74vcwvy22gdx6a"],
+    ["ATOM", "cosmos1" + "q".repeat(38)],
+    ["ADA", "addr1" + "q".repeat(58)],
+    ["ALEO", "aleo1" + "q".repeat(58)],
+    ["THOR", "thor1" + "q".repeat(38)],
+    ["MAYA", "maya1" + "q".repeat(38)],
+  ];
+
+  it.each(CASES)("validates a %s address in uppercase and lowercases it", (chain, address) => {
+    const upper = address.toUpperCase();
+    expect(isValidChainAddress(chain, upper)).toBe(true);
+    expect(canonicalChainAddress(chain, ` ${upper} `)).toBe(address);
+    expect(canonicalChainAddress(chain, address)).toBe(address);
+  });
+
+  it("refuses mixed case", () => {
+    const mixed = "bc1QW508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
+    expect(isValidChainAddress("BTC", mixed)).toBe(false);
+    expect(canonicalChainAddress("BTC", mixed)).toBe(mixed);
+  });
+
+  it("only lowercases for the address's own chain", () => {
+    expect(isValidChainAddress("LTC", BTC.toUpperCase())).toBe(false);
+    expect(canonicalChainAddress("ETH", BTC.toUpperCase())).toBe(BTC.toUpperCase());
+  });
+
+  // Base58 and base32 are case-sensitive: lowercasing would change the address.
+  it("leaves case-sensitive formats as they are", () => {
+    const legacy = "1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa";
+    const stellar = "G" + "A".repeat(55);
+    expect(canonicalChainAddress("BTC", legacy)).toBe(legacy);
+    expect(canonicalChainAddress("XLM", stellar)).toBe(stellar);
+    expect(isValidChainAddress("XLM", stellar)).toBe(true);
   });
 });
