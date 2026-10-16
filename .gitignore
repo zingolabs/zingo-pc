@@ -55,4 +55,4 @@ zingo-dev.pfx
 src/swap/swapKitSecrets.ts
 
 # SES shim staged into public/ by scripts/stage-ses.js
-public/ses.umd.min.js
+public/vendor/

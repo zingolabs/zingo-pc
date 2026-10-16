@@ -12,7 +12,9 @@ const fs = require("fs");
 const path = require("path");
 
 const source = path.join(__dirname, "..", "node_modules", "ses", "dist", "ses.umd.min.js");
-const target = path.join(__dirname, "..", "public", "ses.umd.min.js");
+const target = path.join(__dirname, "..", "public", "vendor", "ses.umd.min.js");
 
+// public/vendor/ keeps the shim out of `yarn lint:main`, which lints public/*.js.
+fs.mkdirSync(path.dirname(target), { recursive: true });
 fs.copyFileSync(source, target);
 console.log(`Staged ${path.relative(process.cwd(), target)} from ses ${require("ses/package.json").version}`);

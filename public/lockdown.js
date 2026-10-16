@@ -14,7 +14,7 @@
 // mistake). SES cures that only for a fixed list of properties, and it
 // refuses an accessor shim on any other, so the remaining cases are
 // patched at the source: see patches/@fortawesome+fontawesome-svg-core.
-lockdown({
+globalThis.lockdown({
   errorTaming: "unsafe",
   consoleTaming: "unsafe",
   errorTrapping: "none",
