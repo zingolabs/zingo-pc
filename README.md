@@ -74,6 +74,28 @@ always the same zingolib. CI runs these same steps.
 `yarn mixnet` rebuilds only `nym-proxy`, which is all that is needed after the
 pinned revision changes.
 
+### Hardened JavaScript
+
+The renderer runs under [SES](https://github.com/endojs/endo/tree/master/packages/ses)
+lockdown: the language intrinsics are frozen before any dependency runs. In
+development that is `public/lockdown.js`, loaded from `index.html`. In a
+production build [LavaMoat](https://github.com/LavaMoat/LavaMoat) also wraps
+every npm package in its own Compartment, with the globals its policy grants
+(`lavamoat/webpack/policy.json`, generated; `policy-override.json`, by hand).
+
+After a dependency change, regenerate the policy and commit it:
+
+```bash
+LAVAMOAT_GENERATE_POLICY=1 yarn script:build
+```
+
+A package that reaches a global the policy does not grant fails at runtime,
+typically as `TypeError: … is not an object` or `… is not a function` inside
+that package. To find every such gap in one session, build with
+`LAVAMOAT_DEBUG_RUNTIME=1`, use the app, and run `LM_printPolicyDebug()` in
+the DevTools console: it prints the entries `policy-override.json` still
+needs. Never ship a debug-runtime build.
+
 To build the proxy from a zingolib working copy instead — when developing
 `nym-proxy` itself — point `ZINGOLIB_PATH` at it. That opts out of the pinning,
 so it warns, and the `dist:*` scripts refuse it outright.

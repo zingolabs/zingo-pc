@@ -118,6 +118,7 @@
     "@electron/notarize": "^3.0.1",
     "@lavamoat/allow-scripts": "^5.1.0",
     "@lavamoat/preinstall-always-fail": "^3.0.1",
+    "@lavamoat/webpack": "^3.0.1",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.15",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "14.3.1",
