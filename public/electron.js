@@ -25,6 +25,24 @@
 // blocking pool instead of libuv's. Nothing here depends on the pool size any
 // more.
 
+// Hardened JavaScript for the main process, before anything else loads. The
+// main process holds the wallet, and every dependency it requires (keytar,
+// electron-settings, fs-extra, ...) runs with full Node access; freezing the
+// language intrinsics first means none of them can patch Object, Array,
+// Promise, JSON or Function.prototype for the rest. Same options as the
+// renderer's public/lockdown.js. No Compartments here: that is
+// @lavamoat/node, still being rewritten upstream.
+require("ses");
+globalThis.lockdown({
+  errorTaming: "unsafe",
+  consoleTaming: "unsafe",
+  errorTrapping: "none",
+  unhandledRejectionTrapping: "none",
+  overrideTaming: "severe",
+  stackFiltering: "verbose",
+  evalTaming: "unsafe-eval",
+});
+
 const {
   app,
   BrowserWindow,
