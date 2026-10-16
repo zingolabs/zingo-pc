@@ -53,3 +53,6 @@ zingo-dev.pfx
 # the file sits in the working tree while switching branches, and a branch
 # without this rule will happily pick it up in a `git add -A`.
 src/swap/swapKitSecrets.ts
+
+# SES shim staged into public/ by scripts/stage-ses.js
+public/vendor/
