@@ -54,7 +54,7 @@ nvm use 22.18.0
 ```bash
 git clone https://github.com/zingolabs/zingo-pc.git
 cd zingo-pc
-yarn install
+yarn setup
 yarn build
 yarn start
 ```
