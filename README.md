@@ -62,7 +62,7 @@ yarn start
 `yarn setup` installs with the frozen lockfile and then runs the dependency
 scripts the allowlist in `package.json` permits (`lavamoat.allowScripts`), plus
 our own `postinstall`. A plain `yarn add` or `yarn remove` re-links
-`node_modules` without them, which leaves Electron's binary, `keytar's` build
+`node_modules` without them, which leaves Electron's binary, `keytar`'s build
 and the patches behind: run `yarn allow-scripts` again afterwards.
 
 `yarn build` also builds `nym-proxy`, the mixnet transport, whose source lives
