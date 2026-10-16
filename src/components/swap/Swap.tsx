@@ -30,6 +30,7 @@ import {
   quoteAddressPair,
   quoteBindsAddress,
   validateAddressForChain,
+  canonicalChainAddress,
   zecNetworkFeeReserve,
 } from "../../swap";
 import type {
@@ -416,6 +417,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   }, [activeAddress, counterpartyChain, currentWallet]);
 
   const addressShowError = activeAddressTouched && activeAddress.trim().length > 0 && !addressValid;
+  // What is quoted, swapped to and saved: an uppercase bech32 address as the
+  // lowercase one SwapKit and the providers take.
+  const canonicalAddress = canonicalChainAddress(counterpartyChain, activeAddress);
 
   // Contacts for the chain being asked for. Zcash entries written before swaps
   // existed carry no `swapChain`; the address book migration stamps them ZEC
@@ -425,19 +429,19 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     [addressBook, counterpartyChain],
   );
   const activeContactLabel = useMemo(
-    () => chainContacts.find((c) => c.address === activeAddress)?.label,
-    [chainContacts, activeAddress],
+    () => chainContacts.find((c) => c.address === canonicalAddress)?.label,
+    [chainContacts, canonicalAddress],
   );
   const activeAddressSaved = useMemo(
-    () => chainContacts.some((c) => c.address === activeAddress),
-    [chainContacts, activeAddress],
+    () => chainContacts.some((c) => c.address === canonicalAddress),
+    [chainContacts, canonicalAddress],
   );
 
   // Saving asks for the label, which is the only thing the contact needs that
   // is not already on screen. `chain` is mainnet because swaps are mainnet-only;
   // `swapChain` is what actually identifies a Bitcoin or Ethereum address.
   const saveActiveAddress = (label: string) => {
-    addAddressBookEntry(label, activeAddress.trim(), ServerChainNameEnum.mainChainName, counterpartyChain);
+    addAddressBookEntry(label, canonicalAddress, ServerChainNameEnum.mainChainName, counterpartyChain);
   };
 
   const amountNumber = parseFloat(amount.replace(",", "."));
@@ -495,9 +499,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   }, [ephemeralAddress]);
 
   // The counterparty address the next quote should carry, empty while there
-  // is nothing valid to carry. Trimmed here so the value compared against the
-  // committed quote below is the same one that was sent.
-  const boundAddress = addressReady ? activeAddress.trim() : "";
+  // is nothing valid to carry. Canonical here so the value compared against
+  // the committed quote below is the same one that was sent.
+  const boundAddress = addressReady ? canonicalAddress : "";
 
   const requestQuote = useCallback(async () => {
     if (!swapService || !selectedToken) return;
@@ -1282,7 +1286,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
 
       {saveContactOpen && (
         <SaveContact
-          address={activeAddress.trim()}
+          address={canonicalAddress}
           chainLabel={chainDisplayName(counterpartyChain) || counterpartyChain}
           modalIsOpen={saveContactOpen}
           closeModal={() => setSaveContactOpen(false)}

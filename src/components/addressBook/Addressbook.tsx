@@ -12,6 +12,7 @@ import AddressBookItem from "./components/AddressbookItem";
 import { ContextApp } from "../../context/ContextAppState";
 import { isSameZnsAlias, isZnsAlias, resolveZnsAlias } from "../../utils/zns";
 import {
+  canonicalChainAddress,
   chainFromPaymentUri,
   extractPlainAddress,
   possibleChainsForAddress,
@@ -213,7 +214,12 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     // nothing to do with it.
     const entryChain = swapChain === ZEC_SWAP_CHAIN ? currentChain : ServerChainNameEnum.mainChainName;
     const commit = () => {
-      addAddressBookEntry(currentLabel, currentAddress.replace(/ /g, ""), entryChain, swapChain);
+      addAddressBookEntry(
+        currentLabel,
+        canonicalChainAddress(swapChain, currentAddress.replace(/ /g, "")),
+        entryChain,
+        swapChain,
+      );
       clearFields();
     };
 
@@ -264,7 +270,8 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
           _isZns: false,
         };
       }
-      const dup = addressBook.find((i: AddressBookEntryClass) => i.address === _currentAddress);
+      const canonical = canonicalChainAddress(swapChain, _currentAddress);
+      const dup = addressBook.find((i: AddressBookEntryClass) => i.address === canonical);
       return { _addressError: dup ? "Duplicate Address" : null, _addressKind: undefined, _isZns: false };
     }
 

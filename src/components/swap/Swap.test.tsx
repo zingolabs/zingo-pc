@@ -214,3 +214,38 @@ describe("Swap over the app's request quota", () => {
     }
   });
 });
+
+// A QR code carries a bech32 address in uppercase. The quote goes out with the
+// lowercase form SwapKit and the providers take.
+describe("Swap with an uppercase bech32 address", () => {
+  it("quotes with the address lowercased", async () => {
+    const lower = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
+    const listRoutableTokens = jest.fn(async () => CATALOG);
+    const quote = jest.fn(async () => ({ routes: [], providerErrors: [] }));
+    mockService = { listRoutableTokens, quote };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { native } = require("../../electronBridge");
+    native.derive_refund_address = jest.fn(async () => JSON.stringify({ encoded_address: "t1ephemeral" }));
+
+    jest.useFakeTimers();
+    try {
+      render(
+        <Arriving
+          spendable={0}
+          handoff={{ address: lower.toUpperCase(), swapChain: "BTC", direction: SwapDirectionEnum.Inbound }}
+        />,
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+
+      fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), { target: { value: "1" } });
+      await act(async () => {
+        jest.advanceTimersByTime(1_100);
+      });
+      expect(quote).toHaveBeenCalledWith(expect.objectContaining({ sourceAddress: lower }));
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
