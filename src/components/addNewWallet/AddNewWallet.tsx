@@ -13,7 +13,9 @@ import {
 } from "../appstate";
 import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
-import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
+import selectFastestServer from "../../utils/selectFastestServer";
+import { withRecommended } from "../../utils/recommendedServers";
+import pickAutoServer from "../../utils/pickAutoServer";
 import Utils from "../../utils/utils";
 import { native, ipcRenderer } from "../../electronBridge";
 import { useLocation } from "react-router-dom";
@@ -97,8 +99,14 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         return;
       }
       setServers([
-        ...(mainLive.length > 0 ? mainLive : staticFor(ServerChainNameEnum.mainChainName)),
-        ...(testLive.length > 0 ? testLive : staticFor(ServerChainNameEnum.testChainName)),
+        ...withRecommended(
+          ServerChainNameEnum.mainChainName,
+          mainLive.length > 0 ? mainLive : staticFor(ServerChainNameEnum.mainChainName),
+        ),
+        ...withRecommended(
+          ServerChainNameEnum.testChainName,
+          testLive.length > 0 ? testLive : staticFor(ServerChainNameEnum.testChainName),
+        ),
       ]);
     })();
     return () => {
@@ -128,21 +136,13 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
   // whatever chain it was last on, which is the whole hazard when the new
   // wallet is the first on a different one.
   //
-  // Same order LoadingScreen uses, and the same two helpers: the live registry
-  // for that chain, raced for speed because the registry ranks by uptime and a
-  // reliable server answering in ten seconds is not the one to build on; then
-  // the static list for that chain; and it gives up rather than guessing, so a
-  // caller can say so instead of dialling another chain's server.
-  const resolveAutoServer = useCallback(async (chain: ServerChainNameEnum): Promise<string> => {
-    const live: ServerClass[] = await fetchServerList(chain);
-    const candidates: ServerClass[] =
-      live.length > 0
-        ? live.slice(0, RACE_CANDIDATES)
-        : serverUrisList().filter((sv: ServerClass) => sv.chain_name === chain && !sv.obsolete);
-    if (candidates.length === 0) return "";
-    const quickest: ServerClass | null = await selectFastestServer(candidates);
-    return quickest ? quickest.uri : candidates[0].uri;
-  }, []);
+  // The pick LoadingScreen makes (`pickAutoServer`), for that chain. Empty only
+  // for a chain with no default, so a caller can say so instead of dialling
+  // another chain's server.
+  const resolveAutoServer = useCallback(
+    async (chain: ServerChainNameEnum): Promise<string> => (await pickAutoServer(chain))?.uri ?? "",
+    [],
+  );
 
   // Choosing Automatic, and re-choosing it when the chain changes underneath.
   //
@@ -1203,7 +1203,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                                 {s.uri +
                                   " - " +
                                   Utils.chainDisplayName(s.chain_name) +
-                                  (s.latency ? " _ " + s.latency + " ms." : "")}
+                                  (s.latency ? " _ " + s.latency + " ms." : "") +
+                                  (s.recommended ? " _ recommended" : "")}
                               </option>
                             ))}
                         </select>

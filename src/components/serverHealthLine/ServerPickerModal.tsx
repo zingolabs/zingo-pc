@@ -5,8 +5,10 @@ import styles from "./ServerHealthLine.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import { ServerChainNameEnum, ServerClass, ServerSelectionEnum } from "../appstate";
 import fetchServerList from "../../utils/fetchServerList";
-import selectFastestServer, { RACE_CANDIDATES, latencyOf } from "../../utils/selectFastestServer";
+import { latencyOf } from "../../utils/selectFastestServer";
 import serverUrisList from "../../utils/serverUrisList";
+import { withRecommended } from "../../utils/recommendedServers";
+import pickAutoServer from "../../utils/pickAutoServer";
 import Utils from "../../utils/utils";
 import { matchesAllWords } from "../../utils/textSearch";
 
@@ -67,8 +69,10 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
       if (dropped) {
         return;
       }
-      const listed =
-        live.length > 0 ? live : serverUrisList().filter((s: ServerClass) => !s.obsolete && s.chain_name === chainName);
+      const listed = withRecommended(
+        chainName,
+        live.length > 0 ? live : serverUrisList().filter((s: ServerClass) => !s.obsolete && s.chain_name === chainName),
+      );
       setServers(listed);
       if (listed.length === 0) {
         return;
@@ -90,8 +94,10 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
       const byUri = new Map(measured);
       // Answered first, quickest first among them; the silent ones keep the
       // registry's order at the bottom, where they belong without being hidden.
+      // Recommended servers stay on top whatever they measured.
       setServers(
         [...listed].sort((a: ServerClass, b: ServerClass) => {
+          if (!!a.recommended !== !!b.recommended) return a.recommended ? -1 : 1;
           const ma = byUri.get(a.uri);
           const mb = byUri.get(b.uri);
           if (ma === null || ma === undefined) return mb === null || mb === undefined ? 0 : 1;
@@ -176,6 +182,7 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
           >
             {/* Same shape as the wallet settings picker, so the two read alike. */}
             <span>{s.uri + " - " + Utils.chainDisplayName(s.chain_name) + timing(s)}</span>
+            {s.recommended && <span className={styles.badge}>recommended</span>}
             {s.uri === currentUri && <span className={styles.badge}>current</span>}
           </button>
         ))}
@@ -214,9 +221,7 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
               disabled={racing}
               onClick={async () => {
                 setRacing(true);
-                const candidates = servers.slice(0, RACE_CANDIDATES);
-                const quickest = await selectFastestServer(candidates);
-                const target = quickest ? quickest.uri : candidates[0].uri;
+                const target = (await pickAutoServer(chainName))?.uri ?? servers[0].uri;
                 setRacing(false);
                 if (target === currentUri) delegateServerChoice();
                 else switchServer(target, ServerSelectionEnum.auto);
