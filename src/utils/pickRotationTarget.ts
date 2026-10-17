@@ -1,7 +1,8 @@
 import { ServerChainNameEnum, ServerClass } from "../components/appstate";
 import fetchServerList from "./fetchServerList";
-import selectFastestServer, { RACE_CANDIDATES } from "./selectFastestServer";
 import serverUrisList from "./serverUrisList";
+import { withRecommended } from "./recommendedServers";
+import pickAutoServer from "./pickAutoServer";
 
 // A rotation is the user waiting on a click, not a launch settling in, so it
 // gives up on a silent server sooner than the boot-time race does.
@@ -24,7 +25,7 @@ export const rotationCandidates = async (
 ): Promise<ServerClass[]> => {
   const live: ServerClass[] = await fetchServerList(chainName);
   if (live.length > 0) {
-    return live.filter((s: ServerClass) => !rejected.includes(s.uri));
+    return withRecommended(chainName, live, rejected).filter((s: ServerClass) => !rejected.includes(s.uri));
   }
   return serverUrisList().filter(
     (s: ServerClass) => s.chain_name === chainName && !s.obsolete && !rejected.includes(s.uri),
@@ -34,18 +35,12 @@ export const rotationCandidates = async (
 /**
  * The server to move to, or null when there is nowhere to go.
  *
- * Same shape as the launch pick: race the best few against each other and take
- * whoever answers first, since the registry ranks by its own ping and not by
- * what this machine sees. Staying on the same chain is not negotiable — a
- * wallet cannot follow its server onto a different one.
+ * The launch pick (`pickAutoServer`), never landing on a rejected server.
+ * Staying on the same chain is not negotiable — a wallet cannot follow its
+ * server onto a different one.
  */
-const pickRotationTarget = async (chainName: ServerChainNameEnum, rejected: string[]): Promise<string | null> => {
-  const candidates: ServerClass[] = (await rotationCandidates(chainName, rejected)).slice(0, RACE_CANDIDATES);
-  if (candidates.length === 0) {
-    return null;
-  }
-  const quickest: ServerClass | null = await selectFastestServer(candidates, ROTATION_PROBE_MS);
-  return quickest ? quickest.uri : candidates[0].uri;
-};
+const pickRotationTarget = async (chainName: ServerChainNameEnum, rejected: string[]): Promise<string | null> =>
+  (await pickAutoServer(chainName, { avoided: rejected, probeMs: ROTATION_PROBE_MS, defaultEvenIfAvoided: false }))
+    ?.uri ?? null;
 
 export default pickRotationTarget;
