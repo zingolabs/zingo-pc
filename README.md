@@ -89,10 +89,14 @@ After a dependency change, regenerate the policy and commit it:
 LAVAMOAT_GENERATE_POLICY=1 yarn script:build
 ```
 
+`yarn start` serves the development bundle, which has lockdown but no
+Compartments. `yarn start:prod` builds the production bundle, serves it on the
+port the unpackaged Electron loads and launches the app against it.
+
 A package that reaches a global the policy does not grant fails at runtime,
 typically as `TypeError: … is not an object` or `… is not a function` inside
-that package. To find every such gap in one session, build with
-`LAVAMOAT_DEBUG_RUNTIME=1`, use the app, and run `LM_printPolicyDebug()` in
+that package. To find every such gap in one session, run
+`yarn start:prod --debug-policy`, use the app, and run `LM_printPolicyDebug()` in
 the DevTools console: it prints the entries `policy-override.json` still
 needs. Never ship a debug-runtime build.
 
