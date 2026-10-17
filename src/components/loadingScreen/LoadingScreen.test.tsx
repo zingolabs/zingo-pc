@@ -243,15 +243,17 @@ test("auto skips a server the user rotated away from", async () => {
   expect(savedSetting("serveruri")).toEqual(["https://two.zec.rocks:443"]);
 });
 
-// Rejecting everything must not leave the wallet with no server at all.
-test("auto falls back to a rejected server rather than none", async () => {
+// Rejecting the registry's only server must not leave the wallet with none:
+// the static list answers next.
+test("auto moves on to the static list when the registry offers only a rejected server", async () => {
   liveList.mockResolvedValue([liveServer("https://one.zec.rocks:443")]);
   bootWithSelection(ServerSelectionEnum.auto, "https://one.zec.rocks:443", ServerChainNameEnum.mainChainName, [
     "https://one.zec.rocks:443",
   ]);
 
   await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
-  expect(savedSetting("serveruri")).toEqual(["https://one.zec.rocks:443"]);
+  expect(savedSetting("serveruri")).not.toContain("https://one.zec.rocks:443");
+  expect(savedSetting("serveruri")[0]).toMatch(/zec\.rocks|zainod/);
 });
 
 // Automatic takes the recommended (Zaino) server while it answers, ahead of
@@ -272,7 +274,7 @@ test("auto asks for the recommended server without the ones rotated away from", 
   bootWithSelection(ServerSelectionEnum.auto, ZAINO, ServerChainNameEnum.mainChainName, [ZAINO]);
 
   await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
-  expect(recommended).toHaveBeenCalledWith(ServerChainNameEnum.mainChainName, [ZAINO]);
+  expect(recommended.mock.calls[0].slice(0, 2)).toEqual([ServerChainNameEnum.mainChainName, [ZAINO]]);
 });
 
 test.each([

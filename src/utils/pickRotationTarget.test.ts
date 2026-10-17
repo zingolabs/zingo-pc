@@ -35,17 +35,22 @@ test("takes whichever of the registry's best answers first, not the first listed
 });
 
 // A registry whose best few all stay silent still has to yield a server.
-test("falls back to the registry order when none of them answers", async () => {
+test("falls back to the default server when none of them answers", async () => {
   liveList.mockResolvedValue([server("https://one.zec.rocks:443"), server("https://two.zec.rocks:443")]);
 
   expect(await pickRotationTarget(ServerChainNameEnum.mainChainName, ["https://old.zec.rocks:443"])).toBe(
-    "https://one.zec.rocks:443",
+    "https://mainnet.zainod.zingolabs.dev:443",
   );
 });
+
+// Every server but the recommended one answers, so the registry is reached.
+const answersButZaino = async (servers: ServerClass[]) =>
+  servers.find((s) => s.uri !== "https://mainnet.zainod.zingolabs.dev:443") ?? null;
 
 // The whole point of rotating is to leave the server that is not answering.
 test("never returns the server it was asked to leave", async () => {
   liveList.mockResolvedValue([server("https://old.zec.rocks:443"), server("https://two.zec.rocks:443")]);
+  race.mockImplementation(answersButZaino);
 
   expect(await pickRotationTarget(ServerChainNameEnum.mainChainName, ["https://old.zec.rocks:443"])).toBe(
     "https://two.zec.rocks:443",
@@ -106,10 +111,21 @@ test("skips every server already rejected", async () => {
     server("https://three.zec.rocks:443"),
   ]);
 
+  race.mockImplementation(answersButZaino);
+
   const target = await pickRotationTarget(ServerChainNameEnum.mainChainName, [
     "https://one.zec.rocks:443",
     "https://two.zec.rocks:443",
   ]);
 
   expect(target).toBe("https://three.zec.rocks:443");
+});
+
+// Rotating away from the default too, with nothing answering, leaves nowhere.
+test("gives up when nothing answers and the default is the server being left", async () => {
+  liveList.mockResolvedValue([server("https://one.zec.rocks:443")]);
+
+  expect(
+    await pickRotationTarget(ServerChainNameEnum.mainChainName, ["https://mainnet.zainod.zingolabs.dev:443"]),
+  ).toBeNull();
 });

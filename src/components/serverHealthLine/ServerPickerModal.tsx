@@ -5,9 +5,10 @@ import styles from "./ServerHealthLine.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import { ServerChainNameEnum, ServerClass, ServerSelectionEnum } from "../appstate";
 import fetchServerList from "../../utils/fetchServerList";
-import selectFastestServer, { RACE_CANDIDATES, latencyOf } from "../../utils/selectFastestServer";
+import { latencyOf } from "../../utils/selectFastestServer";
 import serverUrisList from "../../utils/serverUrisList";
-import { pickRecommended, withRecommended } from "../../utils/recommendedServers";
+import { withRecommended } from "../../utils/recommendedServers";
+import pickAutoServer from "../../utils/pickAutoServer";
 import Utils from "../../utils/utils";
 import { matchesAllWords } from "../../utils/textSearch";
 
@@ -220,11 +221,7 @@ const ServerPickerModal: React.FC<ServerPickerModalProps> = ({ modalIsOpen, clos
               disabled={racing}
               onClick={async () => {
                 setRacing(true);
-                const recommended = await pickRecommended(chainName);
-                const others = servers.filter((s: ServerClass) => !s.recommended);
-                const candidates = (others.length > 0 ? others : servers).slice(0, RACE_CANDIDATES);
-                const quickest = recommended ? null : await selectFastestServer(candidates);
-                const target = recommended ?? (quickest ? quickest.uri : candidates[0].uri);
+                const target = (await pickAutoServer(chainName))?.uri ?? servers[0].uri;
                 setRacing(false);
                 if (target === currentUri) delegateServerChoice();
                 else switchServer(target, ServerSelectionEnum.auto);

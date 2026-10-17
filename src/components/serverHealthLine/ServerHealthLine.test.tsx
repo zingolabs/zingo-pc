@@ -281,15 +281,16 @@ test("Auto records the mode alone when the race lands on the server in use", asy
   expect(switchServer).not.toHaveBeenCalled();
 });
 
-// A race nobody wins still has to answer. The head is the registry's own best
-// guess, which is the right thing to fall back to.
-test("Auto falls back to the head when no candidate answers", async () => {
+// A race nobody wins still has to answer: the default server, as at launch.
+test("Auto falls back to the default server when no candidate answers", async () => {
   registry("https://head.example:443", "https://second.example:443");
   race.mockResolvedValue(null);
   await openPickerFromList();
 
   fireEvent.click(screen.getByRole("button", { name: "Auto" }));
-  await waitFor(() => expect(switchServer).toHaveBeenCalledWith("https://head.example:443", ServerSelectionEnum.auto));
+  await waitFor(() =>
+    expect(switchServer).toHaveBeenCalledWith("https://mainnet.zainod.zingolabs.dev:443", ServerSelectionEnum.auto),
+  );
 });
 
 // Reachable from auto through the confirmation's third button, and offered

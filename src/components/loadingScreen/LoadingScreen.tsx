@@ -16,16 +16,11 @@ import styles from "./LoadingScreen.module.css";
 import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
-import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
-import { pickRecommended } from "../../utils/recommendedServers";
+import pickAutoServer from "../../utils/pickAutoServer";
 import Utils from "../../utils/utils";
 import { userFacingError } from "../../utils/userFacingError";
 import { Logo } from "../logo";
 import DetailLine from "../detailLine/DetailLine";
-
-// The server we ship for a chain, or "" for a chain we publish none for.
-const defaultServerForChain = (chain: ServerChainNameEnum): string =>
-  serverUrisList().find((s: ServerClass) => s.chain_name === chain && !s.obsolete && s.default)?.uri ?? "";
 
 // How long startup may take before we stop waiting and say so. Opening a large
 // wallet file is the slowest legitimate step and stays well inside this; the
@@ -244,48 +239,20 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
     if (selection === ServerSelectionEnum.auto) {
       // Servers the user has rotated away from this session. Rotating reopens
       // the wallet, which lands right back here, and without this the pick would
-      // undo the rotation by taking the registry's head again — the very server
-      // just rejected. Dropped if it would leave nothing: a rejected server
-      // still beats no server.
+      // undo the rotation by taking the same server again. The default still
+      // stands when nothing else answers: a rejected server beats no server.
       const { avoidedServers } = this.context as React.ContextType<typeof ContextApp>;
-      const keep = (list: ServerClass[]) => {
-        const kept = list.filter((s: ServerClass) => !avoidedServers.includes(s.uri));
-        return kept.length > 0 ? kept : list;
-      };
 
       const alreadyPicked: string | undefined = this.autoPicked.get(chain_name);
-      // A recommended (Zaino) server goes first while it answers, unless the
-      // user has rotated away from it.
-      const recommended: string | null = alreadyPicked
-        ? null
-        : await this.stepped("trying recommended server", () => pickRecommended(chain_name, avoidedServers));
       if (alreadyPicked) {
         uri = alreadyPicked;
-      } else if (recommended) {
-        uri = recommended;
-        this.autoPicked.set(chain_name, uri);
-      } else if (live.length > 0) {
-        // Race the registry's best few rather than trusting its order. It ranks
-        // by 30-day uptime, which is not speed: a reliable server answering in
-        // ten seconds sits at the top of that list and made the wallet crawl.
-        const candidates: ServerClass[] = keep(live).slice(0, RACE_CANDIDATES);
-        const quickest: ServerClass | null = await this.stepped("selecting fastest server", () =>
-          selectFastestServer(candidates),
-        );
-        uri = quickest ? quickest.uri : candidates[0].uri;
-        this.autoPicked.set(chain_name, uri);
       } else {
-        // No registry: race the static list for this chain, and if not one of
-        // them answers, fall back to the server we ship for that chain. Keep
-        // the URI we came in with when the chain has neither (regtest), rather
-        // than blanking a working localhost node.
-        const servers: ServerClass[] = keep(
-          serverUrisList().filter((s: ServerClass) => s.chain_name === chain_name && !s.obsolete),
+        // Keep the URI we came in with when the chain has no default
+        // (regtest), rather than blanking a working localhost node.
+        const picked = await this.stepped("selecting server", () =>
+          pickAutoServer(chain_name, { avoided: avoidedServers, live }),
         );
-        const fastest: ServerClass | null = await this.stepped("selecting fastest server", () =>
-          selectFastestServer(servers),
-        );
-        uri = fastest ? fastest.uri : defaultServerForChain(chain_name) || uri;
+        uri = picked ? picked.uri : uri;
         if (uri) {
           this.autoPicked.set(chain_name, uri);
         }
