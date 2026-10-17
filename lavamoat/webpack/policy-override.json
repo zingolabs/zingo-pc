@@ -15,6 +15,12 @@
       "globals": {
         "document.activeElement": true
       }
+    },
+    "react-textarea-autosize": {
+      "globals": {
+        "addEventListener": true,
+        "removeEventListener": true
+      }
     }
   }
 }
