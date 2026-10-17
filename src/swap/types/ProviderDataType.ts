@@ -24,8 +24,10 @@ export type MayachainStreamingProviderData = {
   kind: SwapKitProviderEnum.MayachainStreaming;
   /** Inbound vault address (rotates server-side). Sourced from `inboundAddress`. */
   vaultAddress: string;
-  /** The full Mayachain swap memo embedded as OP_RETURN. */
+  /** The full Mayachain swap memo: in an OP_RETURN, or in the shielded memo note. */
   memo: string;
+  /** Maya's memo address, when the memo rides in a 0 ZEC shielded note to it. */
+  shieldedMemoAddress?: string;
   /** Streaming interval in source-chain blocks (`meta.streamingInterval`). */
   streamingIntervalBlocks?: number;
   /** Maximum number of sub-swaps the streamer is allowed to schedule. */

@@ -6,6 +6,7 @@ import { TrackResponseType } from "../types/TrackResponseType";
 import { ExtractDepositInstructionsContext, ProviderExecutor } from "./ProviderExecutor";
 import { applyDefaultTrackUpdate } from "./trackUpdateBase";
 import { extractVaultMemoDeposit } from "./vaultMemoDeposit";
+import { SHIELDED_MEMO_MAX_BYTES, memoWithRefundAddress } from "../mayaShieldedMemo";
 
 /**
  * Provider executor for Mayachain Streaming swaps.
@@ -39,6 +40,11 @@ import { extractVaultMemoDeposit } from "./vaultMemoDeposit";
  *     refund destination without us inflating the memo past the 80-byte
  *     OP_RETURN standardness cap.
  *
+ * Shielded memo: when Maya publishes a memo address for the vault SwapKit
+ * named, the deposit is one shielded transaction instead (see
+ * `mayaShieldedMemo`). It names no transparent sender, so the ephemeral
+ * t-addr goes into the memo as `/REFUNDADDR`; the 512-byte note has room.
+ *
  * Streaming meta is preserved on the record (`providerData`) so the UI can
  * render "streaming over N blocks" without re-querying the response.
  */
@@ -46,10 +52,23 @@ export class MayaExecutor implements ProviderExecutor {
   readonly provider = SwapKitProviderEnum.MayachainStreaming;
 
   extractDepositInstructions(context: ExtractDepositInstructionsContext): DepositInstructionsType {
-    const { swapResponse, sellAmountHumanDecimal } = context;
-    const { vaultAddress, memoText } = extractVaultMemoDeposit(swapResponse, "MayaExecutor");
+    const { swapResponse, sellAmountHumanDecimal, sellAsset, sourceAddress, shieldedMemoTarget } = context;
+    const extracted = extractVaultMemoDeposit(swapResponse, "MayaExecutor");
+    const { vaultAddress } = extracted;
+    let { memoText } = extracted;
 
-    // SwapKit's memo is used verbatim. The `routeViaEphemeral` flag in the deposit
+    // Only for the vault Maya says takes it: a stale or mismatched one keeps
+    // the OP_RETURN deposit.
+    let shieldedMemoAddress: string | undefined;
+    if (sellAsset.chain === "ZEC" && shieldedMemoTarget && shieldedMemoTarget.vaultAddress === vaultAddress) {
+      const withRefund = memoWithRefundAddress(memoText, sourceAddress);
+      if (withRefund && new TextEncoder().encode(withRefund).length <= SHIELDED_MEMO_MAX_BYTES) {
+        memoText = withRefund;
+        shieldedMemoAddress = shieldedMemoTarget.unifiedAddress;
+      }
+    }
+
+    // Otherwise SwapKit's memo is used verbatim. The `routeViaEphemeral` flag in the deposit
     // broadcast wraps the send in a ZIP-320 two-hop proposal so Maya observes
     // a wallet-controlled ephemeral t-addr as the `from_address` and uses it
     // as the refund destination — no in-memo `/REFUNDADDR` needed (and we
@@ -60,6 +79,7 @@ export class MayaExecutor implements ProviderExecutor {
       kind: this.provider,
       vaultAddress,
       memo: memoText,
+      ...(shieldedMemoAddress && { shieldedMemoAddress }),
       streamingIntervalBlocks: swapResponse.meta?.streamingInterval,
       maxStreamingQuantity: swapResponse.meta?.maxStreamingQuantity,
     };
@@ -70,6 +90,7 @@ export class MayaExecutor implements ProviderExecutor {
       amountHumanDecimal: sellAmountHumanDecimal,
       memoBytes: new TextEncoder().encode(memoText),
       memoText,
+      ...(shieldedMemoAddress && { shieldedMemoAddress }),
       providerData,
     };
   }

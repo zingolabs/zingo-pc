@@ -72,6 +72,24 @@ describe("a spend runs with the engine stopped", () => {
     expect(calls).toEqual(["stop_sync", "poll_sync", "send_swap_deposit", "configure"]);
   });
 
+  // Maya's shielded memo deposit: one ordinary send paying the vault, with the
+  // memo in a 0 ZEC note to Maya's memo address.
+  it("sends a shielded memo deposit as one transaction with the memo note", async () => {
+    const txids = await makeRpc().sendSwapDeposit({
+      depositAddress: "t1vault",
+      amountAtomic: 50000,
+      memoBytes: new TextEncoder().encode("=:e:0xAA/t1refund:0/1/0"),
+      shieldedMemoAddress: "u1mayamemoaddress",
+    });
+
+    expect(txids).toEqual(["ab12"]);
+    expect(calls).toEqual(["stop_sync", "poll_sync", "send", "confirm", "configure"]);
+    expect(JSON.parse((native.send as jest.Mock).mock.calls[0][0])).toEqual([
+      { address: "t1vault", amount: 50000 },
+      { address: "u1mayamemoaddress", amount: 0, memo: "=:e:0xAA/t1refund:0/1/0" },
+    ]);
+  });
+
   it("relaunches the engine even when the spend fails", async () => {
     answering("confirm", JSON.stringify({ error: "Send error. ← Unable to compute root" }));
 

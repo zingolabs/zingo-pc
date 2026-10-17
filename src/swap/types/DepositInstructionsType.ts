@@ -39,6 +39,12 @@ export type DepositInstructionsType = {
   memoBytes?: Uint8Array;
   /** Optional human-readable memo string (rendered as-is for inbound flows). */
   memoText?: string;
+  /**
+   * Maya's memo address. When set, the memo rides in a 0 ZEC shielded note to
+   * it, in the same transaction that pays `depositAddress` out of the shielded
+   * pool, instead of in an OP_RETURN after a deshield.
+   */
+  shieldedMemoAddress?: string;
   /** Provider-specific persisted data (discriminated by `provider`). */
   providerData: ProviderDataType;
   /** Unix-ms timestamp after which the provider considers the route stale. */

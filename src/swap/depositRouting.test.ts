@@ -38,6 +38,13 @@ describe("depositSpendsSourceAddress", () => {
   it("is true when the provider checks the deposit came from the declared address", () => {
     expect(depositSpendsSourceAddress({ viaSourceAddress: true })).toBe(true);
   });
+
+  // The memo rides in a shielded note, in the send that pays the vault.
+  it("is false for a shielded memo deposit", () => {
+    expect(
+      depositSpendsSourceAddress({ memoBytes: new Uint8Array([61]), shieldedMemoAddress: "u1mayamemoaddress" }),
+    ).toBe(false);
+  });
 });
 
 describe("zecNetworkFeeReserve", () => {
