@@ -9,6 +9,7 @@ import { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapErrorCategoryEnum } from "./enums/SwapErrorCategoryEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
+import { fetchMayaShieldedMemoTarget, shieldedMemoAddressFromSwap } from "./mayaShieldedMemo";
 import { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
 import { SwapKitError } from "./errors";
 import { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
@@ -242,8 +243,20 @@ export class SwapService {
       destinationAddress: quoteInput.destinationAddress,
     });
 
+    // Maya may take the memo in a shielded note: SwapKit names the address
+    // for a shielded source, and mayanode says whether it is on for the vault.
+    const shieldedMemoTarget =
+      chosenRoute.provider === SwapKitProviderEnum.MayachainStreaming && quoteInput.sellAsset.chain === "ZEC"
+        ? await fetchMayaShieldedMemoTarget()
+        : null;
+    const namedBySwapKit = shieldedMemoAddressFromSwap(swapResponse);
+
     const instructions = executor.extractDepositInstructions({
       swapResponse,
+      shieldedMemoTarget:
+        shieldedMemoTarget && namedBySwapKit
+          ? { ...shieldedMemoTarget, unifiedAddress: namedBySwapKit }
+          : shieldedMemoTarget,
       sellAsset: quoteInput.sellAsset,
       receiveAsset: quoteInput.receiveAsset,
       sellAmountHumanDecimal: quoteInput.sellAmountHumanDecimal,

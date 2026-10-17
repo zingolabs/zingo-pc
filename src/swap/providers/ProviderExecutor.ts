@@ -1,3 +1,4 @@
+import type { ShieldedMemoTarget } from "../mayaShieldedMemo";
 import { SwapKitProviderEnum } from "../enums/SwapKitProviderEnum";
 import { SwapKitError } from "../errors";
 import { SwapErrorCategoryEnum } from "../enums/SwapErrorCategoryEnum";
@@ -29,6 +30,8 @@ export type ExtractDepositInstructionsContext = {
    *  when the deposit originates from a shielded note (no observable
    *  on-chain `from_address`). */
   sourceAddress: string;
+  /** Maya's shielded memo target, when Maya takes one for this deposit. */
+  shieldedMemoTarget?: ShieldedMemoTarget | null;
 };
 
 /**

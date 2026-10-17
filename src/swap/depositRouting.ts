@@ -47,7 +47,13 @@ export function depositCarriesMemo(provider: SwapKitProviderEnum): boolean {
  * applying its proposal, while the ordinary send never touches it and leaves
  * the claim to the caller.
  */
-export function depositSpendsSourceAddress(args: { memoBytes?: Uint8Array; viaSourceAddress?: boolean }): boolean {
+export function depositSpendsSourceAddress(args: {
+  memoBytes?: Uint8Array;
+  viaSourceAddress?: boolean;
+  shieldedMemoAddress?: string;
+}): boolean {
+  // A shielded memo deposit is one send out of the shielded pool.
+  if (args.shieldedMemoAddress) return false;
   return (!!args.memoBytes && args.memoBytes.length > 0) || !!args.viaSourceAddress;
 }
 
@@ -80,7 +86,8 @@ const BUDGETED_ACTIONS = 4;
  * already committed the route at the provider. The two mistakes are not the
  * same size.
  *
- * Doubled for a memo-bearing deposit, which is two transactions: the deshield
+ * Doubled for a memo-bearing deposit, which is two transactions (Maya's
+ * shielded memo deposit is one, but that is known only at the commit): the deshield
  * that funds the transparent address, and the transparent spend that pays the
  * vault with the memo. Each pays its own fee.
  */

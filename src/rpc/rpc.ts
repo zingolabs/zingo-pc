@@ -1215,10 +1215,15 @@ export default class RPC {
      * no sender needs neither.
      */
     viaSourceAddress?: boolean;
+    /** Maya's memo address: the memo rides in a 0 ZEC shielded note to it. */
+    shieldedMemoAddress?: string;
   }): Promise<string[]> {
     const carriesMemo: boolean = !!args.memoBytes && args.memoBytes.length > 0;
     if (!depositSpendsSourceAddress(args)) {
       const sendJson: Array<SendJsonToTypeType> = [{ address: args.depositAddress, amount: args.amountAtomic }];
+      if (args.shieldedMemoAddress && args.memoBytes && carriesMemo) {
+        sendJson.push({ address: args.shieldedMemoAddress, amount: 0, memo: new TextDecoder().decode(args.memoBytes) });
+      }
       const joined: string = await this.sendTransaction(sendJson);
       return joined
         .split(",")

@@ -41,6 +41,8 @@ export type SwapResponseType = {
   tx?: SwapTxType;
   /** SwapKit-internal transient state. */
   transient?: SwapTransientType;
+  /** Maya's shielded memo target, for a shielded ZEC source. */
+  shieldedMemo?: { unifiedAddress?: string; uivk?: string };
   /** Streaming meta (Maya). */
   meta?: { streamingInterval?: number; maxStreamingQuantity?: number } & Record<string, unknown>;
   /** Anything else SwapKit returns we have not modelled. */
