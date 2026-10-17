@@ -10,11 +10,18 @@ import {
   WalletType,
 } from "../appstate";
 import fetchServerList from "../../utils/fetchServerList";
+import { pickRecommended } from "../../utils/recommendedServers";
 
 jest.mock("../../electronBridge");
 jest.mock("../../utils/fetchServerList");
+jest.mock("../../utils/recommendedServers", () => ({
+  ...jest.requireActual("../../utils/recommendedServers"),
+  pickRecommended: jest.fn(),
+}));
 
 const liveList = fetchServerList as jest.MockedFunction<typeof fetchServerList>;
+const recommended = pickRecommended as jest.MockedFunction<typeof pickRecommended>;
+const ZAINO = "https://mainnet.zainod.zingolabs.dev:443";
 
 const liveServer = (uri: string, chain = ServerChainNameEnum.mainChainName): ServerClass => ({
   uri,
@@ -53,6 +60,9 @@ beforeEach(() => {
   // Registry silent by default, so every test that doesn't care about it runs
   // against the static list.
   liveList.mockReset().mockResolvedValue([]);
+  // The recommended server silent by default, so the tests below reach the
+  // registry and the static list.
+  recommended.mockReset().mockResolvedValue(null);
 });
 
 test("LoadingScreen renders without crashing", () => {
@@ -242,4 +252,38 @@ test("auto falls back to a rejected server rather than none", async () => {
 
   await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
   expect(savedSetting("serveruri")).toEqual(["https://one.zec.rocks:443"]);
+});
+
+// Automatic takes the recommended (Zaino) server while it answers, ahead of
+// anything the registry offers.
+test("auto takes the recommended server while it answers", async () => {
+  recommended.mockResolvedValue(ZAINO);
+  liveList.mockResolvedValue([liveServer("https://one.zec.rocks:443")]);
+  bootWithSelection(ServerSelectionEnum.auto, "https://zec.rocks:443");
+
+  await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
+  expect(savedSetting("serveruri")).toEqual([ZAINO]);
+  expect(savedSelection()).toEqual([ServerSelectionEnum.auto]);
+  expect(probedUris()).not.toContain("https://one.zec.rocks:443");
+});
+
+// A server the user rotated away from is not picked again, recommended or not.
+test("auto asks for the recommended server without the ones rotated away from", async () => {
+  bootWithSelection(ServerSelectionEnum.auto, ZAINO, ServerChainNameEnum.mainChainName, [ZAINO]);
+
+  await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
+  expect(recommended).toHaveBeenCalledWith(ServerChainNameEnum.mainChainName, [ZAINO]);
+});
+
+test.each([
+  [ServerSelectionEnum.list, "https://eu.zec.rocks:443"],
+  [ServerSelectionEnum.custom, "https://my.own.node:443"],
+])("a %s server is not moved to the recommended one", async (selection, uri) => {
+  recommended.mockResolvedValue(ZAINO);
+  liveList.mockResolvedValue([liveServer("https://eu.zec.rocks:443")]);
+  bootWithSelection(selection, uri);
+
+  await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
+  expect(savedSetting("serveruri")).toEqual([uri]);
+  expect(recommended).not.toHaveBeenCalled();
 });

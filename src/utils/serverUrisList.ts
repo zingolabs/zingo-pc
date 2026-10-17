@@ -5,11 +5,12 @@ const serverUrisList = (): ServerClass[] => {
   return [
     // default servers (2)
     {
-      uri: "https://zec.rocks:443", // this will be the default server in MainNet.
+      uri: "https://mainnet.zainod.zingolabs.dev:443", // this will be the default server in MainNet.
       chain_name: ServerChainNameEnum.mainChainName,
       default: true,
       latency: null,
       obsolete: false,
+      recommended: true,
     },
     {
       uri: "https://testnet.zec.rocks:443", // this will be the default server in Testnet.
@@ -18,7 +19,14 @@ const serverUrisList = (): ServerClass[] => {
       latency: null,
       obsolete: false,
     },
-    // new servers (not default) (5)
+    // new servers (not default) (6)
+    {
+      uri: "https://zec.rocks:443",
+      chain_name: ServerChainNameEnum.mainChainName,
+      default: false,
+      latency: null,
+      obsolete: false,
+    },
     {
       uri: "https://na.zec.rocks:443",
       chain_name: ServerChainNameEnum.mainChainName,

@@ -14,6 +14,7 @@ import {
 import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
 import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
+import { pickRecommended, withRecommended } from "../../utils/recommendedServers";
 import Utils from "../../utils/utils";
 import { native, ipcRenderer } from "../../electronBridge";
 import { useLocation } from "react-router-dom";
@@ -97,8 +98,14 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         return;
       }
       setServers([
-        ...(mainLive.length > 0 ? mainLive : staticFor(ServerChainNameEnum.mainChainName)),
-        ...(testLive.length > 0 ? testLive : staticFor(ServerChainNameEnum.testChainName)),
+        ...withRecommended(
+          ServerChainNameEnum.mainChainName,
+          mainLive.length > 0 ? mainLive : staticFor(ServerChainNameEnum.mainChainName),
+        ),
+        ...withRecommended(
+          ServerChainNameEnum.testChainName,
+          testLive.length > 0 ? testLive : staticFor(ServerChainNameEnum.testChainName),
+        ),
       ]);
     })();
     return () => {
@@ -134,6 +141,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
   // the static list for that chain; and it gives up rather than guessing, so a
   // caller can say so instead of dialling another chain's server.
   const resolveAutoServer = useCallback(async (chain: ServerChainNameEnum): Promise<string> => {
+    const recommended: string | null = await pickRecommended(chain);
+    if (recommended) return recommended;
     const live: ServerClass[] = await fetchServerList(chain);
     const candidates: ServerClass[] =
       live.length > 0
@@ -1203,7 +1212,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
                                 {s.uri +
                                   " - " +
                                   Utils.chainDisplayName(s.chain_name) +
-                                  (s.latency ? " _ " + s.latency + " ms." : "")}
+                                  (s.latency ? " _ " + s.latency + " ms." : "") +
+                                  (s.recommended ? " _ recommended" : "")}
                               </option>
                             ))}
                         </select>

@@ -2,6 +2,7 @@ import { ServerChainNameEnum, ServerClass } from "../components/appstate";
 import fetchServerList from "./fetchServerList";
 import selectFastestServer, { RACE_CANDIDATES } from "./selectFastestServer";
 import serverUrisList from "./serverUrisList";
+import { pickRecommended, withRecommended } from "./recommendedServers";
 
 // A rotation is the user waiting on a click, not a launch settling in, so it
 // gives up on a silent server sooner than the boot-time race does.
@@ -24,7 +25,7 @@ export const rotationCandidates = async (
 ): Promise<ServerClass[]> => {
   const live: ServerClass[] = await fetchServerList(chainName);
   if (live.length > 0) {
-    return live.filter((s: ServerClass) => !rejected.includes(s.uri));
+    return withRecommended(chainName, live, rejected).filter((s: ServerClass) => !rejected.includes(s.uri));
   }
   return serverUrisList().filter(
     (s: ServerClass) => s.chain_name === chainName && !s.obsolete && !rejected.includes(s.uri),
@@ -40,7 +41,14 @@ export const rotationCandidates = async (
  * wallet cannot follow its server onto a different one.
  */
 const pickRotationTarget = async (chainName: ServerChainNameEnum, rejected: string[]): Promise<string | null> => {
-  const candidates: ServerClass[] = (await rotationCandidates(chainName, rejected)).slice(0, RACE_CANDIDATES);
+  const recommended: string | null = await pickRecommended(chainName, rejected, ROTATION_PROBE_MS);
+  if (recommended) {
+    return recommended;
+  }
+  // The recommended ones were just tried on their own.
+  const candidates: ServerClass[] = (await rotationCandidates(chainName, rejected))
+    .filter((s: ServerClass) => !s.recommended)
+    .slice(0, RACE_CANDIDATES);
   if (candidates.length === 0) {
     return null;
   }

@@ -17,6 +17,7 @@ import { ContextApp } from "../../context/ContextAppState";
 import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
 import selectFastestServer, { RACE_CANDIDATES } from "../../utils/selectFastestServer";
+import { pickRecommended } from "../../utils/recommendedServers";
 import Utils from "../../utils/utils";
 import { userFacingError } from "../../utils/userFacingError";
 import { Logo } from "../logo";
@@ -253,8 +254,16 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
       };
 
       const alreadyPicked: string | undefined = this.autoPicked.get(chain_name);
+      // A recommended (Zaino) server goes first while it answers, unless the
+      // user has rotated away from it.
+      const recommended: string | null = alreadyPicked
+        ? null
+        : await this.stepped("trying recommended server", () => pickRecommended(chain_name, avoidedServers));
       if (alreadyPicked) {
         uri = alreadyPicked;
+      } else if (recommended) {
+        uri = recommended;
+        this.autoPicked.set(chain_name, uri);
       } else if (live.length > 0) {
         // Race the registry's best few rather than trusting its order. It ranks
         // by 30-day uptime, which is not speed: a reliable server answering in

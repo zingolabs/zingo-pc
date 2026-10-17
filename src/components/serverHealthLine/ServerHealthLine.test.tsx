@@ -33,13 +33,17 @@ jest.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
 }));
 
-const wallet = (selection: ServerSelectionEnum): WalletType => ({
+const wallet = (
+  selection: ServerSelectionEnum,
+  chain_name: ServerChainNameEnum = ServerChainNameEnum.mainChainName,
+  uri: string = "https://zec.rocks:443",
+): WalletType => ({
   id: 1,
   fileName: "",
   alias: "Main Wallet",
-  chain_name: ServerChainNameEnum.mainChainName,
+  chain_name,
   creationType: CreationTypeEnum.Main,
-  uri: "https://zec.rocks:443",
+  uri,
   selection,
   performanceLevel: PerformanceLevelEnum.High,
 });
@@ -53,10 +57,10 @@ const openConfirmModal = jest.fn();
 const openErrorModal = jest.fn();
 const rotateServer = jest.fn();
 
-const show = (selection: ServerSelectionEnum, outcomes: boolean[]) =>
+const show = (selection: ServerSelectionEnum, outcomes: boolean[], currentWallet: WalletType = wallet(selection)) =>
   render(<ServerHealthLine />, {
     contextOverrides: {
-      currentWallet: wallet(selection),
+      currentWallet,
       serverHealth: fold(outcomes),
       openConfirmModal,
       openErrorModal,
@@ -172,6 +176,21 @@ test("auto also offers to choose a server by hand", async () => {
 test("auto says so instead of asking when there is nowhere to go", async () => {
   // The registry answers with only the server already in use, so after
   // excluding it nothing remains — and the static list must not stand in.
+  const only = "https://testnet.zec.rocks:443";
+  liveList.mockResolvedValue([
+    { uri: only, chain_name: ServerChainNameEnum.testChainName, latency: 50, default: false, obsolete: false },
+  ]);
+  show(ServerSelectionEnum.auto, HEALTHY, wallet(ServerSelectionEnum.auto, ServerChainNameEnum.testChainName, only));
+  fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
+
+  await waitFor(() => expect(openErrorModal).toHaveBeenCalledTimes(1));
+  expect(openConfirmModal).not.toHaveBeenCalled();
+  expect(rotateServer).not.toHaveBeenCalled();
+});
+
+// The recommended server is somewhere to go even when the registry lists only
+// the one in use.
+test("auto offers to move when only the recommended server is left", async () => {
   liveList.mockResolvedValue([
     {
       uri: "https://zec.rocks:443",
@@ -184,9 +203,8 @@ test("auto says so instead of asking when there is nowhere to go", async () => {
   show(ServerSelectionEnum.auto, HEALTHY);
   fireEvent.click(screen.getByRole("button", { name: "Active server health" }));
 
-  await waitFor(() => expect(openErrorModal).toHaveBeenCalledTimes(1));
-  expect(openConfirmModal).not.toHaveBeenCalled();
-  expect(rotateServer).not.toHaveBeenCalled();
+  await waitFor(() => expect(openConfirmModal).toHaveBeenCalledTimes(1));
+  expect(openErrorModal).not.toHaveBeenCalled();
 });
 test.each([[HEALTHY], [DEAD]])("custom always goes to the settings screen, dot at %#", (outcomes) => {
   show(ServerSelectionEnum.custom, outcomes);

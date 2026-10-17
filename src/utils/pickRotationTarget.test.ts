@@ -52,6 +52,22 @@ test("never returns the server it was asked to leave", async () => {
   );
 });
 
+const ZAINO = "https://mainnet.zainod.zingolabs.dev:443";
+
+test("takes the recommended server while it answers", async () => {
+  liveList.mockResolvedValue([server("https://one.zec.rocks:443")]);
+  race.mockImplementation(async (servers: ServerClass[]) => servers.find((s) => s.uri === ZAINO) ?? null);
+
+  expect(await pickRotationTarget(ServerChainNameEnum.mainChainName, ["https://old.zec.rocks:443"])).toBe(ZAINO);
+});
+
+test("leaves the recommended server when it is the one being left", async () => {
+  liveList.mockResolvedValue([server("https://one.zec.rocks:443")]);
+  race.mockImplementation(async (servers: ServerClass[]) => servers[0] ?? null);
+
+  expect(await pickRotationTarget(ServerChainNameEnum.mainChainName, [ZAINO])).toBe("https://one.zec.rocks:443");
+});
+
 test("races the static list when the registry says nothing", async () => {
   race.mockResolvedValue(server("https://eu.zec.rocks:443"));
 
