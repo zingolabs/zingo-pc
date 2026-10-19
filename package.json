@@ -322,6 +322,11 @@
         }
       ]
     },
+    "msi": {
+      "additionalLightArgs": [
+        "-sval"
+      ]
+    },
     "appx": {
       "applicationId": "ZingoPC",
       "identityName": "JuanCarlosCarmonaCalvo.ZingoPC",
