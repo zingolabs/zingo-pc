@@ -387,6 +387,28 @@ describe("AddressBook", () => {
       expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
     });
 
+    // Almost any lowercase string is a valid NEAR name, so a NEAR contact that
+    // could be another chain's address says so. One that can only be NEAR gets
+    // the ordinary wording.
+    it.each([
+      ["aurora", true],
+      ["alice.tg", false],
+    ])("warns about a NEAR name that could be something else: %s", async (address, warns) => {
+      mockPossibleChains = ["NEAR"];
+      const openConfirmModal = jest.fn();
+      render(<AddressBook addAddressBookEntry={jest.fn()} removeAddressBookEntry={jest.fn()} />, {
+        contextOverrides: { openConfirmModal },
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: /label/i }), { target: { value: "Ann" } });
+      fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: address } });
+      await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
+      fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
+
+      const text: string = openConfirmModal.mock.calls[0][1];
+      expect(text.includes("addresses from other chains can look like one too")).toBe(warns);
+      expect(text).toContain(address);
+    });
+
     // The two chains answer different questions, and only one of them applies
     // to a Bitcoin address. Filing it under the wallet's current network would
     // tag it with a Zcash network it has nothing to do with.

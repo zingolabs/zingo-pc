@@ -14,6 +14,7 @@ import { isSameZnsAlias, isZnsAlias, resolveZnsAlias } from "../../utils/zns";
 import {
   canonicalChainAddress,
   chainFromPaymentUri,
+  nearAccountNeedsConfirm,
   extractPlainAddress,
   possibleChainsForAddress,
   validateAddressForChain,
@@ -236,7 +237,9 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     // network. Showing what was detected is the last chance to catch that.
     openConfirmModal(
       "Add contact",
-      `Addresses on other chains are recognised by their shape, and some chains share a shape. ` +
+      (swapChain === "NEAR" && nearAccountNeedsConfirm(currentAddress)
+        ? "This is a valid NEAR account name, but addresses from other chains can look like one too, and NEAR does not refuse them. "
+        : `Addresses on other chains are recognised by their shape, and some chains share a shape. `) +
         `Confirm this is a ${chainDisplayName(swapChain) || swapChain} address: ${currentAddress}`,
       commit,
     );
