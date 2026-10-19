@@ -1,0 +1,292 @@
+{
+  "resources": {
+    "@fortawesome/fontawesome-svg-core": {
+      "globals": {
+        "MutationObserver": true,
+        "Node.TEXT_NODE": true,
+        "console.error": true,
+        "console.warn": true,
+        "document": true,
+        "getComputedStyle": true,
+        "performance": true,
+        "process.env.NODE_ENV": true,
+        "setTimeout": true
+      }
+    },
+    "@fortawesome/react-fontawesome": {
+      "globals": {
+        "console": true,
+        "process": true,
+        "require": true
+      },
+      "packages": {
+        "@fortawesome/fontawesome-svg-core": true,
+        "react-tabs>prop-types": true,
+        "react": true
+      }
+    },
+    "react-router-dom>@remix-run/router": {
+      "globals": {
+        "AbortController": true,
+        "DOMException": true,
+        "FormData": true,
+        "Headers": true,
+        "Request": true,
+        "Response": true,
+        "URL": true,
+        "URLSearchParams": true,
+        "console": true,
+        "document.defaultView": true
+      }
+    },
+    "chart.js": {
+      "globals": {
+        "Intl.NumberFormat": true,
+        "MutationObserver": true,
+        "OffscreenCanvas": true,
+        "Path2D": true,
+        "ResizeObserver": true,
+        "addEventListener": true,
+        "clearTimeout": true,
+        "console.error": true,
+        "console.warn": true,
+        "devicePixelRatio": true,
+        "document": true,
+        "getComputedStyle": true,
+        "removeEventListener": true,
+        "requestAnimationFrame": true,
+        "setTimeout": true
+      }
+    },
+    "react-modal>exenv": {
+      "globals": {
+        "ExecutionEnvironment": "write",
+        "Worker": true,
+        "addEventListener": true,
+        "attachEvent": true,
+        "define": true,
+        "document": true,
+        "screen": true
+      }
+    },
+    "js-base64": {
+      "globals": {
+        "Buffer": true,
+        "TextDecoder": true,
+        "TextEncoder": true,
+        "atob": true,
+        "btoa": true
+      }
+    },
+    "jsqr": {
+      "globals": {
+        "define": true
+      }
+    },
+    "path-browserify": {
+      "globals": {
+        "process.cwd": true
+      }
+    },
+    "react-tabs>prop-types": {
+      "globals": {
+        "process.env.NODE_ENV": true
+      }
+    },
+    "qrcode.react": {
+      "globals": {
+        "Path2D": true,
+        "devicePixelRatio": true
+      },
+      "packages": {
+        "react": true
+      }
+    },
+    "randomcolor": {
+      "globals": {
+        "define": true
+      }
+    },
+    "react": {
+      "globals": {
+        "process.env.NODE_ENV": true
+      }
+    },
+    "react-accessible-accordion": {
+      "globals": {
+        "HTMLElement": true,
+        "console.error": true
+      },
+      "packages": {
+        "react": true
+      }
+    },
+    "react-chartjs-2": {
+      "globals": {
+        "setTimeout": true
+      },
+      "packages": {
+        "chart.js": true,
+        "react": true
+      }
+    },
+    "react-dom": {
+      "globals": {
+        "MSApp": true,
+        "__REACT_DEVTOOLS_GLOBAL_HOOK__": true,
+        "addEventListener": true,
+        "clearTimeout": true,
+        "clipboardData": true,
+        "console.error": true,
+        "document": true,
+        "event": true,
+        "process.env.NODE_ENV": true,
+        "queueMicrotask": true,
+        "removeEventListener": true,
+        "reportError": true,
+        "setTimeout": true
+      },
+      "packages": {
+        "react": true,
+        "react-dom>scheduler": true
+      }
+    },
+    "react-modal": {
+      "globals": {
+        "HTMLCollection": true,
+        "HTMLElement": true,
+        "NodeList": true,
+        "addEventListener": true,
+        "attachEvent": true,
+        "cancelAnimationFrame": true,
+        "clearTimeout": true,
+        "console.log": true,
+        "console.warn": true,
+        "detachEvent": true,
+        "document": true,
+        "getComputedStyle": true,
+        "navigator.userAgent": true,
+        "process.env.NODE_ENV": true,
+        "removeEventListener": true,
+        "requestAnimationFrame": true,
+        "setTimeout": true
+      },
+      "packages": {
+        "react-modal>exenv": true,
+        "react-tabs>prop-types": true,
+        "react": true,
+        "react-dom": true,
+        "react-modal>react-lifecycles-compat": true,
+        "react-modal>warning": true
+      }
+    },
+    "react-router-dom": {
+      "globals": {
+        "FormData": true,
+        "URL": true,
+        "URLSearchParams": true,
+        "__reactRouterVersion": "write",
+        "addEventListener": true,
+        "confirm": true,
+        "document": true,
+        "history.scrollRestoration": true,
+        "location.href": true,
+        "process.env.NODE_ENV": true,
+        "removeEventListener": true,
+        "scrollTo": true,
+        "scrollY": true,
+        "sessionStorage.getItem": true,
+        "sessionStorage.setItem": true,
+        "setTimeout": true
+      },
+      "meta": {
+        "webpack-optimization": [
+          "Dependency 'react-router-dom>react-router' reexports from 'react-router-dom>@remix-run/router' and webpack collapsed that to a direct import."
+        ]
+      },
+      "packages": {
+        "react-router-dom>@remix-run/router": true,
+        "react": true,
+        "react-dom": true,
+        "react-router-dom>react-router": true
+      }
+    },
+    "react-router-dom>react-router": {
+      "globals": {
+        "console.error": true,
+        "console.warn": true,
+        "process.env.NODE_ENV": true
+      },
+      "packages": {
+        "react-router-dom>@remix-run/router": true,
+        "react": true
+      }
+    },
+    "react-tabs": {
+      "globals": {
+        "process.env.NODE_ENV": true
+      },
+      "packages": {
+        "react-tabs>clsx": true,
+        "react-tabs>prop-types": true,
+        "react": true
+      }
+    },
+    "react-textarea-autosize": {
+      "globals": {
+        "document.body": true,
+        "document.createElement": true,
+        "document.documentElement.currentStyle": true,
+        "document.fonts": true,
+        "getComputedStyle": true,
+        "requestAnimationFrame": true
+      },
+      "packages": {
+        "@testing-library/react>@babel/runtime": true,
+        "react": true,
+        "react-textarea-autosize>use-composed-ref": true,
+        "react-textarea-autosize>use-latest": true
+      }
+    },
+    "react-dom>scheduler": {
+      "globals": {
+        "MessageChannel": true,
+        "clearTimeout": true,
+        "console.error": true,
+        "navigator": true,
+        "performance": true,
+        "process.env.NODE_ENV": true,
+        "setImmediate": true,
+        "setTimeout": true
+      }
+    },
+    "url-parse": {
+      "packages": {
+        "url-parse>querystringify": true,
+        "url-parse>requires-port": true
+      }
+    },
+    "react-textarea-autosize>use-composed-ref": {
+      "packages": {
+        "react": true
+      }
+    },
+    "react-textarea-autosize>use-latest>use-isomorphic-layout-effect": {
+      "packages": {
+        "react": true
+      }
+    },
+    "react-textarea-autosize>use-latest": {
+      "packages": {
+        "react": true,
+        "react-textarea-autosize>use-latest>use-isomorphic-layout-effect": true
+      }
+    },
+    "react-modal>warning": {
+      "globals": {
+        "console": true,
+        "process.env.NODE_ENV": true
+      }
+    }
+  }
+}

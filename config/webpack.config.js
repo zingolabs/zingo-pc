@@ -6,6 +6,7 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const CaseSensitivePathsPlugin = require("case-sensitive-paths-webpack-plugin");
 const TerserPlugin = require("terser-webpack-plugin");
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const LavaMoatPlugin = require("@lavamoat/webpack");
 const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
 const { WebpackManifestPlugin } = require("webpack-manifest-plugin");
 const WorkboxWebpackPlugin = require("workbox-webpack-plugin");
@@ -100,6 +101,11 @@ module.exports = function (webpackEnv) {
         },
       },
     ].filter(Boolean);
+    // MiniCssExtractPlugin runs these modules at build time, outside any
+    // Compartment, and marking them excluded tells LavaMoat not to wrap them.
+    if (isEnvProduction) {
+      loaders.push(LavaMoatPlugin.exclude);
+    }
     if (preProcessor) {
       loaders.push(
         {
@@ -128,6 +134,14 @@ module.exports = function (webpackEnv) {
         : false
       : isEnvDevelopment && "cheap-module-source-map",
     entry: paths.appIndexJs,
+    // MiniCssExtractPlugin runs the stylesheet modules at build time through
+    // webpack's executeModule, which gives them a chunk of their own named
+    // "build time chunk" and a runtime LavaMoat reports as a possible
+    // interference. Those modules are the ones marked LavaMoatPlugin.exclude
+    // below, and CI treats warnings as errors.
+    ignoreWarnings: isEnvProduction
+      ? [/LavaMoatPlugin: Something was generating runtime before all modules were identified.*'build time chunk'/]
+      : undefined,
     output: {
       path: isEnvProduction ? paths.appBuild : undefined,
       pathinfo: isEnvDevelopment,
@@ -312,6 +326,9 @@ module.exports = function (webpackEnv) {
           {
             inject: true,
             template: paths.appHtml,
+            // The template loads the SES shim and lockdown.js itself unless
+            // LavaMoat, production only, inlines lockdown into the runtime chunk.
+            lavamoat: isEnvProduction,
           },
           isEnvProduction
             ? {
@@ -332,6 +349,41 @@ module.exports = function (webpackEnv) {
         ),
       ),
       new HtmlInterpolatePlugin(env.raw),
+      // Production only: every dependency runs in its own Compartment with the
+      // globals its policy grants (lavamoat/webpack/policy.json, regenerated
+      // with LAVAMOAT_GENERATE_POLICY=1). Incompatible with Hot Module
+      // Replacement, so development keeps the plain lockdown from the template.
+      isEnvProduction &&
+        new LavaMoatPlugin({
+          generatePolicy: process.env.LAVAMOAT_GENERATE_POLICY === "1",
+          // The runtime chunk is the first script the page runs.
+          inlineLockdown: /runtime-main\.[a-f0-9]+\.js$/,
+          // Same options as public/lockdown.js.
+          lockdown: {
+            errorTaming: "unsafe",
+            consoleTaming: "unsafe",
+            errorTrapping: "none",
+            unhandledRejectionTrapping: "none",
+            overrideTaming: "severe",
+            stackFiltering: "verbose",
+            evalTaming: "unsafe-eval",
+          },
+          // Keeps package names in the bundle, so a policy violation names
+          // the package instead of a number.
+          readableResourceIds: true,
+          runChecks: true,
+          // Level 1 adds an informational warning about CSS modules generated
+          // before the paths were known, and CI treats warnings as errors.
+          // The warning that matters (a module possibly left unwrapped) is
+          // emitted at every level.
+          diagnosticsVerbosity: 0,
+          // A build with LAVAMOAT_DEBUG_RUNTIME=1 lets every access through,
+          // logs "-- missing <global> from <package>" instead, and
+          // LM_printPolicyDebug() in the console prints what
+          // policy-override.json still lacks. For finding gaps, never for a
+          // release.
+          debugRuntime: process.env.LAVAMOAT_DEBUG_RUNTIME === "1",
+        }),
       new webpack.DefinePlugin(env.stringified),
       isEnvDevelopment && shouldUseReactRefresh && new ReactRefreshWebpackPlugin({ overlay: false }),
       isEnvDevelopment && new CaseSensitivePathsPlugin(),
