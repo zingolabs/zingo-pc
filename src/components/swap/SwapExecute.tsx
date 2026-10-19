@@ -42,6 +42,7 @@ function depositRequest(instructions: DepositInstructionsType) {
     amountAtomic: zecToZatoshis(instructions.amountHumanDecimal),
     memoBytes: instructions.memoBytes,
     viaSourceAddress: instructions.requiresDepositFromSourceAddress,
+    shieldedMemoAddress: instructions.shieldedMemoAddress,
   };
 }
 
@@ -60,6 +61,7 @@ type SwapExecuteProps = {
     amountAtomic: number;
     memoBytes?: Uint8Array;
     viaSourceAddress?: boolean;
+    shieldedMemoAddress?: string;
   }) => Promise<string[]>;
   /** The swap ran and the user is finished with it. The screen behind is
    *  cleared, because the next swap is a new decision. */

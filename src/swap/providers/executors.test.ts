@@ -8,6 +8,8 @@ import type { ExtractDepositInstructionsContext } from "./ProviderExecutor";
 import type { SwapAssetType } from "../types/SwapAssetType";
 import type { SwapResponseType } from "../types/SwapResponseType";
 
+jest.mock("../../electronBridge");
+
 /**
  * Executors decide where a deposit goes and what rides with it. Everything
  * else in the swap layer can be wrong and cost the user a confusing screen;
@@ -254,5 +256,44 @@ describe("ThorchainExecutor deposit instructions", () => {
     expect(() => executor.extractDepositInstructions(context({ tx: { memo: THOR_MEMO, chainId: "zcash" } }))).toThrow(
       /missing inbound vault address/i,
     );
+  });
+});
+
+// Maya takes the memo in a 0 ZEC shielded note for the vault it names. The
+// deposit then names no transparent sender, so the refund address rides in the
+// memo.
+describe("MayaExecutor shielded memo deposit", () => {
+  const executor = new MayaExecutor();
+  const UA = "u1mayamemoaddress";
+  const response: SwapResponseType = { tx: { to: VAULT, memo: MAYA_MEMO }, inboundAddress: VAULT };
+  const withTarget = (vaultAddress: string): ExtractDepositInstructionsContext => ({
+    ...context(response),
+    shieldedMemoTarget: { vaultAddress, unifiedAddress: UA },
+  });
+  const REFUND_MEMO = "=:e:0xAA00000000000000000000000000000000000000/t1ephemeral:0/1/0";
+
+  it("sends the memo to Maya's memo address with the refund address in it", () => {
+    const instructions = executor.extractDepositInstructions(withTarget(VAULT));
+
+    expect(instructions.depositAddress).toBe(VAULT);
+    expect(instructions.shieldedMemoAddress).toBe(UA);
+    expect(instructions.memoText).toBe(REFUND_MEMO);
+    expect(decodeMemo(instructions.memoBytes)).toBe(REFUND_MEMO);
+    // Midgard matches the memo exactly, so the record keeps the one sent.
+    expect(instructions.providerData).toMatchObject({ memo: REFUND_MEMO, shieldedMemoAddress: UA });
+  });
+
+  it("keeps the OP_RETURN deposit for a vault Maya did not name", () => {
+    const instructions = executor.extractDepositInstructions(withTarget("t1othervault"));
+
+    expect(instructions.shieldedMemoAddress).toBeUndefined();
+    expect(instructions.memoText).toBe(MAYA_MEMO);
+  });
+
+  it("keeps the OP_RETURN deposit when Maya takes no shielded memo", () => {
+    const instructions = executor.extractDepositInstructions({ ...context(response), shieldedMemoTarget: null });
+
+    expect(instructions.shieldedMemoAddress).toBeUndefined();
+    expect(instructions.memoText).toBe(MAYA_MEMO);
   });
 });

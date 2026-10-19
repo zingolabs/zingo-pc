@@ -721,6 +721,7 @@ const AppRoutes: React.FC = () => {
       amountAtomic: number;
       memoBytes?: Uint8Array;
       viaSourceAddress?: boolean;
+      shieldedMemoAddress?: string;
     }): Promise<string[]> => {
       return rpcRef.current!.sendSwapDeposit(args);
     },

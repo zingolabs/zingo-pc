@@ -98,6 +98,8 @@ type SwapProps = {
     depositAddress: string;
     amountAtomic: number;
     memoBytes?: Uint8Array;
+    viaSourceAddress?: boolean;
+    shieldedMemoAddress?: string;
   }) => Promise<string[]>;
 };
 

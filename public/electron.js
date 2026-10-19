@@ -1013,7 +1013,13 @@ ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 // honours it there. Doing the same for swap traffic was deferred rather than
 // rejected, with the reasoning and the options in docs/swap-privacy.md. Read
 // that before changing how this request travels.
-const SWAP_HTTP_HOSTS = new Set(["api.swapkit.dev", "midgard.mayachain.info", "midgard.ninerealms.com"]);
+const SWAP_HTTP_HOSTS = new Set([
+  "api.swapkit.dev",
+  "midgard.mayachain.info",
+  "midgard.ninerealms.com",
+  // Maya's shielded memo config for ZEC deposits (`mayaShieldedMemo`).
+  "mayanode.mayachain.info",
+]);
 const SWAP_HTTP_MAX_TIMEOUT_MS = 30000;
 
 ipcMain.handle("swapHttp:request", async (_e, request) => {
