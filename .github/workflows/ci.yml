@@ -33,7 +33,7 @@ jobs:
           cmake-version: "latest"
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn setup
 
       # The key is not needed to run the tests — nothing here calls SwapKit —
       # but passing it keeps the generated file identical to a real build. On

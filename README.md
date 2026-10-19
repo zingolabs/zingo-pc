@@ -54,10 +54,16 @@ nvm use 22.18.0
 ```bash
 git clone https://github.com/zingolabs/zingo-pc.git
 cd zingo-pc
-yarn install
+yarn setup
 yarn build
 yarn start
 ```
+
+`yarn setup` installs with the frozen lockfile and then runs the dependency
+scripts the allowlist in `package.json` permits (`lavamoat.allowScripts`), plus
+our own `postinstall`. A plain `yarn add` or `yarn remove` re-links
+`node_modules` without them, which leaves Electron's binary, `keytar`'s build
+and the patches behind: run `yarn allow-scripts` again afterwards.
 
 `yarn build` also builds `nym-proxy`, the mixnet transport, whose source lives
 in zingolib. Nothing to set up for it: the build fetches zingolib into

@@ -45,6 +45,7 @@
   },
   "scripts": {
     "postinstall": "node set-resolutions-macos.js && (electron-builder install-app-deps || true) && patch-package",
+    "setup": "yarn install --frozen-lockfile && yarn allow-scripts",
     "release:prep": "node bin/prep-release.js",
     "lint": "cross-env NODE_ENV=production eslint . --fix --ext .js,.jsx,.ts,.tsx",
     "prettier": "prettier './**/*.{js,jsx,ts,tsx}' -w",
@@ -114,6 +115,8 @@
     "@babel/plugin-transform-private-property-in-object": "^7.27.1",
     "@babel/preset-env": "^7.28.0",
     "@electron/notarize": "^3.0.1",
+    "@lavamoat/allow-scripts": "^5.1.0",
+    "@lavamoat/preinstall-always-fail": "^3.0.1",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.15",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "14.3.1",
@@ -435,5 +438,14 @@
     "presets": [
       "react-app"
     ]
+  },
+  "lavamoat": {
+    "allowScripts": {
+      "@lavamoat/preinstall-always-fail#3.0.1": false,
+      "@pmmmwh/react-refresh-webpack-plugin>core-js-pure#3.49.0": false,
+      "electron#40.10.0": true,
+      "keytar#7.9.0": true,
+      "react-app-polyfill>core-js#3.49.0": false
+    }
   }
 }
