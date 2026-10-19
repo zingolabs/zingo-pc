@@ -1,5 +1,5 @@
 import { ChainNameEnum } from "./enums/ChainNameEnum";
-import { SWAP_ADDRESS_CHAINS } from "./addressValidators";
+import { SWAP_ADDRESS_CHAINS, nearAccountNeedsConfirm } from "./addressValidators";
 import { validateAddressForChain } from "./validateAddressForChain";
 
 /**
@@ -25,5 +25,9 @@ export async function possibleChainsForAddress(address: string, zcashChain: Chai
       ok: await validateAddressForChain(chain, addr, zcashChain),
     })),
   );
-  return checks.filter((c) => c.ok).map((c) => c.chain);
+  const chains = checks.filter((c) => c.ok).map((c) => c.chain);
+  // An ambiguous NEAR name is offered only when no other chain takes the
+  // address: a lowercase `bc1q…` or `thor1…` is a valid NEAR name too, and
+  // NEAR beside it would hide what the address really is.
+  return nearAccountNeedsConfirm(addr) && chains.length > 1 ? chains.filter((c) => c !== "NEAR") : chains;
 }

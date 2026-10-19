@@ -1,4 +1,4 @@
-import { canonicalChainAddress, isValidChainAddress } from "./addressValidators";
+import { canonicalChainAddress, isValidChainAddress, nearAccountNeedsConfirm } from "./addressValidators";
 // Keyed by SwapKit's chain codes, so a contact's chain meets the catalog's.
 describe("isValidChainAddress — SwapKit's chain codes", () => {
   const EVM = "0x1111111111111111111111111111111111111111";
@@ -73,5 +73,58 @@ describe("uppercase bech32 and CashAddr addresses", () => {
     expect(canonicalChainAddress("BTC", legacy)).toBe(legacy);
     expect(canonicalChainAddress("XLM", stellar)).toBe(stellar);
     expect(isValidChainAddress("XLM", stellar)).toBe(true);
+  });
+});
+
+// NEAR account IDs, in the docs.near.org format. Mainnet accounts checked with
+// `view_account`: `aurora`, `tg` and the `0x85f1…` one exist.
+describe("NEAR account IDs", () => {
+  const IMPLICIT = "a".repeat(64);
+
+  it.each([
+    "zingo.near",
+    "alice.tg",
+    "aurora",
+    "tg",
+    "0x85f17cf997934a597031b2e18a9ab6ebd4b9f6a4",
+    IMPLICIT,
+    "a_b-c.near",
+  ])("accepts %s", (address) => {
+    expect(isValidChainAddress("NEAR", address)).toBe(true);
+  });
+
+  it.each([
+    "a",
+    "a--b.near",
+    "-a.near",
+    "a_.near",
+    "a".repeat(65),
+    "alice.testnet",
+    "0s" + "a".repeat(40),
+    "Alice.near",
+  ])("refuses %s", (address) => {
+    expect(isValidChainAddress("NEAR", address)).toBe(false);
+  });
+
+  it("asks nothing for a form that can only be NEAR", () => {
+    for (const address of [IMPLICIT, "zingo.near", "alice.tg"]) {
+      expect(nearAccountNeedsConfirm(address)).toBe(false);
+    }
+  });
+
+  // Valid NEAR names that could be another chain's address, or a typo.
+  it("asks for a name that could be something else", () => {
+    for (const address of [
+      "aurora",
+      "0x85f17cf997934a597031b2e18a9ab6ebd4b9f6a4",
+      "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4",
+      "alice.naer",
+    ]) {
+      expect(nearAccountNeedsConfirm(address)).toBe(true);
+    }
+  });
+
+  it("asks nothing for what is not a NEAR account at all", () => {
+    expect(nearAccountNeedsConfirm("Alice.near")).toBe(false);
   });
 });

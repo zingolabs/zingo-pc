@@ -48,11 +48,15 @@ const BCH_CASHADDR_RE = /^(bitcoincash:)?[qp][ac-hj-np-z02-9]{40,42}$/;
 // Solana: base58 32–44 chars (encoded ed25519 pubkey).
 const SOL_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 
-// NEAR: either an implicit account (64 lowercase hex chars = encoded ed25519
-// pubkey) or a named account ending in `.near`. Named accounts allow
-// `a-z0-9_-` and `.` as a separator; we only accept mainnet (no `.testnet`).
+// NEAR: an account ID in the docs.near.org format, 2–64 lowercase letters and
+// digits joined by `.`, `-` or `_`. Mainnet only, so `.testnet` names fail,
+// and deterministic `0s…` accounts, which take no transfers, fail too.
+const NEAR_ACCOUNT_RE = /^(([a-z\d]+[-_])*[a-z\d]+\.)*([a-z\d]+[-_])*[a-z\d]+$/;
+const NEAR_DETERMINISTIC_RE = /^0s[0-9a-f]{40}$/;
+// The forms that can only be NEAR: an implicit account (64 hex) or a name under
+// a top-level account people get NEAR names from (`.tg` is HOT Wallet's).
 const NEAR_IMPLICIT_RE = /^[a-f0-9]{64}$/;
-const NEAR_NAMED_RE = /^([a-z0-9_-]+\.)+near$/;
+const NEAR_KNOWN_TOP_LEVELS: readonly string[] = ["near", "tg"];
 
 // Tron: base58check starting with `T`. Total length 34 chars.
 const TRX_RE = /^T[1-9A-HJ-NP-Za-km-z]{33}$/;
@@ -102,7 +106,28 @@ const isDoge: Validator = (a) => DOGE_RE.test(a);
 const isDash: Validator = (a) => DASH_RE.test(a);
 const isBch: Validator = (a) => BCH_LEGACY_RE.test(a) || BCH_CASHADDR_RE.test(a);
 const isSol: Validator = (a) => SOL_RE.test(a);
-const isNear: Validator = (a) => NEAR_IMPLICIT_RE.test(a) || NEAR_NAMED_RE.test(a);
+const isNear: Validator = (a) =>
+  a.length >= 2 &&
+  a.length <= 64 &&
+  NEAR_ACCOUNT_RE.test(a) &&
+  !NEAR_DETERMINISTIC_RE.test(a) &&
+  !a.endsWith(".testnet");
+
+/**
+ * Whether a valid NEAR account ID could just as well be something else, so the
+ * user confirms it before it is saved or swapped to.
+ *
+ * The NEAR format takes almost any lowercase string: a lowercase `0x…`, a
+ * `bc1q…` or `tex1…`, a CashAddr, a typo like `alice.naer`. None of them is
+ * refused server-side, so a paste from the wrong chain would become a swap to
+ * an account nobody holds. An implicit account or a name under a known
+ * top-level account can only be NEAR, and goes through unasked.
+ */
+export function nearAccountNeedsConfirm(address: string): boolean {
+  const a = address.trim();
+  if (!isNear(a) || NEAR_IMPLICIT_RE.test(a)) return false;
+  return !NEAR_KNOWN_TOP_LEVELS.some((top) => a.endsWith(`.${top}`));
+}
 const isTrx: Validator = (a) => TRX_RE.test(a);
 const isAtom: Validator = (a) => ATOM_RE.test(a);
 const isXrp: Validator = (a) => XRP_RE.test(a);

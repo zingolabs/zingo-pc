@@ -31,6 +31,7 @@ import {
   quoteBindsAddress,
   validateAddressForChain,
   canonicalChainAddress,
+  nearAccountNeedsConfirm,
   zecNetworkFeeReserve,
 } from "../../swap";
 import type {
@@ -101,8 +102,18 @@ type SwapProps = {
 };
 
 const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => {
-  const { totalBalance, currentWallet, info, readOnly, zecPrice, addressBook, swapToState, setSwapTo, mixnetView } =
-    useContext(ContextApp);
+  const {
+    totalBalance,
+    currentWallet,
+    info,
+    readOnly,
+    zecPrice,
+    addressBook,
+    swapToState,
+    setSwapTo,
+    mixnetView,
+    openConfirmModal,
+  } = useContext(ContextApp);
   const swapService = useSwapService();
 
   const [direction, setDirection] = useState<SwapDirectionEnum>(() =>
@@ -441,8 +452,22 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
   // is not already on screen. `chain` is mainnet because swaps are mainnet-only;
   // `swapChain` is what actually identifies a Bitcoin or Ethereum address.
   const saveActiveAddress = (label: string) => {
-    addAddressBookEntry(label, canonicalAddress, ServerChainNameEnum.mainChainName, counterpartyChain);
+    const save = () =>
+      addAddressBookEntry(label, canonicalAddress, ServerChainNameEnum.mainChainName, counterpartyChain);
+    if (nearNeedsConfirm) confirmNearAccount("Save contact", save);
+    else save();
   };
+
+  // A NEAR name that could be another chain's address is confirmed before it
+  // is saved or swapped to. A saved contact was confirmed when it was saved.
+  const nearNeedsConfirm: boolean = counterpartyChain === "NEAR" && nearAccountNeedsConfirm(canonicalAddress);
+  const confirmNearAccount = (title: string, onConfirm: () => void) =>
+    openConfirmModal(
+      title,
+      "This is a valid NEAR account name, but addresses from other chains can look like one too, and NEAR does not refuse them. " +
+        `Confirm this is a NEAR account: ${canonicalAddress}`,
+      onConfirm,
+    );
 
   const amountNumber = parseFloat(amount.replace(",", "."));
   const amountValid = Number.isFinite(amountNumber) && amountNumber > 0;
@@ -1209,11 +1234,16 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
                   }
                   onClick={() => {
                     if (!chosenRoute || !quoteContext) return;
-                    setReviewed({
+                    const review = {
                       route: chosenRoute,
                       quoteInput: quoteContext.quoteInput,
                       fiatValueBasis: quoteContext.fiatValueBasis,
-                    });
+                    };
+                    if (nearNeedsConfirm && !activeAddressSaved) {
+                      confirmNearAccount("Review swap", () => setReviewed(review));
+                    } else {
+                      setReviewed(review);
+                    }
                   }}
                 >
                   Review

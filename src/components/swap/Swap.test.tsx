@@ -249,3 +249,88 @@ describe("Swap with an uppercase bech32 address", () => {
     }
   });
 });
+
+// Almost any lowercase string is a valid NEAR name, so one that could be
+// another chain's address is confirmed before the swap is reviewed.
+describe("Swap to a NEAR name that could be something else", () => {
+  const review = async (address: string, openConfirmModal: jest.Mock) => {
+    const catalog = [asset("NEAR", "NEAR", "near"), ...CATALOG];
+    const listRoutableTokens = jest.fn(async () => catalog);
+    const quote = jest.fn(async () => ({
+      routes: [
+        {
+          routeId: "r1",
+          provider: "NEAR",
+          expectedReceiveAmount: "0.5",
+          minReceiveAmount: "0.49",
+          expiresAtMs: Date.now() + 600_000,
+        },
+      ],
+      unavailable: [],
+      rawResponse: { routes: [] },
+    }));
+    mockService = { listRoutableTokens, quote };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { native } = require("../../electronBridge");
+    native.derive_refund_address = jest.fn(async () => JSON.stringify({ encoded_address: "t1ephemeral" }));
+
+    const totalBalance = Object.assign(new TotalBalanceClass(), { totalSpendableBalance: 0 });
+    const Wrapped: React.FC = () => {
+      const [swapToState, setSwapTo] = useState<Handoff | null>({
+        address,
+        swapChain: "NEAR",
+        direction: SwapDirectionEnum.Inbound,
+      });
+      return (
+        <MemoryRouter>
+          <ContextApp.Provider
+            value={{
+              ...defaultAppState,
+              totalBalance,
+              currentWallet: { chain_name: ServerChainNameEnum.mainChainName } as never,
+              readOnly: false,
+              swapToState,
+              setSwapTo,
+              openConfirmModal,
+            }}
+          >
+            <Swap sendSwapDeposit={jest.fn()} addAddressBookEntry={jest.fn()} />
+          </ContextApp.Provider>
+        </MemoryRouter>
+      );
+    };
+
+    jest.useFakeTimers();
+    try {
+      render(<Wrapped />);
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), { target: { value: "1" } });
+      await act(async () => {
+        jest.advanceTimersByTime(1_100);
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    } finally {
+      jest.useRealTimers();
+    }
+  };
+
+  it("asks before reviewing a swap to an ambiguous name", async () => {
+    const openConfirmModal = jest.fn();
+    await review("aurora", openConfirmModal);
+
+    expect(openConfirmModal).toHaveBeenCalledWith(
+      "Review swap",
+      expect.stringContaining("Confirm this is a NEAR account: aurora"),
+      expect.any(Function),
+    );
+  });
+
+  it("does not ask for a name that can only be NEAR", async () => {
+    const openConfirmModal = jest.fn();
+    await review("alice.tg", openConfirmModal);
+
+    expect(openConfirmModal).not.toHaveBeenCalled();
+  });
+});

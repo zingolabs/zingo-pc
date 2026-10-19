@@ -107,7 +107,12 @@ export {
 } from "./depositGuidance";
 export type { DepositQrType } from "./depositGuidance";
 
-export { canonicalChainAddress, isValidChainAddress, SWAP_ADDRESS_CHAINS } from "./addressValidators";
+export {
+  canonicalChainAddress,
+  isValidChainAddress,
+  nearAccountNeedsConfirm,
+  SWAP_ADDRESS_CHAINS,
+} from "./addressValidators";
 export { validateAddressForChain } from "./validateAddressForChain";
 export { possibleChainsForAddress } from "./possibleChainsForAddress";
 export { extractPlainAddress } from "./extractPlainAddress";
