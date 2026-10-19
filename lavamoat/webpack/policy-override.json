@@ -1,8 +1,25 @@
 {
   "resources": {
+    "@fortawesome/fontawesome-svg-core": {
+      "globals": {
+        "matchMedia": true,
+        "navigator.userAgent": true
+      }
+    },
     "react-dom": {
       "globals": {
         "HTMLIFrameElement": true
+      }
+    },
+    "react-tabs": {
+      "globals": {
+        "document.activeElement": true
+      }
+    },
+    "react-textarea-autosize": {
+      "globals": {
+        "addEventListener": true,
+        "removeEventListener": true
       }
     }
   }

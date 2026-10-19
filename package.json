@@ -51,6 +51,7 @@
     "lint": "cross-env NODE_ENV=production eslint . --fix --ext .js,.jsx,.ts,.tsx",
     "prettier": "prettier './**/*.{js,jsx,ts,tsx}' -w",
     "start": "cross-env RUST_BACKTRACE=1 ELECTRON_ENABLE_LOGGING=1 NODE_OPTIONS=--trace-uncaught concurrently -k \"cross-env NODE_ENV=production BROWSER=none yarn react-start\" \"wait-on http://localhost:3000 && electronmon .\"",
+    "start:prod": "node scripts/generate-swapkit-secrets.js && node scripts/stage-ses.js && node scripts/start-prod.js",
     "script:build": "node scripts/generate-swapkit-secrets.js && node scripts/stage-ses.js && cross-env node scripts/build.js",
     "mixnet": "node scripts/stage-nym-proxy.js --host",
     "cargo:clean": "cd native && cargo clean && cd ..",
