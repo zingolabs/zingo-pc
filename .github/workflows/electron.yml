@@ -145,6 +145,12 @@ jobs:
       # Signed through Azure Artifact Signing (build.win.azureSignOptions). The
       # certificate lives in Azure, never on disk; these three variables are what
       # electron-builder's EnvironmentCredential authenticates with.
+      #
+      # The MSI is linked with `-sval` (build.msi.additionalLightArgs): WiX's ICE
+      # validation needs the Windows Installer service, which fails to start once
+      # the runner's environment passes 32 KB, and image 20261007 crossed it
+      # (actions/runner-images#6928). It checks the package's tables; it does
+      # not change what is built.
       - name: Build (Windows)
         if: matrix.platform == 'win'
         env:
