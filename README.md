@@ -54,10 +54,16 @@ nvm use 22.18.0
 ```bash
 git clone https://github.com/zingolabs/zingo-pc.git
 cd zingo-pc
-yarn install
+yarn setup
 yarn build
 yarn start
 ```
+
+`yarn setup` installs with the frozen lockfile and then runs the dependency
+scripts the allowlist in `package.json` permits (`lavamoat.allowScripts`), plus
+our own `postinstall`. A plain `yarn add` or `yarn remove` re-links
+`node_modules` without them, which leaves Electron's binary, `keytar`'s build
+and the patches behind: run `yarn allow-scripts` again afterwards.
 
 `yarn build` also builds `nym-proxy`, the mixnet transport, whose source lives
 in zingolib. Nothing to set up for it: the build fetches zingolib into
@@ -67,6 +73,32 @@ always the same zingolib. CI runs these same steps.
 
 `yarn mixnet` rebuilds only `nym-proxy`, which is all that is needed after the
 pinned revision changes.
+
+### Hardened JavaScript
+
+The renderer runs under [SES](https://github.com/endojs/endo/tree/master/packages/ses)
+lockdown: the language intrinsics are frozen before any dependency runs. In
+development that is `public/lockdown.js`, loaded from `index.html`. In a
+production build [LavaMoat](https://github.com/LavaMoat/LavaMoat) also wraps
+every npm package in its own Compartment, with the globals its policy grants
+(`lavamoat/webpack/policy.json`, generated; `policy-override.json`, by hand).
+
+After a dependency change, regenerate the policy and commit it:
+
+```bash
+LAVAMOAT_GENERATE_POLICY=1 yarn script:build
+```
+
+`yarn start` serves the development bundle, which has lockdown but no
+Compartments. `yarn start:prod` builds the production bundle, serves it on the
+port the unpackaged Electron loads and launches the app against it.
+
+A package that reaches a global the policy does not grant fails at runtime,
+typically as `TypeError: … is not an object` or `… is not a function` inside
+that package. To find every such gap in one session, run
+`yarn start:prod --debug-policy`, use the app, and run `LM_printPolicyDebug()` in
+the DevTools console: it prints the entries `policy-override.json` still
+needs. Never ship a debug-runtime build.
 
 To build the proxy from a zingolib working copy instead — when developing
 `nym-proxy` itself — point `ZINGOLIB_PATH` at it. That opts out of the pinning,

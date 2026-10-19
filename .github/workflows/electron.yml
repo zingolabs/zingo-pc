@@ -75,8 +75,8 @@ jobs:
         with:
           cmake-version: "latest"
 
-      - name: yarn install
-        run: yarn install
+      - name: yarn setup
+        run: yarn setup
 
       # The nym-proxy binary (bundled via extraResources on every platform) is
       # built from zingolib, a separate repo. Fetching it is scripts/stage-nym-proxy.js'

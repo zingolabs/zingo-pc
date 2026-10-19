@@ -33,7 +33,7 @@ jobs:
           cmake-version: "latest"
 
       - name: Install dependencies
-        run: yarn install
+        run: yarn setup
 
       # The key is not needed to run the tests — nothing here calls SwapKit —
       # but passing it keeps the generated file identical to a real build. On
@@ -44,3 +44,11 @@ jobs:
         env:
           SWAPKIT_API_KEY: ${{ secrets.SWAPKIT_API_KEY }}
         run: yarn test:run
+
+      # The LavaMoat policy is generated from the dependency graph and
+      # committed. A build that regenerates it must leave it unchanged.
+      - name: LavaMoat policy is up to date
+        env:
+          SWAPKIT_API_KEY: ${{ secrets.SWAPKIT_API_KEY }}
+          LAVAMOAT_GENERATE_POLICY: "1"
+        run: yarn script:build && git diff --exit-code -- lavamoat/webpack/policy.json
