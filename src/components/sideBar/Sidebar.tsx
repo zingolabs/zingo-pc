@@ -642,7 +642,6 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
               routeName={routes.SWAP}
               currentRoute={location.pathname}
               iconname={faRightLeft}
-              qualifier="experimental"
             />
           )}
         {currentWallet !== null && !currentWalletOpenError && (

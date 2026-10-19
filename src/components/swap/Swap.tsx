@@ -862,20 +862,6 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
     <div>
       <div className={`${cstyles.xlarge} ${cstyles.screentitle} ${cstyles.center}`}>Swap</div>
 
-      {/* Under the title rather than in a box of its own: a bordered paragraph
-          reads as terms to be got past, and it took room from the screen it is
-          warning about. Not dismissible, because what it says does not stop
-          being true when it is closed.
-
-          "Real" is the operative word and it is the strong reading on purpose:
-          there is no test path to send anyone to — SwapKit routes none of
-          these providers off mainnet, which is why the entry is mainnet-only
-          at all — so "not real funds" means "not yet", not "use the other
-          network". */}
-      <div className={`${cstyles.center} ${styles.experimentalnote}`}>
-        Still under testing — do not swap real funds yet.
-      </div>
-
       <ScrollPaneTop offsetHeight={paneOffset} measureRef={paneRef}>
         {/* 8px under the pair rather than 16: the screen needs the height. */}
         <div className={`${cstyles.well} ${styles.panel}`} style={{ margin: "0 16px 8px" }}>

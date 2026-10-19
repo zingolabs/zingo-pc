@@ -308,9 +308,8 @@ describe("SwapExecute backing out", () => {
   });
 });
 
-describe("SwapExecute experimental notice", () => {
-  // Said on the review as well as on the screen behind it. The banner there
-  // was read once, on arrival; this is the press that spends the money.
+describe("SwapExecute deposit notice", () => {
+  // Beside the press that spends the money.
   it("says a sent deposit cannot be called back, beside the button that sends it", async () => {
     renderExecute(SwapDirectionEnum.Outbound);
 

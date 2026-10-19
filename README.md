@@ -19,8 +19,8 @@ Pre-built binaries for each release are available on the [Releases page](https:/
 | Linux              | `.deb`, `.AppImage`                                                |
 | Linux (Flatpak)    | `.flatpak`                                                         |
 
-> **Trying the beta:** the TestFlight build is where what is still being tested reaches first — swaps
-> among it — before any of it goes to the App Store. It needs a Mac and the TestFlight app; the link
+> **Trying the beta:** the TestFlight build is where what is still being tested reaches first, before
+> any of it goes to the App Store. It needs a Mac and the TestFlight app; the link
 > above joins the public group, no invitation needed. Feedback is welcome from there.
 
 > **Windows users:** if Windows blocks the app on launch, see [Windows blocks Zingo PC from opening](#troubleshooting) in Troubleshooting. Our Windows builds are code signed, but a recently issued certificate has to accumulate reputation before Windows stops flagging it.
@@ -198,7 +198,7 @@ yarn release:prep 2.0.15 142
   switched off deliberately. Shielding the transparent balance is a payment by another name and waits
   the same way
 
-**Swaps** _(experimental, still under testing)_
+**Swaps**
 
 - Swap ZEC to and from assets on other chains through SwapKit (NEAR Intents, Flashnet and other providers)
 - Routes compared by cost against the market rate, with the slippage tolerance chosen and the slippage realised
