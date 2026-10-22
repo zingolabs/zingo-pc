@@ -18,6 +18,7 @@ import { useCopy } from "../../common/useCopy";
 import { chainDisplayName } from "../../swap/chainDisplayName";
 import { SwapDirectionEnum } from "../../../swap/enums/SwapDirectionEnum";
 import { ChainBadge } from "../../common/ChainBadge";
+import ContactQrModal from "./ContactQrModal";
 
 type AddressBookItemProps = {
   item: AddressBookEntryClass;
@@ -33,6 +34,7 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
   const { readOnly, setSendTo, setSwapTo, currentWallet } = context;
   const [expandAddress, setExpandAddress] = useState<boolean>(false);
   const { copied, copy } = useCopy(1500);
+  const [qrOpen, setQrOpen] = useState<boolean>(false);
 
   // A contact written before the field existed is a Zcash one: there was no way
   // to store anything else. The read migration stamps them, so this is only the
@@ -172,11 +174,33 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
               Swap From
             </button>
           )}
+          {/* For another device to scan: a phone has no other way to read an
+              address from this screen. A ZNS name is resolved by the app, so a
+              code holding the name would scan as nothing a wallet can pay. */}
+          {!!item.address && !isZnsAlias(item.address) && (
+            <button type="button" className={cstyles.primarybutton} onClick={() => setQrOpen(true)}>
+              Show QR
+            </button>
+          )}
           <button type="button" className={cstyles.primarybutton} onClick={() => removeAddressBookEntry(item.label)}>
             Delete
           </button>
         </div>
       </AccordionItemPanel>
+      {qrOpen && (
+        <ContactQrModal
+          label={item.label}
+          address={item.address}
+          swapChain={swapChain}
+          chainLabel={
+            isZecContact
+              ? `${chainDisplayName(ZEC_SWAP_CHAIN) || "Zcash"} · ${Utils.chainDisplayName(item.chain)}`
+              : chainDisplayName(swapChain) || swapChain
+          }
+          modalIsOpen={qrOpen}
+          closeModal={() => setQrOpen(false)}
+        />
+      )}
     </AccordionItem>
   );
 };
