@@ -133,10 +133,18 @@ if (process.env.ZINGOLIB_PATH) {
 }
 
 const manifest = path.join(zingolib, "zingo-netutils/Cargo.toml");
+
 if (!fs.existsSync(manifest)) {
   console.error(`stage-nym-proxy: no zingo-netutils workspace at ${zingolib} (looked for ${manifest}).`);
   process.exit(1);
 }
+
+// Where cargo puts what it builds from that manifest, asked rather than assumed:
+// zingo-netutils had its own target/ until zingolib took it into its workspace
+// (zingolib #3037), and since then it builds into the workspace's target/.
+const targetDir = JSON.parse(
+  execSync(`cargo metadata --format-version 1 --no-deps --manifest-path "${manifest}"`, { encoding: "utf8" }),
+).target_directory;
 
 // The Rust triple for the machine running this script, for `--host`. The dist:*
 // scripts always name their --target, so the no-flag default stays the macOS
@@ -167,7 +175,7 @@ const binName = isWindows ? "nym-proxy.exe" : "nym-proxy";
 const outDir = path.join(repoRoot, "resources");
 const out = path.join(outDir, binName);
 
-// `--clean`, for release builds: wipe zingo-netutils' target so the binary is
+// `--clean`, for release builds: wipe the target zingo-netutils builds into so the binary is
 // compiled here and now rather than reused. Also drop whatever is already
 // staged, both the name we are about to write and the other platform's, so a
 // build that dies partway leaves no earlier binary behind for electron-builder
@@ -185,7 +193,7 @@ const built = targets.map((target) => {
   execSync(`cargo build --release --bin nym-proxy --features nym --target ${target} --manifest-path "${manifest}"`, {
     stdio: "inherit",
   });
-  return path.join(zingolib, "zingo-netutils/target", target, "release", binName);
+  return path.join(targetDir, target, "release", binName);
 });
 
 fs.mkdirSync(outDir, { recursive: true });
