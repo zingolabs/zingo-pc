@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { render } from "../../test-utils";
 import SwapExecute from "./SwapExecute";
-import { SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
+import { DepositAfterDeshieldError, SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
 import { SwapKitHttpError } from "../../swap/errors";
 import { SwapOperationEnum } from "../../swap/enums/SwapErrorCategoryEnum";
 import type { QuoteInput, RouteOptionType, SwapAssetType, SwapRecordType, SwapService } from "../../swap";
@@ -84,6 +84,7 @@ const renderExecute = (
   deposit?: jest.Mock,
   instructionOverrides: Record<string, unknown> = {},
   commitFailure?: unknown,
+  resume?: jest.Mock,
 ) => {
   const commitRoute = jest.fn(async () => {
     if (commitFailure) throw commitFailure;
@@ -99,8 +100,10 @@ const renderExecute = (
     };
   });
   const markBroadcasted = jest.fn(async () => record(direction));
+  const markDeshielded = jest.fn(async () => record(direction));
   const sendSwapDeposit = deposit ?? jest.fn(async () => ["a".repeat(64)]);
-  const swapService = { commitRoute, markBroadcasted } as unknown as SwapService;
+  const resumeSwapDeposit = resume ?? jest.fn(async () => ["c".repeat(64)]);
+  const swapService = { commitRoute, markBroadcasted, markDeshielded } as unknown as SwapService;
   const onDone = jest.fn();
   const onCancel = jest.fn();
   const onRouteRefused = jest.fn();
@@ -113,12 +116,22 @@ const renderExecute = (
       fiatValueBasis={{ sellUsdUnitPrice: 30, receiveUsdUnitPrice: 60000, capturedAt: 0 }}
       direction={direction}
       sendSwapDeposit={sendSwapDeposit}
+      resumeSwapDeposit={resumeSwapDeposit}
       onDone={onDone}
       onCancel={onCancel}
       onRouteRefused={onRouteRefused}
     />,
   );
-  return { commitRoute, markBroadcasted, sendSwapDeposit, onDone, onCancel, onRouteRefused };
+  return {
+    commitRoute,
+    markBroadcasted,
+    markDeshielded,
+    sendSwapDeposit,
+    resumeSwapDeposit,
+    onDone,
+    onCancel,
+    onRouteRefused,
+  };
 };
 
 beforeEach(() => {
@@ -408,5 +421,49 @@ describe("SwapExecute when the provider refuses the route", () => {
     await waitFor(() => expect(screen.getByText(/network down/i)).toBeInTheDocument());
     expect(onRouteRefused).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /swap and send deposit/i })).toBeInTheDocument();
+  });
+});
+
+// A memo-bearing deposit is two transactions. When the first, the deshield,
+// goes out and the second does not, sending the deposit again would deshield a
+// second time for the same swap. The retry resumes it instead.
+describe("SwapExecute deposit stopped after its deshield", () => {
+  const DESHIELD = "d".repeat(64);
+  const OP_RETURN = "e".repeat(64);
+  const stopped = (opReturnTxId?: string) =>
+    jest.fn().mockRejectedValueOnce(new DepositAfterDeshieldError("transmission failed", DESHIELD, opReturnTxId));
+
+  it("keeps the deshield on the record and says the retry finishes it", async () => {
+    const { markDeshielded, markBroadcasted } = renderExecute(SwapDirectionEnum.Outbound, stopped());
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    expect(await screen.findByText(/first transaction went out/)).toBeInTheDocument();
+    expect(markDeshielded).toHaveBeenCalledWith({ recordId: "rec-1", deshieldTxId: DESHIELD });
+    expect(markBroadcasted).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["the OP_RETURN step was not built", undefined],
+    ["the OP_RETURN transaction was built", OP_RETURN],
+  ])("resumes on the retry when %s, without sending again", async (_label, opReturnTxId) => {
+    const { sendSwapDeposit, resumeSwapDeposit, markBroadcasted } = renderExecute(
+      SwapDirectionEnum.Outbound,
+      stopped(opReturnTxId),
+      {},
+      undefined,
+      jest.fn(async () => ["c".repeat(64)]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /try the deposit again/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(sendSwapDeposit).toHaveBeenCalledTimes(1);
+    expect(resumeSwapDeposit).toHaveBeenCalledWith(opReturnTxId);
+    // The deshield first, the vault payment last: the one the provider watches.
+    expect(markBroadcasted).toHaveBeenCalledWith({
+      recordId: "rec-1",
+      txId: "c".repeat(64),
+      allTxIds: [DESHIELD, "c".repeat(64)],
+    });
   });
 });

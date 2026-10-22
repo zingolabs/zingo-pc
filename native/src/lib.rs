@@ -58,10 +58,11 @@ use pepper_sync::error::{SyncModeError, SyncRecoveryObservables};
 use zingolib::config::{ChainType, ClientConfig, WalletConfig, construct_indexer_uri};
 use zingolib::data::PollReport;
 use zingolib::lightclient::LightClient;
-use zingolib::lightclient::error::LightClientError;
+use zingolib::lightclient::error::{LightClientError, SendError};
 use zingolib::utils::{conversion::address_from_str, conversion::txid_from_hex_encoded_str};
 use zingolib::wallet::keys::unified::{ReceiverSelection, UnifiedKeyStore};
 use zingolib::wallet::WalletSettings;
+use zingolib::perspective::sync_progress::{SessionReport, SyncProgress};
 use zingolib::data::receivers::Receivers;
 use zcash_address::ZcashAddress;
 use zcash_protocol::{value::Zatoshis};
@@ -182,6 +183,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_wallet_version", get_wallet_version)?;
     cx.export_function("send", send)?;
     cx.export_function("send_swap_deposit", send_swap_deposit)?;
+    cx.export_function("resume_swap_deposit", resume_swap_deposit)?;
     cx.export_function("shield", shield)?;
     cx.export_function("clear_proposal", clear_proposal)?;
     cx.export_function("confirm", confirm)?;
@@ -1307,7 +1309,7 @@ fn poll_sync_report(lightclient: &mut LightClient) -> Result<String, ZingolibErr
         PollReport::NotReady => Ok("Sync task is not complete.".to_string()),
         PollReport::Ready(result) => match result {
             Ok(sync_result) => {
-                Ok(json::object! { "sync_complete" => json::JsonValue::from(sync_result) }
+                Ok(json::object! { "sync_complete" => json::JsonValue::from(SessionReport::from(sync_result)) }
                     .pretty(2))
             }
             // A failed session crosses on the data channel rather than
@@ -1321,6 +1323,15 @@ fn poll_sync_report(lightclient: &mut LightClient) -> Result<String, ZingolibErr
             }
             .pretty(2)),
         },
+        // A panicked sync task is a bug, not a server to retry or switch
+        // away from, so it halts the cycle like any failure that holds.
+        PollReport::Panicked(text) => Ok(json::object! {
+            "sync_failed" => json::object! {
+                "recovery" => recovery_token(SyncRecoveryObservables::Abort),
+                "reason" => format!("the sync task panicked: {text}"),
+            }
+        }
+        .pretty(2)),
     }
 }
 
@@ -1414,11 +1425,11 @@ fn stop_sync(mut cx: FunctionContext) -> JsResult<JsPromise> {
 fn status_sync_string() -> Result<String, ZingolibError> {
     with_initialized_lightclient_read(|lightclient| {
         if let Some(published) = lightclient.latest_sync_status() {
-            return Ok(json::JsonValue::from(published).pretty(2));
+            return Ok(json::JsonValue::from(SyncProgress::from(published)).pretty(2));
         }
         RT.block_on(async move {
             match pepper_sync::sync_status(&*lightclient.wallet().read().await).await {
-                Ok(status) => Ok(json::JsonValue::from(status).pretty(2)),
+                Ok(status) => Ok(json::JsonValue::from(SyncProgress::from(status)).pretty(2)),
                 Err(e) => Err(ZingolibError::Sync(cause_chain(&e))),
             }
         })
@@ -1443,7 +1454,7 @@ fn caught_up_report(lightclient: &LightClient) -> Result<String, ZingolibError> 
         return Ok(object! { "caught_up" => false, "percent" => json::Null }.pretty(2));
     };
     let caught_up = status.is_complete();
-    let percent = json::JsonValue::from(status)["percentage_total_outputs_scanned"].clone();
+    let percent = SyncProgress::from(status).percentage_total_outputs_scanned;
     Ok(object! { "caught_up" => caught_up, "percent" => percent }.pretty(2))
 }
 
@@ -2920,6 +2931,9 @@ fn send(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 // shielded spend at all: that took the owned spend pipeline,
                 // and the pipeline is gone. Anything reaching this function
                 // is an ordinary send.
+                if let Some(refusal) = refuse_while_deposit_resumes(lightclient).await {
+                    return refusal;
+                }
                 match lightclient.propose_send(request, AccountId::ZERO).await {
                     Ok(proposal) => {
                         let fee = match zingolib::data::proposal::total_fee(&proposal) {
@@ -2981,14 +2995,14 @@ fn send_swap_deposit(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 // sending it is what transmits. The pair stays behind this
                 // single entry point, so the swap flow still asks once and
                 // gets every txid back.
+                // zingolib refuses a new proposal while an earlier deposit
+                // waits to resume after its deshield, rather than dropping it.
                 if let Err(e) = lightclient
                     .propose_send_with_op_return(&vault_address, amount, memo, AccountId::ZERO)
                     .await
                 {
-                    return object! { "error" => cause_chain(&e) }.pretty(2);
+                    return swap_deposit_failure(&e).pretty(2);
                 }
-                // Resumes at the OP_RETURN step when the deshield already
-                // went out, which is the case this shape used to lose.
                 match lightclient.send_stored_proposal(true).await {
                     // Deshield first, carrier last — the order the swap
                     // flow reads, which takes the last as the deposit the
@@ -2996,7 +3010,7 @@ fn send_swap_deposit(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Ok(txids) => object! {
                         "txids" => txids.iter().map(|txid| txid.to_string()).collect::<Vec<_>>()
                     },
-                    Err(e) => object! { "error" => cause_chain(&e) },
+                    Err(e) => swap_deposit_failure(&e),
                 }
                 .pretty(2)
             }))
@@ -3004,10 +3018,92 @@ fn send_swap_deposit(mut cx: FunctionContext) -> JsResult<JsPromise> {
     })
 }
 
+/// A swap deposit's failure, on the data channel. One that happened after the
+/// deshield went out carries `after_deshield`: the deshield's txid, and the
+/// OP_RETURN transaction's when it was built. The renderer resumes it with
+/// `resume_swap_deposit` instead of proposing again, which would deshield a
+/// second time for the same swap.
+fn swap_deposit_failure(e: &LightClientError) -> json::JsonValue {
+    let after_deshield = match e {
+        LightClientError::SendError(SendError::OpReturnAfterDeshield {
+            deshield_txid,
+            op_return_txid,
+            ..
+        }) => Some((*deshield_txid, *op_return_txid)),
+        LightClientError::SendError(SendError::OpReturnResumePending { deshield_txid }) => {
+            Some((*deshield_txid, None))
+        }
+        _ => None,
+    };
+    match after_deshield {
+        Some((deshield_txid, op_return_txid)) => object! {
+            "error" => cause_chain(e),
+            "after_deshield" => object! {
+                "deshield_txid" => deshield_txid.to_string(),
+                "op_return_txid" => op_return_txid.map(|txid| txid.to_string()),
+            },
+        },
+        None => object! { "error" => cause_chain(e) },
+    }
+}
+
+/// Finishes a swap deposit whose deshield went out and whose OP_RETURN step
+/// did not. With the OP_RETURN transaction already built (`op_return_txid`),
+/// it is transmitted again; otherwise the stored proposal resumes from the
+/// OP_RETURN step. Answers the vault payment's txid alone, or the same
+/// `after_deshield` failure when it fails again.
+fn resume_swap_deposit(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    let op_return_txid = cx.argument::<JsString>(0)?.value(&mut cx);
+
+    spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
+        with_initialized_lightclient(|lightclient| {
+            Ok(RT.block_on(async move {
+                let sent = if op_return_txid.is_empty() {
+                    lightclient.send_stored_proposal(true).await.map(|txids| txids.into_iter().collect::<Vec<_>>())
+                } else {
+                    let txid = match txid_from_hex_encoded_str(&op_return_txid) {
+                        Ok(txid) => txid,
+                        Err(e) => return object! { "error" => format!("Invalid txid: {e}") }.pretty(2),
+                    };
+                    lightclient
+                        .transmit_calculated(nonempty::NonEmpty::new(txid))
+                        .await
+                        .map(|txids| txids.into_iter().collect::<Vec<_>>())
+                };
+                match sent {
+                    Ok(txids) => object! {
+                        "txids" => txids.iter().map(|txid| txid.to_string()).collect::<Vec<_>>()
+                    },
+                    Err(e) => swap_deposit_failure(&e),
+                }
+                .pretty(2)
+            }))
+        })
+    })
+}
+
+/// The refusal a new send or shield gets while a swap deposit waits to resume.
+/// Proposing would replace the stored deposit, and the swap could then only be
+/// paid by deshielding again.
+async fn refuse_while_deposit_resumes(lightclient: &LightClient) -> Option<String> {
+    let pending = lightclient.wallet().read().await.pending_op_return_deshield();
+    pending.map(|txid| {
+        object! {
+            "error" => format!(
+                "A swap deposit is waiting to finish after its first transaction {txid}. Finish it from the swap screen first."
+            )
+        }
+        .pretty(2)
+    })
+}
+
 fn shield(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
         with_initialized_lightclient(|lightclient| {
             Ok(RT.block_on(async move {
+                if let Some(refusal) = refuse_while_deposit_resumes(lightclient).await {
+                    return refusal;
+                }
                 match lightclient.propose_shield(AccountId::ZERO).await {
                     Ok(proposal) => {
                         if proposal.steps().len() != 1 {
@@ -3057,7 +3153,13 @@ fn shield(mut cx: FunctionContext) -> JsResult<JsPromise> {
 fn clear_proposal(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
         with_initialized_lightclient(|lightclient| {
-            RT.block_on(async move { lightclient.clear_proposal().await });
+            RT.block_on(async move {
+                // A swap deposit waiting to resume is not a quote: clearing it
+                // would leave the swap payable only by deshielding again.
+                if lightclient.wallet().read().await.pending_op_return_deshield().is_none() {
+                    lightclient.clear_proposal().await;
+                }
+            });
             Ok("OK".to_string())
         })
     })

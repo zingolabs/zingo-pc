@@ -24,6 +24,7 @@ import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/
 import { userFacingError } from "../utils/userFacingError";
 import { SyncRecovery } from "./syncFailureMessage";
 import { depositSpendsSourceAddress } from "../swap/depositRouting";
+import { depositTxIds } from "../swap/depositAfterDeshield";
 import { INITIAL_SERVER_HEALTH, ServerHealthState, recordCannotServe, recordProbe } from "./components/serverHealth";
 import {
   INITIAL_SYNC_FAILURES,
@@ -1242,14 +1243,19 @@ export default class RPC {
         // transparent address is the point.
         args.memoBytes && carriesMemo ? bytesToHex(args.memoBytes) : "",
       );
-      // Structured JSON on the data channel, never error prose — `{ txids }`
-      // or `{ error }`, the same contract the send path keeps.
-      const parsed: { txids?: string[]; error?: string } = JSON.parse(answer);
-      if (parsed.error) {
-        throw new Error(parsed.error);
-      }
-      return parsed.txids ?? [];
+      // A failure after the deshield throws DepositAfterDeshieldError,
+      // which the caller resumes with `resumeSwapDeposit`.
+      return depositTxIds(answer);
     });
+  }
+
+  /**
+   * Finishes a deposit that stopped after its deshield: transmits the
+   * OP_RETURN transaction when it was built (`opReturnTxId`), or resumes the
+   * stored proposal from that step. Answers the vault payment's txid alone.
+   */
+  async resumeSwapDeposit(opReturnTxId?: string): Promise<string[]> {
+    return this.withSyncStopped(async () => depositTxIds(await native.resume_swap_deposit(opReturnTxId ?? "")));
   }
 
   // Runs an operation that spends with the sync engine stopped, and brings

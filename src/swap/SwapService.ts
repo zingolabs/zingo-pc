@@ -300,6 +300,26 @@ export class SwapService {
     return { record, instructions };
   }
 
+  /**
+   * The deposit's first transaction, the deshield, went out and the second
+   * did not. The record keeps the deshield's txid, so the swap's history
+   * shows it, and stays pending until the resumed deposit is marked
+   * broadcast.
+   */
+  async markDeshielded(args: { recordId: string; deshieldTxId: string }): Promise<SwapRecordType> {
+    const record = await this.store.getByRecordId(args.recordId);
+    if (!record) {
+      throw new Error(`SwapService.markDeshielded: no record for ${args.recordId}`);
+    }
+    const updated: SwapRecordType = {
+      ...record,
+      broadcast: { status: BroadcastStatusEnum.PendingBroadcast, allTxIds: [args.deshieldTxId] },
+      updatedAtMs: Date.now(),
+    };
+    await this.store.upsert(updated);
+    return updated;
+  }
+
   async markBroadcasted(args: MarkBroadcastedArgs): Promise<SwapRecordType> {
     const { recordId, txId, allTxIds } = args;
     const record = await this.store.getByRecordId(recordId);

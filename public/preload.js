@@ -77,6 +77,7 @@ const _ALL_NATIVE_METHODS = [
   "set_config_wallet_to_prod",
   "send",
   "send_swap_deposit",
+  "resume_swap_deposit",
   "delete_wallet",
   "start_ironwood_migration",
   "reschedule_parts",

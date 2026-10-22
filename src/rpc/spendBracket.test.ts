@@ -90,6 +90,16 @@ describe("a spend runs with the engine stopped", () => {
     ]);
   });
 
+  // Finishing a deposit that stopped after its deshield transmits too.
+  it("stops it before resuming a swap deposit", async () => {
+    answering("resume_swap_deposit", JSON.stringify({ txids: ["gh78"] }));
+    const txids = await makeRpc().resumeSwapDeposit("ab".repeat(32));
+
+    expect(txids).toEqual(["gh78"]);
+    expect(calls).toEqual(["stop_sync", "poll_sync", "resume_swap_deposit", "configure"]);
+    expect(native.resume_swap_deposit).toHaveBeenCalledWith("ab".repeat(32));
+  });
+
   it("relaunches the engine even when the spend fails", async () => {
     answering("confirm", JSON.stringify({ error: "Send error. ← Unable to compute root" }));
 

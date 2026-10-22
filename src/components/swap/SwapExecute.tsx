@@ -12,6 +12,7 @@ import {
   commitRefusalCondemnsRoute,
   SwapDirectionEnum,
   depositSpendsSourceAddress,
+  DepositAfterDeshieldError,
   providerLongLabel,
 } from "../../swap";
 import type {
@@ -63,6 +64,8 @@ type SwapExecuteProps = {
     viaSourceAddress?: boolean;
     shieldedMemoAddress?: string;
   }) => Promise<string[]>;
+  /** Finishes a deposit that stopped after its deshield. */
+  resumeSwapDeposit: (opReturnTxId?: string) => Promise<string[]>;
   /** The swap ran and the user is finished with it. The screen behind is
    *  cleared, because the next swap is a new decision. */
   onDone: () => void;
@@ -98,6 +101,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   fiatValueBasis,
   direction,
   sendSwapDeposit,
+  resumeSwapDeposit,
   onDone,
   onCancel,
   onRouteRefused,
@@ -109,6 +113,9 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   // way out is the other route the screen behind now offers.
   const [refused, setRefused] = useState<boolean>(false);
   const [postCommit, setPostCommit] = useState<PostCommit | null>(null);
+  // Set when the deposit stopped after its deshield: the retry then resumes
+  // it instead of sending it again, which would deshield a second time.
+  const [afterDeshield, setAfterDeshield] = useState<{ deshieldTxId: string; opReturnTxId?: string } | null>(null);
 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
 
@@ -131,9 +138,15 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   }, []);
 
   const broadcast = useCallback(
-    async (record: SwapRecordType, instructions: DepositInstructionsType) => {
+    async (
+      record: SwapRecordType,
+      instructions: DepositInstructionsType,
+      resume?: { deshieldTxId: string; opReturnTxId?: string },
+    ) => {
       try {
-        const txIds = await sendSwapDeposit(depositRequest(instructions));
+        const txIds = resume
+          ? [resume.deshieldTxId, ...(await resumeSwapDeposit(resume.opReturnTxId))]
+          : await sendSwapDeposit(depositRequest(instructions));
         // The provider watches the transaction that pays the vault, which is
         // the last one: a two-hop send emits shielded → ephemeral first. Taking
         // the last regardless of length also survives a future step being added
@@ -145,8 +158,21 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           allTxIds: txIds,
         });
         setError("");
+        setAfterDeshield(null);
         setPostCommit({ record: broadcasted, instructions, txId: depositTxId });
       } catch (e) {
+        if (e instanceof DepositAfterDeshieldError) {
+          const deshielded = await swapService.markDeshielded({
+            recordId: record.recordId,
+            deshieldTxId: e.deshieldTxId,
+          });
+          setAfterDeshield({ deshieldTxId: e.deshieldTxId, opReturnTxId: e.opReturnTxId });
+          setError(
+            "The deposit's first transaction went out, but the second did not. Try again to finish it: nothing more is taken from your shielded balance.",
+          );
+          setPostCommit({ record: deshielded, instructions });
+          return;
+        }
         // Falling back to the instructions rather than an error alone: the swap
         // is reserved and payable by hand, so the address and amount are the
         // useful thing to show.
@@ -154,16 +180,16 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
         setPostCommit({ record, instructions });
       }
     },
-    [swapService, sendSwapDeposit],
+    [swapService, sendSwapDeposit, resumeSwapDeposit],
   );
 
   const retry = useCallback(async () => {
     if (!postCommit) return;
     if (!(await deviceAuthPasses())) return;
     setCommitting(true);
-    await broadcast(postCommit.record, postCommit.instructions);
+    await broadcast(postCommit.record, postCommit.instructions, afterDeshield ?? undefined);
     setCommitting(false);
-  }, [postCommit, broadcast, deviceAuthPasses]);
+  }, [postCommit, broadcast, deviceAuthPasses, afterDeshield]);
 
   const commit = useCallback(async () => {
     // Before anything is reserved: a refused unlock leaves the quote, the
