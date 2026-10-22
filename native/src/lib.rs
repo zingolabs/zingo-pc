@@ -1022,12 +1022,16 @@ fn get_ufvk_string() -> Result<String, ZingolibError> {
                 .map_err(|e: zingolib::wallet::error::KeyError| {
                     ZingolibError::Read(cause_chain(&e))
                 })?;
-            Ok(object! {
+            let mut answer = object! {
                 "ufvk" => zingolib::wallet::keys::unified::encode_ufvk(&ufvk, &wallet.chain_type()),
                 "birthday" => u32::from(wallet.birthday())
+            };
+            // As the seed path's RecoveryInfo does: the height the wallet held
+            // before zingolib raised it to Sapling activation, when it did.
+            if let Some(from) = wallet.birthday_adjusted_from() {
+                answer["birthday_adjusted_from"] = u32::from(from).into();
             }
-            .pretty(2)
-            .to_string())
+            Ok(answer.pretty(2).to_string())
         })
     })
 }

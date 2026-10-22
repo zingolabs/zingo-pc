@@ -18,6 +18,7 @@ import serverUrisList from "../../utils/serverUrisList";
 import fetchServerList from "../../utils/fetchServerList";
 import pickAutoServer from "../../utils/pickAutoServer";
 import Utils from "../../utils/utils";
+import { birthdayAdjustedNotice } from "../../utils/birthdayAdjustedNotice";
 import { userFacingError } from "../../utils/userFacingError";
 import { Logo } from "../logo";
 import DetailLine from "../detailLine/DetailLine";
@@ -749,6 +750,13 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         );
 
         const resultJSON = JSON.parse(result);
+        // A saved wallet whose birthday was below Sapling activation, raised
+        // as it was read.
+        const adjusted: string | null = birthdayAdjustedNotice(resultJSON);
+        if (adjusted) {
+          const { openErrorModal } = this.context as React.ContextType<typeof ContextApp>;
+          openErrorModal("Wallet birthday adjusted", adjusted);
+        }
 
         // seed phrase or ufvk
         this.setStep("reading wallet keys");
