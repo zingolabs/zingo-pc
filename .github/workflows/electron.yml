@@ -27,6 +27,15 @@ jobs:
             arch: x64
             dist_script: dist:linux
 
+          # Raspberry Pi and other ARM64 Linux machines. Built natively on an
+          # ARM64 runner, so the addon compiles for the host. Ubuntu 22.04's
+          # glibc 2.35 keeps the binaries running on Raspberry Pi OS Bookworm
+          # (2.36).
+          - runner: ubuntu-22.04-arm
+            platform: linux
+            arch: arm64
+            dist_script: dist:linux-arm64
+
           - runner: macos-15
             platform: mac
             arch: x64
@@ -122,8 +131,19 @@ jobs:
         run: |
           echo "$profile" | base64 -D -o configs/Zingo_PC_Profile.provisionprofile
 
+      # electron-builder packs the .deb with the fpm it bundles, an x86_64
+      # binary that cannot run on ARM64; the system fpm stands in for it.
+      - name: Install fpm (Linux ARM64)
+        if: matrix.platform == 'linux' && matrix.arch == 'arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential
+          sudo gem install --no-document fpm
+
       - name: Build (Linux)
         if: matrix.platform == 'linux'
+        env:
+          USE_SYSTEM_FPM: ${{ matrix.arch == 'arm64' && 'true' || '' }}
         run: yarn ${{ matrix.dist_script }}
 
       - name: Build (macOS)
