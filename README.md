@@ -10,14 +10,14 @@ App Store: [https://apps.apple.com/app/zingo-pc/id6763584326](https://apps.apple
 
 Pre-built binaries for each release are available on the [Releases page](https://github.com/zingolabs/zingo-pc/releases).
 
-| Platform           | Format                                                             |
-| ------------------ | ------------------------------------------------------------------ |
-| Windows            | `.msi` installer, `.zip` portable                                  |
-| macOS              | `.dmg`                                                             |
-| macOS (App Store)  | [App Store link](https://apps.apple.com/app/zingo-pc/id6763584326) |
-| macOS (TestFlight) | [Public beta](https://testflight.apple.com/join/qBDKNJqk)          |
-| Linux              | `.deb`, `.AppImage`                                                |
-| Linux (Flatpak)    | `.flatpak`                                                         |
+| Platform           | Format                                                                             |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| Windows            | `.msi` installer, `.zip` portable                                                  |
+| macOS              | `.dmg`                                                                             |
+| macOS (App Store)  | [App Store link](https://apps.apple.com/app/zingo-pc/id6763584326)                 |
+| macOS (TestFlight) | [Public beta](https://testflight.apple.com/join/qBDKNJqk)                          |
+| Linux              | `.deb`, `.AppImage` (x64, and ARM64 for a Raspberry Pi 4/5 or other ARM64 machine) |
+| Linux (Flatpak)    | `.flatpak`                                                                         |
 
 > **Trying the beta:** the TestFlight build is where what is still being tested reaches first, before
 > any of it goes to the App Store. It needs a Mac and the TestFlight app; the link
