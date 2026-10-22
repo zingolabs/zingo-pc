@@ -197,3 +197,48 @@ describe("AddressbookItem chain badge", () => {
     expect(screen.getByTestId("chain-badge")).toBeInTheDocument();
   });
 });
+
+// A phone has no way to read an address off this screen except by scanning it,
+// whatever the contact's asset.
+describe("AddressbookItem QR code", () => {
+  const openQr = (entry: AddressBookEntryClass) => {
+    renderInAccordion(<AddressBookItem {...baseProps} item={entry} />, {
+      contextOverrides: { currentWallet: mainnetWallet },
+    });
+    fireEvent.click(screen.getByText(entry.label));
+    fireEvent.click(screen.getByRole("button", { name: /show qr/i }));
+  };
+
+  it("shows a Zcash contact's address as a QR code, with its network", () => {
+    openQr(item);
+
+    expect(screen.getByLabelText("QR code of Alice's address")).toBeInTheDocument();
+    expect(screen.getByText("u1fakeaddress0000000000000000000000000000")).toBeInTheDocument();
+    expect(screen.getByText(/Zcash · Mainnet/)).toBeInTheDocument();
+  });
+
+  it("shows a contact on another chain the same way", () => {
+    const bob = new AddressBookEntryClass(
+      "Bob",
+      "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+      ServerChainNameEnum.mainChainName,
+      "BTC",
+    );
+    openQr(bob);
+
+    expect(screen.getByLabelText("QR code of Bob's address")).toBeInTheDocument();
+    expect(screen.getByText("Bitcoin")).toBeInTheDocument();
+  });
+
+  // A wallet that scans a ZNS name has nothing to pay: the name is resolved by
+  // this app, not carried by the code.
+  it("offers no code for a contact saved as a ZNS name", () => {
+    const zns = new AddressBookEntryClass("Carol", "carol.zcash", ServerChainNameEnum.mainChainName);
+    renderInAccordion(<AddressBookItem {...baseProps} item={zns} />, {
+      contextOverrides: { currentWallet: mainnetWallet },
+    });
+    fireEvent.click(screen.getByText("Carol"));
+
+    expect(screen.queryByRole("button", { name: /show qr/i })).not.toBeInTheDocument();
+  });
+});
