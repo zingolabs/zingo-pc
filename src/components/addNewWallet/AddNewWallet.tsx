@@ -17,6 +17,7 @@ import selectFastestServer from "../../utils/selectFastestServer";
 import { withRecommended } from "../../utils/recommendedServers";
 import pickAutoServer from "../../utils/pickAutoServer";
 import Utils from "../../utils/utils";
+import { birthdayAdjustedNotice } from "../../utils/birthdayAdjustedNotice";
 import { native, ipcRenderer } from "../../electronBridge";
 import { useLocation } from "react-router-dom";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
@@ -476,14 +477,11 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       const resultJSON = JSON.parse(result);
       const birthday: number = resultJSON.birthday;
 
-      // Both ends, and a warning rather than a refusal.
-      //
-      // The birthday recorded in a .dat is metadata: a wrong one stops the
-      // wallet syncing, and refusing the restore over it would leave the user
-      // without their wallet instead — worse than the fault. So this says what
-      // is wrong and continues, which is what it always did; what it did not
-      // do was look at the upper end, where a slipped digit puts the wallet
-      // ahead of the chain and sync refuses outright.
+      // Both ends, said rather than refused: the birthday recorded in a .dat is
+      // metadata, and refusing the restore over it would leave the user
+      // without their wallet. Below activation zingolib has already raised it;
+      // above the tip, a slipped digit puts the wallet ahead of the chain and
+      // sync refuses until it is corrected.
       const tipForFile: number | null = await (async () => {
         try {
           const height = Number(await native.get_latest_block_server(selectedServer));
@@ -492,11 +490,9 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           return null;
         }
       })();
-      if (birthday < activationHeight[selectedChain]) {
-        openErrorModal(
-          "Restoring wallet from file",
-          `The birthday found (${birthday}) is below the network activation height (${activationHeight[selectedChain]}). The sync process is not going to work.`,
-        );
+      const adjusted: string | null = birthdayAdjustedNotice(resultJSON);
+      if (adjusted) {
+        openErrorModal("Restoring wallet from file", adjusted);
       } else if (tipForFile !== null && birthday > tipForFile) {
         openErrorModal(
           "Restoring wallet from file",

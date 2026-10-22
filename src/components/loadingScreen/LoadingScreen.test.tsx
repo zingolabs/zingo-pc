@@ -49,6 +49,7 @@ const baseProps = {
   setCurrentWalletOpenError: jest.fn(),
   setFetchError: jest.fn(),
   setBlockExplorer: jest.fn(),
+  releaseForScreen: jest.fn(async () => undefined),
 };
 
 beforeEach(() => {
@@ -75,6 +76,8 @@ const bootWithSelection = (
   uri: string,
   chain: ServerChainNameEnum = ServerChainNameEnum.mainChainName,
   avoidedServers: string[] = [],
+  initAnswer: string = '{"birthday":0}',
+  openErrorModal: jest.Mock = jest.fn(),
 ) => {
   const wallet: WalletType = {
     id: 1,
@@ -89,7 +92,7 @@ const bootWithSelection = (
   // The wallet file has to be there: a missing one sends componentDidMount
   // round again, which never terminates against a fixed wallets list.
   (native.wallet_exists as jest.Mock).mockResolvedValue(true);
-  (native.init_from_b64 as jest.Mock).mockResolvedValue('{"birthday":0}');
+  (native.init_from_b64 as jest.Mock).mockResolvedValue(initAnswer);
   (native.wallet_kind as jest.Mock).mockResolvedValue(
     '{"kind":"Loaded from unified full viewing key","orchard":true,"sapling":true,"transparent":true}',
   );
@@ -108,7 +111,7 @@ const bootWithSelection = (
         return undefined;
     }
   });
-  render(<LoadingScreen {...baseProps} />, { contextOverrides: { avoidedServers } });
+  render(<LoadingScreen {...baseProps} />, { contextOverrides: { avoidedServers, openErrorModal } });
 };
 
 const savedSetting = (key: string) =>
@@ -288,4 +291,39 @@ test.each([
   await waitFor(() => expect(savedSetting("serveruri").length).toBeGreaterThan(0));
   expect(savedSetting("serveruri")).toEqual([uri]);
   expect(recommended).not.toHaveBeenCalled();
+});
+
+// A saved wallet whose birthday was below Sapling activation: zingolib raises it
+// as the file is read, and the user is told once.
+describe("opening a wallet whose birthday zingolib raised", () => {
+  it("says the birthday was adjusted", async () => {
+    const openErrorModal = jest.fn();
+    bootWithSelection(
+      ServerSelectionEnum.custom,
+      "https://my.own.node:443",
+      ServerChainNameEnum.mainChainName,
+      [],
+      '{"birthday":419200,"birthday_adjusted_from":0}',
+      openErrorModal,
+    );
+
+    await waitFor(() =>
+      expect(openErrorModal).toHaveBeenCalledWith("Wallet birthday adjusted", expect.stringContaining("was 0")),
+    );
+  });
+
+  it("says nothing for a wallet zingolib left alone", async () => {
+    const openErrorModal = jest.fn();
+    bootWithSelection(
+      ServerSelectionEnum.custom,
+      "https://my.own.node:443",
+      ServerChainNameEnum.mainChainName,
+      [],
+      '{"birthday":2500000}',
+      openErrorModal,
+    );
+
+    await waitFor(() => expect(native.wallet_kind).toHaveBeenCalled());
+    expect(openErrorModal).not.toHaveBeenCalledWith("Wallet birthday adjusted", expect.anything());
+  });
 });
