@@ -728,6 +728,11 @@ const AppRoutes: React.FC = () => {
     [],
   );
 
+  const runRPCResumeSwapDeposit = useCallback(
+    async (opReturnTxId?: string): Promise<string[]> => rpcRef.current!.resumeSwapDeposit(opReturnTxId),
+    [],
+  );
+
   const runRPCDrainToIronwood = useCallback(async (): Promise<{
     result: RPCIronwoodDrainType | null;
     error: string;
@@ -922,7 +927,13 @@ const AppRoutes: React.FC = () => {
                 <Route path={routes.HISTORY} element={<History />} />
                 <Route
                   path={routes.SWAP}
-                  element={<Swap sendSwapDeposit={runRPCSendSwapDeposit} addAddressBookEntry={addAddressBookEntry} />}
+                  element={
+                    <Swap
+                      sendSwapDeposit={runRPCSendSwapDeposit}
+                      resumeSwapDeposit={runRPCResumeSwapDeposit}
+                      addAddressBookEntry={addAddressBookEntry}
+                    />
+                  }
                 />
                 <Route path={routes.MESSAGES} element={<Messages />} />
                 <Route path={routes.MIGRATION} element={<OrchardMigration drainToIronwood={runRPCDrainToIronwood} />} />

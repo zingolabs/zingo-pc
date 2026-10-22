@@ -101,9 +101,11 @@ type SwapProps = {
     viaSourceAddress?: boolean;
     shieldedMemoAddress?: string;
   }) => Promise<string[]>;
+  /** Finishes a deposit that stopped after its deshield. */
+  resumeSwapDeposit: (opReturnTxId?: string) => Promise<string[]>;
 };
 
-const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => {
+const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddressBookEntry }) => {
   const {
     totalBalance,
     currentWallet,
@@ -1257,6 +1259,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, addAddressBookEntry }) => 
             fiatValueBasis={reviewed.fiatValueBasis}
             direction={direction}
             sendSwapDeposit={sendSwapDeposit}
+            resumeSwapDeposit={resumeSwapDeposit}
             // A completed swap leaves the form empty rather than pre-filled
             // with what was just sent: the next swap is a new decision, and
             // leaving the amount and address sitting there invites repeating a

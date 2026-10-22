@@ -62,7 +62,7 @@ const Arriving: React.FC<{ handoff: Handoff; spendable: number }> = ({ handoff, 
           setSwapTo,
         }}
       >
-        <Swap sendSwapDeposit={jest.fn()} addAddressBookEntry={jest.fn()} />
+        <Swap sendSwapDeposit={jest.fn()} resumeSwapDeposit={jest.fn()} addAddressBookEntry={jest.fn()} />
       </ContextApp.Provider>
     </MemoryRouter>
   );
@@ -294,7 +294,7 @@ describe("Swap to a NEAR name that could be something else", () => {
               openConfirmModal,
             }}
           >
-            <Swap sendSwapDeposit={jest.fn()} addAddressBookEntry={jest.fn()} />
+            <Swap sendSwapDeposit={jest.fn()} resumeSwapDeposit={jest.fn()} addAddressBookEntry={jest.fn()} />
           </ContextApp.Provider>
         </MemoryRouter>
       );

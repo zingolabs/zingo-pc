@@ -1997,6 +1997,9 @@ ipcMain.handle("native:send", (_e, send_json) => requireNative("send").send(send
 ipcMain.handle("native:send_swap_deposit", (_e, vault_address, amount, memo_hex) =>
   requireNative("send_swap_deposit").send_swap_deposit(vault_address, amount, memo_hex),
 );
+ipcMain.handle("native:resume_swap_deposit", (_e, op_return_txid) =>
+  requireNative("resume_swap_deposit").resume_swap_deposit(op_return_txid),
+);
 ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
   return requireNative("delete_wallet").delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);

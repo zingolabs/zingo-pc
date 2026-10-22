@@ -33,6 +33,7 @@ export const native = {
   remove_transaction: jest.fn(),
   // Swap
   send_swap_deposit: jest.fn(),
+  resume_swap_deposit: jest.fn(),
   derive_refund_address: jest.fn(),
   reserve_refund_address: jest.fn(),
   // Insight

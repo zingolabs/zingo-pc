@@ -25,8 +25,7 @@ crate-type = ["cdylib"]
 # #[cfg(feature="nym")] and returns MixnetPriceFetch with no clearnet tier, so
 # zec_price_over_mixnet reads its .usd. The critical rc.1 lockfile crates match
 # (zcash_client_backend 0.24.0-rc.1, crypto-common rc.1, zcash_primitives 0.29
-# crates.io + 0.30 git coexist, orchard 0.15.4). See the [patch] note below on
-# the librustzcash rev pin zcash_pool_migration requires.
+# crates.io + 0.30 git coexist, orchard 0.15.4).
 #
 # The OP_RETURN work (zingolib PR #2469) has landed on dev, so the fork pin is
 # gone and these follow zingolabs/zingolib. By rev rather than by branch, so a
@@ -234,9 +233,20 @@ crate-type = ["cdylib"]
 # depend on, so a failed request leaves the wallet as it was (#2861); the
 # stale-scan check decides per task (#2851); and lightwallet-protocol 0.4.0
 # ships the Ironwood bindings, so no build needs protoc (#2882).
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "6d43e7c48343cc39cf99bad7e05349baaf4f0b90", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "6d43e7c48343cc39cf99bad7e05349baaf4f0b90" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "6d43e7c48343cc39cf99bad7e05349baaf4f0b90" }
+#
+# This bump (6d43e7c4 -> f0d7642e) is for a swap deposit that stops after its
+# deshield (zingo-pc #424). The wallet now names that stored deposit
+# (`pending_op_return_deshield`) and refuses to propose over it (zingolib
+# #3044), so `resume_swap_deposit` can finish it instead of deshielding again.
+# With it, pepper-sync reports sync facts only, and the JSON the renderer
+# reads comes from `perspective::sync_progress`; a panicked sync task arrives
+# as `PollReport::Panicked` rather than panicking the caller; and
+# lightwallet-protocol 0.4.0 comes from crates.io, so the patch is gone.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "f0d7642e059102c36313ff2269bd74a47b6ce6f1", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "f0d7642e059102c36313ff2269bd74a47b6ce6f1" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "f0d7642e059102c36313ff2269bd74a47b6ce6f1" }
+# The txid list zingolib's transmit_calculated takes; the version zingolib uses.
+nonempty = "0.11.0"
 
 # These must match zingolib's workspace versions exactly, not merely be
 # semver-compatible with them. Two versions of `zcash_keys` resolve to two
@@ -305,12 +315,6 @@ windows = { version = "0.61", features = ["Security_Credentials_UI"] }
 
 [build-dependencies]
 cc = "1"
-
-# Only the patches zingolib's workspace applies: a dependency's own [patch]
-# table is ignored by cargo, so they are replicated here. lightwallet-protocol
-# 0.4.0 at this rev ships its bindings generated from the Ironwood protos.
-[patch.crates-io]
-lightwallet-protocol = { git = "https://github.com/zingolabs/lightwallet-protocol-rust", rev = "02211904910a50218f8b15f6136b5b127f98e4cc" }
 
 [profile.release]
 debug = 1
