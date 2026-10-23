@@ -1,6 +1,6 @@
 import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faAddressBook, faCheck, faTimesCircle, faUserPlus } from "@fortawesome/free-solid-svg-icons";
+import { faAddressBook, faCheck, faQrcode, faTimesCircle, faUserPlus } from "@fortawesome/free-solid-svg-icons";
 
 import cstyles from "../common/Common.module.css";
 import styles from "./AssetCard.module.css";
@@ -65,6 +65,8 @@ export type AssetCardProps = {
     warning?: string;
     onChange: (value: string) => void;
     onBlur?: () => void;
+    /** Opens the QR reader, for an address on paper or on another device. */
+    onScan?: () => void;
     /** Opens the contact list for this chain. */
     onPick?: () => void;
     /** Saves the current value as a contact. Absent once it already is one. */
@@ -199,6 +201,17 @@ const AssetCard: React.FC<AssetCardProps> = ({
                 title="Clear recipient"
               >
                 <FontAwesomeIcon icon={faTimesCircle} size="lg" />
+              </button>
+            )}
+            {address.onScan && (
+              <button
+                type="button"
+                className={cstyles.fieldaction}
+                onClick={address.onScan}
+                aria-label="Scan a QR code"
+                title="Scan a QR code"
+              >
+                <FontAwesomeIcon icon={faQrcode} size="lg" />
               </button>
             )}
             {address.onPick && (

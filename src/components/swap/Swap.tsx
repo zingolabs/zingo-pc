@@ -31,6 +31,7 @@ import {
   quoteBindsAddress,
   validateAddressForChain,
   canonicalChainAddress,
+  extractPlainAddress,
   nearAccountNeedsConfirm,
   zecNetworkFeeReserve,
 } from "../../swap";
@@ -55,6 +56,7 @@ import { selectionAcrossRefresh } from "../../swap/selectionAcrossRefresh";
 import InsufficientFunds from "./InsufficientFunds";
 import ContactPicker from "../common/ContactPicker";
 import SaveContact from "../common/SaveContact";
+import ScanQrModal from "../common/ScanQrModal";
 import AmountCurrencyToggle from "../common/AmountCurrencyToggle";
 import { useUsdAmount } from "../common/useUsdAmount";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
@@ -237,6 +239,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
   const [insufficientOpen, setInsufficientOpen] = useState<boolean>(false);
   const [contactsOpen, setContactsOpen] = useState<boolean>(false);
   const [saveContactOpen, setSaveContactOpen] = useState<boolean>(false);
+  const [scanOpen, setScanOpen] = useState<boolean>(false);
   // Measured, as the other screens do: the fixed 152px it had left the bottom
   // of the routes below the window once the wallet bar sat above every screen.
   const { paneRef, paneOffset } = usePaneOffset(152);
@@ -918,6 +921,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                     errorText: "That address does not look valid for this chain.",
                     onChange: setActiveAddress,
                     onBlur: () => setActiveAddressTouched(true),
+                    onScan: () => setScanOpen(true),
                     onPick: () => setContactsOpen(true),
                     onSave:
                       activeAddress.trim().length > 0 && addressValid && !activeAddressSaved
@@ -951,6 +955,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                     errorText: "That address does not look valid for this chain.",
                     onChange: setActiveAddress,
                     onBlur: () => setActiveAddressTouched(true),
+                    onScan: () => setScanOpen(true),
                     onPick: () => setContactsOpen(true),
                     onSave:
                       activeAddress.trim().length > 0 && addressValid && !activeAddressSaved
@@ -1304,6 +1309,25 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
           />
         )}
       </ScrollPaneTop>
+
+      {scanOpen && (
+        <ScanQrModal
+          modalIsOpen={scanOpen}
+          closeModal={() => setScanOpen(false)}
+          onScanned={(text) => {
+            setActiveAddress(extractPlainAddress(text));
+            setActiveAddressTouched(true);
+          }}
+          // Only an address for the chain on screen, bare or in that chain's
+          // payment URI: a code for another chain is refused in the dialog
+          // rather than left in the field to be found invalid.
+          validate={async (text) =>
+            (await validateAddressForChain(counterpartyChain, extractPlainAddress(text), currentWallet?.chain_name))
+              ? null
+              : `That QR code does not carry a ${chainDisplayName(counterpartyChain) || counterpartyChain} address.`
+          }
+        />
+      )}
 
       {saveContactOpen && (
         <SaveContact
