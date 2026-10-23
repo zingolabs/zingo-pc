@@ -9,6 +9,25 @@ import type { TokenEntryType } from "../../swap";
 
 jest.mock("../../electronBridge");
 
+// The scan dialog stands in as a button that runs the screen's own check on
+// whatever the test sets, then hands it over if the check accepts it.
+let mockScanned = "";
+let mockScanRefusal: string | null = null;
+jest.mock("../common/ScanQrModal", () => ({
+  __esModule: true,
+  default: (props: { onScanned: (text: string) => void; validate?: (text: string) => Promise<string | null> }) => (
+    <button
+      type="button"
+      onClick={async () => {
+        mockScanRefusal = props.validate ? await props.validate(mockScanned) : null;
+        if (!mockScanRefusal) props.onScanned(mockScanned);
+      }}
+    >
+      fake scan
+    </button>
+  ),
+}));
+
 // The screen's catalog comes from the swap service, one per direction.
 let mockService: unknown = null;
 jest.mock("../../context/ContextSwapService", () => ({
@@ -332,5 +351,38 @@ describe("Swap to a NEAR name that could be something else", () => {
     await review("alice.tg", openConfirmModal);
 
     expect(openConfirmModal).not.toHaveBeenCalled();
+  });
+});
+
+// An address on paper or on another device: the field reads it from a QR code,
+// for the chain on screen only.
+describe("Swap address from a QR code", () => {
+  const BTC_ADDRESS = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
+
+  const scanInto = async (scanned: string) => {
+    serviceWithCatalogs();
+    mockScanned = scanned;
+    mockScanRefusal = null;
+    render(
+      <Arriving spendable={1} handoff={{ address: "", swapChain: "BTC", direction: SwapDirectionEnum.Outbound }} />,
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 80)));
+    fireEvent.click(screen.getByRole("button", { name: "Scan a QR code" }));
+    fireEvent.click(screen.getByRole("button", { name: "fake scan" }));
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+  };
+
+  it("takes the address out of the chain's payment URI", async () => {
+    await scanInto(`bitcoin:${BTC_ADDRESS}?amount=0.01`);
+
+    expect(mockScanRefusal).toBeNull();
+    expect(screen.getByRole("textbox", { name: "Your Bitcoin address" })).toHaveValue(BTC_ADDRESS);
+  });
+
+  it("refuses a code for another chain", async () => {
+    await scanInto("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045");
+
+    expect(mockScanRefusal).toBe("That QR code does not carry a Bitcoin address.");
+    expect(screen.getByRole("textbox", { name: "Your Bitcoin address" })).toHaveValue("");
   });
 });
