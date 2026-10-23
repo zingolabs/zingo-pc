@@ -17,7 +17,7 @@ Pre-built binaries for each release are available on the [Releases page](https:/
 | macOS (App Store)  | [App Store link](https://apps.apple.com/app/zingo-pc/id6763584326)                 |
 | macOS (TestFlight) | [Public beta](https://testflight.apple.com/join/qBDKNJqk)                          |
 | Linux              | `.deb`, `.AppImage` (x64, and ARM64 for a Raspberry Pi 4/5 or other ARM64 machine) |
-| Linux (Flatpak)    | `.flatpak`                                                                         |
+| Linux (Flatpak)    | `.flatpak` (x64)                                                                   |
 
 > **Trying the beta:** the TestFlight build is where what is still being tested reaches first, before
 > any of it goes to the App Store. It needs a Mac and the TestFlight app; the link
@@ -107,7 +107,8 @@ so it warns, and the `dist:*` scripts refuse it outright.
 ### Build distributable binaries
 
 ```bash
-yarn dist:linux        # Linux (AppImage + deb)
+yarn dist:linux        # Linux x64 (AppImage + deb)
+yarn dist:linux-arm64  # Linux ARM64 (AppImage + deb), built on an ARM64 machine
 yarn dist:win-x64      # Windows x64
 yarn dist:win-arm64    # Windows ARM64
 yarn dist:mac-x64      # macOS x64 (DMG)
@@ -149,6 +150,10 @@ yarn release:prep 2.0.15 142
 - Rescan from the Wallet menu, with a nonlinear scanning map on the dashboard showing sync progress
 - Every other wallet kept close to the tip too: they are synced in the background, one after another, when
   the app starts and every 15 minutes, while the app stays in use — see [Syncing every wallet](#syncing-every-wallet)
+- A birthday below Sapling activation, which never synced, is raised to activation on restore or on opening
+  the wallet, and the app says so once
+- A wallet whose file cannot be found stays in the list: the open error says where the file is looked for
+  and, when the wallet was last opened from elsewhere, where that was and whether the file is still there
 
 **Transactions**
 
@@ -172,7 +177,9 @@ yarn release:prep 2.0.15 142
 **Servers**
 
 - Three selection modes per wallet, shown at all times in the bar above every screen, beside the wallet selector:
-  - **Auto** — picks a server on every launch and stays automatic
+  - **Auto** — picks a server on every launch and stays automatic: Zingo's recommended Zaino server while
+    it answers, then the fastest of the registry's best few, then the built-in list, and the network's
+    default when none answers
   - **List** — you choose from the published servers
   - **Custom** — your own `lightwalletd` URI
 - Live server list from the community registry ([hosh.zec.rocks](https://hosh.zec.rocks)), filtered to online
@@ -185,7 +192,8 @@ yarn release:prep 2.0.15 142
 - A server that stops being published, or that we retire, moves the wallet back to Auto rather than
   leaving it on a dead URI
 - "Try Again" on the wallet-open error screen, to retry without changing any settings
-- The server list is searchable by address
+- The server list is searchable by address, with the recommended server pinned on top
+- Server info names the Zingo PC build (`zpc_<version>-<build>_<commit>`) beside zingolib's
 
 **Privacy**
 
@@ -208,6 +216,16 @@ yarn release:prep 2.0.15 142
 - A provider that refuses to start a swap it has just quoted is set aside, with its reason, until the
   swap asked for changes, rather than offered again every refresh
 - Deposit QR and payment link for paying an inbound swap from another wallet
+- The address field reads a QR code (image, screenshot or camera), for the chain on screen only, and checks
+  each chain's format: an uppercase bech32 address from a QR is accepted, and a NEAR name that could be
+  another chain's address asks for confirmation
+- A Maya deposit is paid in one shielded transaction, with its memo in a 0 ZEC note to Maya's memo
+  address, when Maya takes it; otherwise, and for THORChain, the memo rides in an OP_RETURN after a
+  deshield
+- A deposit whose first transaction went out and second did not is finished by Try Again, without
+  deshielding a second time
+- When the swap service is busy (it rate-limits the app's key), quotes pause with a countdown and resume
+  by themselves
 - Swap traffic goes over clearnet, not the mixnet: see [docs/swap-privacy.md](docs/swap-privacy.md)
 
 **Ironwood migration**
@@ -227,6 +245,7 @@ yarn release:prep 2.0.15 142
 - Scan a QR into the address field, for any asset, with the chain chosen when the code's payment link
   names it
 - Save a contact from Send, Swap or a transaction's detail without leaving the screen
+- Show any contact's address as a QR code, to scan it from another device
 - A ZNS alias is saved as the address it resolves to, with the alias kept in the label
 
 **Zcash Names (ZNS)**
@@ -244,6 +263,9 @@ yarn release:prep 2.0.15 142
 **Security**
 
 - Hardened Electron renderer (sandboxed, CSP, no node integration)
+- Hardened JavaScript: SES lockdown freezes the language intrinsics in the renderer and in the main
+  process, every npm package runs in its own LavaMoat Compartment with only the globals its policy
+  grants, and dependency install scripts run only when allowlisted — see [Hardened JavaScript](#hardened-javascript)
 - Optional device authentication for opening the wallet and signing sends:
   - macOS: Touch ID
   - Windows: Windows Hello
@@ -293,8 +315,8 @@ payment, and fetching the price. Syncing is not one of them.
   against its own server
 - The server health check behind the indicator next to the active server, which
   asks each server for its latest block over an ordinary connection
-- Swap traffic: quotes, the commit, tracking, and the token catalog with its
-  logos. The provider therefore sees the IP the request came from, beside the
+- Swap traffic: quotes, the commit, tracking, the token catalog with its
+  logos, and Maya's deposit settings read from mayanode. The provider therefore sees the IP the request came from, beside the
   addresses a quote has to carry.
   The Swap screen says so, and [docs/swap-privacy.md](docs/swap-privacy.md) has
   the reasoning and what it would take to change
