@@ -551,6 +551,53 @@ fn neon_start_security_scoped_access(mut cx: FunctionContext) -> JsResult<JsObje
 // lightwalletd URI. Each caller finishes the config by calling
 // `.set_wallet_config(..)` with the variant it needs (NewSeed / MnemonicPhrase
 // / Ufvk / Read) before `.build()`.
+/// The subfolder zingolib keeps each chain's wallets in, under its base folder.
+fn chain_subdir(chain: &ChainType) -> Option<&'static str> {
+    match chain {
+        ChainType::Mainnet => None,
+        ChainType::Testnet => Some("testnet3"),
+        ChainType::Regtest(_) => Some("regtest"),
+    }
+}
+
+/// The folder to open `wallet_name` from when it is only in the legacy one.
+///
+/// On Linux zingolib kept wallets in `~/.zcash` until 59bfee0b2 moved its
+/// default to the XDG data folder, `~/.local/share/.zcash`, and zingo-pc took
+/// that in 2.0.21. A wallet created before then stayed where it was, so the app
+/// failed to open it with ENOENT though `wallets.json` still listed it (#430).
+/// It is opened where it is, nothing moved: a wallet already in the new folder,
+/// and a new one, keep the default.
+fn legacy_wallet_dir(
+    default_base: &std::path::Path,
+    legacy_base: &std::path::Path,
+    chain: &ChainType,
+    wallet_name: &str,
+) -> Option<std::path::PathBuf> {
+    let in_base = |base: &std::path::Path| {
+        let mut dir = base.to_path_buf();
+        if let Some(sub) = chain_subdir(chain) {
+            dir.push(sub);
+        }
+        dir
+    };
+    if wallet_name.is_empty() || in_base(default_base).join(wallet_name).exists() {
+        return None;
+    }
+    let legacy = in_base(legacy_base);
+    legacy.join(wallet_name).exists().then_some(legacy)
+}
+
+/// Only Linux moved: macOS and Windows were in the data folder before and after.
+fn linux_legacy_wallet_dir(chain: &ChainType, wallet_name: &str) -> Option<std::path::PathBuf> {
+    if !cfg!(target_os = "linux") {
+        return None;
+    }
+    let default_base = dirs::data_dir()?.join(".zcash");
+    let legacy_base = dirs::home_dir()?.join(".zcash");
+    legacy_wallet_dir(&default_base, &legacy_base, chain, wallet_name)
+}
+
 fn construct_uri_load_config(
     uri: String,
     chain_hint: String,
@@ -575,13 +622,17 @@ fn construct_uri_load_config(
         "Low" => PerformanceLevel::Low,
         _ => return Err(ZingolibError::Init("Not a valid performance level!".to_string())),
     };
-    let wallet_dir = WALLET_BASE_DIR.get().cloned().map(|mut dir| {
-        match chaintype {
-            ChainType::Testnet => { dir.push("testnet3"); dir }
-            ChainType::Regtest(_) => { dir.push("regtest"); dir }
-            ChainType::Mainnet => dir,
-        }
-    });
+    let wallet_dir = WALLET_BASE_DIR
+        .get()
+        .cloned()
+        .map(|mut dir| {
+            match chaintype {
+                ChainType::Testnet => { dir.push("testnet3"); dir }
+                ChainType::Regtest(_) => { dir.push("regtest"); dir }
+                ChainType::Mainnet => dir,
+            }
+        })
+        .or_else(|| linux_legacy_wallet_dir(&chaintype, &wallet_name));
 
     let wallet_settings = WalletSettings {
         sync_config: SyncConfig {
@@ -1073,6 +1124,69 @@ fn cause_chain(error: &dyn std::error::Error) -> String {
         cause = source.source();
     }
     chain.join(" ← ")
+}
+
+#[cfg(test)]
+mod legacy_wallet_dir_tests {
+    use super::{legacy_wallet_dir, ChainType};
+
+    struct Folders {
+        _root: tempfile::TempDir,
+        default_base: std::path::PathBuf,
+        legacy_base: std::path::PathBuf,
+    }
+
+    fn folders() -> Folders {
+        let root = tempfile::tempdir().expect("a temp dir");
+        let default_base = root.path().join("share/.zcash");
+        let legacy_base = root.path().join("home/.zcash");
+        Folders { _root: root, default_base, legacy_base }
+    }
+
+    fn put(dir: &std::path::Path, name: &str) {
+        std::fs::create_dir_all(dir).expect("create the folder");
+        std::fs::write(dir.join(name), b"wallet").expect("write the wallet");
+    }
+
+    #[test]
+    fn opens_a_wallet_left_in_the_legacy_folder_where_it_is() {
+        let f = folders();
+        put(&f.legacy_base, "zingo-wallet-4.dat");
+        assert_eq!(
+            legacy_wallet_dir(&f.default_base, &f.legacy_base, &ChainType::Mainnet, "zingo-wallet-4.dat"),
+            Some(f.legacy_base.clone())
+        );
+    }
+
+    #[test]
+    fn keeps_each_chains_subfolder() {
+        let f = folders();
+        put(&f.legacy_base.join("testnet3"), "zingo-wallet-2.dat");
+        assert_eq!(
+            legacy_wallet_dir(&f.default_base, &f.legacy_base, &ChainType::Testnet, "zingo-wallet-2.dat"),
+            Some(f.legacy_base.join("testnet3"))
+        );
+    }
+
+    #[test]
+    fn prefers_the_default_folder_when_the_wallet_is_there() {
+        let f = folders();
+        put(&f.default_base, "zingo-wallet-4.dat");
+        put(&f.legacy_base, "zingo-wallet-4.dat");
+        assert_eq!(
+            legacy_wallet_dir(&f.default_base, &f.legacy_base, &ChainType::Mainnet, "zingo-wallet-4.dat"),
+            None
+        );
+    }
+
+    #[test]
+    fn leaves_a_new_wallet_to_the_default_folder() {
+        let f = folders();
+        assert_eq!(
+            legacy_wallet_dir(&f.default_base, &f.legacy_base, &ChainType::Mainnet, "zingo-wallet-9.dat"),
+            None
+        );
+    }
 }
 
 #[cfg(test)]
