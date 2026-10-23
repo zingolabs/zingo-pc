@@ -84,6 +84,8 @@ const _ALL_NATIVE_METHODS = [
   "execute_due_parts",
   // sync with params (become async via IPC)
   "wallet_exists",
+  "locate_wallet",
+  "wallet_path",
   "init_new",
   "init_from_seed",
   "init_from_ufvk",

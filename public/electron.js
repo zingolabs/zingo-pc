@@ -1408,6 +1408,7 @@ function setWalletBaseDirInMainProcess(walletPath, wdLog) {
 // and methods with parameters are handled in subsequent refactor phases.
 const _NATIVE_NO_PARAM_METHODS = [
   "save_wallet_file",
+  "wallet_path",
   "check_save_error",
   "get_seed",
   "get_ufvk",
@@ -1481,6 +1482,11 @@ for (const method of [
 ipcMain.handle("native:wallet_exists", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
   return requireNative("wallet_exists").wallet_exists(server_uri, chain_hint, perf, min_conf, wallet_name);
+});
+ipcMain.handle("native:locate_wallet", (_e, uri, chain, perf, minConf, name, lastKnown) => {
+  assertWalletName(name);
+  const last = typeof lastKnown === "string" ? lastKnown : "";
+  return requireNative("locate_wallet").locate_wallet(uri, chain, perf, minConf, name, last);
 });
 ipcMain.handle("native:init_new", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
