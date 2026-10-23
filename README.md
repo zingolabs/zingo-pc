@@ -378,6 +378,30 @@ restore the wallet from its seed phrase in the older one — which is what the s
 
 ---
 
+**Q: After updating on Linux, a wallet is missing or will not open ("No such file or directory")**
+
+A: Since 2.0.21, Zingo PC keeps wallet files on Linux in `~/.local/share/.zcash/` (or
+`$XDG_DATA_HOME/.zcash/`). Older versions kept them in `~/.zcash/`, and a wallet created there was
+not moved over. Testnet and regtest wallets are in the `testnet3/` and `regtest/` subfolders of
+either. The file is not lost: copy it to the new folder.
+
+```bash
+ls ~/.zcash/
+mkdir -p ~/.local/share/.zcash
+cp ~/.zcash/zingo-wallet-4.dat ~/.local/share/.zcash/
+```
+
+Use the name of your file, and copy rather than move, so the original stays as a backup. Copy only
+your Zingo wallet files: `~/.zcash/` is also zcashd's folder (`wallet.dat`, `blocks/`, `chainstate/`).
+
+- **The wallet is still in the list:** after copying, select it again or press "Try Again". The error
+  it shows says where the wallet was last opened from.
+- **The wallet is gone from the list:** older versions removed a wallet whose file they could not
+  find. After copying, add it back with "Restore Wallet from an existent DAT file", using the file
+  name. Its alias and server need setting again; nothing in the wallet itself is lost.
+
+---
+
 **Q: Clicking a `zcash:` payment link doesn't open Zingo PC (Linux AppImage)**
 
 A: The AppImage must be launched at least once from its current location before the OS registers it as the handler for `zcash:` links. After the first launch, cold-start links work automatically. If you move the AppImage to a new path, launch it once from the new location to re-register it.

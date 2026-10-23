@@ -78,6 +78,8 @@ const bootWithSelection = (
   avoidedServers: string[] = [],
   initAnswer: string = '{"birthday":0}',
   openErrorModal: jest.Mock = jest.fn(),
+  walletOverrides: Partial<WalletType> = {},
+  walletFileExists: boolean = true,
 ) => {
   const wallet: WalletType = {
     id: 1,
@@ -88,10 +90,11 @@ const bootWithSelection = (
     uri,
     selection,
     performanceLevel: PerformanceLevelEnum.High,
+    ...walletOverrides,
   };
   // The wallet file has to be there: a missing one sends componentDidMount
   // round again, which never terminates against a fixed wallets list.
-  (native.wallet_exists as jest.Mock).mockResolvedValue(true);
+  (native.wallet_exists as jest.Mock).mockResolvedValue(walletFileExists);
   (native.init_from_b64 as jest.Mock).mockResolvedValue(initAnswer);
   (native.wallet_kind as jest.Mock).mockResolvedValue(
     '{"kind":"Loaded from unified full viewing key","orchard":true,"sapling":true,"transparent":true}',
@@ -325,5 +328,45 @@ describe("opening a wallet whose birthday zingolib raised", () => {
 
     await waitFor(() => expect(native.wallet_kind).toHaveBeenCalled());
     expect(openErrorModal).not.toHaveBeenCalledWith("Wallet birthday adjusted", expect.anything());
+  });
+});
+
+// A wallet file that cannot be found is not a wallet the user deleted: it may
+// have moved, as wallets did when zingolib changed its Linux folder (#430).
+describe("a listed wallet whose file is missing", () => {
+  it("stays in the list, and the error says where it was last opened from", async () => {
+    (native.locate_wallet as jest.Mock).mockResolvedValue(
+      JSON.stringify({ path: "/new/zingo-wallet-4.dat", exists: false, last_known_exists: true }),
+    );
+    bootWithSelection(
+      ServerSelectionEnum.custom,
+      "https://my.own.node:443",
+      ServerChainNameEnum.mainChainName,
+      [],
+      '{"birthday":0}',
+      jest.fn(),
+      { lastKnownPath: "/old/zingo-wallet-4.dat" },
+      false,
+    );
+
+    await waitFor(() => expect(baseProps.setCurrentWalletOpenError).toHaveBeenCalled());
+    const message: string = (baseProps.setCurrentWalletOpenError as jest.Mock).mock.calls.at(-1)[0];
+    expect(message).toContain("/new/zingo-wallet-4.dat");
+    expect(message).toContain("last opened from /old/zingo-wallet-4.dat, and it is still there");
+    expect(ipcRenderer.invoke).not.toHaveBeenCalledWith("wallets:remove", expect.anything());
+  });
+});
+
+describe("opening a wallet", () => {
+  it("remembers the file it was opened from", async () => {
+    (native.wallet_path as jest.Mock).mockResolvedValue("/home/u/.local/share/.zcash/zingo-wallet.dat");
+    bootWithSelection(ServerSelectionEnum.custom, "https://my.own.node:443");
+
+    await waitFor(() =>
+      expect(ipcRenderer.invoke).toHaveBeenCalledWith(
+        "wallets:update",
+        expect.objectContaining({ lastKnownPath: "/home/u/.local/share/.zcash/zingo-wallet.dat" }),
+      ),
+    );
   });
 });

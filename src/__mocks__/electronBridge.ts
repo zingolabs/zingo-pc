@@ -4,6 +4,8 @@ export const native = {
   get_ufvk: jest.fn(),
   // LoadingScreen
   wallet_exists: jest.fn(),
+  locate_wallet: jest.fn(),
+  wallet_path: jest.fn(),
   wallet_kind: jest.fn(),
   init_from_b64: jest.fn(),
   set_wallet_base_dir: jest.fn(),

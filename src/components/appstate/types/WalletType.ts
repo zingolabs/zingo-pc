@@ -13,4 +13,10 @@ export interface WalletType {
   uri: string;
   selection: ServerSelectionEnum;
   performanceLevel: PerformanceLevelEnum;
+  /**
+   * The file this wallet was last opened from. Kept to say where a wallet
+   * that cannot be found was before, never to open it: zingolib resolves the
+   * path.
+   */
+  lastKnownPath?: string;
 }

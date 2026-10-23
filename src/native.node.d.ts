@@ -1,6 +1,15 @@
 import { PerformanceLevelEnum, ServerChainNameEnum } from "./components/appstate";
 
 export function deinitialize(): string;
+export function locate_wallet(
+  server_uri: string,
+  chain_hint: string,
+  performance_level: string,
+  min_confirmations: number,
+  wallet_name: string,
+  last_known_path: string,
+): Promise<string>;
+export function wallet_path(): Promise<string>;
 export function wallet_exists(
   server_uri: string,
   chain_hint: ServerChainNameEnum,

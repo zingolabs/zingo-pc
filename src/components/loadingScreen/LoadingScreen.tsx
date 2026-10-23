@@ -19,6 +19,7 @@ import fetchServerList from "../../utils/fetchServerList";
 import pickAutoServer from "../../utils/pickAutoServer";
 import Utils from "../../utils/utils";
 import { birthdayAdjustedNotice } from "../../utils/birthdayAdjustedNotice";
+import { walletNotFoundMessage } from "../../utils/walletNotFoundMessage";
 import { userFacingError } from "../../utils/userFacingError";
 import { Logo } from "../logo";
 import DetailLine from "../detailLine/DetailLine";
@@ -507,12 +508,11 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         "",
       );
-      if (!mainnetWalletExistsResult) {
-        if (wallets.filter((w) => w.id === 1).length === 1) {
-          console.log("RECOVERY. Mainnet wallet not found, delete wallet.");
-          await ipcRenderer.invoke("wallets:remove", 1);
-        }
-      } else {
+      // A default wallet whose file is missing stays in the list, here and for
+      // testnet and regtest below: the file may have moved, as wallets did when
+      // zingolib changed its Linux folder (#430), and opening it says where it
+      // was last seen. Only a file found with no entry is acted on.
+      if (mainnetWalletExistsResult) {
         if (wallets.filter((w) => w.id === 1).length === 0) {
           let mainnetWallet_1: WalletType | null = null;
           if (chain_name === ServerChainNameEnum.mainChainName) {
@@ -555,12 +555,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         "",
       );
-      if (!testnetWalletExistsResult) {
-        if (wallets.filter((w) => w.id === 2).length === 1) {
-          console.log("RECOVERY. Testnet wallet not found, delete wallet.");
-          await ipcRenderer.invoke("wallets:remove", 2);
-        }
-      } else {
+      if (testnetWalletExistsResult) {
         if (wallets.filter((w) => w.id === 2).length === 0) {
           let testnetWallet_2: WalletType | null = null;
           if (chain_name === ServerChainNameEnum.testChainName) {
@@ -603,12 +598,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         3,
         "",
       );
-      if (!regnetWalletExistsResult) {
-        if (wallets.filter((w) => w.id === 3).length === 1) {
-          console.log("RECOVERY. Regtest wallet not found, delete wallet");
-          await ipcRenderer.invoke("wallets:remove", 3);
-        }
-      } else {
+      if (regnetWalletExistsResult) {
         if (wallets.filter((w) => w.id === 3).length === 0) {
           let regtestWallet_3: WalletType | null = null;
           if (chain_name === ServerChainNameEnum.regtestChainName) {
@@ -719,19 +709,34 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         currentWallet.fileName,
       );
       if (!walletExistsResult) {
-        // the wallet file DOES NOT exists
-        // if currentWalletId have a value -> remove the wallet local data for this id.
-        await ipcRenderer.invoke("wallets:remove", currentWallet.id);
-        await ipcRenderer.invoke("saveSettings", { key: "currentwalletid", value: null });
-        // re-fetching wallets
-        const walletsNew = await ipcRenderer.invoke("wallets:all");
-        this.setState({
-          currentWallet: null,
-        });
-        this.props.setCurrentWallet(null);
-        this.props.setWallets(walletsNew);
-
-        this.componentDidMount();
+        // A missing file is not a wallet the user deleted: it may have moved,
+        // or the folder zingolib looks in may have changed (#430). The wallet
+        // used to be dropped from the list here, which lost it for good; it
+        // stays, and the open error says where the file was last seen.
+        let located: { path?: string; last_known_exists?: boolean } = {};
+        try {
+          located = JSON.parse(
+            await native.locate_wallet(
+              currentWallet.uri,
+              currentWallet.chain_name,
+              currentWallet.performanceLevel,
+              3,
+              currentWallet.fileName,
+              currentWallet.lastKnownPath ?? "",
+            ),
+          );
+        } catch (e) {
+          console.error(`could not locate the wallet file: ${e}`);
+        }
+        this.props.setCurrentWalletOpenError(
+          walletNotFoundMessage({
+            fileName: currentWallet.fileName,
+            path: located.path,
+            lastKnownPath: currentWallet.lastKnownPath,
+            lastKnownExists: located.last_known_exists,
+          }),
+        );
+        this.setState({ loadingDone: true });
       } else {
         this.setState({ walletExists: true });
         // the wallet file YES exists
@@ -750,6 +755,7 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
         );
 
         const resultJSON = JSON.parse(result);
+        await this.rememberWalletPath(currentWallet);
         // A saved wallet whose birthday was below Sapling activation, raised
         // as it was read.
         const adjusted: string | null = birthdayAdjustedNotice(resultJSON);
@@ -781,6 +787,19 @@ class LoadingScreen extends Component<LoadingScreenProps, LoadingScreenState> {
       this.setState({
         loadingDone: true,
       });
+    }
+  };
+
+  // Keeps the file the wallet was just opened from, so a wallet that later
+  // goes missing can say where it was. Never used to open it.
+  rememberWalletPath = async (wallet: WalletType) => {
+    try {
+      const path: string = await native.wallet_path();
+      if (path && path !== wallet.lastKnownPath) {
+        await ipcRenderer.invoke("wallets:update", { ...wallet, lastKnownPath: path });
+      }
+    } catch (e) {
+      console.error(`could not record the wallet path: ${e}`);
     }
   };
 

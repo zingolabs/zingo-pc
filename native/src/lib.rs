@@ -109,6 +109,8 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("start_security_scoped_access", neon_start_security_scoped_access)?;
     cx.export_function("deinitialize", deinitialize)?;
     cx.export_function("wallet_exists", wallet_exists)?;
+    cx.export_function("locate_wallet", locate_wallet)?;
+    cx.export_function("wallet_path", wallet_path)?;
     cx.export_function("init_new", init_new)?;
     cx.export_function("init_from_seed", init_from_seed)?;
     cx.export_function("init_from_ufvk", init_from_ufvk)?;
@@ -627,6 +629,49 @@ fn deinitialize(mut cx: FunctionContext) -> JsResult<JsString> {
     reset_lightclient();
 
     Ok(cx.string("OK"))
+}
+
+/// Where the wallet named `wallet_name` is looked for now, and whether it is
+/// there and at `last_known_path`, the path it was last opened from. The
+/// renderer says so when a wallet cannot be found, instead of a bare ENOENT.
+fn locate_wallet(mut cx: FunctionContext) -> JsResult<JsString> {
+    let server_uri = cx.argument::<JsString>(0)?.value(&mut cx);
+    let chain_hint = cx.argument::<JsString>(1)?.value(&mut cx);
+    let performance_level = cx.argument::<JsString>(2)?.value(&mut cx);
+    let min_confirmations = cx.argument::<JsNumber>(3)?.value(&mut cx);
+    let wallet_name = cx.argument::<JsString>(4)?.value(&mut cx);
+    let last_known_path = cx.argument::<JsString>(5)?.value(&mut cx);
+
+    let res: Result<String, ZingolibError> = with_panic_guard(|| {
+        let (builder, _wallet_settings, _lightwalletd_uri) =
+            construct_uri_load_config(server_uri, chain_hint, performance_level, min_confirmations, wallet_name)?;
+        let config = builder
+            .set_wallet_config(WalletConfig::Read)
+            .build()
+            .map_err(|e| ZingolibError::Init(cause_chain(&e)))?;
+        let path = config.get_wallet_path();
+        Ok(object! {
+            "path" => path.display().to_string(),
+            "exists" => path.exists(),
+            "last_known_exists" => !last_known_path.is_empty() && std::path::Path::new(&last_known_path).is_file(),
+        }
+        .pretty(2))
+    });
+
+    match res {
+        Ok(v) => Ok(cx.string(v)),
+        Err(e) => cx.throw_error(e.to_string()),
+    }
+}
+
+/// The file the open wallet was read from, which the renderer keeps as the
+/// wallet's last known path.
+fn wallet_path(mut cx: FunctionContext) -> JsResult<JsString> {
+    let res = with_initialized_lightclient_read(|lightclient| Ok(lightclient.wallet_path().display().to_string()));
+    match res {
+        Ok(v) => Ok(cx.string(v)),
+        Err(e) => cx.throw_error(e.to_string()),
+    }
 }
 
 // Check if there is an existing wallet
