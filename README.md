@@ -407,8 +407,8 @@ A: Since 2.0.21, Zingo PC keeps wallet files on Linux in `~/.local/share/.zcash/
 not moved over. Testnet and regtest wallets are in the `testnet3/` and `regtest/` subfolders of
 either. The file is not lost.
 
-From 2.0.28, Zingo PC copies it to the new folder by itself the first time it opens that wallet, and
-leaves the original where it was. On 2.0.21 to 2.0.27, copy it by hand:
+From 2.0.27 (201), Zingo PC copies it to the new folder by itself the first time it opens that wallet,
+and leaves the original where it was. On 2.0.21 to 2.0.27 (200), copy it by hand:
 
 ```bash
 ls ~/.zcash/
