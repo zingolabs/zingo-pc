@@ -91,6 +91,8 @@ export type FfiBatch = {
   id: number;
   bucket_index: number | null;
   boundary: number;
+  // The block that closes its window, the "send by" height.
+  window_end: number;
   denominations: number[];
   status: FfiBatchStatus;
 };
@@ -127,9 +129,8 @@ export type FfiStatus = {
   value_total: number;
   value_migrated: number;
   // Effective cadence: how many parts share each broadcast window (null before
-  // start) and the bucket count the boundaries index into.
+  // start).
   per_bucket: number | null;
-  bucket_modulus: number;
   // Every batch (window), ordered by bucket — the complete 1..N list with states.
   batches: FfiBatch[];
   next_wakes: FfiWake[];

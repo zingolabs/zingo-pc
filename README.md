@@ -405,7 +405,10 @@ restore the wallet from its seed phrase in the older one — which is what the s
 A: Since 2.0.21, Zingo PC keeps wallet files on Linux in `~/.local/share/.zcash/` (or
 `$XDG_DATA_HOME/.zcash/`). Older versions kept them in `~/.zcash/`, and a wallet created there was
 not moved over. Testnet and regtest wallets are in the `testnet3/` and `regtest/` subfolders of
-either. The file is not lost: copy it to the new folder.
+either. The file is not lost.
+
+From 2.0.27 (201), Zingo PC copies it to the new folder by itself the first time it opens that wallet,
+and leaves the original where it was. On 2.0.21 to 2.0.27 (200), copy it by hand:
 
 ```bash
 ls ~/.zcash/
