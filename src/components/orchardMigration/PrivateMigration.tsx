@@ -612,7 +612,6 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
           height. Anchor + send-by are block numbers, never wall-clock. */}
       {step === "scheduled" &&
         (() => {
-          const modulus = schedule?.bucket_modulus ?? 256;
           const batches = schedule?.batches ?? [];
           const batchesTotal = batches.length;
           const batchesConfirmed = batches.filter((b) => b.status === "confirmed").length;
@@ -821,7 +820,7 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                         {batch.boundary > 0 && (
                           <span className={cstyles.sublight} style={{ fontSize: 11 }}>
                             Opens at block {batch.boundary.toLocaleString()} · send by{" "}
-                            {(batch.boundary + modulus).toLocaleString()}
+                            {batch.window_end.toLocaleString()}
                           </span>
                         )}
                       </div>

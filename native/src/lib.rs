@@ -2129,22 +2129,22 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                 // views disagreed (banner 2/18 vs list 1/17). zingolib's next_wakes
                 // is future-only and hides confirmed, in-flight and the current
                 // window, so a full "1..N with states" list needs this.
-                let (denoms_by_id, per_bucket, bucket_modulus, batches) = {
-                    // `schedule` went pub(crate) in this zingolib; bucket_index is
-                    // re-exported, and boundary_of is trivial (bucket * modulus),
-                    // inlined below.
-                    use zingolib::wallet::migration::{bucket_index, PartRecord, PartState};
+                let (denoms_by_id, per_bucket, batches) = {
+                    // Buckets follow the chain's ZIP 318 grid: from NU7 a window
+                    // spans 3·M blocks, so heights come from the grid, never from
+                    // bucket * modulus.
+                    use zingolib::wallet::migration::{PartRecord, PartState};
                     let wallet = lightclient.wallet().read().await;
                     let now_height = wallet.sync_state.last_known_chain_height();
                     match &wallet.migration {
                         Some(state) => {
-                            let modulus = state.params.bucket_modulus;
+                            let grid = state.params.grid(wallet.chain_type());
                             let denoms = state
                                 .parts
                                 .iter()
                                 .map(|part| (part.id.0, part.denomination))
                                 .collect::<std::collections::HashMap<_, _>>();
-                            let current_bucket = now_height.map(|h| bucket_index(h, modulus));
+                            let current_bucket = now_height.map(|h| grid.index_of(h));
                             let mut ordered: Vec<&PartRecord> = state.parts.iter().collect();
                             ordered.sort_by_key(|p| (p.bucket_index.unwrap_or(u64::MAX), p.id.0));
                             let batches: Vec<serde_json::Value> = ordered
@@ -2161,17 +2161,21 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                                 // A part past its window is only catch-up-eligible
                                                 // ("overdue", surfacing the "Send now" button) once it
                                                 // exceeds zingolib's slip tolerance
-                                                // (SLIP_TOLERANCE_BLOCKS = 96). Within it, reconcile
-                                                // classifies it SlippedWithinTolerance (normal, not yet
-                                                // recoverable — a Send-now tap would fold nothing), so
-                                                // keep it distinct.
-                                                const SLIP_TOLERANCE_BLOCKS: u32 = 96;
-                                                let window_end = ((b + 1) * u64::from(modulus)) as u32;
-                                                let past = now_height
-                                                    .map(u32::from)
-                                                    .unwrap_or(0)
-                                                    .saturating_sub(window_end);
-                                                if past > SLIP_TOLERANCE_BLOCKS {
+                                                // (SLIP_TOLERANCE_REFERENCE_BLOCKS = 96, which the
+                                                // spacing converts). Within it, reconcile classifies it
+                                                // SlippedWithinTolerance (normal, not yet recoverable —
+                                                // a Send-now tap would fold nothing), so keep it
+                                                // distinct.
+                                                const SLIP_TOLERANCE_REFERENCE_BLOCKS: u32 = 96;
+                                                let window_end = grid.boundary_of(b + 1);
+                                                let overdue = now_height.is_some_and(|h| {
+                                                    grid.spacing().exceeds(
+                                                        window_end,
+                                                        h,
+                                                        SLIP_TOLERANCE_REFERENCE_BLOCKS,
+                                                    )
+                                                });
+                                                if overdue {
                                                     "overdue"
                                                 } else {
                                                     "slipped"
@@ -2181,27 +2185,23 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                                         },
                                         PartState::Bound => "scheduled",
                                     };
-                                    let boundary = p
-                                        .bucket_index
-                                        .map(|b| (b * u64::from(modulus)) as u32)
-                                        .unwrap_or(0);
+                                    let height_of = |b: u64| u32::from(grid.boundary_of(b));
+                                    let boundary = p.bucket_index.map(height_of).unwrap_or(0);
+                                    let window_end =
+                                        p.bucket_index.map(|b| height_of(b + 1)).unwrap_or(0);
                                     serde_json::json!({
                                         "id": p.id.0,
                                         "bucket_index": p.bucket_index,
                                         "boundary": boundary,
+                                        "window_end": window_end,
                                         "denominations": [p.denomination],
                                         "status": status,
                                     })
                                 })
                                 .collect();
-                            (denoms, Some(state.params.k_max), modulus, batches)
+                            (denoms, Some(state.params.k_max), batches)
                         }
-                        None => (
-                            std::collections::HashMap::new(),
-                            None,
-                            MigrationParams::provisional(wallet.chain_type()).bucket_modulus,
-                            Vec::new(),
-                        ),
+                        None => (std::collections::HashMap::new(), None, Vec::new()),
                     }
                 };
                 // Coarse phase, `null` when no migration is in progress.
@@ -2251,7 +2251,6 @@ fn migration_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     "value_total": status.value_total,
                     "value_migrated": status.value_migrated,
                     "per_bucket": per_bucket,
-                    "bucket_modulus": bucket_modulus,
                     "batches": batches,
                     "next_wakes": next_wakes,
                 })
