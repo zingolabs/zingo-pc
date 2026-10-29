@@ -48,7 +48,7 @@ export type { SwapStoreChangeListener } from "./SwapStore";
 export { deriveWalletFingerprint } from "./walletFingerprint";
 export { readCurrentWalletFingerprint, readCurrentWalletKeys } from "./currentWalletFingerprint";
 export { swapRecordToValueTransfer, isOutboundSwap } from "./swapRecordToValueTransfer";
-export { formatAmountForDisplay } from "./formatAmountForDisplay";
+export { formatAmountForDisplay, formatMinimumAmount } from "./formatAmountForDisplay";
 export { swapRowLabel } from "./swapRowLabel";
 export { extractFiatValueBasis } from "./quoteFiatBasis";
 export { describeEmptyQuote } from "./describeEmptyQuote";
