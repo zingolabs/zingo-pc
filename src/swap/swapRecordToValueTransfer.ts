@@ -79,6 +79,7 @@ export function swapRecordToValueTransfer(record: SwapRecordType): ValueTransfer
     swapIsInbound: isInbound,
     swapStatus: record.status,
     swapRefunding: isRefunding(record),
+    swapDepositSent: record.depositSentAtMs !== undefined,
     swapAssetTicker: counterpartyAsset.ticker ?? counterpartyAsset.symbol,
     swapUsdUnitPrice: counterpartyUsdUnitPrice,
     swapProvider: record.provider,

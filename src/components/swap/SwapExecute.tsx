@@ -128,6 +128,16 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   const [afterDeshield, setAfterDeshield] = useState<{ deshieldTxId: string; opReturnTxId?: string } | null>(null);
 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
+  const [confirmingSent, setConfirmingSent] = useState<boolean>(false);
+  const depositSent = useCallback(
+    async (record: SwapRecordType) => {
+      await swapService
+        .markDepositSent({ recordId: record.recordId })
+        .catch((e) => console.log(`SwapExecute: markDepositSent failed ${e}`));
+      onDone();
+    },
+    [swapService, onDone],
+  );
   const sellSymbol = quoteInput.sellAsset.ticker ?? quoteInput.sellAsset.symbol;
   const receiveSymbol = quoteInput.receiveAsset.ticker ?? quoteInput.receiveAsset.symbol;
   const counterparty = isOutbound ? quoteInput.receiveAsset : quoteInput.sellAsset;
@@ -355,7 +365,9 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
                 swap is reserved either way, so the way out is to pay it and
                 come back — the History row carries an action to attach the
                 transaction so tracking resumes. */}
-            {isOutbound && !txId && (
+            {/* Not for a deposit stopped after its deshield: the ZEC is already on
+                its way, and paying from another wallet would pay twice. */}
+            {isOutbound && !txId && !afterDeshield && (
               <div className={swapStyles.warningbanner}>
                 The swap is reserved but nothing has been sent. Try the deposit again once whatever stopped it is
                 cleared, or pay it from another wallet and use &ldquo;Attach deposit transaction&rdquo; on the swap in
@@ -372,10 +384,36 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
                 {committing ? "Working..." : "Try the deposit again"}
               </button>
             )}
-            <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={onDone}>
-              Done
+            {/* A purchase is paid from the user's other wallet, which this one
+                cannot see. Saying it was sent makes the swap look for it, and
+                warn when nothing turns up. Confirmed first, with what had to
+                be sent. */}
+            {!isOutbound && !confirmingSent && (
+              <button type="button" className={cstyles.primarybutton} onClick={() => setConfirmingSent(true)}>
+                I sent it
+              </button>
+            )}
+            {!isOutbound && confirmingSent && (
+              <button type="button" className={cstyles.primarybutton} onClick={() => depositSent(record)}>
+                Yes, I sent it
+              </button>
+            )}
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              disabled={committing}
+              onClick={confirmingSent ? () => setConfirmingSent(false) : onDone}
+            >
+              {confirmingSent ? "Not yet" : "Done"}
             </button>
           </div>
+          {!isOutbound && confirmingSent && (
+            <div className={`${cstyles.center} ${cstyles.small} ${cstyles.padtopsmall}`}>
+              Confirm you sent exactly {instructions.amountHumanDecimal}{" "}
+              {record.sellAsset.ticker ?? record.sellAsset.symbol} to {instructions.depositAddress} from your other
+              wallet. Zingo then starts looking for it.
+            </div>
+          )}
         </div>
       </Modal>
     );

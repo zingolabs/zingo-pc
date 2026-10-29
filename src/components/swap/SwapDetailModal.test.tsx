@@ -399,3 +399,44 @@ describe("SwapDetailModal deposit stopped halfway", () => {
     expect(screen.queryByText(/this deposit is unpaid/i)).not.toBeInTheDocument();
   });
 });
+
+// A purchase is paid from another wallet. The detail takes the user's word
+// that it went out, then says Zingo is looking, and warns after half an hour.
+describe("SwapDetailModal unpaid purchase", () => {
+  const purchase = (overrides: Partial<SwapRecordType> = {}): Partial<SwapRecordType> => ({
+    direction: SwapDirectionEnum.Inbound,
+    status: SwapStatusEnum.AwaitingExternalDeposit,
+    sellAsset: { swapKitId: "BTC.BTC", chain: "BTC", symbol: "BTC", ticker: "BTC", chainId: "bitcoin", decimals: 8 },
+    receiveAsset: ZEC,
+    depositAddress: "bc1qdeposit",
+    createdAtMs: Date.now(),
+    ...overrides,
+  });
+
+  it("keeps the moment the user confirms they sent it", async () => {
+    const markDepositSent = jest.fn(async () => ({}));
+    mockSwapService = { markDepositSent, backfillFinishedRecord: jest.fn(async () => undefined) };
+    renderDetail(purchase());
+
+    fireEvent.click(screen.getByRole("button", { name: /^i sent it$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /yes, i sent it/i }));
+
+    await waitFor(() => expect(markDepositSent).toHaveBeenCalledWith({ recordId: "rec-1" }));
+  });
+
+  it("says it is looking, then warns when nothing turned up", () => {
+    mockSwapService = { backfillFinishedRecord: jest.fn(async () => undefined) };
+    const { unmount } = renderDetail(purchase({ depositSentAtMs: Date.now() }));
+    expect(screen.getByText(/looking for your payment/i)).toBeInTheDocument();
+    unmount();
+
+    renderDetail(purchase({ createdAtMs: Date.now() - 31 * 60 * 1000, depositSentAtMs: Date.now() }));
+    expect(screen.getByText(/haven.t detected your payment yet/i)).toBeInTheDocument();
+  });
+
+  it("says why a purchase nobody paid ended", () => {
+    renderDetail(purchase({ status: SwapStatusEnum.Expired }));
+    expect(screen.getAllByText("Deposit not detected").length).toBeGreaterThan(0);
+    expect(screen.getByText(/no BTC deposit was detected in time/i)).toBeInTheDocument();
+  });
+});

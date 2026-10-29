@@ -101,9 +101,10 @@ const renderExecute = (
   });
   const markBroadcasted = jest.fn(async () => record(direction));
   const markDeshielded = jest.fn(async () => record(direction));
+  const markDepositSent = jest.fn(async () => record(direction));
   const sendSwapDeposit = deposit ?? jest.fn(async () => ["a".repeat(64)]);
   const resumeSwapDeposit = resume ?? jest.fn(async () => ["c".repeat(64)]);
-  const swapService = { commitRoute, markBroadcasted, markDeshielded } as unknown as SwapService;
+  const swapService = { commitRoute, markBroadcasted, markDeshielded, markDepositSent } as unknown as SwapService;
   const onDone = jest.fn();
   const onCancel = jest.fn();
   const onRouteRefused = jest.fn();
@@ -126,6 +127,7 @@ const renderExecute = (
     commitRoute,
     markBroadcasted,
     markDeshielded,
+    markDepositSent,
     sendSwapDeposit,
     resumeSwapDeposit,
     onDone,
@@ -503,5 +505,34 @@ describe("SwapExecute review", () => {
     expect(screen.getByText("If refunded, to")).toBeInTheDocument();
     expect(screen.getByText("bc1qrefund")).toBeInTheDocument();
     expect(screen.queryByText("Zcash network fee")).not.toBeInTheDocument();
+  });
+});
+
+// A purchase is paid from another wallet, which this one cannot see.
+describe("SwapExecute purchase deposit", () => {
+  it("keeps the moment the user confirms they sent it", async () => {
+    const { markDepositSent, onDone } = renderExecute(SwapDirectionEnum.Inbound);
+    fireEvent.click(screen.getByRole("button", { name: /start the swap/i }));
+
+    fireEvent.click(await screen.findByRole("button", { name: /^i sent it$/i }));
+    expect(screen.getByText(/confirm you sent exactly 1\.5 BTC to bc1qdeposit/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /yes, i sent it/i }));
+
+    await waitFor(() => expect(markDepositSent).toHaveBeenCalledWith({ recordId: "rec-1" }));
+    expect(onDone).toHaveBeenCalled();
+  });
+});
+
+// A sale stopped after its deshield has the ZEC on its way already.
+describe("SwapExecute half-paid sale", () => {
+  it("does not suggest paying from another wallet", async () => {
+    renderExecute(
+      SwapDirectionEnum.Outbound,
+      jest.fn().mockRejectedValueOnce(new DepositAfterDeshieldError("x", "failed", "d".repeat(64))),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    expect(await screen.findByText(/first transaction went out/)).toBeInTheDocument();
+    expect(screen.queryByText(/pay it from another wallet/i)).not.toBeInTheDocument();
   });
 });

@@ -20,6 +20,7 @@ import {
   formatAmountForDisplay,
   isPrePaymentStatus,
   isRefunding,
+  depositPhase,
   hasDepositEvidence as hasDepositEvidenceOf,
   isRealLegHash,
   isTerminalStatus,
@@ -328,7 +329,10 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 color: isOutbound ? "var(--color-text)" : "var(--color-primary)",
               }}
             />
-            {swapRowLabel(record.status, isRefunding(record))}
+            {swapRowLabel(record.status, {
+              refunding: isRefunding(record),
+              depositSent: record.depositSentAtMs !== undefined,
+            })}
           </div>
 
           {/* Large rather than the transfer's headline size: this line carries
@@ -384,6 +388,12 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 amountHumanDecimal={record.sellAmountHumanDecimal}
                 memoText={memo}
               />
+              {!isOutbound && swapService && (
+                <PurchasePhase
+                  record={record}
+                  markSent={() => swapService.markDepositSent({ recordId: record.recordId })}
+                />
+              )}
               {swapService && (
                 <div className={cstyles.padtopsmall}>
                   <div className={`${cstyles.sublight} ${cstyles.small}`}>
@@ -666,6 +676,59 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     </Modal>
   );
 };
+
+/**
+ * Where an unpaid purchase stands: a press to say the payment went out, then
+ * that Zingo is looking for it, and a warning half an hour after the address
+ * was made if nothing has turned up.
+ */
+function PurchasePhase({ record, markSent }: { record: SwapRecordType; markSent: () => Promise<unknown> }) {
+  const [confirming, setConfirming] = useState<boolean>(false);
+  const coin = record.sellAsset.ticker ?? record.sellAsset.symbol;
+  const phase = depositPhase(record, Date.now());
+  if (phase === "looking") {
+    return <div className={`${cstyles.small} ${cstyles.padtopsmall}`}>Looking for your payment.</div>;
+  }
+  if (phase === "notDetected") {
+    return (
+      <div className={`${cstyles.small} ${cstyles.padtopsmall}`} style={{ color: "var(--color-warning)" }}>
+        We haven&rsquo;t detected your payment yet. Check that you sent exactly {record.sellAmountHumanDecimal} {coin}{" "}
+        to the address of this swap.
+      </div>
+    );
+  }
+  if (phase !== "awaiting") return null;
+  return (
+    <div className={cstyles.padtopsmall}>
+      {confirming && (
+        <div className={cstyles.small}>
+          Confirm you sent exactly {record.sellAmountHumanDecimal} {coin} to {record.depositAddress} from your other
+          wallet. Zingo then starts looking for it.
+        </div>
+      )}
+      <div className={cstyles.horizontalflex}>
+        {confirming ? (
+          <>
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => markSent().catch((e) => console.log(`SwapDetailModal: markDepositSent failed ${e}`))}
+            >
+              Yes, I sent it
+            </button>
+            <button type="button" className={cstyles.primarybutton} onClick={() => setConfirming(false)}>
+              Not yet
+            </button>
+          </>
+        ) : (
+          <button type="button" className={cstyles.primarybutton} onClick={() => setConfirming(true)}>
+            I sent it
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function SectionHeader({ label }: { label: string }) {
   return (

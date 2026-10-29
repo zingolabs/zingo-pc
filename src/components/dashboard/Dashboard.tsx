@@ -635,7 +635,10 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                                           already working on. Same call the
                                           History row makes. */}
                                         {vt.type === ValueTransferKindEnum.swap
-                                          ? swapRowLabel(vt.swapStatus, vt.swapRefunding)
+                                          ? swapRowLabel(vt.swapStatus, {
+                                              refunding: vt.swapRefunding,
+                                              depositSent: vt.swapDepositSent,
+                                            })
                                           : Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)}{" "}
                                         :
                                       </div>

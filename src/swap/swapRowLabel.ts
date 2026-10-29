@@ -15,13 +15,14 @@ import { SwapStatusEnum } from "./enums/SwapStatusEnum";
  *
  * An unset or unrecognised status falls back to the plain kind, which is what
  * a record written by a newer version would produce. `refunding` is a
- * purchase paid after it expired, on its way back whatever the status says.
+ * purchase paid after it expired, on its way back whatever the status says;
+ * `depositSent`, one the user said they paid, which Zingo is looking for.
  */
-export function swapRowLabel(swapStatus?: string, refunding?: boolean): string {
-  if (refunding) return "Refunding";
+export function swapRowLabel(swapStatus?: string, flags: { refunding?: boolean; depositSent?: boolean } = {}): string {
+  if (flags.refunding) return "Refunding";
   switch (swapStatus) {
     case SwapStatusEnum.AwaitingExternalDeposit:
-      return "Awaiting deposit";
+      return flags.depositSent ? "Looking for payment" : "Awaiting deposit";
     case SwapStatusEnum.PendingDeposit:
       return "...Depositing...";
     case SwapStatusEnum.IncompleteDeposit:
