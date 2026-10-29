@@ -31,7 +31,7 @@ import {
   quoteBindsAddress,
   validateAddressForChain,
   canonicalChainAddress,
-  extractPlainAddress,
+  addressFromPaymentUri,
   nearAccountNeedsConfirm,
   zecNetworkFeeReserve,
 } from "../../swap";
@@ -919,7 +919,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                     invalid: addressShowError,
                     valid: addressReady,
                     errorText: "That address does not look valid for this chain.",
-                    onChange: setActiveAddress,
+                    // A pasted payment URI for this chain fills in its address.
+                    onChange: (text: string) => setActiveAddress(addressFromPaymentUri(counterpartyChain, text)),
                     onBlur: () => setActiveAddressTouched(true),
                     onScan: () => setScanOpen(true),
                     onPick: () => setContactsOpen(true),
@@ -953,7 +954,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                     invalid: addressShowError,
                     valid: addressReady,
                     errorText: "That address does not look valid for this chain.",
-                    onChange: setActiveAddress,
+                    // A pasted payment URI for this chain fills in its address.
+                    onChange: (text: string) => setActiveAddress(addressFromPaymentUri(counterpartyChain, text)),
                     onBlur: () => setActiveAddressTouched(true),
                     onScan: () => setScanOpen(true),
                     onPick: () => setContactsOpen(true),
@@ -1315,14 +1317,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
           modalIsOpen={scanOpen}
           closeModal={() => setScanOpen(false)}
           onScanned={(text) => {
-            setActiveAddress(extractPlainAddress(text));
+            setActiveAddress(addressFromPaymentUri(counterpartyChain, text));
             setActiveAddressTouched(true);
           }}
           // Only an address for the chain on screen, bare or in that chain's
           // payment URI: a code for another chain is refused in the dialog
           // rather than left in the field to be found invalid.
           validate={async (text) =>
-            (await validateAddressForChain(counterpartyChain, extractPlainAddress(text), currentWallet?.chain_name))
+            (await validateAddressForChain(
+              counterpartyChain,
+              addressFromPaymentUri(counterpartyChain, text),
+              currentWallet?.chain_name,
+            ))
               ? null
               : `That QR code does not carry a ${chainDisplayName(counterpartyChain) || counterpartyChain} address.`
           }

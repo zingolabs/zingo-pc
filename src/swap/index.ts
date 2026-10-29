@@ -118,7 +118,7 @@ export {
 export { validateAddressForChain } from "./validateAddressForChain";
 export { possibleChainsForAddress } from "./possibleChainsForAddress";
 export { extractPlainAddress } from "./extractPlainAddress";
-export { chainFromPaymentUri } from "./chainFromPaymentUri";
+export { addressFromPaymentUri, chainFromPaymentUri } from "./chainFromPaymentUri";
 
 export type { ExtractDepositInstructionsContext, ProviderExecutor } from "./providers/ProviderExecutor";
 export { FlashnetExecutor } from "./providers/FlashnetExecutor";
