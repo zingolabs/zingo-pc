@@ -32,6 +32,8 @@ import {
   validateAddressForChain,
   canonicalChainAddress,
   addressFromPaymentUri,
+  parseAmountInput,
+  toDottedDecimal,
   nearAccountNeedsConfirm,
   zecNetworkFeeReserve,
 } from "../../swap";
@@ -476,7 +478,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
       onConfirm,
     );
 
-  const amountNumber = parseFloat(amount.replace(",", "."));
+  const amountNumber = parseAmountInput(amount);
   const amountValid = Number.isFinite(amountNumber) && amountNumber > 0;
   // Only meaningful when this wallet is the one paying. Inbound, the funds come
   // from somewhere else entirely and this wallet has no idea what that account
@@ -573,7 +575,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
         sellAsset: isOutbound ? ZEC_ASSET : other,
         receiveAsset: isOutbound ? other : ZEC_ASSET,
         // SwapKit reads a dot-separated decimal whatever the user's locale.
-        sellAmountHumanDecimal: amount.replace(",", "."),
+        sellAmountHumanDecimal: toDottedDecimal(parseAmountInput(amount)),
         ...quoteAddressPair({ isOutbound, ephemeralAddress: ephemeral, boundAddress }),
         slippageBps,
       };

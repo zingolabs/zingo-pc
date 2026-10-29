@@ -134,3 +134,4 @@ export {
   pendingDeshieldTxId,
   recordDeshieldTxId,
 } from "./depositAfterDeshield";
+export { parseAmountInput, toDottedDecimal } from "./amountInput";
