@@ -42,7 +42,6 @@ import { SyncAllBanner, SyncAllSettingsModal, SyncAllWallets } from "../componen
 import { SyncAllContext, SyncAllRun, useAutoSyncAll, useSyncAllRun } from "../syncAll";
 import { History } from "../components/history";
 import { Swap } from "../components/swap";
-import type { SwapDirectionEnum } from "../swap/enums/SwapDirectionEnum";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 import { SwapServiceProvider } from "../context/ContextSwapService";
 import SwapExpiryNotice from "../components/swap/SwapExpiryNotice";

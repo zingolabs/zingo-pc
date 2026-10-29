@@ -1,5 +1,3 @@
-jest.mock("../electronBridge");
-
 import { SwapService } from "./SwapService";
 import {
   DEPOSIT_WAIT_MS,
@@ -16,6 +14,8 @@ import type { SwapPoller } from "./SwapPoller";
 import type { SwapStore } from "./SwapStore";
 import type { SwapAssetType } from "./types/SwapAssetType";
 import type { SwapRecordType } from "./types/SwapRecordType";
+
+jest.mock("../electronBridge");
 
 const ZEC: SwapAssetType = {
   swapKitId: "ZEC.ZEC",

@@ -336,7 +336,7 @@ describe("SwapDetailModal deposit stopped halfway", () => {
     status: SwapStatusEnum.PendingDeposit,
     broadcast: { status: BroadcastStatusEnum.PendingBroadcast, allTxIds: [DESHIELD], opReturnTxId },
   });
-  const renderHalfPaid = (overrides: Partial<SwapRecordType>, resume = jest.fn(async () => [VAULT_TX])) => {
+  const showHalfPaid = (overrides: Partial<SwapRecordType>, resume = jest.fn(async () => [VAULT_TX])) => {
     render(
       <SwapDetailModal
         record={record(overrides)}
@@ -360,7 +360,7 @@ describe("SwapDetailModal deposit stopped halfway", () => {
     const markBroadcasted = jest.fn(async () => ({}));
     mockSwapService = { markBroadcasted, backfillFinishedRecord: jest.fn(async () => undefined) };
     native.pending_swap_deposit.mockResolvedValue(JSON.stringify({ deshield_txid: DESHIELD }));
-    const resume = renderHalfPaid(halfPaid());
+    const resume = showHalfPaid(halfPaid());
 
     fireEvent.click(await screen.findByRole("button", { name: /finish the deposit/i }));
 
@@ -381,7 +381,7 @@ describe("SwapDetailModal deposit stopped halfway", () => {
       backfillFinishedRecord: jest.fn(async () => undefined),
     };
     native.pending_swap_deposit.mockResolvedValue(JSON.stringify({ deshield_txid: null }));
-    const resume = renderHalfPaid(halfPaid("e".repeat(64)));
+    const resume = showHalfPaid(halfPaid("e".repeat(64)));
 
     fireEvent.click(await screen.findByRole("button", { name: /finish the deposit/i }));
 
@@ -391,7 +391,7 @@ describe("SwapDetailModal deposit stopped halfway", () => {
   it("says it can no longer be sent when the wallet holds another deposit, or none", async () => {
     mockSwapService = { backfillFinishedRecord: jest.fn(async () => undefined) };
     native.pending_swap_deposit.mockResolvedValue(JSON.stringify({ deshield_txid: "f".repeat(64) }));
-    renderHalfPaid(halfPaid());
+    showHalfPaid(halfPaid());
 
     expect(await screen.findByText(/can no longer send it/i)).toBeInTheDocument();
     await waitFor(() => expect(native.pending_swap_deposit).toHaveBeenCalled());

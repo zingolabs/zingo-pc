@@ -1,5 +1,5 @@
 import React from "react";
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { ContextApp, defaultAppState } from "../../context/ContextAppState";
 import SwapExpiryNotice from "./SwapExpiryNotice";
 import { SwapDirectionEnum, SwapStatusEnum, SwapStore } from "../../swap";
@@ -41,7 +41,7 @@ describe("SwapExpiryNotice", () => {
 
   it("says a purchase seen awaiting has expired", async () => {
     const openErrorModal = mount();
-    await act(async () => {});
+    await waitFor(() => expect(SwapStore.readAll).toHaveBeenCalled());
 
     act(() => listener([purchase(SwapStatusEnum.Expired)]));
 
@@ -50,7 +50,7 @@ describe("SwapExpiryNotice", () => {
 
   it("says a late payment is going back", async () => {
     const openErrorModal = mount();
-    await act(async () => {});
+    await waitFor(() => expect(SwapStore.readAll).toHaveBeenCalled());
     act(() => listener([purchase(SwapStatusEnum.Expired)]));
 
     act(() => listener([purchase(SwapStatusEnum.Pending, { lateDepositAtMs: 1 })]));
