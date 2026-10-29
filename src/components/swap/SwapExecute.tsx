@@ -15,7 +15,12 @@ import {
   DepositAfterDeshieldError,
   providerLongLabel,
   recordDeshieldTxId,
+  depositCarriesMemo,
+  formatAmountForDisplay,
+  zecNetworkFeeReserve,
 } from "../../swap";
+import Utils from "../../utils/utils";
+import { chainDisplayName } from "./chainDisplayName";
 import type {
   DepositInstructionsType,
   FiatValueBasisType,
@@ -77,6 +82,9 @@ type SwapExecuteProps = {
   /** The provider refused this route, so the screen behind should stop
    *  offering it. Nothing was reserved; the reason is the user's. */
   onRouteRefused: (reason: string) => void;
+  /** The address book's name for the address the user gave: the destination
+   *  of a sale, the refund address of a purchase. */
+  contactLabel?: string;
 };
 
 type PostCommit = {
@@ -106,6 +114,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   onDone,
   onCancel,
   onRouteRefused,
+  contactLabel,
 }) => {
   const [committing, setCommitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -119,6 +128,27 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   const [afterDeshield, setAfterDeshield] = useState<{ deshieldTxId: string; opReturnTxId?: string } | null>(null);
 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
+  const sellSymbol = quoteInput.sellAsset.ticker ?? quoteInput.sellAsset.symbol;
+  const receiveSymbol = quoteInput.receiveAsset.ticker ?? quoteInput.receiveAsset.symbol;
+  const counterparty = isOutbound ? quoteInput.receiveAsset : quoteInput.sellAsset;
+  // Named only when the coin lives on a chain of another name (USDC on Solana).
+  const counterpartyNetwork =
+    counterparty.chain !== counterparty.symbol ? chainDisplayName(counterparty.chain) || counterparty.chain : "";
+  // The provider's fees, in whichever asset the route states them.
+  const feesInSell = parseFloat(route.totalFeesInSellAsset ?? "");
+  const feesInReceive = parseFloat(route.totalFeesInReceiveAsset ?? "");
+  const feeText = Number.isFinite(feesInSell)
+    ? `${formatAmountForDisplay(route.totalFeesInSellAsset)} ${sellSymbol} (${Utils.getZecToUsdString(fiatValueBasis.sellUsdUnitPrice, feesInSell)})`
+    : Number.isFinite(feesInReceive)
+      ? `${formatAmountForDisplay(route.totalFeesInReceiveAsset)} ${receiveSymbol} (${Utils.getZecToUsdString(fiatValueBasis.receiveUsdUnitPrice, feesInReceive)})`
+      : "";
+  // What the deposit itself costs on Zcash: a figure set to err high, since
+  // the real one is known only once the deposit is proposed.
+  const zcashFeeText = isOutbound
+    ? `about ${formatAmountForDisplay(String(zecNetworkFeeReserve(route.provider)))} ZEC, ${
+        depositCarriesMemo(route.provider) ? "2 transactions" : "1 transaction"
+      }`
+    : "";
 
   /**
    * The device lock, for the presses that spend from this wallet.
@@ -373,13 +403,41 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
             />
             <Field
               label="You receive, at least"
-              value={`${route.minReceiveAmount} ${quoteInput.receiveAsset.ticker ?? quoteInput.receiveAsset.symbol}`}
+              value={`${formatAmountForDisplay(route.minReceiveAmount)} ${receiveSymbol} (${Utils.getZecToUsdString(
+                fiatValueBasis.receiveUsdUnitPrice,
+                parseFloat(route.minReceiveAmount),
+              )})`}
             />
           </FieldRow>
 
           <FieldRow>
+            {!!feeText && <Field label="Provider fees" value={feeText} />}
+            {!!zcashFeeText && <Field label="Zcash network fee" value={zcashFeeText} />}
+          </FieldRow>
+
+          <FieldRow>
             <Field label="Route" value={providerLongLabel(route.provider)} />
-            <Field label="Destination" value={quoteInput.destinationAddress} />
+            {!!counterpartyNetwork && (
+              <Field label={isOutbound ? "Destination network" : "Source network"} value={counterpartyNetwork} />
+            )}
+          </FieldRow>
+
+          {/* The address the user typed or picked: where a sale pays, or where a
+              purchase is refunded. Named as the address book names it. */}
+          <FieldRow>
+            {isOutbound ? (
+              <Field
+                label="Destination"
+                value={
+                  contactLabel ? `${contactLabel} (${quoteInput.destinationAddress})` : quoteInput.destinationAddress
+                }
+              />
+            ) : (
+              <Field
+                label="If refunded, to"
+                value={contactLabel ? `${contactLabel} (${quoteInput.sourceAddress})` : quoteInput.sourceAddress}
+              />
+            )}
           </FieldRow>
 
           {/* The minimum is the number above because it is the one the swap
@@ -387,7 +445,8 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               as the note explaining the gap rather than a figure competing
               with it. */}
           <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.margintoplarge}`}>
-            Expected {route.expectedReceiveAmount}. The minimum is what the slippage tolerance guarantees.
+            Expected {formatAmountForDisplay(route.expectedReceiveAmount)} {receiveSymbol}. The minimum is what the
+            slippage tolerance guarantees.
           </div>
 
           {!!error && (

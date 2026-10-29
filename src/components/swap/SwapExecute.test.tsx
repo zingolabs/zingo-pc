@@ -484,3 +484,24 @@ describe("SwapExecute deposit stopped after its deshield", () => {
     });
   });
 });
+
+// The review is the last screen before the money moves, and it said nothing
+// of what the swap costs beyond the minimum received.
+describe("SwapExecute review", () => {
+  it("states the provider fees and what the deposit costs on Zcash", () => {
+    renderExecute(SwapDirectionEnum.Outbound);
+
+    expect(screen.getByText("Provider fees")).toBeInTheDocument();
+    expect(screen.getByText(/^0\.01 ZEC \(USD 0\.30\)$/)).toBeInTheDocument();
+    expect(screen.getByText("Zcash network fee")).toBeInTheDocument();
+    expect(screen.getByText(/^about 0\.0002 ZEC, 1 transaction$/)).toBeInTheDocument();
+  });
+
+  it("names the refund address of a purchase, and no Zcash fee", () => {
+    renderExecute(SwapDirectionEnum.Inbound);
+
+    expect(screen.getByText("If refunded, to")).toBeInTheDocument();
+    expect(screen.getByText("bc1qrefund")).toBeInTheDocument();
+    expect(screen.queryByText("Zcash network fee")).not.toBeInTheDocument();
+  });
+});

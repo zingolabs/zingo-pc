@@ -1269,6 +1269,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
             direction={direction}
             sendSwapDeposit={sendSwapDeposit}
             resumeSwapDeposit={resumeSwapDeposit}
+            contactLabel={activeContactLabel}
             // A completed swap leaves the form empty rather than pre-filled
             // with what was just sent: the next swap is a new decision, and
             // leaving the amount and address sitting there invites repeating a
