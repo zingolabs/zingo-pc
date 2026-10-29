@@ -10,6 +10,8 @@
  * choice to the address.
  */
 
+import { isEvmChain } from "./addressValidators";
+
 const SCHEME_CHAINS: Readonly<Record<string, string>> = {
   bitcoin: "BTC",
   litecoin: "LTC",
@@ -57,4 +59,37 @@ export function chainFromPaymentUri(text: string): string | undefined {
     return chainId ? EVM_CHAIN_IDS[chainId] : "ETH";
   }
   return SCHEME_CHAINS[scheme];
+}
+
+/**
+ * The bare address out of a payment URI for `chain`, so a wallet's receive QR
+ * (`bitcoin:bc1…?amount=0.1`) fills a swap address field. Text that is not a
+ * URI for that chain comes back trimmed and untouched, and the field's own
+ * check refuses it: a URI naming another network must never yield an address
+ * for this one (`bitcoin:1…` is a valid BCH address once unwrapped).
+ *
+ * An `ethereum:` URI without a chain id fits any EVM field: wallets put it
+ * on the receive QR of every EVM network, and the form already names the
+ * network. With a chain id, the id must be the field's.
+ *
+ * An EIP-681 token transfer (`ethereum:<token>/transfer?address=<to>`) names
+ * the token contract first and the recipient in `address`; only the recipient
+ * is an address to pay, so a transfer without one yields nothing usable.
+ */
+export function addressFromPaymentUri(chain: string, text: string): string {
+  const trimmed = text.trim();
+  const ethereum = /^ethereum:/i.test(trimmed);
+  const body = trimmed.slice(trimmed.indexOf(":") + 1);
+  const [path, query = ""] = body.split("?");
+  const genericEvm = ethereum && !/^(pay-)?[^@/]+@/i.test(path) && isEvmChain(chain);
+  if (chainFromPaymentUri(trimmed) !== chain.toUpperCase() && !genericEvm) return trimmed;
+  if (ethereum && path.includes("/")) {
+    const to = new URLSearchParams(query).get("address");
+    return to ? to.trim() : trimmed;
+  }
+  return path
+    .replace(/^pay-/i, "")
+    .replace(/^\/\/(transfer\/)?/i, "")
+    .split("@")[0]
+    .trim();
 }

@@ -9,7 +9,9 @@ export { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 export { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 export { SwapErrorCategoryEnum, SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
 export { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
-export { SwapStatusEnum, isTerminalStatus, canRemoveSwap, isPrePaymentStatus } from "./enums/SwapStatusEnum";
+export { SwapStatusEnum, isTerminalStatus, isPrePaymentStatus } from "./enums/SwapStatusEnum";
+export { canRemoveSwap } from "./canRemoveSwap";
+export { hasDepositEvidence } from "./depositEvidence";
 export { TrackingStatusEnum } from "./enums/TrackingStatusEnum";
 
 export type { DepositInstructionsType } from "./types/DepositInstructionsType";
@@ -46,7 +48,7 @@ export type { SwapStoreChangeListener } from "./SwapStore";
 export { deriveWalletFingerprint } from "./walletFingerprint";
 export { readCurrentWalletFingerprint, readCurrentWalletKeys } from "./currentWalletFingerprint";
 export { swapRecordToValueTransfer, isOutboundSwap } from "./swapRecordToValueTransfer";
-export { formatAmountForDisplay } from "./formatAmountForDisplay";
+export { formatAmountForDisplay, formatMinimumAmount } from "./formatAmountForDisplay";
 export { swapRowLabel } from "./swapRowLabel";
 export { extractFiatValueBasis } from "./quoteFiatBasis";
 export { describeEmptyQuote } from "./describeEmptyQuote";
@@ -116,7 +118,7 @@ export {
 export { validateAddressForChain } from "./validateAddressForChain";
 export { possibleChainsForAddress } from "./possibleChainsForAddress";
 export { extractPlainAddress } from "./extractPlainAddress";
-export { chainFromPaymentUri } from "./chainFromPaymentUri";
+export { addressFromPaymentUri, chainFromPaymentUri } from "./chainFromPaymentUri";
 
 export type { ExtractDepositInstructionsContext, ProviderExecutor } from "./providers/ProviderExecutor";
 export { FlashnetExecutor } from "./providers/FlashnetExecutor";
@@ -126,4 +128,22 @@ export { ProviderRegistry, createDefaultProviderRegistry } from "./providers/Pro
 export { mapSwapStatus, mapTrackingStatus } from "./providers/statusMapping";
 export { applyDefaultTrackUpdate, pickLegHash, isRealLegHash } from "./providers/trackUpdateBase";
 export { isRateLimited, rateLimitWaitMs, rateLimitedNotice, RATE_LIMITED_MESSAGE } from "./rateLimited";
-export { DepositAfterDeshieldError, depositTxIds } from "./depositAfterDeshield";
+export {
+  DepositAfterDeshieldError,
+  depositTxIds,
+  pendingDeshieldTxId,
+  recordDeshieldTxId,
+} from "./depositAfterDeshield";
+export { parseAmountInput, toDottedDecimal } from "./amountInput";
+export {
+  DEPOSIT_WAIT_MS,
+  DEPOSIT_WARN_AFTER_MS,
+  awaitsDeposit,
+  depositDeadlineMs,
+  depositOverdue,
+  depositPhase,
+  depositWarnAtMs,
+} from "./depositDeadline";
+export type { DepositPhase } from "./depositDeadline";
+export { LATE_WATCH_MS, acceptsLateUpdate, isRefunding, watchesLateDeposit } from "./lateDeposit";
+export { newlyExpired, newlyRefunding } from "./swapTransitions";

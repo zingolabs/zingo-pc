@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import Swap from "./Swap";
 import { ContextApp, defaultAppState } from "../../context/ContextAppState";
 import { ServerChainNameEnum, TotalBalanceClass } from "../appstate";
+import type { SwapToType } from "../appstate";
 import { SwapDirectionEnum } from "../../swap/enums/SwapDirectionEnum";
 import type { TokenEntryType } from "../../swap";
 
@@ -60,7 +61,7 @@ const asset = (chain: string, symbol: string, chainId: string): TokenEntryType =
 // after the handoff and reselects its default visibly undoes it.
 const CATALOG = [asset("BTC", "BTC", "bitcoin"), asset("SOL", "SOL", "solana")];
 
-type Handoff = { address: string; swapChain: string; direction: SwapDirectionEnum };
+type Handoff = SwapToType;
 
 /**
  * The screen as the app mounts it after an Address Book button, with a context
@@ -102,6 +103,34 @@ const serviceWithCatalogs = () => {
  * asset picked from the catalog still on screen was replaced moments later,
  * after the address had gone in and the handoff had been consumed.
  */
+// An expired or failed swap offers the same swap again: the exact asset and
+// the amount come with the address.
+describe("Swap arriving for a new quote", () => {
+  it("fills in the asset, the amount and the address", async () => {
+    serviceWithCatalogs();
+    render(
+      <Arriving
+        spendable={0}
+        handoff={{
+          address: "SoLcontactAddress",
+          swapChain: "SOL",
+          swapKitId: "SOL.SOL",
+          amount: "0.25",
+          direction: SwapDirectionEnum.Inbound,
+        }}
+      />,
+    );
+
+    await act(() => new Promise((resolve) => setTimeout(resolve, 80)));
+
+    expect(screen.getByRole("textbox", { name: "Your refund address on the source chain" })).toHaveValue(
+      "SoLcontactAddress",
+    );
+    expect(screen.getByRole("textbox", { name: "Amount" })).toHaveValue("0.25");
+    expect(screen.getByRole("button", { name: "Change asset, currently SOL" })).toBeInTheDocument();
+  });
+});
+
 describe("Swap arriving from the Address Book", () => {
   it("Swap From flips to inbound and keeps the contact's asset and refund address", async () => {
     serviceWithCatalogs();

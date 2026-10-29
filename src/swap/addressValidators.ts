@@ -256,3 +256,8 @@ export const SWAP_ADDRESS_CHAINS: readonly string[] = [
   ...PRIORITY_CHAINS,
   ...Object.keys(VALIDATORS).filter((c) => !PRIORITY_CHAINS.includes(c)),
 ];
+
+/** Whether `chain` takes an EVM address, as every EVM network does. */
+export function isEvmChain(chain: string): boolean {
+  return VALIDATORS[chain.toUpperCase()] === isEvm;
+}
