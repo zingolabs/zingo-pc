@@ -98,10 +98,10 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // Removing is destructive and irreversible, so it asks first — the same
   // treatment `VtModal` gives the equivalent action on a value transfer.
   //
-  // A swap still waiting for payment gets a sharper warning: it may yet move,
-  // and forgetting it is how a user loses sight of funds in flight. The
-  // statuses that would make that dangerous outright — Completed, Pending,
-  // Processing — never reach here, because `canRemoveSwap` hides the button.
+  // An unpaid sale gets a sharper warning: it may yet be paid by hand, and
+  // forgetting it is how a user loses sight of funds in flight. A swap with
+  // money behind it never reaches here, because `canRemoveSwap` hides the
+  // button.
   const confirmRemove = () => {
     closeModal();
     openConfirmModal(
@@ -199,7 +199,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     record.status === SwapStatusEnum.Expired ||
     !!endedBadlyReason;
 
-  const removable = canRemoveSwap(record.status);
+  const removable = canRemoveSwap(record);
 
   // A deposit the provider can see is what turns a reserved swap into a
   // tracked one. Outbound gets it from our own broadcast, inbound from the

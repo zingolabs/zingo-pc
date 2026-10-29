@@ -9,7 +9,9 @@ export { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 export { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 export { SwapErrorCategoryEnum, SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
 export { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
-export { SwapStatusEnum, isTerminalStatus, canRemoveSwap, isPrePaymentStatus } from "./enums/SwapStatusEnum";
+export { SwapStatusEnum, isTerminalStatus, isPrePaymentStatus } from "./enums/SwapStatusEnum";
+export { canRemoveSwap } from "./canRemoveSwap";
+export { hasDepositEvidence } from "./depositEvidence";
 export { TrackingStatusEnum } from "./enums/TrackingStatusEnum";
 
 export type { DepositInstructionsType } from "./types/DepositInstructionsType";
