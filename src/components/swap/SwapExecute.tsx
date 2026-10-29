@@ -14,6 +14,7 @@ import {
   depositSpendsSourceAddress,
   DepositAfterDeshieldError,
   providerLongLabel,
+  recordDeshieldTxId,
 } from "../../swap";
 import type {
   DepositInstructionsType,
@@ -161,10 +162,25 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
         setAfterDeshield(null);
         setPostCommit({ record: broadcasted, instructions, txId: depositTxId });
       } catch (e) {
+        // A deposit held for another swap is that swap's to finish: marking
+        // this record with its deshield, and resuming it from here, would
+        // book the other swap's payment under this one.
+        if (
+          e instanceof DepositAfterDeshieldError &&
+          e.kind === "pending" &&
+          e.deshieldTxId !== recordDeshieldTxId(record)
+        ) {
+          setError(
+            "Another swap's deposit is waiting to finish, and the wallet sends nothing else until it does. Finish it with “Finish the deposit” on that swap in History, then try this one again. Nothing was sent for this swap.",
+          );
+          setPostCommit({ record, instructions });
+          return;
+        }
         if (e instanceof DepositAfterDeshieldError) {
           const deshielded = await swapService.markDeshielded({
             recordId: record.recordId,
             deshieldTxId: e.deshieldTxId,
+            opReturnTxId: e.opReturnTxId,
           });
           setAfterDeshield({ deshieldTxId: e.deshieldTxId, opReturnTxId: e.opReturnTxId });
           setError(

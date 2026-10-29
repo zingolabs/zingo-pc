@@ -1,8 +1,8 @@
 import React from "react";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import SwapDetailModal from "./SwapDetailModal";
-import { SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
+import { BroadcastStatusEnum, SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
 import type { SwapAssetType, SwapRecordType } from "../../swap";
 
 jest.mock("../../electronBridge");
@@ -321,5 +321,81 @@ describe("SwapDetailModal refund", () => {
     // Folded to its ends, as every code is.
     expect(screen.getAllByText("dd44dd44dd44...dd44dd44dd44")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /Refund explorer/ })).not.toBeInTheDocument();
+  });
+});
+
+// A sale whose deposit stopped after its deshield has the ZEC in this wallet's
+// transparent address. The slip to pay from elsewhere would pay it twice, so
+// the view offers to finish it when the wallet still can, and says so when not.
+describe("SwapDetailModal deposit stopped halfway", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { native, ipcRenderer } = require("../../electronBridge");
+  const DESHIELD = "d".repeat(64);
+  const VAULT_TX = "c".repeat(64);
+  const halfPaid = (opReturnTxId?: string): Partial<SwapRecordType> => ({
+    status: SwapStatusEnum.PendingDeposit,
+    broadcast: { status: BroadcastStatusEnum.PendingBroadcast, allTxIds: [DESHIELD], opReturnTxId },
+  });
+  const renderHalfPaid = (overrides: Partial<SwapRecordType>, resume = jest.fn(async () => [VAULT_TX])) => {
+    render(
+      <SwapDetailModal
+        record={record(overrides)}
+        index={0}
+        length={1}
+        moveDetail={jest.fn()}
+        modalIsOpen
+        closeModal={jest.fn()}
+        onRemove={jest.fn()}
+        resumeSwapDeposit={resume}
+      />,
+    );
+    return resume;
+  };
+
+  beforeEach(() => {
+    ipcRenderer.invoke.mockResolvedValue({});
+  });
+
+  it("finishes the deposit the wallet still holds", async () => {
+    const markBroadcasted = jest.fn(async () => ({}));
+    mockSwapService = { markBroadcasted, backfillFinishedRecord: jest.fn(async () => undefined) };
+    native.pending_swap_deposit.mockResolvedValue(JSON.stringify({ deshield_txid: DESHIELD }));
+    const resume = renderHalfPaid(halfPaid());
+
+    fireEvent.click(await screen.findByRole("button", { name: /finish the deposit/i }));
+
+    await waitFor(() =>
+      expect(markBroadcasted).toHaveBeenCalledWith({
+        recordId: "rec-1",
+        txId: VAULT_TX,
+        allTxIds: [DESHIELD, VAULT_TX],
+      }),
+    );
+    expect(resume).toHaveBeenCalledWith(undefined);
+    expect(screen.queryByText(/this deposit is unpaid/i)).not.toBeInTheDocument();
+  });
+
+  it("transmits the built OP_RETURN transaction again", async () => {
+    mockSwapService = {
+      markBroadcasted: jest.fn(async () => ({})),
+      backfillFinishedRecord: jest.fn(async () => undefined),
+    };
+    native.pending_swap_deposit.mockResolvedValue(JSON.stringify({ deshield_txid: null }));
+    const resume = renderHalfPaid(halfPaid("e".repeat(64)));
+
+    fireEvent.click(await screen.findByRole("button", { name: /finish the deposit/i }));
+
+    await waitFor(() => expect(resume).toHaveBeenCalledWith("e".repeat(64)));
+  });
+
+  it("says it can no longer be sent when the wallet holds another deposit, or none", async () => {
+    mockSwapService = { backfillFinishedRecord: jest.fn(async () => undefined) };
+    native.pending_swap_deposit.mockResolvedValue(JSON.stringify({ deshield_txid: "f".repeat(64) }));
+    renderHalfPaid(halfPaid());
+
+    expect(await screen.findByText(/can no longer send it/i)).toBeInTheDocument();
+    await waitFor(() => expect(native.pending_swap_deposit).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /finish the deposit/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/this deposit is unpaid/i)).not.toBeInTheDocument();
   });
 });

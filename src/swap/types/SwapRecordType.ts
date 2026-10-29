@@ -123,6 +123,9 @@ export type SwapRecordType = {
      *  one-element array equal to `[txId]`. Two-hop sends carry
      *  `[step0Txid, depositTxId]`. */
     allTxIds?: string[];
+    /** The OP_RETURN transaction of a deposit stopped after its deshield,
+     *  when it was built: resuming transmits it again. */
+    opReturnTxId?: string;
     broadcastedAtMs?: number;
   };
 

@@ -924,7 +924,7 @@ const AppRoutes: React.FC = () => {
                 />
                 <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
                 <Route path={routes.INSIGHT} element={<Insight />} />
-                <Route path={routes.HISTORY} element={<History />} />
+                <Route path={routes.HISTORY} element={<History resumeSwapDeposit={runRPCResumeSwapDeposit} />} />
                 <Route
                   path={routes.SWAP}
                   element={

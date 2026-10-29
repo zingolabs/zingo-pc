@@ -306,14 +306,22 @@ export class SwapService {
    * shows it, and stays pending until the resumed deposit is marked
    * broadcast.
    */
-  async markDeshielded(args: { recordId: string; deshieldTxId: string }): Promise<SwapRecordType> {
+  async markDeshielded(args: {
+    recordId: string;
+    deshieldTxId: string;
+    opReturnTxId?: string;
+  }): Promise<SwapRecordType> {
     const record = await this.store.getByRecordId(args.recordId);
     if (!record) {
       throw new Error(`SwapService.markDeshielded: no record for ${args.recordId}`);
     }
     const updated: SwapRecordType = {
       ...record,
-      broadcast: { status: BroadcastStatusEnum.PendingBroadcast, allTxIds: [args.deshieldTxId] },
+      broadcast: {
+        status: BroadcastStatusEnum.PendingBroadcast,
+        allTxIds: [args.deshieldTxId],
+        opReturnTxId: args.opReturnTxId,
+      },
       updatedAtMs: Date.now(),
     };
     await this.store.upsert(updated);

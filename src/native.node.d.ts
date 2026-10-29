@@ -109,6 +109,7 @@ export function get_wallet_version(): Promise<string>;
 export function send(send_json: string): Promise<string>;
 export function send_swap_deposit(vault_address: string, amount: number, memo_hex: string): Promise<string>;
 export function resume_swap_deposit(op_return_txid: string): Promise<string>;
+export function pending_swap_deposit(): Promise<string>;
 export function shield(): Promise<string>;
 /** Drops the proposal a fee quote stored, releasing the sync pause it holds. */
 export function clear_proposal(): Promise<string>;

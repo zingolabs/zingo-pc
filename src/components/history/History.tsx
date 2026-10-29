@@ -17,9 +17,12 @@ import { ValueTransferKindEnum } from "../appstate";
 import SwapDetailModal from "../swap/SwapDetailModal";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 
-type HistoryProps = {};
+type HistoryProps = {
+  /** Finishes a sale's deposit that stopped after its deshield. */
+  resumeSwapDeposit?: (opReturnTxId?: string) => Promise<string[]>;
+};
 
-const History: React.FC<HistoryProps> = () => {
+const History: React.FC<HistoryProps> = ({ resumeSwapDeposit }) => {
   const context = useContext(ContextApp);
   const {
     valueTransfers,
@@ -360,6 +363,7 @@ const History: React.FC<HistoryProps> = () => {
           modalIsOpen={modalIsOpen}
           closeModal={closeModal}
           onRemove={(r) => removeSwapRecord(r.recordId)}
+          resumeSwapDeposit={resumeSwapDeposit}
         />
       )}
 

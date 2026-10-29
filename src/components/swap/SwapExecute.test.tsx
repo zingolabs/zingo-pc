@@ -431,15 +431,32 @@ describe("SwapExecute deposit stopped after its deshield", () => {
   const DESHIELD = "d".repeat(64);
   const OP_RETURN = "e".repeat(64);
   const stopped = (opReturnTxId?: string) =>
-    jest.fn().mockRejectedValueOnce(new DepositAfterDeshieldError("transmission failed", DESHIELD, opReturnTxId));
+    jest
+      .fn()
+      .mockRejectedValueOnce(new DepositAfterDeshieldError("transmission failed", "failed", DESHIELD, opReturnTxId));
 
   it("keeps the deshield on the record and says the retry finishes it", async () => {
     const { markDeshielded, markBroadcasted } = renderExecute(SwapDirectionEnum.Outbound, stopped());
     fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
 
     expect(await screen.findByText(/first transaction went out/)).toBeInTheDocument();
-    expect(markDeshielded).toHaveBeenCalledWith({ recordId: "rec-1", deshieldTxId: DESHIELD });
+    expect(markDeshielded).toHaveBeenCalledWith({ recordId: "rec-1", deshieldTxId: DESHIELD, opReturnTxId: undefined });
     expect(markBroadcasted).not.toHaveBeenCalled();
+  });
+
+  // zingolib refuses a new deposit while another swap's waits to resume, and
+  // names that one's deshield. It is not this swap's to record or to finish.
+  it("leaves another swap's held deposit alone", async () => {
+    const held = jest.fn().mockRejectedValue(new DepositAfterDeshieldError("waits to resume", "pending", DESHIELD));
+    const { markDeshielded, resumeSwapDeposit } = renderExecute(SwapDirectionEnum.Outbound, held);
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    expect(await screen.findByText(/another swap's deposit is waiting to finish/i)).toBeInTheDocument();
+    expect(markDeshielded).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /try the deposit again/i }));
+    await waitFor(() => expect(held).toHaveBeenCalledTimes(2));
+    expect(resumeSwapDeposit).not.toHaveBeenCalled();
   });
 
   it.each([

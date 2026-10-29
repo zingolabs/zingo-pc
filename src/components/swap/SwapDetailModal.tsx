@@ -9,7 +9,7 @@ import cstyles from "../common/Common.module.css";
 import { ServerChainNameEnum } from "../appstate";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapService } from "../../context/ContextSwapService";
-import { shell } from "../../electronBridge";
+import { ipcRenderer, native, shell } from "../../electronBridge";
 import {
   SwapDirectionEnum,
   buildChainExplorerUrl,
@@ -26,7 +26,7 @@ import {
   swapRowLabel,
 } from "../../swap";
 import type { SwapRecordType, TrackerEntryType } from "../../swap";
-import { isEvmSourceChain, memoToHexCalldata } from "../../swap";
+import { isEvmSourceChain, memoToHexCalldata, pendingDeshieldTxId, recordDeshieldTxId } from "../../swap";
 import { hashRowsForRecord } from "../../swap/hashRowsForRecord";
 import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
@@ -45,6 +45,8 @@ type SwapDetailModalProps = {
   modalIsOpen: boolean;
   closeModal: () => void;
   onRemove: (record: SwapRecordType) => void;
+  /** Finishes a sale's deposit that stopped after its deshield. */
+  resumeSwapDeposit?: (opReturnTxId?: string) => Promise<string[]>;
 };
 
 /**
@@ -64,6 +66,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   modalIsOpen,
   closeModal,
   onRemove,
+  resumeSwapDeposit,
 }) => {
   const {
     currentWallet,
@@ -204,7 +207,52 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // nothing to query, so this view has to be the place the user finishes the
   // job: the instructions to pay, and the way to hand back the transaction.
   const hasDepositEvidence = isRealLegHash(record.broadcast?.txId) || isRealLegHash(record.observedDepositTxHash);
-  const awaitingDeposit = !isTerminalStatus(record.status) && !hasDepositEvidence;
+  // A sale whose deposit stopped after its deshield: the ZEC left the
+  // shielded pool for this wallet's transparent address, and the payment to
+  // the vault is still to go. Paying the slip from elsewhere would pay twice.
+  const deshieldTxId = isOutbound ? recordDeshieldTxId(record) : undefined;
+  const awaitingDeposit = !isTerminalStatus(record.status) && !hasDepositEvidence && !deshieldTxId;
+  const halfPaid = !isTerminalStatus(record.status) && !!deshieldTxId;
+  const opReturnTxId = record.broadcast?.opReturnTxId;
+  // Finishable when the OP_RETURN transaction was built, which the wallet
+  // keeps, or when the wallet still holds this deposit's proposal, which it
+  // keeps in memory only.
+  const [heldHere, setHeldHere] = useState<boolean>(false);
+  useEffect(() => {
+    setHeldHere(false);
+    if (!modalIsOpen || !deshieldTxId || opReturnTxId) return;
+    let live = true;
+    native
+      .pending_swap_deposit()
+      .then((answer: string) => live && setHeldHere(pendingDeshieldTxId(answer) === deshieldTxId))
+      .catch((err: unknown) => console.log(`SwapDetailModal: pending deposit check failed: ${err}`));
+    return () => {
+      live = false;
+    };
+  }, [modalIsOpen, deshieldTxId, opReturnTxId]);
+  const finishable = halfPaid && !!resumeSwapDeposit && (!!opReturnTxId || heldHere);
+  const [finishing, setFinishing] = useState<boolean>(false);
+  const [finishError, setFinishError] = useState<string>("");
+
+  /** Sends the vault payment of a half-paid sale, behind the device lock. */
+  const finishDeposit = async () => {
+    if (!resumeSwapDeposit || !deshieldTxId || !swapService) return;
+    const allSettings = await ipcRenderer.invoke("loadSettings");
+    if (allSettings?.requireDeviceAuth) {
+      const result: { success: boolean } = await ipcRenderer.invoke("auth:verify", "Authorize swap deposit");
+      if (!result?.success) return;
+    }
+    setFinishing(true);
+    setFinishError("");
+    try {
+      const txIds = [deshieldTxId, ...(await resumeSwapDeposit(opReturnTxId))];
+      await swapService.markBroadcasted({ recordId: record.recordId, txId: txIds[txIds.length - 1], allTxIds: txIds });
+    } catch (error) {
+      setFinishError(`The deposit did not go out: ${error instanceof Error ? error.message : error}`);
+    } finally {
+      setFinishing(false);
+    }
+  };
 
   /**
    * Record the source-chain transaction that pays this deposit.
@@ -293,6 +341,29 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           {/* First, because when it applies it is the only thing on this
               screen the user can act on. Everything below is a record of what
               was agreed; this is what still has to happen. */}
+          {halfPaid && (
+            <>
+              <SectionHeader label="The deposit stopped halfway" />
+              <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
+                {finishable
+                  ? "Its first transaction moved the ZEC to this wallet's transparent address; the payment to the provider did not go out. Finish it here: nothing more is taken from your shielded balance."
+                  : "Its first transaction moved the ZEC to this wallet's transparent address; the payment to the provider did not go out, and this wallet can no longer send it. The ZEC stays in your transparent balance and the swap expires unpaid. Do not pay this swap from another wallet."}
+              </div>
+              {finishable && (
+                <div className={cstyles.padtopsmall}>
+                  <button type="button" className={cstyles.primarybutton} disabled={finishing} onClick={finishDeposit}>
+                    {finishing ? "Working..." : "Finish the deposit"}
+                  </button>
+                </div>
+              )}
+              {!!finishError && (
+                <div className={cstyles.small} style={{ color: "var(--color-error)" }}>
+                  {finishError}
+                </div>
+              )}
+            </>
+          )}
+
           {awaitingDeposit && (
             <>
               <SectionHeader label={isOutbound ? "This deposit is unpaid" : "Pay this deposit"} />

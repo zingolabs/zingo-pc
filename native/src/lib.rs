@@ -186,6 +186,7 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("send", send)?;
     cx.export_function("send_swap_deposit", send_swap_deposit)?;
     cx.export_function("resume_swap_deposit", resume_swap_deposit)?;
+    cx.export_function("pending_swap_deposit", pending_swap_deposit)?;
     cx.export_function("shield", shield)?;
     cx.export_function("clear_proposal", clear_proposal)?;
     cx.export_function("confirm", confirm)?;
@@ -3066,27 +3067,30 @@ fn send_swap_deposit(mut cx: FunctionContext) -> JsResult<JsPromise> {
     })
 }
 
-/// A swap deposit's failure, on the data channel. One that happened after the
-/// deshield went out carries `after_deshield`: the deshield's txid, and the
-/// OP_RETURN transaction's when it was built. The renderer resumes it with
+/// A swap deposit's failure, on the data channel. One that involves a deshield
+/// already sent carries `after_deshield`: the deshield's txid, the OP_RETURN
+/// transaction's when it was built, and `kind`. `failed` is this deposit,
+/// stopped after its deshield; the renderer resumes it with
 /// `resume_swap_deposit` instead of proposing again, which would deshield a
-/// second time for the same swap.
+/// second time. `pending` is a refusal: an earlier deposit, maybe another
+/// swap's, waits to resume, and the deshield named is that one's.
 fn swap_deposit_failure(e: &LightClientError) -> json::JsonValue {
     let after_deshield = match e {
         LightClientError::SendError(SendError::OpReturnAfterDeshield {
             deshield_txid,
             op_return_txid,
             ..
-        }) => Some((*deshield_txid, *op_return_txid)),
+        }) => Some(("failed", *deshield_txid, *op_return_txid)),
         LightClientError::SendError(SendError::OpReturnResumePending { deshield_txid }) => {
-            Some((*deshield_txid, None))
+            Some(("pending", *deshield_txid, None))
         }
         _ => None,
     };
     match after_deshield {
-        Some((deshield_txid, op_return_txid)) => object! {
+        Some((kind, deshield_txid, op_return_txid)) => object! {
             "error" => cause_chain(e),
             "after_deshield" => object! {
+                "kind" => kind,
                 "deshield_txid" => deshield_txid.to_string(),
                 "op_return_txid" => op_return_txid.map(|txid| txid.to_string()),
             },
@@ -3125,6 +3129,20 @@ fn resume_swap_deposit(mut cx: FunctionContext) -> JsResult<JsPromise> {
                     Err(e) => swap_deposit_failure(&e),
                 }
                 .pretty(2)
+            }))
+        })
+    })
+}
+
+/// The deshield txid of the swap deposit waiting to resume, as
+/// `{ "deshield_txid": <txid | null> }`. The wallet keeps it in memory, so it
+/// is null after a restart.
+fn pending_swap_deposit(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    spawn_promise(&mut cx, move || -> Result<String, ZingolibError> {
+        with_initialized_lightclient_read(|lightclient| {
+            Ok(RT.block_on(async move {
+                let pending = lightclient.wallet().read().await.pending_op_return_deshield();
+                object! { "deshield_txid" => pending.map(|txid| txid.to_string()) }.pretty(2)
             }))
         })
     })
