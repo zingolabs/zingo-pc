@@ -156,6 +156,20 @@ export class SwapService {
     return this.tokenCatalog.listRoutableTokens(direction);
   }
 
+  /**
+   * The USD price of one coin, before any quote of it: `null` when SwapKit
+   * gives none or answers in a shape this does not read.
+   */
+  async usdPrice(swapKitId: string): Promise<number | null> {
+    const answer = await this.client.price([swapKitId]);
+    const rows: Array<Record<string, unknown>> = Array.isArray(answer) ? answer : [];
+    const row =
+      rows.find((r) => typeof r?.identifier === "string" && r.identifier.toUpperCase() === swapKitId.toUpperCase()) ??
+      (rows.length === 1 ? rows[0] : undefined);
+    const value = Number(row?.price_usd ?? row?.priceUsd ?? row?.price);
+    return Number.isFinite(value) && value > 0 ? value : null;
+  }
+
   /** The chains that swap with ZEC either way (see TokenCatalog.routableChains). */
   async routableChains(): Promise<Set<string> | null> {
     return this.tokenCatalog.routableChains();

@@ -225,6 +225,20 @@ export class SwapKitClient {
   }
 
   /**
+   * USD prices of the given SwapKit asset identifiers. The answer's shape is
+   * read loosely by `SwapService.usdPrice`.
+   */
+  async price(identifiers: string[]): Promise<unknown> {
+    return this.request<unknown>({
+      operation: SwapOperationEnum.Quote,
+      method: "POST",
+      path: "/price",
+      timeoutMs: TOKENS_TIMEOUT_MS,
+      body: { tokens: identifiers.map((identifier) => ({ identifier })), metadata: false },
+    });
+  }
+
+  /**
    * Fetch the SwapKit token catalog. The response is large (~1 MB) and
    * changes infrequently; callers should cache it for the lifetime of a
    * session rather than refetching per screen.
