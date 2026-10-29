@@ -45,6 +45,7 @@ import { Swap } from "../components/swap";
 import type { SwapDirectionEnum } from "../swap/enums/SwapDirectionEnum";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 import { SwapServiceProvider } from "../context/ContextSwapService";
+import SwapExpiryNotice from "../components/swap/SwapExpiryNotice";
 
 import { native } from "../electronBridge";
 import { userFacingError } from "../utils/userFacingError";
@@ -876,6 +877,7 @@ const AppRoutes: React.FC = () => {
           chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
           enabled={!!currentWallet && !currentWalletOpenError && location.pathname !== routes.LOADING}
         >
+          <SwapExpiryNotice />
           <div style={{ overflow: "hidden" }}>
             {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
               <div className={cstyles.sidebarcontainer}>
