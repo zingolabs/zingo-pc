@@ -14,9 +14,11 @@ import { SwapStatusEnum } from "./enums/SwapStatusEnum";
  * language.
  *
  * An unset or unrecognised status falls back to the plain kind, which is what
- * a record written by a newer version would produce.
+ * a record written by a newer version would produce. `refunding` is a
+ * purchase paid after it expired, on its way back whatever the status says.
  */
-export function swapRowLabel(swapStatus?: string): string {
+export function swapRowLabel(swapStatus?: string, refunding?: boolean): string {
+  if (refunding) return "Refunding";
   switch (swapStatus) {
     case SwapStatusEnum.AwaitingExternalDeposit:
       return "Awaiting deposit";
@@ -35,7 +37,7 @@ export function swapRowLabel(swapStatus?: string): string {
     case SwapStatusEnum.Refunded:
       return "Swap refunded";
     case SwapStatusEnum.Expired:
-      return "Swap expired";
+      return "Deposit not detected";
     case SwapStatusEnum.ProviderStatusUnknown:
     default:
       return "Swap";

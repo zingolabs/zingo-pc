@@ -1470,7 +1470,11 @@ for (const method of _NATIVE_NO_PARAM_METHODS) {
 }
 
 // Sync no-param methods (also routed to main — become async over IPC)
-for (const method of ["deinitialize", "get_developer_donation_address", "get_zennies_for_zingo_donation_address"]) {
+for (const method of [
+  "deinitialize",
+  "get_developer_donation_address",
+  "get_zennies_for_zingo_donation_address",
+]) {
   ipcMain.handle(`native:${method}`, () => requireNative(method)[method]());
 }
 

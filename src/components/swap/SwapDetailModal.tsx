@@ -19,6 +19,8 @@ import {
   describeSlippageTolerance,
   formatAmountForDisplay,
   isPrePaymentStatus,
+  isRefunding,
+  hasDepositEvidence as hasDepositEvidenceOf,
   isRealLegHash,
   isTerminalStatus,
   SwapStatusEnum,
@@ -183,7 +185,14 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // What the provider said about an ending nobody asked for. A refund says it
   // in `refundInfo`, a failure in `failureReason`; both reached the record and
   // neither reached the screen.
-  const endedBadlyReason = record.refundInfo?.refundReason ?? record.failureReason;
+  // A purchase that ran out of time with no payment seen has nothing to
+  // explain but that: the provider gave no verdict, Zingo stopped waiting.
+  const notDetected =
+    record.status === SwapStatusEnum.Expired && !isOutbound && !hasDepositEvidenceOf(record) && !record.failureReason;
+  const endedBadlyReason =
+    record.refundInfo?.refundReason ??
+    record.failureReason ??
+    (notDetected ? `No ${sellSymbol} deposit was detected in time. Nothing was sent.` : undefined);
 
   const slippageTolerance = describeSlippageTolerance(record.requestedSlippageBps, record.slippageToleranceBps);
   const realizedSlippage = describeRealizedSlippage(record.realizedSlippageBps);
@@ -319,7 +328,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 color: isOutbound ? "var(--color-text)" : "var(--color-primary)",
               }}
             />
-            {swapRowLabel(record.status)}
+            {swapRowLabel(record.status, isRefunding(record))}
           </div>
 
           {/* Large rather than the transfer's headline size: this line carries
@@ -471,7 +480,15 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
 
             {endedBadly && (
               <>
-                <SectionHeader label={record.status === SwapStatusEnum.Refunded ? "Refund" : "Failure"} />
+                <SectionHeader
+                  label={
+                    record.status === SwapStatusEnum.Refunded
+                      ? "Refund"
+                      : notDetected
+                        ? "Deposit not detected"
+                        : "Failure"
+                  }
+                />
                 <Field
                   label="Reason"
                   value={

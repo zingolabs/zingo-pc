@@ -1,3 +1,4 @@
+import { DEPOSIT_WAIT_MS } from "./depositDeadline";
 import { ChainNameEnum } from "./enums/ChainNameEnum";
 import { MidgardClient } from "./MidgardClient";
 import { SwapKitClient } from "./SwapKitClient";
@@ -285,6 +286,8 @@ export class SwapService {
       sourceAddress: quoteInput.sourceAddress,
       requestedSlippageBps: quoteInput.slippageBps,
       status: initialStatus,
+      depositDeadlineMs: direction === SwapDirectionEnum.Inbound ? now + DEPOSIT_WAIT_MS : undefined,
+      quoteExpiresAtMs: chosenRoute.expiresAtMs,
       providerData: instructions.providerData,
       broadcast:
         direction === SwapDirectionEnum.Outbound ? { status: BroadcastStatusEnum.PendingBroadcast } : undefined,
@@ -377,6 +380,34 @@ export class SwapService {
    * "swapping" as soon as the user confirms they paid; the poller then
    * promotes it to `Processing`/`Completed` based on `/track` responses.
    */
+  /**
+   * Keeps the moment the user said an inbound deposit was sent, so the swap
+   * reads as looking for it, and asks about it straight away. The status
+   * stays: only the provider seeing the payment moves it.
+   */
+  async markDepositSent(args: { recordId: string }): Promise<SwapRecordType> {
+    const { recordId } = args;
+    const record = await this.store.getByRecordId(recordId);
+    if (!record) {
+      throw new Error(`SwapService.markDepositSent: no record for ${recordId}`);
+    }
+    if (record.direction !== SwapDirectionEnum.Inbound) {
+      throw new Error(`SwapService.markDepositSent: not an inbound record (${recordId})`);
+    }
+    if (record.depositSentAtMs !== undefined) {
+      return record;
+    }
+    const now = Date.now();
+    const updated: SwapRecordType = { ...record, depositSentAtMs: now, updatedAtMs: now };
+    await this.store.upsert(updated);
+    const wasRunning = this.poller.isRunning();
+    this.poller.start();
+    if (wasRunning) {
+      this.poller.tickOnce().catch(() => {});
+    }
+    return updated;
+  }
+
   async setObservedDepositTxHash(args: SetObservedDepositTxHashArgs): Promise<SwapRecordType> {
     const { recordId, hash } = args;
     const record = await this.store.getByRecordId(recordId);
@@ -391,6 +422,10 @@ export class SwapService {
       ...record,
       observedDepositTxHash: hash,
       status: SwapStatusEnum.Pending,
+      // A hash handed over for an expired purchase names a payment that came
+      // late, which the provider returns.
+      lateDepositAtMs:
+        record.status === SwapStatusEnum.Expired ? (record.lateDepositAtMs ?? now) : record.lateDepositAtMs,
       updatedAtMs: now,
     };
     await this.store.upsert(updated);

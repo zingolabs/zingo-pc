@@ -114,7 +114,7 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
               // by who ran them is the first thing a list of them is read for.
               <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                 <ProviderIcon provider={vt.swapProvider} size={16} />
-                {swapRowLabel(vt.swapStatus)}
+                {swapRowLabel(vt.swapStatus, vt.swapRefunding)}
               </span>
             ) : (
               Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)

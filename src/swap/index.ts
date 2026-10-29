@@ -135,3 +135,15 @@ export {
   recordDeshieldTxId,
 } from "./depositAfterDeshield";
 export { parseAmountInput, toDottedDecimal } from "./amountInput";
+export {
+  DEPOSIT_WAIT_MS,
+  DEPOSIT_WARN_AFTER_MS,
+  awaitsDeposit,
+  depositDeadlineMs,
+  depositOverdue,
+  depositPhase,
+  depositWarnAtMs,
+} from "./depositDeadline";
+export type { DepositPhase } from "./depositDeadline";
+export { LATE_WATCH_MS, acceptsLateUpdate, isRefunding, watchesLateDeposit } from "./lateDeposit";
+export { newlyExpired, newlyRefunding } from "./swapTransitions";

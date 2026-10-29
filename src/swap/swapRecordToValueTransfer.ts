@@ -1,3 +1,4 @@
+import { isRefunding } from "./lateDeposit";
 import ValueTransferClass from "../components/appstate/classes/ValueTransferClass";
 import { ValueTransferKindEnum } from "../components/appstate/enums/ValueTransferKindEnum";
 import { ValueTransferStatusEnum } from "../components/appstate/enums/ValueTransferStatusEnum";
@@ -77,6 +78,7 @@ export function swapRecordToValueTransfer(record: SwapRecordType): ValueTransfer
     swapRecordId: record.recordId,
     swapIsInbound: isInbound,
     swapStatus: record.status,
+    swapRefunding: isRefunding(record),
     swapAssetTicker: counterpartyAsset.ticker ?? counterpartyAsset.symbol,
     swapUsdUnitPrice: counterpartyUsdUnitPrice,
     swapProvider: record.provider,
