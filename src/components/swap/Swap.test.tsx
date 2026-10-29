@@ -76,6 +76,7 @@ const Arriving: React.FC<{ handoff: Handoff; spendable: number }> = ({ handoff, 
         value={{
           ...defaultAppState,
           totalBalance,
+          info: { ...defaultAppState.info, currencyName: "ZEC" } as never,
           currentWallet: { chain_name: ServerChainNameEnum.mainChainName } as never,
           readOnly: false,
           swapToState,
@@ -93,7 +94,7 @@ const serviceWithCatalogs = () => {
   // memory after its first fetch, so the reload a direction flip starts lands
   // within the same few ticks as the handoff, which is when it overwrote it.
   const listRoutableTokens = jest.fn(async (_direction: "outbound" | "inbound") => CATALOG);
-  mockService = { listRoutableTokens };
+  mockService = { usdPrice: async () => null, listRoutableTokens };
   return listRoutableTokens;
 };
 
@@ -128,6 +129,29 @@ describe("Swap arriving for a new quote", () => {
     );
     expect(screen.getByRole("textbox", { name: "Amount" })).toHaveValue("0.25");
     expect(screen.getByRole("button", { name: "Change asset, currently SOL" })).toBeInTheDocument();
+  });
+});
+
+// Buying ZEC, the amount is in the coin paid; it can be typed in dollars too,
+// at the coin's price asked of SwapKit before any quote.
+describe("Swap buying ZEC in dollars", () => {
+  it("turns the dollars typed into the coin paid", async () => {
+    const listRoutableTokens = jest.fn(async (_direction: "outbound" | "inbound") => CATALOG);
+    const usdPrice = jest.fn(async () => 60000);
+    mockService = { listRoutableTokens, usdPrice };
+    render(
+      <Arriving
+        spendable={0}
+        handoff={{ address: "bc1qrefund", swapChain: "BTC", direction: SwapDirectionEnum.Inbound }}
+      />,
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 80)));
+    expect(usdPrice).toHaveBeenCalledWith("BTC.BTC");
+
+    fireEvent.click(screen.getByRole("button", { name: "Type the amount in USD" }));
+    fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), { target: { value: "30" } });
+
+    expect(screen.getByText("≈ BTC 0.0005")).toBeInTheDocument();
   });
 });
 
@@ -179,7 +203,7 @@ describe("Swap with no way out to the provider", () => {
     const listRoutableTokens = jest.fn(async () => {
       throw new SwapKitNetworkError("quote", new TypeError("fetch failed"));
     });
-    mockService = { listRoutableTokens };
+    mockService = { usdPrice: async () => null, listRoutableTokens };
 
     render(
       <Arriving
@@ -214,7 +238,7 @@ describe("Swap over the app's request quota", () => {
         retryAfter: "8",
       });
     });
-    mockService = { listRoutableTokens, quote };
+    mockService = { usdPrice: async () => null, listRoutableTokens, quote };
     // The wallet-side address a quote carries.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { native } = require("../../electronBridge");
@@ -270,7 +294,7 @@ describe("Swap with an uppercase bech32 address", () => {
     const lower = "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq";
     const listRoutableTokens = jest.fn(async () => CATALOG);
     const quote = jest.fn(async () => ({ routes: [], providerErrors: [] }));
-    mockService = { listRoutableTokens, quote };
+    mockService = { usdPrice: async () => null, listRoutableTokens, quote };
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { native } = require("../../electronBridge");
     native.derive_refund_address = jest.fn(async () => JSON.stringify({ encoded_address: "t1ephemeral" }));
@@ -317,7 +341,7 @@ describe("Swap to a NEAR name that could be something else", () => {
       unavailable: [],
       rawResponse: { routes: [] },
     }));
-    mockService = { listRoutableTokens, quote };
+    mockService = { usdPrice: async () => null, listRoutableTokens, quote };
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { native } = require("../../electronBridge");
     native.derive_refund_address = jest.fn(async () => JSON.stringify({ encoded_address: "t1ephemeral" }));

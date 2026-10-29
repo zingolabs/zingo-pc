@@ -499,6 +499,38 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
     frozen: reviewing,
   });
 
+  // Buying ZEC, the amount is in the coin paid, and can be typed in USD too.
+  // The coin's price is asked of SwapKit once per coin, before any quote of
+  // it; a quote of that coin answers it as well.
+  const coinId = !isOutbound ? (selectedToken?.identifier ?? "") : "";
+  const [askedPrices, setAskedPrices] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!coinId || !swapService || askedPrices[coinId] !== undefined) return;
+    let live = true;
+    swapService
+      .usdPrice(coinId)
+      .then((found) => live && setAskedPrices((known) => ({ ...known, [coinId]: found ?? 0 })))
+      .catch(() => live && setAskedPrices((known) => ({ ...known, [coinId]: 0 })));
+    return () => {
+      live = false;
+    };
+  }, [coinId, swapService, askedPrices]);
+  const quotedCoinPrice =
+    quoteContext && quoteContext.quoteInput.sellAsset.swapKitId === coinId
+      ? quoteContext.fiatValueBasis.sellUsdUnitPrice
+      : 0;
+  const coinPrice = coinId ? quotedCoinPrice || askedPrices[coinId] || 0 : 0;
+  const coinSymbol = selectedToken?.ticker ?? selectedToken?.symbol ?? "";
+  const buyUsdAmount = useUsdAmount({
+    zecText: amount,
+    setZecText: setAmount,
+    zecPrice: coinPrice,
+    available: !isOutbound && info.currencyName === "ZEC",
+    frozen: reviewing,
+  });
+  // The field as it is typed, whichever side is paid.
+  const amountEntry = isOutbound ? usdAmount : buyUsdAmount;
+
   // Emptying the amount means there is nothing to quote, but the panel must not
   // blank the instant the number hits zero: erasing the last digit of `0.02` to
   // retype `0.03` passes through an empty field, and clearing there would make
@@ -892,17 +924,20 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                 : usdAmount.usdMode
                   ? `Spendable: ${spendable > 0 ? Utils.getZecToUsdString(zecPrice, spendable) : "USD 0.00"}`
                   : `Spendable: ${spendable} ${info.currencyName}`,
-              amount: isOutbound ? usdAmount.inputValue : amount,
+              amount: amountEntry.inputValue,
               editable: true,
               invalid: overBalance,
-              onChangeAmount: isOutbound ? usdAmount.onInputChange : setAmount,
+              onChangeAmount: amountEntry.onInputChange,
               amountAdornment:
-                isOutbound && info.currencyName === "ZEC" ? (
-                  <AmountCurrencyToggle amount={usdAmount} currencyName={info.currencyName} />
+                info.currencyName === "ZEC" && (isOutbound || !!coinSymbol) ? (
+                  <AmountCurrencyToggle
+                    amount={amountEntry}
+                    currencyName={isOutbound ? info.currencyName : coinSymbol}
+                  />
                 ) : undefined,
               // The refusal takes the slot when there is one; otherwise the
-              // fiat value, which mobile shows on the ZEC side only — it is
-              // the one asset this wallet holds a price for.
+              // other unit: the coin amount when typing dollars, the fiat
+              // value when typing the coin.
               amountSub: overBalance ? (
                 <span style={{ color: "var(--color-error)" }}>That is more than the spendable balance.</span>
               ) : isOutbound && amountValid && usdAmount.usdMode ? (
@@ -910,6 +945,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                 `≈ ${info.currencyName} ${Utils.maxPrecisionTrimmed(amountNumber)}`
               ) : isOutbound && amountValid && zecPrice > 0 ? (
                 Utils.getZecToUsdString(zecPrice, amountNumber)
+              ) : !isOutbound && amountValid && buyUsdAmount.usdMode ? (
+                // Typed in dollars: the coin the user pays.
+                `≈ ${coinSymbol} ${Utils.maxPrecisionTrimmed(amountNumber)}`
+              ) : !isOutbound && amountValid && coinPrice > 0 ? (
+                Utils.getZecToUsdString(coinPrice, amountNumber)
               ) : undefined,
               onSelectAsset: () => setPickerOpen(true),
               selectDisabled: !tokens || tokens.length === 0,
