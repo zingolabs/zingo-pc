@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import Modal from "react-modal";
+import { useNavigate } from "react-router-dom";
 import dateformat from "dateformat";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowCircleDown, faArrowCircleUp, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
@@ -7,6 +8,7 @@ import { faArrowCircleDown, faArrowCircleUp, faExternalLinkAlt } from "@fortawes
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
 import { ServerChainNameEnum } from "../appstate";
+import routes from "../../constants/routes.json";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapService } from "../../context/ContextSwapService";
 import { ipcRenderer, native, shell } from "../../electronBridge";
@@ -78,7 +80,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     blockExplorerMainnetTransactionCustom,
     blockExplorerTestnetTransactionCustom,
     openConfirmModal,
+    setSwapTo,
   } = useContext(ContextApp);
+  const navigate = useNavigate();
   const swapService = useSwapService();
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
 
@@ -354,6 +358,18 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           {/* First, because when it applies it is the only thing on this
               screen the user can act on. Everything below is a record of what
               was agreed; this is what still has to happen. */}
+          {/* The status said "Incomplete deposit" and nothing of what follows.
+              How much arrived is not known: no provider answer fills it. */}
+          {record.status === SwapStatusEnum.IncompleteDeposit && (
+            <>
+              <SectionHeader label="Less than needed arrived" />
+              <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
+                The payment arrived, but it is not enough for this route. The provider sends it back to the refund
+                address, or waits for the rest.
+              </div>
+            </>
+          )}
+
           {halfPaid && (
             <>
               <SectionHeader label="The deposit stopped halfway" />
@@ -661,6 +677,28 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
         {/* Space rather than a rule. The buttons are the end of the screen, not
             the start of another section. */}
         <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
+          {/* The same swap again at today's price: the form filled in, the
+              quote the user's to take or leave. */}
+          {(record.status === SwapStatusEnum.Expired || record.status === SwapStatusEnum.Failed) && (
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                const counterparty = isOutbound ? record.receiveAsset : record.sellAsset;
+                setSwapTo({
+                  address: isOutbound ? record.destinationAddress : record.sourceAddress,
+                  swapChain: counterparty.chain,
+                  swapKitId: counterparty.swapKitId,
+                  direction: record.direction,
+                  amount: record.sellAmountHumanDecimal,
+                });
+                closeModal();
+                navigate(routes.SWAP);
+              }}
+            >
+              Get a new quote
+            </button>
+          )}
           {removable && (
             <button type="button" className={cstyles.primarybutton} onClick={confirmRemove}>
               Remove

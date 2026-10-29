@@ -29,6 +29,7 @@ import {
   ServerSelectionEnum,
   BlockExplorerEnum,
 } from "../components/appstate";
+import type { SwapToType } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import { ZcashURITarget } from "../utils/uris";
 import pickRotationTarget from "../utils/pickRotationTarget";
@@ -594,17 +595,10 @@ const AppRoutes: React.FC = () => {
 
   // Handed to the Swap screen by the Address Book. Cleared by the screen once
   // read, so it prefills the field on arrival and never again.
-  const [swapToState, setSwapToState] = useState<{
-    address: string;
-    swapChain: string;
-    direction: SwapDirectionEnum;
-  } | null>(null);
-  const setSwapTo = useCallback(
-    (t: { address: string; swapChain: string; direction: SwapDirectionEnum } | null): void => {
-      setSwapToState(t);
-    },
-    [],
-  );
+  const [swapToState, setSwapToState] = useState<SwapToType | null>(null);
+  const setSwapTo = useCallback((t: SwapToType | null): void => {
+    setSwapToState(t);
+  }, []);
 
   // A zero fee hides the Shield button (`ShieldBalance` requires one above
   // zero), so every failure here used to remove the button with no reason

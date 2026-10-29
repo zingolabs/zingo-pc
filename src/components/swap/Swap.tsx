@@ -372,7 +372,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
       return;
     }
     if (tokensDirection !== swapToState.direction) return;
-    const match = pickChainAsset(tokens, swapToState.swapChain);
+    const match =
+      (swapToState.swapKitId && tokens.find((t) => t.identifier === swapToState.swapKitId)) ||
+      pickChainAsset(tokens, swapToState.swapChain);
     if (!match) {
       // Nothing in the catalog sits on that chain, so there is no swap to set
       // up. Dropped rather than left pending, which would retry forever.
@@ -406,6 +408,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
     // reload still on its way would replace the asset and clear the field.
     if (tokensDirection !== swapToState.direction) return;
     if (counterpartyChain.toUpperCase() !== swapToState.swapChain.toUpperCase()) return;
+    if (swapToState.amount) setAmount(swapToState.amount);
     if (swapToState.direction === SwapDirectionEnum.Outbound) {
       setDestinationAddress(swapToState.address);
       setDestinationAddressTouched(true);
