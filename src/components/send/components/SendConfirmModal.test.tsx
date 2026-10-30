@@ -475,6 +475,32 @@ describe("SendConfirmModal layout", () => {
 
       expect(screen.getByText("Pepe")).toBeInTheDocument();
     });
+
+    it("names the contact the name was saved as once the payment follows it to a new address", () => {
+      const contact = new AddressBookEntryClass("Pepe", "u1old", ServerChainNameEnum.mainChainName, "ZEC", "pepe.zec");
+      const props = makeProps({ toaddr: { to, znsAlias: "pepe.zec" } });
+      const id = props.sendPageState.toaddrs[0].id;
+      render(
+        <SendConfirmModal
+          {...props}
+          znsChecks={{ [id]: { kind: "changed", alias: "pepe.zec", previous: "u1oldaddress000000000000" } }}
+        />,
+        { contextOverrides: { addressBook: [contact] } },
+      );
+
+      expect(screen.getByText("Pepe")).toBeInTheDocument();
+      expect(screen.getByText(/pepe\.zec now points to a different address/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Send to the new address" })).toBeInTheDocument();
+    });
+
+    it("says when the name could not be checked, and keeps the plain Send", () => {
+      const props = makeProps({ toaddr: { to } });
+      const id = props.sendPageState.toaddrs[0].id;
+      render(<SendConfirmModal {...props} znsChecks={{ [id]: { kind: "unchecked", alias: "pepe.zec" } }} />);
+
+      expect(screen.getByText(/Could not check pepe\.zec right now/)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /^send$/i })).toBeInTheDocument();
+    });
   });
 
   it("states the amount, the fee and the privacy as labelled fields", async () => {

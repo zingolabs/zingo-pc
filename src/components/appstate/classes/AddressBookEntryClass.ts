@@ -17,11 +17,16 @@ export default class AddressBookEntryClass {
   // Undefined on disk for entries written before swaps existed; the same
   // migration stamps those as 'ZEC'.
   swapChain?: string;
+  // The ZNS name ("pepe.zec") a contact was saved from. `address` is what it
+  // last resolved to; a send to the contact resolves the name again and says
+  // so when the owner has moved it. Set by the app, never typed.
+  znsAlias?: string;
 
-  constructor(label: string, address: string, chain?: ServerChainNameEnum, swapChain?: string) {
+  constructor(label: string, address: string, chain?: ServerChainNameEnum, swapChain?: string, znsAlias?: string) {
     this.label = label;
     this.address = address;
     this.chain = chain;
     this.swapChain = swapChain;
+    if (znsAlias) this.znsAlias = znsAlias;
   }
 }

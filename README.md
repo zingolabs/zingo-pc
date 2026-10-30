@@ -246,14 +246,16 @@ yarn release:prep 2.0.15 142
   names it
 - Save a contact from Send, Swap or a transaction's detail without leaving the screen
 - Show any contact's address as a QR code, to scan it from another device
-- A ZNS alias is saved as the address it resolves to, with the alias kept in the label
+- A contact saved from a ZNS alias keeps the name and follows it (see Zcash Names below)
 
 **Zcash Names (ZNS)**
 
 - Type `alice.zcash` in the recipient field — auto-resolves to the unified address via the public ZNS indexer
 - Network-aware (`Mainnet` / `Testnet`), with a one-click link to the public ZNS explorer page
-- Save the alias as a contact: it stores the address the alias resolves to at that moment, so a later
-  change by the owner is not picked up
+- Save the alias as a contact: it keeps the name and the address it resolves to. Each send to the
+  contact asks the name again; if the owner moved it, the confirmation shows the change and the
+  payment goes to the new address, which the contact then keeps. A name nobody holds any more stops
+  the send
 
 **Block explorers**
 

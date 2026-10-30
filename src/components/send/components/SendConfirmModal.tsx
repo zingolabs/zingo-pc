@@ -23,6 +23,7 @@ import getSendManyJSON from "./getSendManyJSON";
 import SendManyJsonType from "./SendManyJSONType";
 
 import { native } from "../../../electronBridge";
+import type { ZnsCheckType } from "../recheckZnsContacts";
 import { ContextApp } from "../../../context/ContextAppState";
 import { faArrowCircleUp, faExternalLinkSquareAlt } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -67,9 +68,17 @@ type RecipientSummaryProps = {
   privacyLevel: string;
   currencyName: string;
   zecPrice: number;
+  /** What looking the recipient's ZNS name up again found, if it was one. */
+  znsCheck?: ZnsCheckType;
 };
 
-const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLevel, currencyName, zecPrice }) => {
+const RecipientSummary: React.FC<RecipientSummaryProps> = ({
+  toaddr,
+  privacyLevel,
+  currencyName,
+  zecPrice,
+  znsCheck,
+}) => {
   const { addressBook } = useContext(ContextApp);
 
   // The recipient, and the two things this screen does with it: reveal the
@@ -87,7 +96,8 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLeve
   // the address still holds the alias, and is matched by it.
   const contactLabel: string | undefined = addressBook?.find(
     (entry: AddressBookEntryClass) =>
-      entry.address === toAddress || (!!toaddr.znsAlias && isSameZnsAlias(entry.address, toaddr.znsAlias)),
+      entry.address === toAddress ||
+      (!!toaddr.znsAlias && isSameZnsAlias(entry.znsAlias ?? entry.address, toaddr.znsAlias)),
   )?.label;
   // Not a contact: the alias the address was reached through, over it.
   const nameAbove: string | undefined = contactLabel || (toaddr.znsAlias ? `ZNS: ${toaddr.znsAlias}` : undefined);
@@ -121,6 +131,18 @@ const RecipientSummary: React.FC<RecipientSummaryProps> = ({ toaddr, privacyLeve
               </div>
             )}
             {!!requestLine && <div className={cstyles.sublight}>{requestLine}</div>}
+            {znsCheck?.kind === "changed" && (
+              <div className={cstyles.red} style={{ maxWidth: 420 }}>
+                {znsCheck.alias} now points to a different address than the one you saved (
+                {Utils.trimToSmall(znsCheck.previous, 6)}). The payment goes to the new one, and the contact will follow
+                it. If you did not expect this, check with them first.
+              </div>
+            )}
+            {znsCheck?.kind === "unchecked" && (
+              <div className={cstyles.sublight} style={{ maxWidth: 420 }}>
+                Could not check {znsCheck.alias} right now, so this pays the address shown.
+              </div>
+            )}
             <div className={cstyles.verticalflex}>
               <button
                 type="button"
@@ -206,6 +228,7 @@ type SendConfirmModalProps = {
   modalIsOpen: boolean;
   sendFee: number;
   currencyName: string;
+  znsChecks?: { [id: number]: ZnsCheckType };
 };
 
 const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
@@ -217,6 +240,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
   closeModal,
   modalIsOpen,
   sendFee,
+  znsChecks = {},
 }) => {
   // The Cancel and Send row sits under the pane, and the block above it grows
   // with the number of recipients — so neither end of the pane is a constant.
@@ -583,6 +607,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
                 privacyLevel={privacyLevels[index] ?? "…"}
                 currencyName={info.currencyName}
                 zecPrice={zecPrice}
+                znsCheck={znsChecks[toaddr.id]}
               />
             </div>
           ))}
@@ -610,7 +635,9 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
             Cancel
           </button>
           <button type="button" className={cstyles.primarybutton} onClick={() => sendButton()}>
-            Send
+            {recipients.some((toaddr: ToAddrClass) => znsChecks[toaddr.id]?.kind === "changed")
+              ? "Send to the new address"
+              : "Send"}
           </button>
         </div>
       </div>

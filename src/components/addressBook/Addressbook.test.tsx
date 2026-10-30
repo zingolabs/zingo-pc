@@ -187,7 +187,13 @@ describe("AddressBook", () => {
     fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
     // The fourth argument is the asset chain. A Zcash address saved here is a
     // ZEC contact, which is what every entry was before the book held more.
-    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "u1valid", ServerChainNameEnum.mainChainName, "ZEC");
+    expect(addAddressBookEntry).toHaveBeenCalledWith(
+      "Alice",
+      "u1valid",
+      ServerChainNameEnum.mainChainName,
+      "ZEC",
+      undefined,
+    );
   });
 
   // History labels a transaction by address, and an alias never matched one.
@@ -209,6 +215,7 @@ describe("AddressBook", () => {
       "u1resolved",
       ServerChainNameEnum.mainChainName,
       "ZEC",
+      "pepe.zec",
     );
   });
 
@@ -334,6 +341,7 @@ describe("AddressBook", () => {
         "bc1qambiguous",
         ServerChainNameEnum.mainChainName,
         "LTC",
+        undefined,
       );
     });
 
@@ -347,7 +355,13 @@ describe("AddressBook", () => {
       fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
       await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
-      expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+      expect(addAddressBookEntry).toHaveBeenCalledWith(
+        "Bob",
+        "bc1qxyz",
+        ServerChainNameEnum.mainChainName,
+        "BTC",
+        undefined,
+      );
     });
 
     it("refuses an address that is not valid for its chain", async () => {
@@ -384,7 +398,13 @@ describe("AddressBook", () => {
 
       // Confirming is what commits it.
       openConfirmModal.mock.calls[0][2]();
-      expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+      expect(addAddressBookEntry).toHaveBeenCalledWith(
+        "Bob",
+        "bc1qxyz",
+        ServerChainNameEnum.mainChainName,
+        "BTC",
+        undefined,
+      );
     });
 
     // Almost any lowercase string is a valid NEAR name, so a NEAR contact that
@@ -425,7 +445,13 @@ describe("AddressBook", () => {
       fireEvent.change(screen.getByRole("textbox", { name: /address/i }), { target: { value: "bc1qxyz" } });
       await waitFor(() => expect(screen.getByRole("button", { name: /^add$/i })).not.toBeDisabled());
       fireEvent.click(screen.getByRole("button", { name: /^add$/i }));
-      expect(addAddressBookEntry).toHaveBeenCalledWith("Bob", "bc1qxyz", ServerChainNameEnum.mainChainName, "BTC");
+      expect(addAddressBookEntry).toHaveBeenCalledWith(
+        "Bob",
+        "bc1qxyz",
+        ServerChainNameEnum.mainChainName,
+        "BTC",
+        undefined,
+      );
     });
 
     // The network filter is about Zcash networks; a Bitcoin contact has none of

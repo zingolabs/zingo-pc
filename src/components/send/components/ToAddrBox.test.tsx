@@ -213,6 +213,7 @@ describe("ToAddrBox", () => {
       "u1resolved",
       ServerChainNameEnum.mainChainName,
       "ZEC",
+      "alice.zcash",
     );
   });
 
@@ -225,7 +226,13 @@ describe("ToAddrBox", () => {
     fireEvent.change(await screen.findByRole("textbox", { name: /name/i }), { target: { value: "Alice" } });
     fireEvent.click(screen.getByRole("button", { name: /^save$/i }));
 
-    expect(addAddressBookEntry).toHaveBeenCalledWith("Alice", "u1resolved", ServerChainNameEnum.mainChainName, "ZEC");
+    expect(addAddressBookEntry).toHaveBeenCalledWith(
+      "Alice",
+      "u1resolved",
+      ServerChainNameEnum.mainChainName,
+      "ZEC",
+      "alice.zcash",
+    );
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 

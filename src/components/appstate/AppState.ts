@@ -104,7 +104,13 @@ export default class AppState {
   // Files a contact. Every screen that saves one asks for its name in place,
   // with the Save contact dialog, rather than sending the user to the Address
   // Book.
-  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
+  addAddressBookEntry: (
+    label: string,
+    address: string,
+    chain: ServerChainNameEnum,
+    swapChain?: string,
+    znsAlias?: string,
+  ) => void;
   setSwapTo: (t: { address: string; swapChain: string; direction: SwapDirectionEnum } | null) => void;
 
   // Current USD price per ZEC. Fetched by RPC.getZecPrice on the 5s

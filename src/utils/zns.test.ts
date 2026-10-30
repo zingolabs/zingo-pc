@@ -3,6 +3,7 @@ import {
   isZnsAlias,
   extractZnsName,
   labelWithZnsAlias,
+  znsAliasInLabel,
   resolveZnsAlias,
   _clearZnsCacheForTests,
 } from "./zns";
@@ -72,6 +73,19 @@ describe("zns utility", () => {
     });
   });
 
+  describe("znsAliasInLabel", () => {
+    it("reads back the one alias a label ends with", () => {
+      expect(znsAliasInLabel("Pepe (Pepe.ZEC)")).toBe("pepe.zec");
+      expect(znsAliasInLabel(labelWithZnsAlias("Alice", "alice.zcash"))).toBe("alice.zcash");
+    });
+
+    it("reads nothing from two aliases, one in the middle, or none", () => {
+      expect(znsAliasInLabel("Pepe (a.zec) (b.zec)")).toBeNull();
+      expect(znsAliasInLabel("Pepe (a.zec) old")).toBeNull();
+      expect(znsAliasInLabel("Pepe (work)")).toBeNull();
+    });
+  });
+
   describe("isSameZnsAlias", () => {
     // One registration, two ways of writing it. Filing them as separate
     // contacts would show the user two entries resolving to one address.
@@ -130,6 +144,25 @@ describe("zns utility", () => {
       ipcRenderer.invoke.mockResolvedValue({ ok: false, reason: "unsupported-chain" });
       const result = await resolveZnsAlias("alice.zcash", "" as ServerChainNameEnum | "");
       expect(result).toEqual({ ok: false, reason: "unsupported-chain" });
+    });
+
+    it("asks again with fresh, past a cached answer", async () => {
+      ipcRenderer.invoke
+        .mockResolvedValueOnce({ ok: true, address: "u1old" })
+        .mockResolvedValueOnce({ ok: true, address: "u1new" });
+      await resolveZnsAlias("pepe.zec", ServerChainNameEnum.mainChainName);
+      expect(await resolveZnsAlias("pepe.zec", ServerChainNameEnum.mainChainName)).toEqual({
+        ok: true,
+        address: "u1old",
+      });
+      expect(await resolveZnsAlias("pepe.zec", ServerChainNameEnum.mainChainName, { fresh: true })).toEqual({
+        ok: true,
+        address: "u1new",
+      });
+      expect(await resolveZnsAlias("pepe.zec", ServerChainNameEnum.mainChainName)).toEqual({
+        ok: true,
+        address: "u1new",
+      });
     });
 
     it("forwards network errors from main", async () => {
