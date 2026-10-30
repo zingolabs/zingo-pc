@@ -1,7 +1,14 @@
 import path from "path";
 import { AddressBookEntryClass, ServerChainNameEnum, ZEC_SWAP_CHAIN } from "../appstate";
 import Utils from "../../utils/utils";
-import { extractZnsName, isZnsAlias, labelWithZnsAlias, resolveZnsAlias } from "../../utils/zns";
+import {
+  extractZnsName,
+  isSameZnsAlias,
+  isZnsAlias,
+  labelWithZnsAlias,
+  resolveZnsAlias,
+  znsAliasInLabel,
+} from "../../utils/zns";
 import type { ZnsResolveResult } from "../../utils/zns";
 import { ipcRenderer, fs } from "../../electronBridge";
 
@@ -40,10 +47,53 @@ export default class AddressbookImpl {
     address: string,
     chain: ServerChainNameEnum,
     swapChain: string = ZEC_SWAP_CHAIN,
+    znsAlias?: string,
   ): AddressBookEntryClass[] {
-    const updated = addressBook.concat(new AddressBookEntryClass(label, address, chain, swapChain));
+    const updated = addressBook.concat(
+      new AddressBookEntryClass(label, address, chain, swapChain, znsAlias?.trim().toLowerCase()),
+    );
     AddressbookImpl.writeAddressBook(updated);
     return updated;
+  }
+
+  /**
+   * Every Zcash contact on `chain` saved from `alias`, moved to `address`: the
+   * owner pointed the name somewhere else and the user sent there.
+   */
+  static followZnsAlias(
+    addressBook: AddressBookEntryClass[],
+    chain: ServerChainNameEnum,
+    alias: string,
+    address: string,
+  ): AddressBookEntryClass[] {
+    let changed = false;
+    const updated = addressBook.map((entry) => {
+      if (entry.chain !== chain || !entry.znsAlias || !isSameZnsAlias(entry.znsAlias, alias)) return entry;
+      if (entry.address === address) return entry;
+      changed = true;
+      return new AddressBookEntryClass(entry.label, address, entry.chain, entry.swapChain, entry.znsAlias);
+    });
+    if (!changed) return addressBook;
+    AddressbookImpl.writeAddressBook(updated);
+    return updated;
+  }
+
+  /**
+   * `znsAlias` for the contacts saved from a name before the field existed,
+   * read back from the "(pepe.zec)" their label ends with. Pure.
+   */
+  static backfillZnsAlias(entries: AddressBookEntryClass[]): { migrated: AddressBookEntryClass[]; changed: boolean } {
+    let changed = false;
+    const migrated = entries.map((entry) => {
+      if (entry.znsAlias || (entry.swapChain ?? ZEC_SWAP_CHAIN) !== ZEC_SWAP_CHAIN || isZnsAlias(entry.address)) {
+        return entry;
+      }
+      const alias = znsAliasInLabel(entry.label);
+      if (!alias) return entry;
+      changed = true;
+      return new AddressBookEntryClass(entry.label, entry.address, entry.chain, entry.swapChain, alias);
+    });
+    return { migrated, changed };
   }
 
   static removeEntry(addressBook: AddressBookEntryClass[], label: string): AddressBookEntryClass[] {
@@ -82,7 +132,7 @@ export default class AddressbookImpl {
         const renamed = AddressbookImpl.LEGACY_SWAP_CHAINS[entry.swapChain.toUpperCase()];
         if (renamed) {
           changed = true;
-          migrated.push(new AddressBookEntryClass(entry.label, entry.address, entry.chain, renamed));
+          migrated.push(new AddressBookEntryClass(entry.label, entry.address, entry.chain, renamed, entry.znsAlias));
         } else {
           migrated.push(entry);
         }
@@ -103,6 +153,7 @@ export default class AddressbookImpl {
           entry.address,
           detected ?? ServerChainNameEnum.mainChainName,
           entry.swapChain ?? ZEC_SWAP_CHAIN,
+          entry.znsAlias,
         ),
       );
     }
@@ -196,7 +247,7 @@ export default class AddressbookImpl {
         const aliases = isZnsAlias(entry.address) ? [] : (folded.get(addressKey(entry.chain, entry.address)) ?? []);
         const label = aliases.reduce((acc, alias) => labelWithZnsAlias(acc, alias), entry.label);
         if (label !== entry.label) changed = true;
-        const kept = new AddressBookEntryClass(label, entry.address, entry.chain, entry.swapChain);
+        const kept = new AddressBookEntryClass(label, entry.address, entry.chain, entry.swapChain, entry.znsAlias);
         if (!isZnsAlias(entry.address)) placed.set(addressKey(entry.chain, entry.address), kept);
         migrated.push(kept);
         continue;
@@ -216,6 +267,7 @@ export default class AddressbookImpl {
         address,
         entry.chain,
         entry.swapChain,
+        entry.address.trim().toLowerCase(),
       );
       placed.set(key, moved);
       migrated.push(moved);
@@ -233,8 +285,9 @@ export default class AddressbookImpl {
     try {
       const raw = JSON.parse(await fs.promises.readFile(fileName));
       if (!Array.isArray(raw)) return [];
-      const { migrated, changed } = await AddressbookImpl.migrateChainIfMissing(raw);
-      if (changed) {
+      const chained = await AddressbookImpl.migrateChainIfMissing(raw);
+      const { migrated, changed: named } = AddressbookImpl.backfillZnsAlias(chained.migrated);
+      if (chained.changed || named) {
         // Persist the back-filled entries so the migration runs only once.
         try {
           await AddressbookImpl.writeAddressBook(migrated);

@@ -66,10 +66,10 @@ export function isSameZnsAlias(a: string, b: string): boolean {
  * The label of a contact saved from a ZNS alias: the name the user gave it,
  * then the alias in parentheses, as in "Pepe (pepe.zec)".
  *
- * A contact stores the address the alias resolved to, not the alias, so that
- * History, Messages and Receive, which look a label up by address, recognise
- * the transactions to it. The alias moves into the label so it is not lost.
- * Adding one that is already there changes nothing.
+ * Written by the startup migration of contacts that stored the alias itself.
+ * Contacts saved before `znsAlias` existed carry the name only here, and
+ * `znsAliasInLabel` reads it back. Adding one that is already there changes
+ * nothing.
  */
 export function labelWithZnsAlias(label: string, alias: string): string {
   const trimmed = label.trim();
@@ -77,14 +77,32 @@ export function labelWithZnsAlias(label: string, alias: string): string {
   return trimmed.toLowerCase().endsWith(suffix.toLowerCase()) ? trimmed : `${trimmed}${suffix}`;
 }
 
-/** Resolve a name (or a full alias like "alice.zcash") to a UA via the main-process IPC. */
-export async function resolveZnsAlias(aliasOrName: string, chain: ServerChainNameEnum | ""): Promise<ZnsResolveResult> {
+/**
+ * The alias at the end of a label `labelWithZnsAlias` wrote, when the label
+ * holds exactly one: "Pepe (pepe.zec)" gives "pepe.zec".
+ */
+export function znsAliasInLabel(label: string): string | null {
+  const found = [...label.matchAll(/\(([a-z0-9]{1,62}\.(?:zcash|zec))\)/gi)];
+  if (found.length !== 1 || !label.trim().endsWith(found[0][0])) return null;
+  return found[0][1].toLowerCase();
+}
+
+/**
+ * Resolve a name (or a full alias like "alice.zcash") to a UA via the
+ * main-process IPC. `fresh` skips the cache: the lookup right before a payment
+ * must see a change made a minute ago.
+ */
+export async function resolveZnsAlias(
+  aliasOrName: string,
+  chain: ServerChainNameEnum | "",
+  { fresh = false }: { fresh?: boolean } = {},
+): Promise<ZnsResolveResult> {
   const bare = aliasOrName.includes(".") ? extractZnsName(aliasOrName) : aliasOrName.trim().toLowerCase();
   if (!bare || !ZNS_NAME_RE.test(bare)) return { ok: false, reason: "invalid-name" };
 
   const cacheKey = `${chain}:${bare}`;
   const cached = cache.get(cacheKey);
-  if (cached && cached.expiresAt > Date.now()) {
+  if (!fresh && cached && cached.expiresAt > Date.now()) {
     return cached.address ? { ok: true, address: cached.address } : { ok: false, reason: "not-found" };
   }
 
