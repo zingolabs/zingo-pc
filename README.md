@@ -250,12 +250,12 @@ yarn release:prep 2.0.15 142
 
 **Zcash Names (ZNS)**
 
-- Type `alice.zcash` in the recipient field — auto-resolves to the unified address via the public ZNS indexer
+- Type `alice.zcash` or `alice.zec` in the recipient field — auto-resolves to the unified address via the public ZNS indexer
 - Network-aware (`Mainnet` / `Testnet`), with a one-click link to the public ZNS explorer page
 - Save the alias as a contact: it keeps the name and the address it resolves to. Each send to the
   contact asks the name again; if the owner moved it, the confirmation shows the change and the
   payment goes to the new address, which the contact then keeps. A name nobody holds any more stops
-  the send
+  the send. The Address Book shows the name next to the contact (`ZNS: alice.zec`)
 
 **Block explorers**
 
@@ -322,7 +322,8 @@ payment, and fetching the price. Syncing is not one of them.
   addresses a quote has to carry.
   The Swap screen says so, and [docs/swap-privacy.md](docs/swap-privacy.md) has
   the reasoning and what it would take to change
-- Resolving a `name.zcash` alias, which asks the Zcash Name Service
+- Resolving a `name.zcash` alias, which asks the Zcash Name Service. A contact saved from a name asks
+  it again on every send to that contact, so the service sees which name this IP is about to pay
 - The server list, fetched from `hosh.zec.rocks` when you open the server picker
 - Anything handed to your browser: a block explorer, or "Open in wallet" on a
   deposit
