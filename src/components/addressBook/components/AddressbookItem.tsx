@@ -68,6 +68,11 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
             <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
               <ChainBadge chain={swapChain} size={24} />
               {item.label}
+              {!!item.znsAlias && !item.label.toLowerCase().includes(item.znsAlias) && (
+                <span className={`${cstyles.small} ${cstyles.sublight}`} style={{ marginLeft: 8 }}>
+                  ZNS: {item.znsAlias}
+                </span>
+              )}
               {/* Which chain the address belongs to is the first thing that
                   matters now that the book holds more than Zcash, so a non-ZEC
                   contact always says so. The Zcash network only appears

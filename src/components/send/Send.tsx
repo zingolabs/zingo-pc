@@ -22,6 +22,7 @@ import { parseZcashURITargets, ZcashURITarget } from "../../utils/uris";
 import SendManyJsonType from "./components/SendManyJSONType";
 import ToAddrBox from "./components/ToAddrBox";
 import SendConfirmModal from "./components/SendConfirmModal";
+import { recheckZnsContacts, ZnsCheckType } from "./recheckZnsContacts";
 import RecipientStatusType from "./components/RecipientStatusType";
 import { ContextApp } from "../../context/ContextAppState";
 
@@ -115,10 +116,18 @@ type SendProps = {
   sendTransaction: (sendJson: SendManyJsonType[]) => Promise<string>;
   setSendPageState: (sendPageState: SendPageStateClass) => void;
   /** Files the recipient under a name, without leaving the screen. */
-  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
+  addAddressBookEntry: (
+    label: string,
+    address: string,
+    chain: ServerChainNameEnum,
+    swapChain?: string,
+    znsAlias?: string,
+  ) => void;
+  /** Moves the contacts saved from a ZNS name to where the name points now. */
+  followZnsAlias: (chain: ServerChainNameEnum, alias: string, address: string) => void;
 };
 
-const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddressBookEntry }) => {
+const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddressBookEntry, followZnsAlias }) => {
   const context = useContext(ContextApp);
   const {
     addressesUnified,
@@ -131,6 +140,7 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
     currentWallet,
     addressBook,
     openConfirmModal,
+    openErrorModal,
     zecPrice,
     mixnetView,
   } = context;
@@ -141,6 +151,10 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
   const { paneRef, footerRef, paneOffset } = usePaneOffset(308);
 
   const [modalIsOpen, setModalIsOpen] = useState<boolean>(false);
+  // The ZNS names of the recipients, looked up again on the way to the
+  // confirmation, and what that lookup found.
+  const [checkingNames, setCheckingNames] = useState<boolean>(false);
+  const [znsChecks, setZnsChecks] = useState<{ [id: number]: ZnsCheckType }>({});
   const [sendFee, setSendFee] = useState<number>(0);
   const [sendFeeError, setSendFeeError] = useState<string>("");
   const [spendableError, setSpendableError] = useState<string>("");
@@ -491,12 +505,46 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
     }
   }
 
-  const openModal = () => {
+  // A contact saved from a ZNS name holds where the name pointed then. The
+  // name is asked again here, so a payment follows the owner to a new address
+  // and the confirmation says it did; a name nobody holds any more stops it.
+  const openModal = async () => {
+    setCheckingNames(true);
+    const { checks, moved, gone } = await recheckZnsContacts(sendPageState.toaddrs, addressBook, serverChainName);
+    setCheckingNames(false);
+    if (gone.length > 0) {
+      openErrorModal(
+        "Name no longer registered",
+        `${gone.join(", ")} no longer points to any address, so nothing was sent. Ask the owner for their address.`,
+      );
+      return;
+    }
+    if (moved.length > 0) {
+      moved.forEach(({ id, alias, address }) => {
+        const toAddr: ToAddrClass | undefined = sendPageState.toaddrs.find((t: ToAddrClass) => t.id === id);
+        if (!toAddr) return;
+        toAddr.to = address;
+        toAddr.znsAlias = alias;
+      });
+      replaceRows(sendPageState.toaddrs.slice());
+    }
+    setZnsChecks(checks);
     setModalIsOpen(true);
   };
 
   const closeModal = () => {
     setModalIsOpen(false);
+  };
+
+  // Once the payment went out, the contacts follow their names to where it went.
+  const sendAndFollowNames = async (sendJson: SendManyJsonType[]): Promise<string> => {
+    const followed = sendPageState.toaddrs.flatMap((toaddr: ToAddrClass) => {
+      const check = znsChecks[toaddr.id];
+      return check?.kind === "changed" ? [{ alias: check.alias, address: toaddr.to }] : [];
+    });
+    const txids = await sendTransaction(sendJson);
+    if (txids) followed.forEach(({ alias, address }) => followZnsAlias(serverChainName, alias, address));
+    return txids;
   };
 
   if (readOnly) {
@@ -513,8 +561,9 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
         sendPageState={sendPageState}
         totalBalance={totalBalance}
         info={info}
-        sendTransaction={sendTransaction}
+        sendTransaction={sendAndFollowNames}
         closeModal={closeModal}
+        znsChecks={znsChecks}
         modalIsOpen={modalIsOpen}
         clearToAddrs={clearToAddrs}
         sendFee={sendFee}
@@ -651,11 +700,11 @@ const Send: React.FC<SendProps> = ({ sendTransaction, setSendPageState, addAddre
             <div className={styles.sendfooterbuttons}>
               <button
                 type="button"
-                disabled={!canSend || mixnetView.sendBlocked}
+                disabled={!canSend || mixnetView.sendBlocked || checkingNames}
                 className={cstyles.primarybutton}
                 onClick={openModal}
               >
-                Send
+                {checkingNames ? "Checking names…" : "Send"}
               </button>
               <button type="button" className={cstyles.primarybutton} onClick={requestClear}>
                 Clear

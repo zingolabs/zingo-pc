@@ -558,11 +558,15 @@ const AppRoutes: React.FC = () => {
 
   // --- address book ---
   const addAddressBookEntry = useCallback(
-    (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => {
-      setAddressBookState((prev) => AddressbookImpl.addEntry(prev, label, address, chain, swapChain));
+    (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string, znsAlias?: string) => {
+      setAddressBookState((prev) => AddressbookImpl.addEntry(prev, label, address, chain, swapChain, znsAlias));
     },
     [],
   );
+
+  const followZnsAlias = useCallback((chain: ServerChainNameEnum, alias: string, address: string) => {
+    setAddressBookState((prev) => AddressbookImpl.followZnsAlias(prev, chain, alias, address));
+  }, []);
 
   const removeAddressBookEntry = useCallback((label: string) => {
     setAddressBookState((prev) => AddressbookImpl.removeEntry(prev, label));
@@ -904,6 +908,7 @@ const AppRoutes: React.FC = () => {
                       sendTransaction={runRPCSendTransaction}
                       setSendPageState={setSendPageState}
                       addAddressBookEntry={addAddressBookEntry}
+                      followZnsAlias={followZnsAlias}
                     />
                   }
                 />

@@ -7,8 +7,8 @@ jest.mock("../../utils/zns", () => ({ ...jest.requireActual("../../utils/zns"), 
 
 const MAIN = ServerChainNameEnum.mainChainName;
 const TEST = ServerChainNameEnum.testChainName;
-const contact = (label: string, address: string, chain = MAIN, swapChain = ZEC_SWAP_CHAIN) =>
-  new AddressBookEntryClass(label, address, chain, swapChain);
+const contact = (label: string, address: string, chain = MAIN, swapChain = ZEC_SWAP_CHAIN, znsAlias?: string) =>
+  new AddressBookEntryClass(label, address, chain, swapChain, znsAlias);
 
 /**
  * Contacts stored as a ZNS alias move to the address it resolves to, since
@@ -67,7 +67,7 @@ describe("AddressbookImpl.migrateZnsAliases", () => {
       new Map([["main:pepe", "u1pepe"]]),
     );
     expect(changed).toBe(true);
-    expect(migrated).toEqual([contact("Pepe (pepe.zec)", "u1pepe")]);
+    expect(migrated).toEqual([contact("Pepe (pepe.zec)", "u1pepe", MAIN, ZEC_SWAP_CHAIN, "pepe.zec")]);
   });
 
   // Tried again at the next start.
@@ -94,7 +94,7 @@ describe("AddressbookImpl.migrateZnsAliases", () => {
         ["main:pepito", "u1pepe"],
       ]),
     );
-    expect(migrated).toEqual([contact("Pepe (pepe.zec) (pepito.zec)", "u1pepe")]);
+    expect(migrated).toEqual([contact("Pepe (pepe.zec) (pepito.zec)", "u1pepe", MAIN, ZEC_SWAP_CHAIN, "pepe.zec")]);
   });
 
   // The same address on the other network is another contact.
@@ -103,7 +103,10 @@ describe("AddressbookImpl.migrateZnsAliases", () => {
       [contact("Pepe test", "u1pepe", TEST), contact("Pepe", "pepe.zec", MAIN)],
       new Map([["main:pepe", "u1pepe"]]),
     );
-    expect(migrated).toEqual([contact("Pepe test", "u1pepe", TEST), contact("Pepe (pepe.zec)", "u1pepe", MAIN)]);
+    expect(migrated).toEqual([
+      contact("Pepe test", "u1pepe", TEST),
+      contact("Pepe (pepe.zec)", "u1pepe", MAIN, ZEC_SWAP_CHAIN, "pepe.zec"),
+    ]);
   });
 
   it("changes nothing when run again", () => {
@@ -175,5 +178,51 @@ describe("AddressbookImpl.migrateChainIfMissing", () => {
     jest.spyOn(Utils, "detectAddressChain").mockResolvedValue(null);
     const { migrated } = await AddressbookImpl.migrateChainIfMissing([new AddressBookEntryClass("odd", "???")]);
     expect(migrated[0].chain).toBe(ServerChainNameEnum.mainChainName);
+  });
+});
+
+describe("AddressbookImpl ZNS names on contacts", () => {
+  beforeEach(() => {
+    jest.spyOn(AddressbookImpl, "writeAddressBook").mockResolvedValue(undefined);
+  });
+
+  it("keeps the name a contact was saved from, lowercased", () => {
+    const [entry] = AddressbookImpl.addEntry([], "Pepe", "u1pepe", MAIN, ZEC_SWAP_CHAIN, "Pepe.ZEC");
+    expect(entry.znsAlias).toBe("pepe.zec");
+  });
+
+  it("moves every contact of the name on that network, and no other", () => {
+    const book = [
+      contact("Pepe", "u1old", MAIN, ZEC_SWAP_CHAIN, "pepe.zec"),
+      contact("Pepe test", "u1old", TEST, ZEC_SWAP_CHAIN, "pepe.zec"),
+      contact("Bob", "u1bob"),
+    ];
+    const updated = AddressbookImpl.followZnsAlias(book, MAIN, "pepe.zcash", "u1new");
+    expect(updated.map((e) => e.address)).toEqual(["u1new", "u1old", "u1bob"]);
+    expect(updated[0].znsAlias).toBe("pepe.zec");
+    expect(AddressbookImpl.writeAddressBook).toHaveBeenCalledWith(updated);
+  });
+
+  it("writes nothing when the contacts already hold the address", () => {
+    const book = [contact("Pepe", "u1pepe", MAIN, ZEC_SWAP_CHAIN, "pepe.zec")];
+    expect(AddressbookImpl.followZnsAlias(book, MAIN, "pepe.zec", "u1pepe")).toBe(book);
+    expect(AddressbookImpl.writeAddressBook).not.toHaveBeenCalled();
+  });
+
+  it("reads the name of an older contact back from the end of its label", () => {
+    const { migrated, changed } = AddressbookImpl.backfillZnsAlias([
+      contact("Pepe (pepe.zec)", "u1pepe"),
+      contact("Two (a.zec) (b.zec)", "u1two"),
+      contact("Note (pepe.zec) old", "u1note"),
+      contact("Plain", "u1plain"),
+      contact("Btc (pepe.zec)", "bc1q", MAIN, "BTC"),
+    ]);
+    expect(changed).toBe(true);
+    expect(migrated.map((e) => e.znsAlias)).toEqual(["pepe.zec", undefined, undefined, undefined, undefined]);
+  });
+
+  it("leaves a contact that already knows its name alone", () => {
+    const entries = [contact("Pepe (pepe.zec)", "u1pepe", MAIN, ZEC_SWAP_CHAIN, "other.zec")];
+    expect(AddressbookImpl.backfillZnsAlias(entries)).toEqual({ migrated: entries, changed: false });
   });
 });

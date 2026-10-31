@@ -59,7 +59,13 @@ type ToAddrBoxProps = {
   serverChainName: "" | ServerChainNameEnum;
   block: number;
   currencyName: string;
-  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
+  addAddressBookEntry: (
+    label: string,
+    address: string,
+    chain: ServerChainNameEnum,
+    swapChain?: string,
+    znsAlias?: string,
+  ) => void;
 };
 
 const ToAddrBox = ({
@@ -290,7 +296,8 @@ const ToAddrBox = ({
   const aliasContactLabel: string | null =
     (znsAlias &&
       addressBook.find(
-        (ab: AddressBookEntryClass) => ab.chain === serverChainName && isSameZnsAlias(ab.address, znsAlias),
+        (ab: AddressBookEntryClass) =>
+          ab.chain === serverChainName && isSameZnsAlias(ab.znsAlias ?? ab.address, znsAlias),
       )?.label) ||
     null;
   // Once the alias became an address that is a contact, the contact is who
@@ -543,6 +550,7 @@ const ToAddrBox = ({
                 znsAlias ? toLocal : saveTarget,
                 serverChainName || ServerChainNameEnum.mainChainName,
                 ZEC_SWAP_CHAIN,
+                znsAlias || undefined,
               )
             }
           />

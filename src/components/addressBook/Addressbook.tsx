@@ -34,7 +34,13 @@ const unswappableMessage = (chains: string[]): string => {
 };
 
 type AddressBookProps = {
-  addAddressBookEntry: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
+  addAddressBookEntry: (
+    label: string,
+    address: string,
+    chain: ServerChainNameEnum,
+    swapChain?: string,
+    znsAlias?: string,
+  ) => void;
   removeAddressBookEntry: (label: string) => void;
 };
 
@@ -49,6 +55,9 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   const [addressError, setAddressError] = useState<string | null>(null);
   const [addressKind, setAddressKind] = useState<AddressKindEnum | undefined>(undefined);
   const [isZns, setIsZns] = useState<boolean>(false);
+  // The name the address in the field was resolved from, while it is still
+  // that address: the contact keeps it, to follow the name later.
+  const [resolvedAlias, setResolvedAlias] = useState<{ alias: string; address: string } | null>(null);
   const [showAllNetworks, setShowAllNetworks] = useState<boolean>(false);
   const [addressBookSorted, setAddressBookSorted] = useState<AddressBookEntryClass[]>([]);
   // The asset chain the address belongs to. Narrowed from the address itself
@@ -94,7 +103,9 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       // History matches a transaction against, so that address replaces it
       // in the field; the alias is proposed as the label, to keep or change.
       if (_isZns && !_addressError && _resolvedAddress) {
-        if (currentLabel === "") setCurrentLabel(currentAddress.trim().toLowerCase());
+        const alias = currentAddress.trim().toLowerCase();
+        if (currentLabel === "") setCurrentLabel(alias);
+        setResolvedAlias({ alias, address: _resolvedAddress });
         setCurrentAddress(_resolvedAddress);
         return;
       }
@@ -220,6 +231,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
         canonicalChainAddress(swapChain, currentAddress.replace(/ /g, "")),
         entryChain,
         swapChain,
+        resolvedAlias && resolvedAlias.address === currentAddress ? resolvedAlias.alias : undefined,
       );
       clearFields();
     };
@@ -298,7 +310,8 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
       // other suffix is the same contact.
       const dup = addressBook.find(
         (i: AddressBookEntryClass) =>
-          isSameZnsAlias(i.address, _currentAddress) || (i.address === result.address && i.chain === chain),
+          isSameZnsAlias(i.znsAlias ?? i.address, _currentAddress) ||
+          (i.address === result.address && i.chain === chain),
       );
       return {
         _addressError: dup ? "Duplicate Address" : null,
@@ -334,6 +347,7 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
     setAddressError(null);
     setAddressKind(undefined);
     setIsZns(false);
+    setResolvedAlias(null);
     setSwapChain(ZEC_SWAP_CHAIN);
     setPossibleChains([ZEC_SWAP_CHAIN]);
   };

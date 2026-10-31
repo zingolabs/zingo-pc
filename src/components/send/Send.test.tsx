@@ -10,6 +10,7 @@ import {
   ServerChainNameEnum,
   SendPageStateClass,
   ToAddrClass,
+  AddressBookEntryClass,
 } from "../appstate";
 import { ContextApp } from "../../context/ContextAppState";
 
@@ -731,5 +732,79 @@ describe("Send", () => {
       reportRow(0, { valid: true, addressKind: AddressKindEnum.unified });
       expect(await screen.findByText("insufficient")).toBeInTheDocument();
     });
+  });
+});
+
+describe("Send to a contact saved from a ZNS name", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { ipcRenderer } = require("../../electronBridge");
+  const pepe = new AddressBookEntryClass("Pepe", "u1old", ServerChainNameEnum.mainChainName, "ZEC", "pepe.zec");
+
+  const SendWith = ({ sendTransaction, followZnsAlias }: { sendTransaction: jest.Mock; followZnsAlias: jest.Mock }) => {
+    const context = useContext(ContextApp);
+    const [sendPageState, setSendPageState] = useState<SendPageStateClass>(stateWith({ to: "u1old", amount: 0.5 }));
+    return (
+      <ContextApp.Provider value={{ ...context, sendPageState }}>
+        <Send
+          sendTransaction={sendTransaction}
+          setSendPageState={setSendPageState}
+          addAddressBookEntry={jest.fn()}
+          followZnsAlias={followZnsAlias}
+        />
+      </ContextApp.Provider>
+    );
+  };
+
+  const readyToSend = async (answer: unknown, openErrorModal = jest.fn()) => {
+    (native.get_spendable_balance_with_address as jest.Mock).mockResolvedValue(
+      JSON.stringify({ spendable_balance: 2 * 10 ** 8 }),
+    );
+    (native.send as jest.Mock).mockResolvedValue(JSON.stringify({ fee: 10_000 }));
+    (ipcRenderer.invoke as jest.Mock).mockImplementation(async (channel: string) =>
+      channel === "zns:resolve" ? answer : undefined,
+    );
+    const sendTransaction = jest.fn().mockResolvedValue("txid1");
+    const followZnsAlias = jest.fn();
+    render(<SendWith sendTransaction={sendTransaction} followZnsAlias={followZnsAlias} />, {
+      contextOverrides: {
+        addressBook: [pepe],
+        openErrorModal,
+        mixnetView: {
+          ...jest.requireActual("../../rpc/components/mixnetPresenter").UNKNOWN_MIXNET_VIEW,
+          sendBlocked: false,
+        },
+        currentWallet: { chain_name: ServerChainNameEnum.mainChainName } as any,
+      },
+    });
+    reportRow(0, { valid: true, addressKind: AddressKindEnum.unified });
+    await screen.findByText(/^Fee /);
+    return { sendTransaction, followZnsAlias, openErrorModal };
+  };
+
+  it("pays where the name points now, says so, and moves the contact once it is sent", async () => {
+    const { followZnsAlias } = await readyToSend({ ok: true, address: "u1new" });
+
+    fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+    await waitFor(() => expect(lastSendConfirmModalProps().modalIsOpen).toBe(true));
+    const props = lastSendConfirmModalProps();
+    const row = props.sendPageState.toaddrs[0];
+    expect(row.to).toBe("u1new");
+    expect(props.znsChecks[row.id]).toEqual({ kind: "changed", alias: "pepe.zec", previous: "u1old" });
+    expect(followZnsAlias).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await props.sendTransaction([]);
+    });
+    expect(followZnsAlias).toHaveBeenCalledWith(ServerChainNameEnum.mainChainName, "pepe.zec", "u1new");
+  });
+
+  it("sends nothing when nobody holds the name any more", async () => {
+    const { openErrorModal } = await readyToSend({ ok: false, reason: "not-found" });
+
+    fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+    await waitFor(() => expect(openErrorModal).toHaveBeenCalledWith("Name no longer registered", expect.any(String)));
+    expect(lastSendConfirmModalProps().modalIsOpen).toBe(false);
   });
 });
