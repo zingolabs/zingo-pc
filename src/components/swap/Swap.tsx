@@ -31,7 +31,9 @@ import {
   quoteBindsAddress,
   validateAddressForChain,
   canonicalChainAddress,
-  extractPlainAddress,
+  addressFromPaymentUri,
+  parseAmountInput,
+  toDottedDecimal,
   nearAccountNeedsConfirm,
   zecNetworkFeeReserve,
 } from "../../swap";
@@ -370,7 +372,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
       return;
     }
     if (tokensDirection !== swapToState.direction) return;
-    const match = pickChainAsset(tokens, swapToState.swapChain);
+    const match =
+      (swapToState.swapKitId && tokens.find((t) => t.identifier === swapToState.swapKitId)) ||
+      pickChainAsset(tokens, swapToState.swapChain);
     if (!match) {
       // Nothing in the catalog sits on that chain, so there is no swap to set
       // up. Dropped rather than left pending, which would retry forever.
@@ -404,6 +408,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
     // reload still on its way would replace the asset and clear the field.
     if (tokensDirection !== swapToState.direction) return;
     if (counterpartyChain.toUpperCase() !== swapToState.swapChain.toUpperCase()) return;
+    if (swapToState.amount) setAmount(swapToState.amount);
     if (swapToState.direction === SwapDirectionEnum.Outbound) {
       setDestinationAddress(swapToState.address);
       setDestinationAddressTouched(true);
@@ -476,7 +481,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
       onConfirm,
     );
 
-  const amountNumber = parseFloat(amount.replace(",", "."));
+  const amountNumber = parseAmountInput(amount);
   const amountValid = Number.isFinite(amountNumber) && amountNumber > 0;
   // Only meaningful when this wallet is the one paying. Inbound, the funds come
   // from somewhere else entirely and this wallet has no idea what that account
@@ -573,7 +578,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
         sellAsset: isOutbound ? ZEC_ASSET : other,
         receiveAsset: isOutbound ? other : ZEC_ASSET,
         // SwapKit reads a dot-separated decimal whatever the user's locale.
-        sellAmountHumanDecimal: amount.replace(",", "."),
+        sellAmountHumanDecimal: toDottedDecimal(parseAmountInput(amount)),
         ...quoteAddressPair({ isOutbound, ephemeralAddress: ephemeral, boundAddress }),
         slippageBps,
       };
@@ -919,7 +924,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                     invalid: addressShowError,
                     valid: addressReady,
                     errorText: "That address does not look valid for this chain.",
-                    onChange: setActiveAddress,
+                    // A pasted payment URI for this chain fills in its address.
+                    onChange: (text: string) => setActiveAddress(addressFromPaymentUri(counterpartyChain, text)),
                     onBlur: () => setActiveAddressTouched(true),
                     onScan: () => setScanOpen(true),
                     onPick: () => setContactsOpen(true),
@@ -953,7 +959,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                     invalid: addressShowError,
                     valid: addressReady,
                     errorText: "That address does not look valid for this chain.",
-                    onChange: setActiveAddress,
+                    // A pasted payment URI for this chain fills in its address.
+                    onChange: (text: string) => setActiveAddress(addressFromPaymentUri(counterpartyChain, text)),
                     onBlur: () => setActiveAddressTouched(true),
                     onScan: () => setScanOpen(true),
                     onPick: () => setContactsOpen(true),
@@ -1265,6 +1272,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
             direction={direction}
             sendSwapDeposit={sendSwapDeposit}
             resumeSwapDeposit={resumeSwapDeposit}
+            contactLabel={activeContactLabel}
             // A completed swap leaves the form empty rather than pre-filled
             // with what was just sent: the next swap is a new decision, and
             // leaving the amount and address sitting there invites repeating a
@@ -1315,14 +1323,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
           modalIsOpen={scanOpen}
           closeModal={() => setScanOpen(false)}
           onScanned={(text) => {
-            setActiveAddress(extractPlainAddress(text));
+            setActiveAddress(addressFromPaymentUri(counterpartyChain, text));
             setActiveAddressTouched(true);
           }}
           // Only an address for the chain on screen, bare or in that chain's
           // payment URI: a code for another chain is refused in the dialog
           // rather than left in the field to be found invalid.
           validate={async (text) =>
-            (await validateAddressForChain(counterpartyChain, extractPlainAddress(text), currentWallet?.chain_name))
+            (await validateAddressForChain(
+              counterpartyChain,
+              addressFromPaymentUri(counterpartyChain, text),
+              currentWallet?.chain_name,
+            ))
               ? null
               : `That QR code does not carry a ${chainDisplayName(counterpartyChain) || counterpartyChain} address.`
           }

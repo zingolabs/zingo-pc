@@ -2006,6 +2006,7 @@ ipcMain.handle("native:send_swap_deposit", (_e, vault_address, amount, memo_hex)
 ipcMain.handle("native:resume_swap_deposit", (_e, op_return_txid) =>
   requireNative("resume_swap_deposit").resume_swap_deposit(op_return_txid),
 );
+ipcMain.handle("native:pending_swap_deposit", () => requireNative("pending_swap_deposit").pending_swap_deposit());
 ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);
   return requireNative("delete_wallet").delete_wallet(server_uri, chain_hint, perf, min_conf, wallet_name);

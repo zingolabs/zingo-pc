@@ -34,6 +34,7 @@ import { SendType } from "./types/SendType";
 import { WalletType } from "./types/WalletType";
 
 import AppState from "./AppState";
+import type { SwapToType } from "./AppState";
 
 export {
   AddressBookEntryClass,
@@ -65,4 +66,12 @@ export {
   BlockExplorerEnum,
   AppState,
 };
-export type { SyncStatusScanRangeType, SyncStatusType, SendJsonToTypeType, SendProposeType, SendType, WalletType };
+export type {
+  SyncStatusScanRangeType,
+  SyncStatusType,
+  SendJsonToTypeType,
+  SendProposeType,
+  SendType,
+  SwapToType,
+  WalletType,
+};

@@ -1,5 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import Modal from "react-modal";
+import { useNavigate } from "react-router-dom";
 import dateformat from "dateformat";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowCircleDown, faArrowCircleUp, faExternalLinkAlt } from "@fortawesome/free-solid-svg-icons";
@@ -7,9 +8,10 @@ import { faArrowCircleDown, faArrowCircleUp, faExternalLinkAlt } from "@fortawes
 import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
 import { ServerChainNameEnum } from "../appstate";
+import routes from "../../constants/routes.json";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapService } from "../../context/ContextSwapService";
-import { shell } from "../../electronBridge";
+import { ipcRenderer, native, shell } from "../../electronBridge";
 import {
   SwapDirectionEnum,
   buildChainExplorerUrl,
@@ -19,6 +21,9 @@ import {
   describeSlippageTolerance,
   formatAmountForDisplay,
   isPrePaymentStatus,
+  isRefunding,
+  depositPhase,
+  hasDepositEvidence as hasDepositEvidenceOf,
   isRealLegHash,
   isTerminalStatus,
   SwapStatusEnum,
@@ -26,7 +31,7 @@ import {
   swapRowLabel,
 } from "../../swap";
 import type { SwapRecordType, TrackerEntryType } from "../../swap";
-import { isEvmSourceChain, memoToHexCalldata } from "../../swap";
+import { isEvmSourceChain, memoToHexCalldata, pendingDeshieldTxId, recordDeshieldTxId } from "../../swap";
 import { hashRowsForRecord } from "../../swap/hashRowsForRecord";
 import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
@@ -45,6 +50,8 @@ type SwapDetailModalProps = {
   modalIsOpen: boolean;
   closeModal: () => void;
   onRemove: (record: SwapRecordType) => void;
+  /** Finishes a sale's deposit that stopped after its deshield. */
+  resumeSwapDeposit?: (opReturnTxId?: string) => Promise<string[]>;
 };
 
 /**
@@ -64,6 +71,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   modalIsOpen,
   closeModal,
   onRemove,
+  resumeSwapDeposit,
 }) => {
   const {
     currentWallet,
@@ -72,7 +80,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     blockExplorerMainnetTransactionCustom,
     blockExplorerTestnetTransactionCustom,
     openConfirmModal,
+    setSwapTo,
   } = useContext(ContextApp);
+  const navigate = useNavigate();
   const swapService = useSwapService();
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
 
@@ -95,10 +105,10 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // Removing is destructive and irreversible, so it asks first — the same
   // treatment `VtModal` gives the equivalent action on a value transfer.
   //
-  // A swap still waiting for payment gets a sharper warning: it may yet move,
-  // and forgetting it is how a user loses sight of funds in flight. The
-  // statuses that would make that dangerous outright — Completed, Pending,
-  // Processing — never reach here, because `canRemoveSwap` hides the button.
+  // An unpaid sale gets a sharper warning: it may yet be paid by hand, and
+  // forgetting it is how a user loses sight of funds in flight. A swap with
+  // money behind it never reaches here, because `canRemoveSwap` hides the
+  // button.
   const confirmRemove = () => {
     closeModal();
     openConfirmModal(
@@ -180,7 +190,14 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // What the provider said about an ending nobody asked for. A refund says it
   // in `refundInfo`, a failure in `failureReason`; both reached the record and
   // neither reached the screen.
-  const endedBadlyReason = record.refundInfo?.refundReason ?? record.failureReason;
+  // A purchase that ran out of time with no payment seen has nothing to
+  // explain but that: the provider gave no verdict, Zingo stopped waiting.
+  const notDetected =
+    record.status === SwapStatusEnum.Expired && !isOutbound && !hasDepositEvidenceOf(record) && !record.failureReason;
+  const endedBadlyReason =
+    record.refundInfo?.refundReason ??
+    record.failureReason ??
+    (notDetected ? `No ${sellSymbol} deposit was detected in time. Nothing was sent.` : undefined);
 
   const slippageTolerance = describeSlippageTolerance(record.requestedSlippageBps, record.slippageToleranceBps);
   const realizedSlippage = describeRealizedSlippage(record.realizedSlippageBps);
@@ -196,7 +213,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     record.status === SwapStatusEnum.Expired ||
     !!endedBadlyReason;
 
-  const removable = canRemoveSwap(record.status);
+  const removable = canRemoveSwap(record);
 
   // A deposit the provider can see is what turns a reserved swap into a
   // tracked one. Outbound gets it from our own broadcast, inbound from the
@@ -204,7 +221,52 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // nothing to query, so this view has to be the place the user finishes the
   // job: the instructions to pay, and the way to hand back the transaction.
   const hasDepositEvidence = isRealLegHash(record.broadcast?.txId) || isRealLegHash(record.observedDepositTxHash);
-  const awaitingDeposit = !isTerminalStatus(record.status) && !hasDepositEvidence;
+  // A sale whose deposit stopped after its deshield: the ZEC left the
+  // shielded pool for this wallet's transparent address, and the payment to
+  // the vault is still to go. Paying the slip from elsewhere would pay twice.
+  const deshieldTxId = isOutbound ? recordDeshieldTxId(record) : undefined;
+  const awaitingDeposit = !isTerminalStatus(record.status) && !hasDepositEvidence && !deshieldTxId;
+  const halfPaid = !isTerminalStatus(record.status) && !!deshieldTxId;
+  const opReturnTxId = record.broadcast?.opReturnTxId;
+  // Finishable when the OP_RETURN transaction was built, which the wallet
+  // keeps, or when the wallet still holds this deposit's proposal, which it
+  // keeps in memory only.
+  const [heldHere, setHeldHere] = useState<boolean>(false);
+  useEffect(() => {
+    setHeldHere(false);
+    if (!modalIsOpen || !deshieldTxId || opReturnTxId) return;
+    let live = true;
+    native
+      .pending_swap_deposit()
+      .then((answer: string) => live && setHeldHere(pendingDeshieldTxId(answer) === deshieldTxId))
+      .catch((err: unknown) => console.log(`SwapDetailModal: pending deposit check failed: ${err}`));
+    return () => {
+      live = false;
+    };
+  }, [modalIsOpen, deshieldTxId, opReturnTxId]);
+  const finishable = halfPaid && !!resumeSwapDeposit && (!!opReturnTxId || heldHere);
+  const [finishing, setFinishing] = useState<boolean>(false);
+  const [finishError, setFinishError] = useState<string>("");
+
+  /** Sends the vault payment of a half-paid sale, behind the device lock. */
+  const finishDeposit = async () => {
+    if (!resumeSwapDeposit || !deshieldTxId || !swapService) return;
+    const allSettings = await ipcRenderer.invoke("loadSettings");
+    if (allSettings?.requireDeviceAuth) {
+      const result: { success: boolean } = await ipcRenderer.invoke("auth:verify", "Authorize swap deposit");
+      if (!result?.success) return;
+    }
+    setFinishing(true);
+    setFinishError("");
+    try {
+      const txIds = [deshieldTxId, ...(await resumeSwapDeposit(opReturnTxId))];
+      await swapService.markBroadcasted({ recordId: record.recordId, txId: txIds[txIds.length - 1], allTxIds: txIds });
+    } catch (error) {
+      setFinishError(`The deposit did not go out: ${error instanceof Error ? error.message : error}`);
+    } finally {
+      setFinishing(false);
+    }
+  };
 
   /**
    * Record the source-chain transaction that pays this deposit.
@@ -271,7 +333,10 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 color: isOutbound ? "var(--color-text)" : "var(--color-primary)",
               }}
             />
-            {swapRowLabel(record.status)}
+            {swapRowLabel(record.status, {
+              refunding: isRefunding(record),
+              depositSent: record.depositSentAtMs !== undefined,
+            })}
           </div>
 
           {/* Large rather than the transfer's headline size: this line carries
@@ -293,6 +358,41 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           {/* First, because when it applies it is the only thing on this
               screen the user can act on. Everything below is a record of what
               was agreed; this is what still has to happen. */}
+          {/* The status said "Incomplete deposit" and nothing of what follows.
+              How much arrived is not known: no provider answer fills it. */}
+          {record.status === SwapStatusEnum.IncompleteDeposit && (
+            <>
+              <SectionHeader label="Less than needed arrived" />
+              <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
+                The payment arrived, but it is not enough for this route. The provider sends it back to the refund
+                address, or waits for the rest.
+              </div>
+            </>
+          )}
+
+          {halfPaid && (
+            <>
+              <SectionHeader label="The deposit stopped halfway" />
+              <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
+                {finishable
+                  ? "Its first transaction moved the ZEC to this wallet's transparent address; the payment to the provider did not go out. Finish it here: nothing more is taken from your shielded balance."
+                  : "Its first transaction moved the ZEC to this wallet's transparent address; the payment to the provider did not go out, and this wallet can no longer send it. The ZEC stays in your transparent balance and the swap expires unpaid. Do not pay this swap from another wallet."}
+              </div>
+              {finishable && (
+                <div className={cstyles.padtopsmall}>
+                  <button type="button" className={cstyles.primarybutton} disabled={finishing} onClick={finishDeposit}>
+                    {finishing ? "Working..." : "Finish the deposit"}
+                  </button>
+                </div>
+              )}
+              {!!finishError && (
+                <div className={cstyles.small} style={{ color: "var(--color-error)" }}>
+                  {finishError}
+                </div>
+              )}
+            </>
+          )}
+
           {awaitingDeposit && (
             <>
               <SectionHeader label={isOutbound ? "This deposit is unpaid" : "Pay this deposit"} />
@@ -304,6 +404,12 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 amountHumanDecimal={record.sellAmountHumanDecimal}
                 memoText={memo}
               />
+              {!isOutbound && swapService && (
+                <PurchasePhase
+                  record={record}
+                  markSent={() => swapService.markDepositSent({ recordId: record.recordId })}
+                />
+              )}
               {swapService && (
                 <div className={cstyles.padtopsmall}>
                   <div className={`${cstyles.sublight} ${cstyles.small}`}>
@@ -400,7 +506,15 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
 
             {endedBadly && (
               <>
-                <SectionHeader label={record.status === SwapStatusEnum.Refunded ? "Refund" : "Failure"} />
+                <SectionHeader
+                  label={
+                    record.status === SwapStatusEnum.Refunded
+                      ? "Refund"
+                      : notDetected
+                        ? "Deposit not detected"
+                        : "Failure"
+                  }
+                />
                 <Field
                   label="Reason"
                   value={
@@ -563,6 +677,28 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
         {/* Space rather than a rule. The buttons are the end of the screen, not
             the start of another section. */}
         <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
+          {/* The same swap again at today's price: the form filled in, the
+              quote the user's to take or leave. */}
+          {(record.status === SwapStatusEnum.Expired || record.status === SwapStatusEnum.Failed) && (
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                const counterparty = isOutbound ? record.receiveAsset : record.sellAsset;
+                setSwapTo({
+                  address: isOutbound ? record.destinationAddress : record.sourceAddress,
+                  swapChain: counterparty.chain,
+                  swapKitId: counterparty.swapKitId,
+                  direction: record.direction,
+                  amount: record.sellAmountHumanDecimal,
+                });
+                closeModal();
+                navigate(routes.SWAP);
+              }}
+            >
+              Get a new quote
+            </button>
+          )}
           {removable && (
             <button type="button" className={cstyles.primarybutton} onClick={confirmRemove}>
               Remove
@@ -578,6 +714,59 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     </Modal>
   );
 };
+
+/**
+ * Where an unpaid purchase stands: a press to say the payment went out, then
+ * that Zingo is looking for it, and a warning half an hour after the address
+ * was made if nothing has turned up.
+ */
+function PurchasePhase({ record, markSent }: { record: SwapRecordType; markSent: () => Promise<unknown> }) {
+  const [confirming, setConfirming] = useState<boolean>(false);
+  const coin = record.sellAsset.ticker ?? record.sellAsset.symbol;
+  const phase = depositPhase(record, Date.now());
+  if (phase === "looking") {
+    return <div className={`${cstyles.small} ${cstyles.padtopsmall}`}>Looking for your payment.</div>;
+  }
+  if (phase === "notDetected") {
+    return (
+      <div className={`${cstyles.small} ${cstyles.padtopsmall}`} style={{ color: "var(--color-warning)" }}>
+        We haven&rsquo;t detected your payment yet. Check that you sent exactly {record.sellAmountHumanDecimal} {coin}{" "}
+        to the address of this swap.
+      </div>
+    );
+  }
+  if (phase !== "awaiting") return null;
+  return (
+    <div className={cstyles.padtopsmall}>
+      {confirming && (
+        <div className={cstyles.small}>
+          Confirm you sent exactly {record.sellAmountHumanDecimal} {coin} to {record.depositAddress} from your other
+          wallet. Zingo then starts looking for it.
+        </div>
+      )}
+      <div className={cstyles.horizontalflex}>
+        {confirming ? (
+          <>
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => markSent().catch((e) => console.log(`SwapDetailModal: markDepositSent failed ${e}`))}
+            >
+              Yes, I sent it
+            </button>
+            <button type="button" className={cstyles.primarybutton} onClick={() => setConfirming(false)}>
+              Not yet
+            </button>
+          </>
+        ) : (
+          <button type="button" className={cstyles.primarybutton} onClick={() => setConfirming(true)}>
+            I sent it
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function SectionHeader({ label }: { label: string }) {
   return (
