@@ -31,7 +31,9 @@ import {
   quoteBindsAddress,
   validateAddressForChain,
   canonicalChainAddress,
-  extractPlainAddress,
+  addressFromPaymentUri,
+  parseAmountInput,
+  toDottedDecimal,
   nearAccountNeedsConfirm,
   zecNetworkFeeReserve,
 } from "../../swap";
@@ -370,7 +372,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
       return;
     }
     if (tokensDirection !== swapToState.direction) return;
-    const match = pickChainAsset(tokens, swapToState.swapChain);
+    const match =
+      (swapToState.swapKitId && tokens.find((t) => t.identifier === swapToState.swapKitId)) ||
+      pickChainAsset(tokens, swapToState.swapChain);
     if (!match) {
       // Nothing in the catalog sits on that chain, so there is no swap to set
       // up. Dropped rather than left pending, which would retry forever.
@@ -404,6 +408,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
     // reload still on its way would replace the asset and clear the field.
     if (tokensDirection !== swapToState.direction) return;
     if (counterpartyChain.toUpperCase() !== swapToState.swapChain.toUpperCase()) return;
+    if (swapToState.amount) setAmount(swapToState.amount);
     if (swapToState.direction === SwapDirectionEnum.Outbound) {
       setDestinationAddress(swapToState.address);
       setDestinationAddressTouched(true);
@@ -476,7 +481,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
       onConfirm,
     );
 
-  const amountNumber = parseFloat(amount.replace(",", "."));
+  const amountNumber = parseAmountInput(amount);
   const amountValid = Number.isFinite(amountNumber) && amountNumber > 0;
   // Only meaningful when this wallet is the one paying. Inbound, the funds come
   // from somewhere else entirely and this wallet has no idea what that account
@@ -493,6 +498,38 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
     available: isOutbound && info.currencyName === "ZEC",
     frozen: reviewing,
   });
+
+  // Buying ZEC, the amount is in the coin paid, and can be typed in USD too.
+  // The coin's price is asked of SwapKit once per coin, before any quote of
+  // it; a quote of that coin answers it as well.
+  const coinId = !isOutbound ? (selectedToken?.identifier ?? "") : "";
+  const [askedPrices, setAskedPrices] = useState<Record<string, number>>({});
+  useEffect(() => {
+    if (!coinId || !swapService || askedPrices[coinId] !== undefined) return;
+    let live = true;
+    swapService
+      .usdPrice(coinId)
+      .then((found) => live && setAskedPrices((known) => ({ ...known, [coinId]: found ?? 0 })))
+      .catch(() => live && setAskedPrices((known) => ({ ...known, [coinId]: 0 })));
+    return () => {
+      live = false;
+    };
+  }, [coinId, swapService, askedPrices]);
+  const quotedCoinPrice =
+    quoteContext && quoteContext.quoteInput.sellAsset.swapKitId === coinId
+      ? quoteContext.fiatValueBasis.sellUsdUnitPrice
+      : 0;
+  const coinPrice = coinId ? quotedCoinPrice || askedPrices[coinId] || 0 : 0;
+  const coinSymbol = selectedToken?.ticker ?? selectedToken?.symbol ?? "";
+  const buyUsdAmount = useUsdAmount({
+    zecText: amount,
+    setZecText: setAmount,
+    zecPrice: coinPrice,
+    available: !isOutbound && info.currencyName === "ZEC",
+    frozen: reviewing,
+  });
+  // The field as it is typed, whichever side is paid.
+  const amountEntry = isOutbound ? usdAmount : buyUsdAmount;
 
   // Emptying the amount means there is nothing to quote, but the panel must not
   // blank the instant the number hits zero: erasing the last digit of `0.02` to
@@ -573,7 +610,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
         sellAsset: isOutbound ? ZEC_ASSET : other,
         receiveAsset: isOutbound ? other : ZEC_ASSET,
         // SwapKit reads a dot-separated decimal whatever the user's locale.
-        sellAmountHumanDecimal: amount.replace(",", "."),
+        sellAmountHumanDecimal: toDottedDecimal(parseAmountInput(amount)),
         ...quoteAddressPair({ isOutbound, ephemeralAddress: ephemeral, boundAddress }),
         slippageBps,
       };
@@ -887,17 +924,20 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                 : usdAmount.usdMode
                   ? `Spendable: ${spendable > 0 ? Utils.getZecToUsdString(zecPrice, spendable) : "USD 0.00"}`
                   : `Spendable: ${spendable} ${info.currencyName}`,
-              amount: isOutbound ? usdAmount.inputValue : amount,
+              amount: amountEntry.inputValue,
               editable: true,
               invalid: overBalance,
-              onChangeAmount: isOutbound ? usdAmount.onInputChange : setAmount,
+              onChangeAmount: amountEntry.onInputChange,
               amountAdornment:
-                isOutbound && info.currencyName === "ZEC" ? (
-                  <AmountCurrencyToggle amount={usdAmount} currencyName={info.currencyName} />
+                info.currencyName === "ZEC" && (isOutbound || !!coinSymbol) ? (
+                  <AmountCurrencyToggle
+                    amount={amountEntry}
+                    currencyName={isOutbound ? info.currencyName : coinSymbol}
+                  />
                 ) : undefined,
               // The refusal takes the slot when there is one; otherwise the
-              // fiat value, which mobile shows on the ZEC side only — it is
-              // the one asset this wallet holds a price for.
+              // other unit: the coin amount when typing dollars, the fiat
+              // value when typing the coin.
               amountSub: overBalance ? (
                 <span style={{ color: "var(--color-error)" }}>That is more than the spendable balance.</span>
               ) : isOutbound && amountValid && usdAmount.usdMode ? (
@@ -905,6 +945,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                 `≈ ${info.currencyName} ${Utils.maxPrecisionTrimmed(amountNumber)}`
               ) : isOutbound && amountValid && zecPrice > 0 ? (
                 Utils.getZecToUsdString(zecPrice, amountNumber)
+              ) : !isOutbound && amountValid && buyUsdAmount.usdMode ? (
+                // Typed in dollars: the coin the user pays.
+                `≈ ${coinSymbol} ${Utils.maxPrecisionTrimmed(amountNumber)}`
+              ) : !isOutbound && amountValid && coinPrice > 0 ? (
+                Utils.getZecToUsdString(coinPrice, amountNumber)
               ) : undefined,
               onSelectAsset: () => setPickerOpen(true),
               selectDisabled: !tokens || tokens.length === 0,
@@ -919,7 +964,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                     invalid: addressShowError,
                     valid: addressReady,
                     errorText: "That address does not look valid for this chain.",
-                    onChange: setActiveAddress,
+                    // A pasted payment URI for this chain fills in its address.
+                    onChange: (text: string) => setActiveAddress(addressFromPaymentUri(counterpartyChain, text)),
                     onBlur: () => setActiveAddressTouched(true),
                     onScan: () => setScanOpen(true),
                     onPick: () => setContactsOpen(true),
@@ -953,7 +999,8 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                     invalid: addressShowError,
                     valid: addressReady,
                     errorText: "That address does not look valid for this chain.",
-                    onChange: setActiveAddress,
+                    // A pasted payment URI for this chain fills in its address.
+                    onChange: (text: string) => setActiveAddress(addressFromPaymentUri(counterpartyChain, text)),
                     onBlur: () => setActiveAddressTouched(true),
                     onScan: () => setScanOpen(true),
                     onPick: () => setContactsOpen(true),
@@ -1265,6 +1312,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
             direction={direction}
             sendSwapDeposit={sendSwapDeposit}
             resumeSwapDeposit={resumeSwapDeposit}
+            contactLabel={activeContactLabel}
             // A completed swap leaves the form empty rather than pre-filled
             // with what was just sent: the next swap is a new decision, and
             // leaving the amount and address sitting there invites repeating a
@@ -1315,14 +1363,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
           modalIsOpen={scanOpen}
           closeModal={() => setScanOpen(false)}
           onScanned={(text) => {
-            setActiveAddress(extractPlainAddress(text));
+            setActiveAddress(addressFromPaymentUri(counterpartyChain, text));
             setActiveAddressTouched(true);
           }}
           // Only an address for the chain on screen, bare or in that chain's
           // payment URI: a code for another chain is refused in the dialog
           // rather than left in the field to be found invalid.
           validate={async (text) =>
-            (await validateAddressForChain(counterpartyChain, extractPlainAddress(text), currentWallet?.chain_name))
+            (await validateAddressForChain(
+              counterpartyChain,
+              addressFromPaymentUri(counterpartyChain, text),
+              currentWallet?.chain_name,
+            ))
               ? null
               : `That QR code does not carry a ${chainDisplayName(counterpartyChain) || counterpartyChain} address.`
           }

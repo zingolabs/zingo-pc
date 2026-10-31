@@ -1,8 +1,8 @@
 import React from "react";
-import { fireEvent, screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { render } from "../../test-utils";
 import SwapDetailModal from "./SwapDetailModal";
-import { SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
+import { BroadcastStatusEnum, SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
 import type { SwapAssetType, SwapRecordType } from "../../swap";
 
 jest.mock("../../electronBridge");
@@ -321,5 +321,122 @@ describe("SwapDetailModal refund", () => {
     // Folded to its ends, as every code is.
     expect(screen.getAllByText("dd44dd44dd44...dd44dd44dd44")).toHaveLength(1);
     expect(screen.queryByRole("button", { name: /Refund explorer/ })).not.toBeInTheDocument();
+  });
+});
+
+// A sale whose deposit stopped after its deshield has the ZEC in this wallet's
+// transparent address. The slip to pay from elsewhere would pay it twice, so
+// the view offers to finish it when the wallet still can, and says so when not.
+describe("SwapDetailModal deposit stopped halfway", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { native, ipcRenderer } = require("../../electronBridge");
+  const DESHIELD = "d".repeat(64);
+  const VAULT_TX = "c".repeat(64);
+  const halfPaid = (opReturnTxId?: string): Partial<SwapRecordType> => ({
+    status: SwapStatusEnum.PendingDeposit,
+    broadcast: { status: BroadcastStatusEnum.PendingBroadcast, allTxIds: [DESHIELD], opReturnTxId },
+  });
+  const showHalfPaid = (overrides: Partial<SwapRecordType>, resume = jest.fn(async () => [VAULT_TX])) => {
+    render(
+      <SwapDetailModal
+        record={record(overrides)}
+        index={0}
+        length={1}
+        moveDetail={jest.fn()}
+        modalIsOpen
+        closeModal={jest.fn()}
+        onRemove={jest.fn()}
+        resumeSwapDeposit={resume}
+      />,
+    );
+    return resume;
+  };
+
+  beforeEach(() => {
+    ipcRenderer.invoke.mockResolvedValue({});
+  });
+
+  it("finishes the deposit the wallet still holds", async () => {
+    const markBroadcasted = jest.fn(async () => ({}));
+    mockSwapService = { markBroadcasted, backfillFinishedRecord: jest.fn(async () => undefined) };
+    native.pending_swap_deposit.mockResolvedValue(JSON.stringify({ deshield_txid: DESHIELD }));
+    const resume = showHalfPaid(halfPaid());
+
+    fireEvent.click(await screen.findByRole("button", { name: /finish the deposit/i }));
+
+    await waitFor(() =>
+      expect(markBroadcasted).toHaveBeenCalledWith({
+        recordId: "rec-1",
+        txId: VAULT_TX,
+        allTxIds: [DESHIELD, VAULT_TX],
+      }),
+    );
+    expect(resume).toHaveBeenCalledWith(undefined);
+    expect(screen.queryByText(/this deposit is unpaid/i)).not.toBeInTheDocument();
+  });
+
+  it("transmits the built OP_RETURN transaction again", async () => {
+    mockSwapService = {
+      markBroadcasted: jest.fn(async () => ({})),
+      backfillFinishedRecord: jest.fn(async () => undefined),
+    };
+    native.pending_swap_deposit.mockResolvedValue(JSON.stringify({ deshield_txid: null }));
+    const resume = showHalfPaid(halfPaid("e".repeat(64)));
+
+    fireEvent.click(await screen.findByRole("button", { name: /finish the deposit/i }));
+
+    await waitFor(() => expect(resume).toHaveBeenCalledWith("e".repeat(64)));
+  });
+
+  it("says it can no longer be sent when the wallet holds another deposit, or none", async () => {
+    mockSwapService = { backfillFinishedRecord: jest.fn(async () => undefined) };
+    native.pending_swap_deposit.mockResolvedValue(JSON.stringify({ deshield_txid: "f".repeat(64) }));
+    showHalfPaid(halfPaid());
+
+    expect(await screen.findByText(/can no longer send it/i)).toBeInTheDocument();
+    await waitFor(() => expect(native.pending_swap_deposit).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: /finish the deposit/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/this deposit is unpaid/i)).not.toBeInTheDocument();
+  });
+});
+
+// A purchase is paid from another wallet. The detail takes the user's word
+// that it went out, then says Zingo is looking, and warns after half an hour.
+describe("SwapDetailModal unpaid purchase", () => {
+  const purchase = (overrides: Partial<SwapRecordType> = {}): Partial<SwapRecordType> => ({
+    direction: SwapDirectionEnum.Inbound,
+    status: SwapStatusEnum.AwaitingExternalDeposit,
+    sellAsset: { swapKitId: "BTC.BTC", chain: "BTC", symbol: "BTC", ticker: "BTC", chainId: "bitcoin", decimals: 8 },
+    receiveAsset: ZEC,
+    depositAddress: "bc1qdeposit",
+    createdAtMs: Date.now(),
+    ...overrides,
+  });
+
+  it("keeps the moment the user confirms they sent it", async () => {
+    const markDepositSent = jest.fn(async () => ({}));
+    mockSwapService = { markDepositSent, backfillFinishedRecord: jest.fn(async () => undefined) };
+    renderDetail(purchase());
+
+    fireEvent.click(screen.getByRole("button", { name: /^i sent it$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /yes, i sent it/i }));
+
+    await waitFor(() => expect(markDepositSent).toHaveBeenCalledWith({ recordId: "rec-1" }));
+  });
+
+  it("says it is looking, then warns when nothing turned up", () => {
+    mockSwapService = { backfillFinishedRecord: jest.fn(async () => undefined) };
+    const { unmount } = renderDetail(purchase({ depositSentAtMs: Date.now() }));
+    expect(screen.getByText(/looking for your payment/i)).toBeInTheDocument();
+    unmount();
+
+    renderDetail(purchase({ createdAtMs: Date.now() - 31 * 60 * 1000, depositSentAtMs: Date.now() }));
+    expect(screen.getByText(/haven.t detected your payment yet/i)).toBeInTheDocument();
+  });
+
+  it("says why a purchase nobody paid ended", () => {
+    renderDetail(purchase({ status: SwapStatusEnum.Expired }));
+    expect(screen.getAllByText("Deposit not detected").length).toBeGreaterThan(0);
+    expect(screen.getByText(/no BTC deposit was detected in time/i)).toBeInTheDocument();
   });
 });

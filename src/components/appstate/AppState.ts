@@ -18,6 +18,21 @@ import { BlockExplorerEnum } from "./enums/BlockExplorerEnum";
 import { ServerSelectionEnum } from "./enums/ServerSelectionEnum";
 import type { ServerChainNameEnum } from "./enums/ServerChainNameEnum";
 
+/**
+ * A swap handed to the Swap screen: from the Address Book, a contact's chain
+ * and address; from an expired or failed swap, the same swap again, with its
+ * exact asset and amount.
+ */
+export type SwapToType = {
+  address: string;
+  swapChain: string;
+  direction: SwapDirectionEnum;
+  /** The exact asset, when more than the chain is known. */
+  swapKitId?: string;
+  /** The amount sold, in display units. */
+  amount?: string;
+};
+
 export default class AppState {
   // The total confirmed and unconfirmed balance in this wallet
   totalBalance: TotalBalanceClass;
@@ -81,7 +96,7 @@ export default class AppState {
   // A contact handed to the Swap screen, and which side of the swap it takes:
   // outbound it is where the bought asset goes, inbound where the sold asset
   // comes back to on a refund.
-  swapToState: { address: string; swapChain: string; direction: SwapDirectionEnum } | null;
+  swapToState: SwapToType | null;
 
   // props to context
   openErrorModal: (t: string, b: string | JSX.Element) => void;
@@ -111,7 +126,7 @@ export default class AppState {
     swapChain?: string,
     znsAlias?: string,
   ) => void;
-  setSwapTo: (t: { address: string; swapChain: string; direction: SwapDirectionEnum } | null) => void;
+  setSwapTo: (t: SwapToType | null) => void;
 
   // Current USD price per ZEC. Fetched by RPC.getZecPrice on the 5s
   // scheduler, over the mixnet only (ADR 0024 arc 6): the fetch refuses

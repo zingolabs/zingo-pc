@@ -27,6 +27,10 @@ export default class ValueTransferClass {
   swapRecordId?: string;
   swapIsInbound?: boolean;
   swapStatus?: string;
+  /** A purchase paid after it expired, on its way back. */
+  swapRefunding?: boolean;
+  /** A purchase the user said they paid. */
+  swapDepositSent?: boolean;
   // The counterparty asset the row's `amount` is denominated in, and its USD
   // unit price at quote time. A swap row does not show ZEC, so it cannot use
   // the wallet's currency name or the ZEC price the way every other row does.

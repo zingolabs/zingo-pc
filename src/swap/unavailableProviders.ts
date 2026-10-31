@@ -1,5 +1,5 @@
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
-import { formatAmountForDisplay } from "./formatAmountForDisplay";
+import { formatMinimumAmount } from "./formatAmountForDisplay";
 import type { QuoteProviderErrorType, QuoteResponseType } from "./types/QuoteResponseType";
 import type { RouteOptionType } from "./types/RouteOptionType";
 
@@ -108,7 +108,7 @@ function describeRefusal(error: QuoteProviderErrorType | undefined, sellAssetTic
   const code = normaliseCode(error.errorCode) || normaliseCode(error.message);
 
   if (code === "sellassetamounttoosmall") {
-    const minimum = formatAmountForDisplay(error.minAmount);
+    const minimum = formatMinimumAmount(error.minAmount);
     // A minimum of zero is the formatter saying it could not read one, not a
     // provider that accepts nothing.
     return minimum === "0" ? "The amount is below this provider's minimum." : `Needs at least ${minimum}${unit}.`;

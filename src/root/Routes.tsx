@@ -29,6 +29,7 @@ import {
   ServerSelectionEnum,
   BlockExplorerEnum,
 } from "../components/appstate";
+import type { SwapToType } from "../components/appstate";
 import RPC from "../rpc/rpc";
 import { ZcashURITarget } from "../utils/uris";
 import pickRotationTarget from "../utils/pickRotationTarget";
@@ -41,9 +42,9 @@ import { SyncAllBanner, SyncAllSettingsModal, SyncAllWallets } from "../componen
 import { SyncAllContext, SyncAllRun, useAutoSyncAll, useSyncAllRun } from "../syncAll";
 import { History } from "../components/history";
 import { Swap } from "../components/swap";
-import type { SwapDirectionEnum } from "../swap/enums/SwapDirectionEnum";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 import { SwapServiceProvider } from "../context/ContextSwapService";
+import SwapExpiryNotice from "../components/swap/SwapExpiryNotice";
 
 import { native } from "../electronBridge";
 import { userFacingError } from "../utils/userFacingError";
@@ -598,17 +599,10 @@ const AppRoutes: React.FC = () => {
 
   // Handed to the Swap screen by the Address Book. Cleared by the screen once
   // read, so it prefills the field on arrival and never again.
-  const [swapToState, setSwapToState] = useState<{
-    address: string;
-    swapChain: string;
-    direction: SwapDirectionEnum;
-  } | null>(null);
-  const setSwapTo = useCallback(
-    (t: { address: string; swapChain: string; direction: SwapDirectionEnum } | null): void => {
-      setSwapToState(t);
-    },
-    [],
-  );
+  const [swapToState, setSwapToState] = useState<SwapToType | null>(null);
+  const setSwapTo = useCallback((t: SwapToType | null): void => {
+    setSwapToState(t);
+  }, []);
 
   // A zero fee hides the Shield button (`ShieldBalance` requires one above
   // zero), so every failure here used to remove the button with no reason
@@ -886,6 +880,7 @@ const AppRoutes: React.FC = () => {
           chainName={currentWallet?.chain_name ?? ServerChainNameEnum.mainChainName}
           enabled={!!currentWallet && !currentWalletOpenError && location.pathname !== routes.LOADING}
         >
+          <SwapExpiryNotice />
           <div style={{ overflow: "hidden" }}>
             {location.pathname !== "/" && !location.pathname.toLowerCase().includes("zingo") && (
               <div className={cstyles.sidebarcontainer}>
@@ -929,7 +924,7 @@ const AppRoutes: React.FC = () => {
                 />
                 <Route path={routes.DASHBOARD} element={<Dashboard navigateToHistory={navigateToHistory} />} />
                 <Route path={routes.INSIGHT} element={<Insight />} />
-                <Route path={routes.HISTORY} element={<History />} />
+                <Route path={routes.HISTORY} element={<History resumeSwapDeposit={runRPCResumeSwapDeposit} />} />
                 <Route
                   path={routes.SWAP}
                   element={

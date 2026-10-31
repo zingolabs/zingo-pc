@@ -101,9 +101,10 @@ const renderExecute = (
   });
   const markBroadcasted = jest.fn(async () => record(direction));
   const markDeshielded = jest.fn(async () => record(direction));
+  const markDepositSent = jest.fn(async () => record(direction));
   const sendSwapDeposit = deposit ?? jest.fn(async () => ["a".repeat(64)]);
   const resumeSwapDeposit = resume ?? jest.fn(async () => ["c".repeat(64)]);
-  const swapService = { commitRoute, markBroadcasted, markDeshielded } as unknown as SwapService;
+  const swapService = { commitRoute, markBroadcasted, markDeshielded, markDepositSent } as unknown as SwapService;
   const onDone = jest.fn();
   const onCancel = jest.fn();
   const onRouteRefused = jest.fn();
@@ -126,6 +127,7 @@ const renderExecute = (
     commitRoute,
     markBroadcasted,
     markDeshielded,
+    markDepositSent,
     sendSwapDeposit,
     resumeSwapDeposit,
     onDone,
@@ -431,15 +433,32 @@ describe("SwapExecute deposit stopped after its deshield", () => {
   const DESHIELD = "d".repeat(64);
   const OP_RETURN = "e".repeat(64);
   const stopped = (opReturnTxId?: string) =>
-    jest.fn().mockRejectedValueOnce(new DepositAfterDeshieldError("transmission failed", DESHIELD, opReturnTxId));
+    jest
+      .fn()
+      .mockRejectedValueOnce(new DepositAfterDeshieldError("transmission failed", "failed", DESHIELD, opReturnTxId));
 
   it("keeps the deshield on the record and says the retry finishes it", async () => {
     const { markDeshielded, markBroadcasted } = renderExecute(SwapDirectionEnum.Outbound, stopped());
     fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
 
     expect(await screen.findByText(/first transaction went out/)).toBeInTheDocument();
-    expect(markDeshielded).toHaveBeenCalledWith({ recordId: "rec-1", deshieldTxId: DESHIELD });
+    expect(markDeshielded).toHaveBeenCalledWith({ recordId: "rec-1", deshieldTxId: DESHIELD, opReturnTxId: undefined });
     expect(markBroadcasted).not.toHaveBeenCalled();
+  });
+
+  // zingolib refuses a new deposit while another swap's waits to resume, and
+  // names that one's deshield. It is not this swap's to record or to finish.
+  it("leaves another swap's held deposit alone", async () => {
+    const held = jest.fn().mockRejectedValue(new DepositAfterDeshieldError("waits to resume", "pending", DESHIELD));
+    const { markDeshielded, resumeSwapDeposit } = renderExecute(SwapDirectionEnum.Outbound, held);
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    expect(await screen.findByText(/another swap's deposit is waiting to finish/i)).toBeInTheDocument();
+    expect(markDeshielded).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /try the deposit again/i }));
+    await waitFor(() => expect(held).toHaveBeenCalledTimes(2));
+    expect(resumeSwapDeposit).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -465,5 +484,55 @@ describe("SwapExecute deposit stopped after its deshield", () => {
       txId: "c".repeat(64),
       allTxIds: [DESHIELD, "c".repeat(64)],
     });
+  });
+});
+
+// The review is the last screen before the money moves, and it said nothing
+// of what the swap costs beyond the minimum received.
+describe("SwapExecute review", () => {
+  it("states the provider fees and what the deposit costs on Zcash", () => {
+    renderExecute(SwapDirectionEnum.Outbound);
+
+    expect(screen.getByText("Provider fees")).toBeInTheDocument();
+    expect(screen.getByText(/^0\.01 ZEC \(USD 0\.30\)$/)).toBeInTheDocument();
+    expect(screen.getByText("Zcash network fee")).toBeInTheDocument();
+    expect(screen.getByText(/^about 0\.0002 ZEC, 1 transaction$/)).toBeInTheDocument();
+  });
+
+  it("names the refund address of a purchase, and no Zcash fee", () => {
+    renderExecute(SwapDirectionEnum.Inbound);
+
+    expect(screen.getByText("If refunded, to")).toBeInTheDocument();
+    expect(screen.getByText("bc1qrefund")).toBeInTheDocument();
+    expect(screen.queryByText("Zcash network fee")).not.toBeInTheDocument();
+  });
+});
+
+// A purchase is paid from another wallet, which this one cannot see.
+describe("SwapExecute purchase deposit", () => {
+  it("keeps the moment the user confirms they sent it", async () => {
+    const { markDepositSent, onDone } = renderExecute(SwapDirectionEnum.Inbound);
+    fireEvent.click(screen.getByRole("button", { name: /start the swap/i }));
+
+    fireEvent.click(await screen.findByRole("button", { name: /^i sent it$/i }));
+    expect(screen.getByText(/confirm you sent exactly 1\.5 BTC to bc1qdeposit/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /yes, i sent it/i }));
+
+    await waitFor(() => expect(markDepositSent).toHaveBeenCalledWith({ recordId: "rec-1" }));
+    expect(onDone).toHaveBeenCalled();
+  });
+});
+
+// A sale stopped after its deshield has the ZEC on its way already.
+describe("SwapExecute half-paid sale", () => {
+  it("does not suggest paying from another wallet", async () => {
+    renderExecute(
+      SwapDirectionEnum.Outbound,
+      jest.fn().mockRejectedValueOnce(new DepositAfterDeshieldError("x", "failed", "d".repeat(64))),
+    );
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    expect(await screen.findByText(/first transaction went out/)).toBeInTheDocument();
+    expect(screen.queryByText(/pay it from another wallet/i)).not.toBeInTheDocument();
   });
 });

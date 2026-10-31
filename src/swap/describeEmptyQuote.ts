@@ -1,6 +1,7 @@
 import type { QuoteResponseType } from "./types/QuoteResponseType";
 import type { UnavailableProviderType } from "./unavailableProviders";
 import { providerShortLabel } from "./providerLabels";
+import { formatMinimumAmount } from "./formatAmountForDisplay";
 
 /**
  * Why a quote came back with no routes, in the user's terms.
@@ -50,7 +51,6 @@ export function describeEmptyQuote(
   if (minimums.length === 0) {
     return `That amount is below the minimum every provider accepts for this pair.`;
   }
-  // Trailing zeros dropped so 0.01068069 does not read as 0.010680690000.
-  const largest = minimums[0].toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
+  const largest = formatMinimumAmount(minimums[0]);
   return `That amount is too small. The smallest amount that routes right now is about ${largest}${unit}.`;
 }
