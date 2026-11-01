@@ -64,16 +64,16 @@ export function buildChainExplorerUrl(args: {
 }
 
 /**
- * The provider's own lookup endpoint, which usually carries more than a block
- * explorer does: parsed memos, refund state, streaming-step counters. Null
- * when the provider publishes none, or keys on something other than a tx hash.
+ * The provider's own explorer for the swap's inbound hash, which shows more
+ * than a block explorer does: each streaming step, the outbound, a refund.
+ * Null when the provider has none, or keys on something other than a tx hash.
  */
 export function buildProviderExplorerUrl(provider: SwapKitProviderEnum, hash: string): string | null {
   switch (provider) {
     case SwapKitProviderEnum.MayachainStreaming:
-      return `https://mayanode.mayachain.info/mayachain/tx/details/${hash}`;
+      return `https://explorer.mayachain.info/tx/${hash}`;
     case SwapKitProviderEnum.ThorchainStreaming:
-      return `https://thornode.ninerealms.com/thorchain/tx/details/${hash}`;
+      return `https://viewblock.io/thorchain/tx/${hash}`;
     default:
       return null;
   }
@@ -136,8 +136,16 @@ export function buildTrackerEntries(args: {
   const broadcastHash = isRealLegHash(record.broadcast?.txId) ? record.broadcast?.txId : undefined;
   const observedHash = isRealLegHash(record.observedDepositTxHash) ? record.observedDepositTxHash : undefined;
   const sourceHash = broadcastHash ?? observedHash ?? null;
+  // NEAR Intents opens a swap by its deposit address, so even a swap whose
+  // deposit was never seen has its page there.
+  const nearUrl =
+    record.provider === SwapKitProviderEnum.Near && record.depositAddress
+      ? `https://explorer.near-intents.org/transactions/${encodeURIComponent(record.depositAddress)}`
+      : null;
   const providerUrl =
-    record.providerExplorerUrl ?? (sourceHash ? buildProviderExplorerUrl(record.provider, sourceHash) : null);
+    record.providerExplorerUrl ??
+    nearUrl ??
+    (sourceHash ? buildProviderExplorerUrl(record.provider, sourceHash) : null);
   if (providerUrl) {
     entries.push({ key: "provider", label: providerLongLabel(record.provider), url: providerUrl, onZcash: false });
   }
