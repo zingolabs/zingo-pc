@@ -1,5 +1,5 @@
-import { scanRangeWidthsPercent } from "./scanMap";
-import { SyncStatusScanRangeType } from "../appstate";
+import { scanRangeState, scanRangeWidthsPercent } from "./scanMap";
+import { SyncStatusScanRangePriorityEnum, SyncStatusScanRangeType } from "../appstate";
 
 const range = (start: number, end: number): SyncStatusScanRangeType =>
   ({ start_block: start, end_block: end }) as SyncStatusScanRangeType;
@@ -25,5 +25,25 @@ describe("scanRangeWidthsPercent", () => {
 
   it("shares it out evenly rather than dividing by zero", () => {
     expect(scanRangeWidthsPercent([range(500, 500), range(500, 500)])).toEqual([50, 50]);
+  });
+});
+
+describe("scanRangeState", () => {
+  it.each([
+    [SyncStatusScanRangePriorityEnum.Scanned, "scanned"],
+    [SyncStatusScanRangePriorityEnum.ScannedWithoutMapping, "pending"],
+    [SyncStatusScanRangePriorityEnum.Scanning, "scanning"],
+    [SyncStatusScanRangePriorityEnum.RefetchingNullifiers, "refetching"],
+    [SyncStatusScanRangePriorityEnum.Verify, "high"],
+    [SyncStatusScanRangePriorityEnum.ChainTip, "high"],
+    [SyncStatusScanRangePriorityEnum.FoundNote, "high"],
+    [SyncStatusScanRangePriorityEnum.OpenAdjacent, "high"],
+    [SyncStatusScanRangePriorityEnum.Historic, "low"],
+  ])("shows %s as %s", (priority, state) => {
+    expect(scanRangeState(priority)).toBe(state);
+  });
+
+  it("shows a priority it does not know as still to scan", () => {
+    expect(scanRangeState("Unknown" as SyncStatusScanRangePriorityEnum)).toBe("low");
   });
 });

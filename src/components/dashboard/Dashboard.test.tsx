@@ -263,10 +263,11 @@ describe("Dashboard", () => {
     });
     expect(screen.getByText("Nonlinear Scanning Map")).toBeInTheDocument();
     expect(screen.getByText("Scanned")).toBeInTheDocument();
-    expect(screen.getByText("Scanning...")).toBeInTheDocument();
-    expect(screen.getByText("Refetching spends...")).toBeInTheDocument();
-    expect(screen.getByText("Low Priority")).toBeInTheDocument();
-    expect(screen.getByText("High Priority")).toBeInTheDocument();
+    expect(screen.getByText("Scanned (spends pending)")).toBeInTheDocument();
+    expect(screen.getByText("Scanning")).toBeInTheDocument();
+    expect(screen.getByText("Refetching spends")).toBeInTheDocument();
+    expect(screen.getByText("Low priority")).toBeInTheDocument();
+    expect(screen.getByText("High priority")).toBeInTheDocument();
   });
 
   it("renders sync scan range bar with unknown priority (falls into red branch)", () => {
