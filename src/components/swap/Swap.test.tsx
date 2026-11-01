@@ -324,7 +324,7 @@ describe("Swap with an uppercase bech32 address", () => {
 
 // One sentence when nothing routes, with each provider's reason a press away.
 describe("Swap with no route", () => {
-  it("keeps the providers' reasons behind Provider details", async () => {
+  it("keeps the providers' reasons behind Why no routes?", async () => {
     const quote = jest.fn(async () => ({
       routes: [],
       unavailable: [
@@ -359,11 +359,13 @@ describe("Swap with no route", () => {
       });
 
       expect(screen.getByTestId("swap-quote-error").textContent).toBe("No route is available for this swap right now.");
-      expect(screen.queryByText(/NEAR: No quote/)).not.toBeInTheDocument();
+      expect(screen.queryByText("No quotes returned")).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole("button", { name: "Provider details" }));
-      expect(screen.getByText("NEAR: No quote for this swap right now.")).toBeInTheDocument();
-      expect(screen.getByText("Flashnet: Not available for this swap right now.")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Why no routes?" }));
+      expect(screen.getByText("No quotes returned")).toBeInTheDocument();
+      expect(screen.getByText("NEAR")).toBeInTheDocument();
+      expect(screen.getByText("No quote for this swap right now.")).toBeInTheDocument();
+      expect(screen.getByText("Not available for this swap right now.")).toBeInTheDocument();
     } finally {
       jest.useRealTimers();
     }
