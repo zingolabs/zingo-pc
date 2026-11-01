@@ -2,7 +2,7 @@ import { BlockExplorerEnum, ServerChainNameEnum } from "../components/appstate";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { SwapStatusEnum } from "./enums/SwapStatusEnum";
-import { buildChainExplorerUrl, buildTrackerEntries } from "./explorerUrls";
+import { buildChainAddressUrl, buildChainExplorerUrl, buildTrackerEntries } from "./explorerUrls";
 import { hashRowsForRecord } from "./hashRowsForRecord";
 import { applyDefaultTrackUpdate } from "./providers/trackUpdateBase";
 import {
@@ -120,6 +120,18 @@ describe("buildChainExplorerUrl", () => {
 
   it("gives nothing for a chain it does not know", () => {
     expect(buildChainExplorerUrl({ chain: "NOPE", hash: "h", ...explorer })).toBeNull();
+  });
+});
+
+describe("buildChainAddressUrl", () => {
+  it("opens the address page of a chain's explorer", () => {
+    expect(buildChainAddressUrl("btc", "bc1qdeposit")).toBe("https://mempool.space/address/bc1qdeposit");
+    expect(buildChainAddressUrl("SOL", "SoLdeposit")).toBe("https://solscan.io/account/SoLdeposit");
+  });
+
+  it("has none for Zcash or a chain it does not know", () => {
+    expect(buildChainAddressUrl("ZEC", "t1deposit")).toBeNull();
+    expect(buildChainAddressUrl("UNKNOWN", "x")).toBeNull();
   });
 });
 

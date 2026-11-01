@@ -64,6 +64,35 @@ export function buildChainExplorerUrl(args: {
 }
 
 /**
+ * Per-chain address pages, for a deposit address no deposit was ever seen at.
+ * Only where the explorer shows an address's history. ZEC is left out: the
+ * wallet's explorers key on transactions.
+ */
+const CHAIN_EXPLORER_ADDRESS_URL: Record<string, (address: string) => string> = {
+  ETH: (a) => `https://etherscan.io/address/${a}`,
+  AVAX: (a) => `https://snowtrace.io/address/${a}`,
+  BSC: (a) => `https://bscscan.com/address/${a}`,
+  BASE: (a) => `https://basescan.org/address/${a}`,
+  ARB: (a) => `https://arbiscan.io/address/${a}`,
+  OP: (a) => `https://optimistic.etherscan.io/address/${a}`,
+  MATIC: (a) => `https://polygonscan.com/address/${a}`,
+  POL: (a) => `https://polygonscan.com/address/${a}`,
+  BTC: (a) => `https://mempool.space/address/${a}`,
+  BCH: (a) => `https://blockchair.com/bitcoin-cash/address/${a}`,
+  LTC: (a) => `https://blockchair.com/litecoin/address/${a}`,
+  DOGE: (a) => `https://blockchair.com/dogecoin/address/${a}`,
+  DASH: (a) => `https://blockchair.com/dash/address/${a}`,
+  NEAR: (a) => `https://nearblocks.io/address/${a}`,
+  SOL: (a) => `https://solscan.io/account/${a}`,
+};
+
+/** An address page on a chain's explorer, or null where there is none. */
+export function buildChainAddressUrl(chain: string, address: string): string | null {
+  const builder = CHAIN_EXPLORER_ADDRESS_URL[chain.toUpperCase()];
+  return builder ? builder(address) : null;
+}
+
+/**
  * The provider's own explorer for the swap's inbound hash, which shows more
  * than a block explorer does: each streaming step, the outbound, a refund.
  * Null when the provider has none, or keys on something other than a tx hash.

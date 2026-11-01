@@ -62,6 +62,7 @@ export { describeRealizedSlippage, describeSlippageTolerance } from "./slippageR
 export { convertFeeToAsset, formatFeeAmount, assetShortLabel } from "./feeConversion";
 export type { FeeConversionType } from "./feeConversion";
 export {
+  buildChainAddressUrl,
   buildChainExplorerUrl,
   buildProviderExplorerUrl,
   buildSwapKitTrackerUrl,
