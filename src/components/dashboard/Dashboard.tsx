@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
 import styles from "./Dashboard.module.css";
-import { scanRangeWidthsPercent } from "./scanMap";
+import { SCAN_LEGEND, SCAN_STATE_COLOR, scanRangeState, scanRangeWidthsPercent } from "./scanMap";
 import cstyles from "../common/Common.module.css";
 import Utils from "../../utils/utils";
 import { BalanceBlockHighlight, BalanceBlock } from "../balanceBlock";
@@ -9,13 +9,7 @@ import routes from "../../constants/routes.json";
 import { ironwoodReady } from "../../constants/ironwood";
 import RPC from "../../rpc/rpc";
 
-import {
-  SyncStatusScanRangePriorityEnum,
-  SyncStatusScanRangeType,
-  TotalBalanceClass,
-  ValueTransferClass,
-  ValueTransferKindEnum,
-} from "../appstate";
+import { SyncStatusScanRangeType, TotalBalanceClass, ValueTransferClass, ValueTransferKindEnum } from "../appstate";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
 import { usePaneOffset } from "../scrollPane/usePaneOffset";
 import { useValueTransfersWithSwaps } from "../../context/ContextSwapService";
@@ -415,26 +409,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
                   style={{
                     height: 25,
                     width: `${percent}%`,
-                    backgroundColor:
-                      range.priority === SyncStatusScanRangePriorityEnum.Scanning
-                        ? "orange" /* Scanning */
-                        : range.priority === SyncStatusScanRangePriorityEnum.RefetchingNullifiers
-                          ? "darkorange" /* Refetching spends  */
-                          : range.priority === SyncStatusScanRangePriorityEnum.Scanned
-                            ? "green" /* Scanned  */
-                            : range.priority === SyncStatusScanRangePriorityEnum.ScannedWithoutMapping
-                              ? "green" /* Scanned  */
-                              : range.priority === SyncStatusScanRangePriorityEnum.Historic
-                                ? "gray" /* Low priority */
-                                : range.priority === SyncStatusScanRangePriorityEnum.OpenAdjacent
-                                  ? "blue" /* High priority */
-                                  : range.priority === SyncStatusScanRangePriorityEnum.FoundNote
-                                    ? "blue" /* High priority */
-                                    : range.priority === SyncStatusScanRangePriorityEnum.ChainTip
-                                      ? "blue" /* High priority */
-                                      : range.priority === SyncStatusScanRangePriorityEnum.Verify
-                                        ? "blue" /* High priority */
-                                        : "red" /* error somehow */,
+                    backgroundColor: SCAN_STATE_COLOR[scanRangeState(range.priority)],
                   }}
                 />
               );
@@ -445,116 +420,18 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
             style={{
               display: "flex",
               width: "100%",
+              flexWrap: "wrap",
               justifyContent: "flex-start",
               alignItems: "flex-start",
               marginTop: 5,
             }}
           >
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                flexWrap: "nowrap",
-                marginRight: 10,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  width: 10,
-                  height: 10,
-                  justifyContent: "flex-start",
-                  backgroundColor: "green",
-                  margin: 5,
-                }}
-              />
-              Scanned
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                flexWrap: "nowrap",
-                marginRight: 10,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  width: 10,
-                  height: 10,
-                  justifyContent: "flex-start",
-                  backgroundColor: "orange",
-                  margin: 5,
-                }}
-              />
-              Scanning...
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                flexWrap: "nowrap",
-                marginRight: 10,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  width: 10,
-                  height: 10,
-                  justifyContent: "flex-start",
-                  backgroundColor: "darkorange",
-                  margin: 5,
-                }}
-              />
-              Refetching spends...
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                flexWrap: "nowrap",
-                marginRight: 10,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  width: 10,
-                  height: 10,
-                  justifyContent: "flex-start",
-                  backgroundColor: "gray",
-                  margin: 5,
-                }}
-              />
-              Low Priority
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "row",
-                flexWrap: "nowrap",
-                marginRight: 10,
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  width: 10,
-                  height: 10,
-                  justifyContent: "flex-start",
-                  backgroundColor: "blue",
-                  margin: 5,
-                }}
-              />
-              High Priority
-            </div>
+            {SCAN_LEGEND.map(({ state, label }) => (
+              <div key={state} style={{ display: "flex", flexDirection: "row", flexWrap: "nowrap", marginRight: 10 }}>
+                <div style={{ width: 10, height: 10, backgroundColor: SCAN_STATE_COLOR[state], margin: 5 }} />
+                {label}
+              </div>
+            ))}
 
             {/* Pushed to the far end of the legend rather than given a row of
                 its own: it reads as the map's summary, and the colour is the
