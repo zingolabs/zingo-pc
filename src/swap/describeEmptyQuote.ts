@@ -1,6 +1,4 @@
 import type { QuoteResponseType } from "./types/QuoteResponseType";
-import type { UnavailableProviderType } from "./unavailableProviders";
-import { providerShortLabel } from "./providerLabels";
 import { formatMinimumAmount } from "./formatAmountForDisplay";
 
 /**
@@ -16,32 +14,19 @@ import { formatMinimumAmount } from "./formatAmountForDisplay";
  * The largest minimum is the one quoted: a smaller one belongs to a provider
  * that would still refuse, so it would be an amount that does not fix
  * anything. When the providers disagree on why, or say nothing useful, this
- * falls back to the generic sentence rather than inventing a cause.
- *
- * Otherwise the sentence is followed by each provider's own reason, one line
- * each, from `unavailable`. A bare "no route" had users changing amounts
- * that were never the problem, or giving up on a pair one network away from
- * working: NEAR's temporary $1,000 minimum on BSC and a Flashnet that cannot
- * price the pair this minute read identically to it.
+ * falls back to the generic sentence rather than inventing a cause. Each
+ * provider's own reason is for the screen to offer below it.
  */
-export function describeEmptyQuote(
-  response: QuoteResponseType,
-  sellAssetTicker: string | undefined,
-  unavailable: readonly UnavailableProviderType[] = [],
-): string {
+export function describeEmptyQuote(response: QuoteResponseType, sellAssetTicker: string | undefined): string {
   // The catalog ships entries without a ticker, so the caller cannot promise
   // one. Naming no unit beats naming the wrong one.
   const unit = sellAssetTicker ? ` ${sellAssetTicker}` : "";
   const generic = "No route is available for this swap right now.";
-  const withReasons =
-    unavailable.length > 0
-      ? [generic, ...unavailable.map((row) => `${providerShortLabel(row.provider)}: ${row.reason}`)].join("\n")
-      : generic;
   const errors = response.providerErrors ?? [];
-  if (errors.length === 0) return withReasons;
+  if (errors.length === 0) return generic;
 
   const tooSmall = errors.filter((e) => e.errorCode === "sellAssetAmountTooSmall");
-  if (tooSmall.length !== errors.length) return withReasons;
+  if (tooSmall.length !== errors.length) return generic;
 
   const minimums = tooSmall
     .map((e) => Number(e.minAmount))

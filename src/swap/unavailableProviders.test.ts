@@ -33,7 +33,7 @@ describe("unavailableProviders", () => {
 
     expect(result).toEqual([
       { provider: SwapKitProviderEnum.MayachainStreaming, reason: "Needs at least 0.42 ZEC." },
-      { provider: SwapKitProviderEnum.Flashnet, reason: "Does not trade this pair." },
+      { provider: SwapKitProviderEnum.Flashnet, reason: "No quote for this swap right now." },
     ]);
   });
 

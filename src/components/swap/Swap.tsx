@@ -60,6 +60,7 @@ import ContactPicker from "../common/ContactPicker";
 import SaveContact from "../common/SaveContact";
 import ScanQrModal from "../common/ScanQrModal";
 import AmountCurrencyToggle from "../common/AmountCurrencyToggle";
+import AdvancedSection from "../common/AdvancedSection";
 import { useUsdAmount } from "../common/useUsdAmount";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -631,11 +632,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
       // gone. SwapKit says which in `providerErrors`, so quote the minimum
       // when that is the reason — "no route" sends the user hunting for a
       // fault when all they need is a slightly larger amount.
-      setQuoteError(
-        routesNow.length === 0
-          ? describeEmptyQuote(result.rawResponse, quoteInput.sellAsset.ticker, result.unavailable)
-          : "",
-      );
+      setQuoteError(routesNow.length === 0 ? describeEmptyQuote(result.rawResponse, quoteInput.sellAsset.ticker) : "");
       // An empty answer counts as a failed attempt: asking the same question
       // again a second later gets the same answer, and the amount is the thing
       // the user has to change.
@@ -1163,6 +1160,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
             >
               {quoting ? "Quoting..." : "Try Again"}
             </button>
+            {/* Folded because one sentence is what most people need, while a
+                larger amount or another network can still hang on a provider's
+                own reason. */}
+            {!rateLimited && unavailable.length > 0 && (
+              <AdvancedSection label="Provider details">
+                {unavailable.map((row) => (
+                  <div key={row.provider} className={`${cstyles.small} ${cstyles.sublight}`}>
+                    {providerShortLabel(row.provider)}: {row.reason}
+                  </div>
+                ))}
+              </AdvancedSection>
+            )}
           </div>
         )}
 

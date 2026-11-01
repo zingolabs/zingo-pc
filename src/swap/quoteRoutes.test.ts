@@ -407,8 +407,8 @@ describe("providers that returned nothing", () => {
     expect(routes.map((r) => r.provider)).toEqual([SwapKitProviderEnum.Near]);
     expect(unavailable).toEqual([
       { provider: SwapKitProviderEnum.MayachainStreaming, reason: "Needs at least 0.42 ZEC." },
-      { provider: SwapKitProviderEnum.ThorchainStreaming, reason: "Does not trade this pair." },
-      { provider: SwapKitProviderEnum.Flashnet, reason: "Does not trade this pair." },
+      { provider: SwapKitProviderEnum.ThorchainStreaming, reason: "No quote for this swap right now." },
+      { provider: SwapKitProviderEnum.Flashnet, reason: "No quote for this swap right now." },
     ]);
   });
 
