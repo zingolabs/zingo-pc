@@ -65,10 +65,10 @@ a user reads off a green mixnet indicator, and a swap sends more to SwapKit
 than a send sends to an indexer.
 
 The Swap screen closes that gap directly rather than leaving the reader to
-infer it, in the words the decision above settled on: swaps reach the provider
-directly, and quoting or tracking one shows the provider an IP address
-alongside the assets, the amount, and the addresses. Stated as what the
-provider sees, since that is the fact, and the remedy is the user's to choose.
+infer it, in the words the decision above settled on: swaps reach SwapKit and
+the provider directly, and quoting or tracking one shows them an IP address
+alongside the assets, the amount, and the addresses. Stated as what they see,
+since that is the fact, and the remedy is the user's to choose.
 
 ## The precedent
 

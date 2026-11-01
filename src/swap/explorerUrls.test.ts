@@ -2,7 +2,7 @@ import { BlockExplorerEnum, ServerChainNameEnum } from "../components/appstate";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { SwapStatusEnum } from "./enums/SwapStatusEnum";
-import { buildChainExplorerUrl, buildTrackerEntries } from "./explorerUrls";
+import { buildChainAddressUrl, buildChainExplorerUrl, buildTrackerEntries } from "./explorerUrls";
 import { hashRowsForRecord } from "./hashRowsForRecord";
 import { applyDefaultTrackUpdate } from "./providers/trackUpdateBase";
 import {
@@ -123,6 +123,18 @@ describe("buildChainExplorerUrl", () => {
   });
 });
 
+describe("buildChainAddressUrl", () => {
+  it("opens the address page of a chain's explorer", () => {
+    expect(buildChainAddressUrl("btc", "bc1qdeposit")).toBe("https://mempool.space/address/bc1qdeposit");
+    expect(buildChainAddressUrl("SOL", "SoLdeposit")).toBe("https://solscan.io/account/SoLdeposit");
+  });
+
+  it("has none for Zcash or a chain it does not know", () => {
+    expect(buildChainAddressUrl("ZEC", "t1deposit")).toBeNull();
+    expect(buildChainAddressUrl("UNKNOWN", "x")).toBeNull();
+  });
+});
+
 describe("buildTrackerEntries", () => {
   // The real response, end to end: what the poller stores from it and what
   // the detail screen then links. NEAR Intents routes through a call on
@@ -182,6 +194,7 @@ describe("buildTrackerEntries", () => {
 
     expect(onZcash).toEqual({
       swapkit: false,
+      provider: false,
       "source-explorer": true,
       "leg-0": false,
       "dest-explorer": false,
@@ -213,5 +226,26 @@ describe("buildTrackerEntries", () => {
       url: "https://solscan.io/tx/5solanasignature",
       onZcash: false,
     });
+  });
+
+  const providerUrl = (overrides: Partial<SwapRecordType>) =>
+    buildTrackerEntries({ record: record(overrides), ...explorer }).find((e) => e.key === "provider")?.url;
+
+  it("opens a NEAR swap by its deposit address, with no deposit seen yet", () => {
+    expect(providerUrl({})).toBe("https://explorer.near-intents.org/transactions/t1deposit");
+  });
+
+  it("opens Maya and THORChain swaps on their explorers, by the deposit hash", () => {
+    const hash = "aa11".repeat(16);
+    expect(providerUrl({ provider: SwapKitProviderEnum.MayachainStreaming, observedDepositTxHash: hash })).toBe(
+      `https://explorer.mayachain.info/tx/${hash}`,
+    );
+    expect(providerUrl({ provider: SwapKitProviderEnum.ThorchainStreaming, observedDepositTxHash: hash })).toBe(
+      `https://viewblock.io/thorchain/tx/${hash}`,
+    );
+  });
+
+  it("prefers the page the provider itself sent", () => {
+    expect(providerUrl({ providerExplorerUrl: "https://example.test/order/1" })).toBe("https://example.test/order/1");
   });
 });

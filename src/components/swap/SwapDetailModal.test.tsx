@@ -273,6 +273,41 @@ describe("SwapDetailModal trackers", () => {
   });
 });
 
+describe("SwapDetailModal deposit address link", () => {
+  const BTC: SwapAssetType = {
+    ...ZEC,
+    swapKitId: "BTC.BTC",
+    chain: "BTC",
+    symbol: "BTC",
+    ticker: "BTC",
+    chainId: "bitcoin",
+  };
+  const unpaid = { sellAsset: BTC, receiveAsset: ZEC, depositAddress: "bc1qdeposit" };
+  const viewAddress = () => screen.queryByRole("button", { name: /View address/ });
+
+  it("opens the address when an ended swap never saw a deposit", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { shell } = require("../../electronBridge");
+    renderDetail({ ...unpaid, status: SwapStatusEnum.Expired });
+    openAdvanced();
+
+    fireEvent.click(viewAddress() as HTMLElement);
+    expect(shell.openExternal).toHaveBeenCalledWith("https://mempool.space/address/bc1qdeposit");
+  });
+
+  it("gives way to the transaction once a deposit was seen", () => {
+    renderDetail({ ...unpaid, status: SwapStatusEnum.Failed, observedDepositTxHash: "aa11".repeat(16) });
+    openAdvanced();
+    expect(viewAddress()).not.toBeInTheDocument();
+  });
+
+  it("has nothing to offer on Zcash", () => {
+    renderDetail({ status: SwapStatusEnum.Expired });
+    openAdvanced();
+    expect(viewAddress()).not.toBeInTheDocument();
+  });
+});
+
 describe("SwapDetailModal advanced half", () => {
   // A swap that went through leaves a page of ids, addresses and hashes. The
   // person who made it came to see that it went through.

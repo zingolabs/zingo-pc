@@ -61,6 +61,7 @@ import SaveContact from "../common/SaveContact";
 import ScanQrModal from "../common/ScanQrModal";
 import AmountCurrencyToggle from "../common/AmountCurrencyToggle";
 import AdvancedSection from "../common/AdvancedSection";
+import SwapKitLogo from "./SwapKitLogo";
 import { useUsdAmount } from "../common/useUsdAmount";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -1098,9 +1099,18 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                 quote rather than after. Phrased as what the provider sees,
                 since that is the fact; the remedy is the user's to choose. */}
             <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ flex: 1 }}>
-              Swaps reach the provider directly, not through the mixnet. Quoting and tracking a swap shows the provider
-              your IP address alongside the assets, the amount, and the addresses involved.
+              Swaps reach SwapKit and the provider directly, not through the mixnet. Quoting and tracking a swap shows
+              them your IP address alongside the assets, the amount, and the addresses involved.
             </div>
+          </div>
+
+          <div
+            className={`${cstyles.small} ${cstyles.padtopsmall}`}
+            style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          >
+            <span className={cstyles.sublight}>Powered by</span>
+            <SwapKitLogo />
+            <span style={{ fontWeight: 600 }}>SwapKit</span>
           </div>
 
           {/* No button to ask for a quote: it arrives on its own once there is

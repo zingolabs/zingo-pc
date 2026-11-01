@@ -14,6 +14,7 @@ import { useSwapService } from "../../context/ContextSwapService";
 import { ipcRenderer, native, shell } from "../../electronBridge";
 import {
   SwapDirectionEnum,
+  buildChainAddressUrl,
   buildChainExplorerUrl,
   buildTrackerEntries,
   canRemoveSwap,
@@ -226,6 +227,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   // the vault is still to go. Paying the slip from elsewhere would pay twice.
   const deshieldTxId = isOutbound ? recordDeshieldTxId(record) : undefined;
   const awaitingDeposit = !isTerminalStatus(record.status) && !hasDepositEvidence && !deshieldTxId;
+  const depositAddressUrl = buildChainAddressUrl(record.sellAsset.chain, record.depositAddress);
   const halfPaid = !isTerminalStatus(record.status) && !!deshieldTxId;
   const opReturnTxId = record.broadcast?.opReturnTxId;
   // Finishable when the OP_RETURN transaction was built, which the wallet
@@ -604,7 +606,22 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               address, and two copies of one address invite the reader to
               wonder which is the real one. */}
             {!!record.depositAddress && !awaitingDeposit && (
-              <CopyField label="Deposit address" value={record.depositAddress} />
+              <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <CopyField label="Deposit address" value={record.depositAddress} />
+                {/* With no deposit seen there is no transaction to link, and the
+                    address's page is what can still show whether one arrived. */}
+                {!hasDepositEvidence && !!depositAddressUrl && (
+                  <button
+                    type="button"
+                    className={cstyles.primarybutton}
+                    style={{ marginRight: 0 }}
+                    onClick={() => shell.openExternal(depositAddressUrl)}
+                  >
+                    View address &nbsp;
+                    <FontAwesomeIcon icon={faExternalLinkAlt} />
+                  </button>
+                )}
+              </div>
             )}
 
             {uniqueHashRows.length > 0 && (
