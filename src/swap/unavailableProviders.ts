@@ -97,13 +97,13 @@ const KNOWN_REFUSALS: Readonly<Record<string, string>> = {
 /**
  * One provider's refusal, in the user's terms.
  *
- * A missing entry is its own answer: SwapKit considered the pair and returned
- * neither a route nor a complaint, which means this provider does not trade
- * it. Saying so is honest; inventing a cause for it would not be.
+ * A missing entry is SwapKit returning neither a route nor a complaint. That
+ * says nothing about whether the provider trades the pair: Maya and NEAR went
+ * silent on a BTC -> ZEC for 500 BTC. So the line claims only the missing quote.
  */
 function describeRefusal(error: QuoteProviderErrorType | undefined, sellAssetTicker?: string): string {
   const unit = sellAssetTicker ? ` ${sellAssetTicker}` : "";
-  if (!error) return "Does not trade this pair.";
+  if (!error) return "No quote for this swap right now.";
 
   const code = normaliseCode(error.errorCode) || normaliseCode(error.message);
 

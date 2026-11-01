@@ -322,6 +322,54 @@ describe("Swap with an uppercase bech32 address", () => {
   });
 });
 
+// One sentence when nothing routes, with each provider's reason a press away.
+describe("Swap with no route", () => {
+  it("keeps the providers' reasons behind Provider details", async () => {
+    const quote = jest.fn(async () => ({
+      routes: [],
+      unavailable: [
+        { provider: "NEAR", reason: "No quote for this swap right now." },
+        { provider: "FLASHNET", reason: "Not available for this swap right now." },
+      ],
+      rawResponse: { routes: [] },
+    }));
+    mockService = { usdPrice: async () => null, listRoutableTokens: jest.fn(async () => CATALOG), quote };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { native } = require("../../electronBridge");
+    native.derive_refund_address = jest.fn(async () => JSON.stringify({ encoded_address: "t1ephemeral" }));
+
+    jest.useFakeTimers();
+    try {
+      render(
+        <Arriving
+          spendable={0}
+          handoff={{
+            address: "bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq",
+            swapChain: "BTC",
+            direction: SwapDirectionEnum.Inbound,
+          }}
+        />,
+      );
+      await act(async () => {
+        jest.advanceTimersByTime(100);
+      });
+      fireEvent.change(screen.getByRole("textbox", { name: "Amount" }), { target: { value: "500" } });
+      await act(async () => {
+        jest.advanceTimersByTime(1_100);
+      });
+
+      expect(screen.getByTestId("swap-quote-error").textContent).toBe("No route is available for this swap right now.");
+      expect(screen.queryByText(/NEAR: No quote/)).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Provider details" }));
+      expect(screen.getByText("NEAR: No quote for this swap right now.")).toBeInTheDocument();
+      expect(screen.getByText("Flashnet: Not available for this swap right now.")).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
 // Almost any lowercase string is a valid NEAR name, so one that could be
 // another chain's address is confirmed before the swap is reviewed.
 describe("Swap to a NEAR name that could be something else", () => {
