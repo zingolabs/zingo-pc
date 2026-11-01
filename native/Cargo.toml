@@ -251,9 +251,16 @@ crate-type = ["cdylib"]
 # the migration schedule follows ZIP 318's NU7 block spacing (#3074), so
 # window heights come from the grid; the mempool stream opens without a call
 # deadline (#3047).
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "23fa4923d24d534fa953a91532ac317235b19216", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "23fa4923d24d534fa953a91532ac317235b19216" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "23fa4923d24d534fa953a91532ac317235b19216" }
+#
+# This bump (23fa4923 -> 81d79977) is the zingolib 8.0.0 release, on the same
+# librustzcash cohort. A session now has one indexer: every send and migration
+# part goes to it, and the mixnet attach proves itself against it rather than
+# against `zec.rocks`, so a server that cannot be reached through the mixnet
+# now fails the attach (zingo-adrs zingolib/0063). Note selection stays in the
+# pools it was asked for, and the reorg allowance goes from 100 to 1000 blocks.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "81d799775f11e882896e8710e8af12d6d4d29a41", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "81d799775f11e882896e8710e8af12d6d4d29a41" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "81d799775f11e882896e8710e8af12d6d4d29a41" }
 # The txid list zingolib's transmit_calculated takes; the version zingolib uses.
 nonempty = "0.11.0"
 
