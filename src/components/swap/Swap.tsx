@@ -60,7 +60,6 @@ import ContactPicker from "../common/ContactPicker";
 import SaveContact from "../common/SaveContact";
 import ScanQrModal from "../common/ScanQrModal";
 import AmountCurrencyToggle from "../common/AmountCurrencyToggle";
-import AdvancedSection from "../common/AdvancedSection";
 import SwapKitLogo from "./SwapKitLogo";
 import { useUsdAmount } from "../common/useUsdAmount";
 import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
@@ -1157,31 +1156,25 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                 It takes the ring's cooldown too. The reason for that limit is
                 the same here and stronger: the failures worth retrying are the
                 ones where the far end is already struggling. */}
-            <button
-              type="button"
-              className={cstyles.primarybutton}
-              style={{ marginTop: 12 }}
-              disabled={quoting || reviewing || rateLimited || nowMs < manualRefreshCooldownUntilMs}
-              onClick={() => {
-                setManualRefreshCooldownUntilMs(Date.now() + MANUAL_REFRESH_COOLDOWN_MS);
-                setQuoteAttemptFailed(false);
-                requestQuote();
-              }}
-            >
-              {quoting ? "Quoting..." : "Try Again"}
-            </button>
-            {/* Folded because one sentence is what most people need, while a
-                larger amount or another network can still hang on a provider's
-                own reason. */}
-            {!rateLimited && unavailable.length > 0 && (
-              <AdvancedSection label="Provider details">
-                {unavailable.map((row) => (
-                  <div key={row.provider} className={`${cstyles.small} ${cstyles.sublight}`}>
-                    {providerShortLabel(row.provider)}: {row.reason}
-                  </div>
-                ))}
-              </AdvancedSection>
-            )}
+            <div className={cstyles.horizontalflex} style={{ justifyContent: "center", marginTop: 12 }}>
+              {!rateLimited && unavailable.length > 0 && (
+                <button type="button" className={cstyles.primarybutton} onClick={() => setQuotesOpen(true)}>
+                  Why no routes?
+                </button>
+              )}
+              <button
+                type="button"
+                className={cstyles.primarybutton}
+                disabled={quoting || reviewing || rateLimited || nowMs < manualRefreshCooldownUntilMs}
+                onClick={() => {
+                  setManualRefreshCooldownUntilMs(Date.now() + MANUAL_REFRESH_COOLDOWN_MS);
+                  setQuoteAttemptFailed(false);
+                  requestQuote();
+                }}
+              >
+                {quoting ? "Quoting..." : "Try Again"}
+              </button>
+            </div>
           </div>
         )}
 
@@ -1442,9 +1435,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
         />
       )}
 
-      {quotesOpen && !!routes?.length && (
+      {quotesOpen && (!!routes?.length || unavailable.length > 0) && (
         <QuotesPicker
-          routes={routes}
+          routes={routes ?? []}
           unavailable={unavailable}
           selectedRouteId={chosenRouteId}
           receiveSymbol={isOutbound ? (selectedToken?.ticker ?? "") : "ZEC"}

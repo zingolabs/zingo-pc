@@ -72,7 +72,9 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
       overlayClassName={cstyles.modalOverlay}
     >
       <div className={cstyles.verticalflex} style={{ height: "100%" }}>
-        <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>Quotes returned</div>
+        <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>
+          {routes.length > 0 ? "Quotes returned" : "No quotes returned"}
+        </div>
 
         <div style={{ overflowY: "auto", overflowX: "hidden", flexGrow: 1, marginTop: 12 }}>
           {routes.map((route) => {
@@ -166,7 +168,7 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
               {/* Below the routes, and after a rule, because these are not
                   choices. Mixed in among the selectable ones they would read
                   as options that happen to be dimmed. */}
-              <hr style={{ width: "100%" }} />
+              {routes.length > 0 && <hr style={{ width: "100%" }} />}
               {unavailable.map((entry) => (
                 <div
                   key={entry.provider}

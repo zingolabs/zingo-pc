@@ -107,6 +107,26 @@ describe("QuotesPicker", () => {
     expect(screen.getByText("vault")).toBeInTheDocument();
   });
 
+  it("lists every provider's reason, none selectable, when no route came back", () => {
+    render(
+      <QuotesPicker
+        routes={[]}
+        unavailable={[{ provider: SwapKitProviderEnum.Near, reason: "No quote for this swap right now." }]}
+        selectedRouteId=""
+        receiveSymbol="ZEC"
+        sellSymbol="BTC"
+        direction={SwapDirectionEnum.Inbound}
+        modalIsOpen
+        closeModal={jest.fn()}
+        onSelect={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText("No quotes returned")).toBeInTheDocument();
+    expect(screen.getByText("No quote for this swap right now.")).toBeInTheDocument();
+    expect(screen.getAllByRole("button").map((button) => button.textContent)).toEqual(["Cancel"]);
+  });
+
   it("still lists the routes", () => {
     show("0.05 ZEC");
     expect(screen.getByText(/0\.00011/)).toBeInTheDocument();
