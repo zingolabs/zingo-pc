@@ -225,7 +225,8 @@ function passiveVerdict(state: DoctorState): DoctorVerdict {
     };
   }
   const losses = recentLosses(state);
-  if (losses >= FLAPPING_LOSSES) {
+  // Connected is the answer while connected, however it got here.
+  if (losses >= FLAPPING_LOSSES && state.status.mode !== "ready") {
     return {
       tone: "bad",
       headline: "The mixnet keeps disconnecting",
@@ -234,7 +235,14 @@ function passiveVerdict(state: DoctorState): DoctorVerdict {
   }
   switch (state.status.mode) {
     case "ready":
-      return { tone: "ok", headline: "Connected", detail: "Your sends travel over the Nym mixnet." };
+      return {
+        tone: "ok",
+        headline: "Connected",
+        detail:
+          losses > 0
+            ? `Your sends travel over the Nym mixnet. It disconnected ${losses} ${losses === 1 ? "time" : "times"} in the last 10 minutes.`
+            : "Your sends travel over the Nym mixnet.",
+      };
     case "bootstrapping":
       return state.retrying
         ? { tone: "warn", headline: "Can't reach the mixnet yet", detail: `Still trying. ${WHERE_IT_BREAKS}` }

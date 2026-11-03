@@ -128,6 +128,15 @@ describe("diagnose, before anything is measured", () => {
     expect(verdict.detail).toContain("Lost 3 times");
   });
 
+  // The losses are history by then, and the screen must not read as still broken.
+  it("says connected once it is, whatever it lost on the way", () => {
+    const lossTimes = [NOW - 60_000, NOW - 120_000, NOW - 180_000];
+    const verdict = diagnose(state({ stats: { ...state().stats, lossTimes } }), null);
+    expect(verdict.tone).toBe("ok");
+    expect(verdict.headline).toBe("Connected");
+    expect(verdict.detail).toContain("disconnected 3 times");
+  });
+
   it("does not count losses from before the window", () => {
     const lossTimes = [NOW - 3_600_000, NOW - 3_500_000, NOW - 3_400_000];
     expect(diagnose(state({ stats: { ...state().stats, lossTimes } }), null).tone).toBe("ok");

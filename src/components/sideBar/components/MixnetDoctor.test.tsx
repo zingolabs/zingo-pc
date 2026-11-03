@@ -170,6 +170,27 @@ test("a server the mixnet cannot reach offers choosing another", async () => {
   expect(screen.getByRole("button", { name: "Choose server" })).toBeInTheDocument();
 });
 
+// The report that started this: a run's failure stayed on screen after the mixnet
+// connected, with the sidebar behind it already saying otherwise.
+test("drops a failed run's verdict once the transport has moved on, keeping it for the details", async () => {
+  const lost: DoctorState = { ...state, status: { mode: "died" } };
+  getState.mockResolvedValue(lost);
+  runDoctor.mockResolvedValue({ ...run, tunnelServer: tunnelFailed, tunnelControl: tunnelFailed });
+  show();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Run diagnostics" }));
+  expect(await screen.findByText("The mixnet isn't carrying data")).toBeInTheDocument();
+
+  getState.mockResolvedValue(state);
+
+  expect(await screen.findByText("Connected", {}, { timeout: 3000 })).toBeInTheDocument();
+  expect(screen.queryByText("The mixnet isn't carrying data")).toBeNull();
+  expect(screen.queryByText("Nym network")).toBeNull();
+
+  fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
+  expect(screen.getByText(/872 exits/)).toBeInTheDocument();
+});
+
 test("keeps following the transport while it is open, and stops when it closes", async () => {
   jest.useFakeTimers();
   try {

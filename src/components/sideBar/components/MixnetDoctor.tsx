@@ -66,6 +66,8 @@ export type MixnetDoctorHandle = {
 export function useMixnetDoctor(): MixnetDoctorHandle {
   const [state, setState] = useState<DoctorState | null>(null);
   const [run, setRun] = useState<DoctorRun | null>(null);
+  // The transport's status when the run finished, which is what its answers are about.
+  const [runMode, setRunMode] = useState<string | null>(null);
   const [running, setRunning] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
   const mounted = useRef<boolean>(true);
@@ -74,8 +76,10 @@ export function useMixnetDoctor(): MixnetDoctorHandle {
     try {
       const next = await RPC.getMixnetDoctorState();
       if (mounted.current && next) setState(next);
+      return next;
     } catch {
       // The last reading stays up. A failed read is not news about the mixnet.
+      return null;
     }
   }, []);
 
@@ -99,7 +103,8 @@ export function useMixnetDoctor(): MixnetDoctorHandle {
     try {
       const finished = await RPC.runMixnetDoctor();
       if (mounted.current) setRun(finished);
-      await refresh();
+      const after = await refresh();
+      if (mounted.current) setRunMode(after?.status.mode ?? null);
     } finally {
       if (mounted.current) setRunning(false);
     }
@@ -111,13 +116,16 @@ export function useMixnetDoctor(): MixnetDoctorHandle {
     setCopied(true);
   };
 
-  const legs = run ?? (running ? (state?.doctorProgress ?? {}) : null);
+  // A run answers for the transport it measured. Once the status has moved on, the
+  // screen says what is true now, and the run stays only for the details and report.
+  const current = run && state?.status.mode === runMode ? run : null;
+  const legs = current ?? (running ? (state?.doctorProgress ?? {}) : null);
   return {
     state,
     run,
     running,
     copied,
-    verdict: state ? diagnose(state, run) : null,
+    verdict: state ? diagnose(state, current) : null,
     steps: state && legs ? doctorSteps(state, legs) : null,
     runDiagnostics,
     copyReport,
