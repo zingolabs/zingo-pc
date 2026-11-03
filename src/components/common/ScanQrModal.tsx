@@ -264,7 +264,7 @@ const ScanQrModal: React.FC<ScanQrModalProps> = ({ modalIsOpen, closeModal, onSc
         />
 
         <div className={cstyles.buttoncontainer}>
-          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          <button type="button" className={cstyles.secondarybutton} onClick={closeModal}>
             Cancel
           </button>
           {cameraOn ? (

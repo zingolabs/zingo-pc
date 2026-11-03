@@ -66,7 +66,7 @@ const FeesBreakdown: React.FC<FeesBreakdownProps> = ({ record, modalIsOpen, clos
         </div>
 
         <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
-          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          <button type="button" className={cstyles.secondarybutton} onClick={closeModal}>
             Cancel
           </button>
         </div>

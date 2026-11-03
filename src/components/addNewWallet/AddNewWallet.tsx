@@ -1287,7 +1287,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         </div>
 
         <div style={{ marginBottom: "10px" }} className={cstyles.buttoncontainer}>
-          <button type="button" className={cstyles.primarybutton} onClick={() => closeModal()}>
+          <button type="button" className={cstyles.secondarybutton} onClick={() => closeModal()}>
             Cancel
           </button>
           <button type="button" className={cstyles.primarybutton} onClick={async () => await submitAction()}>

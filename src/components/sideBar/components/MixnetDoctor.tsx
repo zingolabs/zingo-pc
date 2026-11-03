@@ -257,7 +257,7 @@ export const DoctorTechnicalDetails = ({
         <button type="button" className={cstyles.primarybutton} onClick={doctor.copyReport}>
           {doctor.copied ? "Copied" : "Copy report"}
         </button>
-        <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+        <button type="button" className={cstyles.secondarybutton} onClick={closeModal}>
           Close
         </button>
       </div>

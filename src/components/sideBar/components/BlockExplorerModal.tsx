@@ -170,7 +170,7 @@ const BlockExplorerModal = ({ modalIsOpen, closeModal, modalTitle }: BlockExplor
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
-        <button type="button" className={cstyles.primarybutton} onClick={handleCancel}>
+        <button type="button" className={cstyles.secondarybutton} onClick={handleCancel}>
           Cancel
         </button>
         <button type="button" className={cstyles.primarybutton} onClick={handleSave} disabled={saveDisabled}>

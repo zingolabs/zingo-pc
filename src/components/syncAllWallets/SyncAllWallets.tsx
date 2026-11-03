@@ -179,7 +179,7 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
               </button>
               {/* Named for what it cancels. A bare "Cancel" under a list reads
                 as a way out of the screen. */}
-              <button type="button" className={cstyles.primarybutton} disabled={run.cancelling} onClick={askToCancel}>
+              <button type="button" className={cstyles.secondarybutton} disabled={run.cancelling} onClick={askToCancel}>
                 {run.cancelling ? "Cancelling..." : "Cancel Syncing"}
               </button>
             </>
@@ -187,7 +187,7 @@ const SyncAllWallets: React.FC<SyncAllWalletsProps> = ({ onClose }) => {
           {run.phase === "done" && (
             <button
               type="button"
-              className={cstyles.primarybutton}
+              className={cstyles.secondarybutton}
               onClick={() => {
                 run.dismiss();
                 onClose();

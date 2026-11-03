@@ -127,6 +127,41 @@
   filter: none;
 }
 
+/*
+ * The way out of a screen, which changes nothing: Cancel, Close, Back. The same
+ * box as .primarybutton, so swapping one for the other moves nothing, and no fill,
+ * so it never reads as the thing the screen is asking for.
+ */
+.secondarybutton {
+  background-color: transparent;
+  color: var(--color-text);
+  text-align: center;
+  font-weight: bold;
+  font-size: 16px;
+  padding: 10px 20px;
+  border: 2px solid var(--color-text);
+  border-radius: 4px;
+  margin-left: 8px;
+  margin-right: 8px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.secondarybutton:hover {
+  background-color: rgba(218, 223, 225, 0.15);
+}
+
+.secondarybutton:active {
+  background-color: rgba(218, 223, 225, 0.25);
+}
+
+.secondarybutton:disabled,
+.secondarybutton[disabled] {
+  opacity: 0.5;
+  background-color: transparent;
+  cursor: not-allowed;
+}
+
 .marginnegativetitle {
   margin-top: -20px;
   margin-bottom: -20px;

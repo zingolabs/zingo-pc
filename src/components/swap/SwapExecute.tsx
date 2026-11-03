@@ -400,7 +400,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
             )}
             <button
               type="button"
-              className={cstyles.primarybutton}
+              className={cstyles.secondarybutton}
               disabled={committing}
               onClick={confirmingSent ? () => setConfirmingSent(false) : onDone}
             >
@@ -505,7 +505,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               {committing ? "Working..." : isOutbound ? "Swap and send deposit" : "Start the swap"}
             </button>
           )}
-          <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={onCancel}>
+          <button type="button" className={cstyles.secondarybutton} disabled={committing} onClick={onCancel}>
             {refused ? "Back to the routes" : "Cancel"}
           </button>
         </div>

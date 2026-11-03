@@ -534,7 +534,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
         <hr style={{ width: "100%" }} />
 
         <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>
-          <button type="button" className={cstyles.primarybutton} onClick={localCloseModal}>
+          <button type="button" className={cstyles.secondarybutton} onClick={localCloseModal}>
             Cancel
           </button>
         </div>

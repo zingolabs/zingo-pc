@@ -35,7 +35,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({ closeModal }) => {
       <div className={cstyles.verticalflex} style={{ justifyContent: "center", alignItems: "center" }}>
         <div className={cstyles.horizontalflex}>
           <div className={cstyles.buttoncontainer}>
-            <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+            <button type="button" className={cstyles.secondarybutton} onClick={closeModal}>
               Cancel
             </button>
           </div>
