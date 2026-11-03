@@ -209,6 +209,45 @@ fn balance_answers_beside_a_held_read_guard() {
     assert!(fields > 0, "the balance answer names its pools: {answer}");
 }
 
+/// A restart must not open clearnet on the way past: with the transport gone a send
+/// refuses, whatever the policy was before, including one the user had switched off.
+#[test]
+fn detaching_refuses_sends_instead_of_consenting_to_clearnet() {
+    let _serial = serialized();
+    init_offline_wallet();
+    with_initialized_lightclient(|lightclient| {
+        lightclient.set_transmit_policy(zingolib::mixnet::TransmitPolicy::Nakednet);
+        Ok(())
+    })
+    .expect("a wallet is open");
+
+    detach_mixnet_string().expect("a wallet is open");
+
+    with_initialized_lightclient_read(|lightclient| {
+        assert_eq!(
+            lightclient.transmit_policy(),
+            zingolib::mixnet::TransmitPolicy::Mixnet
+        );
+        assert!(
+            lightclient.send_route().is_err(),
+            "with no transport a send must refuse, never route"
+        );
+        Ok(())
+    })
+    .expect("a wallet is open");
+}
+
+/// The doctor is opened while something is already wrong, so it must answer beside
+/// whatever else is reading. The session history is empty until an attempt runs.
+#[test]
+fn mixnet_doctor_snapshot_answers_beside_a_held_read_guard() {
+    let _serial = serialized();
+    init_offline_wallet();
+    let answer = answer_under_held_read_lock(mixnet_doctor_snapshot_string);
+    assert_eq!(answer["transmit_policy"].as_str(), Some("Mixnet"), "{answer}");
+    assert!(answer["attempts"].is_empty(), "{answer}");
+}
+
 #[test]
 fn total_memobytes_answer_beside_a_held_read_guard() {
     let _serial = serialized();

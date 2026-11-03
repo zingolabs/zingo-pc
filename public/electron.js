@@ -53,6 +53,7 @@ const {
   nativeImage,
   session,
   clipboard,
+  net,
   powerMonitor,
   powerSaveBlocker,
   safeStorage,
@@ -64,6 +65,14 @@ const fs = require("fs");
 const settings = require("electron-settings");
 const storage = require("electron-json-storage");
 const { createServerRegistry } = require("./serverRegistry");
+const { BOOTSTRAP_DEADLINE_MS, drawVerdict } = require("./mixnetDraw");
+const {
+  createJournal,
+  dialLocalProxy,
+  drawClutch,
+  parseDiscovery,
+  probeThroughTunnel,
+} = require("./mixnetDoctor");
 const { isOpenablePaymentUri } = require("./paymentUri");
 const { SWAP_FILE_SUFFIX, mergeSwapRecords } = require("./swapImport");
 const { deriveRecordKey, isV2, encryptV2, decryptV2 } = require("./swapCrypto");
@@ -1530,7 +1539,16 @@ ipcMain.handle("native:get_latest_block_server", (_e, server_uri) =>
 ipcMain.handle("native:parse_address", (_e, address) => requireNative("parse_address").parse_address(address));
 ipcMain.handle("native:parse_ufvk", (_e, ufvk) => requireNative("parse_ufvk").parse_ufvk(ufvk));
 ipcMain.handle("native:get_messages", (_e, address) => requireNative("get_messages").get_messages(address));
-ipcMain.handle("native:zec_price_over_mixnet", () => requireNative("zec_price_over_mixnet").zec_price_over_mixnet());
+ipcMain.handle("native:zec_price_over_mixnet", async () => {
+  try {
+    const price = await requireNative("zec_price_over_mixnet").zec_price_over_mixnet();
+    noteMixnetPrice(null);
+    return price;
+  } catch (e) {
+    noteMixnetPrice(e && e.message ? e.message : String(e));
+    throw e;
+  }
+});
 // --- Mixnet transport: main-owned, session-level (ADR 0024) ----------------
 // Main spawns and holds the nym-proxy for the whole app session. Switching
 // wallets re-attaches the new LightClient to the same tunnel instead of
@@ -1577,7 +1595,58 @@ const mixnet = {
   // knows about a child process and that stays true on its own terms; this is
   // what the wallet knows about having a route through it. Null until read.
   wallet: null,
+  // The `--discover` run a bootstrap is waiting on, before there is a child.
+  discovery: null,
 };
+
+// ── What the doctor reads ─────────────────────────────────────────────────
+//
+// Everything below is a record of what already happened, kept because the
+// evidence does not wait: a proxy's last words go to a console nobody is reading,
+// and by the time someone opens a screen to look, the backoff has replaced the
+// proxy that said them.
+const mixnetJournal = createJournal();
+const mixnetStats = {
+  bootstraps: 0,
+  proxyExits: 0,
+  attachesFailed: 0,
+  walletDeaths: 0,
+  restarts: 0,
+  redraws: 0,
+  reconnectsScheduled: 0,
+  timesReady: 0,
+  // When each loss happened, so "keeps failing" can be told from "failed once".
+  lossTimes: [],
+  proxyStartedAt: null,
+  proxyPid: null,
+  attachStartedAt: null,
+  lastBootstrapMs: null,
+  lastAttachMs: null,
+  lastReadyAt: null,
+  lastStderr: null,
+  lastExit: null,
+};
+const MIXNET_LOSS_TIMES_KEPT = 50;
+
+function noteMixnet(level, source, text) {
+  mixnetJournal.note(level, source, text);
+}
+
+function noteMixnetLoss() {
+  mixnetStats.lossTimes.push(Date.now());
+  if (mixnetStats.lossTimes.length > MIXNET_LOSS_TIMES_KEPT) mixnetStats.lossTimes.shift();
+}
+
+// Only when it changes: this runs every few seconds.
+let lastMixnetPriceFailure = null;
+function noteMixnetPrice(failure) {
+  if (failure === lastMixnetPriceFailure) return;
+  if (failure) noteMixnet("warn", "price", `the price fetch failed: ${failure}`);
+  else noteMixnet("info", "price", "the price fetch answered over the mixnet");
+  lastMixnetPriceFailure = failure;
+}
+
+const shortExit = (exit) => (exit.length > 12 ? `${exit.slice(0, 12)}…` : exit);
 
 // A running proxy is not a route. The proxy announcing its address is all
 // `phase: "ready"` has ever meant, and the wallet can be nowhere near able to
@@ -1699,6 +1768,9 @@ function scheduleMixnetReconnect(reason) {
   if (mixnetReconnectTimer !== null) return; // one already in flight
   const wait = mixnetReconnectDelay;
   console.log(`[mixnet] transport lost (${reason}); reconnecting in ${wait / 1000}s`);
+  mixnetStats.reconnectsScheduled++;
+  noteMixnetLoss();
+  noteMixnet("warn", "recovery", `transport lost (${reason}); trying again in ${wait / 1000}s`);
   mixnetReconnectTimer = setTimeout(() => {
     mixnetReconnectTimer = null;
     // Grown before the attempt, not after it. Reaching ready is what resets
@@ -1713,7 +1785,54 @@ function scheduleMixnetReconnect(reason) {
   }, wait);
 }
 
+// Consecutive redraws, which only reaching ready or the user asking clears. Unlike
+// the backoff's growth this outlives a loss: past the limit, a transport that keeps
+// failing goes on through the backoff alone, a full wallet gate per attempt.
+let mixnetRedrawsSpent = 0;
+let mixnetDrawTimer = null;
+
+function clearMixnetDrawDeadline() {
+  if (mixnetDrawTimer !== null) {
+    clearTimeout(mixnetDrawTimer);
+    mixnetDrawTimer = null;
+  }
+}
+
+function armMixnetDrawDeadline(after = BOOTSTRAP_DEADLINE_MS) {
+  clearMixnetDrawDeadline();
+  mixnetDrawTimer = setTimeout(() => {
+    mixnetDrawTimer = null;
+    checkMixnetDraw();
+  }, after);
+}
+
+async function checkMixnetDraw() {
+  if (mixnet.intent !== "on") return;
+  // Already lost: the proxy exited or never ran, and the reconnect path owns that.
+  if (mixnet.phase !== "bootstrapping" && mixnet.phase !== "ready") return;
+  const child = mixnet.child;
+  // Read now, not from the renderer's last poll: this decides whether a working
+  // tunnel gets torn down.
+  if (mixnet.socks5Addr) await refreshWalletMixnetStatus();
+  // Replaced while reading; that draw has a deadline of its own.
+  if (mixnet.child !== child) return;
+  const verdict = drawVerdict({
+    hasAddress: !!mixnet.socks5Addr,
+    walletMode: mixnet.wallet ? mixnet.wallet.mode : null,
+    attachAgeMs: mixnetStats.attachStartedAt === null ? null : Date.now() - mixnetStats.attachStartedAt,
+    redrawsSpent: mixnetRedrawsSpent,
+  });
+  if (verdict === "wait") {
+    armMixnetDrawDeadline(1_000);
+  } else if (verdict === "redraw") {
+    mixnetRedrawsSpent++;
+    mixnetStats.redraws++;
+    restartMixnet(`the draw did not prove itself in time (redraw ${mixnetRedrawsSpent})`);
+  }
+}
+
 function setMixnetPhase(phase) {
+  if (phase !== mixnet.phase) noteMixnet("info", "phase", `${mixnet.phase} → ${phase}`);
   mixnet.phase = phase;
   emitMixnetStatus();
 }
@@ -1721,11 +1840,15 @@ function setMixnetPhase(phase) {
 // Attach whichever LightClient is current to the running tunnel.
 async function attachCurrentWallet() {
   if (!mixnet.socks5Addr || mixnet.exits.length === 0) return;
+  mixnetStats.attachStartedAt = Date.now();
+  noteMixnet("info", "wallet", `attaching the wallet to ${mixnet.socks5Addr}`);
   try {
     await requireNative("attach_mixnet").attach_mixnet(mixnet.socks5Addr, mixnet.exits);
     setMixnetPhase("ready");
   } catch (e) {
     console.error("[mixnet] attach failed:", e && e.message ? e.message : e);
+    mixnetStats.attachesFailed++;
+    noteMixnet("error", "wallet", `the wallet refused the attach: ${e && e.message ? e.message : e}`);
     // A proxy that bootstrapped but that the wallet cannot attach to carries
     // nothing, and it is still alive, so no exit will ever report it. Left as
     // it was, this was a dead end: the phase stayed at bootstrapping, which
@@ -1740,12 +1863,88 @@ async function attachCurrentWallet() {
   }
 }
 
+// The proxy's one window onto the Nym directory. No stdin pipe to watch, since it
+// answers and exits.
+const MIXNET_DISCOVERY_BOUND_MS = 20_000;
+
+function discoverMixnetExits() {
+  const started = Date.now();
+  const child = spawnChild(nymProxyPath(), ["--discover"], { stdio: ["ignore", "pipe", "pipe"] });
+  let stdout = "";
+  let stderr = "";
+  child.stdout.on("data", (c) => (stdout += c.toString()));
+  child.stderr.on("data", (c) => (stderr += c.toString()));
+  const done = new Promise((resolve) => {
+    const finish = (outcome) => {
+      clearTimeout(timer);
+      resolve({ ...outcome, millis: Date.now() - started });
+    };
+    const timer = setTimeout(() => {
+      child.kill();
+      finish({ ok: false, exits: [], error: `no answer within ${MIXNET_DISCOVERY_BOUND_MS / 1000}s` });
+    }, MIXNET_DISCOVERY_BOUND_MS);
+    child.on("error", (e) =>
+      finish({ ok: false, exits: [], spawnFailed: true, error: e && e.message ? e.message : String(e) }),
+    );
+    child.on("close", (code, signal) => {
+      const exits = parseDiscovery(stdout);
+      if (code === 0 && exits.length > 0) finish({ ok: true, exits });
+      else
+        finish({
+          ok: false,
+          exits,
+          error: stderr.trim() || (code === 0 ? "the directory listed no exits" : `exit ${code ?? signal}`),
+        });
+    });
+  });
+  return { child, done };
+}
+
+// Drawing the clutch here rather than leaving it to the proxy is what makes the
+// bootstrap observable. Started bare, nym-proxy races the same exits with its
+// narration wired to nothing, so nothing arrives between the spawn and either the
+// address or an exit up to two minutes later. It also splits "the directory did
+// not answer" from "no exit could be reached". zingolib's own spawned path does the
+// same two steps.
 function spawnProxy() {
-  if (mixnet.child) return;
+  if (mixnet.child || mixnet.discovery) return;
   mixnet.narration = null;
+  mixnetStats.bootstraps++;
+  mixnetStats.proxyStartedAt = Date.now();
+  noteMixnet("info", "proxy", `bootstrap ${mixnetStats.bootstraps}: asking the Nym directory for exits`);
   setMixnetPhase("bootstrapping");
-  const child = spawnChild(nymProxyPath(), [], { stdio: ["pipe", "pipe", "pipe"] });
+  // From the attempt, not from the attach: the birth is part of what a draw is given.
+  armMixnetDrawDeadline();
+  const discovery = discoverMixnetExits();
+  mixnet.discovery = discovery;
+  discovery.done.then((outcome) => {
+    // Taken down while it was asking; whoever did that decides what comes next.
+    if (mixnet.discovery !== discovery) return;
+    mixnet.discovery = null;
+    if (outcome.ok) {
+      noteMixnet("info", "proxy", `the directory listed ${outcome.exits.length} exits in ${outcome.millis} ms`);
+      launchProxy(drawClutch(outcome.exits));
+      return;
+    }
+    console.error("[mixnet] discovery failed:", outcome.error);
+    noteMixnet("error", "proxy", `the Nym directory query failed after ${outcome.millis} ms: ${outcome.error}`);
+    // The same two ends a proxy that cannot start has always had: a binary that
+    // will not run is not a transport to keep retrying, and anything else is.
+    if (outcome.spawnFailed) {
+      setMixnetPhase("unattached");
+    } else if (mixnet.intent === "on") {
+      setMixnetPhase("died");
+      scheduleMixnetReconnect("the Nym directory did not answer");
+    }
+  });
+}
+
+function launchProxy(clutch) {
+  const args = clutch.flatMap((exit) => ["--exit", exit]);
+  const child = spawnChild(nymProxyPath(), args, { stdio: ["pipe", "pipe", "pipe"] });
   mixnet.child = child;
+  mixnetStats.proxyPid = child.pid ?? null;
+  noteMixnet("info", "proxy", `spawned nym-proxy (pid ${child.pid ?? "?"}) over ${clutch.length} exits`);
 
   let buf = "";
   child.stdout.on("data", (chunk) => {
@@ -1757,20 +1956,34 @@ function spawnProxy() {
       if (line.startsWith("NYM_EXIT=")) {
         const exit = line.slice("NYM_EXIT=".length).trim();
         if (exit && !mixnet.exits.includes(exit)) mixnet.exits.push(exit);
+        noteMixnet("info", "proxy", `bound exit ${shortExit(exit)}`);
       } else if (line.startsWith("SOCKS5_ADDR=")) {
         mixnet.socks5Addr = line.slice("SOCKS5_ADDR=".length).trim();
+        mixnetStats.lastBootstrapMs = Date.now() - mixnetStats.proxyStartedAt;
+        noteMixnet("info", "proxy", `listening on ${mixnet.socks5Addr} after ${mixnetStats.lastBootstrapMs} ms`);
         attachCurrentWallet();
       } else if (line.startsWith("NYM_STATUS=")) {
         mixnet.narration = line.slice("NYM_STATUS=".length).trim();
+        noteMixnet("info", "proxy", mixnet.narration);
         if (mixnet.phase === "bootstrapping") emitMixnetStatus();
       }
     }
   });
-  child.stderr.on("data", (c) => console.error(`[mixnet] ${c.toString().trim()}`));
+  child.stderr.on("data", (c) => {
+    const text = c.toString().trim();
+    console.error(`[mixnet] ${text}`);
+    // Startup failures are reported only here, and they carry the typed record of
+    // every exit the race tried. An exit code alone says nothing about any of it.
+    if (text) {
+      mixnetStats.lastStderr = text;
+      noteMixnet("error", "proxy", text);
+    }
+  });
   child.on("error", (e) => {
     // Spawn itself failed (binary missing, not executable): no exit event
     // follows, so surface it here instead of hanging on "bootstrapping".
     console.error("[mixnet] spawn error:", e && e.message ? e.message : e);
+    noteMixnet("error", "proxy", `could not run nym-proxy: ${e && e.message ? e.message : e}`);
     if (mixnet.child === child) {
       mixnet.child = null;
       mixnet.socks5Addr = null;
@@ -1778,9 +1991,16 @@ function spawnProxy() {
       setMixnetPhase("unattached");
     }
   });
-  child.on("exit", () => {
+  child.on("exit", (code, signal) => {
     const deliberate = mixnet.child !== child; // we null it out before killing
     if (deliberate) return;
+    mixnetStats.proxyExits++;
+    mixnetStats.lastExit = { at: Date.now(), code, signal };
+    noteMixnet(
+      "error",
+      "proxy",
+      `nym-proxy exited by itself (${signal ?? `code ${code}`}) after ${Date.now() - mixnetStats.proxyStartedAt} ms`,
+    );
     mixnet.child = null;
     mixnet.socks5Addr = null;
     mixnet.exits = [];
@@ -1797,8 +2017,15 @@ function killProxy() {
   // a restart is an attempt like any other and keeps the backoff it inherited,
   // exactly as mobile's start does.
   clearMixnetReconnectTimer();
+  clearMixnetDrawDeadline();
+  mixnetStats.attachStartedAt = null;
   const child = mixnet.child;
   mixnet.child = null;
+  if (mixnet.discovery) {
+    mixnet.discovery.child.kill();
+    mixnet.discovery = null;
+  }
+  mixnetStats.proxyPid = null;
   mixnet.socks5Addr = null;
   mixnet.exits = [];
   // The wallet's verdict was about the transport being torn down, not the one
@@ -1842,12 +2069,36 @@ function reportWalletDeath(wallet) {
   if (story === lastReportedDeath) return;
   lastReportedDeath = story;
   console.log(`[mixnet] the wallet gave up on the transport — ${story}`);
+  mixnetStats.walletDeaths++;
+  noteMixnet("error", "wallet", `the wallet gave up on the transport — ${story}`);
+}
+
+// The wallet's mode as it moves, with how long an attach took to prove itself:
+// the attach returns before the round trip, so this is the only place that shows.
+let lastWalletMode = null;
+function noteWalletMode(wallet) {
+  const mode = wallet ? wallet.mode : null;
+  if (mode === lastWalletMode) return;
+  const earned = (mode === "ready" || mode === "previously_proven_this_epoch") && mixnetStats.attachStartedAt;
+  if (earned) {
+    mixnetStats.lastAttachMs = Date.now() - mixnetStats.attachStartedAt;
+    mixnetStats.attachStartedAt = null;
+    mixnetStats.timesReady++;
+    mixnetStats.lastReadyAt = Date.now();
+  }
+  noteMixnet(
+    mode === "died" ? "error" : "info",
+    "wallet",
+    `wallet mode ${lastWalletMode ?? "none"} → ${mode ?? "none"}${earned ? ` (proven in about ${mixnetStats.lastAttachMs} ms)` : ""}`,
+  );
+  lastWalletMode = mode;
 }
 
 async function refreshWalletMixnetStatus() {
   try {
     mixnet.wallet = JSON.parse(await requireNative("mixnet_status").mixnet_status());
     reportWalletDeath(mixnet.wallet);
+    noteWalletMode(mixnet.wallet);
   } catch {
     // No wallet loaded yet, or the read itself failed. Neither is evidence
     // about the transport, so the proxy's own phase stands.
@@ -1862,12 +2113,24 @@ ipcMain.handle("mixnet:get-status", async () => {
   // ends the cycle and resets the growth, a lost one starts or continues it,
   // and bootstrapping is left alone so an attempt on its way up is not counted
   // as another loss.
-  if (snapshot.mode === "ready" || snapshot.mode === "switched_off") cancelMixnetReconnect();
+  if (snapshot.mode === "ready" || snapshot.mode === "switched_off") {
+    cancelMixnetReconnect();
+    mixnetRedrawsSpent = 0;
+  }
   else if (snapshot.mode === "died") scheduleMixnetReconnect("the wallet gave up on the transport");
   return snapshot;
 });
 ipcMain.handle("mixnet:enable", async () => {
+  // Coming back from off, the consent to clearnet ends here and not when the attach
+  // lands, which can be minutes away. Failure means no wallet is open yet, and a new
+  // one starts under the mixnet policy anyway.
+  if (mixnet.intent === "off") {
+    await requireNative("detach_mixnet")
+      .detach_mixnet()
+      .catch(() => {});
+  }
   mixnet.intent = "on";
+  mixnetRedrawsSpent = 0;
   // Attaching again to a transport the wallet has given up on is the same
   // proxy and the same broken tunnel: it returned instantly, went green, and
   // changed nothing, which is exactly how it looked. A death takes the proxy
@@ -1889,6 +2152,152 @@ ipcMain.handle("mixnet:disable", async () => {
   setMixnetPhase("switched_off");
   return mixnetStatusSnapshot();
 });
+// The wallet's side of the doctor, or null with no wallet open. Never an error:
+// a screen opened because nothing works has to answer in that state too.
+async function readMixnetDoctorSnapshot() {
+  try {
+    return JSON.parse(await requireNative("mixnet_doctor_snapshot").mixnet_doctor_snapshot());
+  } catch {
+    return null;
+  }
+}
+
+function mixnetProxyFacts() {
+  const proxyPath = nymProxyPath();
+  let binary = { exists: false };
+  try {
+    const stat = fs.statSync(proxyPath);
+    binary = { exists: true, size: stat.size, modifiedAt: stat.mtimeMs };
+  } catch {
+    // A bare name falls through to PATH in a dev run, where only spawning can tell.
+    if (!path.isAbsolute(proxyPath)) binary = { exists: null };
+  }
+  return {
+    path: proxyPath,
+    ...binary,
+    pid: mixnetStats.proxyPid,
+    running: !!mixnet.child,
+    socks5Addr: mixnet.socks5Addr,
+    exits: mixnet.exits.map(shortExit),
+  };
+}
+
+// What the run in flight has measured so far, so the screen can mark each step as
+// it lands instead of waiting for the slowest leg.
+let mixnetDoctorProgress = null;
+
+// The passive half: read on a timer while the screen is open, so it touches no
+// network at all.
+ipcMain.handle("mixnet:doctor-state", async () => ({
+  at: Date.now(),
+  app: app.getVersion(),
+  platform: `${process.platform} ${os.release()} ${process.arch}`,
+  online: net.isOnline(),
+  intent: mixnet.intent,
+  phase: mixnet.phase,
+  retrying: mixnet.lostSinceReady,
+  nextRetryMs: mixnetReconnectTimer !== null ? mixnetReconnectDelay : null,
+  narration: mixnet.narration,
+  status: mixnetStatusSnapshot(),
+  wallet: mixnet.wallet,
+  proxy: mixnetProxyFacts(),
+  stats: mixnetStats,
+  session: await readMixnetDoctorSnapshot(),
+  doctorProgress: mixnetDoctorProgress,
+  journal: mixnetJournal.list(),
+}));
+
+// The active half, only ever on the user's press, because the direct leg leaves
+// from the real IP. Every leg stands apart from the others so one failure names
+// its own layer, and the tunnel legs ride main's own socket so they still answer
+// while the wallet is refusing: that is when the question gets asked.
+async function runMixnetDoctor() {
+  const started = Date.now();
+  noteMixnet("info", "doctor", "diagnostics started");
+  const facts = await readMixnetDoctorSnapshot();
+  const socks5Addr = mixnet.socks5Addr;
+  const skipped = (reason) => Promise.resolve({ skipped: reason });
+  const noProxy = "the proxy has no address yet";
+
+  const tunnelTo = (uri) => {
+    if (!socks5Addr) return skipped(noProxy);
+    if (!uri) return skipped("no server");
+    const { hostname, port } = new URL(uri);
+    return probeThroughTunnel(socks5Addr, hostname, Number(port) || 443);
+  };
+  const sameHost =
+    !!facts?.indexer &&
+    !!facts?.default_indexer &&
+    new URL(facts.indexer).hostname === new URL(facts.default_indexer).hostname;
+  const native = (name) =>
+    requireNative(name)
+      [name]()
+      .then(JSON.parse)
+      .catch((e) => ({ error: e && e.message ? e.message : String(e) }));
+
+  mixnetDoctorProgress = {};
+  const landing = (leg, measuring) =>
+    measuring.then((outcome) => {
+      mixnetDoctorProgress[leg] = outcome;
+      return outcome;
+    });
+
+  const [directory, listener, tunnelServer, tunnelControl, walletProbe, direct] = await Promise.all([
+    landing(
+      "directory",
+      discoverMixnetExits().done.then(({ exits, ...rest }) => ({ ...rest, exitCount: exits.length })),
+    ),
+    landing("listener", socks5Addr ? dialLocalProxy(socks5Addr) : skipped(noProxy)),
+    landing(
+      "tunnelServer",
+      facts && !facts.indexer_eligible
+        ? skipped("this server cannot travel over the mixnet")
+        : tunnelTo(facts?.indexer),
+    ),
+    landing("tunnelControl", sameHost ? skipped("the server is the control") : tunnelTo(facts?.default_indexer)),
+    landing("walletProbe", facts ? native("mixnet_probe_tunnel") : skipped("no wallet open")),
+    landing("direct", facts?.indexer ? native("mixnet_probe_direct") : skipped("no server")),
+  ]);
+
+  const run = {
+    startedAt: started,
+    millis: Date.now() - started,
+    directory,
+    listener,
+    tunnelServer,
+    tunnelControl,
+    walletProbe,
+    direct,
+  };
+  // One word per leg: the whole result is in the report, and this line only has to
+  // say where in the journal a run happened and how it came out.
+  const outcome = (leg) => ("skipped" in leg ? "skipped" : leg.ok === false || leg.error ? "failed" : "ok");
+  noteMixnet(
+    "info",
+    "doctor",
+    `diagnostics finished in ${run.millis} ms: directory ${outcome(directory)}, proxy ${outcome(listener)}, tunnel ${outcome(tunnelServer)}, control ${outcome(tunnelControl)}`,
+  );
+  return run;
+}
+
+// One at a time: a second press joins the run in flight.
+let mixnetDoctorRun = null;
+ipcMain.handle("mixnet:doctor-run", () => {
+  if (!mixnetDoctorRun) {
+    mixnetDoctorRun = runMixnetDoctor().finally(() => {
+      mixnetDoctorRun = null;
+      mixnetDoctorProgress = null;
+    });
+  }
+  return mixnetDoctorRun;
+});
+// A tunnel can read as up and carry nothing, so this does not go by the status the
+// way `mixnet:enable` does. A deliberate off stays off: restartMixnet refuses it.
+ipcMain.handle("mixnet:restart", () => {
+  mixnetRedrawsSpent = 0;
+  restartMixnet("the user asked from the Nym Doctor");
+});
+
 // Called by the renderer on every wallet load: bring the new client onto the
 // session tunnel (or record the opt-out) without re-bootstrapping.
 ipcMain.handle("mixnet:attach-current", async () => {
@@ -1924,15 +2333,23 @@ let mixnetBlurredAt = null;
 function restartMixnet(reason) {
   if (mixnet.intent !== "on") return; // deliberately off: leave it off
   console.log(`[mixnet] restarting after ${reason}`);
+  mixnetStats.restarts++;
+  noteMixnet("warn", "recovery", `restarting the proxy after ${reason}`);
   killProxy();
-  // Detach the native side from the address that is about to disappear. Failure
-  // is not interesting — a client that was never attached throws here — and must
-  // not stop the respawn.
+  // Detach the native side from the address that is about to disappear, without
+  // consenting to clearnet: nobody chose that, and sends must keep refusing until
+  // the new transport is up. Failure is not interesting — a client that was never
+  // attached throws here — and must not stop the respawn.
   Promise.resolve()
-    .then(() => requireNative("stop_mixnet").stop_mixnet())
+    .then(() => requireNative("detach_mixnet").detach_mixnet())
     .catch(() => {})
     .finally(() => {
       if (mixnet.intent === "on") spawnProxy();
+      // Switched off while detaching, and the detach may have landed second.
+      else
+        requireNative("stop_mixnet")
+          .stop_mixnet()
+          .catch(() => {});
     });
 }
 

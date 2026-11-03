@@ -21,6 +21,7 @@ import { RPCValueTransferType } from "./components/RPCValueTransferType";
 import { RPCIronwoodDrainType } from "./components/RPCIronwoodDrainType";
 import { RPCMixnetStatusType } from "./components/RPCMixnetStatusType";
 import { deriveMixnetView, MixnetView, UNKNOWN_MIXNET_VIEW } from "./components/mixnetPresenter";
+import { DoctorRun, DoctorState } from "./components/mixnetDoctor";
 import { userFacingError } from "../utils/userFacingError";
 import { SyncRecovery } from "./syncFailureMessage";
 import { depositSpendsSourceAddress } from "../swap/depositRouting";
@@ -1654,6 +1655,24 @@ export default class RPC {
   // the fallback poll and the seed on wallet load.
   static async getMixnetStatus(): Promise<RPCMixnetStatusType> {
     return (await ipcRenderer.invoke("mixnet:get-status")) as RPCMixnetStatusType;
+  }
+
+  // What main has recorded about the transport, for the Nym doctor. Touches no
+  // network.
+  static async getMixnetDoctorState(): Promise<DoctorState> {
+    return (await ipcRenderer.invoke("mixnet:doctor-state")) as DoctorState;
+  }
+
+  // Measures each layer of the transport, including a direct leg from the real IP,
+  // so it runs only when the user asks.
+  static async runMixnetDoctor(): Promise<DoctorRun> {
+    return (await ipcRenderer.invoke("mixnet:doctor-run")) as DoctorRun;
+  }
+
+  // Replaces the proxy whatever its status says, for a tunnel that reads as up and
+  // carries nothing.
+  static async restartMixnet(): Promise<void> {
+    await ipcRenderer.invoke("mixnet:restart");
   }
 
   // Poll the Mixnet Mode status and project it to the screen view. Runs on the
