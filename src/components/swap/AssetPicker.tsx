@@ -5,6 +5,7 @@ import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
 import type { TokenEntryType } from "../../swap";
 import TokenLogo from "./TokenLogo";
+import { repeatedCoins, shortContract } from "./swapAssets";
 
 type AssetPickerProps = {
   tokens: TokenEntryType[];
@@ -33,6 +34,8 @@ const lower = (value: string | undefined): string => (value ?? "").toLowerCase()
  */
 const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen, closeModal, onSelect }) => {
   const [query, setQuery] = useState<string>("");
+
+  const repeated = useMemo(() => repeatedCoins(tokens), [tokens]);
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -102,7 +105,10 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
                 <div>
                   {token.ticker} <span className={cstyles.sublight}>{token.chain}</span>
                 </div>
-                <div className={`${cstyles.sublight} ${cstyles.small}`}>{token.name}</div>
+                <div className={`${cstyles.sublight} ${cstyles.small}`}>
+                  {token.name}
+                  {repeated.has(token.identifier) && !!token.address && ` · ${shortContract(token.address)}`}
+                </div>
               </div>
             </button>
           ))}
