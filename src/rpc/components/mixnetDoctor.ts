@@ -26,7 +26,6 @@ export type DoctorAttempt = {
 export type DoctorSession = {
   transmit_policy: string;
   indexer: string | null;
-  indexer_eligible: boolean;
   default_indexer: string | null;
   attach_budget_ms: number;
   round_trip_bound_ms: number;
@@ -225,14 +224,6 @@ function passiveVerdict(state: DoctorState): DoctorVerdict {
       action: "server",
     };
   }
-  if (state.session && !state.session.indexer_eligible) {
-    return {
-      tone: "bad",
-      headline: "This server can't be used with the mixnet",
-      detail: `${state.session.indexer} is not https on port 443, the only kind the mixnet carries.`,
-      action: "server",
-    };
-  }
   const losses = recentLosses(state);
   if (losses >= FLAPPING_LOSSES) {
     return {
@@ -268,7 +259,7 @@ const measuredFailure = (leg: object) => "ok" in leg && !(leg as { ok: boolean }
 export function diagnose(state: DoctorState, run: DoctorRun | null): DoctorVerdict {
   const passive = passiveVerdict(state);
   if (!run || state.status.mode === "switched_off" || state.proxy.exists === false) return passive;
-  if (state.session && (!state.session.indexer || !state.session.indexer_eligible)) return passive;
+  if (state.session && !state.session.indexer) return passive;
 
   const directFailed = directRow(run.direct).state === "fail";
 
@@ -405,7 +396,6 @@ export function doctorSteps(state: DoctorState, legs: DoctorLegs): DoctorStep[] 
     return direct === "fail" ? "unchecked" : "fail";
   };
   const reachesServer = (): DoctorStepState => {
-    if (state.session && !state.session.indexer_eligible) return "fail";
     if (server === "fail" || wallet === "fail" || direct === "fail") return "fail";
     if (server === "pending" || wallet === "pending" || direct === "pending") return "running";
     return server === "ok" ? "ok" : "unchecked";
@@ -461,7 +451,7 @@ export function doctorReport(state: DoctorState, run: DoctorRun | null): string 
     `- taken: ${stamp(state.at)}`,
     `- verdict: ${verdict.headline}${verdict.detail ? ` ${verdict.detail}` : ""}`,
     `- app: ${state.app} on ${state.platform}, online ${state.online}`,
-    `- server: ${session?.indexer ?? "no wallet open"}${session && !session.indexer_eligible ? " (not eligible)" : ""}`,
+    `- server: ${session?.indexer ?? "no wallet open"}`,
     `- send route: ${session?.transmit_policy ?? "unknown"}`,
     `- status: ${state.status.mode}, phase ${state.phase}, wallet ${state.wallet?.mode ?? "unread"}, intent ${state.intent}`,
     `- proxy: pid ${proxy.pid ?? "none"}, binary ${proxy.exists === false ? "MISSING" : `${proxy.size ?? "?"} bytes`} at ${proxy.path}`,

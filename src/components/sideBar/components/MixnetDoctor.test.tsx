@@ -46,7 +46,6 @@ const state: DoctorState = {
   session: {
     transmit_policy: "Mixnet",
     indexer: "https://custom.example:443/",
-    indexer_eligible: true,
     default_indexer: "https://zec.rocks:443/",
     attach_budget_ms: 62000,
     round_trip_bound_ms: 30000,
@@ -161,14 +160,13 @@ test("a fault offers what fixes it, and the report we would ask for", async () =
   expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
 });
 
-test("a server that cannot work offers choosing another", async () => {
-  getState.mockResolvedValue({
-    ...state,
-    session: { ...state.session!, indexer: "http://local:9067/", indexer_eligible: false },
-  });
+test("a server the mixnet cannot reach offers choosing another", async () => {
+  runDoctor.mockResolvedValue({ ...run, tunnelServer: tunnelFailed });
   show();
 
-  expect(await screen.findByText("This server can't be used with the mixnet")).toBeInTheDocument();
+  fireEvent.click(await screen.findByRole("button", { name: "Run diagnostics" }));
+
+  expect(await screen.findByText("Your server can't be reached through the mixnet")).toBeInTheDocument();
   expect(screen.getByRole("button", { name: "Choose server" })).toBeInTheDocument();
 });
 

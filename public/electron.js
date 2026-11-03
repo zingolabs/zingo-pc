@@ -2248,12 +2248,7 @@ async function runMixnetDoctor() {
       discoverMixnetExits().done.then(({ exits, ...rest }) => ({ ...rest, exitCount: exits.length })),
     ),
     landing("listener", socks5Addr ? dialLocalProxy(socks5Addr) : skipped(noProxy)),
-    landing(
-      "tunnelServer",
-      facts && !facts.indexer_eligible
-        ? skipped("this server cannot travel over the mixnet")
-        : tunnelTo(facts?.indexer),
-    ),
+    landing("tunnelServer", tunnelTo(facts?.indexer)),
     landing("tunnelControl", sameHost ? skipped("the server is the control") : tunnelTo(facts?.default_indexer)),
     landing("walletProbe", facts ? native("mixnet_probe_tunnel") : skipped("no wallet open")),
     landing("direct", facts?.indexer ? native("mixnet_probe_direct") : skipped("no server")),

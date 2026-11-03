@@ -44,7 +44,6 @@ const state = (overrides: Partial<DoctorState> = {}): DoctorState => ({
   session: {
     transmit_policy: "Mixnet",
     indexer: "https://custom.example:443/",
-    indexer_eligible: true,
     default_indexer: "https://zec.rocks:443/",
     attach_budget_ms: 62000,
     round_trip_bound_ms: 30000,
@@ -106,14 +105,17 @@ describe("diagnose, before anything is measured", () => {
     expect(verdict.detail).toContain("nym-proxy.exe");
   });
 
-  // Since zingolib 8.0.0 the attach proves readiness against this server, so an
-  // ineligible one reads as a mixnet that never comes up, and no retry helps.
-  it("says when the selected server can never travel over the mixnet, and offers another", () => {
-    const session = { ...state().session!, indexer: "http://local:9067/", indexer_eligible: false };
-    const verdict = diagnose(state({ session, status: { mode: "died" } }), null);
-    expect(verdict.tone).toBe("bad");
-    expect(verdict.detail).toContain("http://local:9067/");
-    expect(verdict.action).toBe("server");
+  // A server on 9067 connected in the field, on the zingolib that proves readiness
+  // against it. Whether a port works is for the measuring to say, never for this.
+  it("does not judge a server by its port", () => {
+    const session = { ...state().session!, indexer: "https://custom.example:9067/" };
+    expect(diagnose(state({ session }), null).headline).toBe("Connected");
+    expect(diagnose(state({ session }), run()).headline).toBe("Everything is working");
+  });
+
+  it("offers choosing a server when none is selected", () => {
+    const session = { ...state().session!, indexer: null };
+    expect(diagnose(state({ session }), null).action).toBe("server");
   });
 
   it("tells a transport that keeps failing from one that is merely down", () => {
@@ -266,12 +268,6 @@ describe("the four steps", () => {
       "unchecked",
       "unchecked",
     ]);
-  });
-
-  it("fail the server when it is not one the mixnet can carry", () => {
-    const session = { ...state().session!, indexer_eligible: false };
-    const steps = answers(state({ session }), run({ tunnelServer: { skipped: "cannot travel" } }));
-    expect(steps[3]).toBe("fail");
   });
 });
 

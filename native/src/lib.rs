@@ -2504,10 +2504,9 @@ fn mixnet_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
 }
 
 // What the Nym doctor reads from the session without touching the network: the
-// route a send would take, the server the mixnet has to reach, and this session's
-// record of attempts against it. Whether that server is eligible matters on its
-// own, because the attach proves readiness against it (zingolib 8.0.0): one the
-// exit policy does not carry reads as a mixnet that never comes up.
+// route a send would take, the server the mixnet has to reach (the attach proves
+// readiness against it since zingolib 8.0.0), and this session's record of attempts
+// against it.
 fn mixnet_doctor_snapshot_string() -> Result<String, ZingolibError> {
     with_initialized_lightclient_read(|lightclient| {
         let indexer = lightclient.indexer_uri();
@@ -2531,7 +2530,6 @@ fn mixnet_doctor_snapshot_string() -> Result<String, ZingolibError> {
         Ok(serde_json::json!({
             "transmit_policy": format!("{:?}", lightclient.transmit_policy()),
             "indexer": indexer.as_ref().map(ToString::to_string),
-            "indexer_eligible": indexer.as_ref().is_some_and(zingolib::mixnet::probe::probe_eligible),
             "default_indexer": zingolib::config::default_indexer_for(&lightclient.chain_type())
                 .map(|uri| uri.to_string()),
             "attach_budget_ms": timing.attach_readiness_budget.as_millis() as u64,
