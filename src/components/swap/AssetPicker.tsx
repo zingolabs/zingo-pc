@@ -14,9 +14,6 @@ type AssetPickerProps = {
   onSelect: (token: TokenEntryType) => void;
 };
 
-/** Rows rendered at once. The catalog runs to hundreds of entries. */
-const VISIBLE_LIMIT = 60;
-
 /**
  * `TokenEntryType` declares `ticker`, `name` and `chain` as present, and the
  * live catalog ships entries missing them. The type describes the documented
@@ -39,7 +36,7 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return tokens.slice(0, VISIBLE_LIMIT);
+    if (!q) return tokens;
 
     const rank = (token: TokenEntryType): number => {
       const ticker = lower(token.ticker);
@@ -52,10 +49,7 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
     const hit = (token: TokenEntryType): boolean =>
       lower(token.ticker).includes(q) || lower(token.name).includes(q) || lower(token.chain).includes(q);
 
-    return tokens
-      .filter(hit)
-      .sort((a, b) => rank(a) - rank(b))
-      .slice(0, VISIBLE_LIMIT);
+    return tokens.filter(hit).sort((a, b) => rank(a) - rank(b));
   }, [tokens, query]);
 
   return (
@@ -112,11 +106,6 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
               </div>
             </button>
           ))}
-          {matches.length === VISIBLE_LIMIT && (
-            <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
-              Showing the first {VISIBLE_LIMIT}. Narrow the search to see more.
-            </div>
-          )}
         </div>
 
         <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>

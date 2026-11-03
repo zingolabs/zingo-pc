@@ -45,9 +45,8 @@ report was filed with, and the detour and its host came out with this note.
 
 Token logos are a separate leak with a different shape. Their hosts arrive
 inside SwapKit's catalog rather than being ours to know, and the asset picker
-renders up to 60 at a time, so opening it contacts whatever CDNs the catalog
-names and tells each one which tokens the user is looking at. That part
-remains.
+renders every logo in the list, so opening it contacts whatever CDNs the catalog
+names and tells each one that the user is swapping. That part remains.
 
 Two things about them were fixed rather than accepted. `swapLogo:get` used to
 fetch any HTTPS URL the renderer named, which answered whether an arbitrary

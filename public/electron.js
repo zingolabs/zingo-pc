@@ -1211,9 +1211,9 @@ ipcMain.handle("swapStorage:set", async (_e, key, value, ufvk) => {
 // response is constrained on top of that, by an image content-type and a size
 // cap, and a data URI rendered into an `<img>` executes nothing.
 //
-// What remains is recorded in docs/swap-privacy.md: the picker renders up to 60
-// logos at a time, so opening it tells whichever CDNs the catalog names which
-// tokens the user is looking at, over clearnet like the rest of the swap layer.
+// What remains is recorded in docs/swap-privacy.md: the picker renders every
+// logo in the list, so opening it tells whichever CDNs the catalog names that
+// the user is swapping, over clearnet like the rest of the swap layer.
 const SWAP_LOGO_MAX_BYTES = 256 * 1024;
 const SWAP_LOGO_TIMEOUT_MS = 8000;
 
