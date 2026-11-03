@@ -149,6 +149,10 @@ fn main(mut cx: ModuleContext) -> NeonResult<()> {
     cx.export_function("get_total_spends_to_address", get_total_spends_to_address)?;
     cx.export_function("zec_price_over_mixnet", zec_price_over_mixnet)?;
     cx.export_function("mixnet_status", mixnet_status)?;
+    cx.export_function("detach_mixnet", detach_mixnet)?;
+    cx.export_function("mixnet_doctor_snapshot", mixnet_doctor_snapshot)?;
+    cx.export_function("mixnet_probe_tunnel", mixnet_probe_tunnel)?;
+    cx.export_function("mixnet_probe_direct", mixnet_probe_direct)?;
     cx.export_function("attach_mixnet", attach_mixnet)?;
     cx.export_function("stop_mixnet", stop_mixnet)?;
     cx.export_function("drain_orchard_to_ironwood", drain_orchard_to_ironwood)?;
@@ -2499,6 +2503,133 @@ fn mixnet_status(mut cx: FunctionContext) -> JsResult<JsPromise> {
     spawn_promise(&mut cx, mixnet_status_string)
 }
 
+// What the Nym doctor reads from the session without touching the network: the
+// route a send would take, the server the mixnet has to reach (the attach proves
+// readiness against it since zingolib 8.0.0), and this session's record of attempts
+// against it.
+fn mixnet_doctor_snapshot_string() -> Result<String, ZingolibError> {
+    with_initialized_lightclient_read(|lightclient| {
+        let indexer = lightclient.indexer_uri();
+        let timing = zingolib::mixnet::mixnet_timing();
+        let attempts = lightclient
+            .indexer_history_handle()
+            .load()
+            .iter()
+            .map(|attempt| {
+                serde_json::json!({
+                    "at": attempt.unix_secs,
+                    "host": attempt.host.to_string(),
+                    "route": format!("{:?}", attempt.route),
+                    "kind": format!("{:?}", attempt.kind),
+                    "millis": attempt.millis,
+                    "failure": attempt.outcome.as_ref().err().map(|kind| format!("{kind:?}")),
+                    "fault_domain": attempt.fault_domain.map(|domain| format!("{domain:?}")),
+                })
+            })
+            .collect::<Vec<_>>();
+        Ok(serde_json::json!({
+            "transmit_policy": format!("{:?}", lightclient.transmit_policy()),
+            "indexer": indexer.as_ref().map(ToString::to_string),
+            "default_indexer": zingolib::config::default_indexer_for(&lightclient.chain_type())
+                .map(|uri| uri.to_string()),
+            "attach_budget_ms": timing.attach_readiness_budget.as_millis() as u64,
+            "round_trip_bound_ms": timing.mixnet_round_trip_bound.as_millis() as u64,
+            "attempts": attempts,
+        })
+        .to_string())
+    })
+}
+
+fn mixnet_doctor_snapshot(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    spawn_promise(&mut cx, mixnet_doctor_snapshot_string)
+}
+
+// A failure as the same three fields the mixnet status wire carries.
+fn net_failure_json(
+    stage: &impl std::fmt::Display,
+    target: &str,
+    cause_chain: &[String],
+) -> serde_json::Value {
+    serde_json::json!({ "stage": stage.to_string(), "target": target, "cause_chain": cause_chain })
+}
+
+// The wallet's own round trip to the session server through the tunnel. It holds
+// the shared lock for the whole trip, as the price fetch does, which is why only a
+// user pressing the doctor's button runs it. The outcome lands in the indexer
+// history, and it refuses while the transport is anything but ready.
+fn mixnet_probe_tunnel_string() -> Result<String, ZingolibError> {
+    with_initialized_lightclient_read(|lightclient| {
+        RT.block_on(async move {
+            let probes = lightclient
+                .probe_destinations(None, zingolib::netutils::time::PROBE_LEG_TIMEOUT)
+                .await
+                .map_err(|e| ZingolibError::Read(cause_chain(&e)))?;
+            let legs = probes
+                .iter()
+                .map(|probe| match &probe.leg.outcome {
+                    Ok(success) => serde_json::json!({
+                        "host": probe.host.to_string(),
+                        "millis": probe.leg.millis,
+                        "chain": success.chain,
+                        "height": success.height,
+                    }),
+                    Err(failure) => serde_json::json!({
+                        "host": probe.host.to_string(),
+                        "millis": probe.leg.millis,
+                        "failure": net_failure_json(&failure.stage, &failure.target, &failure.cause_chain),
+                    }),
+                })
+                .collect::<Vec<_>>();
+            Ok(serde_json::Value::from(legs).to_string())
+        })
+    })
+}
+
+fn mixnet_probe_tunnel(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    spawn_promise(&mut cx, mixnet_probe_tunnel_string)
+}
+
+// The same server with no tunnel, stage by stage: this is what tells a dead server
+// from a dead tunnel. It leaves from the real IP, the one sync already shows that
+// server, and zingolib keeps it user-invoked. No lock is held across the network.
+fn mixnet_probe_direct_string() -> Result<String, ZingolibError> {
+    let uri = with_initialized_lightclient_read(|lightclient| {
+        lightclient.indexer_uri().ok_or_else(|| {
+            ZingolibError::Read("the session has no server to probe".to_string())
+        })
+    })?;
+    with_panic_guard(move || {
+        let probe = RT.block_on(zingolib::mixnet::probe::probe_sync_server(
+            &uri,
+            zingolib::netutils::time::PROBE_LEG_TIMEOUT,
+        ));
+        let stages = probe
+            .stages
+            .iter()
+            .map(|stage| {
+                serde_json::json!({
+                    "step": stage.step.to_string(),
+                    "millis": stage.millis,
+                    "failure": stage.failure.as_ref().map(|failure| {
+                        net_failure_json(&failure.stage, &failure.target, &failure.cause_chain)
+                    }),
+                })
+            })
+            .collect::<Vec<_>>();
+        Ok(serde_json::json!({
+            "server": probe.server,
+            "stages": stages,
+            "chain": probe.info.as_ref().map(|info| info.chain.clone()),
+            "height": probe.info.as_ref().map(|info| info.height),
+        })
+        .to_string())
+    })
+}
+
+fn mixnet_probe_direct(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    spawn_promise(&mut cx, mixnet_probe_direct_string)
+}
+
 // Attach the wallet to the already-running nym-proxy that electron main owns
 // for the session (ADR 0024 attach seam). Main spawns the proxy once and holds
 // it across wallet switches, so a switch just re-attaches the new client to the
@@ -2564,6 +2695,26 @@ fn stop_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
             Ok(object! { "status" => "ok" }.pretty(2))
         })
     })
+}
+
+// Takes the wallet off a transport that is being replaced, with no consent to
+// clearnet. Sends follow the policy and not the transport, so one left at Nakednet
+// goes out in the open at once, however the transport reads: this is what stands
+// between a restart and an automatic broadcast leaving from the real IP. The policy
+// goes first, as in `stop_mixnet` and for the same race. A send in the gap refuses
+// as not enabled, which the callers already treat as "not ready yet".
+fn detach_mixnet_string() -> Result<String, ZingolibError> {
+    with_initialized_lightclient(|lightclient| {
+        RT.block_on(async move {
+            lightclient.set_transmit_policy(zingolib::mixnet::TransmitPolicy::Mixnet);
+            lightclient.disable_mixnet().await;
+        });
+        Ok(object! { "status" => "ok" }.pretty(2))
+    })
+}
+
+fn detach_mixnet(mut cx: FunctionContext) -> JsResult<JsPromise> {
+    spawn_promise(&mut cx, detach_mixnet_string)
 }
 
 fn remove_transaction(mut cx: FunctionContext) -> JsResult<JsPromise> {

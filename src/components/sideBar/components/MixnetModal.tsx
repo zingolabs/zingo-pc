@@ -1,10 +1,12 @@
 import Modal from "react-modal";
-import { describeMixnetDeath } from "../../../rpc/components/mixnetPresenter";
 import { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import cstyles from "../../common/Common.module.css";
 import { ContextApp } from "../../../context/ContextAppState";
 import RPC from "../../../rpc/rpc";
+import routes from "../../../constants/routes.json";
 import nymLogo from "../../../assets/nym-on.svg";
+import { DoctorSteps, DoctorTechnicalDetails, TONE_CLASS, useMixnetDoctor } from "./MixnetDoctor";
 
 // The Nym brand green (from the mobile nym UI), used as a discreet accent.
 const NYM_GREEN = "#07FF94";
@@ -15,18 +17,23 @@ type MixnetModalProps = {
 };
 
 const STATUS_TEXT: Record<string, string> = {
-  "mixnet.status.ready": "Ready",
-  "mixnet.status.bootstrapping": "Connecting",
-  "mixnet.status.retrying": "Unreachable — retrying",
-  "mixnet.status.off": "Off (clearnet)",
+  "mixnet.status.ready": "Connected",
+  "mixnet.status.bootstrapping": "Connecting…",
+  "mixnet.status.retrying": "Can't reach the mixnet yet",
+  "mixnet.status.off": "Off for this session",
   "mixnet.status.unattached": "Not connected",
-  "mixnet.status.died": "Disconnected",
+  "mixnet.status.died": "Connection to the mixnet was lost",
   "mixnet.status.unknown": "Unknown",
 };
 
-const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
+// Its own component so the doctor reads main only while the screen is open: the
+// modal renders its children only then.
+const MixnetScreen = ({ closeModal }: { closeModal: () => void }) => {
   const { mixnetView } = useContext(ContextApp);
+  const navigate = useNavigate();
+  const doctor = useMixnetDoctor();
   const [busy, setBusy] = useState<boolean>(false);
+  const [detailsOpen, setDetailsOpen] = useState<boolean>(false);
 
   // Active while the transport is up or coming up; anything else (off,
   // unattached, died) offers Enable so a failed start can be retried.
@@ -35,7 +42,6 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
     mixnetView.statusKey === "mixnet.status.bootstrapping" ||
     mixnetView.statusKey === "mixnet.status.retrying";
   const off = mixnetView.statusKey === "mixnet.status.off";
-  const deathStory: string | null = describeMixnetDeath(mixnetView.death);
   // The transport is absent and nobody consented to clearnet, so sends refuse.
   // Enable is not always a way out — a build with no proxy binary can never
   // start one — and without the opt-out the user is stranded with a wallet that
@@ -55,14 +61,19 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
     }
   };
 
+  const verdict = doctor.verdict;
+  const chooseServer = () => {
+    closeModal();
+    navigate(routes.ADDNEWWALLET, { state: { mode: "settings" } });
+  };
+  // A stranded transport already offers Enable, which is this same restart.
+  const offerRestart = verdict?.action === "restart" && !stranded;
+  const offerServer = verdict?.action === "server";
+  // Something is wrong, so what we would ask for goes where it can be seen.
+  const offerReport = verdict?.tone === "bad" || verdict?.tone === "warn";
+
   return (
-    <Modal
-      isOpen={modalIsOpen}
-      onRequestClose={closeModal}
-      className={cstyles.centredsheet}
-      overlayClassName={cstyles.modalOverlay}
-      style={{ content: { maxWidth: 520 } }}
-    >
+    <>
       <div
         className={cstyles.xlarge}
         style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
@@ -71,71 +82,89 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
         Nym Mixnet
       </div>
 
-      <div className={cstyles.well} style={{ marginTop: 24 }}>
-        <div className={cstyles.flexspacebetween}>
-          <span>Status</span>
-          <span style={active ? { color: NYM_GREEN } : undefined}>
-            {STATUS_TEXT[mixnetView.statusKey] ?? "Unknown"}
-          </span>
-        </div>
-        {mixnetView.socks5Addr && (
-          <div className={cstyles.flexspacebetween} style={{ marginTop: 8 }}>
-            <span>Tunnel</span>
-            <span className={cstyles.small}>{mixnetView.socks5Addr}</span>
-          </div>
-        )}
-        {mixnetView.narration && (
-          <div className={cstyles.small} style={{ opacity: 0.6, marginTop: 8 }}>
-            {mixnetView.narration}
-          </div>
-        )}
-        {/* Why it went, when the transport held a cause. It sits in the same
-            line the bootstrap narration uses — both answer "what is it doing",
-            one forwards and one backwards — but it keeps full contrast rather
-            than the narration's, because this is the part worth reading and
-            worth quoting in a report. */}
-        {deathStory && (
-          <div className={cstyles.small} style={{ marginTop: 8 }}>
-            {deathStory}
-          </div>
+      <div style={{ marginTop: 24, textAlign: "center" }}>
+        {doctor.running ? (
+          <>
+            <div>Checking…</div>
+            <div className={cstyles.small} style={{ marginTop: 4, opacity: 0.6 }}>
+              This can take up to a minute.
+            </div>
+          </>
+        ) : (
+          <>
+            <div
+              className={verdict ? TONE_CLASS[verdict.tone] : undefined}
+              style={verdict?.tone === "ok" ? { color: NYM_GREEN } : undefined}
+            >
+              {verdict?.headline ?? STATUS_TEXT[mixnetView.statusKey] ?? "Unknown"}
+            </div>
+            {verdict?.detail && (
+              <div className={cstyles.small} style={{ marginTop: 4, overflowWrap: "anywhere" }}>
+                {verdict.detail}
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      <div className={cstyles.well} style={{ marginTop: 16 }}>
-        <div className={cstyles.small} style={{ opacity: 0.6 }}>
-          The mixnet hides your IP from the indexer when you send. Disabling it routes this session over clearnet:
-          faster, but the indexer sees your IP. The choice is never saved; the mixnet re-enables on the next launch. The
-          ZEC price is fetched over the mixnet only and never over clearnet, so USD values stay blank while this is off.
-        </div>
-      </div>
+      {doctor.steps && <DoctorSteps steps={doctor.steps} />}
 
       {stranded && (
-        <div className={`${cstyles.well} ${cstyles.small} ${cstyles.yellow}`} style={{ marginTop: 8 }}>
+        <div className={`${cstyles.well} ${cstyles.small} ${cstyles.yellow}`} style={{ marginTop: 16 }}>
           Sending is refused while the mixnet is neither ready nor deliberately off. If it cannot start on this machine,
           switch it off to send over clearnet for this session.
         </div>
       )}
 
-      {/* A row, not centred inline-blocks: with three buttons the default
-          container wraps them onto two lines. The wording above carries the
-          explanation, so the labels here stay short enough to fit. */}
+      {/* A row, not centred inline-blocks: the default container stacks them. It
+          may wrap, since which of these show depends on what the doctor found. */}
       <div
         style={{
           display: "flex",
-          flexWrap: "nowrap",
+          flexWrap: "wrap",
           justifyContent: "center",
           alignItems: "center",
           marginTop: 24,
         }}
       >
+        {offerServer && (
+          <button type="button" className={cstyles.primarybutton} onClick={chooseServer}>
+            Choose server
+          </button>
+        )}
+        {offerRestart && (
+          <button
+            type="button"
+            className={cstyles.primarybutton}
+            onClick={() => run(RPC.restartMixnet)}
+            disabled={busy}
+          >
+            Restart connection
+          </button>
+        )}
         <button
           type="button"
           className={cstyles.primarybutton}
-          onClick={() => run(active ? RPC.stopMixnet : RPC.startMixnet)}
-          disabled={busy}
+          onClick={doctor.runDiagnostics}
+          disabled={doctor.running}
         >
-          {active ? "Disable" : "Enable"}
+          {doctor.steps ? "Run again" : "Run diagnostics"}
         </button>
+        {offerReport && (
+          <button type="button" className={cstyles.primarybutton} onClick={doctor.copyReport}>
+            {doctor.copied ? "Copied" : "Copy report"}
+          </button>
+        )}
+        {!(offerServer || offerRestart) || stranded ? (
+          <button
+            type="button"
+            className={cstyles.primarybutton}
+            onClick={() => run(active ? RPC.stopMixnet : RPC.startMixnet)}
+            disabled={busy}
+          >
+            {active ? "Disable" : "Enable"}
+          </button>
+        ) : null}
         {stranded && (
           <button type="button" className={cstyles.primarybutton} onClick={() => run(RPC.stopMixnet)} disabled={busy}>
             Switch off
@@ -145,8 +174,41 @@ const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => {
           Close
         </button>
       </div>
-    </Modal>
+
+      <div className={cstyles.small} style={{ marginTop: 12, opacity: 0.6, textAlign: "center" }}>
+        Diagnostics check each step, contacting Nym and your server from your IP.
+      </div>
+
+      <div style={{ marginTop: 16, textAlign: "center" }}>
+        <button
+          type="button"
+          className={cstyles.small}
+          onClick={() => setDetailsOpen(true)}
+          style={{ background: "none", border: "none", color: "inherit", cursor: "pointer", padding: 0 }}
+        >
+          Technical details
+        </button>
+      </div>
+
+      {detailsOpen && doctor.state && (
+        <DoctorTechnicalDetails doctor={doctor} closeModal={() => setDetailsOpen(false)} />
+      )}
+    </>
   );
 };
+
+const MixnetModal = ({ modalIsOpen, closeModal }: MixnetModalProps) => (
+  <Modal
+    isOpen={modalIsOpen}
+    onRequestClose={closeModal}
+    className={cstyles.centredsheet}
+    overlayClassName={cstyles.modalOverlay}
+    // An explicit width: centred with `left: 50%`, the sheet would otherwise never
+    // grow past half the window.
+    style={{ content: { width: "min(560px, calc(100vw - 64px))" } }}
+  >
+    <MixnetScreen closeModal={closeModal} />
+  </Modal>
+);
 
 export default MixnetModal;
