@@ -26,7 +26,7 @@ export const latencyOf = async (server: ServerClass): Promise<number | null> => 
     const resp: string = await native.get_latest_block_server(server.uri);
     return resp ? Date.now() - start : null;
   } catch (error) {
-    console.error(`Critical Error calculate server latency ${error}`);
+    console.error(`Server latency check failed for ${server.uri}: ${error}`);
     return null;
   }
 };
