@@ -64,6 +64,7 @@ const tunnelFailed = { ok: false, millis: 30000, target: "custom.example:443", s
 const run: DoctorRun = {
   startedAt: 1_800_000_000_000,
   millis: 5000,
+  socks5Addr: "127.0.0.1:1",
   directory: { ok: true, exitCount: 872, millis: 1500 },
   listener: { ok: true, millis: 1 },
   tunnelServer: tunnelOk,
@@ -189,6 +190,28 @@ test("drops a failed run's verdict once the transport has moved on, keeping it f
 
   fireEvent.click(screen.getByRole("button", { name: "Technical details" }));
   expect(screen.getByText(/872 exits/)).toBeInTheDocument();
+  expect(screen.getByText(/on a connection that has since changed/)).toBeInTheDocument();
+  expect(screen.queryByText("✗")).toBeNull();
+
+  (clipboard.writeText as jest.Mock).mockReset();
+  fireEvent.click(within(screen.getAllByRole("dialog").slice(-1)[0]).getByRole("button", { name: "Copy report" }));
+  const report = (clipboard.writeText as jest.Mock).mock.calls[0][0];
+  expect(report).toContain("verdict: Connected");
+  expect(report).toContain("on a connection that has since changed");
+});
+
+// A redraw goes ready, bootstrapping, ready: the status ends where it was measured,
+// on a different proxy.
+test("drops a run's verdict when the proxy was replaced, even with the same status", async () => {
+  runDoctor.mockResolvedValue({ ...run, tunnelServer: tunnelFailed, tunnelControl: tunnelFailed });
+  show();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Run diagnostics" }));
+  expect(await screen.findByText("The mixnet isn't carrying data")).toBeInTheDocument();
+
+  getState.mockResolvedValue({ ...state, proxy: { ...state.proxy, socks5Addr: "127.0.0.1:2" } });
+
+  expect(await screen.findByText("Connected", {}, { timeout: 3000 })).toBeInTheDocument();
 });
 
 test("keeps following the transport while it is open, and stops when it closes", async () => {

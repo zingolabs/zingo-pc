@@ -48,6 +48,8 @@ export type MixnetDoctorHandle = {
   state: DoctorState | null;
   run: DoctorRun | null;
   running: boolean;
+  // The run measured a connection that is no longer the one in use.
+  stale: boolean;
   copied: boolean;
   verdict: DoctorVerdict | null;
   steps: DoctorStep[] | null;
@@ -110,20 +112,24 @@ export function useMixnetDoctor(): MixnetDoctorHandle {
     }
   };
 
+  // A run answers for the transport it measured. Once the status has moved on or the
+  // proxy has been replaced, the screen says what is true now, and the run stays only
+  // for the details and report, marked as past.
+  const current = run && state?.status.mode === runMode && state.proxy.socks5Addr === run.socks5Addr ? run : null;
+  const stale = !!run && !current;
+
   const copyReport = () => {
     if (!state) return;
-    clipboard.writeText(doctorReport(state, run));
+    clipboard.writeText(doctorReport(state, run, stale));
     setCopied(true);
   };
 
-  // A run answers for the transport it measured. Once the status has moved on, the
-  // screen says what is true now, and the run stays only for the details and report.
-  const current = run && state?.status.mode === runMode ? run : null;
   const legs = current ?? (running ? (state?.doctorProgress ?? {}) : null);
   return {
     state,
     run,
     running,
+    stale,
     copied,
     verdict: state ? diagnose(state, current) : null,
     steps: state && legs ? doctorSteps(state, legs) : null,
@@ -159,7 +165,7 @@ export const DoctorTechnicalDetails = ({
   doctor: MixnetDoctorHandle;
   closeModal: () => void;
 }) => {
-  const { state, run } = doctor;
+  const { state, run, stale } = doctor;
   if (!state) return null;
 
   const history = historyLines(state.session?.attempts ?? []);
@@ -197,9 +203,15 @@ export const DoctorTechnicalDetails = ({
 
         {run && (
           <div style={{ margin: "12px 80px 0" }}>
+            {stale && (
+              <div className={cstyles.yellow}>
+                Measured at {clock(run.startedAt)}, on a connection that has since changed. Run diagnostics again to
+                measure this one.
+              </div>
+            )}
             {doctorRows(run).map((row) => (
               <div key={row.label} style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                <span className={ROW_CLASS[row.state]}>{ROW_MARK[row.state]}</span>
+                <span className={ROW_CLASS[stale ? "skip" : row.state]}>{ROW_MARK[stale ? "skip" : row.state]}</span>
                 <span style={{ flexShrink: 0 }}>{row.label}</span>
                 <span
                   className={cstyles.sublight}

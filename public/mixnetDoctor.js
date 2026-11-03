@@ -245,6 +245,24 @@ async function probeThroughTunnel(addr, host, port, { boundMs = TUNNEL_BOUND_MS,
   }
 }
 
+// Killing a proxy cuts every socket through it, which reads exactly like a route
+// that failed. A failure on a proxy that is gone by the end of the run says nothing
+// about any route, so it is not kept as one.
+function withoutCutLegs(legs, measuredAddr, currentAddr) {
+  if (measuredAddr === currentAddr) return legs;
+  const cut = (leg) =>
+    leg.ok === false || (Array.isArray(leg) && leg[0]?.failure)
+      ? { skipped: "the proxy was replaced during the measurement" }
+      : leg;
+  return {
+    ...legs,
+    listener: cut(legs.listener),
+    tunnelServer: cut(legs.tunnelServer),
+    tunnelControl: cut(legs.tunnelControl),
+    walletProbe: cut(legs.walletProbe),
+  };
+}
+
 module.exports = {
   CLUTCH_SIZE,
   createJournal,
@@ -252,4 +270,5 @@ module.exports = {
   drawClutch,
   parseDiscovery,
   probeThroughTunnel,
+  withoutCutLegs,
 };

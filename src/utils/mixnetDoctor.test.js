@@ -13,7 +13,31 @@ const {
   drawClutch,
   parseDiscovery,
   probeThroughTunnel,
+  withoutCutLegs,
 } = require("../../public/mixnetDoctor");
+
+describe("a run whose proxy was replaced under it", () => {
+  const failed = { ok: false, millis: 8000, target: "x:443", stages: [], error: "read ECONNRESET" };
+  const passed = { ok: true, millis: 3000, target: "x:443", stages: [] };
+  const legs = {
+    listener: { ok: true, millis: 1 },
+    tunnelServer: failed,
+    tunnelControl: { skipped: "the server is the control" },
+    walletProbe: [{ host: "x", millis: 1, failure: { stage: "s", target: "t", cause_chain: [] } }],
+  };
+
+  it("keeps every leg while the proxy is the one it measured", () => {
+    expect(withoutCutLegs(legs, "127.0.0.1:1", "127.0.0.1:1")).toBe(legs);
+  });
+
+  it("does not count a cut socket as a failed route, and keeps what passed", () => {
+    const kept = withoutCutLegs({ ...legs, tunnelControl: passed }, "127.0.0.1:1", null);
+    expect(kept.tunnelServer).toEqual({ skipped: "the proxy was replaced during the measurement" });
+    expect(kept.walletProbe).toEqual({ skipped: "the proxy was replaced during the measurement" });
+    expect(kept.tunnelControl).toBe(passed);
+    expect(kept.listener).toBe(legs.listener);
+  });
+});
 
 // A listener that answers each connection however the test says, closed after.
 const withServer = async (onConnection, run) => {
