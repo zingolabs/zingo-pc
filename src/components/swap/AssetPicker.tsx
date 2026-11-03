@@ -5,6 +5,7 @@ import styles from "../history/History.module.css";
 import cstyles from "../common/Common.module.css";
 import type { TokenEntryType } from "../../swap";
 import TokenLogo from "./TokenLogo";
+import { repeatedCoins, shortContract } from "./swapAssets";
 
 type AssetPickerProps = {
   tokens: TokenEntryType[];
@@ -13,9 +14,6 @@ type AssetPickerProps = {
   closeModal: () => void;
   onSelect: (token: TokenEntryType) => void;
 };
-
-/** Rows rendered at once. The catalog runs to hundreds of entries. */
-const VISIBLE_LIMIT = 60;
 
 /**
  * `TokenEntryType` declares `ticker`, `name` and `chain` as present, and the
@@ -37,9 +35,11 @@ const lower = (value: string | undefined): string => (value ?? "").toLowerCase()
 const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen, closeModal, onSelect }) => {
   const [query, setQuery] = useState<string>("");
 
+  const repeated = useMemo(() => repeatedCoins(tokens), [tokens]);
+
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return tokens.slice(0, VISIBLE_LIMIT);
+    if (!q) return tokens;
 
     const rank = (token: TokenEntryType): number => {
       const ticker = lower(token.ticker);
@@ -52,10 +52,7 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
     const hit = (token: TokenEntryType): boolean =>
       lower(token.ticker).includes(q) || lower(token.name).includes(q) || lower(token.chain).includes(q);
 
-    return tokens
-      .filter(hit)
-      .sort((a, b) => rank(a) - rank(b))
-      .slice(0, VISIBLE_LIMIT);
+    return tokens.filter(hit).sort((a, b) => rank(a) - rank(b));
   }, [tokens, query]);
 
   return (
@@ -108,15 +105,13 @@ const AssetPicker: React.FC<AssetPickerProps> = ({ tokens, selected, modalIsOpen
                 <div>
                   {token.ticker} <span className={cstyles.sublight}>{token.chain}</span>
                 </div>
-                <div className={`${cstyles.sublight} ${cstyles.small}`}>{token.name}</div>
+                <div className={`${cstyles.sublight} ${cstyles.small}`}>
+                  {token.name}
+                  {repeated.has(token.identifier) && !!token.address && ` · ${shortContract(token.address)}`}
+                </div>
               </div>
             </button>
           ))}
-          {matches.length === VISIBLE_LIMIT && (
-            <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
-              Showing the first {VISIBLE_LIMIT}. Narrow the search to see more.
-            </div>
-          )}
         </div>
 
         <div className={`${cstyles.center} ${cstyles.margintoplarge}`}>

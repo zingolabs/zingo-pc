@@ -1,4 +1,4 @@
-import { isZecWrapper, isQuotableToken, ZEC_TOKEN_ENTRY } from "./swapAssets";
+import { isZecWrapper, isQuotableToken, repeatedCoins, shortContract, ZEC_TOKEN_ENTRY } from "./swapAssets";
 import type { TokenEntryType } from "../../swap";
 
 const entry = (over: Partial<TokenEntryType>): TokenEntryType => ({
@@ -10,6 +10,27 @@ const entry = (over: Partial<TokenEntryType>): TokenEntryType => ({
   name: "Solana",
   decimals: 9,
   ...over,
+});
+
+describe("repeatedCoins", () => {
+  it("repeats coins that share chain and ticker, whatever the casing", () => {
+    const a = entry({ chain: "NEAR", ticker: "wBTC", identifier: "NEAR.wBTC-a" });
+    const b = entry({ chain: "NEAR", ticker: "WBTC", identifier: "NEAR.WBTC-b" });
+    expect(repeatedCoins([a, b])).toEqual(new Set(["NEAR.wBTC-a", "NEAR.WBTC-b"]));
+  });
+
+  it("does not repeat a coin whose other entries are on other chains", () => {
+    const a = entry({ chain: "ETH", ticker: "ETH", identifier: "ETH.ETH" });
+    const b = entry({ chain: "BASE", ticker: "ETH", identifier: "BASE.ETH" });
+    expect(repeatedCoins([a, b]).size).toBe(0);
+  });
+});
+
+describe("shortContract", () => {
+  it("cuts a long contract in the middle and leaves a short one alone", () => {
+    expect(shortContract("miden-0x419f8f4bff72959132aa7cea15a4c1.omft.near")).toBe("miden-0x419f…omft.near");
+    expect(shortContract("eth.bridge.near")).toBe("eth.bridge.near");
+  });
 });
 
 describe("isZecWrapper", () => {
