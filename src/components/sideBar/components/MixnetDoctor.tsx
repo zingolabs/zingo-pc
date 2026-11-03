@@ -143,6 +143,7 @@ export const DoctorSteps = ({ steps }: { steps: DoctorStep[] }) => (
         </span>
         <span className={step.state === "unchecked" ? cstyles.sublight : undefined}>{step.label}</span>
         {step.state === "unchecked" && <span className={cstyles.sublight}>not checked</span>}
+        {step.note && <span className={cstyles.sublight}>{step.note}</span>}
       </div>
     ))}
   </div>

@@ -247,7 +247,7 @@ describe("the four steps", () => {
       "unchecked",
       "unchecked",
     ]);
-    expect(answers(state(), run({ directory }))).toEqual(["ok", "fail", "unchecked", "unchecked"]);
+    expect(answers(state(), run({ directory }))).toEqual(["ok", "fail", "unchecked", "ok"]);
   });
 
   it("clear the tunnel when the control gets through and only the server fails", () => {
@@ -259,13 +259,13 @@ describe("the four steps", () => {
       "ok",
       "ok",
       "fail",
-      "unchecked",
+      "ok",
     ]);
   });
 
   it("agree with the verdict when the server is its own control", () => {
     const noControl = { tunnelServer: tunnelFailed, tunnelControl: { skipped: "the server is the control" } };
-    expect(answers(state(), run(noControl))).toEqual(["ok", "ok", "fail", "unchecked"]);
+    expect(answers(state(), run(noControl))).toEqual(["ok", "ok", "fail", "ok"]);
     expect(answers(state(), run({ ...noControl, direct: directFailed }))).toEqual(["ok", "ok", "unchecked", "fail"]);
   });
 
@@ -275,8 +275,26 @@ describe("the four steps", () => {
       "ok",
       "ok",
       "unchecked",
-      "unchecked",
+      "ok",
     ]);
+  });
+
+  // The verdict says the server answers directly, so the list cannot say it was not
+  // asked.
+  it("say so when only the direct leg speaks for the server", () => {
+    const failed = doctorSteps(state(), run({ tunnelServer: tunnelFailed, tunnelControl: tunnelFailed }));
+    expect(failed[3]).toEqual({ label: "Your server", state: "ok", note: "answers directly" });
+    expect(doctorSteps(state(), run())[3].note).toBeUndefined();
+  });
+
+  it("wait for the direct leg past a failure, and stay unanswered without it", () => {
+    const { directory, listener, tunnelServer, tunnelControl, walletProbe } = run({
+      tunnelServer: tunnelFailed,
+      tunnelControl: tunnelFailed,
+    });
+    const legs = { directory, listener, tunnelServer, tunnelControl, walletProbe };
+    expect(answers(state(), legs)[3]).toBe("running");
+    expect(answers(state(), { ...legs, direct: directFailed })[3]).toBe("unchecked");
   });
 });
 

@@ -139,7 +139,7 @@ const MixnetScreen = ({ closeModal }: { closeModal: () => void }) => {
             onClick={() => run(RPC.restartMixnet)}
             disabled={busy}
           >
-            Restart connection
+            Restart
           </button>
         )}
         <button

@@ -366,17 +366,20 @@ export function diagnose(state: DoctorState, run: DoctorRun | null): DoctorVerdi
 }
 
 export type DoctorStepState = "ok" | "fail" | "running" | "unchecked";
-export type DoctorStep = { label: string; state: DoctorStepState };
+export type DoctorStep = { label: string; state: DoctorStepState; note?: string };
 
 // The legs as they arrive from main: one still running is simply absent.
 export type DoctorLegs = Partial<Omit<DoctorRun, "startedAt" | "millis">>;
 
 type LegState = DoctorRowState | "pending";
 
+const SERVER_STEP = "Your server";
+
 // The six measurements as the four questions a user has. Each answer is taken as
 // soon as the legs that settle it are in, so the list moves while slow legs run. A
 // step past the first failure rests on something broken, so it reads as not checked
-// whatever its own legs said.
+// whatever its own legs said. The server is the exception: its direct leg rests on
+// none of that, and the verdict may already be quoting it.
 export function doctorSteps(state: DoctorState, legs: DoctorLegs): DoctorStep[] {
   const of = <T>(leg: T | undefined, row: (leg: T) => DoctorRow): LegState => (leg ? row(leg).state : "pending");
   const nym = of(legs.directory, directoryRow);
@@ -409,16 +412,21 @@ export function doctorSteps(state: DoctorState, legs: DoctorLegs): DoctorStep[] 
     return server === "ok" ? "ok" : "unchecked";
   };
 
+  const unanswered = (label: string): DoctorStep => {
+    if (label === SERVER_STEP && direct === "ok") return { label, state: "ok", note: "answers directly" };
+    return { label, state: label === SERVER_STEP && direct === "pending" ? "running" : "unchecked" };
+  };
+
   let broken = false;
   return (
     [
       ["Your internet connection", connection()],
       ["Nym network", nym === "pending" ? "running" : nym === "ok" ? "ok" : "fail"],
       ["Mixnet tunnel", tunnel()],
-      ["Your server", reachesServer()],
+      [SERVER_STEP, reachesServer()],
     ] as [string, DoctorStepState][]
   ).map(([label, answer]) => {
-    const step: DoctorStep = { label, state: broken ? "unchecked" : answer };
+    const step: DoctorStep = broken || answer === "unchecked" ? unanswered(label) : { label, state: answer };
     if (answer === "fail") broken = true;
     return step;
   });

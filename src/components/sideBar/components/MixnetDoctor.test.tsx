@@ -151,8 +151,8 @@ test("a fault offers what fixes it, and the report we would ask for", async () =
   fireEvent.click(await screen.findByRole("button", { name: "Run diagnostics" }));
 
   expect(await screen.findByText("The mixnet isn't carrying data")).toBeInTheDocument();
-  expect(screen.getByText("not checked")).toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Restart connection" }));
+  expect(screen.getByText("answers directly")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Restart" }));
   expect(restart).toHaveBeenCalledTimes(1);
 
   fireEvent.click(screen.getByRole("button", { name: "Copy report" }));
