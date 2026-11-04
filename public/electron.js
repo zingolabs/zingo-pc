@@ -1043,7 +1043,8 @@ ipcMain.handle("get-app-data-path", () => app.getPath("appData"));
 const SWAP_HTTP_HOSTS = new Set([
   "api.swapkit.dev",
   "midgard.mayachain.info",
-  "midgard.ninerealms.com",
+  // THORChain's Midgard (`MidgardClient`).
+  "gateway.liquify.com",
   // Maya's shielded memo config for ZEC deposits (`mayaShieldedMemo`).
   "mayanode.mayachain.info",
 ]);
