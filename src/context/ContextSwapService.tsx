@@ -5,6 +5,7 @@ import { SwapService, SwapStore, createSwapService, readCurrentWalletKeys, swapR
 import type ValueTransferClass from "../components/appstate/classes/ValueTransferClass";
 import type { SwapRecordType } from "../swap";
 import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
+import { native } from "../electronBridge";
 
 /**
  * Provides the singleton `SwapService` for the loaded wallet, and owns the
@@ -18,6 +19,18 @@ import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
  * testnet or regtest.
  */
 const SwapServiceContext = createContext<SwapService | null>(null);
+
+/**
+ * Maya refuses a unified address with only an Orchard receiver: Orchard takes
+ * no new outputs since NU6.3 (ZIP 2006). It pays the Sapling one.
+ */
+async function newShieldedAddress(): Promise<string> {
+  const parsed: { encoded_address?: string } = JSON.parse(await native.create_new_unified_address("oz"));
+  if (!parsed.encoded_address) {
+    throw new Error("the wallet named no address");
+  }
+  return parsed.encoded_address;
+}
 
 export type SwapServiceProviderProps = {
   chainName: ChainNameEnum;
@@ -68,7 +81,7 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
           setService(null);
           return;
         }
-        created = createSwapService({ apiKey: apiKey ?? SWAPKIT_API_KEY, chainName });
+        created = createSwapService({ apiKey: apiKey ?? SWAPKIT_API_KEY, chainName, newShieldedAddress });
         if (cancelled) return;
         setService(created);
         created.startPolling();

@@ -1,4 +1,4 @@
-import { quoteAddressPair, quoteBindsAddress } from "./quoteAddressBinding";
+import { orderNamesEphemeral, quoteAddressPair, quoteBindsAddress } from "./quoteAddressBinding";
 
 const EPHEMERAL = "t1ephemeralrefundaddress";
 
@@ -71,5 +71,37 @@ describe("quoteBindsAddress", () => {
     const inbound = { sourceAddress: "zingolabs.near", destinationAddress: EPHEMERAL };
     expect(quoteBindsAddress({ quoted: inbound, isOutbound: false, boundAddress: "zingolabs.near" })).toBe(true);
     expect(quoteBindsAddress({ quoted: inbound, isOutbound: true, boundAddress: "zingolabs.near" })).toBe(false);
+  });
+});
+
+describe("orderNamesEphemeral", () => {
+  it("Tests that a sale uses the wallet address whatever it ordered", () => {
+    expect(
+      orderNamesEphemeral({
+        isOutbound: true,
+        quotedDestination: "bc1quser",
+        orderedDestination: "bc1quser",
+      }),
+    ).toBe(true);
+  });
+
+  it("Tests that a purchase uses it when the order kept the quoted destination", () => {
+    expect(
+      orderNamesEphemeral({
+        isOutbound: false,
+        quotedDestination: EPHEMERAL,
+        orderedDestination: EPHEMERAL,
+      }),
+    ).toBe(true);
+  });
+
+  it("Tests that a purchase leaves it free when Maya pays a unified address", () => {
+    expect(
+      orderNamesEphemeral({
+        isOutbound: false,
+        quotedDestination: EPHEMERAL,
+        orderedDestination: "u1shielded",
+      }),
+    ).toBe(false);
   });
 });

@@ -14,6 +14,8 @@ import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { fetchMayaShieldedMemoTarget, shieldedMemoAddressFromSwap } from "./mayaShieldedMemo";
 import { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
 import { SwapKitError } from "./errors";
+import type { SwapResponseType } from "./types/SwapResponseType";
+import { isMemoTooLong, paysPurchaseShielded } from "./shieldedPurchase";
 import { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
 import { TRACK_CAPTURE_VERSION, isRealLegHash } from "./providers/trackUpdateBase";
 import { DepositInstructionsType } from "./types/DepositInstructionsType";
@@ -53,6 +55,12 @@ export type SwapServiceArgs = {
   store: typeof SwapStore;
   poller: SwapPoller;
   tokenCatalog: TokenCatalog;
+  /**
+   * A new unified address of this wallet with a Sapling receiver, one per
+   * purchase: Maya pays it with an all-zero OVK, which anyone can decrypt,
+   * so a shared one would tie every purchase together.
+   */
+  newShieldedAddress?: () => Promise<string>;
   /** Flashnet's explorer, for the backfill; see `SwapPollerArgs`. */
 };
 
@@ -115,6 +123,7 @@ export class SwapService {
   private readonly store: typeof SwapStore;
   private readonly poller: SwapPoller;
   private readonly tokenCatalog: TokenCatalog;
+  private readonly newShieldedAddress?: () => Promise<string>;
 
   /** Finished swaps already asked about this session. */
   private readonly backfillAttempted = new Set<string>();
@@ -125,6 +134,7 @@ export class SwapService {
     this.store = args.store;
     this.poller = args.poller;
     this.tokenCatalog = args.tokenCatalog;
+    this.newShieldedAddress = args.newShieldedAddress;
   }
 
   /**
@@ -242,11 +252,7 @@ export class SwapService {
     const { quoteInput, chosenRoute, direction, fiatValueBasis } = args;
     const executor = this.registry.get(chosenRoute.provider);
 
-    const swapResponse = await this.client.swap({
-      routeId: chosenRoute.routeId,
-      sourceAddress: quoteInput.sourceAddress,
-      destinationAddress: quoteInput.destinationAddress,
-    });
+    const { swapResponse, destinationAddress } = await this.swapToDestination(args);
 
     // Maya may take the memo in a shielded note: SwapKit names the address
     // for a shielded source, and mayanode says whether it is on for the vault.
@@ -265,7 +271,7 @@ export class SwapService {
       sellAsset: quoteInput.sellAsset,
       receiveAsset: quoteInput.receiveAsset,
       sellAmountHumanDecimal: quoteInput.sellAmountHumanDecimal,
-      destinationAddress: quoteInput.destinationAddress,
+      destinationAddress,
       sourceAddress: quoteInput.sourceAddress,
     });
 
@@ -286,7 +292,7 @@ export class SwapService {
       minReceiveAmount: chosenRoute.minReceiveAmount,
       totalFeesInReceiveAsset: chosenRoute.totalFeesInReceiveAsset,
       feesRaw: chosenRoute.feesRaw,
-      destinationAddress: quoteInput.destinationAddress,
+      destinationAddress,
       sourceAddress: quoteInput.sourceAddress,
       requestedSlippageBps: quoteInput.slippageBps,
       status: initialStatus,
@@ -305,6 +311,50 @@ export class SwapService {
     // is idempotent so this is a no-op if it is already running.
     this.poller.start();
     return { record, instructions };
+  }
+
+  /**
+   * Builds the order. A purchase Maya can pay shielded goes to a new unified
+   * address: the route quoted to the transparent one takes it at `/v3/swap`.
+   * Where its memo would not fit, or no address could be made, the order
+   * keeps the transparent destination it was quoted with.
+   */
+  private async swapToDestination(
+    args: CommitRouteArgs,
+  ): Promise<{ swapResponse: SwapResponseType; destinationAddress: string }> {
+    const { quoteInput, chosenRoute, direction } = args;
+    const order = (destinationAddress: string) =>
+      this.client.swap({
+        routeId: chosenRoute.routeId,
+        sourceAddress: quoteInput.sourceAddress,
+        destinationAddress,
+      });
+    const shielded =
+      this.newShieldedAddress &&
+      paysPurchaseShielded({
+        provider: chosenRoute.provider,
+        direction,
+        sellChain: quoteInput.sellAsset.chain,
+      })
+        ? await this.newShieldedAddress().catch((error) => {
+            console.error(`SwapService: no shielded address for the purchase ${error}`);
+            return undefined;
+          })
+        : undefined;
+    if (shielded) {
+      try {
+        return {
+          swapResponse: await order(shielded),
+          destinationAddress: shielded,
+        };
+      } catch (error) {
+        if (!isMemoTooLong(error)) throw error;
+      }
+    }
+    return {
+      swapResponse: await order(quoteInput.destinationAddress),
+      destinationAddress: quoteInput.destinationAddress,
+    };
   }
 
   /**
@@ -706,6 +756,7 @@ export function createSwapService(args: {
   apiKey: string;
   chainName: ChainNameEnum;
   registry?: ProviderRegistry;
+  newShieldedAddress?: () => Promise<string>;
 }): SwapService {
   const client = new SwapKitClient({
     apiKey: args.apiKey,
@@ -718,7 +769,14 @@ export function createSwapService(args: {
   // when the detail view backfills the same swap.
   const poller = new SwapPoller({ client, registry, store, midgardClient });
   const tokenCatalog = new TokenCatalog(client);
-  return new SwapService({ client, registry, store, poller, tokenCatalog });
+  return new SwapService({
+    client,
+    registry,
+    store,
+    poller,
+    tokenCatalog,
+    newShieldedAddress: args.newShieldedAddress,
+  });
 }
 
 /**
