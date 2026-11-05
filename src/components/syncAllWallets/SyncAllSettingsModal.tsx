@@ -104,7 +104,7 @@ const SyncAllSettingsModal: React.FC<Props> = ({ isOpen, onClose }) => {
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
-        <button type="button" className={cstyles.primarybutton} onClick={onClose}>
+        <button type="button" className={cstyles.secondarybutton} onClick={onClose}>
           Cancel
         </button>
         <button type="button" className={cstyles.primarybutton} onClick={save} disabled={chosen === autoEnabled}>

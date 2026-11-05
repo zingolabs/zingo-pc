@@ -419,7 +419,7 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                 </div>
               </div>
               <div className={styles.buttons}>
-                <button type="button" className={cstyles.primarybutton} onClick={onBack}>
+                <button type="button" className={cstyles.secondarybutton} onClick={onBack}>
                   Back
                 </button>
               </div>
@@ -529,14 +529,14 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                     be sent — but this is exactly how your funds will be migrated when it opens.
                   </div>
                   <div className={styles.buttons}>
-                    <button type="button" className={cstyles.primarybutton} onClick={onExit}>
+                    <button type="button" className={cstyles.secondarybutton} onClick={onExit}>
                       Back to wallet
                     </button>
                   </div>
                 </>
               ) : (
                 <div className={styles.buttons}>
-                  <button type="button" className={cstyles.primarybutton} onClick={onBack}>
+                  <button type="button" className={cstyles.secondarybutton} onClick={onBack}>
                     Back
                   </button>
                   <button type="button" className={cstyles.primarybutton} onClick={start}>
@@ -564,7 +564,7 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                 Your migration is safe and can continue — retry to pick up where it left off.
               </div>
               <div className={styles.buttons}>
-                <button type="button" className={cstyles.primarybutton} onClick={onExit}>
+                <button type="button" className={cstyles.secondarybutton} onClick={onExit}>
                   Back to wallet
                 </button>
                 <button type="button" className={cstyles.primarybutton} onClick={retry}>
@@ -721,7 +721,7 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
                       <div className={styles.buttons} style={{ marginTop: 12 }}>
                         <button
                           type="button"
-                          className={cstyles.primarybutton}
+                          className={cstyles.secondarybutton}
                           onClick={() => setConfirmingSend(false)}
                         >
                           Not now
@@ -845,12 +845,12 @@ const PrivateMigration: React.FC<PrivateMigrationProps> = ({
 
               <div className={styles.buttons}>
                 {complete ? (
-                  <button type="button" className={cstyles.primarybutton} onClick={dismissComplete}>
+                  <button type="button" className={cstyles.secondarybutton} onClick={dismissComplete}>
                     Done
                   </button>
                 ) : (
                   <>
-                    <button type="button" className={cstyles.primarybutton} onClick={onExit}>
+                    <button type="button" className={cstyles.secondarybutton} onClick={onExit}>
                       Back to wallet
                     </button>
                     {confirmingCancel ? (

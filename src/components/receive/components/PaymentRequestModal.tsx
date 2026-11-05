@@ -296,7 +296,7 @@ const PaymentRequestModal: React.FC<PaymentRequestModalProps> = ({
         )}
 
         <div className={cstyles.buttoncontainer} style={{ paddingTop: 16 }}>
-          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          <button type="button" className={cstyles.secondarybutton} onClick={closeModal}>
             Cancel
           </button>
           {/* Only while there is nothing generated: any edit drops the request,

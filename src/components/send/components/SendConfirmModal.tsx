@@ -631,7 +631,7 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
         </div>
 
         <div className={cstyles.buttoncontainer} ref={footerRef}>
-          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          <button type="button" className={cstyles.secondarybutton} onClick={closeModal}>
             Cancel
           </button>
           <button type="button" className={cstyles.primarybutton} onClick={() => sendButton()}>

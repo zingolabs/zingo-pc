@@ -208,7 +208,7 @@ const Dashboard: React.FC<DashboardProps> = ({ navigateToHistory }) => {
               </span>
             </div>
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
-              <button type="button" className={cstyles.primarybutton} onClick={dismissMigration}>
+              <button type="button" className={cstyles.secondarybutton} onClick={dismissMigration}>
                 Dismiss
               </button>
             </div>

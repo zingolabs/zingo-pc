@@ -61,7 +61,7 @@ const ContactQrModal: React.FC<ContactQrModalProps> = ({
       </div>
 
       <div className={`${cstyles.buttoncontainer} ${cstyles.margintoplarge}`}>
-        <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+        <button type="button" className={cstyles.secondarybutton} onClick={closeModal}>
           Close
         </button>
       </div>

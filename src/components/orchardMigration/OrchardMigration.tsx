@@ -154,7 +154,7 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
             <p>Move your funds to Ironwood now to keep transacting and to get quantum-recoverable notes.</p>
           </div>
           <div className={styles.buttons}>
-            <button type="button" className={cstyles.primarybutton} onClick={backToWallet}>
+            <button type="button" className={cstyles.secondarybutton} onClick={backToWallet}>
               Not now
             </button>
             <button type="button" className={cstyles.primarybutton} onClick={() => setStep("howItWorks")}>
@@ -198,7 +198,7 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
           </div>
 
           <div className={styles.buttons}>
-            <button type="button" className={cstyles.primarybutton} onClick={() => setStep("intro")}>
+            <button type="button" className={cstyles.secondarybutton} onClick={() => setStep("intro")}>
               Back
             </button>
             <button type="button" className={cstyles.primarybutton} onClick={() => setStep("strategy")}>
@@ -250,7 +250,7 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
           </div>
 
           <div className={styles.buttons}>
-            <button type="button" className={cstyles.primarybutton} onClick={() => setStep("howItWorks")}>
+            <button type="button" className={cstyles.secondarybutton} onClick={() => setStep("howItWorks")}>
               Back
             </button>
             <button
@@ -322,7 +322,7 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
 
           {canRun ? (
             <div className={styles.buttons}>
-              <button type="button" className={cstyles.primarybutton} onClick={() => setStep("strategy")}>
+              <button type="button" className={cstyles.secondarybutton} onClick={() => setStep("strategy")}>
                 Back
               </button>
               <button type="button" className={cstyles.primarybutton} onClick={runQuickMigration}>
@@ -331,7 +331,7 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
             </div>
           ) : (
             <div className={styles.buttons}>
-              <button type="button" className={cstyles.primarybutton} onClick={backToWallet}>
+              <button type="button" className={cstyles.secondarybutton} onClick={backToWallet}>
                 Back to wallet
               </button>
             </div>
@@ -408,7 +408,7 @@ const OrchardMigration: React.FC<OrchardMigrationProps> = ({ drainToIronwood }) 
             </>
           )}
           <div className={styles.buttons}>
-            <button type="button" className={cstyles.primarybutton} onClick={backToWallet}>
+            <button type="button" className={cstyles.secondarybutton} onClick={backToWallet}>
               Back to wallet
             </button>
           </div>

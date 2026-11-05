@@ -721,7 +721,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               Remove
             </button>
           )}
-          <button type="button" className={cstyles.primarybutton} onClick={closeModal}>
+          <button type="button" className={cstyles.secondarybutton} onClick={closeModal}>
             Cancel
           </button>
         </div>
@@ -771,7 +771,7 @@ function PurchasePhase({ record, markSent }: { record: SwapRecordType; markSent:
             >
               Yes, I sent it
             </button>
-            <button type="button" className={cstyles.primarybutton} onClick={() => setConfirming(false)}>
+            <button type="button" className={cstyles.secondarybutton} onClick={() => setConfirming(false)}>
               Not yet
             </button>
           </>

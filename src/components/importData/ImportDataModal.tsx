@@ -126,7 +126,7 @@ const ImportDataModal: React.FC<Props> = ({ isOpen, onClose, scanResult }) => {
       </div>
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 12, marginTop: 24 }}>
-        <button type="button" className={cstyles.primarybutton} onClick={onClose} disabled={applying}>
+        <button type="button" className={cstyles.secondarybutton} onClick={onClose} disabled={applying}>
           Cancel
         </button>
         <button
