@@ -106,6 +106,8 @@ export type DoctorDirect = {
 export type DoctorRun = {
   startedAt: number;
   millis: number;
+  // The proxy it measured, which is what its answers are about.
+  socks5Addr: string | null;
   directory: DoctorDirectory;
   listener: DoctorDial | Skipped;
   tunnelServer: DoctorTunnel | Skipped;
@@ -459,13 +461,13 @@ export const DOCTOR_HEADLINE = "zingo mixnet doctor report";
 // No keys, addresses or balances are anywhere in this: only servers, exits, times
 // and errors. It is still the record of when this wallet was active, which is why
 // it goes nowhere unless the user pastes it somewhere.
-export function doctorReport(state: DoctorState, run: DoctorRun | null): string {
-  const verdict = diagnose(state, run);
+export function doctorReport(state: DoctorState, run: DoctorRun | null, stale = false): string {
+  const verdict = diagnose(state, stale ? null : run);
   const { stats, proxy, session } = state;
   const lines = [
     `## ${DOCTOR_HEADLINE}`,
     `- taken: ${stamp(state.at)}`,
-    `- verdict: ${verdict.headline}${verdict.detail ? ` ${verdict.detail}` : ""}`,
+    `- verdict: ${verdict.headline}${verdict.detail ? ` — ${verdict.detail}` : ""}`,
     `- app: ${state.app} on ${state.platform}, online ${state.online}`,
     `- server: ${session?.indexer ?? "no wallet open"}`,
     `- send route: ${session?.transmit_policy ?? "unknown"}`,
@@ -478,7 +480,10 @@ export function doctorReport(state: DoctorState, run: DoctorRun | null): string 
   const cause = lastCause(state);
   if (cause) lines.push(`- last cause: ${cause}`);
   if (run) {
-    lines.push("", `### diagnostics (${run.millis} ms, ${stamp(run.startedAt)})`);
+    lines.push(
+      "",
+      `### diagnostics (${run.millis} ms, ${stamp(run.startedAt)})${stale ? ", on a connection that has since changed" : ""}`,
+    );
     for (const row of doctorRows(run)) lines.push(`- ${row.label}: ${row.state.toUpperCase()} — ${row.value}`);
   }
   if (session?.attempts.length) {

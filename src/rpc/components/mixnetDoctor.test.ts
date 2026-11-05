@@ -84,6 +84,7 @@ const directFailed = {
 const run = (overrides: Partial<DoctorRun> = {}): DoctorRun => ({
   startedAt: NOW,
   millis: 5000,
+  socks5Addr: "127.0.0.1:1",
   directory: { ok: true, exitCount: 872, millis: 1500 },
   listener: { ok: true, millis: 1 },
   tunnelServer: tunnelOk,
@@ -367,5 +368,16 @@ describe("the report", () => {
     expect(report).toContain("verdict: Everything is working");
     expect(report).toContain("Nym directory: OK");
     expect(report).toContain("nym-proxy: every exit failed");
+  });
+
+  // Read in the field: a copied report blamed the tunnel while its status said ready.
+  it("does not take its verdict from a run the transport has moved on from", () => {
+    const failed = run({ tunnelServer: tunnelFailed, tunnelControl: tunnelFailed });
+    expect(doctorReport(state(), failed)).toContain("verdict: The mixnet isn't carrying data");
+
+    const report = doctorReport(state(), failed, true);
+    expect(report).toContain("verdict: Connected");
+    expect(report).toContain("on a connection that has since changed");
+    expect(report).toContain("Tunnel to the server: FAIL");
   });
 });

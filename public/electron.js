@@ -72,6 +72,7 @@ const {
   drawClutch,
   parseDiscovery,
   probeThroughTunnel,
+  withoutCutLegs,
 } = require("./mixnetDoctor");
 const { isOpenablePaymentUri } = require("./paymentUri");
 const { SWAP_FILE_SUFFIX, mergeSwapRecords } = require("./swapImport");
@@ -2243,7 +2244,7 @@ async function runMixnetDoctor() {
       return outcome;
     });
 
-  const [directory, listener, tunnelServer, tunnelControl, walletProbe, direct] = await Promise.all([
+  const [directory, measuredListener, measuredServer, measuredControl, measuredWallet, direct] = await Promise.all([
     landing(
       "directory",
       discoverMixnetExits().done.then(({ exits, ...rest }) => ({ ...rest, exitCount: exits.length })),
@@ -2255,9 +2256,20 @@ async function runMixnetDoctor() {
     landing("direct", facts?.indexer ? native("mixnet_probe_direct") : skipped("no server")),
   ]);
 
+  const { listener, tunnelServer, tunnelControl, walletProbe } = withoutCutLegs(
+    {
+      listener: measuredListener,
+      tunnelServer: measuredServer,
+      tunnelControl: measuredControl,
+      walletProbe: measuredWallet,
+    },
+    socks5Addr,
+    mixnet.socks5Addr,
+  );
   const run = {
     startedAt: started,
     millis: Date.now() - started,
+    socks5Addr,
     directory,
     listener,
     tunnelServer,
