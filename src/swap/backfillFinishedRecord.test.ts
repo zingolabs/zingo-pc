@@ -1,3 +1,4 @@
+import { withStoreUpdate } from "./providers/fixtures/withStoreUpdate";
 import { SwapService } from "./SwapService";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
@@ -64,7 +65,7 @@ const serviceOver = (stored: SwapRecordType, track: () => Promise<TrackResponseT
   const service = new SwapService({
     client: { track: trackMock } as unknown as SwapKitClient,
     registry: createDefaultProviderRegistry(),
-    store: { getByRecordId: async () => stored, upsert } as unknown as typeof SwapStore,
+    store: withStoreUpdate({ getByRecordId: async () => stored, upsert }) as unknown as typeof SwapStore,
     poller: null as unknown as SwapPoller,
     tokenCatalog: null as unknown as TokenCatalog,
   });
@@ -111,7 +112,7 @@ describe("SwapService.backfillFinishedRecord on an inbound Flashnet swap", () =>
     const service = new SwapService({
       client: { track: jest.fn(async () => inboundFlashnetTrack) } as unknown as SwapKitClient,
       registry: createDefaultProviderRegistry(),
-      store: { getByRecordId: async () => inbound(), upsert } as unknown as typeof SwapStore,
+      store: withStoreUpdate({ getByRecordId: async () => inbound(), upsert }) as unknown as typeof SwapStore,
       poller: null as unknown as SwapPoller,
       tokenCatalog: null as unknown as TokenCatalog,
     });

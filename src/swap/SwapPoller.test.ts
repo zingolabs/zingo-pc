@@ -1,3 +1,4 @@
+import { withStoreUpdate } from "./providers/fixtures/withStoreUpdate";
 import { SwapPoller } from "./SwapPoller";
 import { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
@@ -131,7 +132,7 @@ describe("SwapPoller on an inbound Flashnet swap", () => {
     const poller = new SwapPoller({
       client: { track: jest.fn(async () => inboundFlashnetTrack) } as unknown as SwapKitClient,
       registry: new ProviderRegistry([new FlashnetExecutor()]),
-      store: { readAll: jest.fn(async () => [record()]), upsert } as unknown as typeof SwapStore,
+      store: withStoreUpdate({ readAll: jest.fn(async () => [record()]), upsert }) as unknown as typeof SwapStore,
       midgardClient: { findInboundActionByMemo: jest.fn(async () => null) } as unknown as MidgardClient,
       config: { tickIntervalMs: 10_000, activePollIntervalMs: 0, idlePollIntervalMs: 0 },
     });
@@ -287,10 +288,10 @@ describe("SwapPoller on an awaited deposit with a deadline", () => {
         passthroughExecutor(SwapKitProviderEnum.MayachainStreaming),
         passthroughExecutor(SwapKitProviderEnum.Near),
       ]),
-      store: {
+      store: withStoreUpdate({
         readAll: jest.fn(async () => records),
         upsert,
-      } as unknown as typeof SwapStore,
+      }) as unknown as typeof SwapStore,
       midgardClient: {
         findInboundActionByMemo: jest.fn(async () => null),
       } as unknown as MidgardClient,
@@ -391,10 +392,10 @@ describe("SwapPoller on an expired purchase", () => {
     const poller = new SwapPoller({
       client: { track } as unknown as SwapKitClient,
       registry: new ProviderRegistry([new NearIntentsExecutor()]),
-      store: {
+      store: withStoreUpdate({
         readAll: jest.fn(async () => records),
         upsert,
-      } as unknown as typeof SwapStore,
+      }) as unknown as typeof SwapStore,
       midgardClient: {
         findInboundActionByMemo: jest.fn(async () => null),
       } as unknown as MidgardClient,
@@ -489,10 +490,10 @@ describe.each([SwapKitProviderEnum.MayachainStreaming, SwapKitProviderEnum.Thorc
       const poller = new SwapPoller({
         client: { track } as unknown as SwapKitClient,
         registry: createDefaultProviderRegistry(),
-        store: {
+        store: withStoreUpdate({
           readAll: jest.fn(async () => [completed]),
           upsert,
-        } as unknown as typeof SwapStore,
+        }) as unknown as typeof SwapStore,
         midgardClient: { findInboundActionByMemo: find } as unknown as MidgardClient,
         config: { tickIntervalMs: 10_000, activePollIntervalMs: 0, idlePollIntervalMs: 0 },
       });
@@ -561,10 +562,10 @@ describe("SwapPoller on an expired Maya purchase Midgard finds a payment for", (
     const poller = new SwapPoller({
       client: { track } as unknown as SwapKitClient,
       registry: new ProviderRegistry([new MayaExecutor()]),
-      store: {
+      store: withStoreUpdate({
         readAll: jest.fn(async () => [expired]),
         upsert,
-      } as unknown as typeof SwapStore,
+      }) as unknown as typeof SwapStore,
       midgardClient: {
         findInboundActionByMemo: jest.fn(async () => ({
           sourceTxHash: "cd".repeat(32),
