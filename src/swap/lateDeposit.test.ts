@@ -121,3 +121,10 @@ test("Only a swap seen awaiting counts as newly expired and only one seen expire
   expect(newlyExpired(seen, now).map((r: SwapRecordType) => r.recordId)).toEqual(["a"]);
   expect(newlyRefunding(seen, now).map((r: SwapRecordType) => r.recordId)).toEqual(["d"]);
 });
+
+it.each([SwapKitProviderEnum.MayachainStreaming, SwapKitProviderEnum.ThorchainStreaming])(
+  "Tests that a %s purchase does not read as refunding when an older build marked it late",
+  (provider) => {
+    expect(isRefunding({ provider, status: SwapStatusEnum.Pending, lateDepositAtMs: 1 })).toBe(false);
+  },
+);

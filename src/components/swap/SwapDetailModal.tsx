@@ -27,6 +27,8 @@ import {
   hasDepositEvidence as hasDepositEvidenceOf,
   isRealLegHash,
   isTerminalStatus,
+  isThorchainFamily,
+  lacksDelivery,
   SwapStatusEnum,
   providerLongLabel,
   swapRowLabel,
@@ -88,7 +90,8 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
 
   // A finished swap is no longer polled, so one that finished before the
-  // tracker kept some detail never gets it. Ask once when it is shown. Keyed
+  // tracker kept some detail, or that lost sight of its payment, never gets
+  // it. Ask when it is shown. Keyed
   // on the record id rather than on opening: the arrows step to another swap
   // without remounting this view. What comes back reaches the screen through
   // the store, which History reads on every render.
@@ -99,9 +102,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
       .backfillFinishedRecord(shownRecordId)
       .catch((err) => console.log(`SwapDetailModal: backfill failed for ${shownRecordId}:`, err));
   }, [modalIsOpen, swapService, shownRecordId]);
-  const [attachHash, setAttachHash] = useState<string>("");
-  const [attaching, setAttaching] = useState<boolean>(false);
-  const [attachError, setAttachError] = useState<string>("");
 
   // Removing is destructive and irreversible, so it asks first — the same
   // treatment `VtModal` gives the equivalent action on a value transfer.
@@ -186,7 +186,18 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const memo = (record.providerData as { memo?: string } | undefined)?.memo;
 
   // The refund has its own place above, so it is not listed here as well.
-  const uniqueHashRows = hashRowsForRecord(record).filter((row) => row.value !== refundHash);
+  // Paid to a vault every user shares, so its address says nothing of this
+  // swap, and not finding the payment is not to say it wasn't sent.
+  const sharedVault = isThorchainFamily(record.provider);
+  // A vault purchase's delivery has its place in the plain view, so it is not
+  // listed here as well.
+  const deliveryHash: string | undefined =
+    !isOutbound && sharedVault && isRealLegHash(record.destinationTxHash)
+      ? (record.destinationTxHash as string)
+      : undefined;
+  const uniqueHashRows = hashRowsForRecord(record).filter(
+    (row) => row.value !== refundHash && row.value !== deliveryHash,
+  );
 
   // What the provider said about an ending nobody asked for. A refund says it
   // in `refundInfo`, a failure in `failureReason`; both reached the record and
@@ -198,7 +209,11 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const endedBadlyReason =
     record.refundInfo?.refundReason ??
     record.failureReason ??
-    (notDetected ? `No ${sellSymbol} deposit was detected in time. Nothing was sent.` : undefined);
+    (notDetected
+      ? sharedVault
+        ? "We didn’t find your deposit. If you sent it, open this swap again later and we’ll look for it."
+        : `No ${sellSymbol} deposit was detected in time. Nothing was sent.`
+      : undefined);
 
   const slippageTolerance = describeSlippageTolerance(record.requestedSlippageBps, record.slippageToleranceBps);
   const realizedSlippage = describeRealizedSlippage(record.realizedSlippageBps);
@@ -217,10 +232,8 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const removable = canRemoveSwap(record);
 
   // A deposit the provider can see is what turns a reserved swap into a
-  // tracked one. Outbound gets it from our own broadcast, inbound from the
-  // hash the user pasted or from Midgard. Until one exists the poller has
-  // nothing to query, so this view has to be the place the user finishes the
-  // job: the instructions to pay, and the way to hand back the transaction.
+  // tracked one. Outbound gets it from our own broadcast, inbound from Midgard
+  // or from `/track`. Until one exists this view shows the instructions to pay.
   const hasDepositEvidence = isRealLegHash(record.broadcast?.txId) || isRealLegHash(record.observedDepositTxHash);
   // A sale whose deposit stopped after its deshield: the ZEC left the
   // shielded pool for this wallet's transparent address, and the payment to
@@ -228,6 +241,13 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const deshieldTxId = isOutbound ? recordDeshieldTxId(record) : undefined;
   const awaitingDeposit = !isTerminalStatus(record.status) && !hasDepositEvidence && !deshieldTxId;
   const depositAddressUrl = buildChainAddressUrl(record.sellAsset.chain, record.depositAddress);
+  // With no deposit seen on a vault, a purchase's trail starts at the address
+  // the user gave. A sale has none to offer.
+  const unfoundOnVault = sharedVault && !hasDepositEvidence;
+  const sourceAddressUrl =
+    unfoundOnVault && !isOutbound ? buildChainAddressUrl(record.sellAsset.chain, record.sourceAddress) : null;
+  const completedWithoutDelivery = record.status === SwapStatusEnum.Completed && lacksDelivery(record);
+  const deliveryUrl = deliveryHash ? explorerForHash({ value: deliveryHash, chain: record.receiveAsset.chain }) : null;
   const halfPaid = !isTerminalStatus(record.status) && !!deshieldTxId;
   const opReturnTxId = record.broadcast?.opReturnTxId;
   // Finishable when the OP_RETURN transaction was built, which the wallet
@@ -267,39 +287,6 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
       setFinishError(`The deposit did not go out: ${error instanceof Error ? error.message : error}`);
     } finally {
       setFinishing(false);
-    }
-  };
-
-  /**
-   * Record the source-chain transaction that pays this deposit.
-   *
-   * The two directions write different fields: outbound goes through
-   * `markBroadcasted`, which owns the broadcast block this wallet fills in,
-   * and inbound through `setObservedDepositTxHash`, which is the slot for a
-   * payment made from somewhere else. Both leave the record in a state the
-   * poller will pick up on its next tick.
-   *
-   * Validation stays loose on purpose — a hash is chain-shaped and SwapKit
-   * returns the authoritative error on `/track`. Rejecting the empty string is
-   * the whole of it, plus trimming, because a pasted hash usually arrives with
-   * whitespace around it.
-   */
-  const attachDeposit = async () => {
-    const hash = attachHash.trim();
-    if (!hash || !swapService) return;
-    setAttaching(true);
-    setAttachError("");
-    try {
-      if (isOutbound) {
-        await swapService.markBroadcasted({ recordId: record.recordId, txId: hash });
-      } else {
-        await swapService.setObservedDepositTxHash({ recordId: record.recordId, hash });
-      }
-      setAttachHash("");
-    } catch (error) {
-      setAttachError(`${error}`);
-    } finally {
-      setAttaching(false);
     }
   };
 
@@ -398,51 +385,23 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
           {awaitingDeposit && (
             <>
               <SectionHeader label={isOutbound ? "This deposit is unpaid" : "Pay this deposit"} />
-              <DepositSlip
-                provider={record.provider}
-                direction={record.direction}
-                sellAsset={record.sellAsset}
-                depositAddress={record.depositAddress}
-                amountHumanDecimal={record.sellAmountHumanDecimal}
-                memoText={memo}
-              />
+              {/* A Maya or THORChain sale is followed by the hash of the payment,
+                  which only this wallet's own send gives the app. */}
+              {!(isOutbound && sharedVault) && (
+                <DepositSlip
+                  provider={record.provider}
+                  direction={record.direction}
+                  sellAsset={record.sellAsset}
+                  depositAddress={record.depositAddress}
+                  amountHumanDecimal={record.sellAmountHumanDecimal}
+                  memoText={memo}
+                />
+              )}
               {!isOutbound && swapService && (
                 <PurchasePhase
                   record={record}
                   markSent={() => swapService.markDepositSent({ recordId: record.recordId })}
                 />
-              )}
-              {swapService && (
-                <div className={cstyles.padtopsmall}>
-                  <div className={`${cstyles.sublight} ${cstyles.small}`}>
-                    {isOutbound
-                      ? "Already paid it from elsewhere? Paste the transaction id so tracking can resume."
-                      : "Already paid it? Paste the transaction id from the wallet you paid from."}
-                  </div>
-                  <div className={cstyles.horizontalflex} style={{ alignItems: "center", gap: 8 }}>
-                    <div className={cstyles.fieldrow} style={{ flexGrow: 1 }}>
-                      <input
-                        className={cstyles.fieldinput}
-                        value={attachHash}
-                        onChange={(e) => setAttachHash(e.target.value)}
-                        placeholder="Transaction id"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      className={cstyles.primarybutton}
-                      disabled={attaching || attachHash.trim().length === 0}
-                      onClick={attachDeposit}
-                    >
-                      {attaching ? "Working..." : "Attach"}
-                    </button>
-                  </div>
-                  {!!attachError && (
-                    <div className={cstyles.small} style={{ color: "var(--color-error)" }}>
-                      {attachError}
-                    </div>
-                  )}
-                </div>
               )}
             </>
           )}
@@ -554,6 +513,30 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               </>
             )}
 
+            {!!deliveryHash && (
+              <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <CopyField label={`${receiveSymbol} transaction`} value={deliveryHash} />
+                {!!deliveryUrl && (
+                  <button
+                    type="button"
+                    className={cstyles.primarybutton}
+                    style={{ marginRight: 0 }}
+                    onClick={() => shell.openExternal(deliveryUrl)}
+                  >
+                    View transaction &nbsp;
+                    <FontAwesomeIcon icon={faExternalLinkAlt} />
+                  </button>
+                )}
+              </div>
+            )}
+
+            {completedWithoutDelivery && (
+              <div className={cstyles.small} style={{ color: "var(--color-warning)" }}>
+                We don&rsquo;t have the {receiveSymbol} transaction for this swap, so we can&rsquo;t confirm the
+                delivery. Check your balance.
+              </div>
+            )}
+
             {/* Where the swap paid, and the way to that payment on a block
                 explorer. The address it left from, the deposit address and
                 every hash along the way are the record of how it was done,
@@ -601,11 +584,26 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
                 provider’s vault. Where the swap ended up is the user’s own
                 business and stays in the plain view. */}
             <SectionHeader label="Route addresses" />
-            {!!record.sourceAddress && <CopyField label="Paid from" value={record.sourceAddress} />}
+            {!!record.sourceAddress && (
+              <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
+                <CopyField label={unfoundOnVault ? "Your address" : "Paid from"} value={record.sourceAddress} />
+                {!!sourceAddressUrl && (
+                  <button
+                    type="button"
+                    className={cstyles.primarybutton}
+                    style={{ marginRight: 0 }}
+                    onClick={() => shell.openExternal(sourceAddressUrl)}
+                  >
+                    View address &nbsp;
+                    <FontAwesomeIcon icon={faExternalLinkAlt} />
+                  </button>
+                )}
+              </div>
+            )}
             {/* Suppressed while the deposit slip is up: it carries the same
               address, and two copies of one address invite the reader to
               wonder which is the real one. */}
-            {!!record.depositAddress && !awaitingDeposit && (
+            {!!record.depositAddress && !awaitingDeposit && !unfoundOnVault && (
               <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
                 <CopyField label="Deposit address" value={record.depositAddress} />
                 {/* With no deposit seen there is no transaction to link, and the

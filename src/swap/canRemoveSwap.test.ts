@@ -1,4 +1,4 @@
-import { canRemoveSwap } from "./canRemoveSwap";
+import { UNKNOWN_HASH_MS, canRemoveSwap } from "./canRemoveSwap";
 import { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapStatusEnum } from "./enums/SwapStatusEnum";
@@ -46,5 +46,34 @@ describe("canRemoveSwap", () => {
     SwapStatusEnum.Refunded,
   ])("keeps a %s swap", (status) => {
     expect(canRemoveSwap(swap({ status }))).toBe(false);
+  });
+});
+
+describe("a swap in progress on a hash", () => {
+  const stuckAtMs = 1_700_000_000_000;
+  const dayLater = stuckAtMs + UNKNOWN_HASH_MS;
+  const pending = (overrides: Partial<SwapRecordType> = {}) =>
+    swap({
+      direction: SwapDirectionEnum.Inbound,
+      status: SwapStatusEnum.Pending,
+      observedDepositTxHash: "ab12",
+      updatedAtMs: stuckAtMs,
+      ...overrides,
+    });
+
+  it("Tests that it can be deleted when /track has not recognised it in a day", () => {
+    expect(canRemoveSwap(pending(), dayLater)).toBe(true);
+  });
+
+  it("Tests that it stays when the day has not passed", () => {
+    expect(canRemoveSwap(pending(), dayLater - 1)).toBe(false);
+  });
+
+  it("Tests that it stays when /track has answered for it", () => {
+    expect(canRemoveSwap(pending({ trackCaptureVersion: 1 }), dayLater)).toBe(false);
+  });
+
+  it("Tests that it stays when it has no hash", () => {
+    expect(canRemoveSwap(pending({ observedDepositTxHash: undefined }), dayLater)).toBe(false);
   });
 });

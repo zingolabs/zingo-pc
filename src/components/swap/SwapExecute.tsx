@@ -18,6 +18,7 @@ import {
   depositCarriesMemo,
   formatAmountForDisplay,
   zecNetworkFeeReserve,
+  isThorchainFamily,
 } from "../../swap";
 import Utils from "../../utils/utils";
 import { chainDisplayName } from "./chainDisplayName";
@@ -346,32 +347,33 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
             {/* The slip renders the QR only while the deposit is still unpaid.
                 An outbound broadcast that succeeded has nothing left to scan;
                 one that failed does, because the deposit is still payable by
-                hand and the address is the useful thing on screen. */}
-            <DepositSlip
-              provider={instructions.provider}
-              direction={direction}
-              sellAsset={record.sellAsset}
-              depositAddress={instructions.depositAddress}
-              amountHumanDecimal={instructions.amountHumanDecimal}
-              memoText={instructions.memoText}
-              expiresAtMs={instructions.expiresAtMs ?? route.expiresAtMs}
-              paid={!!txId}
-              leadingFields={<Field label="Provider" value={providerLongLabel(instructions.provider)} />}
-            />
+                hand and the address is the useful thing on screen. Not on a
+                Maya or THORChain sale, followed by the hash of the payment,
+                which only this wallet's own send gives the app. */}
+            {!(isOutbound && !txId && isThorchainFamily(instructions.provider)) && (
+              <DepositSlip
+                provider={instructions.provider}
+                direction={direction}
+                sellAsset={record.sellAsset}
+                depositAddress={instructions.depositAddress}
+                amountHumanDecimal={instructions.amountHumanDecimal}
+                memoText={instructions.memoText}
+                expiresAtMs={instructions.expiresAtMs ?? route.expiresAtMs}
+                paid={!!txId}
+                leadingFields={<Field label="Provider" value={providerLongLabel(instructions.provider)} />}
+              />
+            )}
 
             {!!txId && <Field label="Deposit transaction" value={txId} />}
 
             {/* Outbound with no txid means the broadcast did not happen. The
-                swap is reserved either way, so the way out is to pay it and
-                come back — the History row carries an action to attach the
-                transaction so tracking resumes. */}
+                swap is reserved either way, so the way out is to send it again. */}
             {/* Not for a deposit stopped after its deshield: the ZEC is already on
                 its way, and paying from another wallet would pay twice. */}
             {isOutbound && !txId && !afterDeshield && (
               <div className={swapStyles.warningbanner}>
                 The swap is reserved but nothing has been sent. Try the deposit again once whatever stopped it is
-                cleared, or pay it from another wallet and use &ldquo;Attach deposit transaction&rdquo; on the swap in
-                History so tracking can resume.
+                cleared.
               </div>
             )}
           </div>

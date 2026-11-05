@@ -33,6 +33,8 @@ describe("MidgardClient", () => {
       memo: MEMO,
       provider: SwapKitProviderEnum.ThorchainStreaming,
       chainIdForNormalization: "bitcoin",
+      receiveAssetId: "ZEC.ZEC",
+      receiveChainId: "zcash",
     });
 
     expect(found).toEqual({ sourceTxHash: HASH.toLowerCase(), sourceChainPrefix: "BTC" });

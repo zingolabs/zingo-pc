@@ -9,6 +9,7 @@ import { TokenCatalog } from "./TokenCatalog";
 import { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapErrorCategoryEnum } from "./enums/SwapErrorCategoryEnum";
+import { lacksDelivery } from "./deliveryWatch";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { fetchMayaShieldedMemoTarget, shieldedMemoAddressFromSwap } from "./mayaShieldedMemo";
 import { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
@@ -106,17 +107,6 @@ export type MarkBroadcastedArgs = {
    *  the activity history can render the full chronology later. Single-hop
    *  callers can omit this. */
   allTxIds?: string[];
-};
-
-export type SetObservedDepositTxHashArgs = {
-  /** Locally-minted primary key returned by `commitRoute` on the record. */
-  recordId: string;
-  /** Source-chain tx hash the user pasted after paying the deposit from
-   *  their external wallet. For Maya/THORChain inbound the provider keys
-   *  `/track` observations by this hash, so until it lands on the record
-   *  the poller has nothing to query. Format validation is intentionally
-   *  loose here — SwapKit returns the authoritative error on /track. */
-  hash: string;
 };
 
 export class SwapService {
@@ -377,24 +367,6 @@ export class SwapService {
   }
 
   /**
-   * Inbound counterpart to `markBroadcasted`: the user has paid the deposit
-   * from an external wallet (Maya/THORChain inbound flow) and pasted the
-   * source-chain tx hash they got from that wallet. Persist it so the poller
-   * can switch from "no hash → skip" to `/track?hash=…&chainId=…` and start
-   * surfacing the swap's real progress.
-   *
-   * Why this exists rather than reusing `markBroadcasted`: that method
-   * rejects non-outbound records and writes to the `broadcast` block, which
-   * is reserved for our own zingolib broadcasts. Inbound has no broadcast
-   * block — the user paid from outside — so we use the inbound-only
-   * `observedDepositTxHash` slot that `buildTrackParams` already reads.
-   *
-   * Status transitions PendingDeposit / AwaitingExternalDeposit → Pending so
-   * the History row stops showing "awaiting external" and starts showing
-   * "swapping" as soon as the user confirms they paid; the poller then
-   * promotes it to `Processing`/`Completed` based on `/track` responses.
-   */
-  /**
    * Keeps the moment the user said an inbound deposit was sent, so the swap
    * reads as looking for it, and asks about it straight away. The status
    * stays: only the provider seeing the payment moves it.
@@ -422,44 +394,6 @@ export class SwapService {
     return updated;
   }
 
-  async setObservedDepositTxHash(args: SetObservedDepositTxHashArgs): Promise<SwapRecordType> {
-    const { recordId, hash } = args;
-    const record = await this.store.getByRecordId(recordId);
-    if (!record) {
-      throw new Error(`SwapService.setObservedDepositTxHash: no record for ${recordId}`);
-    }
-    if (record.direction !== SwapDirectionEnum.Inbound) {
-      throw new Error(`SwapService.setObservedDepositTxHash: not an inbound record (${recordId})`);
-    }
-    const now = Date.now();
-    const updated: SwapRecordType = {
-      ...record,
-      observedDepositTxHash: hash,
-      status: SwapStatusEnum.Pending,
-      // A hash handed over for an expired purchase names a payment that came
-      // late, which the provider returns.
-      lateDepositAtMs:
-        record.status === SwapStatusEnum.Expired ? (record.lateDepositAtMs ?? now) : record.lateDepositAtMs,
-      updatedAtMs: now,
-    };
-    await this.store.upsert(updated);
-    // The poller had nothing to ask about for this record (Maya/THORChain
-    // inbound with no hash) and may well have stopped over it — that is
-    // exactly the case its auto-stop exists to catch. Re-arm first, then fire
-    // an immediate tick so the History flips to a real provider-reported
-    // status in seconds rather than at the next idle interval. `start()`
-    // already ticks when it was stopped, so the extra tick is only for the
-    // case where it was running all along.
-    const wasRunning = this.poller.isRunning();
-    this.poller.start();
-    if (wasRunning) {
-      this.poller.tickOnce().catch(() => {
-        // tickOnce already logs internally; we intentionally don't await.
-      });
-    }
-    return updated;
-  }
-
   async listRecords(): Promise<SwapRecordType[]> {
     return this.store.readAll();
   }
@@ -474,6 +408,12 @@ export class SwapService {
    * is asked about, and each swap at most once a session, whatever the
    * outcome, so stepping back and forth does not repeat a failing request.
    *
+   * A Maya or THORChain purchase with no ZEC transaction also asks Midgard,
+   * every time it is shown, since that is how a payment `/track` cannot find
+   * turns up. What Midgard finds is stored, and earns the `/track` question
+   * whatever the record's stamp says. A found payment on an expired purchase
+   * reopens it as in progress, and the poller takes over.
+   *
    * A finished swap stays finished. `/track` has been seen to answer an old
    * swap in a way that maps to no terminal state, and the history must not
    * reopen a swap on that account, so the status is kept.
@@ -481,17 +421,21 @@ export class SwapService {
    * Resolves to the stored record, or undefined when there was nothing to ask.
    */
   async backfillFinishedRecord(recordId: string): Promise<SwapRecordType | undefined> {
-    if (this.backfillAttempted.has(recordId)) return undefined;
-    const record = await this.store.getByRecordId(recordId);
-    if (!record || !needsBackfill(record) || !this.registry.has(record.provider)) return undefined;
+    const stored = await this.store.getByRecordId(recordId);
+    if (!stored || !isTerminalStatus(stored.status)) return undefined;
+    const found = lacksDelivery(stored) ? await this.poller.discoverViaMidgard(stored) : null;
+    if (!found && (this.backfillAttempted.has(recordId) || !needsBackfill(stored))) return undefined;
+    if (!this.registry.has(stored.provider)) return found ?? undefined;
     this.backfillAttempted.add(recordId);
+    const record = found ?? stored;
 
     let response: TrackResponseType;
     try {
       response = await this.client.track(buildTrackParams(record));
     } catch (err) {
       console.log(`SwapService: backfill /track failed for ${record.recordId}:`, err);
-      return undefined;
+      this.followIfReopened(found);
+      return found ?? undefined;
     }
 
     const tracked = this.registry.get(record.provider).applyTrackUpdate(record, response);
@@ -499,7 +443,22 @@ export class SwapService {
       ? tracked
       : { ...tracked, status: record.status, trackingStatus: record.trackingStatus, terminalAtMs: record.terminalAtMs };
     await this.store.upsert(updated);
+    this.followIfReopened(updated);
     return updated;
+  }
+
+  /**
+   * The poller may have stopped with nothing left to ask about, so it starts
+   * again for a reopened swap. `start()` ticks when it was stopped; the extra
+   * tick is for when it was running all along.
+   */
+  private followIfReopened(record: SwapRecordType | null): void {
+    if (!record || isTerminalStatus(record.status)) return;
+    const wasRunning = this.poller.isRunning();
+    this.poller.start();
+    if (wasRunning) {
+      this.poller.tickOnce().catch(() => {});
+    }
   }
 
   async getRecord(recordId: string): Promise<SwapRecordType | undefined> {
@@ -581,8 +540,8 @@ function parseProviderErrors(body: string | undefined): QuoteResponseType["provi
  * Whether the provider can already see a deposit for this swap.
  *
  * Outbound gets its evidence from our own broadcast bookkeeping; inbound from
- * the source-chain hash, which reaches the record either from the user or from
- * Midgard. `isRealLegHash` rather than a truthiness check because `/track`
+ * the source-chain hash, which reaches the record from Midgard or `/track`.
+ * `isRealLegHash` rather than a truthiness check because `/track`
  * emits an all-zero placeholder for a leg that has not landed, and a record
  * written before that filter existed can still be carrying one.
  */

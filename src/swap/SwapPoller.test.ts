@@ -3,7 +3,7 @@ import { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { SwapStatusEnum } from "./enums/SwapStatusEnum";
-import { ProviderRegistry } from "./providers/ProviderRegistry";
+import { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
 import type { MidgardClient } from "./MidgardClient";
 import { FlashnetExecutor } from "./providers/FlashnetExecutor";
 import { MayaExecutor } from "./providers/MayaExecutor";
@@ -237,8 +237,8 @@ describe("SwapPoller auto-stop", () => {
     poller.stop();
   });
 
-  // Attaching a deposit transaction is what rescues the first case above, so
-  // the same record has to become pollable once it carries a hash.
+  // A hash found by opening the swap rescues the first case above, so the same
+  // record has to become pollable once it carries one.
   it("polls the once-unqueryable record after a hash reaches it", async () => {
     const { poller, track } = harnessFor([
       makeRecord({
@@ -452,6 +452,90 @@ describe("SwapPoller on an expired purchase", () => {
   });
 });
 
+describe.each([SwapKitProviderEnum.MayachainStreaming, SwapKitProviderEnum.ThorchainStreaming])(
+  "SwapPoller on a completed %s purchase with no delivery",
+  (provider) => {
+    const T0 = 1_700_000_000_000;
+    const hash = "cd".repeat(32);
+    const delivered = "ef".repeat(32);
+    const completed = makeRecord({
+      recordId: "rec-no-delivery",
+      provider,
+      direction: SwapDirectionEnum.Inbound,
+      sellAsset: BTC,
+      receiveAsset: ZEC,
+      depositAddress: "bc1qvault",
+      destinationAddress: "t1wallet",
+      providerData: { kind: provider, memo: "=:z:t1wallet" },
+      broadcast: undefined,
+      observedDepositTxHash: hash,
+      status: SwapStatusEnum.Completed,
+      createdAtMs: T0,
+      updatedAtMs: T0,
+      terminalAtMs: T0,
+    } as Partial<SwapRecordType>);
+
+    const harness = (nowMs: number, delivery?: object) => {
+      jest.useFakeTimers({ now: nowMs });
+      const upsert = jest.fn(async (_record: SwapRecordType) => undefined);
+      const track = jest.fn(async () => ({
+        status: "completed",
+        trackingStatus: "completed",
+        type: "native_send",
+        toAsset: "BTC.BTC",
+        legs: [{ hash, chainId: "bitcoin", type: "native_send" }],
+      }));
+      const find = jest.fn(async () => ({ sourceTxHash: hash, sourceChainPrefix: "BTC", delivery }));
+      const poller = new SwapPoller({
+        client: { track } as unknown as SwapKitClient,
+        registry: createDefaultProviderRegistry(),
+        store: {
+          readAll: jest.fn(async () => [completed]),
+          upsert,
+        } as unknown as typeof SwapStore,
+        midgardClient: { findInboundActionByMemo: find } as unknown as MidgardClient,
+        config: { tickIntervalMs: 10_000, activePollIntervalMs: 0, idlePollIntervalMs: 0 },
+      });
+      return { poller, upsert, track, find };
+    };
+
+    it("Tests that it stays completed and gains the ZEC transaction when Midgard reports it", async () => {
+      const { poller, upsert, track } = harness(T0 + 60_000, { txHash: delivered, amount: "0.01477710" });
+
+      await poller.tickOnce();
+
+      expect(track).toHaveBeenCalled();
+      expect(upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: SwapStatusEnum.Completed,
+          destinationTxHash: delivered,
+          actualReceiveAmount: "0.01477710",
+          observedDepositTxHash: hash,
+        }),
+      );
+    });
+
+    it("Tests that it keeps being tracked when neither source reports the delivery", async () => {
+      const { poller, upsert, track, find } = harness(T0 + 60_000);
+
+      await poller.tickOnce();
+
+      expect(find).toHaveBeenCalled();
+      expect(track).toHaveBeenCalled();
+      expect(upsert.mock.calls.at(-1)?.[0]?.destinationTxHash).toBeUndefined();
+    });
+
+    it("Tests that asking stops when the watch is over", async () => {
+      const { poller, track, find } = harness(T0 + 25 * 60 * 60 * 1000);
+
+      await poller.tickOnce();
+
+      expect(find).not.toHaveBeenCalled();
+      expect(track).not.toHaveBeenCalled();
+    });
+  },
+);
+
 describe("SwapPoller on an expired Maya purchase Midgard finds a payment for", () => {
   const T0 = 1_700_000_000_000;
   const expiredAt = T0 + 600_000;
@@ -471,7 +555,7 @@ describe("SwapPoller on an expired Maya purchase Midgard finds a payment for", (
     terminalAtMs: expiredAt,
   });
 
-  const harness = (track: jest.Mock) => {
+  const harness = (track: jest.Mock, delivery?: object) => {
     jest.useFakeTimers({ now });
     const upsert = jest.fn(async (_record: SwapRecordType) => undefined);
     const poller = new SwapPoller({
@@ -485,6 +569,7 @@ describe("SwapPoller on an expired Maya purchase Midgard finds a payment for", (
         findInboundActionByMemo: jest.fn(async () => ({
           sourceTxHash: "cd".repeat(32),
           sourceChainPrefix: "BTC",
+          delivery,
         })),
       } as unknown as MidgardClient,
       config: {
@@ -496,7 +581,21 @@ describe("SwapPoller on an expired Maya purchase Midgard finds a payment for", (
     return { poller, upsert };
   };
 
-  it("reads as refunding even when that tick cannot ask /track", async () => {
+  it("Tests that it keeps the delivery when Midgard also shows it", async () => {
+    const { poller, upsert } = harness(
+      jest.fn(async () => {
+        throw new Error("offline");
+      }),
+      { txHash: "ef".repeat(32), amount: "0.01477710" },
+    );
+    await poller.tickOnce();
+    const stored = upsert.mock.calls[0][0];
+    expect(stored.status).toBe(SwapStatusEnum.Pending);
+    expect(stored.destinationTxHash).toBe("ef".repeat(32));
+    expect(stored.lateDepositAtMs).toBeUndefined();
+  });
+
+  it("Tests that it reopens as in progress when that tick cannot ask /track", async () => {
     const { poller, upsert } = harness(
       jest.fn(async () => {
         throw new Error("offline");
@@ -507,8 +606,8 @@ describe("SwapPoller on an expired Maya purchase Midgard finds a payment for", (
       expect.objectContaining({
         status: SwapStatusEnum.Pending,
         observedDepositTxHash: "cd".repeat(32),
-        lateDepositAtMs: now,
       }),
     );
+    expect(upsert.mock.calls[0][0].lateDepositAtMs).toBeUndefined();
   });
 });
