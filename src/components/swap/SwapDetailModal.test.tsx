@@ -469,6 +469,47 @@ describe("SwapDetailModal unpaid purchase", () => {
     expect(screen.getByText(/haven.t detected your payment yet/i)).toBeInTheDocument();
   });
 
+  describe.each([SwapKitProviderEnum.MayachainStreaming, SwapKitProviderEnum.ThorchainStreaming])(
+    "on %s",
+    (provider) => {
+      it("Tests that an expired purchase shows the address the user gave and no vault when its deposit was not found", () => {
+        renderDetail(purchase({ provider, status: SwapStatusEnum.Expired }));
+
+        expect(screen.getByText(/didn.t find your deposit/i)).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
+        expect(screen.getByText("Your address")).toBeInTheDocument();
+        expect(screen.queryByText("Deposit address")).not.toBeInTheDocument();
+      });
+
+      it("Tests that a completed purchase warns when it has no ZEC transaction", () => {
+        renderDetail(purchase({ provider, status: SwapStatusEnum.Completed, observedDepositTxHash: "c".repeat(64) }));
+
+        expect(screen.getByText(/can.t confirm the\s+delivery/i)).toBeInTheDocument();
+      });
+
+      it("Tests that a completed purchase shows the ZEC transaction when it has one", () => {
+        renderDetail(
+          purchase({
+            provider,
+            status: SwapStatusEnum.Completed,
+            observedDepositTxHash: "c".repeat(64),
+            destinationTxHash: "d".repeat(64),
+          }),
+        );
+
+        expect(screen.getByText("ZEC transaction")).toBeInTheDocument();
+        expect(screen.queryByText(/can.t confirm the/i)).not.toBeInTheDocument();
+      });
+    },
+  );
+
+  it("Tests that no hash can be typed when the deposit is awaited", () => {
+    renderDetail(purchase({ status: SwapStatusEnum.AwaitingExternalDeposit }));
+
+    expect(screen.queryByPlaceholderText("Transaction id")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Attach" })).not.toBeInTheDocument();
+  });
+
   it("says why a purchase nobody paid ended", () => {
     renderDetail(purchase({ status: SwapStatusEnum.Expired }));
     expect(screen.getAllByText("Deposit not detected").length).toBeGreaterThan(0);

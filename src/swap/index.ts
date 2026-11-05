@@ -10,7 +10,9 @@ export { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
 export { SwapErrorCategoryEnum, SwapOperationEnum } from "./enums/SwapErrorCategoryEnum";
 export { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 export { SwapStatusEnum, isTerminalStatus, isPrePaymentStatus } from "./enums/SwapStatusEnum";
-export { canRemoveSwap } from "./canRemoveSwap";
+export { canRemoveSwap, hasUnknownHash } from "./canRemoveSwap";
+export { isThorchainFamily } from "./thorchainFamily";
+export { lacksDelivery, watchesDelivery, DELIVERY_WATCH_MS } from "./deliveryWatch";
 export { hasDepositEvidence } from "./depositEvidence";
 export { TrackingStatusEnum } from "./enums/TrackingStatusEnum";
 
@@ -82,7 +84,6 @@ export type {
   CommitRouteArgs,
   CommitRouteResult,
   MarkBroadcastedArgs,
-  SetObservedDepositTxHashArgs,
 } from "./SwapService";
 
 export { SwapKitError, SwapKitHttpError, SwapKitNetworkError, classifySwapError } from "./errors";
