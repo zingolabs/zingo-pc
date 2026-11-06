@@ -6,7 +6,7 @@ jest.mock("../electronBridge");
 jest.mock("./selectFastestServer");
 
 const race = selectFastestServer as jest.MockedFunction<typeof selectFastestServer>;
-const ZAINO = "https://mainnet.zainod.zingolabs.dev:443";
+const ZAINO = "https://zec.global:443";
 
 const server = (uri: string): ServerClass => ({
   uri,

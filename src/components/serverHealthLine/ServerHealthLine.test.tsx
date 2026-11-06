@@ -288,9 +288,7 @@ test("Auto falls back to the default server when no candidate answers", async ()
   await openPickerFromList();
 
   fireEvent.click(screen.getByRole("button", { name: "Auto" }));
-  await waitFor(() =>
-    expect(switchServer).toHaveBeenCalledWith("https://mainnet.zainod.zingolabs.dev:443", ServerSelectionEnum.auto),
-  );
+  await waitFor(() => expect(switchServer).toHaveBeenCalledWith("https://zec.global:443", ServerSelectionEnum.auto));
 });
 
 // Reachable from auto through the confirmation's third button, and offered

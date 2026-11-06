@@ -5,7 +5,7 @@ const serverUrisList = (): ServerClass[] => {
   return [
     // default servers (2)
     {
-      uri: "https://mainnet.zainod.zingolabs.dev:443", // this will be the default server in MainNet.
+      uri: "https://zec.global:443", // this will be the default server in MainNet.
       chain_name: ServerChainNameEnum.mainChainName,
       default: true,
       latency: null,
