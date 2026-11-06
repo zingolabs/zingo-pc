@@ -149,3 +149,6 @@ export {
 export type { DepositPhase } from "./depositDeadline";
 export { LATE_WATCH_MS, acceptsLateUpdate, isRefunding, watchesLateDeposit } from "./lateDeposit";
 export { newlyExpired, newlyRefunding } from "./swapTransitions";
+
+export { awaitsSaleDeposit, claimSaleDeposit, paysSale, sentPaymentsFrom } from "./saleDeposits";
+export type { SentPaymentType } from "./saleDeposits";
