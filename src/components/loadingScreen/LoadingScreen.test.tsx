@@ -21,7 +21,7 @@ jest.mock("../../utils/recommendedServers", () => ({
 
 const liveList = fetchServerList as jest.MockedFunction<typeof fetchServerList>;
 const recommended = pickRecommended as jest.MockedFunction<typeof pickRecommended>;
-const ZAINO = "https://mainnet.zainod.zingolabs.dev:443";
+const ZAINO = "https://zec.global:443";
 
 const liveServer = (uri: string, chain = ServerChainNameEnum.mainChainName): ServerClass => ({
   uri,

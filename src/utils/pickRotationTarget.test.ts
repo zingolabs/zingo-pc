@@ -39,13 +39,13 @@ test("falls back to the default server when none of them answers", async () => {
   liveList.mockResolvedValue([server("https://one.zec.rocks:443"), server("https://two.zec.rocks:443")]);
 
   expect(await pickRotationTarget(ServerChainNameEnum.mainChainName, ["https://old.zec.rocks:443"])).toBe(
-    "https://mainnet.zainod.zingolabs.dev:443",
+    "https://zec.global:443",
   );
 });
 
 // Every server but the recommended one answers, so the registry is reached.
 const answersButZaino = async (servers: ServerClass[]) =>
-  servers.find((s) => s.uri !== "https://mainnet.zainod.zingolabs.dev:443") ?? null;
+  servers.find((s) => s.uri !== "https://zec.global:443") ?? null;
 
 // The whole point of rotating is to leave the server that is not answering.
 test("never returns the server it was asked to leave", async () => {
@@ -57,7 +57,7 @@ test("never returns the server it was asked to leave", async () => {
   );
 });
 
-const ZAINO = "https://mainnet.zainod.zingolabs.dev:443";
+const ZAINO = "https://zec.global:443";
 
 test("takes the recommended server while it answers", async () => {
   liveList.mockResolvedValue([server("https://one.zec.rocks:443")]);
@@ -125,7 +125,5 @@ test("skips every server already rejected", async () => {
 test("gives up when nothing answers and the default is the server being left", async () => {
   liveList.mockResolvedValue([server("https://one.zec.rocks:443")]);
 
-  expect(
-    await pickRotationTarget(ServerChainNameEnum.mainChainName, ["https://mainnet.zainod.zingolabs.dev:443"]),
-  ).toBeNull();
+  expect(await pickRotationTarget(ServerChainNameEnum.mainChainName, ["https://zec.global:443"])).toBeNull();
 });

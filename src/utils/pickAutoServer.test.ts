@@ -11,7 +11,7 @@ const liveList = fetchServerList as jest.MockedFunction<typeof fetchServerList>;
 const race = selectFastestServer as jest.MockedFunction<typeof selectFastestServer>;
 
 const MAIN = ServerChainNameEnum.mainChainName;
-const ZAINO = "https://mainnet.zainod.zingolabs.dev:443";
+const ZAINO = "https://zec.global:443";
 
 const server = (uri: string): ServerClass => ({
   uri,
