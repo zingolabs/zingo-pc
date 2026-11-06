@@ -206,6 +206,17 @@ module.exports = function (webpackEnv) {
     module: {
       strictExportPresence: true,
       rules: [
+        // Development runs FontAwesome's RegExp helper under the template's
+        // lockdown; see the loader for why it has to change.
+        ...(isEnvDevelopment
+          ? [
+              {
+                test: /[\\/]@fortawesome[\\/]fontawesome-svg-core[\\/]index\.m?js$/,
+                enforce: "pre",
+                use: [require.resolve("./fontawesomeRegExpLoader")],
+              },
+            ]
+          : []),
         {
           oneOf: [
             {
