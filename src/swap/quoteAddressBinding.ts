@@ -62,3 +62,21 @@ export function quoteBindsAddress({
   if (!quoted || !boundAddress) return false;
   return (isOutbound ? quoted.destinationAddress : quoted.sourceAddress) === boundAddress;
 }
+
+/**
+ * Whether the committed order uses the wallet's ZIP-320 address the quote
+ * carried. A sale always does. A purchase does unless Maya pays it to a
+ * unified address instead, and reserving one nothing can pay would burn a
+ * refund index.
+ */
+export function orderNamesEphemeral({
+  isOutbound,
+  quotedDestination,
+  orderedDestination,
+}: {
+  isOutbound: boolean;
+  quotedDestination: string;
+  orderedDestination: string;
+}): boolean {
+  return isOutbound || orderedDestination === quotedDestination;
+}

@@ -12,6 +12,7 @@ import {
   commitRefusalCondemnsRoute,
   SwapDirectionEnum,
   depositSpendsSourceAddress,
+  orderNamesEphemeral,
   DepositAfterDeshieldError,
   providerLongLabel,
   recordDeshieldTxId,
@@ -291,7 +292,13 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
     // is the freshness of the next one, which is not worth failing a swap the
     // user has just committed to.
     const claimedByDeposit: boolean = isOutbound && depositSpendsSourceAddress(depositRequest(committed.instructions));
-    if (!claimedByDeposit) {
+    // A purchase Maya pays to a unified address never names it.
+    const named = orderNamesEphemeral({
+      isOutbound,
+      quotedDestination: quoteInput.destinationAddress,
+      orderedDestination: committed.record.destinationAddress,
+    });
+    if (named && !claimedByDeposit) {
       try {
         await native.reserve_refund_address();
       } catch (e) {

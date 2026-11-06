@@ -1,10 +1,13 @@
-import React, { createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { ChainNameEnum } from "../swap/enums/ChainNameEnum";
 import { SwapService, SwapStore, createSwapService, readCurrentWalletKeys, swapRecordToValueTransfer } from "../swap";
 import type ValueTransferClass from "../components/appstate/classes/ValueTransferClass";
 import type { SwapRecordType } from "../swap";
 import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
+import { native } from "../electronBridge";
+import { payoutNotesFrom } from "../swap/payoutNotes";
+import { ContextApp } from "./ContextAppState";
 
 /**
  * Provides the singleton `SwapService` for the loaded wallet, and owns the
@@ -18,6 +21,18 @@ import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
  * testnet or regtest.
  */
 const SwapServiceContext = createContext<SwapService | null>(null);
+
+/**
+ * Maya refuses a unified address with only an Orchard receiver: Orchard takes
+ * no new outputs since NU6.3 (ZIP 2006). It pays the Sapling one.
+ */
+async function newShieldedAddress(): Promise<string> {
+  const parsed: { encoded_address?: string } = JSON.parse(await native.create_new_unified_address("oz"));
+  if (!parsed.encoded_address) {
+    throw new Error("the wallet named no address");
+  }
+  return parsed.encoded_address;
+}
 
 export type SwapServiceProviderProps = {
   chainName: ChainNameEnum;
@@ -68,7 +83,7 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
           setService(null);
           return;
         }
-        created = createSwapService({ apiKey: apiKey ?? SWAPKIT_API_KEY, chainName });
+        created = createSwapService({ apiKey: apiKey ?? SWAPKIT_API_KEY, chainName, newShieldedAddress });
         if (cancelled) return;
         setService(created);
         created.startPolling();
@@ -91,6 +106,8 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
     };
   }, [chainName, enabled, apiKey]);
 
+  usePayoutClaims(service);
+
   return <SwapServiceContext.Provider value={service}>{children}</SwapServiceContext.Provider>;
 }
 
@@ -98,6 +115,35 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
  * Returns `null` off mainnet and while the service is still being built, so
  * callers branch on it to hide the swap entry point.
  */
+/**
+ * Hands every payout the wallet received to the service, which ties it to its
+ * purchase. A payout it could not tie yet, because Midgard does not know the
+ * swap, goes again with the next change to the wallet's transfers.
+ */
+function usePayoutClaims(service: SwapService | null): void {
+  const { valueTransfers } = useContext(ContextApp);
+  const settled = useRef(new Set<string>());
+  const running = useRef(false);
+
+  useEffect(() => {
+    if (!service || !valueTransfers || running.current) {
+      return;
+    }
+    const notes = payoutNotesFrom(valueTransfers).filter((note) => !settled.current.has(note.txid));
+    if (notes.length === 0) {
+      return;
+    }
+    running.current = true;
+    service
+      .claimPayouts(notes)
+      .then((txids) => txids.forEach((txid) => settled.current.add(txid)))
+      .catch((error) => console.error(`SwapServiceProvider: payout claim failed ${error}`))
+      .finally(() => {
+        running.current = false;
+      });
+  }, [service, valueTransfers]);
+}
+
 export function useSwapService(): SwapService | null {
   return useContext(SwapServiceContext);
 }

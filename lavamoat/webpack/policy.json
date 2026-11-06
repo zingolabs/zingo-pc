@@ -25,6 +25,12 @@
         "react": true
       }
     },
+    "@noble/hashes": {
+      "globals": {
+        "TextEncoder": true,
+        "crypto": true
+      }
+    },
     "react-router-dom>@remix-run/router": {
       "globals": {
         "AbortController": true,

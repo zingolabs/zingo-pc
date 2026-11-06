@@ -1,6 +1,6 @@
 import { DEPOSIT_WAIT_MS } from "./depositDeadline";
 import { ChainNameEnum } from "./enums/ChainNameEnum";
-import { MidgardClient } from "./MidgardClient";
+import { MidgardClient, findSwapByInboundHash } from "./MidgardClient";
 import { SwapKitClient } from "./SwapKitClient";
 import { SwapPoller, buildTrackParams } from "./SwapPoller";
 import type { TrackResponseType } from "./types/TrackResponseType";
@@ -14,6 +14,10 @@ import { SwapKitProviderEnum } from "./enums/SwapKitProviderEnum";
 import { fetchMayaShieldedMemoTarget, shieldedMemoAddressFromSwap } from "./mayaShieldedMemo";
 import { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
 import { SwapKitError } from "./errors";
+import type { SwapResponseType } from "./types/SwapResponseType";
+import { isMemoTooLong, paysPurchaseShielded } from "./shieldedPurchase";
+import { awaitsPayout, claimPayout } from "./payoutNotes";
+import type { PayoutNoteType } from "./payoutNotes";
 import { ProviderRegistry, createDefaultProviderRegistry } from "./providers/ProviderRegistry";
 import { TRACK_CAPTURE_VERSION, isRealLegHash } from "./providers/trackUpdateBase";
 import { DepositInstructionsType } from "./types/DepositInstructionsType";
@@ -53,6 +57,14 @@ export type SwapServiceArgs = {
   store: typeof SwapStore;
   poller: SwapPoller;
   tokenCatalog: TokenCatalog;
+  /**
+   * A new unified address of this wallet with a Sapling receiver, one per
+   * purchase: Maya pays it with an all-zero OVK, which anyone can decrypt,
+   * so a shared one would tie every purchase together.
+   */
+  newShieldedAddress?: () => Promise<string>;
+  /** Midgard's swap for a source-chain hash; the real lookup unless a test swaps it. */
+  findSwapByInboundHash?: typeof findSwapByInboundHash;
   /** Flashnet's explorer, for the backfill; see `SwapPollerArgs`. */
 };
 
@@ -115,6 +127,8 @@ export class SwapService {
   private readonly store: typeof SwapStore;
   private readonly poller: SwapPoller;
   private readonly tokenCatalog: TokenCatalog;
+  private readonly newShieldedAddress?: () => Promise<string>;
+  private readonly findSwapByInboundHash: typeof findSwapByInboundHash;
 
   /** Finished swaps already asked about this session. */
   private readonly backfillAttempted = new Set<string>();
@@ -125,6 +139,8 @@ export class SwapService {
     this.store = args.store;
     this.poller = args.poller;
     this.tokenCatalog = args.tokenCatalog;
+    this.newShieldedAddress = args.newShieldedAddress;
+    this.findSwapByInboundHash = args.findSwapByInboundHash ?? findSwapByInboundHash;
   }
 
   /**
@@ -242,11 +258,7 @@ export class SwapService {
     const { quoteInput, chosenRoute, direction, fiatValueBasis } = args;
     const executor = this.registry.get(chosenRoute.provider);
 
-    const swapResponse = await this.client.swap({
-      routeId: chosenRoute.routeId,
-      sourceAddress: quoteInput.sourceAddress,
-      destinationAddress: quoteInput.destinationAddress,
-    });
+    const { swapResponse, destinationAddress } = await this.swapToDestination(args);
 
     // Maya may take the memo in a shielded note: SwapKit names the address
     // for a shielded source, and mayanode says whether it is on for the vault.
@@ -265,7 +277,7 @@ export class SwapService {
       sellAsset: quoteInput.sellAsset,
       receiveAsset: quoteInput.receiveAsset,
       sellAmountHumanDecimal: quoteInput.sellAmountHumanDecimal,
-      destinationAddress: quoteInput.destinationAddress,
+      destinationAddress,
       sourceAddress: quoteInput.sourceAddress,
     });
 
@@ -279,6 +291,7 @@ export class SwapService {
       provider: chosenRoute.provider,
       direction,
       routeId: chosenRoute.routeId,
+      swapKitInternalId: swapResponse.swapId ?? swapResponse.transient?.swapId,
       sellAsset: quoteInput.sellAsset,
       receiveAsset: quoteInput.receiveAsset,
       sellAmountHumanDecimal: quoteInput.sellAmountHumanDecimal,
@@ -286,7 +299,7 @@ export class SwapService {
       minReceiveAmount: chosenRoute.minReceiveAmount,
       totalFeesInReceiveAsset: chosenRoute.totalFeesInReceiveAsset,
       feesRaw: chosenRoute.feesRaw,
-      destinationAddress: quoteInput.destinationAddress,
+      destinationAddress,
       sourceAddress: quoteInput.sourceAddress,
       requestedSlippageBps: quoteInput.slippageBps,
       status: initialStatus,
@@ -308,6 +321,50 @@ export class SwapService {
   }
 
   /**
+   * Builds the order. A purchase Maya can pay shielded goes to a new unified
+   * address: the route quoted to the transparent one takes it at `/v3/swap`.
+   * Where its memo would not fit, or no address could be made, the order
+   * keeps the transparent destination it was quoted with.
+   */
+  private async swapToDestination(
+    args: CommitRouteArgs,
+  ): Promise<{ swapResponse: SwapResponseType; destinationAddress: string }> {
+    const { quoteInput, chosenRoute, direction } = args;
+    const order = (destinationAddress: string) =>
+      this.client.swap({
+        routeId: chosenRoute.routeId,
+        sourceAddress: quoteInput.sourceAddress,
+        destinationAddress,
+      });
+    const shielded =
+      this.newShieldedAddress &&
+      paysPurchaseShielded({
+        provider: chosenRoute.provider,
+        direction,
+        sellChain: quoteInput.sellAsset.chain,
+      })
+        ? await this.newShieldedAddress().catch((error) => {
+            console.error(`SwapService: no shielded address for the purchase ${error}`);
+            return undefined;
+          })
+        : undefined;
+    if (shielded) {
+      try {
+        return {
+          swapResponse: await order(shielded),
+          destinationAddress: shielded,
+        };
+      } catch (error) {
+        if (!isMemoTooLong(error)) throw error;
+      }
+    }
+    return {
+      swapResponse: await order(quoteInput.destinationAddress),
+      destinationAddress: quoteInput.destinationAddress,
+    };
+  }
+
+  /**
    * The deposit's first transaction, the deshield, went out and the second
    * did not. The record keeps the deshield's txid, so the swap's history
    * shows it, and stays pending until the resumed deposit is marked
@@ -318,20 +375,18 @@ export class SwapService {
     deshieldTxId: string;
     opReturnTxId?: string;
   }): Promise<SwapRecordType> {
-    const record = await this.store.getByRecordId(args.recordId);
-    if (!record) {
-      throw new Error(`SwapService.markDeshielded: no record for ${args.recordId}`);
-    }
-    const updated: SwapRecordType = {
-      ...record,
+    const updated = await this.store.update(args.recordId, (current) => ({
+      ...current,
       broadcast: {
         status: BroadcastStatusEnum.PendingBroadcast,
         allTxIds: [args.deshieldTxId],
         opReturnTxId: args.opReturnTxId,
       },
       updatedAtMs: Date.now(),
-    };
-    await this.store.upsert(updated);
+    }));
+    if (!updated) {
+      throw new Error(`SwapService.markDeshielded: no record for ${args.recordId}`);
+    }
     return updated;
   }
 
@@ -345,8 +400,8 @@ export class SwapService {
       throw new Error(`SwapService.markBroadcasted: not an outbound record (${recordId})`);
     }
     const now = Date.now();
-    const updated: SwapRecordType = {
-      ...record,
+    const updated = await this.store.update(recordId, (current) => ({
+      ...current,
       status: SwapStatusEnum.Pending,
       broadcast: {
         status: BroadcastStatusEnum.Broadcasted,
@@ -358,8 +413,10 @@ export class SwapService {
         broadcastedAtMs: now,
       },
       updatedAtMs: now,
-    };
-    await this.store.upsert(updated);
+    }));
+    if (!updated) {
+      throw new Error(`SwapService.markBroadcasted: no record for ${recordId}`);
+    }
     // Status transitioned from PendingDeposit to Pending; the poller now has
     // something concrete to track. Idempotent.
     this.poller.start();
@@ -384,14 +441,66 @@ export class SwapService {
       return record;
     }
     const now = Date.now();
-    const updated: SwapRecordType = { ...record, depositSentAtMs: now, updatedAtMs: now };
-    await this.store.upsert(updated);
+    const updated = await this.store.update(recordId, (current) => ({
+      ...current,
+      depositSentAtMs: now,
+      updatedAtMs: now,
+    }));
+    if (!updated) {
+      throw new Error(`SwapService.markDepositSent: no record for ${recordId}`);
+    }
     const wasRunning = this.poller.isRunning();
     this.poller.start();
     if (wasRunning) {
       this.poller.tickOnce().catch(() => {});
     }
     return updated;
+  }
+
+  /**
+   * Ties each payout the wallet received to the purchase it settles. The
+   * memo names the deposit's hash, Midgard names the swap that hash started,
+   * and the purchase whose memo is that swap's is the one. It is complete
+   * with the ZEC that arrived, without waiting on Midgard to index the payout
+   * under the destination or on `/track` to report it. Resolves to the
+   * payouts settled, tied to a purchase or known to be no purchase's; the
+   * rest may be tied on a later call.
+   */
+  async claimPayouts(notes: readonly PayoutNoteType[]): Promise<string[]> {
+    const settled: string[] = [];
+    for (const note of notes) {
+      const records = await this.store.readAll();
+      if (records.some((r) => r.destinationTxHash === note.txid)) {
+        settled.push(note.txid);
+        continue;
+      }
+      const waiting = records.filter(awaitsPayout);
+      const providers = [...new Set(waiting.map((r) => r.provider))];
+      for (const provider of providers) {
+        const swap = await this.findSwapByInboundHash({
+          inboundHash: note.inboundHash,
+          provider,
+        });
+        const record =
+          swap &&
+          waiting.find((r) => r.provider === provider && (r.providerData as { memo?: string }).memo === swap.memo);
+        if (!record) {
+          // Midgard knows the swap and no purchase here is it: a payout of a
+          // swap this wallet no longer keeps, never one to ask about again.
+          if (swap) {
+            settled.push(note.txid);
+            break;
+          }
+          continue;
+        }
+        await this.store.update(record.recordId, (current) =>
+          awaitsPayout(current) ? claimPayout(current, note, Date.now()) : current,
+        );
+        settled.push(note.txid);
+        break;
+      }
+    }
+    return settled;
   }
 
   async listRecords(): Promise<SwapRecordType[]> {
@@ -438,11 +547,18 @@ export class SwapService {
       return found ?? undefined;
     }
 
-    const tracked = this.registry.get(record.provider).applyTrackUpdate(record, response);
-    const updated: SwapRecordType = isTerminalStatus(tracked.status)
-      ? tracked
-      : { ...tracked, status: record.status, trackingStatus: record.trackingStatus, terminalAtMs: record.terminalAtMs };
-    await this.store.upsert(updated);
+    const executor = this.registry.get(record.provider);
+    const updated = await this.store.update(recordId, (current) => {
+      const tracked = executor.applyTrackUpdate(current, response);
+      return isTerminalStatus(tracked.status)
+        ? tracked
+        : {
+            ...tracked,
+            status: current.status,
+            trackingStatus: current.trackingStatus,
+            terminalAtMs: current.terminalAtMs,
+          };
+    });
     this.followIfReopened(updated);
     return updated;
   }
@@ -452,7 +568,7 @@ export class SwapService {
    * again for a reopened swap. `start()` ticks when it was stopped; the extra
    * tick is for when it was running all along.
    */
-  private followIfReopened(record: SwapRecordType | null): void {
+  private followIfReopened(record: SwapRecordType | null | undefined): void {
     if (!record || isTerminalStatus(record.status)) return;
     const wasRunning = this.poller.isRunning();
     this.poller.start();
@@ -693,6 +809,7 @@ export function createSwapService(args: {
   apiKey: string;
   chainName: ChainNameEnum;
   registry?: ProviderRegistry;
+  newShieldedAddress?: () => Promise<string>;
 }): SwapService {
   const client = new SwapKitClient({
     apiKey: args.apiKey,
@@ -705,7 +822,14 @@ export function createSwapService(args: {
   // when the detail view backfills the same swap.
   const poller = new SwapPoller({ client, registry, store, midgardClient });
   const tokenCatalog = new TokenCatalog(client);
-  return new SwapService({ client, registry, store, poller, tokenCatalog });
+  return new SwapService({
+    client,
+    registry,
+    store,
+    poller,
+    tokenCatalog,
+    newShieldedAddress: args.newShieldedAddress,
+  });
 }
 
 /**

@@ -1,3 +1,4 @@
+import { withStoreUpdate } from "./providers/fixtures/withStoreUpdate";
 import { SwapPoller } from "./SwapPoller";
 import { BroadcastStatusEnum } from "./enums/BroadcastStatusEnum";
 import { SwapDirectionEnum } from "./enums/SwapDirectionEnum";
@@ -27,6 +28,15 @@ const ZEC: SwapAssetType = {
   ticker: "ZEC",
   chainId: "zcash",
   decimals: 8,
+};
+
+const ETH: SwapAssetType = {
+  swapKitId: "ETH.ETH",
+  chain: "ETH",
+  symbol: "ETH",
+  ticker: "ETH",
+  chainId: "1",
+  decimals: 18,
 };
 
 const BTC: SwapAssetType = {
@@ -131,7 +141,7 @@ describe("SwapPoller on an inbound Flashnet swap", () => {
     const poller = new SwapPoller({
       client: { track: jest.fn(async () => inboundFlashnetTrack) } as unknown as SwapKitClient,
       registry: new ProviderRegistry([new FlashnetExecutor()]),
-      store: { readAll: jest.fn(async () => [record()]), upsert } as unknown as typeof SwapStore,
+      store: withStoreUpdate({ readAll: jest.fn(async () => [record()]), upsert }) as unknown as typeof SwapStore,
       midgardClient: { findInboundActionByMemo: jest.fn(async () => null) } as unknown as MidgardClient,
       config: { tickIntervalMs: 10_000, activePollIntervalMs: 0, idlePollIntervalMs: 0 },
     });
@@ -287,10 +297,10 @@ describe("SwapPoller on an awaited deposit with a deadline", () => {
         passthroughExecutor(SwapKitProviderEnum.MayachainStreaming),
         passthroughExecutor(SwapKitProviderEnum.Near),
       ]),
-      store: {
+      store: withStoreUpdate({
         readAll: jest.fn(async () => records),
         upsert,
-      } as unknown as typeof SwapStore,
+      }) as unknown as typeof SwapStore,
       midgardClient: {
         findInboundActionByMemo: jest.fn(async () => null),
       } as unknown as MidgardClient,
@@ -391,10 +401,10 @@ describe("SwapPoller on an expired purchase", () => {
     const poller = new SwapPoller({
       client: { track } as unknown as SwapKitClient,
       registry: new ProviderRegistry([new NearIntentsExecutor()]),
-      store: {
+      store: withStoreUpdate({
         readAll: jest.fn(async () => records),
         upsert,
-      } as unknown as typeof SwapStore,
+      }) as unknown as typeof SwapStore,
       midgardClient: {
         findInboundActionByMemo: jest.fn(async () => null),
       } as unknown as MidgardClient,
@@ -489,10 +499,10 @@ describe.each([SwapKitProviderEnum.MayachainStreaming, SwapKitProviderEnum.Thorc
       const poller = new SwapPoller({
         client: { track } as unknown as SwapKitClient,
         registry: createDefaultProviderRegistry(),
-        store: {
+        store: withStoreUpdate({
           readAll: jest.fn(async () => [completed]),
           upsert,
-        } as unknown as typeof SwapStore,
+        }) as unknown as typeof SwapStore,
         midgardClient: { findInboundActionByMemo: find } as unknown as MidgardClient,
         config: { tickIntervalMs: 10_000, activePollIntervalMs: 0, idlePollIntervalMs: 0 },
       });
@@ -561,10 +571,10 @@ describe("SwapPoller on an expired Maya purchase Midgard finds a payment for", (
     const poller = new SwapPoller({
       client: { track } as unknown as SwapKitClient,
       registry: new ProviderRegistry([new MayaExecutor()]),
-      store: {
+      store: withStoreUpdate({
         readAll: jest.fn(async () => [expired]),
         upsert,
-      } as unknown as typeof SwapStore,
+      }) as unknown as typeof SwapStore,
       midgardClient: {
         findInboundActionByMemo: jest.fn(async () => ({
           sourceTxHash: "cd".repeat(32),
@@ -609,5 +619,129 @@ describe("SwapPoller on an expired Maya purchase Midgard finds a payment for", (
       }),
     );
     expect(upsert.mock.calls[0][0].lateDepositAtMs).toBeUndefined();
+  });
+});
+
+describe("SwapPoller on a Maya purchase paid to a unified address", () => {
+  const T0 = 1_700_000_000_000;
+  const ua =
+    "u1al9gxy2marwsn6l33ml8gjgjdfj90lxa02eekw8cajnpjhgra5l08v739f9j9w0tfvzzw3tykq4patssk8apgyhply9n5zdu9ek9e7y8djl3gcaww2fvv96vrf3dq6kasxh00q8sgg0a8mw8zszsj3l5629y4h0nxu6vd5ls9ced0gux";
+
+  it("Tests that Midgard is asked under the Sapling receiver when the destination is a unified address", async () => {
+    jest.useFakeTimers({ now: T0 + 60_000 });
+    const record = makeRecord({
+      recordId: "rec-shielded",
+      provider: SwapKitProviderEnum.MayachainStreaming,
+      direction: SwapDirectionEnum.Inbound,
+      sellAsset: ETH,
+      receiveAsset: ZEC,
+      depositAddress: "0xvault",
+      destinationAddress: ua,
+      providerData: {
+        kind: SwapKitProviderEnum.MayachainStreaming,
+        memo: `=:z:${ua}`,
+      },
+      broadcast: undefined,
+      observedDepositTxHash: "cd".repeat(32),
+      status: SwapStatusEnum.Completed,
+      createdAtMs: T0,
+      updatedAtMs: T0,
+      terminalAtMs: T0,
+    } as Partial<SwapRecordType>);
+    const find = jest.fn(async () => null);
+    const poller = new SwapPoller({
+      client: {
+        track: jest.fn(async () => ({ status: "completed", legs: [] })),
+      } as unknown as SwapKitClient,
+      registry: new ProviderRegistry([new MayaExecutor()]),
+      store: withStoreUpdate({
+        readAll: jest.fn(async () => [record]),
+        upsert: jest.fn(async () => undefined),
+      }) as unknown as typeof SwapStore,
+      midgardClient: {
+        findInboundActionByMemo: find,
+      } as unknown as MidgardClient,
+      config: {
+        tickIntervalMs: 10_000,
+        activePollIntervalMs: 0,
+        idlePollIntervalMs: 0,
+      },
+    });
+
+    await poller.tickOnce();
+
+    expect(find).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destinationAddress: "zs1k6xpp9f62jfqdmg6dwl2u7rsj8k87m97phtzmea5l4hfplpt5y5dn9qe8umplqhvvfmp52eh3n4",
+      }),
+    );
+  });
+});
+
+describe("SwapPoller on a Maya purchase whose deposit Midgard has not seen", () => {
+  const T0 = 1_700_000_000_000;
+  const IDLE = 90_000;
+
+  const harness = () => {
+    jest.useFakeTimers({ now: T0 });
+    const record = makeRecord({
+      recordId: "rec-awaiting",
+      provider: SwapKitProviderEnum.MayachainStreaming,
+      direction: SwapDirectionEnum.Inbound,
+      sellAsset: ETH,
+      receiveAsset: ZEC,
+      depositAddress: "0xvault",
+      destinationAddress: "t1wallet",
+      providerData: {
+        kind: SwapKitProviderEnum.MayachainStreaming,
+        memo: "=:z:t1wallet",
+      },
+      broadcast: undefined,
+      status: SwapStatusEnum.AwaitingExternalDeposit,
+      depositDeadlineMs: T0 + 12 * 60 * 60 * 1000,
+      createdAtMs: T0,
+      updatedAtMs: T0,
+    } as Partial<SwapRecordType>);
+    const track = jest.fn(async () => {
+      throw new Error("Deposit channel not found");
+    });
+    const find = jest.fn(async () => null);
+    const poller = new SwapPoller({
+      client: { track } as unknown as SwapKitClient,
+      registry: new ProviderRegistry([new MayaExecutor()]),
+      store: withStoreUpdate({
+        readAll: jest.fn(async () => [record]),
+        upsert: jest.fn(async () => undefined),
+      }) as unknown as typeof SwapStore,
+      midgardClient: {
+        findInboundActionByMemo: find,
+      } as unknown as MidgardClient,
+      config: {
+        tickIntervalMs: 10_000,
+        activePollIntervalMs: IDLE,
+        idlePollIntervalMs: IDLE,
+      },
+    });
+    return { poller, track, find };
+  };
+
+  it("Tests that /track is not asked when there is no hash to ask it by", async () => {
+    const { poller, track, find } = harness();
+
+    await poller.tickOnce();
+
+    expect(find).toHaveBeenCalledTimes(1);
+    expect(track).not.toHaveBeenCalled();
+  });
+
+  it("Tests that Midgard is asked again one interval later when it found nothing", async () => {
+    const { poller, find } = harness();
+
+    for (let probe = 1; probe <= 4; probe++) {
+      await poller.tickOnce();
+      jest.setSystemTime(T0 + probe * IDLE);
+    }
+
+    expect(find).toHaveBeenCalledTimes(4);
   });
 });
