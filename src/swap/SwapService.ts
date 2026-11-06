@@ -285,6 +285,7 @@ export class SwapService {
       provider: chosenRoute.provider,
       direction,
       routeId: chosenRoute.routeId,
+      swapKitInternalId: swapResponse.swapId ?? swapResponse.transient?.swapId,
       sellAsset: quoteInput.sellAsset,
       receiveAsset: quoteInput.receiveAsset,
       sellAmountHumanDecimal: quoteInput.sellAmountHumanDecimal,
