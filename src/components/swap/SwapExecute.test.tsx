@@ -5,6 +5,7 @@ import SwapExecute from "./SwapExecute";
 import { DepositAfterDeshieldError, SwapDirectionEnum, SwapKitProviderEnum, SwapStatusEnum } from "../../swap";
 import { SwapKitHttpError } from "../../swap/errors";
 import { SwapOperationEnum } from "../../swap/enums/SwapErrorCategoryEnum";
+import { BroadcastStatusEnum } from "../../swap/enums/BroadcastStatusEnum";
 import type { QuoteInput, RouteOptionType, SwapAssetType, SwapRecordType, SwapService } from "../../swap";
 
 jest.mock("../../electronBridge");
@@ -85,6 +86,7 @@ const renderExecute = (
   instructionOverrides: Record<string, unknown> = {},
   commitFailure?: unknown,
   resume?: jest.Mock,
+  foundInWallet?: SwapRecordType,
 ) => {
   const commitRoute = jest.fn(async () => {
     if (commitFailure) throw commitFailure;
@@ -104,7 +106,16 @@ const renderExecute = (
   const markDepositSent = jest.fn(async () => record(direction));
   const sendSwapDeposit = deposit ?? jest.fn(async () => ["a".repeat(64)]);
   const resumeSwapDeposit = resume ?? jest.fn(async () => ["c".repeat(64)]);
-  const swapService = { commitRoute, markBroadcasted, markDeshielded, markDepositSent } as unknown as SwapService;
+  const claimSaleDeposits = jest.fn(async () => (foundInWallet ? [foundInWallet.recordId] : []));
+  const getRecord = jest.fn(async () => foundInWallet);
+  const swapService = {
+    commitRoute,
+    markBroadcasted,
+    markDeshielded,
+    markDepositSent,
+    claimSaleDeposits,
+    getRecord,
+  } as unknown as SwapService;
   const onDone = jest.fn();
   const onCancel = jest.fn();
   const onRouteRefused = jest.fn();
@@ -125,6 +136,7 @@ const renderExecute = (
   );
   return {
     commitRoute,
+    claimSaleDeposits,
     markBroadcasted,
     markDeshielded,
     markDepositSent,
@@ -269,6 +281,32 @@ describe("SwapExecute deposit retry", () => {
     await screen.findByText("Deposit sent");
     expect(commitRoute).toHaveBeenCalledTimes(1);
     expect(deposit).toHaveBeenCalledTimes(2);
+  });
+
+  // A send that errored after broadcasting left the deposit on its way: the
+  // wallet shows it, and the retry ties it instead of paying a second time.
+  it("Tests that the retry pays nothing when the wallet already shows the deposit leaving", async () => {
+    const deposit = jest.fn().mockRejectedValueOnce(new Error("timed out"));
+    const sent = {
+      ...record(SwapDirectionEnum.Outbound),
+      status: SwapStatusEnum.Pending,
+      broadcast: { status: BroadcastStatusEnum.Broadcasted, txId: "d".repeat(64), allTxIds: ["d".repeat(64)] },
+    };
+    const { claimSaleDeposits } = renderExecute(
+      SwapDirectionEnum.Outbound,
+      deposit as unknown as jest.Mock,
+      {},
+      undefined,
+      undefined,
+      sent,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
+
+    fireEvent.click(await screen.findByRole("button", { name: /try the deposit again/i }));
+
+    await screen.findByText("Deposit sent");
+    expect(claimSaleDeposits).toHaveBeenCalledTimes(1);
+    expect(deposit).toHaveBeenCalledTimes(1);
   });
 
   // A successful retry has to clear the failure it followed, or the screen

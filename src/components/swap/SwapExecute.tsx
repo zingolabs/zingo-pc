@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 import Modal from "react-modal";
 
 import cstyles from "../common/Common.module.css";
@@ -20,8 +20,10 @@ import {
   formatAmountForDisplay,
   zecNetworkFeeReserve,
   isThorchainFamily,
+  sentPaymentsFrom,
 } from "../../swap";
 import Utils from "../../utils/utils";
+import { ContextApp } from "../../context/ContextAppState";
 import { chainDisplayName } from "./chainDisplayName";
 import type {
   DepositInstructionsType,
@@ -118,6 +120,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   onRouteRefused,
   contactLabel,
 }) => {
+  const { valueTransfers } = useContext(ContextApp);
   const [committing, setCommitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   // Set when the provider refused this route. Pressing again would ask the
@@ -245,9 +248,22 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
     if (!postCommit) return;
     if (!(await deviceAuthPasses())) return;
     setCommitting(true);
+    /** A deposit the wallet already shows leaving is this sale's: never pay twice. */
+    const { recordId } = postCommit.record;
+    const found = await swapService
+      .claimSaleDeposits(sentPaymentsFrom(valueTransfers ?? []))
+      .catch(() => [] as string[]);
+    const claimed = found.includes(recordId) ? await swapService.getRecord(recordId) : null;
+    if (claimed?.broadcast?.txId) {
+      setError("");
+      setAfterDeshield(null);
+      setPostCommit({ record: claimed, instructions: postCommit.instructions, txId: claimed.broadcast.txId });
+      setCommitting(false);
+      return;
+    }
     await broadcast(postCommit.record, postCommit.instructions, afterDeshield ?? undefined);
     setCommitting(false);
-  }, [postCommit, broadcast, deviceAuthPasses, afterDeshield]);
+  }, [postCommit, broadcast, deviceAuthPasses, afterDeshield, swapService, valueTransfers]);
 
   const commit = useCallback(async () => {
     // Before anything is reserved: a refused unlock leaves the quote, the

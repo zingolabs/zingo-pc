@@ -7,6 +7,7 @@ import type { SwapRecordType } from "../swap";
 import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
 import { native } from "../electronBridge";
 import { payoutNotesFrom } from "../swap/payoutNotes";
+import { awaitsSaleDeposit, sentPaymentsFrom } from "../swap/saleDeposits";
 import { ContextApp } from "./ContextAppState";
 
 /**
@@ -107,8 +108,29 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
   }, [chainName, enabled, apiKey]);
 
   usePayoutClaims(service);
+  useSaleDepositClaims(service);
 
   return <SwapServiceContext.Provider value={service}>{children}</SwapServiceContext.Provider>;
+}
+
+/**
+ * Hands the wallet's sends to the service while a sale has no deposit tied
+ * to it, so a deposit that left without the send reporting it is found
+ * without the user asking to pay again.
+ */
+function useSaleDepositClaims(service: SwapService | null): void {
+  const { valueTransfers } = useContext(ContextApp);
+  const records = useSwapRecords();
+  const waiting = records.some(awaitsSaleDeposit);
+
+  useEffect(() => {
+    if (!service || !valueTransfers || !waiting) {
+      return;
+    }
+    service
+      .claimSaleDeposits(sentPaymentsFrom(valueTransfers))
+      .catch((error) => console.error(`SwapServiceProvider: sale deposit claim failed ${error}`));
+  }, [service, valueTransfers, waiting]);
 }
 
 /**
