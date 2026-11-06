@@ -20,8 +20,9 @@ type SlippagePickerProps = {
   onChange: (bps: number) => void;
 };
 
+/** As many decimals as the basis points need: 1 bps is 0.01%, not 0.0%. */
 export function formatSlippagePercent(bps: number): string {
-  return (bps / 100).toFixed(bps % 100 === 0 ? 0 : 1);
+  return (bps / 100).toFixed(bps % 100 === 0 ? 0 : bps % 10 === 0 ? 1 : 2);
 }
 
 /**

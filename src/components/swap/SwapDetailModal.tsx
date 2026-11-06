@@ -759,7 +759,7 @@ function PurchasePhase({ record, markSent }: { record: SwapRecordType; markSent:
           wallet. Zingo then starts looking for it.
         </div>
       )}
-      <div className={cstyles.horizontalflex}>
+      <div className={cstyles.horizontalflex} style={{ justifyContent: "center" }}>
         {confirming ? (
           <>
             <button
