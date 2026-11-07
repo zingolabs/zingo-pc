@@ -269,6 +269,14 @@ export class SwapService {
         ? await fetchMayaShieldedMemoTarget()
         : null;
     const namedBySwapKit = shieldedMemoAddressFromSwap(swapResponse);
+    /** A shielded memo has room for a unified address: the refund comes back shielded. */
+    const shieldedRefund =
+      shieldedMemoTarget && this.newShieldedAddress
+        ? await this.newShieldedAddress().catch((error) => {
+            console.error(`SwapService: no shielded address for the refund ${error}`);
+            return undefined;
+          })
+        : undefined;
 
     const instructions = executor.extractDepositInstructions({
       swapResponse,
@@ -280,8 +288,9 @@ export class SwapService {
       receiveAsset: quoteInput.receiveAsset,
       sellAmountHumanDecimal: quoteInput.sellAmountHumanDecimal,
       destinationAddress,
-      sourceAddress: quoteInput.sourceAddress,
+      sourceAddress: shieldedRefund ?? quoteInput.sourceAddress,
     });
+    const refundAddress = shieldedRefund && instructions.shieldedMemoAddress ? shieldedRefund : undefined;
 
     const now = Date.now();
     const initialStatus =
@@ -303,6 +312,7 @@ export class SwapService {
       feesRaw: chosenRoute.feesRaw,
       destinationAddress,
       sourceAddress: quoteInput.sourceAddress,
+      refundAddress,
       requestedSlippageBps: quoteInput.slippageBps,
       status: initialStatus,
       depositDeadlineMs: direction === SwapDirectionEnum.Inbound ? now + DEPOSIT_WAIT_MS : undefined,
