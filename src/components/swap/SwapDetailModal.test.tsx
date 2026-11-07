@@ -472,13 +472,13 @@ describe("SwapDetailModal unpaid purchase", () => {
   describe.each([SwapKitProviderEnum.MayachainStreaming, SwapKitProviderEnum.ThorchainStreaming])(
     "on %s",
     (provider) => {
-      it("Tests that an expired purchase shows the address the user gave and no vault when its deposit was not found", () => {
+      it("Tests that an expired purchase shows the address the user gave and the vault when its deposit was not found", () => {
         renderDetail(purchase({ provider, status: SwapStatusEnum.Expired }));
 
         expect(screen.getByText(/didn.t find your deposit/i)).toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", { name: /Advanced/ }));
         expect(screen.getByText("Your address")).toBeInTheDocument();
-        expect(screen.queryByText("Deposit address")).not.toBeInTheDocument();
+        expect(screen.getByText("Deposit address")).toBeInTheDocument();
       });
 
       it("Tests that a completed purchase warns when it has no ZEC transaction", () => {

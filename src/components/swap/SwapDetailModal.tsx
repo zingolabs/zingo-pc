@@ -609,7 +609,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             {/* Suppressed while the deposit slip is up: it carries the same
               address, and two copies of one address invite the reader to
               wonder which is the real one. */}
-            {!!record.depositAddress && !awaitingDeposit && !unfoundOnVault && (
+            {!!record.depositAddress && !awaitingDeposit && (
               <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
                 <CopyField label="Deposit address" value={record.depositAddress} />
                 {/* With no deposit seen there is no transaction to link, and the

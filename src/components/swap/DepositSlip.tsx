@@ -6,6 +6,7 @@ import {
   buildDepositQr,
   exactAmountWarningText,
   isEvmSourceChain,
+  isThorchainFamily,
   memoFieldHintForChain,
   memoToHexCalldata,
   providerRequiresMemo,
@@ -147,7 +148,10 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
                     is the widest thing in the row and squashes the two fields
                     beside it into a corner. */}
                 <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ maxWidth: 260 }}>
-                  After this the provider may reprice the route. A late deposit is refunded rather than lost.
+                  After this the provider may reprice the route.{" "}
+                  {isThorchainFamily(provider)
+                    ? "A late deposit is still swapped if the price holds, and refunded if it moved."
+                    : "A late deposit is refunded rather than lost."}
                 </div>
               </>
             }
