@@ -35,6 +35,7 @@ jest.mock("../../utils/zns", () => {
 let mockRoutableChains: Set<string> | null = null;
 jest.mock("../../context/ContextSwapService", () => ({
   useSwapService: () => (mockRoutableChains ? { routableChains: async () => mockRoutableChains } : null),
+  useSwapRecords: () => [],
 }));
 
 // The scan dialog stands in as a button that "scans" whatever the test sets.
