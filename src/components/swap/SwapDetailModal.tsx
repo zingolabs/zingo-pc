@@ -32,6 +32,7 @@ import {
   SwapStatusEnum,
   providerLongLabel,
   swapRowLabel,
+  swapAddressOf,
 } from "../../swap";
 import type { SwapRecordType, TrackerEntryType } from "../../swap";
 import { isEvmSourceChain, memoToHexCalldata, pendingDeshieldTxId, recordDeshieldTxId } from "../../swap";
@@ -548,6 +549,10 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               label={`${isOutbound ? "Sent to" : "Received at"} (${receiveSymbol})`}
               value={record.destinationAddress}
             />
+            {!isOutbound && !!swapAddressOf(record) && record.status === SwapStatusEnum.Completed && (
+              <div className={`${cstyles.sublight} ${cstyles.small}`}>It arrived shielded, in Sapling.</div>
+            )}
+            {!!record.refundAddress && <CopyField label="Refund address (ZEC)" value={record.refundAddress} />}
           </div>
 
           {/* Everything above answers what the swap was; this answers how it
@@ -559,6 +564,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             <FieldRow>
               {!!record.routeId && <Field label="Route id" value={record.routeId} />}
               {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} />}
+              {!!record.swapKitInternalId && <CopyField label="Swap ID" value={record.swapKitInternalId} />}
             </FieldRow>
 
             {/* The minimum the swap guaranteed, the tolerance that set it and
@@ -603,7 +609,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             {/* Suppressed while the deposit slip is up: it carries the same
               address, and two copies of one address invite the reader to
               wonder which is the real one. */}
-            {!!record.depositAddress && !awaitingDeposit && !unfoundOnVault && (
+            {!!record.depositAddress && !awaitingDeposit && (
               <div className={cstyles.flexspacebetween} style={{ gap: 16, alignItems: "flex-end", flexWrap: "wrap" }}>
                 <CopyField label="Deposit address" value={record.depositAddress} />
                 {/* With no deposit seen there is no transaction to link, and the

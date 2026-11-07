@@ -5,6 +5,8 @@ import cstyles from "../common/Common.module.css";
 import styles from "../history/History.module.css";
 import swapStyles from "./Swap.module.css";
 import DepositSlip from "./DepositSlip";
+import { ServerChainNameEnum } from "../appstate";
+import { useShieldedRoutes } from "./useShieldedRoutes";
 import { Field, FieldRow } from "../common/DetailField";
 import { native, ipcRenderer } from "../../electronBridge";
 import {
@@ -21,6 +23,8 @@ import {
   zecNetworkFeeReserve,
   isThorchainFamily,
   sentPaymentsFrom,
+  swapAddressOf,
+  swapAddressTag,
 } from "../../swap";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
@@ -89,6 +93,8 @@ type SwapExecuteProps = {
   /** The address book's name for the address the user gave: the destination
    *  of a sale, the refund address of a purchase. */
   contactLabel?: string;
+  /** Tags the new shielded address a Maya swap makes, as any tag. */
+  addAddressBookEntry?: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
 };
 
 type PostCommit = {
@@ -119,7 +125,13 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   onCancel,
   onRouteRefused,
   contactLabel,
+  addAddressBookEntry,
 }) => {
+  const shieldedRoute = useShieldedRoutes({
+    direction,
+    sellChain: quoteInput.sellAsset.chain,
+    providers: [route.provider],
+  }).isShielded(route.provider);
   const { valueTransfers } = useContext(ContextApp);
   const [committing, setCommitting] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
@@ -322,6 +334,11 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
       }
     }
 
+    const madeAddress = swapAddressOf(committed.record);
+    if (madeAddress && addAddressBookEntry) {
+      addAddressBookEntry(swapAddressTag(committed.record), madeAddress, ServerChainNameEnum.mainChainName, "ZEC");
+    }
+
     if (!isOutbound) {
       setPostCommit({ record: committed.record, instructions: committed.instructions });
       setCommitting(false);
@@ -340,6 +357,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
     broadcast,
     deviceAuthPasses,
     onRouteRefused,
+    addAddressBookEntry,
   ]);
 
   if (postCommit) {
@@ -360,6 +378,11 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           <div className={`${cstyles.center} ${cstyles.xlarge} ${cstyles.padtopsmall}`}>
             {txId ? "Deposit sent" : "Pay this deposit"}
           </div>
+          {!!swapAddressOf(record) && (
+            <div className={`${cstyles.center} ${cstyles.small}`} style={{ color: "var(--color-primary)" }}>
+              Shielded address created
+            </div>
+          )}
           {!!error && (
             <div className={`${cstyles.center} ${cstyles.margintoplarge}`} style={{ color: "var(--color-error)" }}>
               {error}
@@ -381,6 +404,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
                 depositAddress={instructions.depositAddress}
                 amountHumanDecimal={instructions.amountHumanDecimal}
                 memoText={instructions.memoText}
+                shieldedMemo={!!instructions.shieldedMemoAddress}
                 expiresAtMs={instructions.expiresAtMs ?? route.expiresAtMs}
                 paid={!!txId}
                 leadingFields={<Field label="Provider" value={providerLongLabel(instructions.provider)} />}
@@ -501,7 +525,22 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
                 value={contactLabel ? `${contactLabel} (${quoteInput.sourceAddress})` : quoteInput.sourceAddress}
               />
             )}
+            {isOutbound && shieldedRoute && <Field label="If refunded, to" value="A new shielded address" />}
           </FieldRow>
+
+          {/* The swap's ZEC side lands shielded: Maya pays a purchase to a new
+              unified address, or refunds a sale to one. */}
+          {shieldedRoute && (
+            <div
+              className={cstyles.padtopsmall}
+              style={{ border: "1px solid var(--color-primary)", borderRadius: 4, padding: 10, marginTop: 12 }}
+            >
+              <div style={{ fontWeight: "bold" }}>{isOutbound ? "Shielded refund" : "Receive shielded"}</div>
+              <div className={`${cstyles.sublight} ${cstyles.small}`}>
+                {isOutbound ? "New address. Refunds go to Sapling." : "New address. Arrives in Sapling."}
+              </div>
+            </div>
+          )}
 
           {/* The minimum is the number above because it is the one the swap
               guarantees; what the route actually expects to pay belongs here,

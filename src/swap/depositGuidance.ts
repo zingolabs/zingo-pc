@@ -154,7 +154,14 @@ export function exactAmountWarningText(chain: string): string {
  * chain, and an unrecognised chain gets the generic phrasing rather than a
  * confident guess.
  */
-export function memoFieldHintForChain(chain: string): string {
+export function memoFieldHintForChain(chain: string, shieldedMemo: boolean = false): string {
+  // Maya's shielded memo deposit carries it in a note, not an OP_RETURN.
+  if (shieldedMemo) {
+    return (
+      "This memo is required. Zingo sends it in a shielded note to the provider, in the same transaction as the " +
+      "deposit."
+    );
+  }
   if (isEvmSourceChain(chain)) {
     return (
       "This memo is required. Send the transaction with this exact value in the data (calldata) field — most wallets " +

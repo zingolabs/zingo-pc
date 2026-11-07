@@ -10,7 +10,8 @@ import {
   providerCustody,
   providerShortLabel,
 } from "../../swap";
-import type { RouteOptionType, UnavailableProviderType } from "../../swap";
+import type { RouteOptionType, SwapKitProviderEnum, UnavailableProviderType } from "../../swap";
+import type { ShieldedNoteType } from "./useShieldedRoutes";
 
 type QuotesPickerProps = {
   routes: RouteOptionType[];
@@ -31,6 +32,12 @@ type QuotesPickerProps = {
   modalIsOpen: boolean;
   closeModal: () => void;
   onSelect: (routeId: string) => void;
+  /** Whether a route through this provider lands the ZEC shielded. */
+  isShielded?: (provider: SwapKitProviderEnum) => boolean;
+  /** The note under the list about shielded routes, if any. */
+  shieldedNote?: ShieldedNoteType;
+  /** The coin a purchase is paid with, for the note that none is shielded. */
+  payCoin?: string;
 };
 
 /**
@@ -61,6 +68,9 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
   modalIsOpen,
   closeModal,
   onSelect,
+  isShielded = () => false,
+  shieldedNote = null,
+  payCoin = "",
 }) => {
   const isOutbound = direction === SwapDirectionEnum.Outbound;
 
@@ -129,6 +139,11 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                         Optimal
                       </span>
                     )}
+                    {isShielded(route.provider) && (
+                      <span className={cstyles.small} style={{ marginLeft: 8, color: "var(--color-primary)" }}>
+                        Shielded
+                      </span>
+                    )}
                   </div>
                   <div className={cstyles.large}>
                     {/* On every row rather than once above them. Repeating it
@@ -183,6 +198,16 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                 </div>
               ))}
             </>
+          )}
+
+          {!!shieldedNote && (
+            <div className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}>
+              {shieldedNote === "none"
+                ? `With ${payCoin}, every route uses a transparent address.`
+                : shieldedNote === "refund"
+                  ? "Maya can refund to a new shielded address."
+                  : "Maya can send your ZEC to a new shielded address."}
+            </div>
           )}
         </div>
 

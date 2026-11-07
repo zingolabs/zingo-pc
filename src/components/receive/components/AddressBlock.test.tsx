@@ -195,3 +195,32 @@ describe("AddressBlock — Transparent", () => {
     expect(screen.queryByRole("button", { name: /shield/i })).not.toBeInTheDocument();
   });
 });
+
+describe("AddressBlock for an address a swap made", () => {
+  it("Tests that it offers Copy Address and View swap and nothing else when opened", () => {
+    const onViewSwap = jest.fn();
+    renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" swap={{ onView: onViewSwap }} />, {
+      contextOverrides: { currentWallet: mainnetWallet },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
+
+    expect(screen.getByRole("button", { name: /copy address/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Payment request" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /view on explorer/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /new address/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "View swap" }));
+    expect(onViewSwap).toHaveBeenCalledTimes(1);
+  });
+
+  it("Tests that a removed swap's address says so and offers no View swap", () => {
+    renderInAccordion(
+      <AddressBlock {...baseProps} address={uAddr} type="u" swap={{ note: "This swap failed and was removed." }} />,
+      { contextOverrides: { currentWallet: mainnetWallet } },
+    );
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
+
+    expect(screen.getByText("This swap failed and was removed.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /copy address/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View swap" })).not.toBeInTheDocument();
+  });
+});

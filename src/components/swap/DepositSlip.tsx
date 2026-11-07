@@ -6,6 +6,7 @@ import {
   buildDepositQr,
   exactAmountWarningText,
   isEvmSourceChain,
+  isThorchainFamily,
   memoFieldHintForChain,
   memoToHexCalldata,
   providerRequiresMemo,
@@ -53,6 +54,8 @@ export type DepositSlipProps = {
    * provider to name, the detail view already names it further up.
    */
   leadingFields?: React.ReactNode;
+  /** The memo goes in a shielded note to Maya rather than an OP_RETURN. */
+  shieldedMemo?: boolean;
 };
 
 const DepositSlip: React.FC<DepositSlipProps> = ({
@@ -65,6 +68,7 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
   expiresAtMs,
   paid,
   leadingFields,
+  shieldedMemo,
 }) => {
   // Its own, for the payment link below. The rows carry their own.
   const { copied: linkCopied, copy } = useCopy(1500);
@@ -144,7 +148,10 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
                     is the widest thing in the row and squashes the two fields
                     beside it into a corner. */}
                 <div className={`${cstyles.sublight} ${cstyles.small}`} style={{ maxWidth: 260 }}>
-                  After this the provider may reprice the route. A late deposit is refunded rather than lost.
+                  After this the provider may reprice the route.{" "}
+                  {isThorchainFamily(provider)
+                    ? "A late deposit is still swapped if the price holds, and refunded if it moved."
+                    : "A late deposit is refunded rather than lost."}
                 </div>
               </>
             }
@@ -164,7 +171,9 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
           {isEvmSourceChain(sellAsset.chain) && (
             <CopyField label="Memo (hex calldata)" value={memoToHexCalldata(memoText)} />
           )}
-          {showMemoHint && <div className={styles.warningbanner}>{memoFieldHintForChain(sellAsset.chain)}</div>}
+          {showMemoHint && (
+            <div className={styles.warningbanner}>{memoFieldHintForChain(sellAsset.chain, shieldedMemo)}</div>
+          )}
         </>
       )}
     </>
