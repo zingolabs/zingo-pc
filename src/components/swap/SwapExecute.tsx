@@ -404,6 +404,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
                 depositAddress={instructions.depositAddress}
                 amountHumanDecimal={instructions.amountHumanDecimal}
                 memoText={instructions.memoText}
+                shieldedMemo={!!instructions.shieldedMemoAddress}
                 expiresAtMs={instructions.expiresAtMs ?? route.expiresAtMs}
                 paid={!!txId}
                 leadingFields={<Field label="Provider" value={providerLongLabel(instructions.provider)} />}
