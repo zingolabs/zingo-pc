@@ -195,3 +195,20 @@ describe("AddressBlock — Transparent", () => {
     expect(screen.queryByRole("button", { name: /shield/i })).not.toBeInTheDocument();
   });
 });
+
+describe("AddressBlock for an address a swap made", () => {
+  it("Tests that it offers Copy Address and View swap and nothing else when opened", () => {
+    const onViewSwap = jest.fn();
+    renderInAccordion(<AddressBlock {...baseProps} address={uAddr} type="u" onViewSwap={onViewSwap} />, {
+      contextOverrides: { currentWallet: mainnetWallet },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "u1shortaddr000000000000000" }));
+
+    expect(screen.getByRole("button", { name: /copy address/i })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Payment request" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /view on explorer/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /new address/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "View swap" }));
+    expect(onViewSwap).toHaveBeenCalledTimes(1);
+  });
+});

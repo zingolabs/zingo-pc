@@ -29,9 +29,19 @@ type AddressBlockProps = {
   /** Where this address sits in the list on screen, and how long that list is. */
   position?: number;
   total?: number;
+  /** Set on an address a swap made: its only actions are Copy Address and this. */
+  onViewSwap?: () => void;
 };
 
-const AddressBlock: React.FC<AddressBlockProps> = ({ address, label, currencyName, type, position, total }) => {
+const AddressBlock: React.FC<AddressBlockProps> = ({
+  address,
+  label,
+  currencyName,
+  type,
+  position,
+  total,
+  onViewSwap,
+}) => {
   const context = useContext(ContextApp);
   const {
     openErrorModal,
@@ -147,11 +157,19 @@ const AddressBlock: React.FC<AddressBlockProps> = ({ address, label, currencyNam
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
                 </button>
 
-                <button className={cstyles.primarybutton} type="button" onClick={() => setPaymentRequestOpen(true)}>
-                  Payment request
-                </button>
+                {!!onViewSwap && (
+                  <button className={cstyles.primarybutton} type="button" onClick={onViewSwap}>
+                    View swap
+                  </button>
+                )}
 
-                {currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+                {!onViewSwap && (
+                  <button className={cstyles.primarybutton} type="button" onClick={() => setPaymentRequestOpen(true)}>
+                    Payment request
+                  </button>
+                )}
+
+                {!onViewSwap && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                   <button
                     className={cstyles.primarybutton}
                     type="button"
@@ -174,64 +192,67 @@ const AddressBlock: React.FC<AddressBlockProps> = ({ address, label, currencyNam
               </div>
               {/* The same row for both kinds of address; a unified one adds the
                   choice of receivers in front of the button, a transparent one
-                  the shield action after it. */}
-              <div
-                className={cstyles.margintoplarge}
-                style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
-              >
-                {type === "u" && (
-                  <select
-                    aria-label="New address type"
-                    className={cstyles.fieldselect}
-                    style={{
-                      // In line with the buttons above, which carry 8px each side.
-                      marginLeft: 8,
-                      // As wide as its longest option and no wider. It inherits
-                      // `flex: 1` from `fieldinput`, which is right for a field
-                      // that owns its row and wrong here: it grew to the edge of
-                      // the column and pushed New Address out with it, so this
-                      // row ran past the buttons above instead of ending with
-                      // them.
-                      flex: "0 0 auto",
-                    }}
-                    value={unifiedCreateType}
-                    onChange={(e) => {
-                      setUnifiedCreateType(e.target.value as "o" | "z" | "oz");
+                  the shield action after it. Not on a swap's address, which is
+                  that swap's alone. */}
+              {!onViewSwap && (
+                <div
+                  className={cstyles.margintoplarge}
+                  style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
+                >
+                  {type === "u" && (
+                    <select
+                      aria-label="New address type"
+                      className={cstyles.fieldselect}
+                      style={{
+                        // In line with the buttons above, which carry 8px each side.
+                        marginLeft: 8,
+                        // As wide as its longest option and no wider. It inherits
+                        // `flex: 1` from `fieldinput`, which is right for a field
+                        // that owns its row and wrong here: it grew to the edge of
+                        // the column and pushed New Address out with it, so this
+                        // row ran past the buttons above instead of ending with
+                        // them.
+                        flex: "0 0 auto",
+                      }}
+                      value={unifiedCreateType}
+                      onChange={(e) => {
+                        setUnifiedCreateType(e.target.value as "o" | "z" | "oz");
+                      }}
+                    >
+                      <option key="o" value="o">
+                        {IRONWOOD_RECEIVER_LABEL}
+                      </option>
+                      <option key="oz" value="oz">
+                        {`${IRONWOOD_RECEIVER_LABEL} + Sapling`}
+                      </option>
+                      <option key="z" value="z">
+                        Sapling
+                      </option>
+                    </select>
+                  )}
+                  <button
+                    disabled={creating}
+                    className={cstyles.primarybutton}
+                    type="button"
+                    onClick={async () => {
+                      setCreating(true);
+                      try {
+                        // Throws on failure; the address list refreshes via sync.
+                        if (type === "t") {
+                          await RPC.createNewAddressTransparent();
+                        } else {
+                          await RPC.createNewAddressUnified(unifiedCreateType);
+                        }
+                      } catch (error) {
+                        openErrorModal("New Address", `${error}`);
+                      }
+                      creatingTimerRef.current = setTimeout(() => setCreating(false), 5000);
                     }}
                   >
-                    <option key="o" value="o">
-                      {IRONWOOD_RECEIVER_LABEL}
-                    </option>
-                    <option key="oz" value="oz">
-                      {`${IRONWOOD_RECEIVER_LABEL} + Sapling`}
-                    </option>
-                    <option key="z" value="z">
-                      Sapling
-                    </option>
-                  </select>
-                )}
-                <button
-                  disabled={creating}
-                  className={cstyles.primarybutton}
-                  type="button"
-                  onClick={async () => {
-                    setCreating(true);
-                    try {
-                      // Throws on failure; the address list refreshes via sync.
-                      if (type === "t") {
-                        await RPC.createNewAddressTransparent();
-                      } else {
-                        await RPC.createNewAddressUnified(unifiedCreateType);
-                      }
-                    } catch (error) {
-                      openErrorModal("New Address", `${error}`);
-                    }
-                    creatingTimerRef.current = setTimeout(() => setCreating(false), 5000);
-                  }}
-                >
-                  {creating ? <span>Creating...</span> : <span>New Address</span>}
-                </button>
-              </div>
+                    {creating ? <span>Creating...</span> : <span>New Address</span>}
+                  </button>
+                </div>
+              )}
             </div>
             <div style={{ marginRight: 10, alignSelf: "center" }}>
               <button

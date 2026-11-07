@@ -19,7 +19,9 @@ import Utils from "../../utils/utils";
 import { matchesAllWords } from "../../utils/textSearch";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 import { useSwapAddresses } from "../swap/useSwapAddresses";
-import SwapAddresses from "./components/SwapAddresses";
+import SwapDetailModal from "../swap/SwapDetailModal";
+import { SwapStore } from "../../swap";
+import type { SwapRecordType } from "../../swap";
 
 type ReceiveProps = {};
 
@@ -48,6 +50,8 @@ const Receive: React.FC<ReceiveProps> = () => {
   // costs nothing and does not assume they always will.
   const unified = usePaneOffset(180);
   const transparent = usePaneOffset(180);
+  const swapPane = usePaneOffset(180);
+  const [shownSwap, setShownSwap] = useState<SwapRecordType | null>(null);
 
   const [uaddrs, setUaddrs] = useState<UnifiedAddressClass[]>([]);
   const [taddrs, setTaddrs] = useState<TransparentAddressClass[]>([]);
@@ -81,9 +85,13 @@ const Receive: React.FC<ReceiveProps> = () => {
   const swaps = [...addressesUnified]
     .flatMap((a) => {
       const record = swapByAddress.get(a.encoded_address);
-      return record ? [{ address: a.encoded_address, record }] : [];
+      return record ? [{ address: a, record }] : [];
     })
     .sort((a, b) => b.record.createdAtMs - a.record.createdAtMs);
+  const shownSwaps = swaps.filter((s) =>
+    matchesAllWords(`${s.address.encoded_address} ${addressBookMap.get(s.address.encoded_address) ?? ""}`, query),
+  );
+  const firstSwap = shownSwaps.length > 0 ? shownSwaps[0].address.encoded_address : "";
 
   useEffect(() => {
     setTaddrs(
@@ -165,7 +173,7 @@ const Receive: React.FC<ReceiveProps> = () => {
       <div className={styles.containermargin} style={{ marginLeft: 20, position: "relative" }}>
         {/* Beside the tabs rather than inside one of them: the search runs over
             both, so a tab switched with a search in place answers for itself. */}
-        {(uaddrs.length > 1 || taddrs.length > 1) && (
+        {(uaddrs.length > 1 || taddrs.length > 1 || swaps.length > 1) && (
           <div className={cstyles.fieldrow} style={{ position: "absolute", top: 0, right: 16, width: 240, zIndex: 1 }}>
             <input
               type="search"
@@ -184,7 +192,7 @@ const Receive: React.FC<ReceiveProps> = () => {
                 before opening it. */}
             {(orchardPool || saplingPool) && <Tab>{`Unified (${uaddrs.length})`}</Tab>}
             {transparentPool && <Tab>{`Transparent (${taddrs.length})`}</Tab>}
-            {swaps.length > 0 && <Tab>{`Swap addresses (${swaps.length})`}</Tab>}
+            {swaps.length > 0 && <Tab>{`Unified for Swaps (${swaps.length})`}</Tab>}
           </TabList>
 
           <TabPanel>
@@ -245,11 +253,49 @@ const Receive: React.FC<ReceiveProps> = () => {
 
           {swaps.length > 0 && (
             <TabPanel>
-              <SwapAddresses entries={swaps} labelOf={(address) => addressBookMap.get(address)} />
+              <div ref={swapPane.paneRef}>
+                <ScrollPaneTop offsetHeight={swapPane.paneOffset}>
+                  <Accordion key={firstSwap} preExpanded={[firstSwap]}>
+                    {shownSwaps.length === 0 && (
+                      <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.margintoplarge}`}>
+                        No addresses match that.
+                      </div>
+                    )}
+                    {shownSwaps.map(({ address, record }, i) => (
+                      <AddressBlock
+                        key={`s-${address.encoded_address}`}
+                        address={address}
+                        currencyName={info.currencyName}
+                        label={addressBookMap.get(address.encoded_address)}
+                        type={"u"}
+                        position={i + 1}
+                        total={shownSwaps.length}
+                        onViewSwap={() => setShownSwap(record)}
+                      />
+                    ))}
+                  </Accordion>
+                </ScrollPaneTop>
+              </div>
             </TabPanel>
           )}
         </Tabs>
       </div>
+      {!!shownSwap && (
+        <SwapDetailModal
+          record={shownSwap}
+          index={0}
+          length={1}
+          moveDetail={() => {}}
+          modalIsOpen
+          closeModal={() => setShownSwap(null)}
+          onRemove={(record) => {
+            setShownSwap(null);
+            SwapStore.deleteByRecordId(record.recordId).catch((e) =>
+              console.error(`Receive: removing the swap record failed ${e}`),
+            );
+          }}
+        />
+      )}
     </div>
   );
 };
