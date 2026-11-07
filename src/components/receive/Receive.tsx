@@ -18,6 +18,9 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
 import { matchesAllWords } from "../../utils/textSearch";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
+import { useSwapRecords } from "../../context/ContextSwapService";
+import { swapAddressOf } from "../../swap";
+import SwapAddresses from "./components/SwapAddresses";
 
 type ReceiveProps = {};
 
@@ -55,6 +58,14 @@ const Receive: React.FC<ReceiveProps> = () => {
   // shows what that tab has to show for it. Offered only when some tab has
   // more than one address; with a single one there is nothing to narrow.
   const [query, setQuery] = useState<string>("");
+  const swapRecords = useSwapRecords();
+  /** The addresses a swap made, with their swap: a tab of their own. */
+  const swapByAddress = new Map(
+    swapRecords.flatMap((record) => {
+      const address = swapAddressOf(record);
+      return address ? [[address, record] as const] : [];
+    }),
+  );
   const matching = <T extends { encoded_address: string }>(addresses: T[], query: string): T[] =>
     addresses.filter((a) =>
       matchesAllWords(`${a.encoded_address} ${addressBookMap.get(a.encoded_address) ?? ""}`, query),
@@ -69,9 +80,17 @@ const Receive: React.FC<ReceiveProps> = () => {
   const firstUaddr = shownUaddrs.length > 0 ? shownUaddrs[0].encoded_address : "";
   const firstTaddr = shownTaddrs.length > 0 ? shownTaddrs[0].encoded_address : "";
 
+  const swapKey = [...swapByAddress.keys()].join(",");
   useEffect(() => {
-    setUaddrs([...addressesUnified].reverse());
-  }, [addressesUnified]);
+    const swapAddresses = new Set(swapKey.split(","));
+    setUaddrs([...addressesUnified].filter((a) => !swapAddresses.has(a.encoded_address)).reverse());
+  }, [addressesUnified, swapKey]);
+  const swaps = [...addressesUnified]
+    .flatMap((a) => {
+      const record = swapByAddress.get(a.encoded_address);
+      return record ? [{ address: a.encoded_address, record }] : [];
+    })
+    .sort((a, b) => b.record.createdAtMs - a.record.createdAtMs);
 
   useEffect(() => {
     setTaddrs(
@@ -172,6 +191,7 @@ const Receive: React.FC<ReceiveProps> = () => {
                 before opening it. */}
             {(orchardPool || saplingPool) && <Tab>{`Unified (${uaddrs.length})`}</Tab>}
             {transparentPool && <Tab>{`Transparent (${taddrs.length})`}</Tab>}
+            {swaps.length > 0 && <Tab>{`Swap addresses (${swaps.length})`}</Tab>}
           </TabList>
 
           <TabPanel>
@@ -201,32 +221,40 @@ const Receive: React.FC<ReceiveProps> = () => {
             )}
           </TabPanel>
 
-          <TabPanel>
-            {transparentPool && !!taddrs && taddrs.length > 0 && (
-              <div ref={transparent.paneRef}>
-                <ScrollPaneTop offsetHeight={transparent.paneOffset}>
-                  <Accordion key={firstTaddr} preExpanded={[firstTaddr]}>
-                    {shownTaddrs.length === 0 && (
-                      <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.margintoplarge}`}>
-                        No addresses match that.
-                      </div>
-                    )}
-                    {shownTaddrs.map((a: TransparentAddressClass, i: number) => (
-                      <AddressBlock
-                        key={`t-${a.encoded_address}`}
-                        address={a}
-                        currencyName={info.currencyName}
-                        label={addressBookMap.get(a.encoded_address)}
-                        type={"t"}
-                        position={i + 1}
-                        total={shownTaddrs.length}
-                      />
-                    ))}
-                  </Accordion>
-                </ScrollPaneTop>
-              </div>
-            )}
-          </TabPanel>
+          {transparentPool && (
+            <TabPanel>
+              {!!taddrs && taddrs.length > 0 && (
+                <div ref={transparent.paneRef}>
+                  <ScrollPaneTop offsetHeight={transparent.paneOffset}>
+                    <Accordion key={firstTaddr} preExpanded={[firstTaddr]}>
+                      {shownTaddrs.length === 0 && (
+                        <div className={`${cstyles.center} ${cstyles.sublight} ${cstyles.margintoplarge}`}>
+                          No addresses match that.
+                        </div>
+                      )}
+                      {shownTaddrs.map((a: TransparentAddressClass, i: number) => (
+                        <AddressBlock
+                          key={`t-${a.encoded_address}`}
+                          address={a}
+                          currencyName={info.currencyName}
+                          label={addressBookMap.get(a.encoded_address)}
+                          type={"t"}
+                          position={i + 1}
+                          total={shownTaddrs.length}
+                        />
+                      ))}
+                    </Accordion>
+                  </ScrollPaneTop>
+                </div>
+              )}
+            </TabPanel>
+          )}
+
+          {swaps.length > 0 && (
+            <TabPanel>
+              <SwapAddresses entries={swaps} labelOf={(address) => addressBookMap.get(address)} />
+            </TabPanel>
+          )}
         </Tabs>
       </div>
     </div>

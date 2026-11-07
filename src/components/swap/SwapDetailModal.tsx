@@ -32,6 +32,7 @@ import {
   SwapStatusEnum,
   providerLongLabel,
   swapRowLabel,
+  swapAddressOf,
 } from "../../swap";
 import type { SwapRecordType, TrackerEntryType } from "../../swap";
 import { isEvmSourceChain, memoToHexCalldata, pendingDeshieldTxId, recordDeshieldTxId } from "../../swap";
@@ -548,6 +549,10 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               label={`${isOutbound ? "Sent to" : "Received at"} (${receiveSymbol})`}
               value={record.destinationAddress}
             />
+            {!isOutbound && !!swapAddressOf(record) && record.status === SwapStatusEnum.Completed && (
+              <div className={`${cstyles.sublight} ${cstyles.small}`}>It arrived shielded, in Sapling.</div>
+            )}
+            {!!record.refundAddress && <CopyField label="Refund address (ZEC)" value={record.refundAddress} />}
           </div>
 
           {/* Everything above answers what the swap was; this answers how it
@@ -559,6 +564,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
             <FieldRow>
               {!!record.routeId && <Field label="Route id" value={record.routeId} />}
               {!!record.providerOrderId && <CopyField label="Order id" value={record.providerOrderId} />}
+              {!!record.swapKitInternalId && <CopyField label="Swap ID" value={record.swapKitInternalId} />}
             </FieldRow>
 
             {/* The minimum the swap guaranteed, the tolerance that set it and

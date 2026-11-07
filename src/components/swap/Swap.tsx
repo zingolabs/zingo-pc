@@ -62,7 +62,8 @@ import ScanQrModal from "../common/ScanQrModal";
 import AmountCurrencyToggle from "../common/AmountCurrencyToggle";
 import SwapKitLogo from "./SwapKitLogo";
 import { useUsdAmount } from "../common/useUsdAmount";
-import { faInfoCircle } from "@fortawesome/free-solid-svg-icons";
+import { faInfoCircle, faShieldAlt } from "@fortawesome/free-solid-svg-icons";
+import { useShieldedRoutes } from "./useShieldedRoutes";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 /** SwapKit's default slippage tolerance, in basis points. */
@@ -386,6 +387,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
   }, [swapToState, tokens, tokensDirection, direction, setSwapTo]);
 
   const counterpartyChain = selectedToken?.chain ?? "";
+  const shielded = useShieldedRoutes({
+    direction,
+    sellChain: isOutbound ? "ZEC" : counterpartyChain,
+    providers: (routes ?? []).map((r) => r.provider),
+  });
 
   // An address that was valid for the previous chain is almost certainly wrong
   // for the new one, and leaving it in the field invites sending to it.
@@ -1239,6 +1245,11 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                 </div>
                 <div className={`${cstyles.sublight} ${cstyles.small}`}>
                   via {providerShortLabel(chosenRoute.provider)}
+                  {shielded.isShielded(chosenRoute.provider) && (
+                    <span title="Shielded" style={{ marginLeft: 6, color: "var(--color-primary)" }}>
+                      <FontAwesomeIcon icon={faShieldAlt} />
+                    </span>
+                  )}
                   {!!chosenCustody && <span title={chosenCustody.title}> ({chosenCustody.label})</span>}
                   {chosenRoute.estimatedTimeText ? ` — ${chosenRoute.estimatedTimeText}` : ""}
                 </div>
@@ -1324,6 +1335,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
             direction={direction}
             sendSwapDeposit={sendSwapDeposit}
             resumeSwapDeposit={resumeSwapDeposit}
+            addAddressBookEntry={addAddressBookEntry}
             contactLabel={activeContactLabel}
             // A completed swap leaves the form empty rather than pre-filled
             // with what was just sent: the next swap is a new decision, and
@@ -1451,6 +1463,9 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
             setChosenRouteId(routeId);
             setRoutePickedByUser(true);
           }}
+          isShielded={shielded.isShielded}
+          shieldedNote={shielded.note}
+          payCoin={selectedToken?.ticker ?? ""}
         />
       )}
 

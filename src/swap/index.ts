@@ -152,3 +152,5 @@ export { newlyExpired, newlyRefunding } from "./swapTransitions";
 
 export { awaitsSaleDeposit, claimSaleDeposit, paysSale, sentPaymentsFrom } from "./saleDeposits";
 export type { SentPaymentType } from "./saleDeposits";
+export { chainCarriesShieldedPurchase, paysPurchaseShielded, routeIsShielded, swapAddressOf } from "./shieldedPurchase";
+export { fetchMayaShieldedMemoTarget } from "./mayaShieldedMemo";

@@ -133,3 +133,38 @@ describe("QuotesPicker", () => {
     expect(screen.getByText(/0\.00012/)).toBeInTheDocument();
   });
 });
+
+describe("QuotesPicker shielded routes", () => {
+  const mayaRoute = {
+    ...route("m", "0.5", "0.49"),
+    provider: SwapKitProviderEnum.MayachainStreaming,
+  } as RouteOptionType;
+  const showShielded = (note: "purchase" | "refund" | "none" | null) =>
+    render(
+      <QuotesPicker
+        routes={[route("n", "0.5", "0.49"), mayaRoute]}
+        unavailable={[]}
+        selectedRouteId="n"
+        receiveSymbol="ZEC"
+        sellSymbol="ETH"
+        direction={SwapDirectionEnum.Inbound}
+        modalIsOpen
+        closeModal={jest.fn()}
+        onSelect={jest.fn()}
+        isShielded={(provider) => provider === SwapKitProviderEnum.MayachainStreaming}
+        shieldedNote={note}
+        payCoin="BTC"
+      />,
+    );
+
+  it("Tests that only the route landing shielded is marked shielded, with the note under the list", () => {
+    showShielded("purchase");
+    expect(screen.getAllByText("Shielded")).toHaveLength(1);
+    expect(screen.getByText("Maya can send your ZEC to a new shielded address.")).toBeInTheDocument();
+  });
+
+  it("Tests that the note says no route is shielded when the coin paid with cannot carry it", () => {
+    showShielded("none");
+    expect(screen.getByText("With BTC, every route uses a transparent address.")).toBeInTheDocument();
+  });
+});
