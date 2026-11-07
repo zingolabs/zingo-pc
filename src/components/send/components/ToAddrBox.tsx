@@ -27,6 +27,7 @@ import {
   faUserPlus,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useSwapAddresses } from "../../swap/useSwapAddresses";
 
 const Spacer = () => {
   return <div style={{ marginTop: "14px" }} />;
@@ -133,13 +134,17 @@ const ToAddrBox = ({
   // carry this same `chain` — swaps are mainnet-only, so a Bitcoin address is
   // stored against the main network with its own `swapChain`. Filtering on the
   // network alone would offer a Bitcoin address to a Zcash send.
+  // A swap's own address is reserved for that swap and used once: not a contact.
+  const swapAddresses = useSwapAddresses();
   const zcashContacts = useMemo(
     () =>
       addressBook.filter(
         (ab: AddressBookEntryClass) =>
-          ab.chain === serverChainName && (ab.swapChain ?? ZEC_SWAP_CHAIN) === ZEC_SWAP_CHAIN,
+          ab.chain === serverChainName &&
+          (ab.swapChain ?? ZEC_SWAP_CHAIN) === ZEC_SWAP_CHAIN &&
+          !swapAddresses.has(ab.address),
       ),
-    [addressBook, serverChainName],
+    [addressBook, serverChainName, swapAddresses],
   );
   // Wrap the setter so every local change is mirrored to the parent state.
   const setZnsAlias = (alias: string) => {

@@ -161,6 +161,16 @@ describe("exactAmountWarningText", () => {
 });
 
 describe("memoFieldHintForChain", () => {
+  it("Tests that a shielded memo deposit names the shielded note, not an OP_RETURN", () => {
+    const hint = memoFieldHintForChain("ZEC", true);
+    expect(hint).toContain("shielded note");
+    expect(hint).not.toContain("OP_RETURN");
+  });
+
+  it("Tests that a Zcash deposit without a shielded memo still names the OP_RETURN", () => {
+    expect(memoFieldHintForChain("ZEC")).toContain("OP_RETURN");
+  });
+
   // The 2026-06-27 incident: the banner said OP_RETURN while the user paid
   // from an EVM wallet, whose data field defaults to empty.
   it("points EVM chains at the data field, never at OP_RETURN", () => {

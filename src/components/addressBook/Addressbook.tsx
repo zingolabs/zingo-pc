@@ -25,6 +25,7 @@ import ScanQrModal from "../common/ScanQrModal";
 import { filterContacts } from "../../utils/contactSearch";
 import { parseZcashURITargets } from "../../utils/uris";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { useSwapAddresses } from "../swap/useSwapAddresses";
 import { faQrcode } from "@fortawesome/free-solid-svg-icons";
 
 /** The refusal for an address on chains that do not swap with ZEC, naming them. */
@@ -150,12 +151,15 @@ const AddressBook: React.FC<AddressBookProps> = (props) => {
   // Zcash contacts. A Bitcoin address has no mainnet/testnet of ours to belong
   // to, and hiding it whenever the wallet is on testnet would lose it for no
   // reason — it is exactly as swappable either way.
+  // A swap's own address is reserved for that swap and used once: not a contact.
+  const swapAddresses = useSwapAddresses();
   useEffect(() => {
+    const contacts = addressBook.filter((e) => !swapAddresses.has(e.address));
     const visible = showAllNetworks
-      ? addressBook
-      : addressBook.filter((e) => (e.swapChain ?? ZEC_SWAP_CHAIN) !== ZEC_SWAP_CHAIN || e.chain === currentChain);
+      ? contacts
+      : contacts.filter((e) => (e.swapChain ?? ZEC_SWAP_CHAIN) !== ZEC_SWAP_CHAIN || e.chain === currentChain);
     setAddressBookSorted([...visible].sort((a, b) => a.label.localeCompare(b.label)));
-  }, [addressBook, showAllNetworks, currentChain]);
+  }, [addressBook, showAllNetworks, currentChain, swapAddresses]);
 
   // Whether the list under the titles has anything in it. The titles are
   // drawn only when it does; the filter above them always is.

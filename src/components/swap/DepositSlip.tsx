@@ -53,6 +53,8 @@ export type DepositSlipProps = {
    * provider to name, the detail view already names it further up.
    */
   leadingFields?: React.ReactNode;
+  /** The memo goes in a shielded note to Maya rather than an OP_RETURN. */
+  shieldedMemo?: boolean;
 };
 
 const DepositSlip: React.FC<DepositSlipProps> = ({
@@ -65,6 +67,7 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
   expiresAtMs,
   paid,
   leadingFields,
+  shieldedMemo,
 }) => {
   // Its own, for the payment link below. The rows carry their own.
   const { copied: linkCopied, copy } = useCopy(1500);
@@ -164,7 +167,9 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
           {isEvmSourceChain(sellAsset.chain) && (
             <CopyField label="Memo (hex calldata)" value={memoToHexCalldata(memoText)} />
           )}
-          {showMemoHint && <div className={styles.warningbanner}>{memoFieldHintForChain(sellAsset.chain)}</div>}
+          {showMemoHint && (
+            <div className={styles.warningbanner}>{memoFieldHintForChain(sellAsset.chain, shieldedMemo)}</div>
+          )}
         </>
       )}
     </>
