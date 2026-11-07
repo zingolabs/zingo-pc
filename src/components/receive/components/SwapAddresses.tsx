@@ -9,7 +9,15 @@ import {
 import styles from "../Receive.module.css";
 import cstyles from "../../common/Common.module.css";
 import { CopyField, Field, FieldRow } from "../../common/DetailField";
-import { providerShortLabel, swapRowLabel, SwapStatusEnum, SwapStore } from "../../../swap";
+import {
+  providerShortLabel,
+  swapAddressTag,
+  swapPair,
+  swapRowLabel,
+  swapWhen,
+  SwapStatusEnum,
+  SwapStore,
+} from "../../../swap";
 import type { SwapRecordType } from "../../../swap";
 import SwapDetailModal from "../../swap/SwapDetailModal";
 
@@ -19,17 +27,6 @@ type SwapAddressesProps = {
   /** The address book's name for an address, when it has one. */
   labelOf: (address: string) => string | undefined;
 };
-
-const pairOf = (record: SwapRecordType) =>
-  `${record.sellAsset.ticker ?? record.sellAsset.symbol} → ${record.receiveAsset.ticker ?? record.receiveAsset.symbol}`;
-
-const whenOf = (record: SwapRecordType) =>
-  new Date(record.createdAtMs).toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
 
 /**
  * Receive's tab of the addresses a swap made, one per swap. A row shows the
@@ -50,9 +47,9 @@ const SwapAddresses: React.FC<SwapAddressesProps> = ({ entries, labelOf }) => {
             <AccordionItemHeading>
               <AccordionItemButton className={`${cstyles.accordionHeader} ${cstyles.marginleft}`}>
                 <div className={cstyles.verticalflex}>
-                  <div>{pairOf(record)}</div>
+                  <div>{swapPair(record)}</div>
                   <div className={`${cstyles.sublight} ${cstyles.small}`}>
-                    {swapRowLabel(record.status)} · {whenOf(record)}
+                    {swapRowLabel(record.status)} · {swapWhen(record)}
                   </div>
                 </div>
               </AccordionItemButton>
@@ -60,7 +57,7 @@ const SwapAddresses: React.FC<SwapAddressesProps> = ({ entries, labelOf }) => {
             <AccordionItemPanel className={styles.receiveDetail}>
               <div className={`${cstyles.verticalflex} ${cstyles.marginleft}`}>
                 <FieldRow>
-                  <Field label="Tag" value={labelOf(address) ?? `${pairOf(record)} · ${whenOf(record)}`} />
+                  <Field label="Tag" value={labelOf(address) ?? swapAddressTag(record)} />
                   <Field label="Provider" value={providerShortLabel(record.provider)} />
                 </FieldRow>
                 <FieldRow>

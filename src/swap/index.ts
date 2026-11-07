@@ -154,3 +154,4 @@ export { awaitsSaleDeposit, claimSaleDeposit, paysSale, sentPaymentsFrom } from 
 export type { SentPaymentType } from "./saleDeposits";
 export { chainCarriesShieldedPurchase, paysPurchaseShielded, routeIsShielded, swapAddressOf } from "./shieldedPurchase";
 export { fetchMayaShieldedMemoTarget } from "./mayaShieldedMemo";
+export { swapAddressTag, swapPair, swapWhen } from "./swapAddressTag";

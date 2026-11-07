@@ -18,8 +18,7 @@ import { BalanceBlock, BalanceBlockHighlight } from "../balanceBlock";
 import Utils from "../../utils/utils";
 import { matchesAllWords } from "../../utils/textSearch";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
-import { useSwapRecords } from "../../context/ContextSwapService";
-import { swapAddressOf } from "../../swap";
+import { useSwapAddresses } from "../swap/useSwapAddresses";
 import SwapAddresses from "./components/SwapAddresses";
 
 type ReceiveProps = {};
@@ -58,14 +57,8 @@ const Receive: React.FC<ReceiveProps> = () => {
   // shows what that tab has to show for it. Offered only when some tab has
   // more than one address; with a single one there is nothing to narrow.
   const [query, setQuery] = useState<string>("");
-  const swapRecords = useSwapRecords();
   /** The addresses a swap made, with their swap: a tab of their own. */
-  const swapByAddress = new Map(
-    swapRecords.flatMap((record) => {
-      const address = swapAddressOf(record);
-      return address ? [[address, record] as const] : [];
-    }),
-  );
+  const swapByAddress = useSwapAddresses();
   const matching = <T extends { encoded_address: string }>(addresses: T[], query: string): T[] =>
     addresses.filter((a) =>
       matchesAllWords(`${a.encoded_address} ${addressBookMap.get(a.encoded_address) ?? ""}`, query),

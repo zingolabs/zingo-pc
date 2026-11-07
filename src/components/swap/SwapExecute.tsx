@@ -24,6 +24,7 @@ import {
   isThorchainFamily,
   sentPaymentsFrom,
   swapAddressOf,
+  swapAddressTag,
 } from "../../swap";
 import Utils from "../../utils/utils";
 import { ContextApp } from "../../context/ContextAppState";
@@ -335,19 +336,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
     const madeAddress = swapAddressOf(committed.record);
     if (madeAddress && addAddressBookEntry) {
-      const { sellAsset, receiveAsset, createdAtMs } = committed.record;
-      const when = new Date(createdAtMs).toLocaleString("en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
-      addAddressBookEntry(
-        `${sellAsset.ticker ?? sellAsset.symbol} → ${receiveAsset.ticker ?? receiveAsset.symbol} · ${when}`,
-        madeAddress,
-        ServerChainNameEnum.mainChainName,
-        "ZEC",
-      );
+      addAddressBookEntry(swapAddressTag(committed.record), madeAddress, ServerChainNameEnum.mainChainName, "ZEC");
     }
 
     if (!isOutbound) {
