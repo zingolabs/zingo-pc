@@ -19,7 +19,6 @@ import { chainDisplayName } from "../../swap/chainDisplayName";
 import { SwapDirectionEnum } from "../../../swap/enums/SwapDirectionEnum";
 import { ChainBadge } from "../../common/ChainBadge";
 import ContactQrModal from "./ContactQrModal";
-import { useSwapAddresses } from "../../swap/useSwapAddresses";
 
 type AddressBookItemProps = {
   item: AddressBookEntryClass;
@@ -36,8 +35,6 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
   const [expandAddress, setExpandAddress] = useState<boolean>(false);
   const { copied, copy } = useCopy(1500);
   const [qrOpen, setQrOpen] = useState<boolean>(false);
-  /** A swap made this address for itself: nothing to send to, show or delete. */
-  const madeBySwap = useSwapAddresses().has(item.address);
 
   // A contact written before the field existed is a Zcash one: there was no way
   // to store anything else. The read migration stamps them, so this is only the
@@ -143,59 +140,57 @@ const AddressBookItemInternal: React.FC<AddressBookItemProps> = ({ item, removeA
         </AccordionItemButton>
       </AccordionItemHeading>
       <AccordionItemPanel>
-        {!madeBySwap && (
-          <div className={`${cstyles.well} ${styles.addressbookentrybuttons}`}>
-            {!readOnly && sendIsAvailable && (
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                onClick={() => {
-                  setSendTo(new ZcashURITarget(item.address, undefined, undefined));
-                  navigate(routes.SEND);
-                }}
-              >
-                Send To
-              </button>
-            )}
-            {swapIsAvailable && (
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                onClick={() => {
-                  setSwapTo({ address: item.address, swapChain, direction: SwapDirectionEnum.Outbound });
-                  navigate(routes.SWAP);
-                }}
-              >
-                Swap To
-              </button>
-            )}
-            {/* The other way round: the contact's asset sold for ZEC, with the
+        <div className={`${cstyles.well} ${styles.addressbookentrybuttons}`}>
+          {!readOnly && sendIsAvailable && (
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                setSendTo(new ZcashURITarget(item.address, undefined, undefined));
+                navigate(routes.SEND);
+              }}
+            >
+              Send To
+            </button>
+          )}
+          {swapIsAvailable && (
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                setSwapTo({ address: item.address, swapChain, direction: SwapDirectionEnum.Outbound });
+                navigate(routes.SWAP);
+              }}
+            >
+              Swap To
+            </button>
+          )}
+          {/* The other way round: the contact's asset sold for ZEC, with the
               contact as the address a refund returns to. */}
-            {swapIsAvailable && (
-              <button
-                type="button"
-                className={cstyles.primarybutton}
-                onClick={() => {
-                  setSwapTo({ address: item.address, swapChain, direction: SwapDirectionEnum.Inbound });
-                  navigate(routes.SWAP);
-                }}
-              >
-                Swap From
-              </button>
-            )}
-            {/* For another device to scan: a phone has no other way to read an
+          {swapIsAvailable && (
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                setSwapTo({ address: item.address, swapChain, direction: SwapDirectionEnum.Inbound });
+                navigate(routes.SWAP);
+              }}
+            >
+              Swap From
+            </button>
+          )}
+          {/* For another device to scan: a phone has no other way to read an
               address from this screen. A ZNS name is resolved by the app, so a
               code holding the name would scan as nothing a wallet can pay. */}
-            {!!item.address && !isZnsAlias(item.address) && (
-              <button type="button" className={cstyles.primarybutton} onClick={() => setQrOpen(true)}>
-                Show QR
-              </button>
-            )}
-            <button type="button" className={cstyles.primarybutton} onClick={() => removeAddressBookEntry(item.label)}>
-              Delete
+          {!!item.address && !isZnsAlias(item.address) && (
+            <button type="button" className={cstyles.primarybutton} onClick={() => setQrOpen(true)}>
+              Show QR
             </button>
-          </div>
-        )}
+          )}
+          <button type="button" className={cstyles.primarybutton} onClick={() => removeAddressBookEntry(item.label)}>
+            Delete
+          </button>
+        </div>
       </AccordionItemPanel>
       {qrOpen && (
         <ContactQrModal

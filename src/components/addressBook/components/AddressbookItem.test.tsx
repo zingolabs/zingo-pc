@@ -7,13 +7,6 @@ import { SwapDirectionEnum } from "../../../swap/enums/SwapDirectionEnum";
 
 jest.mock("../../../electronBridge");
 
-// The swaps whose addresses the book shows without actions.
-let mockSwapRecords: unknown[] = [];
-jest.mock("../../../context/ContextSwapService", () => ({
-  ...jest.requireActual("../../../context/ContextSwapService"),
-  useSwapRecords: () => mockSwapRecords,
-}));
-
 const item = new AddressBookEntryClass(
   "Alice",
   "u1fakeaddress0000000000000000000000000000",
@@ -247,17 +240,5 @@ describe("AddressbookItem QR code", () => {
     fireEvent.click(screen.getByText("Carol"));
 
     expect(screen.queryByRole("button", { name: /show qr/i })).not.toBeInTheDocument();
-  });
-
-  it("Tests that an address a swap made offers no actions when its entry is opened", () => {
-    mockSwapRecords = [{ direction: SwapDirectionEnum.Inbound, destinationAddress: item.address }];
-    renderInAccordion(<AddressBookItem {...baseProps} />, {
-      contextOverrides: { currentWallet: mainnetWallet },
-    });
-    fireEvent.click(screen.getByText("Alice"));
-    expect(screen.queryByRole("button", { name: /send to/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /show qr/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /delete/i })).not.toBeInTheDocument();
-    mockSwapRecords = [];
   });
 });

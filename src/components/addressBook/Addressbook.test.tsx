@@ -4,6 +4,8 @@ import { render } from "../../test-utils";
 import AddressBook from "./Addressbook";
 import { AddressBookEntryClass, ServerChainNameEnum } from "../appstate";
 
+import { SwapDirectionEnum } from "../../swap/enums/SwapDirectionEnum";
+
 jest.mock("../../electronBridge");
 
 // Provide a controllable ZNS resolver — `mock` prefix avoids jest hoist restriction.
@@ -33,9 +35,11 @@ jest.mock("../../utils/zns", () => {
 // The chains that swap with ZEC; null (the default) judges none, as before a
 // swap service is up.
 let mockRoutableChains: Set<string> | null = null;
+// One array for every render, as the real hook's state is: a new one each time loops the book's effect.
+let mockSwapRecords: unknown[] = [];
 jest.mock("../../context/ContextSwapService", () => ({
   useSwapService: () => (mockRoutableChains ? { routableChains: async () => mockRoutableChains } : null),
-  useSwapRecords: () => [],
+  useSwapRecords: () => mockSwapRecords,
 }));
 
 // The scan dialog stands in as a button that "scans" whatever the test sets.
@@ -92,6 +96,22 @@ describe("AddressBook", () => {
       contextOverrides: { addressBook: [entry] },
     });
     expect(screen.getByText("Alice")).toBeInTheDocument();
+  });
+
+  it("Tests that an address a swap made is not listed as a contact", () => {
+    const address = "u1swapmade0000000000000000000000";
+    mockSwapRecords = [{ direction: SwapDirectionEnum.Inbound, destinationAddress: address }];
+    render(<AddressBook {...baseProps} />, {
+      contextOverrides: {
+        addressBook: [
+          new AddressBookEntryClass("Alice", "u1fakeaddr000000000000000000000", ServerChainNameEnum.mainChainName),
+          new AddressBookEntryClass("ETH → ZEC · Nov 7, 9:05 AM", address, ServerChainNameEnum.mainChainName),
+        ],
+      },
+    });
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.queryByText("ETH → ZEC · Nov 7, 9:05 AM")).not.toBeInTheDocument();
+    mockSwapRecords = [];
   });
 
   it("shows a duplicate label error when label already exists", async () => {
