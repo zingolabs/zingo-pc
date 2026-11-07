@@ -270,7 +270,14 @@ const Receive: React.FC<ReceiveProps> = () => {
                         type={"u"}
                         position={i + 1}
                         total={shownSwaps.length}
-                        onViewSwap={() => setShownSwap(record)}
+                        swap={
+                          record.removedAtMs !== undefined
+                            ? { note: "This swap failed and was removed." }
+                            : {
+                                onView: () => setShownSwap(record),
+                                note: record.swapKitInternalId ? undefined : "This swap's ID was not saved.",
+                              }
+                        }
                       />
                     ))}
                   </Accordion>

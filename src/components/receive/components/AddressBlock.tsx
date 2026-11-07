@@ -29,19 +29,14 @@ type AddressBlockProps = {
   /** Where this address sits in the list on screen, and how long that list is. */
   position?: number;
   total?: number;
-  /** Set on an address a swap made: its only actions are Copy Address and this. */
-  onViewSwap?: () => void;
+  /**
+   * Set on an address a swap made. Its actions are Copy Address and, while the
+   * swap is there to open, View swap; the note says why it is not.
+   */
+  swap?: { onView?: () => void; note?: string };
 };
 
-const AddressBlock: React.FC<AddressBlockProps> = ({
-  address,
-  label,
-  currencyName,
-  type,
-  position,
-  total,
-  onViewSwap,
-}) => {
+const AddressBlock: React.FC<AddressBlockProps> = ({ address, label, currencyName, type, position, total, swap }) => {
   const context = useContext(ContextApp);
   const {
     openErrorModal,
@@ -122,6 +117,11 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   <div className={`${cstyles.padtopsmall} ${cstyles.fixedfont}`}>{label}</div>
                 </div>
               )}
+              {!!swap?.note && (
+                <div className={cstyles.padtopsmall} style={{ color: "var(--color-warning)" }}>
+                  {swap.note}
+                </div>
+              )}
 
               {type === "u" && (
                 <div style={{ marginTop: 12 }}>
@@ -157,19 +157,19 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   {copied ? <span>Copied!</span> : <span>Copy Address</span>}
                 </button>
 
-                {!!onViewSwap && (
-                  <button className={cstyles.primarybutton} type="button" onClick={onViewSwap}>
+                {!!swap?.onView && (
+                  <button className={cstyles.primarybutton} type="button" onClick={swap.onView}>
                     View swap
                   </button>
                 )}
 
-                {!onViewSwap && (
+                {!swap && (
                   <button className={cstyles.primarybutton} type="button" onClick={() => setPaymentRequestOpen(true)}>
                     Payment request
                   </button>
                 )}
 
-                {!onViewSwap && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
+                {!swap && currentWallet?.chain_name !== ServerChainNameEnum.regtestChainName && (
                   <button
                     className={cstyles.primarybutton}
                     type="button"
@@ -194,7 +194,7 @@ const AddressBlock: React.FC<AddressBlockProps> = ({
                   choice of receivers in front of the button, a transparent one
                   the shield action after it. Not on a swap's address, which is
                   that swap's alone. */}
-              {!onViewSwap && (
+              {!swap && (
                 <div
                   className={cstyles.margintoplarge}
                   style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}
