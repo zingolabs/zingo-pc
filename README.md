@@ -205,10 +205,12 @@ yarn release:prep 2.0.15 142
 - Sending fails closed: a payment goes out over the mixnet, or not at all, unless the mixnet has been
   switched off deliberately. Shielding the transparent balance is a payment by another name and waits
   the same way
+- Nym Doctor, in the Nym Mixnet panel: diagnoses the transport and the server through the tunnel, with a
+  report to copy. Its journal is kept in memory and is gone with the session
 
 **Swaps**
 
-- Swap ZEC to and from assets on other chains through SwapKit (NEAR Intents, Flashnet and other providers)
+- Swap ZEC to and from assets on other chains through SwapKit (NEAR Intents, Maya, THORChain and Flashnet)
 - Routes compared by cost against the market rate, with the slippage tolerance chosen and the slippage realised
 - Swap status and history, with links to each chain's explorer and refund tracking
 - When no route is offered, each provider's own reason is given (a minimum to reach, a provider that
@@ -224,6 +226,11 @@ yarn release:prep 2.0.15 142
   deshield
 - A deposit whose first transaction went out and second did not is finished by Try Again, without
   deshielding a second time
+- A Maya purchase lands shielded when its memo can carry a unified address, and a Maya sale's refund
+  comes back shielded
+- An expired purchase is still watched for a late payment: Maya and THORChain swap it if the price holds
+  and refund it if it moved; on other providers it is refunded rather than lost
+- The addresses made for swaps have their own tab in Receive, Unified for Swaps
 - When the swap service is busy (it rate-limits the app's key), quotes pause with a countdown and resume
   by themselves
 - Swap traffic goes over clearnet, not the mixnet: see [docs/swap-privacy.md](docs/swap-privacy.md)
@@ -318,13 +325,15 @@ payment, and fetching the price. Syncing is not one of them.
 - The server health check behind the indicator next to the active server, which
   asks each server for its latest block over an ordinary connection
 - Swap traffic: quotes, the commit, tracking, the token catalog with its
-  logos, and Maya's deposit settings read from mayanode. The provider therefore sees the IP the request came from, beside the
+  logos, Maya's deposit settings read from mayanode, and the Midgard queries
+  that follow a Maya or THORChain swap. The provider therefore sees the IP the request came from, beside the
   addresses a quote has to carry.
   The Swap screen says so, and [docs/swap-privacy.md](docs/swap-privacy.md) has
   the reasoning and what it would take to change
 - Resolving a `name.zcash` alias, which asks the Zcash Name Service. A contact saved from a name asks
   it again on every send to that contact, so the service sees which name this IP is about to pay
-- The server list, fetched from `hosh.zec.rocks` when you open the server picker
+- The server list, fetched from `hosh.zec.rocks` at launch for Mainnet and on demand for Testnet, and
+  kept for six hours
 - Anything handed to your browser: a block explorer, or "Open in wallet" on a
   deposit
 - The Nym client's own hostname lookups, which go to Quad9 and Cloudflare over
@@ -535,4 +544,4 @@ Before working around the warning, confirm the file is ours: right-click it → 
 Then:
 
 - **SmartScreen** (_"Windows protected your PC"_): **More info** → **Run anyway**.
-- **Smart App Control** (clean installs of Windows 11 22H2+): no per-app exception exists. It can only be disabled entirely, and **cannot be re-enabled without reinstalling Windows** — we do not recommend it. Use the Microsoft Store build instead once it is published; Store packages are trusted by SAC from the first install.
+- **Smart App Control** (clean installs of Windows 11 22H2+): no per-app exception exists. It can only be disabled entirely, and **cannot be re-enabled without reinstalling Windows** — we do not recommend it. The block clears once the certificate has built up its reputation.
