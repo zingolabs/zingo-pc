@@ -61,7 +61,7 @@ if (problems.length > 0) {
   for (const p of problems) console.error(`  - ${p}`);
   console.error(
     `\nA package built now would install and then fail on every native call.\n` +
-      `Run "yarn dist:win-${expected}" (or dist:win-msix-${expected}) from the top, so the\n` +
+      `Run "yarn dist:win-${expected}" from the top, so the\n` +
       `native module and nym-proxy are rebuilt for ${expected} rather than reused.\n`,
   );
   process.exit(1);

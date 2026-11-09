@@ -29,9 +29,7 @@ The `zip` and `msi` artifacts are signed with **Azure Artifact Signing** (former
 Signing). The certificate never exists as a file: it lives in Azure, and each signature is a
 call to the service. Nothing sensitive is stored in the repo or on a build machine.
 
-This is what stops Smart App Control blocking the direct downloads. The Microsoft Store
-route ([windows-msix.md](windows-msix.md)) solves the same problem for Store installs, by a
-different mechanism — the Store signs the package itself.
+This is what stops Smart App Control blocking the direct downloads.
 
 ## Configuration
 
@@ -105,36 +103,6 @@ That script signs `resources/nym-proxy.exe` before packaging, because electron-b
 sign `extraResources`: its pass covers the app directory, `resources/app.asar.unpacked` and
 `swiftshader`, and the proxy sits in `resources/`. It is spawned as a child process, so Smart
 App Control inspects it independently of the main executable.
-
-## Why the MSIX build does not sign
-
-Partner Center re-signs the `.appx` on upload and requires it unsigned. Beyond that, a package
-is only valid if the signing certificate subject equals its `Identity/Publisher` — and those
-differ here on purpose: the package publisher is the Partner Center seller GUID
-(`CN=96EC5B6E-…`), while this certificate is issued to a person. Signing the `.appx` would
-produce a package Windows rejects and Partner Center refuses.
-
-It takes **three** switches, none of them obvious:
-
-- **`"!.appx"` in `build.win.signExts`** stops the package itself from being signed.
-  `signAndEditExecutable` does not cover this: `AppxTarget` calls `packager.signIf()` on the
-  finished artifact, and `signIf` only consults `signExts`.
-- **`-c.win.signAndEditExecutable=false`**, passed by `dist:win-msix-*` and the CI step, skips
-  the binaries inside the package. Microsoft's signature covers them, so signing here would
-  only spend signing calls — and would force this step to carry the Azure credentials.
-- **`-c.win.azureSignOptions=`**, same two callers, clears the Azure config for that run. Left
-  in place it costs twice: electron-builder constructs the Azure signing manager merely to ask
-  it for a publisher name, and that manager validates the credentials on construction — which
-  this step deliberately does not carry. It then writes the *certificate's* subject into
-  `Identity/@Publisher`, ignoring `build.appx.publisher`
-  (`windowsSignAzureManager.computePublisherName` discards its argument) on the assumption that
-  whoever signs a package also publishes it. Ours differ on purpose, and the result is a bare
-  personal name — not a valid DN — which `makeappx` rejects with a pattern-constraint error.
-  Cleared, the publisher comes from `build.appx.publisher` as intended.
-
-With all three in place the MSIX build needs no credentials at all — verified: the run logs
-*"AppX is not signed"* and *"file signing skipped via signExts configuration"*, and the
-resulting package carries `Publisher='CN=96EC5B6E-…'` with no `AppxSignature.p7x`.
 
 ## Reputation
 
