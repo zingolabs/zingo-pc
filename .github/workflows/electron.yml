@@ -42,12 +42,12 @@ jobs:
             dist_script: dist:mac-x64
             rust_target: x86_64-apple-darwin
 
-          - runner: macos-14
+          - runner: macos-15
             platform: mac
             arch: arm64
             dist_script: dist:mac-arm64
 
-          - runner: macos-14
+          - runner: macos-15
             platform: mas
             arch: universal
             dist_script: dist:mac-mas
