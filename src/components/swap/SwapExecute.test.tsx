@@ -574,3 +574,37 @@ describe("SwapExecute half-paid sale", () => {
     expect(screen.queryByText(/pay it from another wallet/i)).not.toBeInTheDocument();
   });
 });
+
+describe("SwapExecute review, paying a memo route with a token", () => {
+  const USDT: SwapAssetType = {
+    swapKitId: "ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7",
+    chain: "ETH",
+    symbol: "USDT",
+    ticker: "USDT",
+    chainId: "1",
+    decimals: 6,
+  };
+
+  // Nothing is reserved until the user says their wallet can add the memo.
+  it("asks for the memo before starting, and says how the deposit is paid", () => {
+    render(
+      <SwapExecute
+        swapService={{ commitRoute: jest.fn() } as unknown as SwapService}
+        quoteInput={{ ...quoteInput(SwapDirectionEnum.Inbound), sellAsset: USDT }}
+        route={{ ...route, provider: SwapKitProviderEnum.MayachainStreaming }}
+        fiatValueBasis={{ sellUsdUnitPrice: 1, receiveUsdUnitPrice: 60000, capturedAt: 0 }}
+        direction={SwapDirectionEnum.Inbound}
+        sendSwapDeposit={jest.fn()}
+        resumeSwapDeposit={jest.fn()}
+        onDone={jest.fn()}
+        onCancel={jest.fn()}
+        onRouteRefused={jest.fn()}
+      />,
+    );
+    expect(screen.getByText("Address + memo")).toBeInTheDocument();
+    const start = screen.getByRole("button", { name: "Start the swap" });
+    expect(start).toBeDisabled();
+    fireEvent.click(screen.getByRole("checkbox", { name: /My wallet can add Maya/ }));
+    expect(start).toBeEnabled();
+  });
+});
