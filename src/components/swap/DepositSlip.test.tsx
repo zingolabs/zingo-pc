@@ -152,3 +152,23 @@ describe("DepositSlip", () => {
     expect(screen.queryByText("Send before")).not.toBeInTheDocument();
   });
 });
+
+describe("DepositSlip paid with a token", () => {
+  const USDT: SwapAssetType = {
+    swapKitId: "ETH.USDT-0XDAC17F958D2EE523A2206206994597C13D831EC7",
+    chain: "ETH",
+    symbol: "USDT",
+    ticker: "USDT",
+    chainId: "1",
+    decimals: 6,
+  };
+
+  // A token transfer has no data field: no QR, no hex, and a note in their place.
+  it("says the token cannot carry Maya's memo and offers no hex calldata", () => {
+    renderSlip({ sellAsset: USDT, memoText: MAYA_MEMO });
+    expect(screen.getByText(/A USDT send can’t carry this memo/)).toBeInTheDocument();
+    expect(screen.getByText("Send it with the payment. Exchanges can’t.")).toBeInTheDocument();
+    expect(screen.queryByText("Memo (hex calldata)")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Copy payment link" })).not.toBeInTheDocument();
+  });
+});

@@ -8,6 +8,7 @@ import {
   describeCostVsMarket,
   formatAmountForDisplay,
   providerCustody,
+  providerRequiresMemo,
   providerShortLabel,
 } from "../../swap";
 import type { RouteOptionType, SwapKitProviderEnum, UnavailableProviderType } from "../../swap";
@@ -94,6 +95,9 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
             const feeSymbol = isOutbound ? sellSymbol : receiveSymbol;
             const costVsMarket = describeCostVsMarket(route.costVsMarketBps);
             const custody = providerCustody(route.provider);
+            // Buying ZEC, the other wallet pays: to an address alone, or with a
+            // memo that exchanges cannot add.
+            const needsMemo = !isOutbound && providerRequiresMemo(route.provider);
 
             return (
               <button
@@ -134,6 +138,11 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                         {custody.label}
                       </span>
                     )}
+                    {!isOutbound && !needsMemo && (
+                      <span className={`${cstyles.sublight} ${cstyles.small}`} style={{ marginLeft: 8 }}>
+                        Address only
+                      </span>
+                    )}
                     {recommended && (
                       <span className={cstyles.small} style={{ marginLeft: 8, color: "var(--color-primary)" }}>
                         Optimal
@@ -172,6 +181,11 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
                 {!!route.warningsText && (
                   <div className={cstyles.small} style={{ color: "var(--color-warning)" }}>
                     {route.warningsText}
+                  </div>
+                )}
+                {needsMemo && (
+                  <div className={cstyles.small} style={{ color: "var(--color-warning)" }}>
+                    Needs a memo. Exchanges can’t add it.
                   </div>
                 )}
               </button>

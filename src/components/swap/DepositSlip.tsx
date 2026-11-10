@@ -7,9 +7,11 @@ import {
   exactAmountWarningText,
   isEvmSourceChain,
   isThorchainFamily,
+  isTokenAsset,
   memoFieldHintForChain,
   memoToHexCalldata,
   providerRequiresMemo,
+  providerShortLabel,
   requiresExactAmountWarning,
 } from "../../swap";
 import type { SwapAssetType, SwapDirectionEnum, SwapKitProviderEnum } from "../../swap";
@@ -93,9 +95,17 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
   const showMemoHint = !!memoText && providerRequiresMemo(provider);
   const showExactAmount = requiresExactAmountWarning({ direction, provider });
   const amountTicker = sellAsset.ticker ?? sellAsset.symbol;
+  // A token transfer has no data field of its own: the memo is the wallet's to
+  // add, so no hex to paste and no QR that could pretend to carry it.
+  const token = isTokenAsset(sellAsset);
 
   return (
     <>
+      {!paid && !qr && showMemoHint && token && (
+        <div className={styles.warningbanner}>
+          A {amountTicker} send can’t carry this memo. Use a wallet that connects to {providerShortLabel(provider)}.
+        </div>
+      )}
       {qr && (
         <div className={styles.qrblock}>
           {/* SVG rather than the canvas the Receive screen uses: that one is
@@ -168,11 +178,15 @@ const DepositSlip: React.FC<DepositSlipProps> = ({
           {/* EVM wallets take the memo as a 0x hex blob in the data field, never
               as the raw string. Pre-encoding it here removes the manual ASCII →
               hex step that lost a deposit on 2026-06-27. */}
-          {isEvmSourceChain(sellAsset.chain) && (
+          {isEvmSourceChain(sellAsset.chain) && !token && (
             <CopyField label="Memo (hex calldata)" value={memoToHexCalldata(memoText)} />
           )}
           {showMemoHint && (
-            <div className={styles.warningbanner}>{memoFieldHintForChain(sellAsset.chain, shieldedMemo)}</div>
+            <div className={styles.warningbanner}>
+              {token
+                ? "Send it with the payment. Exchanges can’t."
+                : memoFieldHintForChain(sellAsset.chain, shieldedMemo)}
+            </div>
           )}
         </>
       )}

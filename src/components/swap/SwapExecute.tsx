@@ -17,11 +17,14 @@ import {
   orderNamesEphemeral,
   DepositAfterDeshieldError,
   providerLongLabel,
+  providerShortLabel,
   recordDeshieldTxId,
   depositCarriesMemo,
   formatAmountForDisplay,
   zecNetworkFeeReserve,
   isThorchainFamily,
+  isTokenAsset,
+  providerRequiresMemo,
   sentPaymentsFrom,
   swapAddressOf,
   swapAddressTag,
@@ -145,6 +148,13 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
   const [afterDeshield, setAfterDeshield] = useState<{ deshieldTxId: string; opReturnTxId?: string } | null>(null);
 
   const isOutbound = direction === SwapDirectionEnum.Outbound;
+  // Buying ZEC, the other wallet pays: to an address alone, or with a memo it
+  // must add. A token transfer has no room for one, so paying a token to Maya
+  // or THORChain takes a wallet that adds it some other way, and the user says
+  // so before the address is reserved.
+  const paysWithMemo = !isOutbound && providerRequiresMemo(route.provider);
+  const memoAckNeeded = paysWithMemo && isTokenAsset(quoteInput.sellAsset);
+  const [memoAcknowledged, setMemoAcknowledged] = useState<boolean>(false);
   const [confirmingSent, setConfirmingSent] = useState<boolean>(false);
   const depositSent = useCallback(
     async (record: SwapRecordType) => {
@@ -507,6 +517,14 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
             {!!counterpartyNetwork && (
               <Field label={isOutbound ? "Destination network" : "Source network"} value={counterpartyNetwork} />
             )}
+            {!isOutbound && (
+              <Field
+                label="How you pay"
+                value={
+                  paysWithMemo ? <span style={{ color: "var(--color-warning)" }}>Address + memo</span> : "Address only"
+                }
+              />
+            )}
           </FieldRow>
 
           {/* The address the user typed or picked: where a sale pays, or where a
@@ -558,6 +576,22 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
           )}
         </div>
 
+        {memoAckNeeded && (
+          <label
+            className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`}
+            style={{ justifyContent: "center", alignItems: "center", gap: 8, cursor: "pointer" }}
+          >
+            <input
+              type="checkbox"
+              checked={memoAcknowledged}
+              disabled={committing}
+              onChange={(e) => setMemoAcknowledged(e.target.checked)}
+              style={{ width: 18, height: 18, accentColor: "var(--color-primary)" }}
+            />
+            My wallet can add {providerShortLabel(route.provider)}’s memo.
+          </label>
+        )}
+
         {/* Beside the press that spends the money. */}
         <div className={`${swapStyles.warningbanner} ${swapStyles.warningbannercentred}`} style={{ marginTop: 12 }}>
           Once this deposit is sent it cannot be called back.
@@ -565,7 +599,12 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
 
         <div className={`${cstyles.horizontalflex} ${cstyles.margintoplarge}`} style={{ justifyContent: "center" }}>
           {!refused && (
-            <button type="button" className={cstyles.primarybutton} disabled={committing} onClick={commit}>
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              disabled={committing || (memoAckNeeded && !memoAcknowledged)}
+              onClick={commit}
+            >
               {committing ? "Working..." : isOutbound ? "Swap and send deposit" : "Start the swap"}
             </button>
           )}

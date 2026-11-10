@@ -1,4 +1,5 @@
 import { DEPOSIT_WAIT_MS } from "./depositDeadline";
+import { isTokenAsset } from "./depositGuidance";
 import { ChainNameEnum } from "./enums/ChainNameEnum";
 import { MidgardClient, findSwapByInboundHash } from "./MidgardClient";
 import { SwapKitClient } from "./SwapKitClient";
@@ -813,6 +814,7 @@ function toRouteOption(
     expiresAtMs: Number.isFinite(expirationSecs) ? expirationSecs * 1000 : undefined,
     warningsText: route.warnings && route.warnings.length > 0 ? route.warnings.join("; ") : undefined,
     tags,
+    paidWithToken: isTokenAsset({ swapKitId: sellAssetId }),
   };
 }
 
