@@ -159,6 +159,8 @@ test("a fault offers what fixes it, and the report we would ask for", async () =
   fireEvent.click(screen.getByRole("button", { name: "Copy report" }));
   expect((clipboard.writeText as jest.Mock).mock.calls[0][0]).toContain("nym-proxy: every exit failed");
   expect(await screen.findByRole("button", { name: "Copied" })).toBeInTheDocument();
+  // It says so for a moment, then offers copying again.
+  expect(await screen.findByRole("button", { name: "Copy report" }, { timeout: 2500 })).toBeInTheDocument();
 });
 
 test("a server the mixnet cannot reach offers choosing another", async () => {

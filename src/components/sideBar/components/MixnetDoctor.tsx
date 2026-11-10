@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Modal from "react-modal";
 import cstyles from "../../common/Common.module.css";
 import RPC from "../../../rpc/rpc";
-import { clipboard } from "../../../electronBridge";
+import { useCopy } from "../../common/useCopy";
 import {
   DoctorRowState,
   DoctorRun,
@@ -71,7 +71,7 @@ export function useMixnetDoctor(): MixnetDoctorHandle {
   // The transport's status when the run finished, which is what its answers are about.
   const [runMode, setRunMode] = useState<string | null>(null);
   const [running, setRunning] = useState<boolean>(false);
-  const [copied, setCopied] = useState<boolean>(false);
+  const { copied, copy } = useCopy(1500);
   const mounted = useRef<boolean>(true);
 
   const refresh = useCallback(async () => {
@@ -101,7 +101,6 @@ export function useMixnetDoctor(): MixnetDoctorHandle {
   const runDiagnostics = async () => {
     setRunning(true);
     setRun(null);
-    setCopied(false);
     try {
       const finished = await RPC.runMixnetDoctor();
       if (mounted.current) setRun(finished);
@@ -120,8 +119,7 @@ export function useMixnetDoctor(): MixnetDoctorHandle {
 
   const copyReport = () => {
     if (!state) return;
-    clipboard.writeText(doctorReport(state, run, stale));
-    setCopied(true);
+    copy(doctorReport(state, run, stale));
   };
 
   const legs = current ?? (running ? (state?.doctorProgress ?? {}) : null);
