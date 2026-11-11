@@ -503,3 +503,26 @@ describe("applyDefaultTrackUpdate slippage", () => {
     expect(updated.slippageToleranceBps).toBeUndefined();
   });
 });
+
+describe("applyDefaultTrackUpdate on an unpaid purchase", () => {
+  it("Tests that a purchase keeps waiting for its payment when the provider answers pending or unknown with no deposit hash. NEAR answers pending for a channel nobody has paid.", () => {
+    const purchase = record({
+      direction: SwapDirectionEnum.Inbound,
+      provider: SwapKitProviderEnum.Near,
+      sellAsset: BTC,
+      receiveAsset: ZEC,
+      status: SwapStatusEnum.AwaitingExternalDeposit,
+    });
+
+    expect(applyDefaultTrackUpdate(purchase, { status: "pending" }).status).toBe(
+      SwapStatusEnum.AwaitingExternalDeposit,
+    );
+    expect(applyDefaultTrackUpdate(purchase, { status: "unknown" }).status).toBe(
+      SwapStatusEnum.AwaitingExternalDeposit,
+    );
+    expect(
+      applyDefaultTrackUpdate(purchase, { status: "pending", legs: [{ chainId: "bitcoin", hash: DEPOSIT_HASH }] })
+        .status,
+    ).toBe(SwapStatusEnum.Pending);
+  });
+});

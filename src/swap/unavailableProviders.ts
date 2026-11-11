@@ -29,6 +29,7 @@ export function unavailableProviders({
   supported,
   routes,
   unsupportedRoutes,
+  tokenMemoRoutes,
   sellAssetTicker,
 }: {
   response: QuoteResponseType;
@@ -42,9 +43,12 @@ export function unavailableProviders({
    * is indistinguishable from the provider never having answered.
    */
   unsupportedRoutes?: readonly RouteOptionType[];
+  /** Routes offered that need a memo a token payment cannot carry. */
+  tokenMemoRoutes?: readonly RouteOptionType[];
   sellAssetTicker?: string;
 }): UnavailableProviderType[] {
   const quoted = new Set(routes.map((route) => route.provider));
+  const needsMemo = new Set((tokenMemoRoutes ?? []).map((route) => route.provider));
   const errors = new Map<string, QuoteProviderErrorType>();
   for (const error of response.providerErrors ?? []) {
     // SwapKit names the provider in the same casing as the enum, but a
@@ -57,7 +61,9 @@ export function unavailableProviders({
     .filter((provider) => !quoted.has(provider))
     .map((provider) => ({
       provider,
-      reason: describeRefusal(errors.get(provider.toUpperCase()), sellAssetTicker),
+      reason: needsMemo.has(provider)
+        ? "Can’t be paid with a token from another wallet: it needs a memo the token transfer can’t carry."
+        : describeRefusal(errors.get(provider.toUpperCase()), sellAssetTicker),
     }));
 
   // A route this app cannot take is a different fact from a provider that did
