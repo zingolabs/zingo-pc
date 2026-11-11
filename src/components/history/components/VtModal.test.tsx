@@ -135,6 +135,23 @@ describe("VtModal", () => {
     expect(clipboard.writeText).toHaveBeenCalledWith(vt.address);
   });
 
+  it("Tests that the OP_RETURN text shows under its own label when the transaction carries one. A transparent Maya or THORChain payout signs itself there.", () => {
+    const vt = makeVt({ opReturnData: ["OUT:ABC123"] });
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
+    expect(screen.getByText("OP_RETURN")).toBeInTheDocument();
+    expect(screen.getByText("OUT:ABC123")).toBeInTheDocument();
+  });
+
+  it("Tests that no OP_RETURN label shows when the transaction carries none", () => {
+    const vt = makeVt();
+    render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
+      contextOverrides: { valueTransfers: [vt] },
+    });
+    expect(screen.queryByText("OP_RETURN")).not.toBeInTheDocument();
+  });
+
   it("hides 'View transaction' button on regtest", () => {
     const vt = makeVt();
     render(<VtModalInternal {...baseProps} vt={vt} valueTransfersSliced={[vt]} />, {
