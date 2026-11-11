@@ -258,9 +258,16 @@ crate-type = ["cdylib"]
 # against `zec.rocks`, so a server that cannot be reached through the mixnet
 # now fails the attach (zingo-adrs zingolib/0063). Note selection stays in the
 # pools it was asked for, and the reorg allowance goes from 100 to 1000 blocks.
-zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "81d799775f11e882896e8710e8af12d6d4d29a41", features = ["nym", "perspective"] }
-pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "81d799775f11e882896e8710e8af12d6d4d29a41" }
-zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "81d799775f11e882896e8710e8af12d6d4d29a41" }
+#
+# This bump (81d79977 -> bb4b42de) brings `op_return_data` to value transfers
+# (zingolib #3144): the UTF-8 text of each OP_RETURN output, where a Maya or
+# THORChain payout to a transparent address carries `OUT:<inbound hash>` and a
+# refund `REFUND:<inbound hash>`. With it, `indexer_uri` answers the session's
+# server whether or not the client is online (#3088), which is what the Nym
+# doctor reads.
+zingolib = { git = "https://github.com/zingolabs/zingolib", rev = "bb4b42def2f9be982f4bed4e231b8dd1148b2cd3", features = ["nym", "perspective"] }
+pepper-sync = { git = "https://github.com/zingolabs/zingolib", rev = "bb4b42def2f9be982f4bed4e231b8dd1148b2cd3" }
+zingo-netutils = { git = "https://github.com/zingolabs/zingolib", rev = "bb4b42def2f9be982f4bed4e231b8dd1148b2cd3" }
 # The txid list zingolib's transmit_calculated takes; the version zingolib uses.
 nonempty = "0.11.0"
 
