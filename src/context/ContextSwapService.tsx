@@ -7,6 +7,7 @@ import type { SwapRecordType } from "../swap";
 import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
 import { native } from "../electronBridge";
 import { payoutNotesFrom } from "../swap/payoutNotes";
+import { refundNotesFrom } from "../swap/refundNotes";
 import { awaitsSaleDeposit, sentPaymentsFrom } from "../swap/saleDeposits";
 import { ContextApp } from "./ContextAppState";
 
@@ -108,6 +109,7 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
   }, [chainName, enabled, apiKey]);
 
   usePayoutClaims(service);
+  useRefundClaims(service);
   useSaleDepositClaims(service);
 
   return <SwapServiceContext.Provider value={service}>{children}</SwapServiceContext.Provider>;
@@ -160,6 +162,31 @@ function usePayoutClaims(service: SwapService | null): void {
       .claimPayouts(notes)
       .then((txids) => txids.forEach((txid) => settled.current.add(txid)))
       .catch((error) => console.error(`SwapServiceProvider: payout claim failed ${error}`))
+      .finally(() => {
+        running.current = false;
+      });
+  }, [service, valueTransfers]);
+}
+
+/** Hands every refund the wallet received to the service, which ties it to its sale. */
+function useRefundClaims(service: SwapService | null): void {
+  const { valueTransfers } = useContext(ContextApp);
+  const settled = useRef(new Set<string>());
+  const running = useRef(false);
+
+  useEffect(() => {
+    if (!service || !valueTransfers || running.current) {
+      return;
+    }
+    const notes = refundNotesFrom(valueTransfers).filter((note) => !settled.current.has(note.txid));
+    if (notes.length === 0) {
+      return;
+    }
+    running.current = true;
+    service
+      .claimRefunds(notes)
+      .then((txids) => txids.forEach((txid) => settled.current.add(txid)))
+      .catch((error) => console.error(`SwapServiceProvider: refund claim failed ${error}`))
       .finally(() => {
         running.current = false;
       });
