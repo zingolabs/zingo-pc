@@ -11,6 +11,8 @@ export type RPCValueTransferType = {
   recipient_address?: string;
   value?: number;
   memos?: string[];
+  // zingolib PR #3144: the UTF-8 text of each OP_RETURN output, in output order.
+  op_return_data?: string[];
   // zingolib PR #2466: replaced the single `pool_received` with two pool lists.
   // Raw JSON pool names are capitalized ("Orchard", "Ironwood", …); rpc.ts
   // normalizes them to the lowercase ValueTransferPoolEnum.

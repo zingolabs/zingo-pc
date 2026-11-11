@@ -17,9 +17,8 @@ export type PayoutNoteType = {
 
 /**
  * Maya and THORChain sign every payout `OUT:<inbound hash>`. A shielded one
- * carries it in the note's memo, which reaches the value transfer. A
- * transparent one carries it in an OP_RETURN zingolib does not hand over yet
- * (zingolib#3139).
+ * carries it in the note's memo, a transparent one in an OP_RETURN; both reach
+ * the value transfer.
  */
 const PAYOUT_MEMO = /^OUT:([0-9a-f]{64})$/i;
 
@@ -28,7 +27,7 @@ export function payoutNotesFrom(valueTransfers: readonly ValueTransferClass[]): 
     if (vt.type !== ValueTransferKindEnum.received || vt.status === ValueTransferStatusEnum.failed || vt.swapRecordId) {
       return [];
     }
-    const hash = (vt.memos ?? [])
+    const hash = [...(vt.memos ?? []), ...(vt.opReturnData ?? [])]
       .map((memo) => PAYOUT_MEMO.exec(memo.trim())?.[1])
       .find((match): match is string => !!match);
     return hash ? [{ txid: vt.txid, amount: vt.amount, inboundHash: hash }] : [];

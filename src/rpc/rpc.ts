@@ -1085,6 +1085,7 @@ export default class RPC {
         vt.address = !tx.recipient_address ? undefined : tx.recipient_address;
         vt.amount = (!tx.value ? 0 : tx.value) / 10 ** 8;
         vt.memos = !tx.memos || tx.memos.length === 0 ? undefined : tx.memos;
+        vt.opReturnData = !tx.op_return_data || tx.op_return_data.length === 0 ? undefined : tx.op_return_data;
         vt.poolsSentFrom = parseValueTransferPools(tx.pools_sent_from);
         vt.poolsReceived = parseValueTransferPools(tx.pools_received);
 
