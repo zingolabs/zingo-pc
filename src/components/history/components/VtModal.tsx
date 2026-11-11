@@ -148,6 +148,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
   let status: ValueTransferStatusEnum | "" = "";
   let address: string | undefined = undefined;
   let memos: string[] = [];
+  let opReturn = "";
   let poolsText: string = "";
   let amount: number = 0;
   let fees: number = 0;
@@ -196,6 +197,7 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
     fees = valueTransfer.fee ? valueTransfer.fee : 0;
     address = valueTransfer.address;
     memos = valueTransfer.memos && valueTransfer.memos.length > 0 ? valueTransfer.memos : [];
+    opReturn = (valueTransfer.opReturnData ?? []).join("\n");
     poolsText = buildPoolsText(valueTransfer);
     // The transaction detail's converted USD value (`price * amount`) uses the
     // price recorded at generation, never the current price; a tx with no
@@ -525,6 +527,25 @@ const VtModalInternal: React.FC<VtModalInternalProps> = ({
                   ].join(" ")}
                 >
                   {memos.join("\n") + "\n" + labelReplyTo}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!!opReturn && (
+            <div className={cstyles.padtopsmall}>
+              <div className={cstyles.sublight}>OP_RETURN</div>
+              <div className={cstyles.flexspacebetween}>
+                <div
+                  className={[
+                    cstyles.small,
+                    cstyles.sublight,
+                    cstyles.padtopsmall,
+                    cstyles.memodiv,
+                    styles.txmemo,
+                  ].join(" ")}
+                >
+                  {opReturn}
                 </div>
               </div>
             </div>

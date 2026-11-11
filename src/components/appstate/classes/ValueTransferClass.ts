@@ -14,6 +14,9 @@ export default class ValueTransferClass {
   address?: string;
   amount: number;
   memos?: string[];
+  // The text of the transaction's OP_RETURN outputs (zingolib PR #3144). A
+  // Maya or THORChain payout to a transparent address signs it here.
+  opReturnData?: string[];
   // Pool info exposed by zingolib (PR #2466). poolsSentFrom is transaction-level
   // (the pools this txid spent from — identical across all VTs of the txid);
   // poolsReceived is transfer-specific (the destination pools of this movement).
