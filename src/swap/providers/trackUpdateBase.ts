@@ -2,6 +2,7 @@ import { SwapStatusEnum, isTerminalStatus } from "../enums/SwapStatusEnum";
 import { SwapRecordType } from "../types/SwapRecordType";
 import { TrackResponseType } from "../types/TrackResponseType";
 import { mapSwapStatus, mapTrackingStatus } from "./statusMapping";
+import { hasDepositEvidence } from "../depositEvidence";
 
 /**
  * Default `/track` -> `SwapRecord` mutation shared by all provider executors.
@@ -54,7 +55,7 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
   // mapSwapStatus returns undefined for unrecognised inputs — preserve
   // the current record.status in that case rather than collapsing to a
   // generic "Unknown". See `mapSwapStatus` for the rationale.
-  const nextStatus = mapSwapStatus(response.status) ?? record.status;
+  const providerStatus = mapSwapStatus(response.status) ?? record.status;
   const nextTrackingStatus = mapTrackingStatus(response.trackingStatus);
 
   // Prefer a fresh leg hash from the response. If absent, keep the
@@ -66,6 +67,12 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
   const observedDepositTxHash =
     pickLegHash(response, "inbound", record.sellAsset.chainId) ??
     (isRealLegHash(record.observedDepositTxHash) ? record.observedDepositTxHash : undefined);
+  /** A purchase waits for its payment until a deposit hash shows: NEAR answers `pending` for a channel nobody has paid. */
+  const stillAwaiting =
+    record.status === SwapStatusEnum.AwaitingExternalDeposit &&
+    !hasDepositEvidence({ ...record, observedDepositTxHash }) &&
+    (providerStatus === SwapStatusEnum.Pending || providerStatus === SwapStatusEnum.ProviderStatusUnknown);
+  const nextStatus = stillAwaiting ? SwapStatusEnum.AwaitingExternalDeposit : providerStatus;
   const destinationTxHash =
     pickLegHash(response, "outbound", record.receiveAsset.chainId) ??
     (isRealLegHash(record.destinationTxHash) ? record.destinationTxHash : undefined);
