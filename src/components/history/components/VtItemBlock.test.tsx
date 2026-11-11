@@ -164,3 +164,22 @@ describe("VtItemBlock", () => {
     expect(setModalIsOpen).toHaveBeenCalledWith(true);
   });
 });
+
+// A Maya deposit sends its memo in a 0 ZEC note beside the payment.
+describe("VtItemBlock memo-only send", () => {
+  it("Tests that a sent row with 0 ZEC reads Memo sent with No funds when a deposit sends its memo apart. The fee stays.", () => {
+    render(<VtItemBlock {...baseProps} vt={makeVt({ type: ValueTransferKindEnum.sent, amount: 0, fee: 0.00015 })} />);
+
+    expect(screen.getByText("Memo sent")).toBeInTheDocument();
+    expect(screen.getByText("No funds")).toBeInTheDocument();
+    expect(screen.getByText("ZEC 0.00015")).toBeInTheDocument();
+    expect(screen.queryByText("Amount")).not.toBeInTheDocument();
+  });
+
+  it("Tests that a sent row with funds keeps its label and amount when it carries ZEC", () => {
+    render(<VtItemBlock {...baseProps} vt={makeVt({ type: ValueTransferKindEnum.sent, amount: 0.012 })} />);
+
+    expect(screen.queryByText("Memo sent")).not.toBeInTheDocument();
+    expect(screen.queryByText("No funds")).not.toBeInTheDocument();
+  });
+});

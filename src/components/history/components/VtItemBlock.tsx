@@ -35,6 +35,8 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
 
   const fees: number = vt && vt.fee ? vt.fee : 0;
   const amount: number = vt.amount;
+  // A Maya deposit's memo goes out as a 0 ZEC note: a send with nothing in it.
+  const memoOnly: boolean = vt.type === ValueTransferKindEnum.sent && amount === 0;
   const label: string | undefined = vt.address ? addressBookMap.get(vt.address) : undefined;
   const address: string | undefined = vt.address;
   const txid: string = vt.txid;
@@ -116,6 +118,8 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                 <ProviderIcon provider={vt.swapProvider} size={16} />
                 {swapRowLabel(vt.swapStatus, { refunding: vt.swapRefunding, depositSent: vt.swapDepositSent })}
               </span>
+            ) : memoOnly && vt.confirmations > 0 ? (
+              "Memo sent"
             ) : (
               Utils.VTTypeWithConfirmations(vt.type, vt.status, vt.confirmations)
             )}
@@ -197,32 +201,38 @@ const VtItemBlock: React.FC<VtItemBlockProps> = ({
                   amount by being the only thing there, and a label would cost
                   every row without a fee a line to say what was never in
                   doubt. */}
-              {fees > 0 && <div>Amount</div>}
-              <div className={cstyles.padtopsmall}>
-                <span
-                  style={{
-                    color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
-                  }}
-                >
-                  {amountUnit} {bigPart}
-                </span>
-                <span
-                  style={{
-                    color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
-                  }}
-                  className={`${cstyles.small} ${cstyles.zecsmallpart}`}
-                >
-                  {smallPart}
-                </span>
-              </div>
-              <div
-                style={{
-                  color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
-                }}
-                className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}
-              >
-                {priceString}
-              </div>
+              {fees > 0 && !memoOnly && <div>Amount</div>}
+              {memoOnly ? (
+                <div className={`${cstyles.sublight} ${cstyles.padtopsmall}`}>No funds</div>
+              ) : (
+                <>
+                  <div className={cstyles.padtopsmall}>
+                    <span
+                      style={{
+                        color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
+                      }}
+                    >
+                      {amountUnit} {bigPart}
+                    </span>
+                    <span
+                      style={{
+                        color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
+                      }}
+                      className={`${cstyles.small} ${cstyles.zecsmallpart}`}
+                    >
+                      {smallPart}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      color: vt.status === ValueTransferStatusEnum.failed ? "var(--color-error)" : undefined,
+                    }}
+                    className={`${cstyles.sublight} ${cstyles.small} ${cstyles.padtopsmall}`}
+                  >
+                    {priceString}
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
