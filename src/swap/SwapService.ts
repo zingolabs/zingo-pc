@@ -843,7 +843,7 @@ function toRouteOption(
     bridgeFeesInSellAsset,
     feesRaw: route.fees,
     estimatedTimeText:
-      estimatedSecondsTotal !== undefined ? `~${Math.max(1, Math.ceil(estimatedSecondsTotal / 60))} min` : undefined,
+      estimatedSecondsTotal !== undefined ? `≈ ${Math.max(1, Math.ceil(estimatedSecondsTotal / 60))} min` : undefined,
     expiresAtMs: Number.isFinite(expirationSecs) ? expirationSecs * 1000 : undefined,
     warningsText: route.warnings && route.warnings.length > 0 ? route.warnings.join("; ") : undefined,
     tags,
