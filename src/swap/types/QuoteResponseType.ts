@@ -46,7 +46,7 @@ export type QuoteRouteType = {
   totalSlippageBps?: number;
   /** Total fees as reported by the provider. */
   fees?: QuoteRouteFeeType[];
-  /** ETA label, e.g. `"~5 min"`. */
+  /** ETA label, e.g. `"≈ 5 min"`. */
   estimatedTime?: { total?: number; inbound?: number; outbound?: number };
   /** Provider warnings, free-form strings. */
   warnings?: string[];

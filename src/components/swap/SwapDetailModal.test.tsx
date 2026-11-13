@@ -149,6 +149,25 @@ describe("SwapDetailModal provider", () => {
   });
 });
 
+describe("SwapDetailModal amounts", () => {
+  const hero = (line: string) => screen.getByText((_, el) => el?.tagName === "DIV" && el.textContent === line);
+
+  it("Tests that the amount reads as an estimate when the swap is still under way.", () => {
+    renderDetail();
+    expect(hero("0.007 ZEC → ≈ 7.77 USDC")).not.toHaveStyle({ textDecoration: "line-through" });
+  });
+
+  it("Tests that the amount reads as received when the swap is completed.", () => {
+    renderDetail({ status: SwapStatusEnum.Completed, actualReceiveAmount: "7.75" });
+    expect(hero("0.007 ZEC → +7.75 USDC")).toBeInTheDocument();
+  });
+
+  it("Tests that the amounts are crossed out when the swap failed.", () => {
+    renderDetail({ status: SwapStatusEnum.Failed });
+    expect(hero("0.007 ZEC → ≈ 7.77 USDC")).toHaveStyle({ textDecoration: "line-through" });
+  });
+});
+
 describe("SwapDetailModal slippage", () => {
   it("shows the tolerance and what the swap came to", () => {
     renderDetail({

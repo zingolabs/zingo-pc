@@ -58,7 +58,7 @@ export type RouteOptionType = {
    *  `totalFeesIn(Receive|Sell)Asset` fields above are convenient for the
    *  picker card; this raw array is what powers the breakdown UI. */
   feesRaw?: ReadonlyArray<QuoteRouteFeeType>;
-  /** Estimated time-to-completion (human label, e.g. `"~5 min"`). */
+  /** Estimated time-to-completion (human label, e.g. `"≈ 5 min"`). */
   estimatedTimeText?: string;
   /** Unix-ms timestamp after which the quote is considered stale. */
   expiresAtMs?: number;

@@ -248,6 +248,8 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const sourceAddressUrl =
     unfoundOnVault && !isOutbound ? buildChainAddressUrl(record.sellAsset.chain, record.sourceAddress) : null;
   const completedWithoutDelivery = record.status === SwapStatusEnum.Completed && lacksDelivery(record);
+  /** A failed or expired swap moved nothing: its amounts are crossed out. */
+  const struck = record.status === SwapStatusEnum.Failed || record.status === SwapStatusEnum.Expired;
   const deliveryUrl = deliveryHash ? explorerForHash({ value: deliveryHash, chain: record.receiveAsset.chain }) : null;
   const halfPaid = !isTerminalStatus(record.status) && !!deshieldTxId;
   const opReturnTxId = record.broadcast?.opReturnTxId;
@@ -337,9 +339,14 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               does not read as one number in the list and another here. */}
           <div
             className={`${cstyles.center} ${cstyles.large}`}
-            style={{ marginLeft: 20, color: "var(--color-primary)" }}
+            style={{
+              marginLeft: 20,
+              color: "var(--color-primary)",
+              textDecoration: struck ? "line-through" : undefined,
+            }}
           >
             {formatAmountForDisplay(record.sellAmountHumanDecimal)} {sellSymbol} &rarr;{" "}
+            {record.status === SwapStatusEnum.Completed ? "+" : "≈ "}
             {formatAmountForDisplay(record.actualReceiveAmount ?? record.expectedReceiveAmount)} {receiveSymbol}
           </div>
         </div>
