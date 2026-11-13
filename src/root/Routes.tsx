@@ -568,6 +568,10 @@ const AppRoutes: React.FC = () => {
     setAddressBookState((prev) => AddressbookImpl.followZnsAlias(prev, chain, alias, address));
   }, []);
 
+  const removeAddresses = useCallback((addresses: string[]) => {
+    setAddressBookState((prev) => AddressbookImpl.removeAddresses(prev, addresses));
+  }, []);
+
   const removeAddressBookEntry = useCallback((label: string) => {
     setAddressBookState((prev) => AddressbookImpl.removeEntry(prev, label));
   }, []);
@@ -943,6 +947,7 @@ const AppRoutes: React.FC = () => {
                     <AddNewWallet
                       closeModal={navigateToDashboard}
                       setWallets={setWallets}
+                      removeAddresses={removeAddresses}
                       setCurrentWallet={setCurrentWallet}
                       navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
                       doSaveWallet={() => RPC.doSave()}

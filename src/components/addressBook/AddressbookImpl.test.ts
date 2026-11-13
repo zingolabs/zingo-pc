@@ -226,3 +226,23 @@ describe("AddressbookImpl ZNS names on contacts", () => {
     expect(AddressbookImpl.backfillZnsAlias(entries)).toEqual({ migrated: entries, changed: false });
   });
 });
+
+describe("AddressbookImpl.removeAddresses", () => {
+  it("Tests that every entry of the given addresses goes, whatever its label, when a wallet's swaps are cleared", () => {
+    const write = jest.spyOn(AddressbookImpl, "writeAddressBook").mockResolvedValue();
+    const book = [contact("BTC → ZEC", "u1bought"), contact("Renamed", "u1bought"), contact("Ana", "u1ana")];
+
+    expect(AddressbookImpl.removeAddresses(book, ["u1bought"])).toEqual([contact("Ana", "u1ana")]);
+    expect(write).toHaveBeenCalledWith([contact("Ana", "u1ana")]);
+    write.mockRestore();
+  });
+
+  it("Tests that the book is left untouched when none of the addresses is in it", () => {
+    const write = jest.spyOn(AddressbookImpl, "writeAddressBook").mockResolvedValue();
+    const book = [contact("Ana", "u1ana")];
+
+    expect(AddressbookImpl.removeAddresses(book, ["u1bought"])).toBe(book);
+    expect(write).not.toHaveBeenCalled();
+    write.mockRestore();
+  });
+});

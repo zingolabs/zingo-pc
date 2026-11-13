@@ -286,3 +286,20 @@ describe("SwapStore removal markers", () => {
     expect(await SwapStore.readRemoved()).toEqual([before]);
   });
 });
+
+describe("SwapStore made addresses", () => {
+  beforeEach(async () => {
+    await SwapStore.bindToWallet("wallet-aaa");
+  });
+
+  it("Tests that the addresses the wallet's swaps made are listed when the wallet goes. A removed swap still counts.", async () => {
+    await SwapStore.upsert(makeRecord("buy", { direction: SwapDirectionEnum.Inbound, destinationAddress: "u1bought" }));
+    await SwapStore.upsert(makeRecord("sale", { direction: SwapDirectionEnum.Outbound, refundAddress: "u1refund" }));
+    await SwapStore.deleteByRecordId("sale");
+    await SwapStore.upsert(
+      makeRecord("plain", { direction: SwapDirectionEnum.Inbound, destinationAddress: "t1plain" }),
+    );
+
+    expect(await SwapStore.madeAddresses()).toEqual(["u1bought", "u1refund"]);
+  });
+});
