@@ -1,5 +1,6 @@
 import TotalBalanceClass from "./classes/TotalBalanceClass";
 import type { SwapDirectionEnum } from "../../swap/enums/SwapDirectionEnum";
+import type { SwapRecordType } from "../../swap/types/SwapRecordType";
 import ValueTransferClass from "./classes/ValueTransferClass";
 import SendPageStateClass from "./classes/SendPageStateClass";
 import FetchErrorClass from "./classes/FetchErrorClass";
@@ -127,6 +128,8 @@ export default class AppState {
     znsAlias?: string,
   ) => void;
   setSwapTo: (t: SwapToType | null) => void;
+  /** Deletes a swap, and the tag of the address it made with it. */
+  removeSwapRecord: (record: SwapRecordType) => Promise<void>;
 
   // Current USD price per ZEC. Fetched by RPC.getZecPrice on the 5s
   // scheduler, over the mixnet only (ADR 0024 arc 6): the fetch refuses
@@ -194,6 +197,7 @@ export default class AppState {
     this.handleShieldButton = () => {};
     this.addAddressBookEntry = () => {};
     this.setSwapTo = () => {};
+    this.removeSwapRecord = async () => {};
     this.zecPrice = 0;
     this.mixnetView = UNKNOWN_MIXNET_VIEW;
     this.serverHealth = INITIAL_SERVER_HEALTH;

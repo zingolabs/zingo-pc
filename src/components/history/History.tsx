@@ -12,9 +12,10 @@ import { matchesAllWords } from "../../utils/textSearch";
 import { swapRecordSearchText, valueTransferSearchText } from "./historySearchText";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapRecords, useValueTransfersWithSwaps } from "../../context/ContextSwapService";
-import { SwapStore, groupHistoryBySwap, sliceKeepingGroups, swapGroupOf, swapTxidIndex } from "../../swap";
+import { groupHistoryBySwap, sliceKeepingGroups, swapGroupOf, swapTxidIndex } from "../../swap";
 import { ValueTransferKindEnum } from "../appstate";
 import SwapDetailModal from "../swap/SwapDetailModal";
+import type { SwapRecordType } from "../../swap";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 
 type HistoryProps = {
@@ -34,6 +35,7 @@ const History: React.FC<HistoryProps> = ({ resumeSwapDeposit }) => {
     saplingPool,
     transparentPool,
     zecPrice,
+    removeSwapRecord,
   } = context;
 
   const [valueTransferDetail, setValueTransferDetail] = useState<ValueTransferClass | undefined>(undefined);
@@ -149,15 +151,18 @@ const History: React.FC<HistoryProps> = ({ resumeSwapDeposit }) => {
     return swapRecords.find((r) => r.recordId === valueTransferDetail.swapRecordId);
   }, [valueTransferDetail, swapRecords]);
 
-  const removeSwapRecord = useCallback(async (recordId: string) => {
-    closeModal();
-    try {
-      await SwapStore.deleteByRecordId(recordId);
-    } catch (error) {
-      console.error(`History: removing the swap record failed ${error}`);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const removeSwap = useCallback(
+    async (record: SwapRecordType) => {
+      closeModal();
+      try {
+        await removeSwapRecord(record);
+      } catch (error) {
+        console.error(`History: removing the swap record failed ${error}`);
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [removeSwapRecord],
+  );
 
   /**
    * Step the open detail to its neighbour in the list on screen.
@@ -362,7 +367,7 @@ const History: React.FC<HistoryProps> = ({ resumeSwapDeposit }) => {
           moveDetail={moveDetail}
           modalIsOpen={modalIsOpen}
           closeModal={closeModal}
-          onRemove={(r) => removeSwapRecord(r.recordId)}
+          onRemove={removeSwap}
           resumeSwapDeposit={resumeSwapDeposit}
         />
       )}
