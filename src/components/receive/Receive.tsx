@@ -20,7 +20,6 @@ import { matchesAllWords } from "../../utils/textSearch";
 import { ShieldBalance } from "../shieldBalance/ShieldBalance";
 import { useSwapAddresses } from "../swap/useSwapAddresses";
 import SwapDetailModal from "../swap/SwapDetailModal";
-import { SwapStore } from "../../swap";
 import type { SwapRecordType } from "../../swap";
 
 type ReceiveProps = {};
@@ -38,6 +37,7 @@ const Receive: React.FC<ReceiveProps> = () => {
     totalBalance,
     fetchError,
     zecPrice,
+    removeSwapRecord,
   } = context;
 
   // The block above the tabs varies with the wallet: the shield button, the
@@ -297,9 +297,7 @@ const Receive: React.FC<ReceiveProps> = () => {
           closeModal={() => setShownSwap(null)}
           onRemove={(record) => {
             setShownSwap(null);
-            SwapStore.deleteByRecordId(record.recordId).catch((e) =>
-              console.error(`Receive: removing the swap record failed ${e}`),
-            );
+            removeSwapRecord(record).catch((e) => console.error(`Receive: removing the swap record failed ${e}`));
           }}
         />
       )}

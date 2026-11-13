@@ -47,6 +47,7 @@ export const defaultAppState: AppState = {
   closeConfirmModal: () => {},
   setSendTo: () => {},
   setSwapTo: () => {},
+  removeSwapRecord: async () => {},
   calculateShieldFee: async () => 0,
   shieldQuoteReason: "",
   handleShieldButton: () => {},

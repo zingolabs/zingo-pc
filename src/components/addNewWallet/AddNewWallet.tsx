@@ -31,6 +31,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 type AddNewWalletProps = {
   closeModal: () => void;
   setWallets: (ws: WalletType[]) => void;
+  /** Drops the address book entries of the given addresses. */
+  removeAddresses: (addresses: string[]) => void;
   setCurrentWallet: (w: WalletType | null) => void;
   navigateToLoadingScreenChangingWallet: () => void;
   doSaveWallet: () => void;
@@ -40,6 +42,7 @@ type AddNewWalletProps = {
 const AddNewWallet: React.FC<AddNewWalletProps> = ({
   closeModal,
   setWallets,
+  removeAddresses,
   setCurrentWallet,
   navigateToLoadingScreenChangingWallet,
   doSaveWallet,
@@ -703,6 +706,9 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
           } else {
             const fingerprint = await readCurrentWalletFingerprint();
             if (fingerprint) {
+              // The address book is shared by every wallet: the tags of the
+              // addresses this wallet's swaps made go with its swaps.
+              removeAddresses(await SwapStore.madeAddresses());
               await SwapStore.clearForWallet(fingerprint);
             } else {
               console.log("Delete Wallet: no fingerprint, leaving the swap bucket alone");

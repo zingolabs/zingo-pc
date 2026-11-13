@@ -336,6 +336,16 @@ export class SwapStore {
     });
   }
 
+  /** The shielded addresses the open wallet's swaps made, removed swaps included. */
+  static async madeAddresses(): Promise<string[]> {
+    return this.enqueue(async () =>
+      (await this._readRaw()).flatMap((r) => {
+        const made = swapAddressOf(r);
+        return made ? [made] : [];
+      }),
+    );
+  }
+
   /**
    * Wipe the records for a specific wallet's bucket. Invoked from the delete
    * flow before the wallet file itself is deleted, so the swap records of a

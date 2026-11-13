@@ -15,7 +15,7 @@ jest.mock("../../rpc/rpc", () => ({ __esModule: true, default: { deinitialize: j
 // and the fingerprint read, and a factory keeps the real store — with its
 // module-level wallet binding — out of the test entirely.
 jest.mock("../../swap", () => ({
-  SwapStore: { clearForWallet: jest.fn() },
+  SwapStore: { clearForWallet: jest.fn(), madeAddresses: jest.fn() },
   readCurrentWalletFingerprint: jest.fn(),
   createSwapService: jest.fn(),
   swapRecordToValueTransfer: jest.fn(),
@@ -50,6 +50,7 @@ const FINGERPRINT = "ufvktail16charss";
 const baseProps = {
   closeModal: jest.fn(),
   setWallets: jest.fn(),
+  removeAddresses: jest.fn(),
   setCurrentWallet: jest.fn(),
   navigateToLoadingScreenChangingWallet: jest.fn(),
   doSaveWallet: jest.fn(),
@@ -262,6 +263,14 @@ describe("AddNewWallet delete and swap records", () => {
     await waitFor(() => expect(native.delete_wallet).toHaveBeenCalled());
   });
 
+  it("Tests that the address book tags of the addresses the swaps made go when the swap bucket is cleared", async () => {
+    (SwapStore.madeAddresses as jest.Mock).mockResolvedValue(["u1bought"]);
+    await confirmDelete(CreationTypeEnum.Seed);
+
+    await waitFor(() => expect(SwapStore.clearForWallet).toHaveBeenCalledWith(FINGERPRINT));
+    expect(baseProps.removeAddresses).toHaveBeenCalledWith(["u1bought"]);
+  });
+
   // A wallet opened from an existing .DAT is not destroyed by this flow — the
   // file stays put and can be opened again. Clearing the bucket would leave
   // that reopened wallet with an empty history for a delete that only ever
@@ -271,6 +280,7 @@ describe("AddNewWallet delete and swap records", () => {
 
     await waitFor(() => expect(baseProps.setCurrentWallet).toHaveBeenCalledWith(null));
     expect(SwapStore.clearForWallet).not.toHaveBeenCalled();
+    expect(baseProps.removeAddresses).not.toHaveBeenCalled();
     expect(native.delete_wallet).not.toHaveBeenCalled();
   });
 

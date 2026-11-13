@@ -42,6 +42,8 @@ import { SyncAllBanner, SyncAllSettingsModal, SyncAllWallets } from "../componen
 import { SyncAllContext, SyncAllRun, useAutoSyncAll, useSyncAllRun } from "../syncAll";
 import { History } from "../components/history";
 import { Swap } from "../components/swap";
+import { removeSwapAndTag } from "../components/swap/removeSwapAndTag";
+import type { SwapRecordType } from "../swap";
 import { ContextAppProvider, defaultAppState } from "../context/ContextAppState";
 import { SwapServiceProvider } from "../context/ContextSwapService";
 import SwapExpiryNotice from "../components/swap/SwapExpiryNotice";
@@ -568,6 +570,15 @@ const AppRoutes: React.FC = () => {
     setAddressBookState((prev) => AddressbookImpl.followZnsAlias(prev, chain, alias, address));
   }, []);
 
+  const removeAddresses = useCallback((addresses: string[]) => {
+    setAddressBookState((prev) => AddressbookImpl.removeAddresses(prev, addresses));
+  }, []);
+
+  const removeSwapRecord = useCallback(
+    (record: SwapRecordType) => removeSwapAndTag(record, removeAddresses),
+    [removeAddresses],
+  );
+
   const removeAddressBookEntry = useCallback((label: string) => {
     setAddressBookState((prev) => AddressbookImpl.removeEntry(prev, label));
   }, []);
@@ -773,6 +784,7 @@ const AppRoutes: React.FC = () => {
       shieldQuoteReason,
       handleShieldButton,
       addAddressBookEntry,
+      removeSwapRecord,
       zecPrice,
       mixnetView,
       serverHealth,
@@ -824,6 +836,7 @@ const AppRoutes: React.FC = () => {
       shieldQuoteReason,
       handleShieldButton,
       addAddressBookEntry,
+      removeSwapRecord,
       zecPrice,
       mixnetView,
       serverHealth,
@@ -943,6 +956,7 @@ const AppRoutes: React.FC = () => {
                     <AddNewWallet
                       closeModal={navigateToDashboard}
                       setWallets={setWallets}
+                      removeAddresses={removeAddresses}
                       setCurrentWallet={setCurrentWallet}
                       navigateToLoadingScreenChangingWallet={navigateToLoadingScreenChangingWallet}
                       doSaveWallet={() => RPC.doSave()}

@@ -96,6 +96,14 @@ export default class AddressbookImpl {
     return { migrated, changed };
   }
 
+  /** Drops every entry of the given addresses, whatever its label. */
+  static removeAddresses(addressBook: AddressBookEntryClass[], addresses: string[]): AddressBookEntryClass[] {
+    const kept = addressBook.filter((i) => !addresses.includes(i.address));
+    if (kept.length === addressBook.length) return addressBook;
+    AddressbookImpl.writeAddressBook(kept);
+    return kept;
+  }
+
   static removeEntry(addressBook: AddressBookEntryClass[], label: string): AddressBookEntryClass[] {
     const updated = addressBook.filter((i) => i.label !== label);
     AddressbookImpl.writeAddressBook(updated);
