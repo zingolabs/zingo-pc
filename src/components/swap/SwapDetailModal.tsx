@@ -85,6 +85,7 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
     blockExplorerTestnetTransactionCustom,
     openConfirmModal,
     setSwapTo,
+    readOnly,
   } = useContext(ContextApp);
   const navigate = useNavigate();
   const swapService = useSwapService();
@@ -725,6 +726,27 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               }}
             >
               Get a new quote
+            </button>
+          )}
+          {/* Another swap the same way with the same coin and address, its amount
+              left to the user, as Send More does for a transfer. */}
+          {!readOnly && !!(isOutbound ? record.destinationAddress : record.sourceAddress) && (
+            <button
+              type="button"
+              className={cstyles.primarybutton}
+              onClick={() => {
+                const counterparty = isOutbound ? record.receiveAsset : record.sellAsset;
+                setSwapTo({
+                  address: isOutbound ? record.destinationAddress : record.sourceAddress,
+                  swapChain: counterparty.chain,
+                  swapKitId: counterparty.swapKitId,
+                  direction: record.direction,
+                });
+                closeModal();
+                navigate(routes.SWAP);
+              }}
+            >
+              Swap More
             </button>
           )}
           {removable && (

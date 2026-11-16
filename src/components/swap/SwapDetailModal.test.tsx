@@ -535,3 +535,63 @@ describe("SwapDetailModal unpaid purchase", () => {
     expect(screen.getByText(/no BTC deposit was detected in time/i)).toBeInTheDocument();
   });
 });
+
+describe("SwapDetailModal swap more", () => {
+  const BTC: SwapAssetType = {
+    swapKitId: "BTC.BTC",
+    chain: "BTC",
+    symbol: "BTC",
+    ticker: "BTC",
+    chainId: "bitcoin",
+    decimals: 8,
+  };
+  const open = (overrides: Partial<SwapRecordType>, readOnly = false) => {
+    const setSwapTo = jest.fn();
+    render(
+      <SwapDetailModal
+        record={record({ status: SwapStatusEnum.Completed, ...overrides })}
+        index={0}
+        length={1}
+        moveDetail={jest.fn()}
+        modalIsOpen
+        closeModal={jest.fn()}
+        onRemove={jest.fn()}
+      />,
+      { contextOverrides: { setSwapTo, readOnly } },
+    );
+    return setSwapTo;
+  };
+
+  it("Tests that Swap More fills a sale with its coin and destination and no amount when pressed.", () => {
+    const setSwapTo = open({});
+    fireEvent.click(screen.getByRole("button", { name: "Swap More" }));
+    expect(setSwapTo).toHaveBeenCalledWith({
+      address: "SoLdestination",
+      swapChain: "SOL",
+      swapKitId: "SOL.USDC",
+      direction: SwapDirectionEnum.Outbound,
+    });
+  });
+
+  it("Tests that Swap More fills a purchase with its coin and refund address and no amount when pressed.", () => {
+    const setSwapTo = open({
+      direction: SwapDirectionEnum.Inbound,
+      sellAsset: BTC,
+      receiveAsset: ZEC,
+      sourceAddress: "bc1qrefund",
+      destinationAddress: "u1wallet",
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Swap More" }));
+    expect(setSwapTo).toHaveBeenCalledWith({
+      address: "bc1qrefund",
+      swapChain: "BTC",
+      swapKitId: "BTC.BTC",
+      direction: SwapDirectionEnum.Inbound,
+    });
+  });
+
+  it("Tests that Swap More is absent when the wallet is read-only.", () => {
+    open({}, true);
+    expect(screen.queryByRole("button", { name: "Swap More" })).toBeNull();
+  });
+});
