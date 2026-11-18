@@ -156,3 +156,5 @@ export type { SentPaymentType } from "./saleDeposits";
 export { chainCarriesShieldedPurchase, paysPurchaseShielded, routeIsShielded, swapAddressOf } from "./shieldedPurchase";
 export { fetchMayaShieldedMemoTarget } from "./mayaShieldedMemo";
 export { swapAddressTag, swapPair, swapWhen } from "./swapAddressTag";
+export { inputUsd, settledCostFrom, settledFeesUsd, settledUnitPrices } from "./settledCost";
+export type { SettledCostType } from "./types/SettledCostType";
