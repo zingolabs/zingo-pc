@@ -18,6 +18,8 @@ import {
   buildChainExplorerUrl,
   buildTrackerEntries,
   canRemoveSwap,
+  inputUsd,
+  settledFeesUsd,
   describeRealizedSlippage,
   describeSlippageTolerance,
   formatAmountForDisplay,
@@ -40,6 +42,7 @@ import { hashRowsForRecord } from "../../swap/hashRowsForRecord";
 import DetailNavigator from "../history/components/DetailNavigator";
 import DepositSlip from "./DepositSlip";
 import FeesBreakdown from "./FeesBreakdown";
+import Utils from "../../utils/utils";
 import { CopyField, Field, FieldRow } from "../common/DetailField";
 import AdvancedSection from "../common/AdvancedSection";
 import ProviderIcon from "./ProviderIcon";
@@ -90,6 +93,14 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const navigate = useNavigate();
   const swapService = useSwapService();
   const [feesOpen, setFeesOpen] = useState<boolean>(false);
+  /** What was sent was worth this: at settlement once the swap completed, at the quote before. */
+  const sentValue = inputUsd(record);
+  const sentUsd = sentValue > 0 ? Utils.getZecToUsdString(1, sentValue) : "";
+  /** The fees charged once the swap completed, in USD; empty before, where the quote's estimate shows. */
+  const settledFees =
+    record.status === SwapStatusEnum.Completed && record.settledCost
+      ? Utils.getZecToUsdString(1, settledFeesUsd(record, record.settledCost))
+      : "";
 
   // A finished swap is no longer polled, so one that finished before the
   // tracker kept some detail, or that lost sight of its payment, never gets
@@ -448,18 +459,21 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               it belongs with the ones it was taken from rather than in a
               section of its own, and its breakdown opens from the row’s end. */}
             <FieldRow style={{ alignItems: "flex-end" }}>
-              <Field label="Sent" value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}`} />
+              <Field
+                label="Sent"
+                value={`${formatAmountForDisplay(record.sellAmountHumanDecimal)} ${sellSymbol}${sentUsd ? ` (${sentUsd})` : ""}`}
+              />
               <Field
                 label="Expected"
                 value={`${formatAmountForDisplay(record.expectedReceiveAmount)} ${receiveSymbol}`}
               />
-              {!!record.feesRaw?.length && (
+              {(!!record.feesRaw?.length || !!settledFees) && (
                 <Field
                   label="Total fees"
-                  value={`${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
+                  value={settledFees || `${formatAmountForDisplay(record.totalFeesInReceiveAsset)} ${receiveSymbol}`}
                 />
               )}
-              {!!record.feesRaw?.length && (
+              {(!!record.feesRaw?.length || !!settledFees) && (
                 // The shared button reserves 8px on each side for sitting beside
                 // another one. At the end of a row it has nothing to sit beside,
                 // and that margin reads as the row stopping short.
