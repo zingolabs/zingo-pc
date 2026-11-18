@@ -3,7 +3,8 @@ import Modal from "react-modal";
 
 import swapStyles from "./Swap.module.css";
 import cstyles from "../common/Common.module.css";
-import { convertFeeToAsset, formatFeeAmount } from "../../swap";
+import { convertFeeToAsset, formatFeeAmount, settledFeesUsd, settledUnitPrices, SwapStatusEnum } from "../../swap";
+import Utils from "../../utils/utils";
 import type { FeeConversionType, SwapRecordType } from "../../swap";
 import { Field } from "../common/DetailField";
 
@@ -25,7 +26,13 @@ type FeesBreakdownProps = {
 const FeesBreakdown: React.FC<FeesBreakdownProps> = ({ record, modalIsOpen, closeModal }) => {
   const receiveAssetId = record.receiveAsset.swapKitId;
   const receiveSymbol = record.receiveAsset.ticker ?? record.receiveAsset.chain ?? record.receiveAsset.symbol;
-  const fees = record.feesRaw ?? [];
+  /** Once the swap completed, the fees it was charged at the settled prices; the quote's before. */
+  const settled = record.status === SwapStatusEnum.Completed ? record.settledCost : undefined;
+  const fees = settled ? settled.fees : (record.feesRaw ?? []);
+  const prices = settled ? settledUnitPrices(record, settled) : undefined;
+  const fiatBasis = prices
+    ? { sellUsdUnitPrice: prices.sell, receiveUsdUnitPrice: prices.receive, capturedAt: record.updatedAtMs ?? 0 }
+    : (record.fiatValueBasis ?? null);
 
   const rows = fees.map((fee, index) => ({
     key: `${fee.type ?? "fee"}-${index}`,
@@ -35,7 +42,7 @@ const FeesBreakdown: React.FC<FeesBreakdownProps> = ({ record, modalIsOpen, clos
       targetAssetId: receiveAssetId,
       sellAssetId: record.sellAsset.swapKitId,
       receiveAssetId,
-      fiatBasis: record.fiatValueBasis ?? null,
+      fiatBasis,
     }),
   }));
 
@@ -57,11 +64,18 @@ const FeesBreakdown: React.FC<FeesBreakdownProps> = ({ record, modalIsOpen, clos
             <Field key={row.key} label={row.label} value={feeText(row.conversion, receiveSymbol)} />
           ))}
 
-          {!!record.totalFeesInReceiveAsset && (
+          {settled ? (
             <>
               <hr style={{ width: "100%" }} />
-              <Field label="Total" value={`${formatFeeAmount(record.totalFeesInReceiveAsset)} ${receiveSymbol}`} />
+              <Field label="Total" value={Utils.getZecToUsdString(1, settledFeesUsd(record, settled))} />
             </>
+          ) : (
+            !!record.totalFeesInReceiveAsset && (
+              <>
+                <hr style={{ width: "100%" }} />
+                <Field label="Total" value={`${formatFeeAmount(record.totalFeesInReceiveAsset)} ${receiveSymbol}`} />
+              </>
+            )
           )}
         </div>
 
