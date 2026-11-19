@@ -133,6 +133,7 @@ const BlockExplorerModal = ({ modalIsOpen, closeModal, modalTitle }: BlockExplor
           onChange={setBlockExplorerMainnetTransaction}
           customValue={blockExplorerMainnetTransactionCustom}
           onCustomChange={setBlockExplorerMainnetTransactionCustom}
+          privateExplorer
         />
         <ExplorerRow
           label="Addresses"
@@ -142,6 +143,7 @@ const BlockExplorerModal = ({ modalIsOpen, closeModal, modalTitle }: BlockExplor
           onChange={setBlockExplorerMainnetAddress}
           customValue={blockExplorerMainnetAddressCustom}
           onCustomChange={setBlockExplorerMainnetAddressCustom}
+          privateExplorer={false}
         />
       </div>
 
@@ -157,6 +159,7 @@ const BlockExplorerModal = ({ modalIsOpen, closeModal, modalTitle }: BlockExplor
           onChange={setBlockExplorerTestnetTransaction}
           customValue={blockExplorerTestnetTransactionCustom}
           onCustomChange={setBlockExplorerTestnetTransactionCustom}
+          privateExplorer={false}
         />
         <ExplorerRow
           label="Addresses"
@@ -166,6 +169,7 @@ const BlockExplorerModal = ({ modalIsOpen, closeModal, modalTitle }: BlockExplor
           onChange={setBlockExplorerTestnetAddress}
           customValue={blockExplorerTestnetAddressCustom}
           onCustomChange={setBlockExplorerTestnetAddressCustom}
+          privateExplorer={false}
         />
       </div>
 

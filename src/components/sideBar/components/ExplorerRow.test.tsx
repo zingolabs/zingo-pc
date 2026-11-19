@@ -11,6 +11,7 @@ const baseProps = {
   onChange: jest.fn(),
   customValue: "",
   onCustomChange: jest.fn(),
+  privateExplorer: true,
 };
 
 describe("ExplorerRow", () => {
@@ -54,5 +55,14 @@ describe("ExplorerRow", () => {
     fireEvent.change(input, { target: { value: "https://new.explorer/tx/" } });
     expect(onCustomChange).toHaveBeenCalledTimes(1);
     expect(onCustomChange).toHaveBeenCalledWith("https://new.explorer/tx/");
+  });
+
+  it("Tests that ZecBlock Private is offered only where the row asks for it", () => {
+    const { rerender } = render(<ExplorerRow {...baseProps} />);
+    expect(screen.getByRole("option", { name: "ZecBlock Private" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "ShieldedScan" })).toBeInTheDocument();
+    rerender(<ExplorerRow {...baseProps} privateExplorer={false} />);
+    expect(screen.queryByRole("option", { name: "ZecBlock Private" })).not.toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "ShieldedScan" })).toBeInTheDocument();
   });
 });

@@ -10,6 +10,8 @@ export type ExplorerRowProps = {
   onChange: (v: BlockExplorerEnum) => void;
   customValue: string;
   onCustomChange: (v: string) => void;
+  /** Offers ZecBlock's private explorer, which looks up Mainnet transactions only. */
+  privateExplorer: boolean;
 };
 
 const ExplorerRow = ({
@@ -20,6 +22,7 @@ const ExplorerRow = ({
   onChange,
   customValue,
   onCustomChange,
+  privateExplorer,
 }: ExplorerRowProps) => {
   const isCustom = value === BlockExplorerEnum.Custom;
   return (
@@ -39,6 +42,8 @@ const ExplorerRow = ({
           <option value={BlockExplorerEnum.Zcashexplorer}>Zcash Explorer App</option>
           <option value={BlockExplorerEnum.ZecBlock}>ZecBlock</option>
           <option value={BlockExplorerEnum.Zexplorer}>Zexplorer</option>
+          {privateExplorer && <option value={BlockExplorerEnum.ZecBlockPrivate}>ZecBlock Private</option>}
+          <option value={BlockExplorerEnum.ShieldedScan}>ShieldedScan</option>
           <option value={BlockExplorerEnum.Custom}>Custom</option>
         </select>
       </div>
