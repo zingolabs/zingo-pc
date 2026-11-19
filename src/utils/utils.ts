@@ -429,9 +429,10 @@ export default class Utils {
       return testnet ? `https://zexplorer.app/testnet/tx/${txid}` : `https://zexplorer.app/mainnet/tx/${txid}`;
     }
     // The txid rides in the fragment, which the browser never sends: the
-    // lookup stays in the page. It indexes Mainnet only.
+    // lookup stays in the page. It indexes Mainnet only; Testnet takes
+    // ZecBlock's regular explorer.
     if (blockExplorer === BlockExplorerEnum.ZecBlockPrivate) {
-      return testnet ? "" : `https://private.zecblock.com/#tx=${txid}`;
+      return testnet ? `https://testnet.zecblock.com/tx/${txid}` : `https://private.zecblock.com/#tx=${txid}`;
     }
     if (blockExplorer === BlockExplorerEnum.ShieldedScan) {
       return testnet ? `https://testnet.shieldedscan.xyz/tx/${txid}` : `https://shieldedscan.xyz/tx/${txid}`;

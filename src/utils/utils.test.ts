@@ -462,9 +462,9 @@ describe("zecExplorerTxUrl", () => {
     );
   });
 
-  it("Tests that the private ZecBlock gives no link on Testnet, which it does not index", () => {
+  it("Tests that the private ZecBlock links Testnet through ZecBlock's regular explorer, since it indexes Mainnet only", () => {
     expect(Utils.zecExplorerTxUrl(txid, ServerChainNameEnum.testChainName, BlockExplorerEnum.ZecBlockPrivate, "")).toBe(
-      "",
+      "https://testnet.zecblock.com/tx/abc123",
     );
   });
 
