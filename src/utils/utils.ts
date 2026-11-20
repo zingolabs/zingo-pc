@@ -428,6 +428,15 @@ export default class Utils {
     if (blockExplorer === BlockExplorerEnum.Zexplorer) {
       return testnet ? `https://zexplorer.app/testnet/tx/${txid}` : `https://zexplorer.app/mainnet/tx/${txid}`;
     }
+    // The txid rides in the fragment, which the browser never sends: the
+    // lookup stays in the page. It indexes Mainnet only; Testnet takes
+    // ZecBlock's regular explorer.
+    if (blockExplorer === BlockExplorerEnum.ZecBlockPrivate) {
+      return testnet ? `https://testnet.zecblock.com/tx/${txid}` : `https://private.zecblock.com/#tx=${txid}`;
+    }
+    if (blockExplorer === BlockExplorerEnum.ShieldedScan) {
+      return testnet ? `https://testnet.shieldedscan.xyz/tx/${txid}` : `https://shieldedscan.xyz/tx/${txid}`;
+    }
     if (blockExplorer === BlockExplorerEnum.Custom) {
       return `${blockExplorerCustom}${txid}`;
     }
@@ -467,6 +476,12 @@ export default class Utils {
         shell.openExternal(`https://zexplorer.app/testnet/address/${address}`);
       } else {
         shell.openExternal(`https://zexplorer.app/mainnet/address/${address}`);
+      }
+    } else if (blockExplorer === BlockExplorerEnum.ShieldedScan) {
+      if (chainName === ServerChainNameEnum.testChainName) {
+        shell.openExternal(`https://testnet.shieldedscan.xyz/address/${address}`);
+      } else {
+        shell.openExternal(`https://shieldedscan.xyz/address/${address}`);
       }
     } else if (blockExplorer === BlockExplorerEnum.Custom) {
       shell.openExternal(`${blockExplorerCustom}${address}`);

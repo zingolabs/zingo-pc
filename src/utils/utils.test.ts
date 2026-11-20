@@ -452,3 +452,26 @@ describe("openAddress", () => {
     expect(mockOpenExternal).toHaveBeenCalledWith(`https://custom.explorer/addr/${address}`);
   });
 });
+
+describe("zecExplorerTxUrl", () => {
+  const txid = "abc123";
+
+  it("Tests that the private ZecBlock link carries the txid in the fragment on Mainnet. The browser never sends a fragment, so the lookup stays in the page.", () => {
+    expect(Utils.zecExplorerTxUrl(txid, ServerChainNameEnum.mainChainName, BlockExplorerEnum.ZecBlockPrivate, "")).toBe(
+      "https://private.zecblock.com/#tx=abc123",
+    );
+  });
+
+  it("Tests that the private ZecBlock links Testnet through ZecBlock's regular explorer, since it indexes Mainnet only", () => {
+    expect(Utils.zecExplorerTxUrl(txid, ServerChainNameEnum.testChainName, BlockExplorerEnum.ZecBlockPrivate, "")).toBe(
+      "https://testnet.zecblock.com/tx/abc123",
+    );
+  });
+
+  it.each([
+    [ServerChainNameEnum.mainChainName, "https://shieldedscan.xyz/tx/abc123"],
+    [ServerChainNameEnum.testChainName, "https://testnet.shieldedscan.xyz/tx/abc123"],
+  ])("Tests that ShieldedScan links the transaction on %s", (chain, url) => {
+    expect(Utils.zecExplorerTxUrl(txid, chain, BlockExplorerEnum.ShieldedScan, "")).toBe(url);
+  });
+});
