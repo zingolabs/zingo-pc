@@ -10,10 +10,9 @@ import type { SyncAllRun } from "../../syncAll";
 // forgot to unsubscribe would otherwise pass here and leak in the app.
 const mockOn = jest.fn((_channel: string, _listener: (...args: any[]) => void) => jest.fn());
 const mockInvoke = jest.fn();
-const mockGetSeed = jest.fn();
 const mockGetUfvk = jest.fn();
 jest.mock("../../electronBridge", () => ({
-  native: { get_seed: mockGetSeed, get_ufvk: mockGetUfvk },
+  native: { get_ufvk: mockGetUfvk },
   ipcRenderer: { on: mockOn, invoke: mockInvoke, send: jest.fn() },
   clipboard: { writeText: jest.fn() },
   shell: { openExternal: jest.fn() },
@@ -254,37 +253,38 @@ describe("Sidebar", () => {
       expect(openErrorModal).toHaveBeenCalledWith("Wallet Seed Phrase/Viewing Key", expect.any(String));
     });
 
-    it("'seed' displays the seed phrase for a normal wallet", async () => {
+    const answerReveal = (answer: unknown) =>
+      mockInvoke.mockImplementation(async (channel: string) => (channel === "secrets:reveal" ? answer : null));
+
+    it("Tests that 'seed' shows the seed and the UFVK when the main process reveals them", async () => {
       const openErrorModal = jest.fn();
-      mockGetSeed.mockResolvedValue(JSON.stringify({ seed_phrase: "word1 word2 word3" }));
+      answerReveal({ revealed: true, seed: "word1 word2 word3", ufvk: "uview1abc" });
       renderSidebar({ openErrorModal });
       await act(async () => {
         await getListener("seed")?.({});
       });
-      expect(openErrorModal).toHaveBeenCalled();
+      expect(mockInvoke).toHaveBeenCalledWith("secrets:reveal", true);
+      expect(openErrorModal).toHaveBeenCalledTimes(1);
       expect(openErrorModal.mock.calls[0][0]).toBe("Wallet Seed Phrase / Viewing Key");
     });
 
-    it("'seed' displays the ufvk for a read-only wallet", async () => {
-      const openErrorModal = jest.fn();
-      mockGetUfvk.mockResolvedValue(JSON.stringify({ ufvk: "uview1xyz" }));
-      renderSidebar({ openErrorModal, readOnly: true });
+    it("Tests that 'seed' asks for no seed when the wallet is read-only", async () => {
+      answerReveal({ revealed: true, seed: "", ufvk: "uview1xyz" });
+      renderSidebar({ readOnly: true });
       await act(async () => {
         await getListener("seed")?.({});
       });
-      expect(mockGetUfvk).toHaveBeenCalled();
+      expect(mockInvoke).toHaveBeenCalledWith("secrets:reveal", false);
     });
 
-    it("'seed' on a normal wallet also fetches the UFVK so users can share view-only access", async () => {
+    it("Tests that 'seed' opens nothing when the person declines", async () => {
       const openErrorModal = jest.fn();
-      mockGetSeed.mockResolvedValue(JSON.stringify({ seed_phrase: "abandon ability …" }));
-      mockGetUfvk.mockResolvedValue(JSON.stringify({ ufvk: "uview1abc" }));
+      answerReveal({ revealed: false });
       renderSidebar({ openErrorModal });
       await act(async () => {
         await getListener("seed")?.({});
       });
-      expect(mockGetSeed).toHaveBeenCalled();
-      expect(mockGetUfvk).toHaveBeenCalled();
+      expect(openErrorModal).not.toHaveBeenCalled();
     });
 
     it("'rescan' delegates to doRescan when wallet is loaded", async () => {

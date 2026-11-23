@@ -794,15 +794,9 @@ ipcMain.handle("power:keep-awake", (_e, on) => {
   return keepAwakeId !== null;
 });
 
-ipcMain.handle("auth:verify", async (_e, reason) => {
-  // Universal rule: when device authentication is NOT available on the current
-  // platform / install (no Touch ID enrolled, Windows Hello not set up, polkit
-  // action not registered for AppImage / dev runs, etc.) we silently succeed.
-  // Otherwise the user gets a "Send" button that does nothing — surprising and
-  // hard to debug. Security-wise we already require an explicit opt-in for the
-  // feature: `requireDeviceAuth` defaults to true, but the renderer also gates
-  // the LOCK screen on auth:check === "available", so disabling here keeps the
-  // two callers consistent.
+/** The OS prompt (Hello, Touch ID, polkit), or `available: false` when this install has none. */
+const UNAVAILABLE = { available: false, success: false };
+async function verifyDeviceUser(reason) {
   // Both calls are timed out for the same reason auth:check is: a native probe
   // or prompt that never returns used to strand the caller. The lock screen sat
   // on "Authenticating..." with the window already blurred, and no way forward.
@@ -815,7 +809,7 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
         "not_supported",
         AUTH_PROBE_TIMEOUT_MS,
       );
-      if (availability !== "available") return { success: true };
+      if (availability !== "available") return UNAVAILABLE;
       if (win) win.blur();
       const result = await withAuthTimeout(
         () => native.verifyWindowsUser(String(reason)),
@@ -823,23 +817,24 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
         AUTH_VERIFY_TIMEOUT_MS,
       );
       if (win) win.focus();
-      return result;
+      return { available: true, success: !!result?.success };
     } catch {
       if (win) win.focus();
-      return { success: false };
+      return { available: true, success: false };
     }
   } else if (process.platform === "darwin") {
     try {
       const native = getNative();
       const availability = await withAuthTimeout(() => native.checkMacAuth(), "not_supported", AUTH_PROBE_TIMEOUT_MS);
-      if (availability !== "available") return { success: true };
-      return await withAuthTimeout(
+      if (availability !== "available") return UNAVAILABLE;
+      const result = await withAuthTimeout(
         () => native.verifyMacUser(String(reason)),
         { success: false },
         AUTH_VERIFY_TIMEOUT_MS,
       );
+      return { available: true, success: !!result?.success };
     } catch {
-      return { success: false };
+      return { available: true, success: false };
     }
   } else if (process.platform === "linux") {
     return new Promise((resolve) => {
@@ -850,18 +845,72 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
       execFile("pkaction", ["--action-id", "co.zingo.pc.authenticate"], (_err, stdout) => {
         const available = stdout && stdout.includes("co.zingo.pc.authenticate");
         if (!available) {
-          resolve({ success: true });
+          resolve(UNAVAILABLE);
           return;
         }
         execFile(
           "pkcheck",
           ["--action-id", "co.zingo.pc.authenticate", "--process", String(process.pid), "--allow-user-interaction"],
-          (err) => resolve({ success: !err }),
+          (err) => resolve({ available: true, success: !err }),
         );
       });
     });
   }
-  return { success: true };
+  return UNAVAILABLE;
+}
+
+// Universal rule: when device authentication is NOT available on the current
+// platform / install (no Touch ID enrolled, Windows Hello not set up, polkit
+// action not registered for AppImage / dev runs, etc.) we silently succeed.
+// Otherwise the user gets a "Send" button that does nothing — surprising and
+// hard to debug. Security-wise we already require an explicit opt-in for the
+// feature: `requireDeviceAuth` defaults to true, but the renderer also gates
+// the LOCK screen on auth:check === "available", so disabling here keeps the
+// two callers consistent. secrets:reveal does not follow this rule.
+ipcMain.handle("auth:verify", async (_e, reason) => {
+  const result = await verifyDeviceUser(reason);
+  return { success: result.available ? result.success : true };
+});
+
+/**
+ * The only way the renderer gets the seed or the viewing key. A person has to
+ * say yes first, always, whatever requireDeviceAuth says: the OS prompt when
+ * this install has one, otherwise a native dialog the renderer cannot answer.
+ */
+let revealInFlight = false;
+async function confirmReveal() {
+  const auth = await verifyDeviceUser("Show seed phrase / viewing key");
+  if (auth.available) return auth.success;
+  const win = BrowserWindow.getAllWindows()[0];
+  const options = {
+    type: "warning",
+    buttons: ["Cancel", "Show"],
+    defaultId: 0,
+    cancelId: 0,
+    noLink: true,
+    title: "Zingo PC",
+    message: "Show the seed phrase and viewing key of this wallet?",
+    detail: "Anyone who sees the seed phrase can spend your funds.",
+  };
+  const { response } = win ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options);
+  return response === 1;
+}
+ipcMain.handle("secrets:reveal", async (_e, withSeed) => {
+  if (revealInFlight) throw new Error("A reveal is already waiting for confirmation.");
+  revealInFlight = true;
+  try {
+    if (!(await confirmReveal())) return { revealed: false };
+    const native = requireNative("get_ufvk");
+    const ufvkRaw = await native.get_ufvk();
+    const seedRaw = withSeed === true ? await requireNative("get_seed").get_seed() : "";
+    return {
+      revealed: true,
+      seed: seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "",
+      ufvk: ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "",
+    };
+  } finally {
+    revealInFlight = false;
+  }
 });
 
 // ── Keychain-backed requireDeviceAuth ─────────────────────────────────────
@@ -1433,7 +1482,6 @@ const _NATIVE_NO_PARAM_METHODS = [
   "save_wallet_file",
   "wallet_path",
   "check_save_error",
-  "get_seed",
   "get_ufvk",
   "get_latest_block_wallet",
   "get_value_transfers",

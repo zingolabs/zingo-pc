@@ -17,7 +17,7 @@ import { ServerChainNameEnum, WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
 import { useCopy } from "../common/useCopy";
 
-import { ipcRenderer, native } from "../../electronBridge";
+import { ipcRenderer } from "../../electronBridge";
 import {
   faAddressBook,
   faCheck,
@@ -40,10 +40,8 @@ import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 // in place when the user clicks to copy. Seed phrase is intentionally NOT
 // copyable to the clipboard — see the note in the JSX.
 type SeedUfvkModalContentProps = {
-  // null = the native call is still in flight; render a loading state instead
-  // of empty content so the user gets feedback while get_seed / get_ufvk run.
-  seedStr: string | null;
-  ufvkStr: string | null;
+  seedStr: string;
+  ufvkStr: string;
   birthday: number | undefined;
 };
 
@@ -51,15 +49,6 @@ const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, uf
   const { copied: ufvkCopied, copy: copyUfvk } = useCopy(1500);
   const { copied: birthdayCopied, copy: copyBirthday } = useCopy(1500);
   const birthdayStr = String(birthday ?? "");
-
-  if (seedStr === null || ufvkStr === null) {
-    return (
-      <div className={cstyles.verticalflex} style={{ alignItems: "center", padding: 24 }}>
-        <div style={{ marginBottom: 12 }}>Retrieving seed phrase / viewing key&hellip;</div>
-        <FontAwesomeIcon icon={faSync} spin />
-      </div>
-    );
-  }
 
   // Each sensitive value (seed, UFVK, birthday) lives inside this card so it's
   // visually distinct from the surrounding explanatory text. Thin accent border
@@ -407,42 +396,17 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
         return;
       }
 
-      // Re-authenticate before exposing seed/UFVK, even mid-session. The
-      // startup lock screen gates app entry but a long-running session would
-      // otherwise let anyone with screen access reveal the spend authority
-      // (seed) or the viewing key (full tx history + balance). Matches the
-      // pattern in SendConfirmModal.sendButton.
-      const allSettings = await ipcRenderer.invoke("loadSettings");
-      if (allSettings?.requireDeviceAuth) {
-        const authResult: { success: boolean } = await ipcRenderer.invoke(
-          "auth:verify",
-          "Show seed phrase / viewing key",
-        );
-        if (!authResult.success) return;
-      }
-
-      // Open the modal with a loading state before the native fetches so the
-      // user gets immediate feedback. get_seed / get_ufvk can each take a
-      // noticeable moment, and previously the UI sat silent between the auth
-      // prompt closing and the modal appearing.
-      openErrorModal(
-        "Wallet Seed Phrase / Viewing Key",
-        <SeedUfvkModalContent seedStr={null} ufvkStr={null} birthday={birthdayRef.current} />,
-      );
-
-      // Always fetch the UFVK — for seed wallets it's derived from the seed, and
-      // showing it alongside the seed lets the user share view-only access without
-      // exposing spend authority. Run both native calls in parallel.
+      // The main process asks the person first (OS prompt or native dialog)
+      // and only then reads them; the UFVK comes along so view-only access can
+      // be shared without the seed.
       try {
-        // get_seed / get_ufvk reject (typed error on the throw channel) if the
-        // key material can't be read; surface that instead of leaving the modal
-        // in its loading state.
-        const [seedRaw, ufvkRaw] = await Promise.all([
-          readOnlyRef.current ? Promise.resolve("") : native.get_seed(),
-          native.get_ufvk(),
-        ]);
-        const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
-        const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
+        const answer: { revealed: boolean; seed?: string; ufvk?: string } = await ipcRenderer.invoke(
+          "secrets:reveal",
+          !readOnlyRef.current,
+        );
+        if (!answer?.revealed) return;
+        const seedStr: string = answer.seed ?? "";
+        const ufvkStr: string = answer.ufvk ?? "";
 
         openErrorModal(
           "Wallet Seed Phrase / Viewing Key",

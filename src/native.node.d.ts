@@ -66,7 +66,6 @@ export function save_wallet_file(): Promise<string>;
 export function check_save_error(): Promise<string>;
 export function get_developer_donation_address(): string;
 export function get_zennies_for_zingo_donation_address(): string;
-export function get_seed(): Promise<string>;
 export function get_ufvk(): Promise<string>;
 export function get_latest_block_server(server_uri: string): Promise<string>;
 export function get_latest_block_wallet(): Promise<string>;
