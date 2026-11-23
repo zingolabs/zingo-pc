@@ -77,9 +77,15 @@ const {
 const { isOpenablePaymentUri } = require("./paymentUri");
 const { SWAP_FILE_SUFFIX, mergeSwapRecords } = require("./swapImport");
 const { deriveRecordKey, isV2, encryptV2, decryptV2 } = require("./swapCrypto");
+const { appOriginFor, isTrustedSender: isTrustedSenderFrom, guardIpcHandle } = require("./ipcSender");
 
 const STORAGE_KEY = "wallets";
 const isDev = !app.isPackaged;
+
+const APP_ORIGIN = appOriginFor(isDev);
+// Before any handler registers, so none slips past it.
+guardIpcHandle(ipcMain, APP_ORIGIN);
+const isTrustedSender = (event) => isTrustedSenderFrom(event, APP_ORIGIN);
 
 // Is the main process's event loop the thing that stalls?
 //
@@ -1300,10 +1306,16 @@ ipcMain.handle("swapStorage:remove", async (_e, key) => {
 
 // Lazy: app.getPath() requires app.ready — IPC handlers only fire after ready so this is safe.
 // In MAS the containerized path (~/Library/Containers/co.zingo.pc/...) is resolved at runtime.
+/**
+ * The app's own folder only. appData itself is the parent of every other
+ * app's config and, on Windows, of the Startup folder.
+ */
 let _fsAllowedBases = null;
 function getFsAllowedBases() {
   if (!_fsAllowedBases) {
-    _fsAllowedBases = [app.getPath("appData"), app.getPath("userData")].map((p) => path.resolve(p) + path.sep);
+    _fsAllowedBases = [app.getPath("userData"), path.join(app.getPath("appData"), "Zingo PC")].map(
+      (p) => path.resolve(p) + path.sep,
+    );
   }
   return _fsAllowedBases;
 }
@@ -2982,12 +2994,14 @@ ipcMain.handle("get-pending-uri", () => {
   return uri;
 });
 
-ipcMain.on("apprestart", () => {
+ipcMain.on("apprestart", (event) => {
+  if (!isTrustedSender(event)) return;
   app.relaunch({ args: process.argv.slice(1).concat(["--relaunch"]) });
   app.exit(0);
 });
 
-ipcMain.on("appquitdone", () => {
+ipcMain.on("appquitdone", (event) => {
+  if (!isTrustedSender(event)) return;
   waitingForClose = false;
   proceedToClose = true;
   // app.quit() triggers the full Electron teardown, which in Electron 40 crashes
@@ -3050,9 +3064,8 @@ function createWindow() {
 
   // Block navigation away from the app URL.
   // Prevents the renderer from loading an external page inside the Electron window.
-  const appOrigin = isDev ? "http://localhost:3000" : "file://";
   mainWindow.webContents.on("will-navigate", (event, url) => {
-    if (!url.startsWith(appOrigin)) event.preventDefault();
+    if (!url.startsWith(APP_ORIGIN)) event.preventDefault();
   });
 
   // Load from localhost if in development
@@ -3562,6 +3575,15 @@ async function maybeRunDebAppImageToFlatpakMigration() {
 // function once the Electron application is initialized.
 // Install REACT_DEVELOPER_TOOLS as well if isDev
 app.whenReady().then(async () => {
+  /** settings.json, the address book and the swap records are the user's alone. */
+  if (process.platform !== "win32") {
+    try {
+      fs.chmodSync(app.getPath("userData"), 0o700);
+    } catch (e) {
+      console.warn("[perm] chmod userData failed:", e?.message ?? e);
+    }
+  }
+
   // Register zcash: protocol handler at runtime.
   // - MAS: handled declaratively via protocols in package.json (sandbox forbids this call).
   // - Flatpak: handled declaratively via the manifest .desktop file (sandbox forbids this call).
