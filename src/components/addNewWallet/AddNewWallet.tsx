@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useRef, useState } from "react";
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import TextareaAutosize from "react-textarea-autosize";
 import cstyles from "../common/Common.module.css";
 import styles from "./AddNewWallet.module.css";
@@ -18,6 +18,7 @@ import { withRecommended } from "../../utils/recommendedServers";
 import pickAutoServer from "../../utils/pickAutoServer";
 import Utils from "../../utils/utils";
 import { birthdayAdjustedNotice } from "../../utils/birthdayAdjustedNotice";
+import { defaultWalletAlias } from "../../utils/defaultWalletAlias";
 import { native, ipcRenderer } from "../../electronBridge";
 import { useLocation } from "react-router-dom";
 import ScrollPaneTop from "../scrollPane/ScrollPane";
@@ -67,6 +68,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
   const [file, setFile] = useState<string>("");
 
   const [alias, setAlias] = useState<string>("");
+  const newWalletAlias: string = useMemo(() => defaultWalletAlias((wallets ?? []).map((w) => w.alias)), [wallets]);
   const [performanceLevel, setPerformanceLevel] = useState<PerformanceLevelEnum>(PerformanceLevelEnum.High);
 
   const [selectedServer, setSelectedServer] = useState<string>("");
@@ -295,11 +297,11 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
     return { next, nextWalletName };
   };
 
-  const createNextWallet = async (id: number, wallet_name: string, alias: string) => {
+  const createNextWallet = async (id: number, wallet_name: string) => {
     const currentWallet: WalletType = {
       id,
       fileName: wallet_name, // by default: zingo-wallet.dat
-      alias, // by default: the first word of the seed phrase
+      alias: alias.trim() || newWalletAlias,
       chain_name: selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
       creationType:
         newWalletType === "ufvk"
@@ -321,7 +323,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
   const doCreateNewWallet = async () => {
     try {
       const { next: id, nextWalletName: wallet_name } = await nextWalletName();
-      const result: string = await native.init_new(
+      await native.init_new(
         selectedServer,
         selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
         performanceLevel,
@@ -330,11 +332,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       );
 
       // A failed init rejects (typed error on the throw channel); the catch
-      // below restores the previous wallet. Success is always a JSON payload.
-      const resultJSON = JSON.parse(result);
-      const seed_phrase: string = resultJSON.seed_phrase;
-
-      await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
+      // below restores the previous wallet.
+      await createNextWallet(id, wallet_name);
 
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
@@ -355,7 +354,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
   const doRestoreSeedWallet = async () => {
     try {
       const { next: id, nextWalletName: wallet_name } = await nextWalletName();
-      const result: string = await native.init_from_seed(
+      await native.init_from_seed(
         seedPhrase,
         Number(birthday),
         selectedServer,
@@ -365,11 +364,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         wallet_name,
       );
       // A failed init rejects (typed error on the throw channel); the catch
-      // below restores the previous wallet. Success is always a JSON payload.
-      const resultJSON = JSON.parse(result);
-      const seed_phrase: string = resultJSON.seed_phrase;
-
-      await createNextWallet(id, wallet_name, alias ? alias : `${seed_phrase.split(" ")[0]}...`);
+      // below restores the previous wallet.
+      await createNextWallet(id, wallet_name);
 
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
@@ -430,7 +426,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       }
 
       const { next: id, nextWalletName: wallet_name } = await nextWalletName();
-      const result: string = await native.init_from_ufvk(
+      await native.init_from_ufvk(
         ufvkInput,
         Number(birthday),
         selectedServer,
@@ -440,11 +436,8 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         wallet_name,
       );
       // A failed init rejects (typed error on the throw channel); the catch
-      // below restores the previous wallet. Success is always a JSON payload.
-      const resultJSON = JSON.parse(result);
-      const resultUfvk: string = resultJSON.ufvk;
-
-      createNextWallet(id, wallet_name, alias ? alias : `${resultUfvk.substring(0, 10)}...`);
+      // below restores the previous wallet.
+      await createNextWallet(id, wallet_name);
 
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
@@ -503,7 +496,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
         );
       }
 
-      await createNextWallet(id, wallet_name, alias ? alias : wallet_name);
+      await createNextWallet(id, wallet_name);
 
       await ipcRenderer.invoke("saveSettings", { key: "serveruri", value: selectedServer });
       await ipcRenderer.invoke("saveSettings", { key: "serverchain_name", value: selectedChain });
@@ -567,7 +560,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
       const currentWalletSave: WalletType = {
         id: currentWallet.id,
         fileName: currentWallet.fileName, // by default: zingo-wallet.dat
-        alias, // by default: the first word of the seed phrase
+        alias,
         chain_name: selectedChain ? selectedChain : ServerChainNameEnum.mainChainName,
         creationType: currentWallet.creationType,
         uri: selectedServer,
@@ -920,7 +913,7 @@ const AddNewWallet: React.FC<AddNewWalletProps> = ({
               <input
                 aria-label="Wallet alias"
                 disabled={mode === "delete"}
-                placeholder="Ex: My Zcash Wallet"
+                placeholder={mode === "addnew" ? newWalletAlias : "Ex: My Zcash Wallet"}
                 type="text"
                 className={cstyles.fieldinput}
                 value={alias}

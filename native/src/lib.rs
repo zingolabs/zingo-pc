@@ -754,7 +754,7 @@ fn init_new(mut cx: FunctionContext) -> JsResult<JsString> {
         RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
-        get_seed_string()
+        opened_wallet_string()
     });
 
     match res {
@@ -798,7 +798,7 @@ fn init_from_seed_string(
         RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
-        get_seed_string()
+        opened_wallet_string()
     })
 }
 
@@ -854,7 +854,7 @@ fn init_from_ufvk(mut cx: FunctionContext) -> JsResult<JsString> {
         RT.block_on(async { lightclient.save_task().await });
         let _ = store_client(lightclient);
 
-        get_ufvk_string()
+        opened_wallet_string()
     });
 
     match res {
@@ -910,12 +910,9 @@ fn init_from_b64(mut cx: FunctionContext) -> JsResult<JsString> {
         background::refuse_a_file_it_holds(&config.get_wallet_path())?;
         reset_lightclient();
         let lightclient = open_wallet_file(config)?;
-        let has_seed = RT.block_on(async {
-            lightclient.wallet().read().await.mnemonic_phrase().is_some()
-        });
         let _ = store_client(lightclient);
 
-        if has_seed { get_seed_string() } else { get_ufvk_string() }
+        opened_wallet_string()
     });
 
     match res {
@@ -1034,6 +1031,24 @@ fn get_zennies_for_zingo_donation_address(mut cx: FunctionContext) -> JsResult<J
         Ok(v) => Ok(cx.string(v)),
         Err(e) => cx.throw_error(e.to_string()),
     }
+}
+
+/// What creating, restoring or opening a wallet answers: the birthday, and the
+/// height it was raised from when zingolib raised it. Never the seed or the
+/// viewing key; those are read only on request (secrets:reveal).
+fn opened_wallet_string() -> Result<String, ZingolibError> {
+    with_initialized_lightclient_read(|lightclient| {
+        RT.block_on(async move {
+            let wallet = lightclient.wallet().read().await;
+            let mut answer = object! {
+                "birthday" => u32::from(wallet.birthday())
+            };
+            if let Some(from) = wallet.birthday_adjusted_from() {
+                answer["birthday_adjusted_from"] = u32::from(from).into();
+            }
+            Ok(answer.pretty(2).to_string())
+        })
+    })
 }
 
 fn get_seed_string() -> Result<String, ZingolibError> {
