@@ -183,6 +183,22 @@ fn ufvk_answers_beside_a_held_read_guard() {
 }
 
 #[test]
+fn opened_wallet_answers_the_birthday_and_no_keys() {
+    let _serial = serialized();
+    init_offline_wallet();
+    let answer = answer_under_held_read_lock(opened_wallet_string);
+    assert_eq!(
+        answer["birthday"].as_u32(),
+        Some(FIXTURE_BIRTHDAY as u32),
+        "opening answers the birthday sync starts from: {answer}"
+    );
+    assert!(
+        answer["seed_phrase"].is_null() && answer["ufvk"].is_null(),
+        "opening never answers key material: {answer}"
+    );
+}
+
+#[test]
 fn messages_answer_beside_a_held_read_guard() {
     let _serial = serialized();
     init_offline_wallet();

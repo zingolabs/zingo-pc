@@ -10,10 +10,8 @@ import type { SyncAllRun } from "../../syncAll";
 // forgot to unsubscribe would otherwise pass here and leak in the app.
 const mockOn = jest.fn((_channel: string, _listener: (...args: any[]) => void) => jest.fn());
 const mockInvoke = jest.fn();
-const mockGetSeed = jest.fn();
-const mockGetUfvk = jest.fn();
 jest.mock("../../electronBridge", () => ({
-  native: { get_seed: mockGetSeed, get_ufvk: mockGetUfvk },
+  native: {},
   ipcRenderer: { on: mockOn, invoke: mockInvoke, send: jest.fn() },
   clipboard: { writeText: jest.fn() },
   shell: { openExternal: jest.fn() },
@@ -254,37 +252,70 @@ describe("Sidebar", () => {
       expect(openErrorModal).toHaveBeenCalledWith("Wallet Seed Phrase/Viewing Key", expect.any(String));
     });
 
-    it("'seed' displays the seed phrase for a normal wallet", async () => {
+    const answerReveal = (answer: unknown) =>
+      mockInvoke.mockImplementation(async (channel: string) => (channel === "secrets:reveal" ? answer : null));
+
+    /** Opens the seed modal and renders what it was given, as the app's modal would. */
+    const openSeedModal = async (overrides: any = {}) => {
       const openErrorModal = jest.fn();
-      mockGetSeed.mockResolvedValue(JSON.stringify({ seed_phrase: "word1 word2 word3" }));
-      renderSidebar({ openErrorModal });
+      renderSidebar({ openErrorModal, ...overrides });
       await act(async () => {
         await getListener("seed")?.({});
       });
-      expect(openErrorModal).toHaveBeenCalled();
+      expect(openErrorModal).toHaveBeenCalledTimes(1);
       expect(openErrorModal.mock.calls[0][0]).toBe("Wallet Seed Phrase / Viewing Key");
+      cleanup();
+      return render(openErrorModal.mock.calls[0][1]);
+    };
+
+    it("Tests that 'seed' opens the modal with nothing revealed and nothing read", async () => {
+      await openSeedModal();
+      expect(screen.getByRole("button", { name: "Show seed phrase / viewing key" })).toBeInTheDocument();
+      expect(mockInvoke).not.toHaveBeenCalledWith("secrets:reveal", expect.anything());
     });
 
-    it("'seed' displays the ufvk for a read-only wallet", async () => {
-      const openErrorModal = jest.fn();
-      mockGetUfvk.mockResolvedValue(JSON.stringify({ ufvk: "uview1xyz" }));
-      renderSidebar({ openErrorModal, readOnly: true });
+    it("Tests that the seed and the UFVK show when the person confirms", async () => {
+      answerReveal({ revealed: true, seed: "word1 word2 word3", ufvk: "uview1abc" });
+      await openSeedModal();
       await act(async () => {
-        await getListener("seed")?.({});
+        screen.getByRole("button", { name: "Show seed phrase / viewing key" }).click();
       });
-      expect(mockGetUfvk).toHaveBeenCalled();
+      expect(mockInvoke).toHaveBeenCalledWith("secrets:reveal", true);
+      expect(screen.getByText("word1 word2 word3")).toBeInTheDocument();
+      expect(screen.getByText("uview1abc")).toBeInTheDocument();
     });
 
-    it("'seed' on a normal wallet also fetches the UFVK so users can share view-only access", async () => {
-      const openErrorModal = jest.fn();
-      mockGetSeed.mockResolvedValue(JSON.stringify({ seed_phrase: "abandon ability …" }));
-      mockGetUfvk.mockResolvedValue(JSON.stringify({ ufvk: "uview1abc" }));
-      renderSidebar({ openErrorModal });
+    it("Tests that a read-only wallet asks for the viewing key alone", async () => {
+      answerReveal({ revealed: true, seed: "", ufvk: "uview1xyz" });
+      await openSeedModal({ readOnly: true });
       await act(async () => {
-        await getListener("seed")?.({});
+        screen.getByRole("button", { name: "Show viewing key" }).click();
       });
-      expect(mockGetSeed).toHaveBeenCalled();
-      expect(mockGetUfvk).toHaveBeenCalled();
+      expect(mockInvoke).toHaveBeenCalledWith("secrets:reveal", false);
+      expect(screen.getByText("uview1xyz")).toBeInTheDocument();
+    });
+
+    it("Tests that nothing shows when the person declines", async () => {
+      answerReveal({ revealed: false });
+      await openSeedModal();
+      await act(async () => {
+        screen.getByRole("button", { name: "Show seed phrase / viewing key" }).click();
+      });
+      expect(screen.getByRole("button", { name: "Show seed phrase / viewing key" })).toBeInTheDocument();
+      expect(screen.queryByText(/This is your wallet/)).not.toBeInTheDocument();
+    });
+
+    it("Tests that the values are gone when the modal is closed and opened again", async () => {
+      answerReveal({ revealed: true, seed: "word1 word2 word3", ufvk: "uview1abc" });
+      const { unmount } = await openSeedModal();
+      await act(async () => {
+        screen.getByRole("button", { name: "Show seed phrase / viewing key" }).click();
+      });
+      expect(screen.getByText("word1 word2 word3")).toBeInTheDocument();
+      unmount();
+      await openSeedModal();
+      expect(screen.queryByText("word1 word2 word3")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Show seed phrase / viewing key" })).toBeInTheDocument();
     });
 
     it("'rescan' delegates to doRescan when wallet is loaded", async () => {

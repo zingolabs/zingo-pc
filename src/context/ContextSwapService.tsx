@@ -1,7 +1,13 @@
 import React, { createContext, ReactNode, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 import { ChainNameEnum } from "../swap/enums/ChainNameEnum";
-import { SwapService, SwapStore, createSwapService, readCurrentWalletKeys, swapRecordToValueTransfer } from "../swap";
+import {
+  SwapService,
+  SwapStore,
+  createSwapService,
+  readCurrentWalletFingerprint,
+  swapRecordToValueTransfer,
+} from "../swap";
 import type ValueTransferClass from "../components/appstate/classes/ValueTransferClass";
 import type { SwapRecordType } from "../swap";
 import { SWAPKIT_API_KEY } from "../swap/swapKitSecrets";
@@ -70,15 +76,13 @@ export function SwapServiceProvider({ chainName, enabled = true, apiKey, childre
 
     (async () => {
       try {
-        const { fingerprint, ufvk } = await readCurrentWalletKeys();
+        const fingerprint: string = await readCurrentWalletFingerprint();
         if (cancelled) return;
         if (!fingerprint) {
           console.error("SwapServiceProvider: the wallet yielded an empty fingerprint");
           return;
         }
-        // The UFVK goes with it: the records are encrypted with a key derived
-        // from it, which is what lets them move with the wallet.
-        await SwapStore.bindToWallet(fingerprint, ufvk);
+        await SwapStore.bindToWallet(fingerprint);
         if (cancelled) return;
 
         if (chainName !== ChainNameEnum.mainChainName) {

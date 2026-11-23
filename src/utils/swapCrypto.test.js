@@ -2,7 +2,14 @@
  * @jest-environment node
  */
 
-const { deriveRecordKey, isV2, encryptV2, decryptV2 } = require("../../public/swapCrypto");
+const {
+  deriveRecordKey,
+  deriveWalletFingerprint,
+  recordKeyForBucket,
+  isV2,
+  encryptV2,
+  decryptV2,
+} = require("../../public/swapCrypto");
 
 const UFVK = "uview1qqqqqqqqqqqqqqqqqqzingotestufvkmaterialxyz";
 const RECORDS = JSON.stringify([{ recordId: "rec-1", status: "completed" }]);
@@ -51,5 +58,28 @@ describe("swap record encryption", () => {
     const key = deriveRecordKey(UFVK);
 
     expect(encryptV2(RECORDS, key).equals(encryptV2(RECORDS, key))).toBe(false);
+  });
+});
+
+describe("which bucket gets the open wallet's key", () => {
+  const OTHER = "uview1qqqqqqqqqqqqqqqqqqanotherwalletufvkmaterial";
+  const own = `swap:records:${deriveWalletFingerprint(UFVK)}`;
+
+  it("Tests that the fingerprint is the UFVK's last 16 characters, or nothing when too short", () => {
+    expect(deriveWalletFingerprint(UFVK)).toBe(UFVK.slice(-16));
+    expect(deriveWalletFingerprint("short")).toBe("");
+    expect(deriveWalletFingerprint(undefined)).toBe("");
+  });
+
+  it("Tests that the open wallet's own bucket gets its key", () => {
+    expect(recordKeyForBucket(own, UFVK).equals(deriveRecordKey(UFVK))).toBe(true);
+  });
+
+  it("Tests that another wallet's bucket gets no key when it is not the open one", () => {
+    expect(recordKeyForBucket(`swap:records:${deriveWalletFingerprint(OTHER)}`, UFVK)).toBeNull();
+  });
+
+  it("Tests that no bucket gets a key when no wallet is open", () => {
+    expect(recordKeyForBucket(own, "")).toBeNull();
   });
 });

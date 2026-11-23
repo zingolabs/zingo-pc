@@ -17,7 +17,7 @@ import { ServerChainNameEnum, WalletType } from "../appstate";
 import BlockExplorerModal from "./components/BlockExplorerModal";
 import { useCopy } from "../common/useCopy";
 
-import { ipcRenderer, native } from "../../electronBridge";
+import { ipcRenderer } from "../../electronBridge";
 import {
   faAddressBook,
   faCheck,
@@ -33,33 +33,75 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import type { IconDefinition } from "@fortawesome/free-solid-svg-icons";
 
-// Modal content for "Wallet Seed Phrase / Viewing Key" extracted to its own
-// component because the inline copy feedback for UFVK / birthday relies on
-// useCopy() hooks, which cannot be called inside the event handler that opens
-// the modal. As a component, the content owns its hook state and re-renders
-// in place when the user clicks to copy. Seed phrase is intentionally NOT
-// copyable to the clipboard — see the note in the JSX.
 type SeedUfvkModalContentProps = {
-  // null = the native call is still in flight; render a loading state instead
-  // of empty content so the user gets feedback while get_seed / get_ufvk run.
-  seedStr: string | null;
-  ufvkStr: string | null;
+  withSeed: boolean;
   birthday: number | undefined;
 };
 
-const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ seedStr, ufvkStr, birthday }) => {
-  const { copied: ufvkCopied, copy: copyUfvk } = useCopy(1500);
-  const { copied: birthdayCopied, copy: copyBirthday } = useCopy(1500);
-  const birthdayStr = String(birthday ?? "");
+type RevealAnswer = { revealed: boolean; seed?: string; ufvk?: string };
 
-  if (seedStr === null || ufvkStr === null) {
+/**
+ * Opens with nothing on screen. The seed and the viewing key are read only when
+ * the person presses the button (the main process asks first), and they live in
+ * this component's state alone: closing the modal unmounts it and drops them.
+ */
+const SeedUfvkModalContent: React.FC<SeedUfvkModalContentProps> = ({ withSeed, birthday }) => {
+  const [secrets, setSecrets] = useState<{ seed: string; ufvk: string } | null>(null);
+  const [busy, setBusy] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const mounted = useRef<boolean>(true);
+  useEffect(
+    () => () => {
+      mounted.current = false;
+    },
+    [],
+  );
+
+  const reveal = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const answer: RevealAnswer = await ipcRenderer.invoke("secrets:reveal", withSeed);
+      if (mounted.current && answer?.revealed) setSecrets({ seed: answer.seed ?? "", ufvk: answer.ufvk ?? "" });
+    } catch (e) {
+      if (mounted.current) setError(`${e}`);
+    } finally {
+      if (mounted.current) setBusy(false);
+    }
+  };
+
+  if (!secrets) {
     return (
-      <div className={cstyles.verticalflex} style={{ alignItems: "center", padding: 24 }}>
-        <div style={{ marginBottom: 12 }}>Retrieving seed phrase / viewing key&hellip;</div>
-        <FontAwesomeIcon icon={faSync} spin />
+      <div className={cstyles.verticalflex} style={{ alignItems: "center", gap: 12 }}>
+        <div style={{ textAlign: "center" }}>
+          {withSeed
+            ? "Anyone who sees the seed phrase can spend your funds. Make sure nobody is looking at your screen."
+            : "Anyone who sees the viewing key can see all your transactions and balance."}
+        </div>
+        {!!error && <div style={{ color: "#ff6b6b" }}>{error}</div>}
+        <button type="button" className={cstyles.primarybutton} disabled={busy} onClick={reveal}>
+          {withSeed ? "Show seed phrase / viewing key" : "Show viewing key"}
+        </button>
       </div>
     );
   }
+
+  return <SeedUfvkDetails seedStr={secrets.seed} ufvkStr={secrets.ufvk} birthday={birthday} />;
+};
+
+// The revealed values, in their own component because the inline copy feedback
+// for UFVK / birthday relies on useCopy() hooks. Seed phrase is intentionally
+// NOT copyable to the clipboard — see the note in the JSX.
+type SeedUfvkDetailsProps = {
+  seedStr: string;
+  ufvkStr: string;
+  birthday: number | undefined;
+};
+
+const SeedUfvkDetails: React.FC<SeedUfvkDetailsProps> = ({ seedStr, ufvkStr, birthday }) => {
+  const { copied: ufvkCopied, copy: copyUfvk } = useCopy(1500);
+  const { copied: birthdayCopied, copy: copyBirthday } = useCopy(1500);
+  const birthdayStr = String(birthday ?? "");
 
   // Each sensitive value (seed, UFVK, birthday) lives inside this card so it's
   // visually distinct from the surrounding explanatory text. Thin accent border
@@ -407,51 +449,10 @@ const Sidebar: React.FC<SidebarProps> = ({ doRescan }) => {
         return;
       }
 
-      // Re-authenticate before exposing seed/UFVK, even mid-session. The
-      // startup lock screen gates app entry but a long-running session would
-      // otherwise let anyone with screen access reveal the spend authority
-      // (seed) or the viewing key (full tx history + balance). Matches the
-      // pattern in SendConfirmModal.sendButton.
-      const allSettings = await ipcRenderer.invoke("loadSettings");
-      if (allSettings?.requireDeviceAuth) {
-        const authResult: { success: boolean } = await ipcRenderer.invoke(
-          "auth:verify",
-          "Show seed phrase / viewing key",
-        );
-        if (!authResult.success) return;
-      }
-
-      // Open the modal with a loading state before the native fetches so the
-      // user gets immediate feedback. get_seed / get_ufvk can each take a
-      // noticeable moment, and previously the UI sat silent between the auth
-      // prompt closing and the modal appearing.
       openErrorModal(
         "Wallet Seed Phrase / Viewing Key",
-        <SeedUfvkModalContent seedStr={null} ufvkStr={null} birthday={birthdayRef.current} />,
+        <SeedUfvkModalContent withSeed={!readOnlyRef.current} birthday={birthdayRef.current} />,
       );
-
-      // Always fetch the UFVK — for seed wallets it's derived from the seed, and
-      // showing it alongside the seed lets the user share view-only access without
-      // exposing spend authority. Run both native calls in parallel.
-      try {
-        // get_seed / get_ufvk reject (typed error on the throw channel) if the
-        // key material can't be read; surface that instead of leaving the modal
-        // in its loading state.
-        const [seedRaw, ufvkRaw] = await Promise.all([
-          readOnlyRef.current ? Promise.resolve("") : native.get_seed(),
-          native.get_ufvk(),
-        ]);
-        const seedStr: string = seedRaw ? (JSON.parse(seedRaw).seed_phrase ?? "") : "";
-        const ufvkStr: string = ufvkRaw ? (JSON.parse(ufvkRaw).ufvk ?? "") : "";
-
-        openErrorModal(
-          "Wallet Seed Phrase / Viewing Key",
-          <SeedUfvkModalContent seedStr={seedStr} ufvkStr={ufvkStr} birthday={birthdayRef.current} />,
-        );
-      } catch (error) {
-        console.error(`Error reading seed/ufvk ${error}`);
-        openErrorModal("Wallet Seed Phrase / Viewing Key", `${error}`);
-      }
     };
 
     const rescan = async (_event: any) => {

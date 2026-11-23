@@ -1,38 +1,27 @@
-import { native } from "../electronBridge";
-import { deriveWalletFingerprint } from "./walletFingerprint";
+import { ipcRenderer } from "../electronBridge";
 
 /**
  * The storage fingerprint of the wallet currently loaded in zingolib.
  *
  * Two callers need it and must agree: the provider that binds `SwapStore` to
- * the open wallet, and the delete flow that wipes that same bucket. A
- * fingerprint derived two slightly different ways would have the delete clear
- * a key nothing was ever written under, leaving the records behind exactly
- * when the user asked for them to be gone.
+ * the open wallet, and the delete flow that wipes that same bucket. Main
+ * derives it from the wallet's UFVK (`deriveWalletFingerprint` in
+ * public/swapCrypto.js), so the UFVK itself never reaches the renderer.
  *
- * Returns `""` when the UFVK cannot be read — no lightclient, a read-only
- * failure, a malformed reply. Callers must treat that as "no opinion" and skip
+ * Returns `""` when it cannot be read — no lightclient, a read-only failure,
+ * a malformed reply. Callers must treat that as "no opinion" and skip
  * whatever they were going to do with it. Guessing a fingerprint here would
  * mean clearing some other wallet's bucket.
  *
- * The read goes through zingolib rather than the wallet registry because the
- * registry's id is local bookkeeping, while the bucket is keyed by the wallet's
- * own key material: the same seed restored twice must find its own records.
+ * The bucket is keyed by the wallet's own key material rather than the
+ * registry's local id: the same seed restored twice must find its own records.
  */
-export async function readCurrentWalletKeys(): Promise<{ fingerprint: string; ufvk: string }> {
-  try {
-    const raw: string = await native.get_ufvk();
-    if (!raw) return { fingerprint: "", ufvk: "" };
-    const parsed = JSON.parse(raw) as { ufvk?: string };
-    const ufvk: string = parsed.ufvk ?? "";
-    return { fingerprint: deriveWalletFingerprint(ufvk), ufvk };
-  } catch (error) {
-    console.log(`readCurrentWalletKeys: could not read the UFVK ${error}`);
-    return { fingerprint: "", ufvk: "" };
-  }
-}
-
-/** The fingerprint alone, for callers that only name a bucket. */
 export async function readCurrentWalletFingerprint(): Promise<string> {
-  return (await readCurrentWalletKeys()).fingerprint;
+  try {
+    const fingerprint: unknown = await ipcRenderer.invoke("wallet:fingerprint");
+    return typeof fingerprint === "string" ? fingerprint : "";
+  } catch (error) {
+    console.log(`readCurrentWalletFingerprint: could not read it ${error}`);
+    return "";
+  }
 }
