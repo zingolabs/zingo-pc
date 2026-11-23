@@ -878,23 +878,30 @@ ipcMain.handle("auth:verify", async (_e, reason) => {
  * this install has one, otherwise a native dialog the renderer cannot answer.
  */
 let revealInFlight = false;
-async function confirmReveal() {
-  const auth = await verifyDeviceUser("Show seed phrase / viewing key");
+/** The OS prompt, or a native dialog (Cancel by default) when this install has none. */
+async function confirmPresence(reason, { message, detail, button }) {
+  const auth = await verifyDeviceUser(reason);
   if (auth.available) return auth.success;
   const win = BrowserWindow.getAllWindows()[0];
   const options = {
     type: "warning",
-    buttons: ["Cancel", "Show"],
+    buttons: ["Cancel", button],
     defaultId: 0,
     cancelId: 0,
     noLink: true,
     title: "Zingo PC",
-    message: "Show the seed phrase and viewing key of this wallet?",
-    detail: "Anyone who sees the seed phrase can spend your funds.",
+    message,
+    detail,
   };
   const { response } = win ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options);
   return response === 1;
 }
+const confirmReveal = () =>
+  confirmPresence("Show seed phrase / viewing key", {
+    message: "Show the seed phrase and viewing key of this wallet?",
+    detail: "Anyone who sees the seed phrase can spend your funds.",
+    button: "Show",
+  });
 ipcMain.handle("secrets:reveal", async (_e, withSeed) => {
   if (revealInFlight) throw new Error("A reveal is already waiting for confirmation.");
   revealInFlight = true;
@@ -934,7 +941,8 @@ async function getRequireAuth() {
     _requireAuthCache = value === null ? true : value === "true";
   } catch {
     // libsecret unavailable (Linux AppImage, etc.) → fall back to settings.json, default true
-    _requireAuthCache = settings.getSync("all.requireDeviceAuth") ?? true;
+    // Anything but an explicit false keeps it on.
+    _requireAuthCache = settings.getSync("all.requireDeviceAuth") !== false;
   }
   return _requireAuthCache;
 }
@@ -1043,12 +1051,30 @@ ipcMain.handle("loadSettings", async () => {
   const requireDeviceAuth = await getRequireAuth();
   return { ...(all ?? {}), requireDeviceAuth };
 });
+/**
+ * Turning device authentication off is asked here, like a spend: otherwise
+ * the renderer could switch it off and then sign without being asked.
+ * Turning it on asks nothing.
+ */
 ipcMain.handle("saveSettings", async (_e, kv) => {
+  if (typeof kv?.key !== "string" || kv.key.length === 0) throw new Error("saveSettings: missing key");
   if (kv.key === "requireDeviceAuth") {
-    await setRequireAuth(kv.value);
+    const value = !!kv.value;
+    if (!value && (await getRequireAuth())) {
+      const confirmed = await confirmPresence("Turn off device authentication", {
+        message: "Turn off device authentication?",
+        detail: "Sending funds and showing the seed phrase will no longer ask for it.",
+        button: "Turn off",
+      });
+      if (!confirmed) return { saved: false };
+    }
+    await setRequireAuth(value);
+  } else if (kv.key.startsWith("requireDeviceAuth")) {
+    throw new Error(`saveSettings: refusing key ${kv.key}`);
   } else {
     settings.setSync(`all.${kv.key}`, kv.value);
   }
+  return { saved: true };
 });
 
 // Save a PNG via the user-selected save dialog. The renderer used to do this
@@ -1373,21 +1399,21 @@ ipcMain.handle("swapStorage:remove", async (_e, key) => {
 // Lazy: app.getPath() requires app.ready — IPC handlers only fire after ready so this is safe.
 // In MAS the containerized path (~/Library/Containers/co.zingo.pc/...) is resolved at runtime.
 /**
- * The app's own folder only. appData itself is the parent of every other
- * app's config and, on Windows, of the Startup folder.
+ * The address book is the bridge's only user, so it reaches the address book
+ * and nothing else: its folder (to create it) and AddressBook.json. Not
+ * settings.json beside it, where device authentication is kept when the OS
+ * keychain is unavailable.
  */
-let _fsAllowedBases = null;
-function getFsAllowedBases() {
-  if (!_fsAllowedBases) {
-    _fsAllowedBases = [app.getPath("userData"), path.join(app.getPath("appData"), "Zingo PC")].map(
-      (p) => path.resolve(p) + path.sep,
-    );
+let _fsAllowedPaths = null;
+function getFsAllowedPaths() {
+  if (!_fsAllowedPaths) {
+    const dirs = [app.getPath("userData"), path.join(app.getPath("appData"), "Zingo PC")].map((p) => path.resolve(p));
+    _fsAllowedPaths = new Set(dirs.flatMap((dir) => [dir, path.join(dir, "AddressBook.json")]));
   }
-  return _fsAllowedBases;
+  return _fsAllowedPaths;
 }
 function assertFsPath(p) {
-  const resolved = path.resolve(p) + path.sep;
-  if (!getFsAllowedBases().some((base) => resolved.startsWith(base))) {
+  if (typeof p !== "string" || !getFsAllowedPaths().has(path.resolve(p))) {
     throw new Error(`fs access denied: ${p}`);
   }
 }
@@ -1532,9 +1558,6 @@ const _NATIVE_NO_PARAM_METHODS = [
   "set_config_wallet_to_test",
   "get_config_wallet_performance",
   "get_wallet_version",
-  "shield",
-  "confirm",
-  "clear_proposal",
   "drain_orchard_to_ironwood",
   "drain_status",
   "get_ironwood_activation_height",
@@ -2497,16 +2520,85 @@ ipcMain.handle("native:create_new_unified_address", (_e, receivers) =>
 ipcMain.handle("native:set_config_wallet_to_prod", (_e, perf, min_conf) =>
   requireNative("set_config_wallet_to_prod").set_config_wallet_to_prod(perf, min_conf),
 );
-ipcMain.handle("native:send", (_e, send_json) => requireNative("send").send(send_json));
+/**
+ * Spending is authorized here, never in the renderer. With requireDeviceAuth
+ * off nothing is asked: the user chose that. With it on, the OS prompt, or the
+ * native dialog when this install has none, never a silent yes.
+ *
+ * A shield pays this same wallet, so the confirm right after a successful
+ * shield proposal is not asked. Any other proposal, or a failed shield that
+ * may have left an earlier one stored, clears that.
+ */
+const SPEND_DECLINED = "The transaction was not authorized.";
+let shieldProposed = false;
+let spendInFlight = false;
+async function guardedSpend(reason, run) {
+  if (spendInFlight) throw new Error("A transaction is already waiting for authorization.");
+  spendInFlight = true;
+  try {
+    const authorized =
+      !(await getRequireAuth()) ||
+      (await confirmPresence(reason, {
+        message: `${reason}?`,
+        detail: "Funds will leave this wallet.",
+        button: "Authorize",
+      }));
+    if (!authorized) throw new Error(SPEND_DECLINED);
+    return await run();
+  } finally {
+    spendInFlight = false;
+  }
+}
+const answersWithoutError = (raw) => {
+  try {
+    return !!raw && !JSON.parse(raw).error;
+  } catch {
+    return false;
+  }
+};
+
+ipcMain.handle("native:shield", async () => {
+  shieldProposed = false;
+  const answer = await requireNative("shield").shield();
+  shieldProposed = answersWithoutError(answer);
+  return answer;
+});
+ipcMain.handle("native:clear_proposal", () => {
+  shieldProposed = false;
+  return requireNative("clear_proposal").clear_proposal();
+});
+ipcMain.handle("native:confirm", async () => {
+  const shield = shieldProposed;
+  shieldProposed = false;
+  if (shield) return requireNative("confirm").confirm();
+  try {
+    return await guardedSpend("Authorize transaction", () => requireNative("confirm").confirm());
+  } catch (e) {
+    // Answered the way confirm answers its own failures, so the send flow
+    // shows it like any other.
+    if (e.message === SPEND_DECLINED) return JSON.stringify({ error: SPEND_DECLINED });
+    throw e;
+  }
+});
+ipcMain.handle("native:send", (_e, send_json) => {
+  shieldProposed = false;
+  return requireNative("send").send(send_json);
+});
 // A deposit the provider must be able to attribute: the memo rides in an
 // OP_RETURN, and an empty one still asks for the transparent hop, which is
 // what gives the deposit a sender to read.
-ipcMain.handle("native:send_swap_deposit", (_e, vault_address, amount, memo_hex) =>
-  requireNative("send_swap_deposit").send_swap_deposit(vault_address, amount, memo_hex),
-);
-ipcMain.handle("native:resume_swap_deposit", (_e, op_return_txid) =>
-  requireNative("resume_swap_deposit").resume_swap_deposit(op_return_txid),
-);
+ipcMain.handle("native:send_swap_deposit", (_e, vault_address, amount, memo_hex) => {
+  shieldProposed = false;
+  return guardedSpend("Authorize swap deposit", () =>
+    requireNative("send_swap_deposit").send_swap_deposit(vault_address, amount, memo_hex),
+  );
+});
+ipcMain.handle("native:resume_swap_deposit", (_e, op_return_txid) => {
+  shieldProposed = false;
+  return guardedSpend("Authorize swap deposit", () =>
+    requireNative("resume_swap_deposit").resume_swap_deposit(op_return_txid),
+  );
+});
 ipcMain.handle("native:pending_swap_deposit", () => requireNative("pending_swap_deposit").pending_swap_deposit());
 ipcMain.handle("native:delete_wallet", (_e, server_uri, chain_hint, perf, min_conf, wallet_name) => {
   assertWalletName(wallet_name);

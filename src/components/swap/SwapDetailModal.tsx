@@ -11,7 +11,7 @@ import { ServerChainNameEnum } from "../appstate";
 import routes from "../../constants/routes.json";
 import { ContextApp } from "../../context/ContextAppState";
 import { useSwapService } from "../../context/ContextSwapService";
-import { ipcRenderer, native, shell } from "../../electronBridge";
+import { native, shell } from "../../electronBridge";
 import {
   SwapDirectionEnum,
   buildChainAddressUrl,
@@ -285,14 +285,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
   const [finishing, setFinishing] = useState<boolean>(false);
   const [finishError, setFinishError] = useState<string>("");
 
-  /** Sends the vault payment of a half-paid sale, behind the device lock. */
+  /** Sends the vault payment of a half-paid sale; the main process asks for the device lock. */
   const finishDeposit = async () => {
     if (!resumeSwapDeposit || !deshieldTxId || !swapService) return;
-    const allSettings = await ipcRenderer.invoke("loadSettings");
-    if (allSettings?.requireDeviceAuth) {
-      const result: { success: boolean } = await ipcRenderer.invoke("auth:verify", "Authorize swap deposit");
-      if (!result?.success) return;
-    }
     setFinishing(true);
     setFinishError("");
     try {

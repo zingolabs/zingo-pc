@@ -36,8 +36,16 @@ const AppSecurityModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
   const handleSave = async () => {
     setSaving(true);
-    await ipcRenderer.invoke("saveSettings", { key: "requireDeviceAuth", value: requireAuth });
+    // Turning it off is confirmed by the main process; declined, nothing changes.
+    const result: { saved?: boolean } | undefined = await ipcRenderer.invoke("saveSettings", {
+      key: "requireDeviceAuth",
+      value: requireAuth,
+    });
     setSaving(false);
+    if (result?.saved === false) {
+      setRequireAuth(savedRequireAuth);
+      return;
+    }
     onClose();
   };
 

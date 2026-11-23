@@ -372,60 +372,19 @@ describe("SwapExecute deposit notice", () => {
 });
 
 describe("SwapExecute device lock", () => {
-  // The wallet asks for the device lock before it signs a send. Paying a swap
-  // deposit signs and broadcasts the same way, so it asks here too.
-  const withDeviceAuth = (success: boolean) =>
+  // The main process asks for the lock when the deposit is signed; the screen
+  // no longer asks, so a compromised one has nothing to skip.
+  it("Tests that an outbound swap goes to the deposit without asking the renderer for the lock", async () => {
     ipcRenderer.invoke.mockImplementation(async (channel: string) =>
-      channel === "loadSettings" ? { requireDeviceAuth: true } : { success },
+      channel === "loadSettings" ? { requireDeviceAuth: true } : null,
     );
-
-  it("asks before committing an outbound swap, and commits nothing when refused", async () => {
-    withDeviceAuth(false);
-    const { commitRoute, sendSwapDeposit } = renderExecute(SwapDirectionEnum.Outbound);
-
-    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
-
-    await waitFor(() => expect(ipcRenderer.invoke).toHaveBeenCalledWith("auth:verify", "Authorize swap deposit"));
-    expect(commitRoute).not.toHaveBeenCalled();
-    expect(sendSwapDeposit).not.toHaveBeenCalled();
-  });
-
-  it("goes ahead once the lock is satisfied", async () => {
-    withDeviceAuth(true);
     const { sendSwapDeposit } = renderExecute(SwapDirectionEnum.Outbound);
 
     fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
 
     await screen.findByText("Deposit sent");
     expect(sendSwapDeposit).toHaveBeenCalledTimes(1);
-  });
-
-  // An inbound swap is paid from the user’s other wallet: this one signs
-  // nothing, so there is nothing to authorise.
-  it("does not ask for an inbound swap, which spends nothing here", async () => {
-    withDeviceAuth(false);
-    const { commitRoute } = renderExecute(SwapDirectionEnum.Inbound);
-
-    fireEvent.click(screen.getByRole("button", { name: /start the swap/i }));
-
-    await screen.findByText("Pay this deposit");
-    expect(commitRoute).toHaveBeenCalledTimes(1);
     expect(ipcRenderer.invoke).not.toHaveBeenCalledWith("auth:verify", expect.anything());
-  });
-
-  // The retry broadcasts the deposit on its own, without passing the commit
-  // again, so it carries its own ask.
-  it("asks again on the deposit retry", async () => {
-    const deposit = jest.fn().mockRejectedValueOnce(new Error("the Nym mixnet proxy died"));
-    withDeviceAuth(true);
-    renderExecute(SwapDirectionEnum.Outbound, deposit as unknown as jest.Mock);
-    fireEvent.click(screen.getByRole("button", { name: /swap and send deposit/i }));
-
-    fireEvent.click(await screen.findByRole("button", { name: /try the deposit again/i }));
-
-    await waitFor(() =>
-      expect(ipcRenderer.invoke.mock.calls.filter((c: unknown[]) => c[0] === "auth:verify")).toHaveLength(2),
-    );
   });
 });
 
