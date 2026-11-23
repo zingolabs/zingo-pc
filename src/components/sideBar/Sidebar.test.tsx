@@ -256,35 +256,67 @@ describe("Sidebar", () => {
     const answerReveal = (answer: unknown) =>
       mockInvoke.mockImplementation(async (channel: string) => (channel === "secrets:reveal" ? answer : null));
 
-    it("Tests that 'seed' shows the seed and the UFVK when the main process reveals them", async () => {
+    /** Opens the seed modal and renders what it was given, as the app's modal would. */
+    const openSeedModal = async (overrides: any = {}) => {
       const openErrorModal = jest.fn();
-      answerReveal({ revealed: true, seed: "word1 word2 word3", ufvk: "uview1abc" });
-      renderSidebar({ openErrorModal });
+      renderSidebar({ openErrorModal, ...overrides });
       await act(async () => {
         await getListener("seed")?.({});
       });
-      expect(mockInvoke).toHaveBeenCalledWith("secrets:reveal", true);
       expect(openErrorModal).toHaveBeenCalledTimes(1);
       expect(openErrorModal.mock.calls[0][0]).toBe("Wallet Seed Phrase / Viewing Key");
+      cleanup();
+      return render(openErrorModal.mock.calls[0][1]);
+    };
+
+    it("Tests that 'seed' opens the modal with nothing revealed and nothing read", async () => {
+      await openSeedModal();
+      expect(screen.getByRole("button", { name: "Show seed phrase / viewing key" })).toBeInTheDocument();
+      expect(mockInvoke).not.toHaveBeenCalledWith("secrets:reveal", expect.anything());
     });
 
-    it("Tests that 'seed' asks for no seed when the wallet is read-only", async () => {
-      answerReveal({ revealed: true, seed: "", ufvk: "uview1xyz" });
-      renderSidebar({ readOnly: true });
+    it("Tests that the seed and the UFVK show when the person confirms", async () => {
+      answerReveal({ revealed: true, seed: "word1 word2 word3", ufvk: "uview1abc" });
+      await openSeedModal();
       await act(async () => {
-        await getListener("seed")?.({});
+        screen.getByRole("button", { name: "Show seed phrase / viewing key" }).click();
+      });
+      expect(mockInvoke).toHaveBeenCalledWith("secrets:reveal", true);
+      expect(screen.getByText("word1 word2 word3")).toBeInTheDocument();
+      expect(screen.getByText("uview1abc")).toBeInTheDocument();
+    });
+
+    it("Tests that a read-only wallet asks for the viewing key alone", async () => {
+      answerReveal({ revealed: true, seed: "", ufvk: "uview1xyz" });
+      await openSeedModal({ readOnly: true });
+      await act(async () => {
+        screen.getByRole("button", { name: "Show viewing key" }).click();
       });
       expect(mockInvoke).toHaveBeenCalledWith("secrets:reveal", false);
+      expect(screen.getByText("uview1xyz")).toBeInTheDocument();
     });
 
-    it("Tests that 'seed' opens nothing when the person declines", async () => {
-      const openErrorModal = jest.fn();
+    it("Tests that nothing shows when the person declines", async () => {
       answerReveal({ revealed: false });
-      renderSidebar({ openErrorModal });
+      await openSeedModal();
       await act(async () => {
-        await getListener("seed")?.({});
+        screen.getByRole("button", { name: "Show seed phrase / viewing key" }).click();
       });
-      expect(openErrorModal).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Show seed phrase / viewing key" })).toBeInTheDocument();
+      expect(screen.queryByText(/This is your wallet/)).not.toBeInTheDocument();
+    });
+
+    it("Tests that the values are gone when the modal is closed and opened again", async () => {
+      answerReveal({ revealed: true, seed: "word1 word2 word3", ufvk: "uview1abc" });
+      const { unmount } = await openSeedModal();
+      await act(async () => {
+        screen.getByRole("button", { name: "Show seed phrase / viewing key" }).click();
+      });
+      expect(screen.getByText("word1 word2 word3")).toBeInTheDocument();
+      unmount();
+      await openSeedModal();
+      expect(screen.queryByText("word1 word2 word3")).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Show seed phrase / viewing key" })).toBeInTheDocument();
     });
 
     it("'rescan' delegates to doRescan when wallet is loaded", async () => {
