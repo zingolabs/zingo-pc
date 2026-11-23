@@ -421,16 +421,9 @@ const SendConfirmModal: React.FC<SendConfirmModalProps> = ({
     };
   }, [getPrivacyLevel, sendingTotal, recipients]);
 
+  // The device lock is asked by the main process when the transaction is
+  // signed, not here.
   const sendButton = async () => {
-    const allSettings = await window.electronAPI.ipcRenderer.invoke("loadSettings");
-    if (allSettings?.requireDeviceAuth) {
-      const result: { success: boolean } = await window.electronAPI.ipcRenderer.invoke(
-        "auth:verify",
-        "Authorize transaction",
-      );
-      if (!result.success) return;
-    }
-
     // First, close the confirm modal.
     closeModal();
 
