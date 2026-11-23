@@ -76,7 +76,7 @@ const {
 } = require("./mixnetDoctor");
 const { isOpenablePaymentUri } = require("./paymentUri");
 const { SWAP_FILE_SUFFIX, mergeSwapRecords } = require("./swapImport");
-const { deriveRecordKey, isV2, encryptV2, decryptV2 } = require("./swapCrypto");
+const { deriveWalletFingerprint, recordKeyForBucket, isV2, encryptV2, decryptV2 } = require("./swapCrypto");
 const { appOriginFor, isTrustedSender: isTrustedSenderFrom, guardIpcHandle } = require("./ipcSender");
 
 const STORAGE_KEY = "wallets";
@@ -1202,7 +1202,24 @@ function assertSwapEncryption() {
   }
 }
 
-ipcMain.handle("swapStorage:get", async (_e, key, ufvk) => {
+/**
+ * The open wallet's UFVK, read here and kept here: the swap store needs only
+ * its fingerprint (the bucket name) and the key derived from it. "" when no
+ * wallet is open or it cannot be read.
+ */
+async function openWalletUfvk() {
+  try {
+    const raw = await requireNative("get_ufvk").get_ufvk();
+    return raw ? (JSON.parse(raw).ufvk ?? "") : "";
+  } catch (e) {
+    console.log(`swapStorage: could not read the open wallet's UFVK ${e}`);
+    return "";
+  }
+}
+
+ipcMain.handle("wallet:fingerprint", async () => deriveWalletFingerprint(await openWalletUfvk()));
+
+ipcMain.handle("swapStorage:get", async (_e, key) => {
   const file = swapStoragePath(key);
   let stored;
   try {
@@ -1212,7 +1229,7 @@ ipcMain.handle("swapStorage:get", async (_e, key, ufvk) => {
     throw e;
   }
 
-  const recordKey = deriveRecordKey(ufvk);
+  const recordKey = recordKeyForBucket(key, await openWalletUfvk());
 
   if (isV2(stored)) {
     if (!recordKey) throw new Error("swapStorage: this wallet's records need its own key to be read");
@@ -1238,18 +1255,18 @@ ipcMain.handle("swapStorage:get", async (_e, key, ufvk) => {
   return plaintext;
 });
 
-ipcMain.handle("swapStorage:set", async (_e, key, value, ufvk) => {
+ipcMain.handle("swapStorage:set", async (_e, key, value) => {
   const file = swapStoragePath(key);
   await fs.promises.mkdir(path.dirname(file), { recursive: true });
 
-  const recordKey = deriveRecordKey(ufvk);
+  const recordKey = recordKeyForBucket(key, await openWalletUfvk());
   if (recordKey) {
     await fs.promises.writeFile(file, encryptV2(String(value), recordKey));
     return;
   }
 
-  // No wallet key in hand — the delete flow clears another wallet's bucket by
-  // name, without ever opening it. What it writes is an empty array, so the
+  // Not the open wallet's bucket — the delete flow clears one by name, or a
+  // write lands across a wallet switch. What it writes is an empty array, so the
   // installation-bound format costs nothing there.
   assertSwapEncryption();
   await fs.promises.writeFile(file, safeStorage.encryptString(String(value)));
@@ -1482,7 +1499,6 @@ const _NATIVE_NO_PARAM_METHODS = [
   "save_wallet_file",
   "wallet_path",
   "check_save_error",
-  "get_ufvk",
   "get_latest_block_wallet",
   "get_value_transfers",
   "poll_sync",

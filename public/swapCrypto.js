@@ -35,7 +35,7 @@ const TAG_BYTES = 16;
 const KEY_BYTES = 32;
 
 // Fixed, and distinct from anything else derived from a UFVK: the last 16
-// characters of the same UFVK name the file (see walletFingerprint.ts), so the
+// characters of the same UFVK name the file (deriveWalletFingerprint), so the
 // key must not be a function anyone could reach from the name.
 const HKDF_SALT = Buffer.from("zingo-pc/swap-storage", "utf8");
 const HKDF_INFO = Buffer.from("record encryption key v2", "utf8");
@@ -44,6 +44,32 @@ const HKDF_INFO = Buffer.from("record encryption key v2", "utf8");
 function deriveRecordKey(ufvk) {
   if (typeof ufvk !== "string" || ufvk.length === 0) return null;
   return Buffer.from(crypto.hkdfSync("sha256", Buffer.from(ufvk, "utf8"), HKDF_SALT, HKDF_INFO, KEY_BYTES));
+}
+
+/**
+ * Names a wallet's swap bucket: the last 16 characters of its UFVK, the tail
+ * of the bech32 checksum, so distinct wallets get distinct names (~80 bits).
+ * A storage name only, never shown and never an authenticator. "" when the
+ * UFVK is missing or too short, so callers branch on "no fingerprint" rather
+ * than share a prefix with another wallet.
+ */
+const WALLET_FINGERPRINT_LENGTH = 16;
+function deriveWalletFingerprint(ufvk) {
+  if (typeof ufvk !== "string" || ufvk.length < WALLET_FINGERPRINT_LENGTH) return "";
+  return ufvk.slice(-WALLET_FINGERPRINT_LENGTH);
+}
+
+/** Must match `storageKeyFor` in src/swap/SwapStore.ts. */
+const recordsKeyFor = (fingerprint) => `swap:records:${fingerprint}`;
+
+/**
+ * The open wallet's key, for its own bucket only. Any other bucket — one left
+ * bound across a wallet switch, or one the delete flow clears by name — gets
+ * null, so no wallet's records are ever written under another wallet's key.
+ */
+function recordKeyForBucket(storageKey, openWalletUfvk) {
+  const fingerprint = deriveWalletFingerprint(openWalletUfvk);
+  return fingerprint && storageKey === recordsKeyFor(fingerprint) ? deriveRecordKey(openWalletUfvk) : null;
 }
 
 /** Whether a file on disk is one of ours rather than a `safeStorage` blob. */
@@ -69,4 +95,12 @@ function decryptV2(buffer, key) {
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
 }
 
-module.exports = { V2_MAGIC, deriveRecordKey, isV2, encryptV2, decryptV2 };
+module.exports = {
+  V2_MAGIC,
+  deriveRecordKey,
+  deriveWalletFingerprint,
+  recordKeyForBucket,
+  isV2,
+  encryptV2,
+  decryptV2,
+};

@@ -9,7 +9,6 @@ const _ALL_NATIVE_METHODS = [
   // async, no params
   "save_wallet_file",
   "check_save_error",
-  "get_ufvk",
   "get_latest_block_wallet",
   "get_value_transfers",
   "poll_sync",
@@ -138,6 +137,7 @@ const ALLOWED_INVOKE = new Set([
   "camera:request-access",
   "auth:verify",
   "secrets:reveal",
+  "wallet:fingerprint",
   "power:keep-awake",
   "wallet-dir:request",
   "fs:existsSync",

@@ -10,9 +10,8 @@ import type { SyncAllRun } from "../../syncAll";
 // forgot to unsubscribe would otherwise pass here and leak in the app.
 const mockOn = jest.fn((_channel: string, _listener: (...args: any[]) => void) => jest.fn());
 const mockInvoke = jest.fn();
-const mockGetUfvk = jest.fn();
 jest.mock("../../electronBridge", () => ({
-  native: { get_ufvk: mockGetUfvk },
+  native: {},
   ipcRenderer: { on: mockOn, invoke: mockInvoke, send: jest.fn() },
   clipboard: { writeText: jest.fn() },
   shell: { openExternal: jest.fn() },

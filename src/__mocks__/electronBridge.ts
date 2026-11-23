@@ -1,6 +1,5 @@
 export const native = {
   parse_address: jest.fn(),
-  get_ufvk: jest.fn(),
   // LoadingScreen
   wallet_exists: jest.fn(),
   locate_wallet: jest.fn(),

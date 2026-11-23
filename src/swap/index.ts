@@ -47,8 +47,7 @@ export type { SwapKitQuoteParams, SwapKitSwapParams, SwapKitTrackParams } from "
 export { SwapStore } from "./SwapStore";
 export { groupHistoryBySwap, sliceKeepingGroups, swapGroupOf, swapTxidIndex } from "./groupHistoryBySwap";
 export type { SwapStoreChangeListener } from "./SwapStore";
-export { deriveWalletFingerprint } from "./walletFingerprint";
-export { readCurrentWalletFingerprint, readCurrentWalletKeys } from "./currentWalletFingerprint";
+export { readCurrentWalletFingerprint } from "./currentWalletFingerprint";
 export { swapRecordToValueTransfer, isOutboundSwap } from "./swapRecordToValueTransfer";
 export { formatAmountForDisplay, formatMinimumAmount } from "./formatAmountForDisplay";
 export { swapRowLabel } from "./swapRowLabel";
