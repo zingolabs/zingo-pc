@@ -230,8 +230,10 @@ yarn release:prep 2.0.15 142
   deshield
 - A deposit whose first transaction went out and second did not is finished by Try Again, without
   deshielding a second time
-- A Maya purchase lands shielded when its memo can carry a unified address, and a Maya sale's refund
-  comes back shielded
+- A Maya purchase lands shielded, in Sapling, when its memo can carry a unified address, and a Maya
+  sale's refund comes back shielded
+- A NEAR purchase lands shielded, in Ironwood, from any chain, and a NEAR sale's refund goes to a new
+  unified address
 - An expired purchase is still watched for a late payment: Maya and THORChain swap it if the price holds
   and refund it if it moved; on other providers it is refunded rather than lost
 - The addresses made for swaps have their own tab in Receive, Unified for Swaps
