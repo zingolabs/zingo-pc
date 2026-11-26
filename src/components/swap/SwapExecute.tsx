@@ -309,12 +309,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
     // is the freshness of the next one, which is not worth failing a swap the
     // user has just committed to.
     const claimedByDeposit: boolean = isOutbound && depositSpendsSourceAddress(depositRequest(committed.instructions));
-    // A purchase Maya pays to a unified address never names it.
-    const named = orderNamesEphemeral({
-      isOutbound,
-      quotedDestination: quoteInput.destinationAddress,
-      orderedDestination: committed.record.destinationAddress,
-    });
+    const named = orderNamesEphemeral({ isOutbound, quoted: quoteInput, ordered: committed.ordered });
     if (named && !claimedByDeposit) {
       try {
         await native.reserve_refund_address();

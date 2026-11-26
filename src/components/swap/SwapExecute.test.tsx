@@ -90,8 +90,10 @@ const renderExecute = (
 ) => {
   const commitRoute = jest.fn(async () => {
     if (commitFailure) throw commitFailure;
+    const { sourceAddress, destinationAddress } = quoteInput(direction);
     return {
       record: record(direction),
+      ordered: { sourceAddress, destinationAddress },
       instructions: {
         provider: SwapKitProviderEnum.Near,
         depositAddress: direction === SwapDirectionEnum.Outbound ? "near1deposit" : "bc1qdeposit",

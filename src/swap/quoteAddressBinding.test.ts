@@ -6,24 +6,41 @@ describe("quoteAddressPair", () => {
   // Outbound sells ZEC, so the wallet's own address is where a refund returns
   // and the user's is where the bought asset lands.
   it("puts the wallet address on the source side when selling ZEC", () => {
-    expect(quoteAddressPair({ isOutbound: true, ephemeralAddress: EPHEMERAL, boundAddress: "zingolabs.near" })).toEqual(
-      {
-        sourceAddress: EPHEMERAL,
-        destinationAddress: "zingolabs.near",
-      },
-    );
+    expect(
+      quoteAddressPair({
+        isOutbound: true,
+        ephemeralAddress: EPHEMERAL,
+        boundAddress: "zingolabs.near",
+      }),
+    ).toEqual({
+      sourceAddress: EPHEMERAL,
+      destinationAddress: "zingolabs.near",
+    });
   });
 
   it("mirrors the pair when buying ZEC", () => {
     expect(
-      quoteAddressPair({ isOutbound: false, ephemeralAddress: EPHEMERAL, boundAddress: "zingolabs.near" }),
-    ).toEqual({ sourceAddress: "zingolabs.near", destinationAddress: EPHEMERAL });
+      quoteAddressPair({
+        isOutbound: false,
+        ephemeralAddress: EPHEMERAL,
+        boundAddress: "zingolabs.near",
+      }),
+    ).toEqual({
+      sourceAddress: "zingolabs.near",
+      destinationAddress: EPHEMERAL,
+    });
   });
 
   // The counterparty address is blank until the user has typed a valid one,
   // which is what lets a quote happen while they are still typing it.
   it("leaves the counterparty side blank when there is no address yet", () => {
-    expect(quoteAddressPair({ isOutbound: true, ephemeralAddress: EPHEMERAL, boundAddress: "" })).toEqual({
+    expect(
+      quoteAddressPair({
+        isOutbound: true,
+        ephemeralAddress: EPHEMERAL,
+        boundAddress: "",
+      }),
+    ).toEqual({
       sourceAddress: EPHEMERAL,
       destinationAddress: "",
     });
@@ -31,17 +48,32 @@ describe("quoteAddressPair", () => {
 });
 
 describe("quoteBindsAddress", () => {
-  const quoted = { sourceAddress: EPHEMERAL, destinationAddress: "zingolabs.near" };
+  const quoted = {
+    sourceAddress: EPHEMERAL,
+    destinationAddress: "zingolabs.near",
+  };
 
   it("accepts a quote taken for the address on screen", () => {
-    expect(quoteBindsAddress({ quoted, isOutbound: true, boundAddress: "zingolabs.near" })).toBe(true);
+    expect(
+      quoteBindsAddress({
+        quoted,
+        isOutbound: true,
+        boundAddress: "zingolabs.near",
+      }),
+    ).toBe(true);
   });
 
   // The state right after the user edits the address: the routes still on
   // screen were built for the previous one, and committing one of them asks
   // the provider to honour a route it built to pay somewhere else.
   it("rejects a quote taken for a different address", () => {
-    expect(quoteBindsAddress({ quoted, isOutbound: true, boundAddress: "someone-else.near" })).toBe(false);
+    expect(
+      quoteBindsAddress({
+        quoted,
+        isOutbound: true,
+        boundAddress: "someone-else.near",
+      }),
+    ).toBe(false);
   });
 
   // A route quoted blank is the one that cannot be committed at all: the
@@ -62,45 +94,73 @@ describe("quoteBindsAddress", () => {
   });
 
   it("has no quote to judge before the first one lands", () => {
-    expect(quoteBindsAddress({ quoted: null, isOutbound: true, boundAddress: "zingolabs.near" })).toBe(false);
+    expect(
+      quoteBindsAddress({
+        quoted: null,
+        isOutbound: true,
+        boundAddress: "zingolabs.near",
+      }),
+    ).toBe(false);
   });
 
   // Inbound reads the other side of the pair: the user's address is where a
   // refund goes, not where the swap lands.
   it("reads the source side when buying ZEC", () => {
-    const inbound = { sourceAddress: "zingolabs.near", destinationAddress: EPHEMERAL };
-    expect(quoteBindsAddress({ quoted: inbound, isOutbound: false, boundAddress: "zingolabs.near" })).toBe(true);
-    expect(quoteBindsAddress({ quoted: inbound, isOutbound: true, boundAddress: "zingolabs.near" })).toBe(false);
+    const inbound = {
+      sourceAddress: "zingolabs.near",
+      destinationAddress: EPHEMERAL,
+    };
+    expect(
+      quoteBindsAddress({
+        quoted: inbound,
+        isOutbound: false,
+        boundAddress: "zingolabs.near",
+      }),
+    ).toBe(true);
+    expect(
+      quoteBindsAddress({
+        quoted: inbound,
+        isOutbound: true,
+        boundAddress: "zingolabs.near",
+      }),
+    ).toBe(false);
   });
 });
 
 describe("orderNamesEphemeral", () => {
-  it("Tests that a sale uses the wallet address whatever it ordered", () => {
+  const sale = { sourceAddress: EPHEMERAL, destinationAddress: "bc1quser" };
+  const purchase = { sourceAddress: "bc1quser", destinationAddress: EPHEMERAL };
+
+  it("Tests that a sale uses the wallet address when the order kept the quoted source", () => {
+    expect(orderNamesEphemeral({ isOutbound: true, quoted: sale, ordered: sale })).toBe(true);
+  });
+
+  it("Tests that a sale leaves it free when NEAR refunds to a unified address", () => {
     expect(
       orderNamesEphemeral({
         isOutbound: true,
-        quotedDestination: "bc1quser",
-        orderedDestination: "bc1quser",
+        quoted: sale,
+        ordered: { ...sale, sourceAddress: "u1refund" },
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("Tests that a purchase uses it when the order kept the quoted destination", () => {
     expect(
       orderNamesEphemeral({
         isOutbound: false,
-        quotedDestination: EPHEMERAL,
-        orderedDestination: EPHEMERAL,
+        quoted: purchase,
+        ordered: purchase,
       }),
     ).toBe(true);
   });
 
-  it("Tests that a purchase leaves it free when Maya pays a unified address", () => {
+  it("Tests that a purchase leaves it free when the order pays a unified address", () => {
     expect(
       orderNamesEphemeral({
         isOutbound: false,
-        quotedDestination: EPHEMERAL,
-        orderedDestination: "u1shielded",
+        quoted: purchase,
+        ordered: { ...purchase, destinationAddress: "u1shielded" },
       }),
     ).toBe(false);
   });
