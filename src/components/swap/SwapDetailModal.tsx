@@ -34,6 +34,7 @@ import {
   SwapStatusEnum,
   providerLongLabel,
   swapRowLabel,
+  shieldedPool,
   swapAddressOf,
 } from "../../swap";
 import type { SwapRecordType, TrackerEntryType } from "../../swap";
@@ -567,7 +568,9 @@ const SwapDetailModal: React.FC<SwapDetailModalProps> = ({
               value={record.destinationAddress}
             />
             {!isOutbound && !!swapAddressOf(record) && record.status === SwapStatusEnum.Completed && (
-              <div className={`${cstyles.sublight} ${cstyles.small}`}>It arrived shielded, in Sapling.</div>
+              <div className={`${cstyles.sublight} ${cstyles.small}`}>
+                It arrived shielded, in {shieldedPool(record.provider)}.
+              </div>
             )}
             {!!record.refundAddress && <CopyField label="Refund address (ZEC)" value={record.refundAddress} />}
           </div>

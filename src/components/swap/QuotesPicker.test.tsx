@@ -160,7 +160,7 @@ describe("QuotesPicker shielded routes", () => {
   it("Tests that only the route landing shielded is marked shielded, with the note under the list", () => {
     showShielded("purchase");
     expect(screen.getAllByText("Shielded")).toHaveLength(1);
-    expect(screen.getByText("Maya can send your ZEC to a new shielded address.")).toBeInTheDocument();
+    expect(screen.getByText("Routes marked Shielded send your ZEC to a new shielded address.")).toBeInTheDocument();
   });
 
   it("Tests that the note says no route is shielded when the coin paid with cannot carry it", () => {

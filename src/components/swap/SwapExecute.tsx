@@ -26,6 +26,8 @@ import {
   isTokenAsset,
   providerRequiresMemo,
   sentPaymentsFrom,
+  ordersShieldedRefund,
+  shieldedPool,
   swapAddressOf,
   swapAddressTag,
 } from "../../swap";
@@ -96,7 +98,7 @@ type SwapExecuteProps = {
   /** The address book's name for the address the user gave: the destination
    *  of a sale, the refund address of a purchase. */
   contactLabel?: string;
-  /** Tags the new shielded address a Maya swap makes, as any tag. */
+  /** Tags the new shielded address a swap makes, as any tag. */
   addAddressBookEntry?: (label: string, address: string, chain: ServerChainNameEnum, swapChain?: string) => void;
 };
 
@@ -519,8 +521,8 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
             {isOutbound && shieldedRoute && <Field label="If refunded, to" value="A new shielded address" />}
           </FieldRow>
 
-          {/* The swap's ZEC side lands shielded: Maya pays a purchase to a new
-              unified address, or refunds a sale to one. */}
+          {/* The swap's ZEC side lands shielded: a purchase paid to a new
+              unified address, or a sale refunded to one. */}
           {shieldedRoute && (
             <div
               className={cstyles.padtopsmall}
@@ -528,7 +530,11 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
             >
               <div style={{ fontWeight: "bold" }}>{isOutbound ? "Shielded refund" : "Receive shielded"}</div>
               <div className={`${cstyles.sublight} ${cstyles.small}`}>
-                {isOutbound ? "New address. Refunds go to Sapling." : "New address. Arrives in Sapling."}
+                {isOutbound
+                  ? ordersShieldedRefund({ provider: route.provider, direction })
+                    ? "New address. Refunds come back shielded."
+                    : "New address. Refunds go to Sapling."
+                  : `New address. Arrives in ${shieldedPool(route.provider)}.`}
               </div>
             </div>
           )}
