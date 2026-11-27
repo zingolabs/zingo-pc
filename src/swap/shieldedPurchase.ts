@@ -23,9 +23,20 @@ export function paysPurchaseShielded(args: {
   );
 }
 
-/** Whether a sale's order names a new unified address for the refund. */
-export function ordersShieldedRefund(args: { provider: SwapKitProviderEnum; direction: SwapDirectionEnum }): boolean {
-  return args.direction === SwapDirectionEnum.Outbound && args.provider === SwapKitProviderEnum.Near;
+/**
+ * Whether a sale's order names a new unified address for the refund. NEAR
+ * takes one always. Maya takes one while mayanode has the shielded memo on.
+ */
+export function ordersShieldedRefund(args: {
+  provider: SwapKitProviderEnum;
+  direction: SwapDirectionEnum;
+  shieldedMemoOn: boolean;
+}): boolean {
+  return (
+    args.direction === SwapDirectionEnum.Outbound &&
+    (args.provider === SwapKitProviderEnum.Near ||
+      (args.provider === SwapKitProviderEnum.MayachainStreaming && args.shieldedMemoOn))
+  );
 }
 
 /**
@@ -39,9 +50,7 @@ export function routeIsShielded(args: {
   sellChain: string;
   shieldedMemoOn: boolean;
 }): boolean {
-  return args.direction === SwapDirectionEnum.Inbound
-    ? paysPurchaseShielded(args)
-    : ordersShieldedRefund(args) || (args.provider === SwapKitProviderEnum.MayachainStreaming && args.shieldedMemoOn);
+  return args.direction === SwapDirectionEnum.Inbound ? paysPurchaseShielded(args) : ordersShieldedRefund(args);
 }
 
 /** The pool a provider pays a unified address in: NEAR pays Orchard, now Ironwood, and Maya pays Sapling. */
