@@ -26,7 +26,6 @@ import {
   isTokenAsset,
   providerRequiresMemo,
   sentPaymentsFrom,
-  ordersShieldedRefund,
   shieldedPool,
   swapAddressOf,
   swapAddressTag,
@@ -531,9 +530,7 @@ const SwapExecute: React.FC<SwapExecuteProps> = ({
               <div style={{ fontWeight: "bold" }}>{isOutbound ? "Shielded refund" : "Receive shielded"}</div>
               <div className={`${cstyles.sublight} ${cstyles.small}`}>
                 {isOutbound
-                  ? ordersShieldedRefund({ provider: route.provider, direction })
-                    ? "New address. Refunds come back shielded."
-                    : "New address. Refunds go to Sapling."
+                  ? "New address. Refunds come back shielded."
                   : `New address. Arrives in ${shieldedPool(route.provider)}.`}
               </div>
             </div>
