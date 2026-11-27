@@ -222,6 +222,8 @@ yarn release:prep 2.0.15 142
   memo travels only through the router contract, which no wallet's Send calls, and a plain token transfer
   to their vault is neither seen nor refunded. Those routes are listed as unavailable, with the reason;
   paying with a chain's own coin (BTC, ETH…) keeps them
+- Buying ZEC through NEAR for less than $300 first warns that NEAR refunds no mistake (wrong coin, wrong
+  network) under that line. The warning can be hidden for good
 - The address field reads a QR code (image, screenshot or camera), for the chain on screen only, and checks
   each chain's format: an uppercase bech32 address from a QR is accepted, and a NEAR name that could be
   another chain's address asks for confirmation
