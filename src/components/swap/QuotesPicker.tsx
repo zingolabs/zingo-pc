@@ -219,8 +219,8 @@ const QuotesPicker: React.FC<QuotesPickerProps> = ({
               {shieldedNote === "none"
                 ? `With ${payCoin}, every route uses a transparent address.`
                 : shieldedNote === "refund"
-                  ? "Maya can refund to a new shielded address."
-                  : "Maya can send your ZEC to a new shielded address."}
+                  ? "Routes marked Shielded refund to a new shielded address."
+                  : "Routes marked Shielded send your ZEC to a new shielded address."}
             </div>
           )}
         </div>
