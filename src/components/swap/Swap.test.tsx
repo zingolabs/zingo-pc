@@ -43,6 +43,11 @@ beforeAll(() => {
   require("react-modal").setAppElement("#root");
 });
 
+beforeEach(() => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require("../../electronBridge").ipcRenderer.invoke = jest.fn(async () => ({}));
+});
+
 afterEach(() => {
   mockService = null;
 });
@@ -375,7 +380,7 @@ describe("Swap with no route", () => {
 // Almost any lowercase string is a valid NEAR name, so one that could be
 // another chain's address is confirmed before the swap is reviewed.
 describe("Swap to a NEAR name that could be something else", () => {
-  const review = async (address: string, openConfirmModal: jest.Mock) => {
+  const review = async (address: string, openConfirmModal: jest.Mock, nearUsd = 0) => {
     const catalog = [asset("NEAR", "NEAR", "near"), ...CATALOG];
     const listRoutableTokens = jest.fn(async () => catalog);
     const quote = jest.fn(async () => ({
@@ -389,7 +394,7 @@ describe("Swap to a NEAR name that could be something else", () => {
         },
       ],
       unavailable: [],
-      rawResponse: { routes: [] },
+      rawResponse: { routes: [], assets: [{ asset: "NEAR.NEAR", price: nearUsd }] },
     }));
     mockService = { usdPrice: async () => null, listRoutableTokens, quote };
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -442,11 +447,37 @@ describe("Swap to a NEAR name that could be something else", () => {
     const openConfirmModal = jest.fn();
     await review("aurora", openConfirmModal);
 
-    expect(openConfirmModal).toHaveBeenCalledWith(
-      "Review swap",
-      expect.stringContaining("Confirm this is a NEAR account: aurora"),
-      expect.any(Function),
-    );
+    expect(openConfirmModal).toHaveBeenCalledWith("Review swap", expect.anything(), expect.any(Function));
+    render(openConfirmModal.mock.calls[0][1]);
+    expect(screen.getByText(/Confirm this is a NEAR account/)).toHaveTextContent("aurora");
+  });
+
+  it("Tests that NEAR's no-refunds warning comes before the review when the purchase is under $300. Its checkbox hides it from then on.", async () => {
+    const openConfirmModal = jest.fn();
+    await review("alice.tg", openConfirmModal, 2);
+
+    expect(openConfirmModal).toHaveBeenCalledWith("No refunds under $300", expect.anything(), expect.any(Function));
+    render(openConfirmModal.mock.calls[0][1]);
+    expect(screen.getByText(/NEAR doesn’t refund mistakes/)).toBeInTheDocument();
+    expect(screen.queryByText(/Confirm this is a NEAR account/)).toBeNull();
+
+    fireEvent.click(screen.getByTestId("swap.near-small.dont-show"));
+    await act(async () => {
+      openConfirmModal.mock.calls[0][2]();
+    });
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { ipcRenderer } = require("../../electronBridge");
+    expect(ipcRenderer.invoke).toHaveBeenCalledWith("saveSettings", {
+      key: "swap_near_small_warning_hidden",
+      value: true,
+    });
+  });
+
+  it("Tests that NEAR's no-refunds warning stays away when the purchase is worth $300 or more", async () => {
+    const openConfirmModal = jest.fn();
+    await review("alice.tg", openConfirmModal, 300);
+
+    expect(openConfirmModal).not.toHaveBeenCalled();
   });
 
   it("does not ask for a name that can only be NEAR", async () => {

@@ -35,6 +35,7 @@ import {
   parseAmountInput,
   toDottedDecimal,
   nearAccountNeedsConfirm,
+  nearRefusesSmallRefunds,
   zecNetworkFeeReserve,
 } from "../../swap";
 import type {
@@ -48,6 +49,8 @@ import { ZEC_ASSET, isQuotableToken, isZecWrapper, tokenToSwapAsset } from "./sw
 import { DESTINATION_ADDRESS_WARNING, REFUND_ADDRESS_WARNING } from "./addressWarnings";
 import { pickChainAsset } from "./pickChainAsset";
 import SwapExecute from "./SwapExecute";
+import ReviewWarnings from "./ReviewWarnings";
+import { useNearSmallWarningHide } from "./useNearSmallWarningHide";
 import AssetPair from "./AssetPair";
 import { chainDisplayName } from "./chainDisplayName";
 import QuoteRefreshRing from "./QuoteRefreshRing";
@@ -487,6 +490,7 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
         `Confirm this is a NEAR account: ${canonicalAddress}`,
       onConfirm,
     );
+  const nearWarning = useNearSmallWarningHide();
 
   const amountNumber = parseAmountInput(amount);
   const amountValid = Number.isFinite(amountNumber) && amountNumber > 0;
@@ -1304,11 +1308,37 @@ const Swap: React.FC<SwapProps> = ({ sendSwapDeposit, resumeSwapDeposit, addAddr
                       quoteInput: quoteContext.quoteInput,
                       fiatValueBasis: quoteContext.fiatValueBasis,
                     };
-                    if (nearNeedsConfirm && !activeAddressSaved) {
-                      confirmNearAccount("Review swap", () => setReviewed(review));
-                    } else {
+                    const askAccount = nearNeedsConfirm && !activeAddressSaved;
+                    // Buying ZEC through NEAR under its no-refunds line: the
+                    // warning comes first, until the user asks not to see it.
+                    const smallPurchase =
+                      !nearWarning.hidden &&
+                      nearRefusesSmallRefunds({
+                        provider: chosenRoute.provider,
+                        direction,
+                        sellUsd:
+                          Number(quoteContext.quoteInput.sellAmountHumanDecimal) *
+                          quoteContext.fiatValueBasis.sellUsdUnitPrice,
+                      });
+                    if (!askAccount && !smallPurchase) {
                       setReviewed(review);
+                      return;
                     }
+                    const dontShow = { current: false };
+                    openConfirmModal(
+                      smallPurchase ? "No refunds under $300" : "Review swap",
+                      <ReviewWarnings
+                        nearAccount={askAccount ? canonicalAddress : undefined}
+                        smallPurchase={smallPurchase}
+                        onDontShowAgain={(checked) => {
+                          dontShow.current = checked;
+                        }}
+                      />,
+                      () => {
+                        if (dontShow.current) nearWarning.setHidden(true);
+                        setReviewed(review);
+                      },
+                    );
                   }}
                 >
                   Review
