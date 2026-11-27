@@ -188,10 +188,13 @@ if (process.argv.includes("--clean")) {
   }
 }
 
+// The proc-macro dylibs build unstripped: the strip leaves the string table of
+// libsqlx_macros 4-byte aligned, and dyld on macOS 27 refuses to load it.
 const built = targets.map((target) => {
   console.log(`stage-nym-proxy: building nym-proxy for ${target}`);
   execSync(`cargo build --release --bin nym-proxy --features nym --target ${target} --manifest-path "${manifest}"`, {
     stdio: "inherit",
+    env: { ...process.env, CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_STRIP: "false" },
   });
   return path.join(targetDir, target, "release", binName);
 });
