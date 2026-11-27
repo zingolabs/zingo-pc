@@ -16,7 +16,7 @@ import { fetchMayaShieldedMemoTarget, shieldedMemoAddressFromSwap } from "./maya
 import { SwapStatusEnum, isTerminalStatus } from "./enums/SwapStatusEnum";
 import { SwapKitError } from "./errors";
 import type { SwapResponseType } from "./types/SwapResponseType";
-import { isMemoTooLong, ordersShieldedRefund, paysPurchaseShielded } from "./shieldedPurchase";
+import { ordersShieldedRefund, paysPurchaseShielded, refusesUnifiedAddress } from "./shieldedPurchase";
 import { awaitsPayout, claimPayout } from "./payoutNotes";
 import type { PayoutNoteType } from "./payoutNotes";
 import { awaitsRefund, claimRefund, paidIn } from "./refundNotes";
@@ -361,9 +361,10 @@ export class SwapService {
 
   /**
    * Builds the order. A purchase that can land shielded goes to a new unified
-   * address, and a sale that can refund shielded names one for the refund. The route quoted with
-   * the transparent address takes it at `/v3/swap`. Where Maya's memo would
-   * not fit, or no address could be made, the order keeps the quoted pair.
+   * address, and a sale that can refund shielded names one for the refund.
+   * The route quoted with the transparent address takes it at `/v3/swap`.
+   * Where SwapKit refuses it, or no address could be made, the order keeps
+   * the quoted pair.
    */
   private async order(
     args: CommitRouteArgs,
@@ -404,7 +405,7 @@ export class SwapService {
     try {
       return await send(purchase ? { ...quoted, destinationAddress: unified } : { ...quoted, sourceAddress: unified });
     } catch (error) {
-      if (!isMemoTooLong(error)) throw error;
+      if (!refusesUnifiedAddress(error)) throw error;
     }
     return send(quoted);
   }
