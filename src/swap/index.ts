@@ -164,3 +164,4 @@ export { fetchMayaShieldedMemoTarget } from "./mayaShieldedMemo";
 export { swapAddressTag, swapPair, swapWhen } from "./swapAddressTag";
 export { inputUsd, settledCostFrom, settledFeesUsd, settledUnitPrices } from "./settledCost";
 export type { SettledCostType } from "./types/SettledCostType";
+export { NEAR_NO_REFUND_USD, nearRefusesSmallRefunds } from "./nearSmallSwap";
