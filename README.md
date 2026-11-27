@@ -212,7 +212,8 @@ yarn release:prep 2.0.15 142
 
 - Swap ZEC to and from assets on other chains through SwapKit (NEAR Intents, Maya, THORChain and Flashnet)
 - Routes compared by cost against the market rate, with the slippage tolerance chosen and the slippage realised
-- Swap status and history, with links to each chain's explorer and refund tracking
+- Swap status and history, with links to each chain's explorer and refund tracking. A completed swap
+  shows the value sent and the fees charged, and Swap More starts a new one the same way
 - When no route is offered, each provider's own reason is given (a minimum to reach, a provider that
   cannot price the pair right now), and a route already quoted is kept while it is still valid
 - A provider that refuses to start a swap it has just quoted is set aside, with its reason, until the
@@ -236,6 +237,7 @@ yarn release:prep 2.0.15 142
   sale's refund comes back shielded
 - A NEAR purchase lands shielded, in Ironwood, from any chain, and a NEAR sale's refund goes to a new
   unified address
+- When SwapKit refuses the unified address, the swap goes ahead with the transparent one
 - An expired purchase is still watched for a late payment: Maya and THORChain swap it if the price holds
   and refund it if it moved; on other providers it is refunded rather than lost
 - The addresses made for swaps have their own tab in Receive, Unified for Swaps
@@ -275,7 +277,8 @@ yarn release:prep 2.0.15 142
 **Block explorers**
 
 - User-selectable per-network explorer for transactions and addresses
-  (Zcashexplorer, ZecBlock, Zexplorer, or a custom URL)
+  (Zcashexplorer, ZecBlock, ZecBlock Private, ShieldedScan, Zexplorer, or a custom URL). ZecBlock Private
+  looks a transaction up inside the browser page, on Mainnet only. On Testnet it opens ZecBlock
 
 **Security**
 
