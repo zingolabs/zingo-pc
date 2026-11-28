@@ -1,3 +1,4 @@
+import { sameAsset } from "./sameAsset";
 import { DEPOSIT_WAIT_MS } from "./depositDeadline";
 import { isTokenAsset } from "./depositGuidance";
 import { ChainNameEnum } from "./enums/ChainNameEnum";
@@ -814,15 +815,15 @@ function toRouteOption(
       : undefined;
 
   const convertToReceive = (amount: number, asset: string | undefined): number => {
-    if (asset === receiveAssetId) return amount;
-    if (asset === sellAssetId && receivePerSellRate !== undefined) {
+    if (sameAsset(asset, receiveAssetId)) return amount;
+    if (sameAsset(asset, sellAssetId) && receivePerSellRate !== undefined) {
       return amount * receivePerSellRate;
     }
     return 0;
   };
   const convertToSell = (amount: number, asset: string | undefined): number => {
-    if (asset === sellAssetId) return amount;
-    if (asset === receiveAssetId && receivePerSellRate !== undefined && receivePerSellRate > 0) {
+    if (sameAsset(asset, sellAssetId)) return amount;
+    if (sameAsset(asset, receiveAssetId) && receivePerSellRate !== undefined && receivePerSellRate > 0) {
       return amount / receivePerSellRate;
     }
     return 0;

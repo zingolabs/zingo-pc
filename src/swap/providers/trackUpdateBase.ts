@@ -3,6 +3,7 @@ import { SwapRecordType } from "../types/SwapRecordType";
 import { TrackResponseType } from "../types/TrackResponseType";
 import { mapSwapStatus, mapTrackingStatus } from "./statusMapping";
 import { settledCostFrom } from "../settledCost";
+import { sameAsset } from "../sameAsset";
 import { hasDepositEvidence } from "../depositEvidence";
 
 /**
@@ -87,7 +88,7 @@ export function applyDefaultTrackUpdate(record: SwapRecordType, response: TrackR
   // answers 0 ETH while the deposit sits in the mempool. Either way the
   // previous value stands, and a record with none falls back to the
   // quote-time estimate in `swapRecordToValueTransfer`.
-  const toAssetMatches = typeof response.toAsset === "string" && response.toAsset === record.receiveAsset.swapKitId;
+  const toAssetMatches = sameAsset(response.toAsset, record.receiveAsset.swapKitId);
   const reportedPayout = typeof response.toAmount === "string" ? Number(response.toAmount) : NaN;
   const actualReceiveAmount = toAssetMatches && reportedPayout > 0 ? response.toAmount : record.actualReceiveAmount;
 
