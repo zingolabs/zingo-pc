@@ -1,3 +1,4 @@
+import { sameAsset } from "./sameAsset";
 import type { FiatValueBasisType } from "./types/FiatValueBasisType";
 
 /**
@@ -35,24 +36,22 @@ export function convertFeeToAsset(args: {
   const safeAmount = Number.isFinite(amount) ? amount : 0;
   const sourceAssetId = fee.asset ?? "";
 
-  if (sourceAssetId === targetAssetId) {
+  if (sameAsset(sourceAssetId, targetAssetId)) {
     return { kind: "identity", amountInTarget: safeAmount };
   }
 
   // Bridge through USD. Only works when both the fee's own asset and the
   // target asset have a price in `fiatBasis`.
-  const sourcePriceUsd =
-    sourceAssetId === sellAssetId
-      ? fiatBasis?.sellUsdUnitPrice
-      : sourceAssetId === receiveAssetId
-        ? fiatBasis?.receiveUsdUnitPrice
-        : undefined;
-  const targetPriceUsd =
-    targetAssetId === sellAssetId
-      ? fiatBasis?.sellUsdUnitPrice
-      : targetAssetId === receiveAssetId
-        ? fiatBasis?.receiveUsdUnitPrice
-        : undefined;
+  const sourcePriceUsd = sameAsset(sourceAssetId, sellAssetId)
+    ? fiatBasis?.sellUsdUnitPrice
+    : sameAsset(sourceAssetId, receiveAssetId)
+      ? fiatBasis?.receiveUsdUnitPrice
+      : undefined;
+  const targetPriceUsd = sameAsset(targetAssetId, sellAssetId)
+    ? fiatBasis?.sellUsdUnitPrice
+    : sameAsset(targetAssetId, receiveAssetId)
+      ? fiatBasis?.receiveUsdUnitPrice
+      : undefined;
   if (sourcePriceUsd !== undefined && sourcePriceUsd > 0 && targetPriceUsd !== undefined && targetPriceUsd > 0) {
     return {
       kind: "converted",
